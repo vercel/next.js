@@ -442,6 +442,16 @@ type ServerActionsConfig = {
   allowedOrigins?: string[]
 }
 
+type HandleActionResult =
+  | {
+      type: 'not-found'
+    }
+  | {
+      type: 'done'
+      result: RenderResult | undefined
+      formState?: any
+    }
+
 export async function handleAction({
   req,
   res,
@@ -462,17 +472,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
-}): Promise<
-  | undefined
-  | {
-      type: 'not-found'
-    }
-  | {
-      type: 'done'
-      result: RenderResult | undefined
-      formState?: any
-    }
-> {
+}): Promise<undefined | HandleActionResult> {
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
 
@@ -629,232 +629,248 @@ export async function handleAction({
   }
 
   try {
-    await actionAsyncStorage.run({ isAction: true }, async () => {
-      if (!isMultipartAction) {
-        // We only support multipart form actions. Jump to the catch handler, which will send a 500.
-        // TODO: maybe do a 400 instead?
-        throw new Error(
-          'Server actions must use the multipart/form-data content-type'
-        )
-      }
-      if (
-        // The type check here ensures that `req` is correctly typed, and the
-        // environment variable check provides dead code elimination.
-        process.env.NEXT_RUNTIME === 'edge' &&
-        isWebNextRequest(req)
-      ) {
-        if (!req.body) {
-          throw new Error('invariant: Missing request body.')
-        }
-
-        // TODO: add body limit
-
-        // Use react-server-dom-webpack/server.edge
-        const {
-          createTemporaryReferenceSet,
-          decodeReply,
-          decodeAction,
-          decodeFormState,
-        } = ComponentMod
-
-        temporaryReferences = createTemporaryReferenceSet()
-
-        // TODO-APP: Add streaming support
-        const formData = await req.request.formData()
-        if (isFetchAction) {
-          boundActionArguments = await decodeReply(formData, serverModuleMap, {
-            temporaryReferences,
-          })
-        } else {
-          const action = await decodeAction(formData, serverModuleMap)
-          if (typeof action === 'function') {
-            // Only warn if it's a server action, otherwise skip for other post requests
-            warnBadServerActionRequest()
-
-            const actionReturnedState = await workUnitAsyncStorage.run(
-              requestStore,
-              action
-            )
-
-            formState = await decodeFormState(
-              actionReturnedState,
-              formData,
-              serverModuleMap
-            )
-
-            requestStore.phase = 'render'
-          }
-
-          // Skip the fetch path
-          return
-        }
-      } else if (
-        // The type check here ensures that `req` is correctly typed, and the
-        // environment variable check provides dead code elimination.
-        process.env.NEXT_RUNTIME !== 'edge' &&
-        isNodeNextRequest(req)
-      ) {
-        // Use react-server-dom-webpack/server.node which supports streaming
-        const {
-          createTemporaryReferenceSet,
-          decodeReplyFromBusboy,
-          decodeAction,
-          decodeFormState,
-        } = require(
-          `./react-server.node`
-        ) as typeof import('./react-server.node')
-
-        temporaryReferences = createTemporaryReferenceSet()
-
-        const { Transform } =
-          require('node:stream') as typeof import('node:stream')
-
-        const defaultBodySizeLimit = '1 MB'
-        const bodySizeLimit =
-          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-        const bodySizeLimitBytes =
-          bodySizeLimit !== defaultBodySizeLimit
-            ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
-              ).parse(bodySizeLimit)
-            : 1024 * 1024 // 1 MB
-
-        let size = 0
-        const body = req.body.pipe(
-          new Transform({
-            transform(chunk, encoding, callback) {
-              size += Buffer.byteLength(chunk, encoding)
-              if (size > bodySizeLimitBytes) {
-                const { ApiError } = require('../api-utils')
-
-                callback(
-                  new ApiError(
-                    413,
-                    `Body exceeded ${bodySizeLimit} limit.
-                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-                  )
-                )
-                return
-              }
-
-              callback(null, chunk)
-            },
-          })
-        )
-
-        if (isFetchAction) {
-          const busboy = (require('busboy') as typeof import('busboy'))({
-            defParamCharset: 'utf8',
-            headers: req.headers,
-            limits: { fieldSize: bodySizeLimitBytes },
-          })
-
-          body.pipe(busboy)
-
-          boundActionArguments = await decodeReplyFromBusboy(
-            busboy,
-            serverModuleMap,
-            { temporaryReferences }
+    const earlyReturn = await actionAsyncStorage.run(
+      { isAction: true },
+      async (): Promise<HandleActionResult | undefined> => {
+        if (!isMultipartAction) {
+          // We only support multipart form actions. Jump to the catch handler, which will send a 500.
+          // TODO: maybe do a 400 instead?
+          throw new Error(
+            'Server actions must use the multipart/form-data content-type'
           )
-        } else {
-          // React doesn't yet publish a busboy version of decodeAction
-          // so we polyfill the parsing of FormData.
-          const fakeRequest = new Request('http://localhost', {
-            method: 'POST',
-            // @ts-expect-error
-            headers: { 'Content-Type': contentType },
-            body: new ReadableStream({
-              start: (controller) => {
-                body.on('data', (chunk) => {
-                  controller.enqueue(new Uint8Array(chunk))
-                })
-                body.on('end', () => {
-                  controller.close()
-                })
-                body.on('error', (err) => {
-                  controller.error(err)
-                })
-              },
-            }),
-            duplex: 'half',
-          })
-          const formData = await fakeRequest.formData()
-          const action = await decodeAction(formData, serverModuleMap)
-          if (typeof action === 'function') {
-            // Only warn if it's a server action, otherwise skip for other post requests
-            warnBadServerActionRequest()
-
-            const actionReturnedState = await workUnitAsyncStorage.run(
-              requestStore,
-              action
-            )
-
-            formState = await decodeFormState(
-              actionReturnedState,
-              formData,
-              serverModuleMap
-            )
-
-            requestStore.phase = 'render'
+        }
+        if (
+          // The type check here ensures that `req` is correctly typed, and the
+          // environment variable check provides dead code elimination.
+          process.env.NEXT_RUNTIME === 'edge' &&
+          isWebNextRequest(req)
+        ) {
+          if (!req.body) {
+            throw new Error('invariant: Missing request body.')
           }
 
-          // Skip the fetch path
-          return
+          // TODO: add body limit
+
+          // Use react-server-dom-webpack/server.edge
+          const {
+            createTemporaryReferenceSet,
+            decodeReply,
+            decodeAction,
+            decodeFormState,
+          } = ComponentMod
+
+          temporaryReferences = createTemporaryReferenceSet()
+
+          // TODO-APP: Add streaming support
+          const formData = await req.request.formData()
+          if (isFetchAction) {
+            boundActionArguments = await decodeReply(
+              formData,
+              serverModuleMap,
+              {
+                temporaryReferences,
+              }
+            )
+          } else {
+            const action = await decodeAction(formData, serverModuleMap)
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              warnBadServerActionRequest()
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
+              formState = await decodeFormState(
+                actionReturnedState,
+                formData,
+                serverModuleMap
+              )
+
+              requestStore.phase = 'render'
+            }
+
+            // Skip the fetch path
+            return
+          }
+        } else if (
+          // The type check here ensures that `req` is correctly typed, and the
+          // environment variable check provides dead code elimination.
+          process.env.NEXT_RUNTIME !== 'edge' &&
+          isNodeNextRequest(req)
+        ) {
+          // Use react-server-dom-webpack/server.node which supports streaming
+          const {
+            createTemporaryReferenceSet,
+            decodeReplyFromBusboy,
+            decodeAction,
+            decodeFormState,
+          } = require(
+            `./react-server.node`
+          ) as typeof import('./react-server.node')
+
+          temporaryReferences = createTemporaryReferenceSet()
+
+          const { Transform } =
+            require('node:stream') as typeof import('node:stream')
+
+          const defaultBodySizeLimit = '1 MB'
+          const bodySizeLimit =
+            serverActions?.bodySizeLimit ?? defaultBodySizeLimit
+          const bodySizeLimitBytes =
+            bodySizeLimit !== defaultBodySizeLimit
+              ? (
+                  require('next/dist/compiled/bytes') as typeof import('bytes')
+                ).parse(bodySizeLimit)
+              : 1024 * 1024 // 1 MB
+
+          let size = 0
+          const body = req.body.pipe(
+            new Transform({
+              transform(chunk, encoding, callback) {
+                size += Buffer.byteLength(chunk, encoding)
+                if (size > bodySizeLimitBytes) {
+                  const { ApiError } = require('../api-utils')
+
+                  callback(
+                    new ApiError(
+                      413,
+                      `Body exceeded ${bodySizeLimit} limit.
+                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+                    )
+                  )
+                  return
+                }
+
+                callback(null, chunk)
+              },
+            })
+          )
+
+          if (isFetchAction) {
+            const busboy = (require('busboy') as typeof import('busboy'))({
+              defParamCharset: 'utf8',
+              headers: req.headers,
+              limits: { fieldSize: bodySizeLimitBytes },
+            })
+
+            body.pipe(busboy)
+
+            boundActionArguments = await decodeReplyFromBusboy(
+              busboy,
+              serverModuleMap,
+              { temporaryReferences }
+            )
+          } else {
+            // React doesn't yet publish a busboy version of decodeAction
+            // so we polyfill the parsing of FormData.
+            const fakeRequest = new Request('http://localhost', {
+              method: 'POST',
+              // @ts-expect-error
+              headers: { 'Content-Type': contentType },
+              body: new ReadableStream({
+                start: (controller) => {
+                  body.on('data', (chunk) => {
+                    controller.enqueue(new Uint8Array(chunk))
+                  })
+                  body.on('end', () => {
+                    controller.close()
+                  })
+                  body.on('error', (err) => {
+                    controller.error(err)
+                  })
+                },
+              }),
+              duplex: 'half',
+            })
+            const formData = await fakeRequest.formData()
+            const action = await decodeAction(formData, serverModuleMap)
+            if (typeof action === 'function') {
+              // Only warn if it's a server action, otherwise skip for other post requests
+              warnBadServerActionRequest()
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
+              formState = await decodeFormState(
+                actionReturnedState,
+                formData,
+                serverModuleMap
+              )
+
+              requestStore.phase = 'render'
+            }
+
+            // Skip the fetch path
+            return
+          }
+        } else {
+          throw new Error('Invariant: Unknown request type.')
         }
-      } else {
-        throw new Error('Invariant: Unknown request type.')
-      }
 
-      // actions.js
-      // app/page.js
-      //   action worker1
-      //     appRender1
+        // actions.js
+        // app/page.js
+        //   action worker1
+        //     appRender1
 
-      // app/foo/page.js
-      //   action worker2
-      //     appRender
+        // app/foo/page.js
+        //   action worker2
+        //     appRender
 
-      // / -> fire action -> POST / -> appRender1 -> modId for the action file
-      // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+        // / -> fire action -> POST / -> appRender1 -> modId for the action file
+        // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-      try {
-        actionModId =
-          actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
-      } catch (err) {
-        if (actionId !== null) {
-          console.error(err)
+        try {
+          actionModId =
+            actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
+        } catch (err) {
+          if (actionId !== null) {
+            console.error(err)
+          }
+          return {
+            type: 'not-found',
+          }
         }
-        return {
-          type: 'not-found',
+
+        const actionHandler = (
+          await ComponentMod.__next_app__.require(actionModId)
+        )[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
+
+        const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
+          actionHandler.apply(null, boundActionArguments)
+        )
+
+        // For form actions, we need to continue rendering the page.
+        if (isFetchAction) {
+          await addRevalidationHeader(res, {
+            workStore,
+            requestStore,
+          })
+
+          actionResult = await finalizeAndGenerateFlight(
+            req,
+            ctx,
+            requestStore,
+            {
+              actionResult: Promise.resolve(returnVal),
+              // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+              skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+              temporaryReferences,
+            }
+          )
         }
       }
+    )
 
-      const actionHandler = (
-        await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
-
-      const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
-        actionHandler.apply(null, boundActionArguments)
-      )
-
-      // For form actions, we need to continue rendering the page.
-      if (isFetchAction) {
-        await addRevalidationHeader(res, {
-          workStore,
-          requestStore,
-        })
-
-        actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
-          actionResult: Promise.resolve(returnVal),
-          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
-          temporaryReferences,
-        })
-      }
-    })
+    if (earlyReturn) {
+      return earlyReturn
+    }
 
     return {
       type: 'done',
