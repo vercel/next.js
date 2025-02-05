@@ -68,14 +68,14 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         className="code-frame-header"
         onClick={open}
       >
-        <div className="code-frame-link">
+        <p className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
           <ExternalIcon width={16} height={16} />
-        </div>
+        </p>
       </button>
       <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
