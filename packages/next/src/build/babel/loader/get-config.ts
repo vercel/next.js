@@ -273,7 +273,10 @@ function getFreshConfig(
       return false
     }
 
-    if (filename.includes('node_modules')) {
+    if (
+      filename.includes('/node_modules/') ||
+      filename.includes('\\node_modules\\')
+    ) {
       return false
     }
 
