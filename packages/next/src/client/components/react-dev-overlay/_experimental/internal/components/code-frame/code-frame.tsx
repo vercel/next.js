@@ -124,7 +124,6 @@ export const CODE_FRAME_STYLES = css`
   .code-frame-header {
     width: 100%;
     cursor: pointer;
-    border-top: 1px solid var(--color-gray-400);
     border-bottom: 1px solid var(--color-gray-400);
     transition: background 100ms ease-out;
 
