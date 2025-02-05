@@ -14,6 +14,7 @@ use crate::{
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
+    timestamp::Timestamp,
     FxIndexMap,
 };
 
@@ -41,7 +42,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn start(&self) -> u64 {
+    pub fn start(&self) -> Timestamp {
         self.span.start
     }
 
@@ -57,7 +58,7 @@ impl<'a> SpanRef<'a> {
         self.span.names()
     }
 
-    pub fn end(&self) -> u64 {
+    pub fn end(&self) -> Timestamp {
         let time_data = self.time_data();
         *time_data.end.get_or_init(|| {
             max(
@@ -137,7 +138,7 @@ impl<'a> SpanRef<'a> {
         self.span.args.iter().map(|(k, v)| (k.as_str(), v.as_str()))
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         self.time_data().self_time
     }
 
@@ -207,7 +208,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn total_time(&self) -> u64 {
+    pub fn total_time(&self) -> Timestamp {
         *self.time_data().total_time.get_or_init(|| {
             self.children()
                 .map(|child| child.total_time())
@@ -267,7 +268,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         let store = self.store;
         *self.time_data().corrected_self_time.get_or_init(|| {
             let mut self_time = self
@@ -276,31 +277,31 @@ impl<'a> SpanRef<'a> {
                 .par_iter()
                 .filter_map(|event| {
                     if let SpanEvent::SelfTime { start, end } = event {
-                        let duration = end - start;
-                        if duration != 0 {
+                        let duration = *end - *start;
+                        if !duration.is_zero() {
                             store.set_max_self_time_lookup(*end);
                             let concurrent_time = store
                                 .self_time_tree
                                 .as_ref()
                                 .map_or(duration, |tree| tree.lookup_range_count(*start, *end));
-                            return Some(duration * duration / concurrent_time);
+                            return Some(duration * *duration / *concurrent_time);
                         }
                     }
                     None
                 })
                 .sum();
             if self.children().next().is_none() {
-                self_time = max(self_time, 1);
+                self_time = max(self_time, Timestamp::from_value(1));
             }
             self_time
         })
     }
 
-    pub fn corrected_total_time(&self) -> u64 {
+    pub fn corrected_total_time(&self) -> Timestamp {
         *self.time_data().corrected_total_time.get_or_init(|| {
             self.children_par()
                 .map(|child| child.corrected_total_time())
-                .sum::<u64>()
+                .sum::<Timestamp>()
                 + self.corrected_self_time()
         })
     }
@@ -478,6 +479,6 @@ impl Debug for SpanRef<'_> {
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum SpanEventRef<'a> {
-    SelfTime { start: u64, end: u64 },
+    SelfTime { start: Timestamp, end: Timestamp },
     Child { span: SpanRef<'a> },
 }

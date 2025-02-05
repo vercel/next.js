@@ -28,11 +28,11 @@ pub enum Amp {
 pub struct PageStaticInfo {
     // [TODO] next-core have NextRuntime type, but the order of dependency won't allow to import
     // Since this value is being passed into JS context anyway, we can just use string for now.
-    pub runtime: Option<String>, // 'nodejs' | 'experimental-edge' | 'edge'
-    pub preferred_region: Vec<String>,
+    pub runtime: Option<Atom>, // 'nodejs' | 'experimental-edge' | 'edge'
+    pub preferred_region: Vec<Atom>,
     pub ssg: Option<bool>,
     pub ssr: Option<bool>,
-    pub rsc: Option<String>, // 'server' | 'client'
+    pub rsc: Option<Atom>, // 'server' | 'client'
     pub generate_static_params: Option<bool>,
     pub middleware: Option<MiddlewareConfig>,
     pub amp: Option<Amp>,

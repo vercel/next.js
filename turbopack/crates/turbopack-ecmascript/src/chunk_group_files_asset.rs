@@ -24,6 +24,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -180,7 +181,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         let chunks_paths = chunks
             .await?
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|chunk| chunk.path())
             .try_join()
             .await?;
         let chunks_paths: Vec<_> = chunks_paths
@@ -189,7 +190,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             .collect();
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({:#});\n",
+                "{TURBOPACK_EXPORT_VALUE}({:#});\n",
                 StringifyJs(&chunks_paths)
             )
             .into(),

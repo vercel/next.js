@@ -541,4 +541,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-canary-a4b2d0d5-20250203";
+exports.version = "19.1.0-canary-0a82580b-20250203";

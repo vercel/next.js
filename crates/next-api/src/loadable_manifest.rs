@@ -36,7 +36,7 @@ pub async fn create_react_loadable_manifest(
                 let client_relative_path_value = client_relative_path_value.clone();
                 async move {
                     Ok(client_relative_path_value
-                        .get_path_to(&*file.ident().path().await?)
+                        .get_path_to(&*file.path().await?)
                         .map(|path| path.into()))
                 }
             })

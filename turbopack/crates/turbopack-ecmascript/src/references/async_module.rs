@@ -245,7 +245,7 @@ impl AsyncModule {
                                 type_ann: None,
                             }.into(),
                         )),
-                ].to_vec()));
+                ].to_vec()).cell());
             }
         }
 

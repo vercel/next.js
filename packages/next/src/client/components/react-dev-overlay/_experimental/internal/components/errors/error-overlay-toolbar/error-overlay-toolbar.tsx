@@ -37,17 +37,16 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    margin: 0;
-    width: var(--size-8);
-    padding: var(--size-1_5);
+    width: 32px;
+    height: 32px;
     background: var(--color-background-100);
-    box-shadow: var(--shadow-sm);
-
+    background-clip: padding-box;
+    border: 1px solid var(--color-gray-alpha-400);
+    box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
-    border: 1px solid var(--color-gray-400);
 
     &:focus {
-      outline: none;
+      outline: var(--focus-ring);
     }
 
     &:not(:disabled):hover {
@@ -59,7 +58,6 @@ export const styles = css`
     }
 
     &:disabled {
-      opacity: 0.7;
       cursor: not-allowed;
     }
   }

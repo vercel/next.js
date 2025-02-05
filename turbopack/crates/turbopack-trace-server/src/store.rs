@@ -12,6 +12,7 @@ use crate::{
     self_time_tree::SelfTimeTree,
     span::{Span, SpanEvent, SpanIndex},
     span_ref::SpanRef,
+    timestamp::Timestamp,
 };
 
 pub type SpanId = NonZeroUsize;
@@ -28,7 +29,7 @@ fn new_root_span() -> Span {
     Span {
         parent: None,
         depth: 0,
-        start: u64::MAX,
+        start: Timestamp::MAX,
         category: "".into(),
         name: "(root)".into(),
         args: vec![],
@@ -80,7 +81,7 @@ impl Store {
     pub fn add_span(
         &mut self,
         parent: Option<SpanIndex>,
-        start: u64,
+        start: Timestamp,
         category: String,
         name: String,
         args: Vec<(String, String)>,
@@ -137,7 +138,8 @@ impl Store {
         outdated_spans.insert(span_index);
     }
 
-    pub fn set_max_self_time_lookup(&self, time: u64) {
+    pub fn set_max_self_time_lookup(&self, time: Timestamp) {
+        let time = *time;
         let mut old = self
             .max_self_time_lookup_time
             .load(std::sync::atomic::Ordering::Relaxed);
@@ -156,13 +158,13 @@ impl Store {
 
     fn insert_self_time(
         &mut self,
-        start: u64,
-        end: u64,
+        start: Timestamp,
+        end: Timestamp,
         span_index: SpanIndex,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
-            if *self.max_self_time_lookup_time.get_mut() >= start {
+            if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
                 tree.for_each_in_range(start, end, |_, _, span| {
                     outdated_spans.insert(*span);
                 });
@@ -174,8 +176,8 @@ impl Store {
     pub fn add_self_time(
         &mut self,
         span_index: SpanIndex,
-        start: u64,
-        end: u64,
+        start: Timestamp,
+        end: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
@@ -193,8 +195,8 @@ impl Store {
     pub fn set_total_time(
         &mut self,
         span_index: SpanIndex,
-        start_time: u64,
-        total_time: u64,
+        start_time: Timestamp,
+        total_time: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = SpanRef {
@@ -208,7 +210,7 @@ impl Store {
             .collect::<Vec<_>>();
         children.sort();
         let self_end = start_time + total_time;
-        let mut self_time = 0;
+        let mut self_time = Timestamp::ZERO;
         let mut current = start_time;
         let mut events = Vec::new();
         for (start, end, index) in children {

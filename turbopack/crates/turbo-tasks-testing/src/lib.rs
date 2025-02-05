@@ -20,7 +20,7 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
+    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
     TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
@@ -57,11 +57,9 @@ impl VcStorage {
             i
         };
         let task_id = TaskId::from(i as u32 + 1);
-        let execution_id = ExecutionId::from(i as u64 + 1);
         handle.spawn(with_turbo_tasks_for_testing(
             this.clone(),
             task_id,
-            execution_id,
             async move {
                 let result = AssertUnwindSafe(future).catch_unwind().await;
 
@@ -316,7 +314,6 @@ impl VcStorage {
                 ..Default::default()
             }),
             TaskId::from(u32::MAX),
-            ExecutionId::from(u64::MAX),
             f,
         )
     }

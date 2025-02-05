@@ -101,4 +101,29 @@ describe('use-cache-hmr', () => {
         })
     )
   })
+
+  it('should successfully finish compilation when "use cache" directive is added/removed', async () => {
+    await next.browser('/')
+    let cliOutputLength = next.cliOutput.length
+
+    // Disable "use cache" directive
+    await next.patchFile('app/page.tsx', (content) =>
+      content.replace(`'use cache'`, `// 'use cache'`)
+    )
+
+    await retry(async () => {
+      expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+    }, 10_000)
+
+    cliOutputLength = next.cliOutput.length
+
+    // Re-enable "use cache" directive
+    await next.patchFile('app/page.tsx', (content) =>
+      content.replace(`// 'use cache'`, `'use cache'`)
+    )
+
+    await retry(async () => {
+      expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
+    }, 10_000)
+  })
 })

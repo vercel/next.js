@@ -46,11 +46,7 @@ async fn emit(
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<()> {
     for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
-        let _ = asset
-            .content()
-            .write(asset.ident().path())
-            .resolve()
-            .await?;
+        let _ = asset.content().write(asset.path()).resolve().await?;
     }
     Ok(())
 }
@@ -97,8 +93,7 @@ async fn internal_assets_for_source_mapping(
         if let Some(generate_source_map) =
             ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
         {
-            if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
-            {
+            if let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?) {
                 internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
             }
         }
@@ -152,12 +147,7 @@ async fn separate_assets_operation(
                 // others as "external". We follow references on "internal" assets, but do not
                 // look into references of "external" assets, since there are no "internal"
                 // assets behind "externals"
-                if asset
-                    .ident()
-                    .path()
-                    .await?
-                    .is_inside_ref(intermediate_output_path)
-                {
+                if asset.path().await?.is_inside_ref(intermediate_output_path) {
                     Ok(Type::Internal(*asset))
                 } else {
                     Ok(Type::External(*asset))
@@ -225,7 +215,7 @@ pub async fn get_renderer_pool_operation(
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(*intermediate_asset, *output_root);
 
-    let entrypoint = intermediate_asset.ident().path();
+    let entrypoint = intermediate_asset.path();
 
     let Some(cwd) = to_sys_path(*cwd).await? else {
         bail!(

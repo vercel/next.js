@@ -80,20 +80,22 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
 
 export const styles = css`
   .nextjs-container-build-error-version-status {
+    -webkit-font-smoothing: antialiased;
     display: flex;
     justify-content: center;
     align-items: center;
     gap: var(--size-1);
 
-    padding: var(--size-1_5) var(--size-2);
+    height: 28px;
+    padding: 6px 8px 6px 6px;
     background: var(--color-background-100);
-    box-shadow: var(--shadow-sm);
-
-    border: 1px solid var(--color-gray-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-small);
+    border: 1px solid var(--color-gray-alpha-400);
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);
-    font-size: var(--size-font-11);
+    font-size: 12px;
     font-weight: 500;
     line-height: var(--size-4);
   }

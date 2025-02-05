@@ -434,7 +434,7 @@ async fn parse_file_content(
                 unresolved_mark,
                 top_level_mark,
                 Some(&comments),
-                Some(*source),
+                Some(source),
             );
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {

@@ -1,5 +1,4 @@
 import type { DebugInfo } from '../../../../../types'
-import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
@@ -8,7 +7,6 @@ import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import { noop as css } from '../../../helpers/noop-template'
 import {
@@ -32,9 +30,11 @@ import {
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
+import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
+import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
-type ErrorOverlayLayoutProps = {
+interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
@@ -43,13 +43,12 @@ type ErrorOverlayLayoutProps = {
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
-  versionInfo?: VersionInfo
   // TODO: better handle receiving
   readyErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
-  isTurbopack?: boolean
+  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayLayout({
@@ -67,45 +66,67 @@ export function ErrorOverlayLayout({
   setActiveIndex,
   footerMessage,
   isTurbopack,
+  dialogResizerRef,
+  // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
+  // If it's not being passed, we should just render the component as it is being
+  // used without the context of a parent component that controls its state (e.g. Storybook).
+  rendered = true,
+  transitionDurationMs,
 }: ErrorOverlayLayoutProps) {
+  const animationProps = {
+    'data-rendered': rendered,
+    style: {
+      '--transition-duration': `${transitionDurationMs}ms`,
+    } as React.CSSProperties,
+  }
+
   return (
-    <ErrorOverlayOverlay fixed={isBuildError}>
-      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
-        <DialogContent>
-          <ErrorOverlayFloatingHeader
-            readyErrors={readyErrors}
-            activeIdx={activeIdx}
-            setActiveIndex={setActiveIndex}
-            versionInfo={versionInfo}
-            isTurbopack={isTurbopack}
-          />
-
-          <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
-            <div
-              className="nextjs__container_errors__error_title"
-              // allow assertion in tests before error rating is implemented
-              data-nextjs-error-code={errorCode}
-            >
-              <ErrorTypeLabel errorType={errorType} />
-              <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
-            </div>
-            <ErrorMessage errorMessage={errorMessage} />
-          </ErrorOverlayDialogHeader>
-
-          <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
-
-          <DialogFooter>
-            <ErrorOverlayFooter
-              footerMessage={footerMessage}
-              errorCode={errorCode}
+    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+      <div data-nextjs-dialog-root {...animationProps}>
+        <ErrorOverlayDialog
+          onClose={onClose}
+          isTurbopack={isTurbopack}
+          dialogResizerRef={dialogResizerRef}
+        >
+          <DialogContent>
+            <ErrorOverlayFloatingHeader
+              readyErrors={readyErrors}
+              activeIdx={activeIdx}
+              setActiveIndex={setActiveIndex}
+              versionInfo={versionInfo}
+              isTurbopack={isTurbopack}
             />
-            <ErrorOverlayBottomStacks
-              errorsCount={readyErrors?.length ?? 0}
+
+            <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
+              <div
+                className="nextjs__container_errors__error_title"
+                // allow assertion in tests before error rating is implemented
+                data-nextjs-error-code={errorCode}
+              >
+                <ErrorTypeLabel errorType={errorType} />
+                <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+              </div>
+              <ErrorMessage errorMessage={errorMessage} />
+            </ErrorOverlayDialogHeader>
+
+            <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+
+            {(footerMessage || errorCode) && (
+              <DialogFooter>
+                <ErrorOverlayFooter
+                  footerMessage={footerMessage}
+                  errorCode={errorCode}
+                />
+              </DialogFooter>
+            )}
+
+            <ErrorOverlayBottomStack
+              count={readyErrors?.length ?? 0}
               activeIdx={activeIdx ?? 0}
             />
-          </DialogFooter>
-        </DialogContent>
-      </ErrorOverlayDialog>
+          </DialogContent>
+        </ErrorOverlayDialog>
+      </div>
     </ErrorOverlayOverlay>
   )
 }

@@ -44,7 +44,9 @@ function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
     lowPriorityFiles: [],
   }
 
-  const manifestDefCode = `self.__BUILD_MANIFEST = ${JSON.stringify(
+  // we use globalThis here because middleware can be node
+  // which doesn't have "self"
+  const manifestDefCode = `globalThis.__BUILD_MANIFEST = ${JSON.stringify(
     assetMap,
     null,
     2
@@ -52,7 +54,7 @@ function createEdgeRuntimeManifest(originAssetMap: BuildManifest): string {
   // edge lowPriorityFiles item: '"/static/" + process.env.__NEXT_BUILD_ID + "/low-priority.js"'.
   // Since lowPriorityFiles is not fixed and relying on `process.env.__NEXT_BUILD_ID`, we'll produce code creating it dynamically.
   const lowPriorityFilesCode =
-    `self.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
+    `globalThis.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
     manifestFilenames
       .map((filename) => {
         return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}",\n`

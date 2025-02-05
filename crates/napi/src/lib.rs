@@ -43,6 +43,7 @@ use backtrace::Backtrace;
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
@@ -97,16 +98,16 @@ fn init() {
 }
 
 #[inline]
-fn get_compiler() -> Arc<Compiler> {
+fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    Arc::new(Compiler::new(cm))
+    Compiler::new(cm)
 }
 
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
-    eliminated_packages: FxHashSet<String>,
+    eliminated_packages: FxHashSet<Atom>,
     use_cache_telemetry_tracker: FxHashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
@@ -134,8 +135,6 @@ pub fn complete_output(
 
     Ok(js_output)
 }
-
-pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 

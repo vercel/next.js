@@ -6,7 +6,7 @@ use std::fmt::Write;
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, File, FileSystem};
+use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -170,18 +170,12 @@ pub struct CssChunkContent {
 impl Chunk for CssChunk {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
-        let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        self_as_output_asset.ident()
+        AssetIdent::from_path(self.path())
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
-        OutputAsset::references(self)
     }
 }
 
@@ -252,7 +246,7 @@ fn chunk_item_key() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().to_resolved().await?;
@@ -303,10 +297,9 @@ impl OutputAsset for CssChunk {
             layer: None,
         };
 
-        Ok(AssetIdent::from_path(self.chunking_context.chunk_path(
-            AssetIdent::new(Value::new(ident)),
-            ".css".into(),
-        )))
+        Ok(self
+            .chunking_context
+            .chunk_path(AssetIdent::new(Value::new(ident)), ".css".into()))
     }
 
     #[turbo_tasks::function]

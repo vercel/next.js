@@ -31,7 +31,6 @@ use std::{
     fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
-    sync::Arc,
 };
 
 use anyhow::{anyhow, bail, Context as _};
@@ -40,6 +39,7 @@ use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOpti
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::ast::noop_pass,
@@ -57,7 +57,7 @@ pub enum Input {
 }
 
 pub struct TransformTask {
-    pub c: Arc<Compiler>,
+    pub c: Compiler,
     pub input: Input,
     pub options: Buffer,
 }
@@ -81,12 +81,12 @@ fn skip_filename() -> bool {
 }
 
 impl Task for TransformTask {
-    type Output = (TransformOutput, FxHashSet<String>, FxHashMap<String, usize>);
+    type Output = (TransformOutput, FxHashSet<Atom>, FxHashMap<String, usize>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
+            let eliminated_packages: Rc<RefCell<FxHashSet<Atom>>> = Default::default();
             let use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>> =
                 Default::default();
 

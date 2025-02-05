@@ -259,6 +259,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -1129,6 +1130,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    nodeMiddleware: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static

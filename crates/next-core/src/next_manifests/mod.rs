@@ -63,7 +63,7 @@ impl BuildManifest {
                         .iter()
                         .copied()
                         .map(|chunk| async move {
-                            let chunk_path = chunk.ident().path().await?;
+                            let chunk_path = chunk.path().await?;
                             Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
                                 .context("client chunk entry path must be inside the client root")?
@@ -81,7 +81,7 @@ impl BuildManifest {
             .iter()
             .copied()
             .map(|chunk| async move {
-                let chunk_path = chunk.ident().path().await?;
+                let chunk_path = chunk.path().await?;
                 Ok(client_relative_path_ref
                     .get_path_to(&chunk_path)
                     .context("failed to resolve client-relative path to polyfill")?
@@ -95,7 +95,7 @@ impl BuildManifest {
             .iter()
             .copied()
             .map(|chunk| async move {
-                let chunk_path = chunk.ident().path().await?;
+                let chunk_path = chunk.path().await?;
                 Ok(client_relative_path_ref
                     .get_path_to(&chunk_path)
                     .context("failed to resolve client-relative path to root_main_file")?
@@ -448,7 +448,7 @@ impl AppBuildManifest {
                         .iter()
                         .copied()
                         .map(|chunk| async move {
-                            let chunk_path = chunk.ident().path().await?;
+                            let chunk_path = chunk.path().await?;
                             Ok(client_relative_path_ref
                                 .get_path_to(&chunk_path)
                                 .context("client chunk entry path must be inside the client root")?

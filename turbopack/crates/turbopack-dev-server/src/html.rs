@@ -13,7 +13,6 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
         EvaluatableAssets,
     },
-    ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
@@ -49,8 +48,8 @@ fn dev_html_chunk_reference_description() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 
     #[turbo_tasks::function]
@@ -123,7 +122,7 @@ impl DevHtmlAsset {
         let context_path = this.path.parent().await?;
         let mut chunk_paths = vec![];
         for chunk in &*self.chunks().await? {
-            let chunk_path = &*chunk.ident().path().await?;
+            let chunk_path = &*chunk.path().await?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                 chunk_paths.push(format!("/{relative_path}").into());
             }

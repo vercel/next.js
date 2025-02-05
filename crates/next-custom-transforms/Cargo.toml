@@ -60,9 +60,9 @@ swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 
-react_remove_properties = "0.28.0"
-remove_console = "0.29.0"
-preset_env_base = "2.0.0"
+react_remove_properties = "0.29.0"
+remove_console = "0.30.0"
+preset_env_base = "2.0.1"
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"]}

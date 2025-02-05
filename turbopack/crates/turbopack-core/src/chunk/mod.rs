@@ -19,7 +19,6 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
     TaskInput, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
@@ -107,19 +106,16 @@ impl Chunks {
     }
 }
 
-/// A chunk is one type of asset.
+/// A [Chunk] group chunk items together into something that will become an [OutputAsset].
 /// It usually contains multiple chunk items.
+// TODO This could be simplified to and merged with [OutputChunk]
 #[turbo_tasks::value_trait]
-pub trait Chunk: Asset {
+pub trait Chunk {
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // TODO Once output assets have their own trait, this path() method will move
-    // into that trait and ident() will be removed from that. Assets on the
-    // output-level only have a path and no complex ident.
-    /// The path of the chunk.
-    fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.ident().path()
-    }
+    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    //     self.ident().path()
+    // }
 
     /// Other [OutputAsset]s referenced from this [Chunk].
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {

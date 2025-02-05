@@ -219,11 +219,7 @@ impl MdxTransformedAsset {
                             }
                         };
 
-                        Some(
-                            IssueSource::from_line_col(*self.source, start, end)
-                                .to_resolved()
-                                .await?,
-                        )
+                        Some(IssueSource::from_line_col(self.source, start, end))
                     }
                     None => None,
                 };
@@ -257,7 +253,7 @@ struct MdxTransformResult {
 struct MdxIssue {
     /// Place of message.
     path: ResolvedVc<FileSystemPath>,
-    loc: Option<ResolvedVc<IssueSource>>,
+    loc: Option<IssueSource>,
     /// Reason for message (should use markdown).
     reason: String,
     /// Category of message.
@@ -276,7 +272,7 @@ impl Issue for MdxIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(match &self.loc {
-            Some(loc) => Some(loc.resolve_source_map(*self.path).to_resolved().await?),
+            Some(loc) => Some(loc.resolve_source_map(*self.path).await?.into_owned()),
             None => None,
         }))
     }

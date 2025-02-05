@@ -518,7 +518,7 @@ impl TurboFn<'_> {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
                                     ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
                                 let resolved = (#(
-                                    <_ as turbo_tasks::TaskInput>::resolve(
+                                    <_ as turbo_tasks::TaskInput>::resolve_input(
                                         #inline_input_idents
                                     ).await?,
                                 )*);
@@ -756,7 +756,7 @@ pub struct FunctionArguments {
     /// perform IO should not be manually annotated.
     io_markers: FxHashSet<IoMarker>,
     /// Should the function return an `OperationVc` instead of a `Vc`? Also ensures that all
-    /// arguments are `OperationValue`s. Mutually exclusive with the `local_cells` flag.
+    /// arguments are `OperationValue`s. Mutually exclusive with the `local` flag.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     operation: Option<Span>,
@@ -764,11 +764,6 @@ pub struct FunctionArguments {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: Option<Span>,
-    /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
-    /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
-    ///
-    /// If there is an error due to this option being set, it should be reported to this span.
-    pub local_cells: Option<Span>,
 }
 
 impl Parse for FunctionArguments {
@@ -796,26 +791,19 @@ impl Parse for FunctionArguments {
                 ("local", Meta::Path(_)) => {
                     parsed_args.local = Some(meta.span());
                 }
-                ("local_cells", Meta::Path(_)) => {
-                    parsed_args.local_cells = Some(meta.span());
-                }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         \"local\", or \"local_cells\"",
+                         \"local\"",
                     ))
                 }
             }
         }
-        if let (Some(_), Some(span)) = (
-            parsed_args.local.or(parsed_args.local_cells),
-            parsed_args.operation,
-        ) {
+        if let (Some(_), Some(span)) = (parsed_args.local, parsed_args.operation) {
             return Err(syn::Error::new(
                 span,
-                "\"operation\" is mutually exclusive with the \"local\" and \"local_cells\" \
-                 options",
+                "\"operation\" is mutually exclusive with the \"local\" option",
             ));
         }
         Ok(parsed_args)
@@ -1101,7 +1089,6 @@ pub struct NativeFn {
     pub is_method: bool,
     pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
     pub local: bool,
-    pub local_cells: bool,
 }
 
 impl NativeFn {
@@ -1116,7 +1103,6 @@ impl NativeFn {
             is_method,
             filter_trait_call_args,
             local,
-            local_cells,
         } = self;
 
         if *is_method {
@@ -1141,7 +1127,6 @@ impl NativeFn {
                         #function_path_string.to_owned(),
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
-                            local_cells: #local_cells,
                         },
                         #arg_filter,
                         #function_path,
@@ -1156,7 +1141,6 @@ impl NativeFn {
                         #function_path_string.to_owned(),
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
-                            local_cells: #local_cells,
                         },
                         #function_path,
                     )

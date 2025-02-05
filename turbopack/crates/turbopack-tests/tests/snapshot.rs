@@ -457,11 +457,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .await
             .context(format!(
                 "Failed to walk asset {}",
-                asset
-                    .ident()
-                    .to_string()
-                    .await
-                    .context("to_string failed")?
+                asset.path().to_string().await.context("to_string failed")?
             ))?;
     }
 
@@ -478,7 +474,7 @@ async fn walk_asset(
     seen: &mut FxHashSet<Vc<FileSystemPath>>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.ident().path().resolve().await?;
+    let path = asset.path().resolve().await?;
 
     if !seen.insert(path) {
         return Ok(());
