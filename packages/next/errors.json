@@ -631,5 +631,6 @@
   "630": "Invariant (SlowModuleDetectionPlugin): Module is recorded after the report is generated. This is a Next.js internal bug.",
   "631": "Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.",
   "632": "Invariant (SlowModuleDetectionPlugin): Module is missing a required debugId. This is a Next.js internal bug.",
-  "633": "Dynamic route not found"
+  "633": "Dynamic route not found",
+  "634": "Invalid actionMetadata kind"
 }

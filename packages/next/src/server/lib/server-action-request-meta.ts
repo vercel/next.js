@@ -46,7 +46,7 @@ export function transformActionMetadata(
     }
     default: {
       const _: never = meta
-      throw new InvariantError('Invalid metadata')
+      throw new InvariantError('Invalid actionMetadata kind')
     }
   }
 }
