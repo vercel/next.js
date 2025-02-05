@@ -1164,8 +1164,25 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
+        // Task completion is a 4 step process:
+        // 1. Remove old edges (dependencies, collectibles, children, cells) and update the
+        //    aggregation number of the task and the new children.
+        // 2. Connect the new children to the task (and do the relevant aggregation updates).
+        // 3. Remove dirty flag (and propagate that to uppers) and remove the in-progress state.
+        // 4. Shrink the task memory to reduce footprint of the task.
+
+        // Due to persistance it is possible that the process is cancelled after any step. This is
+        // ok, since the dirty flag won't be removed until step 3 and step 4 is only affecting the
+        // in-memory representation.
+
+        // The task might be invalidated during this process, so we need to change the stale flag
+        // at the start of every step.
+
         let _span = tracing::trace_span!("task execution completed").entered();
         let mut ctx = self.execute_context(turbo_tasks);
+
+        //// STEP 1 ////
+
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1185,7 +1202,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if stale {
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 done_event,
-                new_children,
+                mut new_children,
                 ..
             })) = remove!(task, InProgress)
             else {
@@ -1194,10 +1211,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::Scheduled { done_event },
             });
+            // Remove old children from new_children to leave only the children that had their
+            // active count increased
+            for task in iter_many!(task, Child { task } => task) {
+                new_children.remove(&task);
+            }
             drop(task);
 
-            // All `new_children` are currently hold active with an active count and we need to undo
-            // that.
+            // We need to undo the active count increase for the children since we throw away the
+            // new_children list now.
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),
@@ -1254,10 +1276,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         // Filter actual new children
-        for old_child in iter_many!(task, Child { task } => task) {
-            if !has_children || !new_children.remove(&old_child) {
-                old_edges.push(OutdatedEdge::Child(old_child));
-            }
+        if has_children {
+            old_edges.extend(
+                iter_many!(task, Child { task } => task)
+                    .filter(|task| !new_children.remove(task))
+                    .map(OutdatedEdge::Child),
+            );
+        } else {
+            old_edges.extend(iter_many!(task, Child { task } => task).map(OutdatedEdge::Child));
         }
 
         // Remove no longer existing cells and notify in progress cells
@@ -1332,6 +1358,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
         // would be executed again.
 
+        //// STEP 2 ////
+
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1343,11 +1371,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if *stale {
-            let Some(InProgressState::InProgress(box InProgressStateInner {
-                done_event,
-                new_children,
-                ..
-            })) = remove!(task, InProgress)
+            let Some(InProgressState::InProgress(box InProgressStateInner { done_event, .. })) =
+                remove!(task, InProgress)
             else {
                 unreachable!();
             };
@@ -1356,7 +1381,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             });
 
             // All `new_children` are currently hold active with an active count and we need to undo
-            // that.
+            // that. (We already filtered out the old children from that list)
             AggregationUpdateQueue::run(
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),
@@ -1477,6 +1502,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         drop(removed_data);
+
+        //// STEP 4 ////
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         task.shrink_to_fit(CachedDataItemType::CellData);
