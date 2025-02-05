@@ -262,7 +262,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
-        self,
+        mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let references = self.references.into_iter().collect();
@@ -287,6 +287,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         } else {
             OptionSourceMap::none().to_resolved().await?
         };
+
+        self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: ResolvedVc::cell(references),
