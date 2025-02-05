@@ -304,19 +304,16 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
-        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
-        // '/form',
+        '/form',
         '/imported-from-client',
         '/logs',
         '/method-props',
-        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
-        // '/not-found',
+        '/not-found',
         '/passed-to-client',
         '/react-cache',
         '/static-class-method',
         '/use-action-state',
-        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
-        // '/with-server-action',
+        '/with-server-action',
       ])
     })
 
