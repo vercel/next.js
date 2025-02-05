@@ -204,7 +204,7 @@ impl ModuleReference for EsmAssetReference {
                 if let Some(module) = ResolvedVc::try_downcast(module) {
                     if *is_export_missing(*module, export_name.clone()).await? {
                         InvalidExport {
-                            export: ResolvedVc::cell(export_name.clone()),
+                            export: export_name.clone(),
                             module,
                             source: self.issue_source.clone(),
                         }
@@ -409,7 +409,7 @@ fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidExport {
-    export: ResolvedVc<RcStr>,
+    export: RcStr,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     source: IssueSource,
 }
@@ -425,7 +425,7 @@ impl Issue for InvalidExport {
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Line(vec![
             StyledString::Text("Export ".into()),
-            StyledString::Code(self.export.await?.clone_value()),
+            StyledString::Code(self.export.clone()),
             StyledString::Text(" doesn't exist in target module".into()),
         ])
         .cell())
@@ -443,18 +443,17 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let export = self.export.await?;
         let export_names = all_known_export_names(*self.module).await?;
         let did_you_mean = export_names
             .iter()
-            .map(|s| (s, jaro(export.as_str(), s.as_str())))
+            .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
                     StyledString::Text("The export ".into()),
-                    StyledString::Code(export.clone_value()),
+                    StyledString::Code(self.export.clone()),
                     StyledString::Text(" was not found in module ".into()),
                     StyledString::Strong(self.module.ident().to_string().await?.clone_value()),
                     StyledString::Text(".".into()),
