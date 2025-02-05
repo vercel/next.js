@@ -15,6 +15,12 @@ const flightClientModuleLoader: webpack.LoaderDefinitionFunction =
     // Assign the RSC meta information to buildInfo.
     const buildInfo = getModuleBuildInfo(this._module)
     buildInfo.rsc = getRSCModuleInformation(source, false)
+    if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
+      const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+      source =
+        `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n` +
+        source
+    }
 
     // This is a server action entry module in the client layer. We need to
     // create re-exports of "virtual modules" to expose the reference IDs to the
@@ -28,11 +34,6 @@ const flightClientModuleLoader: webpack.LoaderDefinitionFunction =
           return `export { ${name} } from 'next-flight-server-reference-proxy-loader?id=${id}&name=${name}!'`
         })
         .join('\n')
-    }
-
-    if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-      const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
-      source += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
     }
 
     return this.callback(null, source, sourceMap)
