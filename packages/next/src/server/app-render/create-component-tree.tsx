@@ -1,6 +1,9 @@
 import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
-import { isClientReference } from '../../lib/client-reference'
+import {
+  isClientReference,
+  isUseCacheFunction,
+} from '../../lib/client-and-server-references'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
@@ -19,6 +22,7 @@ import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -662,9 +666,23 @@ async function createComponentTreeInternal({
         query,
         workStore
       )
-      pageElement = (
-        <PageComponent params={params} searchParams={searchParams} />
-      )
+
+      if (isUseCacheFunction(PageComponent)) {
+        const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
+          PageComponent
+
+        pageElement = (
+          <UseCachePageComponent
+            params={params}
+            searchParams={searchParams}
+            $$isPageComponent
+          />
+        )
+      } else {
+        pageElement = (
+          <PageComponent params={params} searchParams={searchParams} />
+        )
+      }
     }
     return [
       actualSegment,

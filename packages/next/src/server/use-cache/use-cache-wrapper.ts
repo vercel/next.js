@@ -43,7 +43,11 @@ import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
-import { makeErroringExoticSearchParamsForUseCache } from '../request/search-params'
+import {
+  makeErroringExoticSearchParamsForUseCache,
+  type SearchParams,
+} from '../request/search-params'
+import type { Params } from '../request/params'
 
 type CacheKeyParts = [
   buildId: string,
@@ -51,6 +55,12 @@ type CacheKeyParts = [
   id: string,
   args: unknown[],
 ]
+
+export interface UseCachePageComponentProps {
+  params: Promise<Params>
+  searchParams: Promise<SearchParams>
+  $$isPageComponent: true
+}
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -552,8 +562,9 @@ export function cache(
       // searchParams prop before invoking the original function. This ensures
       // that used searchParams inside of cached functions would still yield an
       // error.
-      if (!workStore.dynamicIOEnabled && isPossiblyPageComponent(args)) {
-        args[0] = { ...args[0], searchParams: Promise.resolve({}) }
+      if (!workStore.dynamicIOEnabled && isPageComponent(args)) {
+        const [props] = args
+        args = [{ params: props.params, searchParams: Promise.resolve({}) }]
 
         const originalFn = fn
 
@@ -867,15 +878,9 @@ function createLazyResult<TResult>(
   }
 }
 
-// TODO(useCache): Improve heuristic, e.g. let createComponentTree detect a page
-// component with "use cache" by looking at $$typeof and $$id, and then passing
-// in a page-identifying symbol prop that we can use here.
-function isPossiblyPageComponent(
+function isPageComponent(
   args: any[]
-): args is [
-  { params: Promise<unknown>; searchParams: Promise<unknown> },
-  undefined,
-] {
+): args is [UseCachePageComponentProps, undefined] {
   if (args.length !== 2) {
     return false
   }
@@ -886,6 +891,7 @@ function isPossiblyPageComponent(
     ref === undefined && // server components receive an undefined ref arg
     typeof props === 'object' &&
     typeof props.params === 'object' &&
-    typeof props.searchParams === 'object'
+    typeof props.searchParams === 'object' &&
+    (props as UseCachePageComponentProps).$$isPageComponent
   )
 }
