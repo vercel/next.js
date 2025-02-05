@@ -200,4 +200,18 @@ describe('app-dir - server source maps', () => {
       isNextDev ? 'Error [MyError]: Bar' : 'Error [MyError]: Bar'
     )
   })
+
+  it('handles invalid sourcemaps gracefully', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/bad-sourcemap')
+
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toContain('TypeError: ')
+    })
+
+    // FIXME
+    expect(next.cliOutput.slice(outputIndex)).toContain(
+      'TypeError: The "payload" argument must be of type object. Received null'
+    )
+  })
 })
