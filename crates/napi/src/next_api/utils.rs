@@ -170,6 +170,7 @@ pub fn create_turbo_tasks(
             turbo_tasks_backend::TurboTasksBackend::new(
                 turbo_tasks_backend::BackendOptions {
                     storage_mode: None,
+                    dependency_tracking,
                     ..Default::default()
                 },
                 noop_backing_storage(),
