@@ -114,6 +114,13 @@ declare module 'react-server-dom-webpack/server.edge' {
     [id: string]: ImportManifestEntry
   }
 
+  export type ReactFormState = [
+    unknown /* actual state value */,
+    string /* key path */,
+    string /* Server Reference ID */,
+    number /* number of bound arguments */,
+  ]
+
   export type TemporaryReferenceSet = WeakMap<any, string>
 
   export function renderToReadableStream(
@@ -151,11 +158,11 @@ declare module 'react-server-dom-webpack/server.edge' {
     body: FormData,
     serverManifest: ServerManifest
   ): Promise<() => T> | null
-  export function decodeFormState<S>(
-    actionResult: S,
+  export function decodeFormState(
+    actionResult: unknown,
     body: FormData,
     serverManifest: ServerManifest
-  ): Promise<unknown | null>
+  ): Promise<ReactFormState | null>
 
   export function registerServerReference<T>(
     reference: T,
