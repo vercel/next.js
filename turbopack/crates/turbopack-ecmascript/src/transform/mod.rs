@@ -2,10 +2,11 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::{atom, Atom},
     base::SwcComments,
-    common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
@@ -129,7 +130,7 @@ impl EcmascriptInputTransform {
         } = ctx;
         match self {
             EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: AHashMap<Atom, Atom> = Default::default();
+                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
                 typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
                 program.mutate(inline_globals2(

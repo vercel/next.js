@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
 use futures::future::Either;
-use swc_core::alloc::collections::FxHashMap;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
