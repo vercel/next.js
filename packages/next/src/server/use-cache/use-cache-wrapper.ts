@@ -544,8 +544,9 @@ export function cache(
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
-      // TODO: Improve heuristic, with the help of the compiler. Try to limit to
-      // default exports in page files, when dynamicIO is not enabled.
+      // TODO: Improve heuristic, with the help of the compiler. E.g. mark
+      // cache functions with a symbol that can be used by createComponentTree
+      // to pass in a page-identifying prop that we can use here.
       const isPossiblyPageComponent =
         args.length === 2 &&
         args[1] === undefined && // undefined ref of a server component
@@ -553,22 +554,26 @@ export function cache(
         typeof args[0].params === 'object' &&
         typeof args[0].searchParams === 'object'
 
-      if (
-        isPossiblyPageComponent &&
-        (workUnitStore?.type === 'prerender-ppr' ||
-          workUnitStore?.type === 'prerender-legacy' ||
-          (workUnitStore?.type === 'request' && !workStore.dynamicIOEnabled))
-      ) {
-        // Overwrite to empty searchParams so that we can serialize the arg for
-        // the cache key, in case the searchParams are not used...
+      const shouldErrorOnSearchParamsAccess =
+        workUnitStore?.type === 'prerender-ppr' ||
+        workUnitStore?.type === 'prerender-legacy' ||
+        (workUnitStore?.type === 'request' && !workStore.dynamicIOEnabled)
+
+      // When dynamicIO is not enabled, we can not encode searchParams as
+      // hanging promises. To still avoid unused search params from making a
+      // page dynamic, we overwrite them here with a promise that resolves to an
+      // empty object, while also overwriting the to-be-invoked function for
+      // generating a cache entry with a function that creates an erroring
+      // searchParams prop before invoking the original function. This ensures
+      // that used searchParams inside of cached functions would still yield an
+      // error.
+      if (isPossiblyPageComponent && shouldErrorOnSearchParamsAccess) {
         args[0] = { ...args[0], searchParams: Promise.resolve({}) }
 
         const originalFn = fn
 
         fn = {
           [name]: async function ({ params }: any) {
-            // ...but throw an error if the searchParams are indeed used
-            // inside of the original function.
             const searchParams = makeErroringExoticSearchParamsForUseCache(
               workStore,
               workUnitStore
