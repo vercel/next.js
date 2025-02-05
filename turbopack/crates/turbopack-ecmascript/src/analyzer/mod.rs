@@ -26,7 +26,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -3755,21 +3755,18 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     })
 }
 
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
 
-#[turbo_tasks::value_impl]
 impl RequireContextValue {
-    #[turbo_tasks::function]
-    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Vc<Self>> {
+    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
         let mut context_map = FxIndexMap::default();
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
         }
 
-        Ok(Vc::cell(context_map))
+        Ok(RequireContextValue(context_map))
     }
 }
 
@@ -3796,9 +3793,9 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     RequireContext,
-    RequireContextRequire(ResolvedVc<RequireContextValue>),
-    RequireContextRequireKeys(ResolvedVc<RequireContextValue>),
-    RequireContextRequireResolve(ResolvedVc<RequireContextValue>),
+    RequireContextRequire(RequireContextValue),
+    RequireContextRequireKeys(RequireContextValue),
+    RequireContextRequireResolve(RequireContextValue),
     Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
@@ -3845,7 +3842,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+    use turbo_tasks::{FxIndexMap, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3856,7 +3853,7 @@ pub mod test_utils {
         analyzer::{
             builtin::replace_builtin,
             imports::{ImportAnnotations, ImportAttributes},
-            parse_require_context,
+            parse_require_context, RequireContextValue,
         },
         utils::module_value_to_well_known_object,
     };
@@ -3907,7 +3904,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        ResolvedVc::cell(map),
+                        RequireContextValue(map),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),

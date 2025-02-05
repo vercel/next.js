@@ -2880,9 +2880,7 @@ async fn require_context_visitor(
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(
-            RequireContextValue::from_context_map(map)
-                .to_resolved()
-                .await?,
+            RequireContextValue::from_context_map(map).await?,
         ),
     ))
 }
