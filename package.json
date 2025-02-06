@@ -67,6 +67,7 @@
     "build-turbopack-cli": "cargo build -p turbopack-cli --release",
     "sweep": "node scripts/sweep.cjs",
     "check-error-codes": "node packages/next/check-error-codes.js",
+    "update-error-codes": "cd packages/next && pnpm taskr compile check_error_codes",
     "storybook": "turbo run storybook",
     "build-storybook": "turbo run build-storybook",
     "test-storybook": "turbo run test-storybook"
