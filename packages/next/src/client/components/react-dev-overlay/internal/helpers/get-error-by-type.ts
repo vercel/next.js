@@ -30,16 +30,11 @@ export function getErrorByType(
         error: event.reason,
         // createMemoizedPromise dedups calls to getOriginalStackFrames
         frames: createMemoizedPromise(async () => {
-          try {
-            return await getOriginalStackFrames(
-              event.frames,
-              getErrorSource(event.reason),
-              isAppDir
-            )
-          } catch (e) {
-            console.error(e)
-            return []
-          }
+          return await getOriginalStackFrames(
+            event.frames,
+            getErrorSource(event.reason),
+            isAppDir
+          )
         }),
       }
       if (event.type === ACTION_UNHANDLED_ERROR) {
