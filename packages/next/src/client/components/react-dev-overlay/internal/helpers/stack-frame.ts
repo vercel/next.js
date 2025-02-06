@@ -82,6 +82,18 @@ export async function getOriginalStackFrames(
     body: JSON.stringify(req),
   })
 
+  if (!res.ok || res.status === 204) {
+    const reason = await res.text()
+    return Promise.all(
+      frames.map((frame) =>
+        getOriginalStackFrame(frame, {
+          status: 'rejected',
+          reason: `Failed to fetch the original stack frames: ${reason}`,
+        })
+      )
+    )
+  }
+
   const data = await res.json()
   return Promise.all(
     frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
