@@ -23,6 +23,7 @@ use turbo_tasks::{
         TransientTaskType, TypedCellContent,
     },
     event::EventListener,
+    task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
     CellId, FunctionId, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
@@ -36,7 +37,6 @@ use crate::{
     },
     output::Output,
     task::{ReadCellError, Task, TaskType},
-    task_statistics::TaskStatisticsApi,
 };
 
 fn prehash_task_type(task_type: CachedTaskType) -> PreHashed<CachedTaskType> {
@@ -333,16 +333,12 @@ impl MemoryBackend {
         }
     }
 
-    pub fn task_statistics(&self) -> &TaskStatisticsApi {
-        &self.task_statistics
-    }
-
-    fn track_cache_hit(&self, task_type: &PreHashed<CachedTaskType>) {
+    fn track_cache_hit(&self, task_type: &CachedTaskType) {
         self.task_statistics()
             .map(|stats| stats.increment_cache_hit(task_type.fn_type));
     }
 
-    fn track_cache_miss(&self, task_type: &PreHashed<CachedTaskType>) {
+    fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics()
             .map(|stats| stats.increment_cache_miss(task_type.fn_type));
     }
@@ -776,6 +772,10 @@ impl Backend for MemoryBackend {
 
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         Task::unset_root(task, self, turbo_tasks);
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        &self.task_statistics
     }
 }
 

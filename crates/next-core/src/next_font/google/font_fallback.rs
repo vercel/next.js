@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
@@ -35,7 +34,7 @@ pub(super) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub FxHashMap<RcStr, FontMetricsMapEntry>);
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {

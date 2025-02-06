@@ -76,7 +76,7 @@ impl EcmascriptBuildNodeChunkContent {
         let source_maps = this
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
-        let chunk_path_vc = this.chunk.ident().path();
+        let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
 
         let mut code = CodeBuilder::default();
@@ -121,7 +121,7 @@ impl EcmascriptBuildNodeChunkContent {
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root(),
-            self.chunk.ident().path(),
+            self.chunk.path(),
             *self.content,
             self.chunking_context.await?.minify_type(),
         ))

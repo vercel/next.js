@@ -27,9 +27,9 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{min, Ordering},
-    collections::HashSet,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
+    future::Future,
     io::{self, BufRead, ErrorKind},
     mem::take,
     path::{Path, PathBuf, MAIN_SEPARATOR},
@@ -49,6 +49,7 @@ use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -173,6 +174,26 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     })
 }
 
+trait ConcurrencyLimitedExt {
+    type Output;
+    async fn concurrency_limited(self, semaphore: &tokio::sync::Semaphore) -> Self::Output;
+}
+
+impl<F, R> ConcurrencyLimitedExt for F
+where
+    F: Future<Output = R>,
+{
+    type Output = R;
+    async fn concurrency_limited(self, semaphore: &tokio::sync::Semaphore) -> Self::Output {
+        let _permit = semaphore.acquire().await;
+        self.await
+    }
+}
+
+fn create_semaphore() -> tokio::sync::Semaphore {
+    tokio::sync::Semaphore::new(256)
+}
+
 #[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
@@ -206,6 +227,10 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
     invalidation_lock: RwLock<()>,
+    /// Semaphore to limit the maximum number of concurrent file operations.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[serde(skip, default = "create_semaphore")]
+    semaphore: tokio::sync::Semaphore,
 
     #[turbo_tasks(debug_ignore, trace_ignore)]
     watcher: DiskWatcher,
@@ -236,9 +261,10 @@ impl DiskFileSystemInner {
         &self,
         path: &Path,
         invalidator: Invalidator,
-    ) -> Result<HashSet<Invalidator>> {
+    ) -> Result<FxHashSet<Invalidator>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
+        let old_invalidators =
+            invalidator_map.insert(path_to_key(path), FxHashSet::from_iter([invalidator]));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
@@ -304,7 +330,7 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_from_write(&self, full_path: &Path, invalidators: HashSet<Invalidator>) {
+    fn invalidate_from_write(&self, full_path: &Path, invalidators: FxHashSet<Invalidator>) {
         if !invalidators.is_empty() {
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {
@@ -339,6 +365,7 @@ impl DiskFileSystemInner {
                 path = display(path.display())
             ))
         })
+        .concurrency_limited(&self.semaphore)
         .await?;
 
         self.watcher
@@ -448,6 +475,7 @@ impl DiskFileSystem {
                 invalidation_lock: Default::default(),
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
+                semaphore: create_semaphore(),
                 watcher: DiskWatcher::new(
                     ignored_subpaths.into_iter().map(PathBuf::from).collect(),
                 ),
@@ -474,6 +502,7 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_future(|| File::from_path(full_path.clone()))
+            .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read file",
                 path = display(full_path.display())
@@ -504,6 +533,7 @@ impl FileSystem for DiskFileSystem {
                 tracing::info_span!("read directory", path = display(path.display())).entered();
             std::fs::read_dir(path)
         })
+        .concurrency_limited(&self.inner.semaphore)
         .await
         {
             Ok(dir) => dir,
@@ -553,6 +583,7 @@ impl FileSystem for DiskFileSystem {
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_future(|| fs::read_link(&full_path))
+            .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read symlink",
                 path = display(full_path.display())
@@ -661,6 +692,7 @@ impl FileSystem for DiskFileSystem {
             // not wasting cycles.
             let compare = content
                 .streaming_compare(&full_path)
+                .concurrency_limited(&inner.semaphore)
                 .instrument(tracing::info_span!(
                     "read file before write",
                     path = display(full_path.display())
@@ -681,7 +713,8 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = compare == FileComparison::Create;
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_future(move || fs::create_dir_all(parent))
+                            retry_blocking(parent, |p| std::fs::create_dir_all(p))
+                                .concurrency_limited(&inner.semaphore)
                                 .instrument(tracing::info_span!(
                                     "create directory",
                                     path = display(parent.display())
@@ -725,6 +758,7 @@ impl FileSystem for DiskFileSystem {
                             Ok::<(), io::Error>(())
                         }
                     })
+                    .concurrency_limited(&inner.semaphore)
                     .instrument(tracing::info_span!(
                         "write file",
                         path = display(full_path.display())
@@ -733,7 +767,8 @@ impl FileSystem for DiskFileSystem {
                     .with_context(|| format!("failed to write to {}", full_path.display()))?;
                 }
                 FileContent::NotFound => {
-                    retry_future(|| fs::remove_file(full_path.clone()))
+                    retry_blocking(&full_path, |path| std::fs::remove_file(path))
+                        .concurrency_limited(&inner.semaphore)
                         .instrument(tracing::info_span!(
                             "remove file",
                             path = display(full_path.display())
@@ -775,7 +810,8 @@ impl FileSystem for DiskFileSystem {
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
-            let old_content = match retry_future(|| fs::read_link(&full_path))
+            let old_content = match retry_blocking(&full_path, |path| std::fs::read_link(path))
+                .concurrency_limited(&inner.semaphore)
                 .instrument(tracing::info_span!(
                     "read symlink before write",
                     path = display(full_path.display())
@@ -808,7 +844,8 @@ impl FileSystem for DiskFileSystem {
                     let create_directory = old_content.is_none();
                     if create_directory {
                         if let Some(parent) = full_path.parent() {
-                            retry_future(move || fs::create_dir_all(parent))
+                            retry_blocking(parent, |path| std::fs::create_dir_all(path))
+                                .concurrency_limited(&inner.semaphore)
                                 .instrument(tracing::info_span!(
                                     "create directory",
                                     path = display(parent.display())
@@ -859,7 +896,8 @@ impl FileSystem for DiskFileSystem {
                     anyhow::bail!("invalid symlink target: {}", full_path.display())
                 }
                 LinkContent::NotFound => {
-                    retry_future(|| fs::remove_file(&full_path))
+                    retry_blocking(&full_path, |path| std::fs::remove_file(path))
+                        .concurrency_limited(&inner.semaphore)
                         .await
                         .or_else(|err| {
                             if err.kind() == ErrorKind::NotFound {
@@ -884,7 +922,8 @@ impl FileSystem for DiskFileSystem {
         self.inner.register_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
-        let meta = retry_future(|| fs::metadata(full_path.clone()))
+        let meta = retry_blocking(&full_path, |path| std::fs::metadata(path))
+            .concurrency_limited(&self.inner.semaphore)
             .instrument(tracing::info_span!(
                 "read metadata",
                 path = display(full_path.display())

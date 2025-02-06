@@ -462,7 +462,7 @@ fn node_file_trace<B: Backend + 'static>(
                     .await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let output_path = rebased.ident().path();
+                let output_path = rebased.path();
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
@@ -774,11 +774,11 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
             for &asset in references.iter().rev() {
                 queue.push((depth + 1, asset));
             }
-            println!("{}{}", indent, asset.ident().to_string().await?);
+            println!("{}{}", indent, asset.path().to_string().await?);
         } else if references.is_empty() {
-            println!("{}{} *", indent, asset.ident().to_string().await?);
+            println!("{}{} *", indent, asset.path().to_string().await?);
         } else {
-            println!("{}{} *...", indent, asset.ident().to_string().await?);
+            println!("{}{} *...", indent, asset.path().to_string().await?);
         }
     }
     Ok(())

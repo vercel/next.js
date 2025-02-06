@@ -34,7 +34,7 @@ pub async fn get_global_module_id_strategy(
             .traverse_all_edges_unordered(|parent, current| {
                 if let (_, &ChunkingType::Async) = parent {
                     let module =
-                        ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(current.module)
+                        ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
                             .context("expected chunkable module for async reference")?;
                     async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
                 }

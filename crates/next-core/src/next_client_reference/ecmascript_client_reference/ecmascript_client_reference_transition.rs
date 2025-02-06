@@ -99,13 +99,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let Some(client_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module)
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
         let Some(ssr_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
         else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };

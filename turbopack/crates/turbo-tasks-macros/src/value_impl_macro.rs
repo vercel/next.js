@@ -123,7 +123,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
-                let local_cells = func_args.local_cells.is_some();
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
@@ -140,8 +139,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: None, // not a trait method
                     local,
-                    local_cells,
                 };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
@@ -224,7 +223,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
                 let local = func_args.local.is_some();
-                let local_cells = func_args.local_cells.is_some();
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
@@ -252,8 +250,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
-                    local_cells,
                 };
 
                 let native_function_ident =

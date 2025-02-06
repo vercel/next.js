@@ -7,7 +7,6 @@ const styles = css`
     right: 0;
     bottom: 0;
     left: 0;
-    overflow: auto;
     z-index: 9000;
 
     display: flex;
@@ -30,6 +29,7 @@ const styles = css`
     bottom: 0;
     left: 0;
     background-color: var(--color-backdrop);
+    backdrop-filter: blur(10px);
     pointer-events: all;
     z-index: -1;
   }

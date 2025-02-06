@@ -135,6 +135,10 @@ jobs:
       - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
+      - name: Prepare corepack
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        run: |
+          npm i -g corepack@0.31
       - run: corepack enable
       - run: pwd
 
@@ -247,6 +251,7 @@ jobs:
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
+            test/rspack-test-junit-report
           if-no-files-found: ignore
 
       # upload playwright snapshots from failed tests

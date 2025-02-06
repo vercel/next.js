@@ -91,21 +91,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "10.5.0", features = [
+swc_core = { version = "13.0.4", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "5.0.0" }
+testing = { version = "6.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = { version = "0.16.0" }
+browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.15"
-modularize_imports = { version = "0.72.0" }
-styled_components = { version = "0.100.1" }
-styled_jsx = { version = "0.76.0" }
-swc_emotion = { version = "0.76.0" }
-swc_relay = { version = "0.46.1" }
+mdxjs = "0.3"
+modularize_imports = { version = "0.75.0" }
+styled_components = { version = "0.103.0" }
+styled_jsx = { version = "0.79.0" }
+swc_emotion = { version = "0.79.0" }
+swc_relay = { version = "0.49.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -133,6 +133,7 @@ clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.4.1"
+const_format = "0.2.30"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
@@ -140,6 +141,7 @@ dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"
 either = "1.9.0"
+erased-serde = "0.4.5"
 futures = "0.3.26"
 futures-retry = "0.6.0"
 hashbrown = "0.14.5"
@@ -181,15 +183,14 @@ rayon = "1.10.0"
 regex = "1.10.6"
 reqwest = { version = "=0.11.17", default-features = false }
 rstest = "0.16.0"
-rustc-hash = "1.1.0"
+rustc-hash = "2.1.0"
 semver = "1.0.16"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.93"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
 serde_bytes = "0.11.15"
-serde_path_to_error = "0.1.9"
-serde_qs = "0.11.0"
-serde_with = "2.3.2"
-serde_yaml = "0.9.17"
+serde_path_to_error = "0.1.16"
+serde_qs = "0.13.0"
+serde_with = "3.12.0"
 shadow-rs = { version = "0.37.0", default-features = false, features = [
   "tzdb",
 ] }
@@ -201,6 +202,7 @@ smallvec = { version = "1.13.1", features = [
 ] }
 sourcemap = "9.0.0"
 strsim = "0.11.1"
+swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
 syn = "1.0.107"
 tempfile = "3.3.0"
 thread_local = "1.1.8"
@@ -218,7 +220,6 @@ urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-sourcemap = { git = "https://github.com/wbinnssmith/rust-sourcemap", branch = "wbinnssmith/ignore-list" }
 # Remove this once https://github.com/wasmerio/wasmer/pull/5333 is merged and released
 wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }

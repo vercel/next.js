@@ -101,7 +101,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         };
 
         let turbo_signature = turbo_fn.signature();
-        let arg_types = turbo_fn.input_types();
+        let arg_types = turbo_fn.exposed_input_types();
         let dynamic_block = turbo_fn.dynamic_block(&trait_type_id_ident);
         dynamic_trait_fns.push(quote! {
             #turbo_signature #dynamic_block
@@ -120,12 +120,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
                 is_method: turbo_fn.is_method(),
-                // `local` and `local_cells` are currently unsupported here because:
+                filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                // `local` is currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
                 //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
                 local: false,
-                local_cells: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);

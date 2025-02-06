@@ -40,7 +40,7 @@ impl ChunkData {
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
         let output_root = output_root.await?;
-        let path = chunk.ident().path().await?;
+        let path = chunk.path().await?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
@@ -91,7 +91,7 @@ impl ChunkData {
                     let output_root = output_root.clone();
 
                     async move {
-                        let chunk_path = chunk.ident().path().await?;
+                        let chunk_path = chunk.path().await?;
                         Ok(output_root
                             .get_path_to(&chunk_path)
                             .map(|path| (path.to_owned(), chunk)))

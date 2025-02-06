@@ -1,11 +1,14 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
+    common::util::take::Take,
+    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -15,11 +18,14 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{
+        pattern_mapping::{PatternMapping, ResolveType},
+        AstPath,
+    },
+    runtime_functions::TURBOPACK_CACHE,
 };
 
 #[turbo_tasks::value]
@@ -27,7 +33,7 @@ use crate::{
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -37,7 +43,7 @@ impl CjsAssetReference {
     pub async fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CjsAssetReference {
@@ -56,7 +62,7 @@ impl ModuleReference for CjsAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -80,8 +86,8 @@ impl ChunkableModuleReference for CjsAssetReference {}
 pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub path: AstPath,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -91,8 +97,8 @@ impl CjsRequireAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        path: AstPath,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireAssetReference {
@@ -112,7 +118,7 @@ impl ModuleReference for CjsRequireAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -147,16 +153,15 @@ impl CodeGenerateable for CjsRequireAssetReference {
             cjs_resolve(
                 *self.origin,
                 *self.request,
-                Some(*self.issue_source),
+                Some(self.issue_source.clone()),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
                 match args.into_iter().next() {
@@ -180,7 +185,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             );
         }));
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }
 
@@ -189,8 +194,8 @@ impl CodeGenerateable for CjsRequireAssetReference {
 pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub path: AstPath,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -200,8 +205,8 @@ impl CjsRequireResolveAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        path: AstPath,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireResolveAssetReference {
@@ -221,7 +226,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -256,17 +261,16 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             cjs_resolve(
                 *self.origin,
                 *self.request,
-                Some(*self.issue_source),
+                Some(self.issue_source.clone()),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
         // Inline the result of the `require.resolve` call as a literal.
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Call(call_expr) = expr {
                 let args = std::mem::take(&mut call_expr.args);
                 *expr = match args.into_iter().next() {
@@ -293,35 +297,40 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             // but we can ignore that as it will be recomputed anyway.
         }));
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct CjsRequireCacheAccess {
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
 }
+impl CjsRequireCacheAccess {
+    pub fn new(path: AstPath) -> Self {
+        CjsRequireCacheAccess { path }
+    }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for CjsRequireCacheAccess {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Member(_) = expr {
-                *expr = Expr::Ident(Ident::new("__turbopack_cache__".into(), DUMMY_SP, Default::default()));
+                *expr = TURBOPACK_CACHE.into();
             } else {
                 unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
             }
         }));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl From<CjsRequireCacheAccess> for CodeGen {
+    fn from(val: CjsRequireCacheAccess) -> Self {
+        CodeGen::CjsRequireCacheAccess(val)
     }
 }

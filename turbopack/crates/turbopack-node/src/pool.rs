@@ -1,7 +1,6 @@
 use std::{
     borrow::Cow,
     cmp::max,
-    collections::HashMap,
     fmt::{Debug, Display},
     future::Future,
     mem::take,
@@ -15,6 +14,7 @@ use anyhow::{bail, Context, Result};
 use futures::join;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
+use rustc_hash::FxHashMap;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::{
     io::{
@@ -203,7 +203,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
         }
 
         let mut buffer = Vec::new();
-        let mut own_output = HashMap::new();
+        let mut own_output = FxHashMap::default();
         let mut nesting: u32 = 0;
         let mut in_stack = None;
         let mut stack_trace_buffer = Vec::new();
@@ -309,7 +309,7 @@ impl<R: AsyncRead + Unpin, W: AsyncWrite + Unpin> OutputStreamHandler<R, W> {
 impl NodeJsPoolProcess {
     async fn new(
         cwd: &Path,
-        env: &HashMap<RcStr, RcStr>,
+        env: &FxHashMap<RcStr, RcStr>,
         entrypoint: &Path,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
         assets_root: ResolvedVc<FileSystemPath>,
@@ -688,7 +688,7 @@ enum AcquiredPermits {
 pub struct NodeJsPool {
     cwd: PathBuf,
     entrypoint: PathBuf,
-    env: HashMap<RcStr, RcStr>,
+    env: FxHashMap<RcStr, RcStr>,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: ResolvedVc<FileSystemPath>,
     pub project_dir: ResolvedVc<FileSystemPath>,
@@ -719,7 +719,7 @@ impl NodeJsPool {
     pub(super) fn new(
         cwd: PathBuf,
         entrypoint: PathBuf,
-        env: HashMap<RcStr, RcStr>,
+        env: FxHashMap<RcStr, RcStr>,
         assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
         assets_root: ResolvedVc<FileSystemPath>,
         project_dir: ResolvedVc<FileSystemPath>,

@@ -15,7 +15,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
@@ -262,7 +262,6 @@ impl VarGraph {
 
 /// You should use same [Mark] for this function and
 /// [swc_ecma_transforms_base::resolver::resolver_with_mark]
-#[tracing::instrument(level = "info", skip_all)]
 pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
@@ -307,7 +306,7 @@ impl EvalContext {
         unresolved_mark: Mark,
         top_level_mark: Mark,
         comments: Option<&dyn Comments>,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,

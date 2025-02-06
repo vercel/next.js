@@ -15,6 +15,9 @@
       "dependsOn": ["^build-storybook"],
       "outputs": ["storybook-static/**"]
     },
+    "test-storybook": {
+      "dependsOn": ["^test-storybook"]
+    },
     "typescript": {},
     "//#typescript": {},
     "//#get-test-timings": {

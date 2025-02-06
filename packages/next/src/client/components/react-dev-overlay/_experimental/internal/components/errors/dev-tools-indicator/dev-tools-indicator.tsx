@@ -6,19 +6,19 @@ import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useDelayedRender } from './internal/use-delayed-render'
 import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
 import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
+import { useDelayedRender } from '../../../hooks/use-delayed-render'
 
 // TODO: add E2E tests to cover different scenarios
 
 export function DevToolsIndicator({
   state,
-  readyErrorsLength,
+  errorCount,
   setIsErrorOverlayOpen,
 }: {
   state: OverlayState
-  readyErrorsLength: number
+  errorCount: number
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
@@ -36,7 +36,7 @@ export function DevToolsIndicator({
     isDevToolsIndicatorOpen && (
       <DevToolsPopover
         semver={state.versionInfo.installed}
-        issueCount={readyErrorsLength}
+        issueCount={errorCount}
         isStaticRoute={state.staticIndicator}
         hide={() => {
           setIsDevToolsIndicatorOpen(false)
@@ -80,6 +80,7 @@ function DevToolsPopover({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
+  // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(isMenuOpen, {
     // Intentionally no fade in, makes the UI feel more immediate
     enterDelay: 0,
@@ -157,7 +158,7 @@ function DevToolsPopover({
     }
   }
 
-  function onIssuesClick() {
+  function openErrorOverlay() {
     if (issueCount > 0) {
       setIsErrorOverlayOpen(true)
     }
@@ -165,7 +166,6 @@ function DevToolsPopover({
 
   function onTriggerClick() {
     setIsMenuOpen((prev) => !prev)
-    onIssuesClick()
   }
 
   function closeMenu() {
@@ -193,9 +193,9 @@ function DevToolsPopover({
         aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
         data-nextjs-dev-tools-button
         issueCount={issueCount}
-        onClick={onTriggerClick}
+        onTriggerClick={onTriggerClick}
         onKeyDown={onTriggerKeydown}
-        onIssuesClick={onIssuesClick}
+        openErrorOverlay={openErrorOverlay}
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
       />
@@ -231,7 +231,7 @@ function DevToolsPopover({
                 index={0}
                 label="Issues"
                 value={<IssueCount>{issueCount}</IssueCount>}
-                onClick={onIssuesClick}
+                onClick={openErrorOverlay}
               />
               <MenuItem
                 label="Route"
@@ -371,7 +371,16 @@ function useFocusTrap(
     if (isMenuOpen) {
       menuRef.current?.focus()
     } else {
-      triggerRef.current?.focus()
+      const root = triggerRef.current?.getRootNode()
+      const activeElement =
+        root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+
+      // Only restore focus if the focus was previously on the menu.
+      // This avoids us accidentally focusing on mount when the
+      // user could want to interact with their own app instead.
+      if (menuRef.current?.contains(activeElement)) {
+        triggerRef.current?.focus()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen])

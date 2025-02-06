@@ -20,6 +20,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::TURBOPACK_REQUIRE,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -28,8 +29,8 @@ use crate::{
 pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub path: AstPath,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -39,8 +40,8 @@ impl WorkerAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        path: AstPath,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerAssetReference {
@@ -62,15 +63,14 @@ impl WorkerAssetReference {
             *self.request,
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         );
 
         let Some(module) = *module.first_module().await? else {
             return Ok(None);
         };
-        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
-        else {
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.resolved_cell(),
                 title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
@@ -131,16 +131,15 @@ impl CodeGenerateable for WorkerAssetReference {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let path = &self.path.await?;
-
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
-                                "__turbopack_require__($item_id)",
+                                "$turbopack_require($item_id)",
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 item_id: Expr = item_id
                             );
 
@@ -175,6 +174,6 @@ impl CodeGenerateable for WorkerAssetReference {
             );
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]))
+        Ok(CodeGeneration::visitors(vec![visitor]).cell())
     }
 }

@@ -1,9 +1,19 @@
 import type { OverlayState } from '../../../../../shared'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
+import { useDelayedRender } from '../../../hooks/use-delayed-render'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
+
+const transitionDurationMs = 200
+
+export interface ErrorBaseProps {
+  rendered: boolean
+  transitionDurationMs: number
+  isTurbopack: boolean
+  versionInfo: OverlayState['versionInfo']
+}
 
 export function ErrorOverlay({
   state,
@@ -18,46 +28,48 @@ export function ErrorOverlay({
 }) {
   const isTurbopack = !!process.env.TURBOPACK
 
+  // This hook lets us do an exit animation before unmounting the component
+  const { mounted, rendered } = useDelayedRender(isErrorOverlayOpen, {
+    exitDelay: transitionDurationMs,
+  })
+
+  const commonProps = {
+    rendered,
+    transitionDurationMs,
+    isTurbopack,
+    versionInfo: state.versionInfo,
+  }
+
   if (!!state.rootLayoutMissingTags?.length) {
     return (
       <RootLayoutMissingTagsError
-        isTurbopack={isTurbopack}
         missingTags={state.rootLayoutMissingTags}
-        versionInfo={state.versionInfo}
+        {...commonProps}
       />
     )
   }
 
   if (state.buildError !== null) {
-    return (
-      <BuildError
-        isTurbopack={isTurbopack}
-        message={state.buildError}
-        versionInfo={state.versionInfo}
-      />
-    )
+    return <BuildError message={state.buildError} {...commonProps} />
   }
 
   // No Runtime Errors.
-  if (!state.errors.length) {
+  if (!readyErrors.length) {
     return null
   }
 
-  if (!isErrorOverlayOpen) {
+  if (!mounted) {
     return null
   }
 
   return (
     <Errors
       debugInfo={state.debugInfo}
-      hasStaticIndicator={state.staticIndicator}
-      isTurbopack={isTurbopack}
-      errors={state.errors}
       readyErrors={readyErrors}
-      versionInfo={state.versionInfo}
       onClose={() => {
         setIsErrorOverlayOpen(false)
       }}
+      {...commonProps}
     />
   )
 }

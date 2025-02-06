@@ -1,12 +1,12 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use dashmap::DashMap;
 use either::Either;
-use fxhash::FxHashSet;
 use modularize_imports;
 use preset_env_base::query::targets_to_versions;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::Atom,
     common::{
         comments::{Comments, NoopComments},
         pass::Optional,
@@ -124,9 +124,9 @@ pub fn custom_before_pass<'a, C>(
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
     comments: C,
-    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>,
     unresolved_mark: Mark,
-    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
@@ -170,7 +170,7 @@ where
                     &file.name,
                     &styled_jsx::visitor::Config {
                         use_lightningcss: config.use_lightningcss,
-                        browsers: target_browsers,
+                        browsers: *target_browsers,
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
                 ))

@@ -54,8 +54,12 @@ pub enum OutdatedEdge {
 }
 
 impl CleanupOldEdgesOperation {
-    pub fn run(task_id: TaskId, outdated: Vec<OutdatedEdge>, ctx: &mut impl ExecuteContext) {
-        let queue = AggregationUpdateQueue::new();
+    pub fn run(
+        task_id: TaskId,
+        outdated: Vec<OutdatedEdge>,
+        queue: AggregationUpdateQueue,
+        ctx: &mut impl ExecuteContext,
+    ) {
         CleanupOldEdgesOperation::RemoveEdges {
             task_id,
             outdated,
@@ -98,8 +102,10 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    if get!(task, Activeness).is_some_and(|a| a.active_counter > 0)
-                                    {
+                                    let has_active_count = get!(task, Activeness)
+                                        .is_some_and(|a| a.active_counter > 0);
+                                    drop(task);
+                                    if has_active_count {
                                         // TODO combine both operations to avoid the clone
                                         queue.push(AggregationUpdateJob::DecreaseActiveCounts {
                                             task_ids: children.clone(),

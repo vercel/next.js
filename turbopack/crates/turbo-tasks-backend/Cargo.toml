@@ -54,6 +54,8 @@ turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+regex = { workspace = true }
+serde_json = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

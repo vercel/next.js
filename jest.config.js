@@ -36,9 +36,14 @@ if (enableTestReport) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory = process.env.TURBOPACK
-    ? '<rootDir>/turbopack-test-junit-report'
-    : '<rootDir>/test-junit-report'
+  let outputDirectory
+  if (process.env.TURBOPACK) {
+    outputDirectory = '<rootDir>/turbopack-test-junit-report'
+  } else if (process.env.NEXT_RSPACK) {
+    outputDirectory = '<rootDir>/rspack-test-junit-report'
+  } else {
+    outputDirectory = '<rootDir>/test-junit-report'
+  }
 
   customJestConfig.reporters.push([
     'jest-junit',

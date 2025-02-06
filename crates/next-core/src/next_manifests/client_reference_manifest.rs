@@ -1,8 +1,7 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -98,7 +97,7 @@ impl ClientReferenceManifest {
             let rsc_app_entry_chunks = &*rsc_app_entry_chunks.await?;
 
             async fn cached_chunk_paths(
-                cache: &mut HashMap<ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>>,
+                cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>>,
                 chunks: impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
             ) -> Result<
                 impl Iterator<Item = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>)>,
@@ -110,7 +109,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.ident().path().await?))
+                            (chunk, Either::Right(chunk.path().await?))
                         })
                     })
                     .try_join()
@@ -126,18 +125,18 @@ impl ClientReferenceManifest {
                     Either::Right(path) => (chunk, path),
                 }))
             }
-            let mut client_chunk_path_cache: HashMap<
+            let mut client_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
                 ReadRef<FileSystemPath>,
-            > = HashMap::new();
-            let mut ssr_chunk_path_cache: HashMap<
+            > = FxHashMap::default();
+            let mut ssr_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
                 ReadRef<FileSystemPath>,
-            > = HashMap::new();
-            let mut rsc_chunk_path_cache: HashMap<
+            > = FxHashMap::default();
+            let mut rsc_chunk_path_cache: FxHashMap<
                 ResolvedVc<Box<dyn OutputAsset>>,
                 ReadRef<FileSystemPath>,
-            > = HashMap::new();
+            > = FxHashMap::default();
 
             for app_client_reference in client_references.await?.client_references.iter() {
                 let app_client_reference_ty = app_client_reference.ty();

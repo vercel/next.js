@@ -188,7 +188,7 @@ where
     }
 }
 
-impl<K, V> ValueDebugFormat for std::collections::HashMap<K, V>
+impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
 where
     K: Debug,
     V: ValueDebugFormat,

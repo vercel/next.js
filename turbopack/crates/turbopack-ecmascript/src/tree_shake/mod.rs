@@ -372,7 +372,7 @@ impl Analyzer<'_> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
@@ -480,7 +480,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 #[turbo_tasks::function]
 pub(super) async fn split(
     ident: ResolvedVc<AssetIdent>,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module

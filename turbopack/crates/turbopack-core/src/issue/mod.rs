@@ -4,6 +4,7 @@ pub mod module;
 pub mod resolve;
 
 use std::{
+    borrow::Cow,
     cmp::{min, Ordering},
     fmt::{Display, Formatter},
 };
@@ -11,11 +12,12 @@ use std::{
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, OperationVc, RawVc, ReadRef, ResolvedVc, TransientInstance,
-    TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc,
+    emit, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef,
+    ResolvedVc, TaskInput, TransientInstance, TransientValue, TryJoinIterExt, Upcast,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -172,7 +174,7 @@ pub trait Issue {
             detail,
             documentation_link: self.documentation_link().await?.clone_value(),
             source: {
-                if let Some(s) = *self.source().await? {
+                if let Some(s) = &*self.source().await? {
                     Some(s.into_plain().await?)
                 } else {
                     None
@@ -435,79 +437,71 @@ impl CapturedIssues {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+)]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
-    range: Option<ResolvedVc<SourceRange>>,
+    range: Option<SourceRange>,
 }
 
 /// The end position is the first character after the range
-#[turbo_tasks::value]
-#[derive(Clone, Debug)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(usize, usize),
 }
 
-#[turbo_tasks::value_impl]
 impl IssueSource {
     // Sometimes we only have the source file that causes an issue, not the
     // exact location, such as as in some generated code.
-    #[turbo_tasks::function]
-    pub fn from_source_only(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
-        Self::cell(IssueSource {
+    pub fn from_source_only(source: ResolvedVc<Box<dyn Source>>) -> Self {
+        IssueSource {
             source,
             range: None,
-        })
+        }
     }
 
-    #[turbo_tasks::function]
     pub fn from_line_col(
         source: ResolvedVc<Box<dyn Source>>,
         start: SourcePos,
         end: SourcePos,
-    ) -> Vc<Self> {
-        Self::cell(IssueSource {
+    ) -> Self {
+        IssueSource {
             source,
-            range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
-        })
+            range: Some(SourceRange::LineColumn(start, end)),
+        }
     }
 
-    #[turbo_tasks::function]
-    pub async fn resolve_source_map(
-        self: Vc<Self>,
-        origin: Vc<FileSystemPath>,
-    ) -> Result<Vc<Self>> {
-        let this = self.await?;
-
-        if let Some(range) = this.range {
-            let (start, end) = match &*range.await? {
+    pub async fn resolve_source_map(&self, origin: Vc<FileSystemPath>) -> Result<Cow<'_, Self>> {
+        if let Some(range) = &self.range {
+            let (start, end) = match range {
                 SourceRange::LineColumn(start, end) => (*start, *end),
-
                 SourceRange::ByteOffset(start, end) => {
-                    if let FileLinesContent::Lines(lines) = &*this.source.content().lines().await? {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
                         let start = find_line_and_column(lines.as_ref(), *start);
                         let end = find_line_and_column(lines.as_ref(), *end);
                         (start, end)
                     } else {
-                        return Ok(self);
+                        return Ok(Cow::Borrowed(self));
                     }
                 }
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(this.source, origin, start, end).await?;
+            let mapped = source_pos(self.source, origin, start, end).await?;
 
             if let Some((source, start, end)) = mapped {
-                return Ok(Self::cell(IssueSource {
+                return Ok(Cow::Owned(IssueSource {
                     source,
-                    range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
+                    range: Some(SourceRange::LineColumn(start, end)),
                 }));
             }
         }
 
-        Ok(self)
+        Ok(Cow::Borrowed(self))
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
@@ -518,26 +512,18 @@ impl IssueSource {
     /// * `source`: The source code in which to look up the byte offsets.
     /// * `start`: The start index of the span. Must use **1-based** indexing.
     /// * `end`: The end index of the span. Must use **1-based** indexing.
-    #[turbo_tasks::function]
-    pub fn from_swc_offsets(
-        source: ResolvedVc<Box<dyn Source>>,
-        start: usize,
-        end: usize,
-    ) -> Vc<Self> {
-        Self::cell(IssueSource {
+    pub fn from_swc_offsets(source: ResolvedVc<Box<dyn Source>>, start: usize, end: usize) -> Self {
+        IssueSource {
             source,
             range: match (start == 0, end == 0) {
                 (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
-                (false, true) => {
-                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
-                }
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1)),
+                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1)),
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1)),
             },
-        })
+        }
     }
 
-    #[turbo_tasks::function]
     /// Returns an `IssueSource` representing a span of code in the `source`.
     /// Positions are derived from byte offsets and stored as lines and columns.
     /// Requires a binary search of the source text to perform this.
@@ -551,21 +537,20 @@ impl IssueSource {
         source: ResolvedVc<Box<dyn Source>>,
         start: usize,
         end: usize,
-    ) -> Result<Vc<Self>> {
-        Ok(Self::cell(IssueSource {
+    ) -> Result<Self> {
+        Ok(IssueSource {
             source,
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some(SourceRange::LineColumn(start, end).resolved_cell())
+                Some(SourceRange::LineColumn(start, end))
             } else {
                 None
             },
-        }))
+        })
     }
 
     /// Returns the file path for the source file.
-    #[turbo_tasks::function]
     pub fn file_path(&self) -> Vc<FileSystemPath> {
         self.source.ident().path()
     }
@@ -574,8 +559,8 @@ impl IssueSource {
 impl IssueSource {
     /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
     pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
-        Ok(match self.range {
-            Some(range) => match &*range.await? {
+        Ok(match &self.range {
+            Some(range) => match range {
                 SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
                 SourceRange::LineColumn(start, end) => {
                     if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
@@ -598,8 +583,7 @@ async fn source_pos(
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {
-    let Some(generator) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
-    else {
+    let Some(generator) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source) else {
         return Ok(None);
     };
 
@@ -648,7 +632,7 @@ async fn source_pos(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueSource(Option<ResolvedVc<IssueSource>>);
+pub struct OptionIssueSource(Option<IssueSource>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
@@ -708,7 +692,7 @@ pub struct PlainIssue {
     pub detail: Option<StyledString>,
     pub documentation_link: RcStr,
 
-    pub source: Option<ReadRef<PlainIssueSource>>,
+    pub source: Option<PlainIssueSource>,
     pub sub_issues: Vec<ReadRef<PlainIssue>>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
 }
@@ -780,14 +764,12 @@ pub struct PlainIssueSource {
     pub range: Option<(SourcePos, SourcePos)>,
 }
 
-#[turbo_tasks::value_impl]
 impl IssueSource {
-    #[turbo_tasks::function]
-    pub async fn into_plain(&self) -> Result<Vc<PlainIssueSource>> {
+    pub async fn into_plain(&self) -> Result<PlainIssueSource> {
         Ok(PlainIssueSource {
             asset: PlainSource::from_source(*self.source).await?,
-            range: match self.range {
-                Some(range) => match &*range.await? {
+            range: match &self.range {
+                Some(range) => match range {
                     SourceRange::LineColumn(start, end) => Some((*start, *end)),
                     SourceRange::ByteOffset(start, end) => {
                         if let FileLinesContent::Lines(lines) =
@@ -803,8 +785,7 @@ impl IssueSource {
                 },
                 _ => None,
             },
-        }
-        .cell())
+        })
     }
 }
 

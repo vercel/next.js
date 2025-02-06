@@ -94,18 +94,12 @@ export function PseudoHtmlDiff({
           diffHtmlStack.push(
             <span
               key={'comp-diff' + index}
+              data-nextjs-container-errors-pseudo-html-line
               data-nextjs-container-errors-pseudo-html--diff={
                 sign === '+' ? 'add' : 'remove'
               }
             >
-              {sign === '+' ? <PlusIcon /> : <MinusIcon />}
-              <span
-                className={
-                  isHtmlCollapsed
-                    ? 'error-overlay-hydration-error-collapsed'
-                    : ''
-                }
-              >
+              <span>
                 {/* Slice 2 spaces for the icon */}
                 {spaces.slice(2)}
                 {trimmedLine}
@@ -121,7 +115,10 @@ export function PseudoHtmlDiff({
           if (isUserLandComponent || trimmedLine === '...') {
             currentComponentIndex--
             componentStacks.push(
-              <span key={'comp-diff' + index}>
+              <span
+                data-nextjs-container-errors-pseudo-html-line
+                key={'comp-diff' + index}
+              >
                 {spaces}
                 {trimmedLine}
                 {'\n'}
@@ -129,7 +126,10 @@ export function PseudoHtmlDiff({
             )
           } else if (!isHtmlCollapsed) {
             componentStacks.push(
-              <span key={'comp-diff' + index}>
+              <span
+                data-nextjs-container-errors-pseudo-html-line
+                key={'comp-diff' + index}
+              >
                 {spaces}
                 {trimmedLine}
                 {'\n'}
@@ -139,7 +139,10 @@ export function PseudoHtmlDiff({
         } else if (!isHtmlCollapsed) {
           // In general, if it's not collapsed, show the whole diff
           componentStacks.push(
-            <span key={'comp-diff' + index}>
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              key={'comp-diff' + index}
+            >
               {spaces}
               {trimmedLine}
               {'\n'}
@@ -200,21 +203,16 @@ export function PseudoHtmlDiff({
 
       if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
         const codeLine = (
-          <span>
+          <span
+            data-nextjs-container-errors-pseudo-html-line
+            {...(isHighlightedTag
+              ? {
+                  'data-nextjs-container-errors-pseudo-html-line--error': true,
+                }
+              : undefined)}
+          >
             {spaces}
-            <span
-              {...adjProps}
-              {...{
-                ...(isHighlightedTag
-                  ? {
-                      'data-nextjs-container-errors-pseudo-html--tag-error':
-                        true,
-                    }
-                  : undefined),
-              }}
-            >
-              {`<${component}>\n`}
-            </span>
+            <span {...adjProps}>{`<${component}>\n`}</span>
           </span>
         )
         lastText = component
@@ -241,7 +239,11 @@ export function PseudoHtmlDiff({
 
         if (!isHtmlCollapsed || isLastFewFrames) {
           nestedHtmlStack.push(
-            <span {...adjProps} key={nestedHtmlStack.length}>
+            <span
+              {...adjProps}
+              key={nestedHtmlStack.length}
+              data-nextjs-container-errors-pseudo-html-line
+            >
               {spaces}
               {'<' + component + '>\n'}
             </span>
@@ -249,7 +251,11 @@ export function PseudoHtmlDiff({
         } else if (isHtmlCollapsed && lastText !== '...') {
           lastText = '...'
           nestedHtmlStack.push(
-            <span {...adjProps} key={nestedHtmlStack.length}>
+            <span
+              {...adjProps}
+              key={nestedHtmlStack.length}
+              data-nextjs-container-errors-pseudo-html-line
+            >
               {spaces}
               {'...\n'}
             </span>
@@ -265,10 +271,16 @@ export function PseudoHtmlDiff({
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <span data-nextjs-container-errors-pseudo-html--diff="remove">
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              data-nextjs-container-errors-pseudo-html--diff="remove"
+            >
               {spaces + `"${firstContent}"\n`}
             </span>
-            <span data-nextjs-container-errors-pseudo-html--diff="add">
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              data-nextjs-container-errors-pseudo-html--diff="add"
+            >
               {spaces + `"${secondContent}"\n`}
             </span>
           </Fragment>
@@ -277,10 +289,16 @@ export function PseudoHtmlDiff({
         // hydration type is "text-in-tag", represent [parent tag, mismatch content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <span data-nextjs-container-errors-pseudo-html--tag-adjacent>
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              data-nextjs-container-errors-pseudo-html--tag-adjacent
+            >
               {spaces + `<${secondContent}>\n`}
             </span>
-            <span data-nextjs-container-errors-pseudo-html--diff="remove">
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              data-nextjs-container-errors-pseudo-html--diff="remove"
+            >
               {spaces + `  "${firstContent}"\n`}
             </span>
           </Fragment>
@@ -304,15 +322,13 @@ export function PseudoHtmlDiff({
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <span>
-        <button
-          tabIndex={10} // match CallStackFrame
-          data-nextjs-container-errors-pseudo-html-collapse
-          onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
-        >
-          <CollapseIcon collapsed={isHtmlCollapsed} />
-        </button>
-      </span>
+      <button
+        tabIndex={10} // match CallStackFrame
+        data-nextjs-container-errors-pseudo-html-collapse
+        onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
+      >
+        <CollapseIcon collapsed={isHtmlCollapsed} />
+      </button>
       <pre {...props}>
         <code>{htmlComponents}</code>
       </pre>
@@ -320,57 +336,40 @@ export function PseudoHtmlDiff({
   )
 }
 
-function PlusIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="error-overlay-hydration-error-diff-plus-icon"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M7.25 8.75V12H8.75V8.75H12V7.25H8.75V4H7.25V7.25H4V8.75H7.25Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
-function MinusIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className="error-overlay-hydration-error-diff-minus-icon"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M12 8.75H4V7.25H12V8.75Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
-
 export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html] {
-    border-top: 1px solid var(--color-gray-400);
+    padding: var(--size-3) 0;
+    margin: var(--size-2) var(--size-4) var(--size-4);
+    border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-smaller);
     line-height: var(--size-4);
+    border-radius: var(--size-2);
   }
+  [data-nextjs-container-errors-pseudo-html-line] {
+    display: inline-block;
+    width: 100%;
+    padding-left: var(--size-10);
+    line-height: calc(5 / 3);
+  }
+  [data-nextjs-container-errors-pseudo-html-line--error] {
+    background: var(--color-amber-300);
+    font-weight: bold;
+  }
+  [data-nextjs-container-errors-pseudo-html-line--error]::before {
+    content: '>';
+    color: var(--color-red-900);
+    float: left;
+    width: 0;
+    margin-left: calc(var(--size-6) * -1);
+    margin-right: var(--size-8);
+  }
+
   [data-nextjs-container-errors-pseudo-html-collapse] {
     all: unset;
+    margin-left: var(--size-3);
     &:focus {
       outline: none;
     }
@@ -378,36 +377,41 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
     background: var(--color-green-300);
   }
+  [data-nextjs-container-errors-pseudo-html--diff='add']::before {
+    content: '+';
+    color: var(--color-green-900);
+    float: left;
+    width: 0;
+    margin-left: calc(var(--size-6) * -1);
+    margin-right: var(--size-8);
+  }
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     background: var(--color-red-300);
   }
-  [data-nextjs-container-errors-pseudo-html--tag-error] {
-    background: var(--color-red-300);
-    font-weight: bold;
+  [data-nextjs-container-errors-pseudo-html--diff='remove']::before {
+    content: '-';
+    color: var(--color-red-900);
+    float: left;
+    width: 0;
+    margin-left: calc(var(--size-6) * -1);
+    margin-right: var(--size-8);
   }
-  /* hide but text are still accessible in DOM */
+  ${/* hide but text are still accessible in DOM */ ''}
   [data-nextjs-container-errors-pseudo-html--hint] {
     display: inline-block;
     font-size: 0;
+    height: 0;
   }
   [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
     color: var(--color-accents-1);
   }
-
-  [data-nextjs-container-errors-pseudo-html] > span {
-    display: block;
-    height: var(--size-5);
-  }
-  [data-nextjs-container-errors-pseudo-html] > pre > code > span {
-    display: block;
-    height: var(--size-5);
-  }
-
   .nextjs__container_errors__component-stack {
     margin: 0;
   }
-  .error-overlay-hydration-error-collapsed {
-    padding-left: var(--size-4);
+  .nextjs__container_errors__component-stack code {
+    display: block;
+    width: 100%;
+    white-space: pre-wrap;
   }
   .error-overlay-hydration-error-diff-plus-icon {
     color: var(--color-green-900);

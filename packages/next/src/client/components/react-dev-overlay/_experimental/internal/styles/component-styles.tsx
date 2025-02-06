@@ -1,7 +1,7 @@
 import { CODE_FRAME_STYLES } from '../components/code-frame/code-frame'
 import { styles as dialog } from '../components/dialog'
 import { styles as errorLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
-import { styles as bottomStacks } from '../components/errors/error-overlay-bottom-stacks/error-overlay-bottom-stacks'
+import { styles as bottomStack } from '../components/errors/error-overlay-bottom-stack'
 import { styles as pagination } from '../components/errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/overlay/styles'
 import { styles as footer } from '../components/errors/error-overlay-footer/error-overlay-footer'
@@ -28,7 +28,7 @@ export function ComponentStyles() {
         ${dialog}
         ${errorLayout}
         ${footer}
-        ${bottomStacks}
+        ${bottomStack}
         ${pagination}
         ${CODE_FRAME_STYLES}
         ${TERMINAL_STYLES}

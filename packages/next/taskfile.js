@@ -2731,7 +2731,7 @@ export async function check_error_codes(task, opts) {
   } catch (err) {
     if (process.env.CI) {
       await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` and then commit the change in errors.json.',
+        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
         {
           stdio: 'inherit',
         }
@@ -2854,9 +2854,9 @@ export async function release(task) {
 }
 
 export async function next_bundle_app_turbo(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'app',
     }),
@@ -2865,9 +2865,9 @@ export async function next_bundle_app_turbo(task, opts) {
 }
 
 export async function next_bundle_app_prod(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'app',
     }),
@@ -2876,9 +2876,9 @@ export async function next_bundle_app_prod(task, opts) {
 }
 
 export async function next_bundle_app_dev(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'app',
     }),
@@ -2887,9 +2887,9 @@ export async function next_bundle_app_dev(task, opts) {
 }
 
 export async function next_bundle_app_turbo_experimental(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'app',
       experimental: true,
@@ -2899,9 +2899,9 @@ export async function next_bundle_app_turbo_experimental(task, opts) {
 }
 
 export async function next_bundle_app_prod_experimental(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'app',
       experimental: true,
@@ -2911,9 +2911,9 @@ export async function next_bundle_app_prod_experimental(task, opts) {
 }
 
 export async function next_bundle_app_dev_experimental(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'app',
       experimental: true,
@@ -2923,9 +2923,9 @@ export async function next_bundle_app_dev_experimental(task, opts) {
 }
 
 export async function next_bundle_pages_prod(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'pages',
     }),
@@ -2934,9 +2934,9 @@ export async function next_bundle_pages_prod(task, opts) {
 }
 
 export async function next_bundle_pages_dev(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: true,
       bundleType: 'pages',
     }),
@@ -2945,9 +2945,9 @@ export async function next_bundle_pages_dev(task, opts) {
 }
 
 export async function next_bundle_pages_turbo(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       turbo: true,
       bundleType: 'pages',
     }),
@@ -2956,9 +2956,9 @@ export async function next_bundle_pages_turbo(task, opts) {
 }
 
 export async function next_bundle_server(task, opts) {
-  await task.source('dist').rspack({
+  await task.source('dist').webpack({
     watch: opts.dev,
-    config: require('./next_runtime.config')({
+    config: require('./next-runtime.webpack-config')({
       dev: false,
       bundleType: 'server',
     }),

@@ -24,21 +24,21 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at span (<anonymous> (0:0))
-         at <anonymous> (app/rsc/page.tsx (7:10))
-         at Page (app/rsc/page.tsx (6:13))"
-        `)
+          "at span (<anonymous> (0:0))
+          at <anonymous> (app/rsc/page.tsx (7:10))
+          at Page (app/rsc/page.tsx (6:13))"
+          `)
         expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (7:10) @ <anonymous>
-
-             5 |     <div>
-             6 |       {list.map((item, index) => (
-          >  7 |         <span>{item}</span>
-               |          ^
-             8 |       ))}
-             9 |     </div>
-            10 |   )"
-        `)
+            "app/rsc/page.tsx (7:10) @ <anonymous>
+            
+            5 |     <div>
+            6 |       {list.map((item, index) => (
+         >  7 |         <span>{item}</span>
+              |          ^
+            8 |       ))}
+            9 |     </div>
+           10 |   )"
+              `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
          "at span (<anonymous> (0:0))

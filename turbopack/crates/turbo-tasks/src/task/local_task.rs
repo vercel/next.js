@@ -170,12 +170,10 @@ impl LocalTaskType {
         let this = this.resolve().await?;
         let TypedCellContent(this_ty, _) = this.into_read().await?;
 
-        let native_fn = Self::resolve_trait_method_from_value(trait_type, this_ty, name)?;
-        let arg = registry::get_function(native_fn)
-            .arg_meta
-            .resolve(arg)
-            .await?;
-        Ok(turbo_tasks.dynamic_call(native_fn, Some(this), arg, persistence))
+        let native_fn_id = Self::resolve_trait_method_from_value(trait_type, this_ty, name)?;
+        let native_fn = registry::get_function(native_fn_id);
+        let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
+        Ok(turbo_tasks.dynamic_call(native_fn_id, Some(this), arg, persistence))
     }
 
     fn resolve_trait_method_from_value(

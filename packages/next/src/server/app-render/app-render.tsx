@@ -681,8 +681,6 @@ async function warmupDevRender(
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
 
-  // TODO(useCache): Should this be a PrerenderStorePPR if dynamicIO is not
-  // enabled?
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
@@ -1038,9 +1036,9 @@ function App<T>({
   const initialState = createInitialRouterState({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
@@ -1096,9 +1094,9 @@ function AppWithoutContext<T>({
   const initialState = createInitialRouterState({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
@@ -1965,7 +1963,6 @@ async function renderToStream(
       ),
       isStaticGeneration: generateStaticHTML,
       getServerInsertedHTML,
-      serverInsertedHTMLToHead: true,
       validateRootLayout,
     })
   } catch (err) {
@@ -2111,7 +2108,6 @@ async function renderToStream(
           basePath: renderOpts.basePath,
           tracingMetadata: tracingMetadata,
         }),
-        serverInsertedHTMLToHead: true,
         validateRootLayout,
       })
     } catch (finalErr: any) {
@@ -2492,12 +2488,8 @@ type PrerenderToStreamResult = {
  * Determines whether we should generate static flight data.
  */
 function shouldGenerateStaticFlightData(workStore: WorkStore): boolean {
-  const { fallbackRouteParams, isStaticGeneration } = workStore
+  const { isStaticGeneration } = workStore
   if (!isStaticGeneration) return false
-
-  if (fallbackRouteParams && fallbackRouteParams.size > 0) {
-    return false
-  }
 
   return true
 }
@@ -3505,7 +3497,6 @@ async function prerenderToStream(
             ),
             isStaticGeneration: true,
             getServerInsertedHTML,
-            serverInsertedHTMLToHead: true,
             validateRootLayout,
           }),
           dynamicAccess: consumeDynamicAccess(
@@ -3831,7 +3822,6 @@ async function prerenderToStream(
           ),
           isStaticGeneration: true,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4006,7 +3996,6 @@ async function prerenderToStream(
             basePath: renderOpts.basePath,
             tracingMetadata: tracingMetadata,
           }),
-          serverInsertedHTMLToHead: true,
           validateRootLayout,
         }),
         dynamicAccess: null,

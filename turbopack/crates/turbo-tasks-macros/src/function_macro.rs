@@ -40,7 +40,6 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         .inspect_err(|err| errors.push(err.to_compile_error()))
         .unwrap_or_default();
     let local = args.local.is_some();
-    let local_cells = args.local_cells.is_some();
 
     let Some(turbo_fn) = TurboFn::new(&sig, DefinitionContext::NakedFn, args) else {
         return quote! {
@@ -59,8 +58,8 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         function_path_string: ident.to_string(),
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
+        filter_trait_call_args: None, // not a trait method
         local,
-        local_cells,
     };
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();

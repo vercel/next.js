@@ -1,12 +1,13 @@
-use std::{collections::HashMap, fs};
+use std::fs;
 
+use rustc_hash::FxHashMap;
 use swc_core::{
     ecma::{ast::*, transforms::testing::test_inline, visit::*},
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
 
 pub struct TransformVisitor {
-    errors: HashMap<String, String>,
+    errors: FxHashMap<String, String>,
 }
 
 #[derive(serde::Serialize)]
@@ -240,7 +241,7 @@ pub fn process_transform(
 ) -> Program {
     let errors_json = fs::read_to_string("/cwd/errors.json")
         .unwrap_or_else(|e| panic!("failed to read errors.json: {}", e));
-    let errors: HashMap<String, String> = serde_json::from_str(&errors_json)
+    let errors: FxHashMap<String, String> = serde_json::from_str(&errors_json)
         .unwrap_or_else(|e| panic!("failed to parse errors.json: {}", e));
 
     let mut visitor = TransformVisitor { errors };
@@ -252,7 +253,7 @@ pub fn process_transform(
 test_inline!(
     Default::default(),
     |_| visit_mut_pass(TransformVisitor {
-        errors: HashMap::from([
+        errors: FxHashMap::from_iter([
             ("1".to_string(), "Failed to fetch user %s: %s".to_string()),
             ("2".to_string(), "Request failed: %s".to_string()),
             ("3".to_string(), "Generic error".to_string()),

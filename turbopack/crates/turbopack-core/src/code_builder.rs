@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     rope::{Rope, RopeBuilder},
@@ -166,7 +166,6 @@ impl GenerateSourceMap for Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
-        // ast-grep-ignore: to-resolved-in-loop
         for (byte_pos, map) in &self.mappings {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
@@ -182,38 +181,14 @@ impl GenerateSourceMap for Code {
             last_byte_pos = *byte_pos;
 
             let encoded = match map {
-                None => SourceMap::empty(),
+                None => SourceMap::empty().to_resolved().await?,
                 Some(map) => match *map.generate_source_map().await? {
-                    None => SourceMap::empty(),
-                    Some(map) => {
-                        let map = &*map.await?;
-                        let map = map.to_source_map().await?;
-                        match map.as_regular_source_map() {
-                            None => SourceMap::empty(),
-                            Some(map) => {
-                                let mut map = map.into_owned();
-                                let mut ignored_ids = IndexSet::new();
-                                for (src_id, src) in map.sources().enumerate() {
-                                    if src.starts_with("turbopack://[next]")
-                                        || src.starts_with("turbopack://[turbopack]")
-                                        || src.contains("/node_modules/")
-                                    {
-                                        ignored_ids.insert(src_id);
-                                    }
-                                }
-
-                                for ignored_id in ignored_ids {
-                                    map.add_to_ignore_list(ignored_id as _);
-                                }
-
-                                SourceMap::new_decoded(sourcemap::DecodedMap::Regular(map)).cell()
-                            }
-                        }
-                    }
+                    None => SourceMap::empty().to_resolved().await?,
+                    Some(map) => map,
                 },
             };
 
-            sections.push(SourceMapSection::new(pos, encoded.to_resolved().await?))
+            sections.push(SourceMapSection::new(pos, encoded))
         }
 
         Ok(Vc::cell(Some(

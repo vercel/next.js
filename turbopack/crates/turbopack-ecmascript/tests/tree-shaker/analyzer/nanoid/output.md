@@ -394,22 +394,22 @@ graph TD
 ```
 {
     ModuleEvaluation: 11,
-    Exports: 16,
+    Export(
+        "customAlphabet",
+    ): 9,
     Export(
         "customRandom",
     ): 12,
     Export(
-        "customAlphabet",
-    ): 9,
+        "nanoid",
+    ): 13,
     Export(
         "random",
     ): 14,
     Export(
         "urlAlphabet",
     ): 15,
-    Export(
-        "nanoid",
-    ): 13,
+    Exports: 16,
 }
 ```
 
@@ -668,22 +668,22 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 11,
-    Exports: 16,
+    Export(
+        "customAlphabet",
+    ): 9,
     Export(
         "customRandom",
     ): 12,
     Export(
-        "customAlphabet",
-    ): 9,
+        "nanoid",
+    ): 13,
     Export(
         "random",
     ): 14,
     Export(
         "urlAlphabet",
     ): 15,
-    Export(
-        "nanoid",
-    ): 13,
+    Exports: 16,
 }
 ```
 

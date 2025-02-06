@@ -1,10 +1,7 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-};
+use std::{collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
@@ -14,7 +11,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
@@ -176,7 +173,7 @@ pub(crate) struct ImportMap {
     /// full details.
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-    attributes: HashMap<BytePos, ImportAttributes>,
+    attributes: FxHashMap<BytePos, ImportAttributes>,
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.
@@ -240,7 +237,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: JsWord,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
-    pub issue_source: Option<Vc<IssueSource>>,
+    pub issue_source: Option<IssueSource>,
 }
 
 impl ImportMap {
@@ -305,7 +302,7 @@ impl ImportMap {
     /// Analyze ES import
     pub(super) fn analyze(
         m: &Program,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
         comments: Option<&dyn Comments>,
     ) -> Self {
         let mut data = ImportMap::default();
@@ -415,7 +412,7 @@ impl Visit for StarImportAnalyzer<'_> {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<Vc<Box<dyn Source>>>,
+    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 }
 
