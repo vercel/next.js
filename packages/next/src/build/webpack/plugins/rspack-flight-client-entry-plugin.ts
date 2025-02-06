@@ -136,6 +136,7 @@ export class RspackFlightClientEntryPlugin {
       },
       stateCb: (state: any) => {
         Object.assign(pluginState.serverActions, state.serverActions)
+        Object.assign(pluginState.edgeServerActions, state.edgeServerActions)
         Object.assign(
           pluginState.serverActionModules,
           state.serverActionModules

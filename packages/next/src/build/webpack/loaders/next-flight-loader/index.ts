@@ -67,7 +67,7 @@ export default function transformSource(
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
-  let prefix
+  let prefix = ''
   if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
     const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
     prefix = `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n`
@@ -115,12 +115,11 @@ export default function transformSource(
         return
       }
 
-      let esmSource = `\
+      let esmSource =
+        prefix +
+        `\
 import { registerClientReference } from "react-server-dom-webpack/server.edge";
 `
-      if (prefix) {
-        esmSource = prefix + esmSource
-      }
       for (const ref of clientRefs) {
         if (ref === 'default') {
           esmSource += `export default registerClientReference(
@@ -145,14 +144,13 @@ ${JSON.stringify(ref)},
 
       return this.callback(null, esmSource, sourceMap)
     } else if (assumedSourceType === 'commonjs') {
-      let cjsSource = `\
+      let cjsSource =
+        prefix +
+        `\
 const { createProxy } = require("${MODULE_PROXY_PATH}")
 
 module.exports = createProxy(${stringifiedResourceKey})
 `
-      if (prefix) {
-        cjsSource = prefix + cjsSource
-      }
       return this.callback(null, cjsSource, sourceMap)
     }
   }
