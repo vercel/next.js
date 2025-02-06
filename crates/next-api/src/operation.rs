@@ -30,19 +30,12 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
 }
 
-/// HACK: Wraps an `OperationVc<Entrypoints>` inside of a second `OperationVc`.
-#[turbo_tasks::function(operation)]
-fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints> {
-    entrypoints.connect()
-}
-
 /// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
 /// they're not duplicated across many different individual entrypoints or routes.
 #[turbo_tasks::function(operation)]
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let entrypoints = entrypoints_wrapper(entrypoints);
     let _ = entrypoints.resolve_strongly_consistent().await?;
     let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
     let _ = entrypoints.take_issues_with_path().await?;
