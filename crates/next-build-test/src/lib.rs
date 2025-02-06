@@ -9,10 +9,10 @@ use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     project::{ProjectContainer, ProjectOptions},
-    route::{endpoint_write_to_disk, Route},
+    route::{endpoint_write_to_disk, Endpoint, EndpointOutputPaths, Route},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_tasks::{get_effects, ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -185,21 +185,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            endpoint_write_to_disk(*html_endpoint).await?;
+                            endpoint_write_to_disk_with_effects(*html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint_write_to_disk(*endpoint).await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                endpoint_write_to_disk(*route.html_endpoint).await?;
+                                endpoint_write_to_disk_with_effects(*route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint_write_to_disk(*endpoint).await?;
+                            endpoint_write_to_disk_with_effects(*endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
@@ -240,6 +240,23 @@ pub async fn render_routes(
         .await?;
 
     Ok(stream.len())
+}
+
+#[turbo_tasks::function]
+async fn endpoint_write_to_disk_with_effects(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Result<Vc<EndpointOutputPaths>> {
+    let op = endpoint_write_to_disk_operation(endpoint);
+    let result = op.resolve_strongly_consistent().await?;
+    get_effects(op).await?.apply().await?;
+    Ok(*result)
+}
+
+#[turbo_tasks::function(operation)]
+pub fn endpoint_write_to_disk_operation(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Vc<EndpointOutputPaths> {
+    endpoint_write_to_disk(*endpoint)
 }
 
 async fn hmr(
