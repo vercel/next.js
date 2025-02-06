@@ -697,10 +697,16 @@ export function cache(
           workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
             ? []
             : workUnitStore.implicitTags
-        const entry: undefined | CacheEntry = await cacheHandler.get(
-          serializedCacheKey,
-          implicitTags
-        )
+
+        const forceRevalidate =
+          workStore.dev &&
+          workUnitStore?.type === 'request' &&
+          workUnitStore.headers.get('cache-control') === 'no-cache'
+
+        const entry = forceRevalidate
+          ? undefined
+          : await cacheHandler.get(serializedCacheKey, implicitTags)
+
         const currentTime = performance.timeOrigin + performance.now()
         if (
           workUnitStore !== undefined &&

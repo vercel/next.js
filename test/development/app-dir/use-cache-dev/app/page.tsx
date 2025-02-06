@@ -10,10 +10,10 @@ export default async function Page() {
   const [fetchedRandom, text, mathRandom] = await getData()
 
   return (
-    <>
+    <div id="container">
       <p id="fetchedRandom">{fetchedRandom}</p>
       <p id="text">{text}</p>
       <p id="mathRandom">{mathRandom}</p>
-    </>
+    </div>
   )
 }
