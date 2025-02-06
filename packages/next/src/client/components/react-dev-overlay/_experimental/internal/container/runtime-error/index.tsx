@@ -33,7 +33,7 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
         />
       )}
 
-      {error.frames.length > 0 && (
+      {frames.length > 0 && (
         <CallStack dialogResizerRef={dialogResizerRef} frames={frames} />
       )}
     </>
