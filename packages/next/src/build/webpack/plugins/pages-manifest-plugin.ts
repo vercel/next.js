@@ -43,7 +43,7 @@ export default class PagesManifestPlugin
     this.appDirEnabled = appDirEnabled
   }
 
-  async createAssets(compilation: any, assets: any) {
+  async createAssets(compilation: any) {
     const entrypoints = compilation.entrypoints
     const pages: PagesManifest = {}
     const appPaths: PagesManifest = {}
