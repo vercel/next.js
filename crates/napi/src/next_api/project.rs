@@ -772,7 +772,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         .run_once(async move {
             let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
                 project.container.to_resolved().await?,
-                ResolvedVc::cell(app_dir_only),
+                app_dir_only,
             );
 
             let EntrypointsWithIssues {
@@ -800,7 +800,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 #[turbo_tasks::function(operation)]
 async fn get_all_written_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
-    app_dir_only: ResolvedVc<bool>,
+    app_dir_only: bool,
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
         container,
@@ -822,7 +822,7 @@ async fn get_all_written_entrypoints_with_issues_operation(
 #[turbo_tasks::function(operation)]
 pub async fn all_entrypoints_write_to_disk_operation(
     project: ResolvedVc<ProjectContainer>,
-    app_dir_only: ResolvedVc<bool>,
+    app_dir_only: bool,
 ) -> Result<Vc<Entrypoints>> {
     let _ = project
         .project()
@@ -836,10 +836,8 @@ pub async fn all_entrypoints_write_to_disk_operation(
 #[turbo_tasks::function(operation)]
 async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
-    app_dir_only: ResolvedVc<bool>,
+    app_dir_only: bool,
 ) -> Result<Vc<OutputAssets>> {
-    let app_dir_only = *app_dir_only.await?;
-
     let endpoint_assets = container
         .project()
         .get_all_endpoints(app_dir_only)
