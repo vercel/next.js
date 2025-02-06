@@ -43,6 +43,7 @@ async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
     let entrypoints = entrypoints_wrapper(entrypoints);
+    let _ = entrypoints.resolve_strongly_consistent().await?;
     let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
     let _ = entrypoints.take_issues_with_path().await?;
     let _ = get_effects(entrypoints).await?;
