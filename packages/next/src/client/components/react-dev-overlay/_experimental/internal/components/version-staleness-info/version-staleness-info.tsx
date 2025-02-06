@@ -1,4 +1,5 @@
 import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
+import { cx } from '../../helpers/cx'
 import { noop as css } from '../../helpers/noop-template'
 
 export function VersionStalenessInfo({
@@ -16,11 +17,13 @@ export function VersionStalenessInfo({
 
   return (
     <span
-      className={`nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click ${
-        isTurbopack ? 'turbopack-border' : ''
-      }`}
+      className={cx(
+        'nextjs-container-build-error-version-status',
+        'dialog-exclude-closing-from-outside-click',
+        isTurbopack && 'turbopack-border'
+      )}
     >
-      <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
+      <Eclipse className={cx('version-staleness-indicator', indicatorClass)} />
       <span data-nextjs-version-checker title={title}>
         {text}
       </span>{' '}
