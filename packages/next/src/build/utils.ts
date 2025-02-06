@@ -1467,6 +1467,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1579,6 +1580,12 @@ export async function copyTracedFiles(
         Log.warn(`Failed to copy traced files for ${pageFile}`, err)
       }
     })
+  }
+
+  if (hasNodeMiddleware) {
+    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+    const middlewareTrace = `${middlewareFile}.nft.json`
+    await handleTraceFiles(middlewareTrace)
   }
 
   if (appPageKeys) {
