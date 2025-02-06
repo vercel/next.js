@@ -51,6 +51,7 @@ const styles = css`
     height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   /* Account for the footer height, when present */
