@@ -7,7 +7,6 @@ export function getServerActionRequestMetadata(
   req: IncomingMessage | BaseNextRequest | NextRequest
 ): {
   actionId: string | null
-  isURLEncodedAction: boolean
   isMultipartAction: boolean
   isFetchAction: boolean
   isPotentialServerAction: boolean
@@ -23,9 +22,6 @@ export function getServerActionRequestMetadata(
     contentType = req.headers['content-type'] ?? null
   }
 
-  const isURLEncodedAction = Boolean(
-    req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
-  )
   const isMultipartAction = Boolean(
     req.method === 'POST' && contentType?.startsWith('multipart/form-data')
   )
@@ -35,13 +31,10 @@ export function getServerActionRequestMetadata(
       req.method === 'POST'
   )
 
-  const isPotentialServerAction = Boolean(
-    isFetchAction || isURLEncodedAction || isMultipartAction
-  )
+  const isPotentialServerAction = isFetchAction || isMultipartAction
 
   return {
     actionId,
-    isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
     isPotentialServerAction,
