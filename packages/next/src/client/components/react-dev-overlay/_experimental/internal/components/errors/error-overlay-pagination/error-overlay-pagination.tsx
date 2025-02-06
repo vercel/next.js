@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { noop as css } from '../../../helpers/noop-template'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
@@ -17,17 +23,23 @@ export function ErrorOverlayPagination({
 }: ErrorPaginationProps) {
   const handlePrevious = useCallback(
     () =>
-      activeIdx > 0 ? onActiveIndexChange(Math.max(0, activeIdx - 1)) : null,
+      startTransition(() => {
+        if (activeIdx > 0) {
+          onActiveIndexChange(Math.max(0, activeIdx - 1))
+        }
+      }),
     [activeIdx, onActiveIndexChange]
   )
 
   const handleNext = useCallback(
     () =>
-      activeIdx < readyErrors.length - 1
-        ? onActiveIndexChange(
+      startTransition(() => {
+        if (activeIdx < readyErrors.length - 1) {
+          onActiveIndexChange(
             Math.max(0, Math.min(readyErrors.length - 1, activeIdx + 1))
           )
-        : null,
+        }
+      }),
     [activeIdx, readyErrors.length, onActiveIndexChange]
   )
 
