@@ -48,6 +48,7 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
+            IS_NEXT_WORKER: 'true',
           } as any,
         },
       }) as JestWorker
@@ -73,7 +74,7 @@ export class Worker {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
-                `Static worker exited with code: ${code} and signal: ${signal}`
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // We're restarting the worker, so we don't want to exit the parent process

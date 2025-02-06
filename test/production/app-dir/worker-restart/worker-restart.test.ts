@@ -41,7 +41,7 @@ describe('worker-restart', () => {
 
     const output = stdout + stderr
     expect(output).toContain(
-      'Static worker exited with code: null and signal: SIGKILL'
+      'Next.js build worker exited with code: null and signal: SIGKILL'
     )
   })
 })
