@@ -387,12 +387,17 @@ describe('required server files', () => {
   ;(process.env.TURBOPACK ? it.skip : it)(
     'should output middleware correctly',
     async () => {
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(
-        await fs.pathExists(
-          join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
-        )
-      ).toBe(true)
+      if (!process.env.TEST_NODE_MIDDLEWARE) {
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(
+          await fs.pathExists(
+            join(
+              next.testDir,
+              'standalone/.next/server/edge-runtime-webpack.js'
+            )
+          )
+        ).toBe(true)
+      }
       // eslint-disable-next-line jest/no-standalone-expect
       expect(
         await fs.pathExists(
