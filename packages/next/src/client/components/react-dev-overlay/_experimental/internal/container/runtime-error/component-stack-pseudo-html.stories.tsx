@@ -15,7 +15,7 @@ type Story = StoryObj<typeof PseudoHtmlDiff>
 
 const sampleComponentStack = [
   {
-    component: 'div',
+    component: 'section',
     canOpenInEditor: false,
   },
   {
@@ -32,9 +32,23 @@ const sampleComponentStack = [
   },
 ]
 
+const div = {
+  component: 'div',
+  canOpenInEditor: false,
+}
+
 export const TextMismatch: Story = {
   args: {
     componentStackFrames: sampleComponentStack,
+    firstContent: 'Server rendered content',
+    secondContent: 'Client rendered content',
+    hydrationMismatchType: 'text',
+    reactOutputComponentDiff: undefined,
+  },
+}
+export const TextMismatchExpandable: Story = {
+  args: {
+    componentStackFrames: sampleComponentStack.concat(div),
     firstContent: 'Server rendered content',
     secondContent: 'Client rendered content',
     hydrationMismatchType: 'text',
@@ -51,15 +65,38 @@ export const TextInTagMismatch: Story = {
     reactOutputComponentDiff: undefined,
   },
 }
+export const TextInTagMismatchExpandable: Story = {
+  args: {
+    componentStackFrames: sampleComponentStack.concat(div),
+    firstContent: 'Mismatched content',
+    secondContent: 'p',
+    hydrationMismatchType: 'text-in-tag',
+    reactOutputComponentDiff: undefined,
+  },
+}
 
 export const ReactUnifiedMismatch: Story = {
   args: {
     componentStackFrames: sampleComponentStack,
     hydrationMismatchType: 'tag',
     reactOutputComponentDiff: `<Page>
-  <Layout>
-    <div>
+<Layout>
+  <Home>
+    <main>
 -     <p>Server content</p>
 +     <p>Client content</p>`,
+  },
+}
+export const ReactUnifiedMismatchExpandable: Story = {
+  args: {
+    componentStackFrames: sampleComponentStack.concat(div),
+    hydrationMismatchType: 'tag',
+    reactOutputComponentDiff: `<Page>
+<Layout>
+  <Home>
+    <main>
+      <article>
+-       <p>Server content</p>
++       <p>Client content</p>`,
   },
 }

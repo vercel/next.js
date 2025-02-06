@@ -184,7 +184,6 @@ export function Errors({
       (activeError.componentStackFrames?.length ||
         !!errorDetails.reactOutputComponentDiff) ? (
         <PseudoHtmlDiff
-          className="nextjs__container_errors__component-stack"
           hydrationMismatchType={hydrationErrorType}
           componentStackFrames={activeError.componentStackFrames || []}
           firstContent={serverContent}

@@ -74,6 +74,13 @@ export function PseudoHtmlDiff({
 
   // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
   const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
+
+  const hasCollapsableFrames =
+    (isReactHydrationDiff
+      ? reactOutputComponentDiff?.split('\n')
+      : componentStackFrames
+    ).length > MAX_NON_COLLAPSED_FRAMES
+
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
@@ -124,7 +131,7 @@ export function PseudoHtmlDiff({
                 {'\n'}
               </span>
             )
-          } else if (!isHtmlCollapsed) {
+          } else if (!isHtmlCollapsed || !hasCollapsableFrames) {
             componentStacks.push(
               <span
                 data-nextjs-container-errors-pseudo-html-line
@@ -197,7 +204,7 @@ export function PseudoHtmlDiff({
         Math.abs(index - matchedIndex[1]) <= 1
 
       const isLastFewFrames =
-        !isHtmlTagsWarning && index >= componentList.length - 6
+        !isHtmlTagsWarning && index >= componentList.length - 4
 
       const adjProps = getAdjacentProps(isAdjacentTag)
 
@@ -318,18 +325,21 @@ export function PseudoHtmlDiff({
     MAX_NON_COLLAPSED_FRAMES,
     isReactHydrationDiff,
     reactOutputComponentDiff,
+    hasCollapsableFrames,
   ])
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <button
-        tabIndex={10} // match CallStackFrame
-        data-nextjs-container-errors-pseudo-html-collapse
-        onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
-      >
-        <CollapseIcon collapsed={isHtmlCollapsed} />
-      </button>
-      <pre {...props}>
+      {hasCollapsableFrames && (
+        <button
+          tabIndex={10} // match CallStackFrame
+          data-nextjs-container-errors-pseudo-html-collapse
+          onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
+        >
+          <CollapseIcon collapsed={isHtmlCollapsed} />
+        </button>
+      )}
+      <pre className="nextjs__container_errors__component-stack" {...props}>
         <code>{htmlComponents}</code>
       </pre>
     </div>
