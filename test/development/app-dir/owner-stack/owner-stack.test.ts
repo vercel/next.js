@@ -4,7 +4,7 @@ import {
   assertNoRedbox,
   openRedbox,
   getRedboxDescription,
-  ensureNoSuspendedComponentsInRedBox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 // TODO: parse the location and assert them in the future
@@ -19,7 +19,7 @@ function normalizeStackTrace(trace: string) {
 }
 
 async function getStackFramesContent(browser) {
-  await ensureNoSuspendedComponentsInRedBox(browser)
+  await hasRedboxCallStack(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )

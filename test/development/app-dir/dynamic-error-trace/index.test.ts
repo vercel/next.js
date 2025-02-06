@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
   getRedboxSource,
-  ensureNoSuspendedComponentsInRedBox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 import { outdent } from 'outdent'
 
@@ -28,7 +28,7 @@ describe('app dir - dynamic error trace', () => {
       )
     ).resolves.toEqual(false)
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await hasRedboxCallStack(browser)
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )

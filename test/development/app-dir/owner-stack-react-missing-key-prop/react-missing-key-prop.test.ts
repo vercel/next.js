@@ -2,14 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   getRedboxSource,
   openRedbox,
-  ensureNoSuspendedComponentsInRedBox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
 const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 async function getStackFramesContent(browser) {
-  await ensureNoSuspendedComponentsInRedBox(browser)
+  await hasRedboxCallStack(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )

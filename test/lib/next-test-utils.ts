@@ -825,9 +825,7 @@ export async function retry<T>(
   }
 }
 
-export async function ensureNoSuspendedComponentsInRedBox(
-  browser: BrowserInterface
-) {
+async function ensureNoSuspendedComponentsInRedBox(browser: BrowserInterface) {
   await retry(async () => {
     const suspended = await browser.eval(() => {
       return Boolean(

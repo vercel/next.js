@@ -6,7 +6,7 @@ import {
   describeVariants as describe,
   getStackFramesContent,
   retry,
-  ensureNoSuspendedComponentsInRedBox,
+  getRedboxCallStack,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -794,7 +794,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(source).toContain('app/page.js')
     expect(source).toContain(`throw new Error('Client error')`)
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await getRedboxCallStack(browser)
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
@@ -833,7 +833,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(source).toContain('app/page.js')
     expect(source).toContain(`throw new Error('Server error')`)
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await getRedboxCallStack(browser)
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
@@ -881,7 +881,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toMatchSnapshot()
     }
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await getRedboxCallStack(browser)
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
@@ -941,7 +941,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toMatchSnapshot()
     }
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await getRedboxCallStack(browser)
 
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'

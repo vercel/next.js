@@ -5,7 +5,7 @@ import {
   describeVariants as describe,
   getStackFramesContent,
   toggleCollapseCallStackFrames,
-  ensureNoSuspendedComponentsInRedBox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -765,7 +765,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
-    await ensureNoSuspendedComponentsInRedBox(browser)
+    await hasRedboxCallStack(browser)
     const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
