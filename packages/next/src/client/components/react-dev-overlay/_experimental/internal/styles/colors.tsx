@@ -6,6 +6,17 @@ export function Colors() {
     <style>
       {css`
         :host {
+          /* cyan: keyword */
+          --color-ansi-cyan: var(--color-syntax-keyword);
+          /* yellow: capitalized, jsxIdentifier, punctuation */
+          --color-ansi-yellow: var(--color-syntax-punctuation);
+          /* magenta: number, regex */
+          --color-ansi-magenta: var(--color-syntax-number);
+          /* green: string */
+          --color-ansi-green: var(--color-syntax-string);
+          /* gray (bright black): comment, gutter */
+          --color-ansi-bright-black: var(--color-syntax-comment);
+
           /* Ansi - Temporary */
           --color-ansi-selection: var(--color-gray-alpha-300);
           --color-ansi-bg: var(--color-background-200);
@@ -14,13 +25,8 @@ export function Colors() {
           --color-ansi-white: var(--color-gray-700);
           --color-ansi-black: var(--color-gray-200);
           --color-ansi-blue: var(--color-blue-700);
-          --color-ansi-cyan: var(--color-blue-700);
-          --color-ansi-green: var(--color-green-700);
-          --color-ansi-magenta: var(--color-blue-700);
           --color-ansi-red: var(--color-red-700);
-          --color-ansi-yellow: var(--color-amber-800);
           --color-ansi-bright-white: var(--color-gray-1000);
-          --color-ansi-bright-black: var(--color-gray-700);
           --color-ansi-bright-blue: var(--color-blue-800);
           --color-ansi-bright-cyan: var(--color-blue-800);
           --color-ansi-bright-green: var(--color-green-800);
