@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { noop as css } from '../../helpers/noop-template'
-import { cn } from '../../helpers/merge-class-names'
+import { cx } from '../../helpers/cx'
 
 function useCopyLegacy(content: string) {
   type CopyState =
@@ -185,7 +185,7 @@ export function CopyButton({
       aria-disabled={isDisabled}
       disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button
-      className={cn(
+      className={cx(
         props.className,
         'nextjs-data-runtime-error-copy-button',
         `nextjs-data-runtime-error-copy-button--${copyState.state}`
