@@ -30,7 +30,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap, SourceMap},
     SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -124,11 +124,12 @@ impl GenerateSourceMap for ParseResultSourceMap {
         } else {
             None
         };
-        let map = self.files_map.build_source_map_with_config(
+        let mut map = self.files_map.build_source_map_with_config(
             &self.mappings,
             input_map.as_deref(),
             InlineSourcesContentConfig {},
         );
+        add_default_ignore_list(&mut map);
         Ok(Vc::cell(Some(SourceMap::new_regular(map).resolved_cell())))
     }
 }

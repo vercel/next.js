@@ -9552,6 +9552,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",
+ "const_format",
  "either",
  "futures",
  "indexmap 2.7.1",

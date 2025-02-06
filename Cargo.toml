@@ -133,6 +133,7 @@ clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console = "0.15.5"
 console-subscriber = "0.4.1"
+const_format = "0.2.30"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
