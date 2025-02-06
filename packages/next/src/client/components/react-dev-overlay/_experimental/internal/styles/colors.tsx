@@ -6,6 +6,17 @@ export function Colors() {
     <style>
       {css`
         :host {
+          ${
+            // CAUTION: THIS IS A WORKAROUND!
+            // For now, we use @babel/code-frame to parse the code frame which does not support option to change the color.
+            // x-ref: https://github.com/babel/babel/blob/efa52324ff835b794c48080f14877b6caf32cd15/packages/babel-code-frame/src/defs.ts#L40-L54
+            // So, we do a workaround mapping to change the color matching the theme.
+
+            // For example, in @babel/code-frame, the `keyword` is mapped to ANSI "cyan".
+            // We want the `keyword` to use the `syntax-keyword` color in the theme.
+            // So, we map the "cyan" to the `syntax-keyword` in the theme.
+            ''
+          }
           /* cyan: keyword */
           --color-ansi-cyan: var(--color-syntax-keyword);
           /* yellow: capitalized, jsxIdentifier, punctuation */
