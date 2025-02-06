@@ -66,7 +66,7 @@ export function PseudoHtmlDiff({
   componentStackFrames: ComponentStackFrame[]
   firstContent: string
   secondContent: string
-  reactOutputComponentDiff: string | undefined
+  reactOutputComponentDiff: string
   hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const isHtmlTagsWarning = hydrationMismatchType === 'tag'
@@ -79,91 +79,76 @@ export function PseudoHtmlDiff({
   const htmlComponents = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
     // React 19 unified mismatch
-    if (isReactHydrationDiff) {
-      let currentComponentIndex = componentStackFrames.length - 1
-      const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
-      const diffHtmlStack: React.ReactNode[] = []
-      reactComponentDiffLines.forEach((line, index) => {
-        let trimmedLine = line.trim()
-        const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
-        const isHighlightedLine = trimmedLine[0] === '>'
-        const spaces = ' '.repeat(Math.max(componentStacks.length * 2, 1))
-        if (isHighlightedLine) {
-          trimmedLine = trimmedLine.slice(2).trim() // trim spaces after sign
-        }
+    // if (isReactHydrationDiff) {
+    // }
+    // const diffHtmlStack: React.ReactNode[] = []
+    let currentComponentIndex = componentStackFrames.length - 1
+    const reactComponentDiffLines = reactOutputComponentDiff!.split('\n')
+    reactComponentDiffLines.forEach((line, index) => {
+      let trimmedLine = line.trim()
+      const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
+      const isHighlightedLine = trimmedLine[0] === '>'
+      const spaces = ' '.repeat(Math.max(componentStacks.length * 2, 1))
+      if (isHighlightedLine) {
+        trimmedLine = trimmedLine.slice(2).trim() // trim spaces after sign
+      }
 
-        if (isDiffLine) {
-          const sign = trimmedLine[0]
-          trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
-          diffHtmlStack.push(
-            <span
-              key={'comp-diff' + index}
-              data-nextjs-container-errors-pseudo-html-line
-              data-nextjs-container-errors-pseudo-html--diff={
-                sign === '+' ? 'add' : 'remove'
-              }
-            >
-              <span>
-                {/* Slice 2 spaces for the icon */}
-                {spaces.slice(2)}
-                {trimmedLine}
-                {'\n'}
-              </span>
+      if (isDiffLine) {
+        const sign = trimmedLine[0]
+        trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
+        componentStacks.push(
+          <span
+            key={'comp-diff' + index}
+            data-nextjs-container-errors-pseudo-html-line
+            data-nextjs-container-errors-pseudo-html--diff={
+              sign === '+' ? 'add' : 'remove'
+            }
+          >
+            <span>
+              {/* Slice 2 spaces for the icon */}
+              {spaces.slice(2)}
+              {trimmedLine}
+              {'\n'}
             </span>
-          )
-        } else if (currentComponentIndex >= 0) {
-          const isUserLandComponent = trimmedLine.startsWith(
-            '<' + componentStackFrames[currentComponentIndex].component
-          )
-          // If it's matched userland component or it's ... we will keep the component stack in diff
-          if (isUserLandComponent || trimmedLine === '...') {
-            currentComponentIndex--
-            componentStacks.push(
-              <span
-                data-nextjs-container-errors-pseudo-html-line
-                key={'comp-diff' + index}
-                {...(isHighlightedLine
-                  ? {
-                      'data-nextjs-container-errors-pseudo-html-line--error':
-                        true,
-                    }
-                  : undefined)}
-              >
-                {spaces}
-                {trimmedLine}
-                {'\n'}
-              </span>
-            )
-          } else if (
-            // !isHtmlCollapsed
-            true
-          ) {
-            componentStacks.push(
-              <span
-                data-nextjs-container-errors-pseudo-html-line
-                key={'comp-diff' + index}
-                {...(isHighlightedLine
-                  ? {
-                      'data-nextjs-container-errors-pseudo-html-line--error':
-                        true,
-                    }
-                  : undefined)}
-              >
-                {spaces}
-                {trimmedLine}
-                {'\n'}
-              </span>
-            )
-          }
-        } else if (
-          // !isHtmlCollapsed
-          true
-        ) {
-          // In general, if it's not collapsed, show the whole diff
+          </span>
+        )
+      } else if (currentComponentIndex >= 0) {
+        const isUserLandComponent = trimmedLine.startsWith(
+          '<' + componentStackFrames[currentComponentIndex].component
+        )
+        // If it's matched userland component or it's ... we will keep the component stack in diff
+        if (isUserLandComponent || trimmedLine === '...') {
+          currentComponentIndex--
           componentStacks.push(
             <span
               data-nextjs-container-errors-pseudo-html-line
               key={'comp-diff' + index}
+              {...(isHighlightedLine
+                ? {
+                    'data-nextjs-container-errors-pseudo-html-line--error':
+                      true,
+                  }
+                : undefined)}
+            >
+              {spaces}
+              {trimmedLine}
+              {'\n'}
+            </span>
+          )
+        } else if (
+          // !isHtmlCollapsed
+          true
+        ) {
+          componentStacks.push(
+            <span
+              data-nextjs-container-errors-pseudo-html-line
+              key={'comp-diff' + index}
+              {...(isHighlightedLine
+                ? {
+                    'data-nextjs-container-errors-pseudo-html-line--error':
+                      true,
+                  }
+                : undefined)}
             >
               {spaces}
               {trimmedLine}
@@ -171,9 +156,24 @@ export function PseudoHtmlDiff({
             </span>
           )
         }
-      })
-      return componentStacks.concat(diffHtmlStack)
-    }
+      } else if (
+        // !isHtmlCollapsed
+        true
+      ) {
+        // In general, if it's not collapsed, show the whole diff
+        componentStacks.push(
+          <span
+            data-nextjs-container-errors-pseudo-html-line
+            key={'comp-diff' + index}
+          >
+            {spaces}
+            {trimmedLine}
+            {'\n'}
+          </span>
+        )
+      }
+    })
+    return componentStacks //.concat(diffHtmlStack)
 
     const nestedHtmlStack: React.ReactNode[] = []
     const tagNames = isHtmlTagsWarning
@@ -217,12 +217,12 @@ export function PseudoHtmlDiff({
         Math.abs(index - matchedIndex[0]) <= 1 ||
         Math.abs(index - matchedIndex[1]) <= 1
 
-      const isLastFewFrames =
-        !isHtmlTagsWarning && index >= componentList.length - 6
+      // const isLastFewFrames =
+      //   !isHtmlTagsWarning && index >= componentList.length - 6
 
       const adjProps = getAdjacentProps(isAdjacentTag)
 
-      if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
+      if ((isHtmlTagsWarning && isAdjacentTag)) {
         const codeLine = (
           <span
             data-nextjs-container-errors-pseudo-html-line
@@ -258,7 +258,10 @@ export function PseudoHtmlDiff({
         //   return
         // }
 
-        if (!isHtmlCollapsed || isLastFewFrames) {
+        if (
+          true
+          // !isHtmlCollapsed
+        ) {
           nestedHtmlStack.push(
             <span
               {...adjProps}
@@ -278,7 +281,7 @@ export function PseudoHtmlDiff({
               data-nextjs-container-errors-pseudo-html-line
             >
               {spaces}
-              {'...\n'}
+              {/* {'...\n'} */}
             </span>
           )
         }
