@@ -86,7 +86,11 @@ export function PseudoHtmlDiff({
       reactComponentDiffLines.forEach((line, index) => {
         let trimmedLine = line.trim()
         const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
+        const isHighlightedLine = trimmedLine[0] === '>'
         const spaces = ' '.repeat(Math.max(componentStacks.length * 2, 1))
+        if (isHighlightedLine) {
+          trimmedLine = trimmedLine.slice(2).trim() // trim spaces after sign
+        }
 
         if (isDiffLine) {
           const sign = trimmedLine[0]
@@ -118,6 +122,12 @@ export function PseudoHtmlDiff({
               <span
                 data-nextjs-container-errors-pseudo-html-line
                 key={'comp-diff' + index}
+                {...(isHighlightedLine
+                  ? {
+                      'data-nextjs-container-errors-pseudo-html-line--error':
+                        true,
+                    }
+                  : undefined)}
               >
                 {spaces}
                 {trimmedLine}
@@ -132,8 +142,14 @@ export function PseudoHtmlDiff({
               <span
                 data-nextjs-container-errors-pseudo-html-line
                 key={'comp-diff' + index}
+                {...(isHighlightedLine
+                  ? {
+                      'data-nextjs-container-errors-pseudo-html-line--error':
+                        true,
+                    }
+                  : undefined)}
               >
-                {trimmedLine.startsWith('>') ? '' : spaces}
+                {spaces}
                 {trimmedLine}
                 {'\n'}
               </span>
@@ -192,7 +208,6 @@ export function PseudoHtmlDiff({
 
     componentStack.forEach((component, index, componentList) => {
       const spaces = ' '.repeat(nestedHtmlStack.length * 2)
-
       // When component is the server or client tag name, highlight it
       const isHighlightedTag = isHtmlTagsWarning
         ? index === matchedIndex[0] || index === matchedIndex[1]
@@ -431,8 +446,9 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     scroll-snap-type: y mandatory;
     overflow-y: hidden;
   }
-  [data-nextjs-container-errors-pseudo-html-line]:last-child {
-    scroll-snap-align: end;
+  [data-nextjs-container-errors-pseudo-html--diff],
+  [data-nextjs-container-errors-pseudo-html-line--error] {
+    scroll-snap-align: center;
   }
   .error-overlay-hydration-error-diff-plus-icon {
     color: var(--color-green-900);

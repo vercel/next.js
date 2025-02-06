@@ -115,7 +115,6 @@ export function Errors({
   )
   const isUnhandledError = isUnhandledConsoleOrRejection(error)
   const errorDetails: HydrationErrorState = (error as any).details || {}
-  console.log('errorDetails', errorDetails)
   const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
@@ -214,8 +213,8 @@ export const styles = css`
     bottom: calc(var(--size-gap-double) * 4.5);
   }
   p.nextjs__container_errors__link {
-    color: var(--color-red-900);
-    font-weight: 600;
+    // color: var(--color-red-900);
+    // font-weight: 600;
     font-size: 14px;
   }
   p.nextjs__container_errors__notes {
