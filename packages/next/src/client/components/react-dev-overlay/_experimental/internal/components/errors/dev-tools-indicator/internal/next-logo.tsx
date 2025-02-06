@@ -264,7 +264,7 @@ export const NextLogo = forwardRef(function NextLogo(
             }
           }
 
-          [data-issues-count] {
+          [data-issues-count-animation] {
             display: grid;
             place-items: center center;
             font-variant-numeric: tabular-nums;
@@ -406,7 +406,10 @@ export const NextLogo = forwardRef(function NextLogo(
                 aria-label="Open issues overlay"
                 onClick={openErrorOverlay}
               >
-                <AnimateCount animate={newErrorDetected}>
+                <AnimateCount
+                  animate={newErrorDetected}
+                  data-issues-count-animation
+                >
                   {issueCount}
                 </AnimateCount>{' '}
                 <div>
@@ -441,6 +444,7 @@ export const NextLogo = forwardRef(function NextLogo(
 function AnimateCount({
   children: propChildren,
   animate = true,
+  ...props
 }: {
   children: number
   animate: boolean
@@ -455,11 +459,11 @@ function AnimateCount({
   }, [propChildren])
 
   return (
-    <div key={String(enter)} data-animate={animate}>
+    <div {...props} key={String(enter)} data-animate={animate}>
       <div aria-hidden data-issues-count-exit>
         {exit}
       </div>
-      <div data-issues-count-enter data-issues-count>
+      <div data-issues-count data-issues-count-enter>
         {enter}
       </div>
     </div>
