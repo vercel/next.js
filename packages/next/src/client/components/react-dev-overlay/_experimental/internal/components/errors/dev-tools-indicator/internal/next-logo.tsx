@@ -371,11 +371,11 @@ export const NextLogo = forwardRef(function NextLogo(
             }
           }
 
-          @media (prefers-reduced-motion: reduce) {
+          @media (prefers-reduced-motion) {
             [data-issues-count-exit],
             [data-issues-count-enter],
             [data-issues-count-plural] {
-              animation-duration: 0ms;
+              animation-duration: 0ms !important;
             }
           }
         `}
