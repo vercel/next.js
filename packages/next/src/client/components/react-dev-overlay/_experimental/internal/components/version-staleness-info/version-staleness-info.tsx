@@ -1,4 +1,5 @@
 import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
+import { cx } from '../../helpers/cx'
 import { noop as css } from '../../helpers/noop-template'
 
 export function VersionStalenessInfo({
@@ -11,23 +12,24 @@ export function VersionStalenessInfo({
   const { staleness } = versionInfo
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
+  const shouldBeLink = staleness.startsWith('stale')
+  const InfoText = shouldBeLink ? 'a' : 'span'
+
   return (
     <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
-      <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
-      <span data-nextjs-version-checker title={title}>
+      <Eclipse className={cx('version-staleness-indicator', indicatorClass)} />
+      <InfoText
+        data-nextjs-version-checker
+        className={cx('version-staleness-info-text', indicatorClass)}
+        title={title}
+        {...(shouldBeLink && {
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          href: 'https://nextjs.org/docs/messages/version-staleness',
+        })}
+      >
         {text}
-      </span>{' '}
-      {staleness === 'fresh' ||
-      staleness === 'newer-than-npm' ||
-      staleness === 'unknown' ? null : (
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://nextjs.org/docs/messages/version-staleness"
-        >
-          (learn more)
-        </a>
-      )}
+      </InfoText>
       {isTurbopack && <span className="turbopack-text">Turbopack</span>}
     </span>
   )
@@ -92,6 +94,15 @@ export const styles = css`
     font-size: 12px;
     font-weight: 500;
     line-height: var(--size-4);
+  }
+
+  .version-staleness-info-text.stale {
+    color: var(--color-amber-900);
+    text-decoration: underline;
+  }
+  .version-staleness-info-text.outdated {
+    color: var(--color-red-900);
+    text-decoration: underline;
   }
 
   .version-staleness-indicator.fresh {
