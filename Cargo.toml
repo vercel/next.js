@@ -220,12 +220,8 @@ urlencoding = "2.1.2"
 webbrowser = "0.8.7"
 
 [patch.crates-io]
-sourcemap = { git = "https://github.com/wbinnssmith/rust-sourcemap", branch = "wbinnssmith/ignore-list" }
 # Remove this once https://github.com/wasmerio/wasmer/pull/5333 is merged and released
 wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
-
-# Remove this once https://github.com/wooorm/mdxjs-rs/pull/62 is merged and released
-mdxjs = { git="https://github.com/kdy1/mdxjs-rs.git", branch="swc-core-13" }

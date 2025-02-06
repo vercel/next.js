@@ -63,11 +63,11 @@ swc_core = { workspace = true, features = [
   "ecma_quote",
   "ecma_visit",
   "ecma_visit_path",
+  "ecma_visit_serde",
   "ecma_utils",
   "testing",
   "base",
 ] }
-swc_ecma_visit = { version = "6.0.0", features = ["serde-impl"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
