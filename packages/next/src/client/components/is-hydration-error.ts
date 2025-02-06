@@ -34,7 +34,7 @@ const hydrationWarningRegexes = [
   /Text content did not match\. Server: "(.+?)" Client: "(.+?)"(.*)/,
 ]
 
-function testReactHydrationWarning(msg: string): boolean {
+export function testReactHydrationWarning(msg: string): boolean {
   return hydrationWarningRegexes.some((regex) => regex.test(msg))
 }
 
@@ -69,7 +69,6 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
       diff: diff.trim(),
     }
   }
-
 
   const firstLineBreak = rawMessage.indexOf('\n') // first section break is always \n\n
   rawMessage = rawMessage.slice(firstLineBreak + 1).trim()

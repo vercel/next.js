@@ -72,16 +72,17 @@ export function attachHydrationErrorState(
       }
       warning = [getDefaultHydrationErrorMessage(), firstContent, secondContent]
     }
-    console.log('componentStackFromDiff', parsedComponentStack)
+    // console.log('componentStackFromDiff', parsedComponentStack)
     parsedHydrationErrorState = {
       warning: warning,
-      notes: reactHydrationDiffSegments[0],
+      notes:
+        warning[0] === getDefaultHydrationErrorMessage()
+          ? reactHydrationDiffSegments[0]
+          : '',
       componentStack: parsedComponentStack,
       reactOutputComponentDiff: reactHydrationDiffSegments[1],
     }
-    console.log('parsedHydrationErrorState 1', parsedHydrationErrorState)
   } else {
-    console.log('else parsedComponentStack', parsedComponentStack)
     // If there's any extra information in the error message to display,
     // append it to the error message details property
     if (hydrationErrorStatePayload?.warning) {

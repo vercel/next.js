@@ -115,6 +115,7 @@ export function Errors({
   )
   const isUnhandledError = isUnhandledConsoleOrRejection(error)
   const errorDetails: HydrationErrorState = (error as any).details || {}
+  console.log('errorDetails', errorDetails)
   const notes = errorDetails.notes || ''
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
