@@ -1,5 +1,7 @@
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/client/dev/error-overlay/websocket.ts
 
+import type { WebSocketMessage } from "@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client";
+
 let source: WebSocket;
 const eventCallbacks: ((msg: WebSocketMessage) => void)[] = [];
 
@@ -17,15 +19,6 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === "http:" ? "ws" : "wss";
 }
 
-export type WebSocketMessage =
-  | {
-      type: "turbopack-connected";
-    }
-  | {
-      type: "turbopack-message";
-      data: Record<string, any>;
-    };
-
 export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
   eventCallbacks.push(cb);
 }
@@ -42,6 +35,7 @@ export type HMROptions = {
   log?: boolean;
 };
 
+// This is not used by Next.js, but it is used by the standalone turbopack-cli
 export function connectHMR(options: HMROptions) {
   const { timeout = 5 * 1000 } = options;
 
