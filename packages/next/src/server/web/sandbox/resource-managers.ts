@@ -79,14 +79,9 @@ function webSetTimeoutPolyfill<TArgs extends any[]>(
       // See: https://github.com/nodejs/node/issues/53335
       // We can work around this by explicitly calling `clearTimeout` after the callback runs.
       clearTimeout(timeout)
-
-      // help the GC a bit by releasing any references we're holding here.
-      timeout = undefined!
-      callback = undefined!
-      args = undefined!
     }
   }
-  let timeout = setTimeout(wrappedCallback, ms)
+  const timeout = setTimeout(wrappedCallback, ms)
   return timeout[Symbol.toPrimitive]()
 }
 
