@@ -31,7 +31,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };
@@ -647,20 +647,22 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                     );
                 }
 
+                let mut map = builder.into_sourcemap();
+                add_default_ignore_list(&mut map);
                 Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(builder.into_sourcemap())
-                        .resolved_cell(),
+                    turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
                 ))
             }
             ParseCssResultSourceMap::Swc {
                 source_map,
                 mappings,
             } => {
-                let map = source_map.build_source_map_with_config(
+                let mut map = source_map.build_source_map_with_config(
                     mappings,
                     None,
                     InlineSourcesContentConfig {},
                 );
+                add_default_ignore_list(&mut map);
                 Vc::cell(Some(
                     turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
                 ))
