@@ -34,7 +34,7 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
       - name: Determine deploy target
-        # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
+        # 'full-preview' performs a full preview build.
         # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
@@ -47,7 +47,10 @@ jobs:
             echo "value=staging" >> $GITHUB_OUTPUT
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
           then
-            echo "value=force-preview" >> $GITHUB_OUTPUT
+            echo "value=full-preview" >> $GITHUB_OUTPUT
+          elif [[ $(node scripts/run-for-change.js --type native --exec echo 'true') == 'true' ]];
+          then
+            echo "value=full-preview" >> $GITHUB_OUTPUT
           elif [[ $(node scripts/run-for-change.js --not --type docs --exec echo 'false') != 'false' ]];
           then
             echo "value=skipped" >> $GITHUB_OUTPUT

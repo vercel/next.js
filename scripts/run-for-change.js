@@ -50,6 +50,7 @@ const CHANGE_ITEM_GROUPS = {
     'test/integration/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
+  native: ['crates', 'packages/next-swc', 'turbopack'],
 }
 
 async function main() {
