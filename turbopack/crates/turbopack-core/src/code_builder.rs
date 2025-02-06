@@ -15,27 +15,19 @@ use turbo_tasks_fs::{
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, SourceMapSection},
+    source_map::{
+        GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMap, SourceMapSection,
+    },
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };
-
-/// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct Code {
     code: Rope,
-    mappings: Vec<Mapping>,
-}
-
-/// CodeBuilder provides a mutable container to append source code.
-#[derive(Default)]
-pub struct CodeBuilder {
-    code: RopeBuilder,
-    mappings: Vec<Mapping>,
+    source_map: Option<Rope>,
 }
 
 impl Code {
@@ -45,8 +37,18 @@ impl Code {
 
     /// Tests if any code in this Code contains an associated source map.
     pub fn has_source_map(&self) -> bool {
-        !self.mappings.is_empty()
+        self.source_map.is_some()
     }
+}
+
+/// A mapping of byte-offset in the code string to an associated source map.
+pub type Mapping = (usize, Option<ResolvedVc<Box<dyn GenerateSourceMap>>>);
+
+/// CodeBuilder provides a mutable container to append source code.
+#[derive(Default)]
+pub struct CodeBuilder {
+    code: RopeBuilder,
+    mappings: Vec<Mapping>,
 }
 
 impl CodeBuilder {
@@ -126,6 +128,43 @@ impl CodeBuilder {
     }
 }
 
+async fn generate_source_map(code: &Rope, mappings: Vec<Mapping>) -> Rope {
+    let mut pos = SourcePos::new();
+    let mut last_byte_pos = 0;
+
+    let mut sections = Vec::with_capacity(mappings.len());
+    let mut read = code.read();
+    for (byte_pos, map) in &mappings {
+        let mut want = byte_pos - last_byte_pos;
+        while want > 0 {
+            let buf = read.fill_buf()?;
+            debug_assert!(!buf.is_empty());
+
+            let end = min(want, buf.len());
+            pos.update(&buf[0..end]);
+
+            read.consume(end);
+            want -= end;
+        }
+        last_byte_pos = *byte_pos;
+
+        let encoded = match map {
+            None => SourceMap::empty().to_resolved().await?,
+            Some(map) => match *map.generate_source_map().await? {
+                None => SourceMap::empty().to_resolved().await?,
+                Some(map) => map,
+            },
+        };
+
+        sections.push(SourceMapSection::new(pos, encoded))
+    }
+
+    SourceMap::new_sectioned(sections)
+        .to_source_map()
+        .await?
+        .to_writer(w)
+}
+
 impl ops::AddAssign<&'static str> for CodeBuilder {
     fn add_assign(&mut self, rhs: &'static str) {
         self.push_static_bytes(rhs.as_bytes());
@@ -160,41 +199,7 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
-        let mut pos = SourcePos::new();
-        let mut last_byte_pos = 0;
-
-        let mut sections = Vec::with_capacity(self.mappings.len());
-        let mut read = self.code.read();
-        for (byte_pos, map) in &self.mappings {
-            let mut want = byte_pos - last_byte_pos;
-            while want > 0 {
-                let buf = read.fill_buf()?;
-                debug_assert!(!buf.is_empty());
-
-                let end = min(want, buf.len());
-                pos.update(&buf[0..end]);
-
-                read.consume(end);
-                want -= end;
-            }
-            last_byte_pos = *byte_pos;
-
-            let encoded = match map {
-                None => SourceMap::empty().to_resolved().await?,
-                Some(map) => match *map.generate_source_map().await? {
-                    None => SourceMap::empty().to_resolved().await?,
-                    Some(map) => map,
-                },
-            };
-
-            sections.push(SourceMapSection::new(pos, encoded))
-        }
-
-        Ok(Vc::cell(Some(
-            SourceMap::new_sectioned(sections).resolved_cell(),
-        )))
-    }
+    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {}
 }
 
 #[turbo_tasks::value_impl]

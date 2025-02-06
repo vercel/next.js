@@ -44,11 +44,10 @@ impl Asset for SourceMapAsset {
             bail!("asset does not support generating source maps")
         };
         let sm = if let Some(sm) = &*generate_source_map.generate_source_map().await? {
-            **sm
+            sm.await?
         } else {
-            SourceMap::empty()
+            SourceMap::empty().to_rope().await?
         };
-        let sm = sm.to_rope().await?;
         Ok(AssetContent::file(File::from(sm).into()))
     }
 }

@@ -26,14 +26,17 @@ pub use source_map_asset::SourceMapAsset;
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionStringifiedSourceMap(Option<ResolvedVc<Rope>>);
+
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap>;
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
 
     /// Returns an individual section of the larger source map, if found.
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionSourceMap> {
+    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         Vc::cell(None)
     }
 }
@@ -204,6 +207,13 @@ impl SourceMap {
     /// sections.
     pub fn new_sectioned(sections: Vec<SourceMapSection>) -> Self {
         SourceMap::Sectioned(SectionedSourceMap::new(sections))
+    }
+
+    pub fn new_from_rope(file: impl AsRef<Rope>) -> Result<Option<Self>> {
+        let Ok(map) = DecodedMap::from_reader(file.as_ref().read()) else {
+            return Ok(None);
+        };
+        Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
     }
 
     pub async fn new_from_file(file: Vc<FileSystemPath>) -> Result<Option<Self>> {
@@ -606,13 +616,8 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(self: ResolvedVc<Self>) -> Vc<OptionSourceMap> {
-        Vc::cell(Some(self))
-    }
-
-    #[turbo_tasks::function]
-    fn by_section(&self, _section: RcStr) -> Vc<OptionSourceMap> {
-        Vc::cell(None)
+    async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.to_rope().to_resolved().await?)))
     }
 }
 
@@ -765,10 +770,14 @@ impl SourceMapSection {
 
 #[turbo_tasks::function]
 pub async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionSourceMap>,
+    source_map: Vc<OptionStringifiedSourceMap>,
     origin: Vc<FileSystemPath>,
 ) -> Result<Vc<OptionSourceMap>> {
     let Some(source_map) = *source_map.await? else {
+        return Ok(Vc::cell(None));
+    };
+    let source_map = source_map.await?;
+    let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
         return Ok(Vc::cell(None));
     };
     Ok(Vc::cell(Some(
