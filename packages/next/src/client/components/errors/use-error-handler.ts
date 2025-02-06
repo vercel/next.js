@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
-import { isNextRouterError } from '../../../is-next-router-error'
+import { isNextRouterError } from '../is-next-router-error'
 import {
   isKnownHydrationWarning,
   storeHydrationErrorStateFromConsoleArgs,
 } from './hydration-error-info'
-import { formatConsoleArgs } from '../../../../lib/console'
-import isError from '../../../../../lib/is-error'
+import { formatConsoleArgs } from '../../lib/console'
+import isError from '../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from './stitched-error'
