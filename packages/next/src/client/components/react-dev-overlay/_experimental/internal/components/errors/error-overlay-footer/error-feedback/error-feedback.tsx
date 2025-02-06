@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react'
 import { ThumbsUp } from '../../../../icons/thumbs/thumbs-up'
 import { ThumbsDown } from '../../../../icons/thumbs/thumbs-down'
 import { noop as css } from '../../../../helpers/noop-template'
-import { clsx } from '../../../../helpers/clsx'
+import { cn } from '../../../../helpers/merge-class-names'
 
 interface ErrorFeedbackProps {
   errorCode: string
@@ -44,7 +44,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
 
   return (
     <div
-      className={clsx('error-feedback', className)}
+      className={cn('error-feedback', className)}
       role="region"
       aria-label="Error feedback"
     >
@@ -58,7 +58,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as helpful"
             onClick={() => handleFeedback(true)}
-            className={clsx('feedback-button', voted === true && 'voted')}
+            className={cn('feedback-button', voted === true && 'voted')}
             type="button"
           >
             <ThumbsUp aria-hidden="true" />
@@ -66,7 +66,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as not helpful"
             onClick={() => handleFeedback(false)}
-            className={clsx('feedback-button', voted === false && 'voted')}
+            className={cn('feedback-button', voted === false && 'voted')}
             type="button"
           >
             <ThumbsDown

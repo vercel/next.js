@@ -1,6 +1,6 @@
 import { DialogHeader } from '../../dialog/dialog-header'
 import { noop as css } from '../../../helpers/noop-template'
-import { clsx } from '../../../helpers/clsx'
+import { cn } from '../../../helpers/merge-class-names'
 
 type ErrorOverlayDialogHeaderProps = {
   children?: React.ReactNode
@@ -13,7 +13,7 @@ export function ErrorOverlayDialogHeader({
 }: ErrorOverlayDialogHeaderProps) {
   return (
     <DialogHeader
-      className={clsx(
+      className={cn(
         'nextjs-container-errors-header',
         isTurbopack && 'nextjs-error-overlay-dialog-header-turbopack-background'
       )}

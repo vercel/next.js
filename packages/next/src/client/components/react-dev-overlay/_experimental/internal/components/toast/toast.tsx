@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { clsx } from '../../helpers/clsx'
+import { cn } from '../../helpers/merge-class-names'
 export type ToastProps = React.HTMLProps<HTMLDivElement> & {
   children?: React.ReactNode
   onClick?: () => void
@@ -19,7 +19,7 @@ export const Toast: React.FC<ToastProps> = function Toast({
         e.preventDefault()
         return onClick?.()
       }}
-      className={clsx('nextjs-toast', className)}
+      className={cn('nextjs-toast', className)}
     >
       <div data-nextjs-toast-wrapper>{children}</div>
     </div>
