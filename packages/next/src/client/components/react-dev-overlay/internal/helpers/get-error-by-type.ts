@@ -55,15 +55,11 @@ export function getErrorByType(
   const _: never = event
   throw new Error('type system invariant violation')
 }
-
 function createMemoizedPromise<T>(
   promiseFactory: () => Promise<T>
 ): () => Promise<T> {
-  let cachedPromise: Promise<T> | null = null
+  const cachedPromise = promiseFactory()
   return function (): Promise<T> {
-    if (!cachedPromise) {
-      cachedPromise = promiseFactory()
-    }
     return cachedPromise
   }
 }
