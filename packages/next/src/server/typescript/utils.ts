@@ -1,10 +1,17 @@
 import path from 'path'
-
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
+export type PluginCreateInfo = Pick<
+  tsModule.server.PluginCreateInfo,
+  'languageService' | 'config' | 'project' | 'serverHost' | 'session'
+> & {
+  languageServiceHost: tsModule.LanguageServiceHost & {
+    addFile: (fileName: string, body: string) => void
+  }
+}
 
 let ts: TypeScript
-let info: tsModule.server.PluginCreateInfo
+let info: PluginCreateInfo
 let appDirRegExp: RegExp
 
 export function log(message: string) {
@@ -12,10 +19,7 @@ export function log(message: string) {
 }
 
 // This function has to be called initially.
-export function init(opts: {
-  ts: TypeScript
-  info: tsModule.server.PluginCreateInfo
-}) {
+export function init(opts: { ts: TypeScript; info: PluginCreateInfo }) {
   ts = opts.ts
   info = opts.info
   const projectDir = info.project.getCurrentDirectory()

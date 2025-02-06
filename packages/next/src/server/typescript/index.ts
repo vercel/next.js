@@ -16,6 +16,7 @@ import {
   isPositionInsideNode,
   getSource,
   isInsideApp,
+  type PluginCreateInfo,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
@@ -32,10 +33,102 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
+    const logger = info.project.projectService.logger
+
+    logger.info('[Next.js] Initializing...')
+
     init({
       ts,
-      info,
+      info: info as PluginCreateInfo,
     })
+
+    logger.info('[Next.js] Initialized!')
+
+    const virtualFiles: Record<
+      string,
+      { file: tsModule.IScriptSnapshot; ver: number }
+    > = {}
+    const getScriptVersion = info.languageServiceHost.getScriptVersion.bind(
+      info.languageServiceHost
+    )
+    const getScriptSnapshot = info.languageServiceHost.getScriptSnapshot.bind(
+      info.languageServiceHost
+    )
+    const getScriptFileNames = info.languageServiceHost.getScriptFileNames.bind(
+      info.languageServiceHost
+    )
+    const readFile = info.languageServiceHost.readFile.bind(
+      info.languageServiceHost
+    )
+    const fileExists = info.languageServiceHost.fileExists.bind(
+      info.languageServiceHost
+    )
+
+    info.languageServiceHost.getScriptVersion = (fileName: string) => {
+      logger.info(`[ProxiedLSHost] getScriptVersion(${fileName})`)
+      const file = virtualFiles[fileName]
+      if (!file) return getScriptVersion(fileName)
+      logger.info(`[ProxiedLSHost] getScriptVersion(${fileName}) - ${file.ver}`)
+      return file.ver.toString()
+    }
+
+    info.languageServiceHost.getScriptSnapshot = (fileName: string) => {
+      logger.info(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
+      const file = virtualFiles[fileName]
+      if (!file) return getScriptSnapshot(fileName)
+      logger.info(
+        `[ProxiedLSHost] getScriptSnapshot(${fileName}) - ${JSON.stringify(file.file, null, 2)}`
+      )
+      return file.file
+    }
+
+    info.languageServiceHost.getScriptFileNames = () => {
+      const names: Set<string> = new Set()
+      for (var name in virtualFiles) {
+        if (virtualFiles.hasOwnProperty(name)) {
+          names.add(name)
+        }
+      }
+      const files = getScriptFileNames()
+      for (const file of files) {
+        names.add(file)
+      }
+      logger.info(
+        `[ProxiedLSHost] getScriptFileNames() - ${JSON.stringify([...names], null, 2)}`
+      )
+      return [...names]
+    }
+
+    info.languageServiceHost.readFile = (fileName: string) => {
+      logger.info(`[ProxiedLSHost] readFile(${fileName})`)
+      const file = virtualFiles[fileName]
+      return file
+        ? file.file.getText(0, file.file.getLength())
+        : readFile(fileName)
+    }
+
+    info.languageServiceHost.fileExists = (fileName: string) => {
+      logger.info(`[ProxiedLSHost] fileExists(${fileName})`)
+      return !!virtualFiles[fileName] || fileExists(fileName)
+    }
+
+    // @ts-ignore
+    info.languageServiceHost.addFile = (fileName: string, body: string) => {
+      logger.info(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
+      const snap = ts.ScriptSnapshot.fromString(body)
+      snap.getChangeRange = (_) => undefined
+      const existing = virtualFiles[fileName]
+      if (existing) {
+        virtualFiles[fileName].ver++
+        virtualFiles[fileName].file = snap
+      } else {
+        virtualFiles[fileName] = { ver: 2, file: snap }
+      }
+
+      // This is the same function call that the Svelte TS plugin makes
+      // @ts-expect-error internal API since TS 5.5
+      info.project.markAsDirty?.()
+    }
 
     // Set up decorator object
     const proxy = Object.create(null)
@@ -71,6 +164,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         isNewIdentifierLocation: false,
         entries: [],
       }
+
       if (!isAppEntryFile(fileName)) return prior
 
       // If it's a server entry.
