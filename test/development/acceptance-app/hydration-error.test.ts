@@ -5,6 +5,8 @@ import path from 'path'
 import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in App router', () => {
@@ -724,7 +726,10 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(2)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // when owner stack enabled, there are 3 errors
+        isPPREnabled ? 3 : 2
+      )
     })
 
     const description = await session.getRedboxDescription()
@@ -797,7 +802,10 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(4)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // when owner stack enabled, there are 5 errors
+        isPPREnabled ? 5 : 4
+      )
     })
 
     const description = await session.getRedboxDescription()

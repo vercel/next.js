@@ -79,7 +79,8 @@
       "test/e2e/**/*.test.{t,j}s{,x}",
       "test/integration/app-*/**/*.test.{t,j}s{,x}",
       "test/production/app-*/**/*.test.{t,j}s{,x}",
-      "test/development/app-*/**/*.test.{t,j}s{,x}"
+      "test/development/app-*/**/*.test.{t,j}s{,x}",
+      "test/development/acceptance-app/hydration-error.test.ts"
     ],
     "exclude": [
       "test/integration/app-dir-export/**/*",
