@@ -81,6 +81,11 @@ export async function getOriginalStackFrames(
       method: 'POST',
       body: JSON.stringify(req),
     })
+
+    if (!res.ok) {
+      return []
+    }
+
     const data = await res.json()
     return Promise.all(
       frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
