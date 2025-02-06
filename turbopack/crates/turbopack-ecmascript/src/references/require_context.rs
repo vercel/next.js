@@ -212,7 +212,7 @@ pub struct RequireContextAssetReference {
     pub dir: RcStr,
     pub include_subdirs: bool,
 
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
     pub issue_source: Option<IssueSource>,
     pub in_try: bool,
 }
@@ -226,7 +226,7 @@ impl RequireContextAssetReference {
         dir: RcStr,
         include_subdirs: bool,
         filter: Vc<Regex>,
-        path: ResolvedVc<AstPath>,
+        path: AstPath,
         issue_source: Option<IssueSource>,
         in_try: bool,
     ) -> Result<Vc<Self>> {
@@ -302,8 +302,7 @@ impl CodeGenerateable for RequireContextAssetReference {
 
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Call(_) = expr {
                 *expr = quote!(
                     "$turbopack_module_context($turbopack_require($id))" as Expr,
