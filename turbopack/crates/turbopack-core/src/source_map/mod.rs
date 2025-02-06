@@ -200,11 +200,6 @@ impl SourceMap {
         SourceMap::Decoded(InnerSourceMap::new(map))
     }
 
-    /// Creates a new SourceMap::Decoded Vc out of a [InnerSourceMap] instance.
-    pub fn new_inner(map: InnerSourceMap) -> Self {
-        SourceMap::Decoded(map)
-    }
-
     /// Creates a new SourceMap::Sectioned Vc out of a collection of source map
     /// sections.
     pub fn new_sectioned(sections: Vec<SourceMapSection>) -> Self {
