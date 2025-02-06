@@ -35,7 +35,7 @@ import { defineConfig } from 'next/experimental/testmode/playwright'
 
 export default defineConfig({
   webServer: {
-    command: 'npm dev',
+    command: 'npm run dev',
     url: 'http://localhost:3000',
   },
 })
@@ -44,9 +44,16 @@ export default defineConfig({
 ### Use the `next/experimental/testmode/playwright` to create tests
 
 ```javascript
+// Place this file in the `app` directory and name it with `.spec.ts`.
+// To customize where to put tests, add `testMatch` to `playwright.config.ts`.
+
 import { test, expect } from 'next/experimental/testmode/playwright'
 
 test('/product/shoe', async ({ page, next }) => {
+  // NOTE: `next.onFetch` only intercepts external `fetch` requests (for both client and server).
+  // For example, if you `fetch` a relative URL (e.g. `/api/hello`) from the client
+  // that's handled by a Next.js route handler (e.g. `app/api/hello/route.ts`),
+  // it won't be intercepted.
   next.onFetch((request) => {
     if (request.url === 'http://my-db/product/shoe') {
       return new Response(
