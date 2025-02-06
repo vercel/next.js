@@ -3,18 +3,21 @@ import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { CallStackFrame } from './CallStackFrame'
+import { use } from 'react'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const [isIgnoredExpanded, setIsIgnoredExpanded] = React.useState(false)
+
+  const frames = use(error.frames())
   const {
     firstFrame,
     allLeadingFrames,
     trailingCallStackFrames,
     displayedFramesCount,
   } = React.useMemo(() => {
-    const filteredFrames = error.frames.filter((frame) =>
+    const filteredFrames = frames.filter((frame) =>
       isIgnoredExpanded ? true : !frame.ignored
     )
 
@@ -36,7 +39,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         firstFirstPartyFrameIndex < 0 ? 0 : firstFirstPartyFrameIndex
       ),
     }
-  }, [error.frames, isIgnoredExpanded])
+  }, [frames, isIgnoredExpanded])
 
   return (
     <React.Fragment>
@@ -64,8 +67,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
       ))}
       {
         // if the default displayed ignored frames count is equal equal to the total frames count, hide the button
-        displayedFramesCount === error.frames.length &&
-        !isIgnoredExpanded ? null : (
+        displayedFramesCount === frames.length && !isIgnoredExpanded ? null : (
           <button
             data-expand-ignore-button={isIgnoredExpanded}
             onClick={() => setIsIgnoredExpanded(!isIgnoredExpanded)}

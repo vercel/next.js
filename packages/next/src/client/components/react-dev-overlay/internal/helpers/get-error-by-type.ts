@@ -12,14 +12,14 @@ export type ReadyRuntimeError = {
   id: number
   runtime: true
   error: Error
-  frames: OriginalStackFrame[]
+  frames: () => Promise<OriginalStackFrame[]>
   componentStackFrames?: ComponentStackFrame[]
 }
 
-export async function getErrorByType(
+export function getErrorByType(
   ev: SupportedErrorEvent,
   isAppDir: boolean
-): Promise<ReadyRuntimeError> {
+): ReadyRuntimeError {
   const { id, event } = ev
   switch (event.type) {
     case ACTION_UNHANDLED_ERROR:
@@ -28,10 +28,13 @@ export async function getErrorByType(
         id,
         runtime: true,
         error: event.reason,
-        frames: await getOriginalStackFrames(
-          event.frames,
-          getErrorSource(event.reason),
-          isAppDir
+        // createMemoizedPromise dedups calls to getOriginalStackFrames
+        frames: createMemoizedPromise(async () =>
+          getOriginalStackFrames(
+            event.frames,
+            getErrorSource(event.reason),
+            isAppDir
+          )
         ),
       }
       if (event.type === ACTION_UNHANDLED_ERROR) {
@@ -46,4 +49,22 @@ export async function getErrorByType(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _: never = event
   throw new Error('type system invariant violation')
+}
+
+function createMemoizedPromise<T>(
+  promiseFactory: () => Promise<T>
+): () => Promise<T> {
+  let cachedPromise: Promise<T> | null = null
+
+  return function (): Promise<T> {
+    // If no promise is cached, create one.
+    if (!cachedPromise) {
+      cachedPromise = promiseFactory().catch((error: Error) => {
+        // Clear the cache on failure so that subsequent calls can retry.
+        cachedPromise = null
+        throw error
+      })
+    }
+    return cachedPromise
+  }
 }

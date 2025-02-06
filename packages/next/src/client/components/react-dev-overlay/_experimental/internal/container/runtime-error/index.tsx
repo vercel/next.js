@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { use, useMemo } from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { CallStack } from '../../components/errors/call-stack/call-stack'
 import { noop as css } from '../../helpers/noop-template'
@@ -11,16 +11,18 @@ export type RuntimeErrorProps = {
 }
 
 export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
+  const frames = use(error.frames())
+
   const firstFrame = useMemo(() => {
-    const firstFirstPartyFrameIndex = error.frames.findIndex(
+    const firstFirstPartyFrameIndex = frames.findIndex(
       (entry) =>
         !entry.ignored &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
     )
 
-    return error.frames[firstFirstPartyFrameIndex] ?? null
-  }, [error.frames])
+    return frames[firstFirstPartyFrameIndex] ?? null
+  }, [frames])
 
   return (
     <>
@@ -32,7 +34,7 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
       )}
 
       {error.frames.length > 0 && (
-        <CallStack dialogResizerRef={dialogResizerRef} frames={error.frames} />
+        <CallStack dialogResizerRef={dialogResizerRef} frames={frames} />
       )}
     </>
   )

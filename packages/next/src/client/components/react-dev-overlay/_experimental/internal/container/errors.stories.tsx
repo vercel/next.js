@@ -74,74 +74,78 @@ const readyErrors: ReadyRuntimeError[] = [
     id: 1,
     runtime: true,
     error: new Error('First error message'),
-    frames: [
-      frame,
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'ParentComponent',
-          lineNumber: 5,
+    frames: () =>
+      Promise.resolve([
+        frame,
+        {
+          ...frame,
+          originalStackFrame: {
+            ...frame.originalStackFrame,
+            methodName: 'ParentComponent',
+            lineNumber: 5,
+          },
         },
-      },
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'GrandparentComponent',
-          lineNumber: 1,
+        {
+          ...frame,
+          originalStackFrame: {
+            ...frame.originalStackFrame,
+            methodName: 'GrandparentComponent',
+            lineNumber: 1,
+          },
         },
-      },
-      ...Array(20).fill(ignoredFrame),
-    ],
+        ...Array(20).fill(ignoredFrame),
+      ]),
   },
   {
     id: 2,
     runtime: true,
     error: new Error('Second error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Second error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Second error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Second error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Second error message'),
+        },
+      ]),
   },
   {
     id: 3,
     runtime: true,
     error: new Error('Third error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Third error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Third error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Third error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Third error message'),
+        },
+      ]),
   },
   {
     id: 4,
     runtime: true,
     error: new Error('Fourth error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Fourth error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Fourth error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Fourth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Fourth error message'),
+        },
+      ]),
   },
 ]
 
@@ -205,21 +209,22 @@ export const WithHydrationWarning: Story = {
             },
           ],
         }),
-        frames: [
-          {
-            error: true,
-            reason: 'First error message',
-            external: false,
-            ignored: false,
-            sourceStackFrame: {
-              file: 'app/page.tsx',
-              methodName: 'Home',
-              arguments: [],
-              lineNumber: 10,
-              column: 5,
+        frames: () =>
+          Promise.resolve([
+            {
+              error: true,
+              reason: 'First error message',
+              external: false,
+              ignored: false,
+              sourceStackFrame: {
+                file: 'app/page.tsx',
+                methodName: 'Home',
+                arguments: [],
+                lineNumber: 10,
+                column: 5,
+              },
             },
-          },
-        ],
+          ]),
       },
     ],
     debugInfo: { devtoolsFrontendUrl: undefined },
