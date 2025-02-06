@@ -595,6 +595,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -612,6 +613,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
+        hasNodeMiddleware,
         hasInstrumentationHook,
         staticPages
       )
@@ -638,6 +640,23 @@ async function writeStandaloneDirectory(
         })
         await fs.copyFile(filePath, outputPath)
       }
+
+      if (hasNodeMiddleware) {
+        const middlewareOutput = path.join(
+          distDir,
+          STANDALONE_DIRECTORY,
+          requiredServerFiles.config.distDir,
+          SERVER_DIRECTORY,
+          'middleware.js'
+        )
+
+        await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
+        await fs.copyFile(
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          middlewareOutput
+        )
+      }
+
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),
         path.join(
@@ -2324,6 +2343,7 @@ export default async function build(
       const middlewareFile = rootPaths.find((p) =>
         p.includes(MIDDLEWARE_FILENAME)
       )
+      let hasNodeMiddleware = false
 
       if (middlewareFile) {
         const staticInfo = await getStaticInfoIncludingLayouts({
@@ -2337,6 +2357,7 @@ export default async function build(
         })
 
         if (staticInfo.runtime === 'nodejs') {
+          hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
@@ -3543,6 +3564,7 @@ export default async function build(
           outputFileTracingRoot,
           requiredServerFilesManifest,
           middlewareManifest,
+          hasNodeMiddleware,
           hasInstrumentationHook,
           staticPages,
           loadedEnvFiles,
