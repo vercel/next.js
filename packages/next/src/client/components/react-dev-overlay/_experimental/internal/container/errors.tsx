@@ -136,6 +136,15 @@ export function Errors({
     ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
     : undefined
 
+  const diffContent = (errorDetails.reactOutputComponentDiff || '')
+    .trim()
+    .replace(/\.\.\.\s*/, '')
+  const showHydrationDiff = Boolean(
+    hydrationWarning &&
+      // activeError.componentStackFrames?.length ||
+      !!diffContent
+  )
+
   return (
     <ErrorOverlayLayout
       errorCode={errorCode}
@@ -180,16 +189,14 @@ export function Errors({
         ) : null}
       </div>
 
-      {hydrationWarning &&
-      (activeError.componentStackFrames?.length ||
-        !!errorDetails.reactOutputComponentDiff) ? (
+      {hydrationWarning && showHydrationDiff ? (
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
           hydrationMismatchType={hydrationErrorType}
           componentStackFrames={activeError.componentStackFrames || []}
           firstContent={serverContent}
           secondContent={clientContent}
-          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+          reactOutputComponentDiff={diffContent}
         />
       ) : null}
       <RuntimeError

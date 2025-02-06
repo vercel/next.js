@@ -29,7 +29,9 @@ export function attachHydrationErrorState(
   // if it's hydration warning
   let parsedHydrationErrorState: HydrationErrorState = {}
   let warning: [string, string, string] = ['', '', '']
-  let parsedComponentStack = (error as any)._componentStack || React.captureOwnerStack()
+  let parsedComponentStack =
+    (error as any)._componentStack ||
+    (React.captureOwnerStack ? React.captureOwnerStack() : '')
   if (reactHydrationDiffSegments) {
     if (hydrationErrorStatePayload?.warning) {
       // If it's from console.error, read the warning from parsed console.error message
@@ -91,7 +93,11 @@ export function attachHydrationErrorState(
         ...hydrationErrorStatePayload,
         componentStack: parsedComponentStack,
       }
-      console.log('parsedHydrationErrorState 2', parsedHydrationErrorState, reactHydrationDiffSegments)
+      console.log(
+        'parsedHydrationErrorState 2',
+        parsedHydrationErrorState,
+        reactHydrationDiffSegments
+      )
     }
   }
   ;(error as any).details = parsedHydrationErrorState

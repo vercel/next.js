@@ -73,7 +73,7 @@ export function PseudoHtmlDiff({
   const isReactHydrationDiff = !!reactOutputComponentDiff
 
   // For text mismatch, mismatched text will take 2 rows, so we display 4 rows of component stack
-  const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
+  // const MAX_NON_COLLAPSED_FRAMES = isHtmlTagsWarning ? 6 : 4
   const [isHtmlCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
@@ -124,19 +124,25 @@ export function PseudoHtmlDiff({
                 {'\n'}
               </span>
             )
-          } else if (!isHtmlCollapsed) {
+          } else if (
+            // !isHtmlCollapsed
+            true
+          ) {
             componentStacks.push(
               <span
                 data-nextjs-container-errors-pseudo-html-line
                 key={'comp-diff' + index}
               >
-                {spaces}
+                {trimmedLine.startsWith('>') ? '' : spaces}
                 {trimmedLine}
                 {'\n'}
               </span>
             )
           }
-        } else if (!isHtmlCollapsed) {
+        } else if (
+          // !isHtmlCollapsed
+          true
+        ) {
           // In general, if it's not collapsed, show the whole diff
           componentStacks.push(
             <span
@@ -230,12 +236,12 @@ export function PseudoHtmlDiff({
         )
         nestedHtmlStack.push(wrappedCodeLine)
       } else {
-        if (
-          nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
-          isHtmlCollapsed
-        ) {
-          return
-        }
+        // if (
+        //   nestedHtmlStack.length >= MAX_NON_COLLAPSED_FRAMES &&
+        //   isHtmlCollapsed
+        // ) {
+        //   return
+        // }
 
         if (!isHtmlCollapsed || isLastFewFrames) {
           nestedHtmlStack.push(
@@ -315,16 +321,19 @@ export function PseudoHtmlDiff({
     secondContent,
     isHtmlTagsWarning,
     hydrationMismatchType,
-    MAX_NON_COLLAPSED_FRAMES,
+    // MAX_NON_COLLAPSED_FRAMES,
     isReactHydrationDiff,
     reactOutputComponentDiff,
   ])
 
   return (
-    <div data-nextjs-container-errors-pseudo-html>
+    <div
+      data-nextjs-container-errors-pseudo-html
+      data-nextjs-container-errors-pseudo-html-collapse={isHtmlCollapsed}
+    >
       <button
         tabIndex={10} // match CallStackFrame
-        data-nextjs-container-errors-pseudo-html-collapse
+        data-nextjs-container-errors-pseudo-html-collapse-button
         onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
       >
         <CollapseIcon collapsed={isHtmlCollapsed} />
@@ -367,7 +376,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     margin-right: var(--size-8);
   }
 
-  [data-nextjs-container-errors-pseudo-html-collapse] {
+  [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
     margin-left: var(--size-3);
     &:focus {
@@ -408,10 +417,22 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   .nextjs__container_errors__component-stack {
     margin: 0;
   }
+  [data-nextjs-container-errors-pseudo-html-collapse='true']
+    .nextjs__container_errors__component-stack
+    code {
+    max-height: 100px;
+    overflow: hidden;
+    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, black 50%);
+  }
   .nextjs__container_errors__component-stack code {
     display: block;
     width: 100%;
     white-space: pre-wrap;
+    scroll-snap-type: y mandatory;
+    overflow-y: hidden;
+  }
+  [data-nextjs-container-errors-pseudo-html-line]:last-child {
+    scroll-snap-align: end;
   }
   .error-overlay-hydration-error-diff-plus-icon {
     color: var(--color-green-900);

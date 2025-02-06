@@ -301,19 +301,20 @@ export function Errors({
     .replace(/\.\.\.\s*/, '')
   const showHydrationDiff = Boolean(
     hydrationWarning &&
-      (activeError.componentStackFrames?.length || !!diffContent)
+      // activeError.componentStackFrames?.length ||
+      !!diffContent
   )
 
-  
   const componentStackNames: string[] = activeError.componentStackFrames
-    ? activeError.componentStackFrames.map(f => f.component)
-    : ((errorDetails.componentStack || '').split('\n')
-      .map((line) => {
-        // at ComponentName (location)
-        const match = line.trim().match(/at ([\w]+)/)
-        return match ? match[1] : ''
-      }).filter(Boolean) as string[]);
-
+    ? activeError.componentStackFrames.map((f) => f.component)
+    : ((errorDetails.componentStack || '')
+        .split('\n')
+        .map((line) => {
+          // at ComponentName (location)
+          const match = line.trim().match(/at ([\w]+)/)
+          return match ? match[1] : ''
+        })
+        .filter(Boolean) as string[])
 
   return (
     <Overlay>
