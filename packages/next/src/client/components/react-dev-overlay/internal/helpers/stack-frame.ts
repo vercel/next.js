@@ -76,14 +76,18 @@ export async function getOriginalStackFrames(
     isEdgeServer: type === 'edge-server',
     isAppDirectory: isAppDir,
   }
-  const res = await fetch('/__nextjs_original-stack-frames', {
-    method: 'POST',
-    body: JSON.stringify(req),
-  })
-  const data = await res.json()
-  return Promise.all(
-    frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
-  )
+  try {
+    const res = await fetch('/__nextjs_original-stack-frames', {
+      method: 'POST',
+      body: JSON.stringify(req),
+    })
+    const data = await res.json()
+    return Promise.all(
+      frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
+    )
+  } catch {
+    return []
+  }
 }
 
 export function getFrameSource(frame: StackFrame): string {
