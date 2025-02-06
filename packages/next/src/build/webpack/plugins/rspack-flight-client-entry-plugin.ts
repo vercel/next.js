@@ -80,13 +80,6 @@ export class RspackFlightClientEntryPlugin {
         absolutePagePath,
         clientBrowserLoader,
       }: any) => {
-        console.log(
-          'shouldInvalidateCb',
-          bundlePath,
-          entryName,
-          absolutePagePath,
-          clientBrowserLoader
-        )
         let shouldInvalidate = false
         const compiler = this.compiler!
 
