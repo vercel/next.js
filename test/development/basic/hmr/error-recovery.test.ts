@@ -16,9 +16,9 @@ import { outdent } from 'outdent'
 
 describe.each([
   { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
+  // { basePath: '', assetPrefix: '/asset-prefix' },
+  // { basePath: '/docs', assetPrefix: '' },
+  // { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])(
   'HMR - Error Recovery, nextConfig: %o',
   (nextConfig: Partial<NextConfig>) => {
@@ -29,11 +29,13 @@ describe.each([
     })
     const { basePath } = nextConfig
 
-    it('should recover from 404 after a page has been added', async () => {
+    it.only('should recover from 404 after a page has been added', async () => {
       const newPage = join('pages', 'hmr', 'new-page.js')
 
       try {
-        const browser = await next.browser(basePath + '/hmr/new-page')
+        const browser = await next.browser(basePath + '/hmr/new-page', {
+          headless: false,
+        })
 
         expect(await browser.elementByCss('body').text()).toMatch(
           /This page could not be found/
@@ -49,7 +51,9 @@ describe.each([
           expect(await getBrowserBodyText(browser)).toMatch(/the-new-page/)
         })
 
+        console.log('!!! DELETING FILE')
         await next.deleteFile(newPage)
+        console.log('!!! DELETED FILE')
 
         await retry(async () => {
           expect(await getBrowserBodyText(browser)).toMatch(

@@ -353,11 +353,17 @@ export default class BuildManifestPlugin {
           name: 'NextJsBuildManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        () => {
-          this.createAssets(compiler, compilation)
-        }
+        () => this.createAssets(compiler, compilation)
       )
     })
-    return
+
+    compiler.hooks.done.tap('NextJsBuildManifest', () => {
+      console.log('DONE')
+    })
+
+    compiler.hooks.compilation.tap('NextJsBuildManifest', (compilation) => {
+      Error.stackTraceLimit = 100
+      console.trace('MODIFIED FILES', compilation.compiler.modifiedFiles)
+    })
   }
 }
