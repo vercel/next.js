@@ -13,11 +13,11 @@ use next_api::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadConsistency, TransientInstance, TurboTasks, Vc};
+use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 
 pub async fn main_inner(
-    tt: &TurboTasks<MemoryBackend>,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
     strat: Strategy,
     factor: usize,
     limit: usize,
@@ -158,7 +158,7 @@ pub fn shuffle<'a, T: 'a>(items: impl Iterator<Item = T>) -> impl Iterator<Item 
 }
 
 pub async fn render_routes(
-    tt: &TurboTasks<MemoryBackend>,
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
     routes: impl Iterator<Item = (RcStr, Route)>,
     strategy: Strategy,
     factor: usize,
@@ -242,7 +242,10 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
-async fn hmr(tt: &TurboTasks<MemoryBackend>, project: Vc<ProjectContainer>) -> Result<()> {
+async fn hmr(
+    tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
+    project: Vc<ProjectContainer>,
+) -> Result<()> {
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
     let idents = tt
