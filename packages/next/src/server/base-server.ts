@@ -2467,9 +2467,7 @@ export default abstract class Server<
         typeof postponed === 'string' ||
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
-        isDynamicRSCRequest ||
-        // We can generate dynamic HTML when it's not html bot request.
-        !isHtmlBotRequest
+        isDynamicRSCRequest
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -3594,6 +3592,10 @@ export default abstract class Server<
       // When serves html bot request, we don't consume the `postponed` state from build cache.
       // Pass down a `undefined` postponed state to the renderer to avoid resume rendering.
       if (isHtmlBotRequest) {
+        // When it's PPR, disable SSG to perform the full blocking rendering
+        if (isRoutePPREnabled) {
+          isSSG = false
+        }
         const result = await doRender({
           // No postpone and no resume, this is a dynamic rendering.
           postponed: undefined,
