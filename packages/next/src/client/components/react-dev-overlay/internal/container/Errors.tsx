@@ -389,7 +389,7 @@ export function Errors({
               </div>
             ) : undefined}
           </DialogHeader>
-          <Suspense>
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
             <DialogBody className="nextjs-container-errors-body">
               <RuntimeError
                 key={activeError.id.toString()}

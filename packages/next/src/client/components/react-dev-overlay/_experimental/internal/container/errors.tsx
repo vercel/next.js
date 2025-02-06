@@ -192,7 +192,7 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      <Suspense>
+      <Suspense fallback={<div data-nextjs-error-suspended />}>
         <RuntimeError
           key={activeError.id.toString()}
           error={activeError}

@@ -42,7 +42,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
   }, [frames, isIgnoredExpanded])
 
   return (
-    <React.Fragment>
+    <>
       {firstFrame ? (
         <>
           <h2>Source</h2>
@@ -76,7 +76,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
           </button>
         )
       }
-    </React.Fragment>
+    </>
   )
 }
 
