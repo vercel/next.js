@@ -26,12 +26,12 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default: {
-    }
+    default:
+      break
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event as never
+  const _ = event satisfies never
   return ''
 }
 
