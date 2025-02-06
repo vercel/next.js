@@ -118,8 +118,24 @@ impl Rope {
     }
 }
 
+impl From<Vec<u8>> for Rope {
+    fn from(mut bytes: Vec<u8>) -> Self {
+        bytes.shrink_to_fit();
+        let bytes: Bytes = bytes.into();
+        // We can't have an InnerRope which contains an empty Local section.
+        if bytes.is_empty() {
+            Default::default()
+        } else {
+            Rope {
+                length: bytes.len(),
+                data: InnerRope(Arc::from([Local(bytes)])),
+            }
+        }
+    }
+}
+
 impl<T: Into<Bytes>> From<T> for Rope {
-    fn from(bytes: T) -> Self {
+    default fn from(bytes: T) -> Self {
         let bytes = bytes.into();
         // We can't have an InnerRope which contains an empty Local section.
         if bytes.is_empty() {
