@@ -85,7 +85,8 @@ export async function getOriginalStackFrames(
     return Promise.all(
       frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
     )
-  } catch {
+  } catch (error) {
+    console.error(error)
     return []
   }
 }
