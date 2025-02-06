@@ -305,16 +305,16 @@ export function Errors({
       !!diffContent
   )
 
-  const componentStackNames: string[] = activeError.componentStackFrames
-    ? activeError.componentStackFrames.map((f) => f.component)
-    : ((errorDetails.componentStack || '')
-        .split('\n')
-        .map((line) => {
-          // at ComponentName (location)
-          const match = line.trim().match(/at ([\w]+)/)
-          return match ? match[1] : ''
-        })
-        .filter(Boolean) as string[])
+  // const componentStackNames: string[] = activeError.componentStackFrames
+  //   ? activeError.componentStackFrames.map((f) => f.component)
+  //   : ((errorDetails.componentStack || '')
+  //       .split('\n')
+  //       .map((line) => {
+  //         // at ComponentName (location)
+  //         const match = line.trim().match(/at ([\w]+)/)
+  //         return match ? match[1] : ''
+  //       })
+  //       .filter(Boolean) as string[])
 
   return (
     <Overlay>
@@ -402,7 +402,7 @@ export function Errors({
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
-                componentStackNames={componentStackNames}
+                componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
                 reactOutputComponentDiff={diffContent}
