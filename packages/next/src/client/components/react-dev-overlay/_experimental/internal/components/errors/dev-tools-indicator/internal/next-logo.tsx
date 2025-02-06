@@ -373,7 +373,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           @media (prefers-reduced-motion: reduce) {
             [data-issues-count-exit],
-            [data-issues-count-enter] {
+            [data-issues-count-enter],
+            [data-issues-count-plural] {
               animation-duration: 0ms;
             }
           }
