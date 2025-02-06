@@ -121,16 +121,14 @@ impl Rope {
 impl From<Vec<u8>> for Rope {
     fn from(mut bytes: Vec<u8>) -> Self {
         bytes.shrink_to_fit();
-        let bytes: Bytes = bytes.into();
-        // We can't have an InnerRope which contains an empty Local section.
-        if bytes.is_empty() {
-            Default::default()
-        } else {
-            Rope {
-                length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)])),
-            }
-        }
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
+impl From<String> for Rope {
+    fn from(mut bytes: String) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
     }
 }
 
@@ -325,7 +323,10 @@ impl Uncommitted {
         match mem::take(self) {
             Self::None => None,
             Self::Static(s) => Some(s.into()),
-            Self::Owned(v) => Some(v.into()),
+            Self::Owned(mut v) => {
+                v.shrink_to_fit();
+                Some(v.into())
+            }
         }
     }
 }
