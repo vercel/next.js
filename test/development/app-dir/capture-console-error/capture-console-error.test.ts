@@ -102,7 +102,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/browser/render/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "trigger an console.error in render",
          "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -121,7 +121,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/browser/render/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "trigger an console.error in render",
          "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -150,7 +150,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/browser/render/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "trigger an console.error in render",
          "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -169,7 +169,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/browser/render/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "trigger an console.error in render",
          "source": "app/browser/render/page.js (4:11) @ Page
 
@@ -198,7 +198,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/ssr/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "ssr console error:client",
          "source": "app/ssr/page.js (4:11) @ Page
 
@@ -217,7 +217,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/ssr/page.js (4:11)",
-         "count": 2,
+         "count": 1,
          "description": "ssr console error:client",
          "source": "app/ssr/page.js (4:11) @ Page
 
@@ -246,7 +246,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/ssr-error-instance/page.js (4:17)",
-         "count": 2,
+         "count": 1,
          "description": "Error: page error",
          "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
@@ -265,7 +265,7 @@ describe('app-dir - capture-console-error', () => {
        {
          "callStacks": "Page
        app/ssr-error-instance/page.js (4:17)",
-         "count": 2,
+         "count": 1,
          "description": "Error: page error",
          "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
