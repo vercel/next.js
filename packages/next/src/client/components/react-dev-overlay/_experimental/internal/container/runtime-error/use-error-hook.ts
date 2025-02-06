@@ -77,12 +77,20 @@ export function useErrorHook({
       return
     }
 
-    const resolved = getErrorByType(nextError, isAppDir)
+    let mounted = true
 
-    // We don't care if the desired error changed while we were resolving,
-    // thus we're not tracking it using a ref. Once the work has been done,
-    // we'll store it.
-    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+    getErrorByType(nextError, isAppDir).then((resolved) => {
+      if (mounted) {
+        // We don't care if the desired error changed while we were resolving,
+        // thus we're not tracking it using a ref. Once the work has been done,
+        // we'll store it.
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+      }
+    })
+
+    return () => {
+      mounted = false
+    }
   }, [nextError, isAppDir])
 
   return {

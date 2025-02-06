@@ -1,16 +1,18 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
+import {
+  useFrames,
+  type ReadyRuntimeError,
+} from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
 import { CallStackFrame } from './CallStackFrame'
-import { use } from 'react'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
   const [isIgnoredExpanded, setIsIgnoredExpanded] = React.useState(false)
 
-  const frames = use(error.frames())
+  const frames = useFrames(error)
   const {
     firstFrame,
     allLeadingFrames,
