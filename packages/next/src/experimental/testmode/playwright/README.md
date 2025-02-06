@@ -50,11 +50,11 @@ export default defineConfig({
 import { test, expect } from 'next/experimental/testmode/playwright'
 
 test('/product/shoe', async ({ page, next }) => {
+  // NOTE: `next.onFetch` only intercepts external `fetch` requests (for both client and server).
+  // For example, if you `fetch` a relative URL (e.g. `/api/hello`) from the client
+  // that's handled by a Next.js route handler (e.g. `app/api/hello/route.ts`),
+  // it won't be intercepted.
   next.onFetch((request) => {
-    // `next.onFetch` only intercepts external fetch requests (for both client and server).
-    // For example, if you `fetch` a relative URL (e.g. `/api/hello`) from the client
-    // that's handled by a Next.js route handler (e.g. `app/api/hello/route.ts`),
-    // it won't be intercepted.
     if (request.url === 'http://my-db/product/shoe') {
       return new Response(
         JSON.stringify({
