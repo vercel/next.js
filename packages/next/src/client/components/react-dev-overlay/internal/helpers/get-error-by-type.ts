@@ -29,13 +29,18 @@ export function getErrorByType(
         runtime: true,
         error: event.reason,
         // createMemoizedPromise dedups calls to getOriginalStackFrames
-        frames: createMemoizedPromise(async () =>
-          getOriginalStackFrames(
-            event.frames,
-            getErrorSource(event.reason),
-            isAppDir
-          )
-        ),
+        frames: createMemoizedPromise(async () => {
+          try {
+            return await getOriginalStackFrames(
+              event.frames,
+              getErrorSource(event.reason),
+              isAppDir
+            )
+          } catch (e) {
+            console.error(e)
+            return []
+          }
+        }),
       }
       if (event.type === ACTION_UNHANDLED_ERROR) {
         readyRuntimeError.componentStackFrames = event.componentStackFrames
@@ -55,15 +60,9 @@ function createMemoizedPromise<T>(
   promiseFactory: () => Promise<T>
 ): () => Promise<T> {
   let cachedPromise: Promise<T> | null = null
-
   return function (): Promise<T> {
-    // If no promise is cached, create one.
     if (!cachedPromise) {
-      cachedPromise = promiseFactory().catch((error: Error) => {
-        // Clear the cache on failure so that subsequent calls can retry.
-        cachedPromise = null
-        throw error
-      })
+      cachedPromise = promiseFactory()
     }
     return cachedPromise
   }
