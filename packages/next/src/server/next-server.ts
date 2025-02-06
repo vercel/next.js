@@ -888,6 +888,10 @@ export default class NextNodeServer extends BaseServer<
     if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
       return false
     }
+    // Ignore if its a middleware request
+    if (getRequestMeta(req, 'middlewareInvoke')) {
+      return false
+    }
 
     if (
       this.minimalMode ||
