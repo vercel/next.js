@@ -67,6 +67,12 @@ export default function transformSource(
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
+  let prefix = ''
+  if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
+    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+    prefix = `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n`
+    source = prefix + source
+  }
 
   // Resource key is the unique identifier for the resource. When RSC renders
   // a client module, that key is used to identify that module across all compiler
@@ -109,7 +115,9 @@ export default function transformSource(
         return
       }
 
-      let esmSource = `\
+      let esmSource =
+        prefix +
+        `\
 import { registerClientReference } from "react-server-dom-webpack/server.edge";
 `
       for (const ref of clientRefs) {
@@ -134,23 +142,15 @@ ${JSON.stringify(ref)},
         }
       }
 
-      if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
-        esmSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
-      }
-
       return this.callback(null, esmSource, sourceMap)
     } else if (assumedSourceType === 'commonjs') {
-      let cjsSource = `\
+      let cjsSource =
+        prefix +
+        `\
 const { createProxy } = require("${MODULE_PROXY_PATH}")
 
 module.exports = createProxy(${stringifiedResourceKey})
 `
-      if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
-        cjsSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
-      }
-
       return this.callback(null, cjsSource, sourceMap)
     }
   }
@@ -163,15 +163,9 @@ module.exports = createProxy(${stringifiedResourceKey})
     }
   }
 
-  let replacedSource = source.replace(
+  const replacedSource = source.replace(
     RSC_MOD_REF_PROXY_ALIAS,
     MODULE_PROXY_PATH
   )
-
-  if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
-    replacedSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
-  }
-
   this.callback(null, replacedSource, sourceMap)
 }
