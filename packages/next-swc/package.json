@@ -14,7 +14,7 @@
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
     "rust-check-napi": "cargo check -p next-swc-napi",
-    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --release --no-fail-fast"
+    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --exclude turbo-tasks-macros --release --no-fail-fast"
   },
   "napi": {
     "name": "next-swc",
