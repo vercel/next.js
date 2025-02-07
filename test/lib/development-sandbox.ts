@@ -10,7 +10,6 @@ import {
   waitFor,
   openRedbox,
   getRedboxDescriptionWarning,
-  // toggleCollapseComponentStack,
   getRedboxErrorLink,
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
@@ -154,9 +153,6 @@ export async function createSandbox(
         getRedboxComponentStack() {
           return getRedboxComponentStack(browser)
         },
-        // async toggleCollapseComponentStack() {
-        //   return toggleCollapseComponentStack(browser)
-        // },
         async getVersionCheckerText() {
           return getVersionCheckerText(browser)
         },

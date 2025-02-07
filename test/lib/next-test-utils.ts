@@ -1320,14 +1320,6 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-// export async function toggleCollapseComponentStack(
-//   browser: BrowserInterface
-// ): Promise<void> {
-//   await browser
-//     .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
-//     .click()
-// }
-
 export async function hasRedboxCallStack(browser: BrowserInterface) {
   return browser.eval(() => {
     const portal = [].slice
