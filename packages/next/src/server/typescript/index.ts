@@ -16,6 +16,7 @@ import {
   isPositionInsideNode,
   getSource,
   isInsideApp,
+  log,
   type PluginCreateInfo,
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
@@ -33,16 +34,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
-    const logger = info.project.projectService.logger
-
-    logger.info('[Next.js] Initializing...')
-
     init({
       ts,
       info: info as PluginCreateInfo,
     })
-
-    logger.info('[Next.js] Initialized!')
 
     const virtualFiles: Record<
       string,
@@ -65,18 +60,18 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     )
 
     info.languageServiceHost.getScriptVersion = (fileName: string) => {
-      logger.info(`[ProxiedLSHost] getScriptVersion(${fileName})`)
+      log(`[ProxiedLSHost] getScriptVersion(${fileName})`)
       const file = virtualFiles[fileName]
       if (!file) return getScriptVersion(fileName)
-      logger.info(`[ProxiedLSHost] getScriptVersion(${fileName}) - ${file.ver}`)
+      log(`[ProxiedLSHost] getScriptVersion(${fileName}) - ${file.ver}`)
       return file.ver.toString()
     }
 
     info.languageServiceHost.getScriptSnapshot = (fileName: string) => {
-      logger.info(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
+      log(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
       const file = virtualFiles[fileName]
       if (!file) return getScriptSnapshot(fileName)
-      logger.info(
+      log(
         `[ProxiedLSHost] getScriptSnapshot(${fileName}) - ${JSON.stringify(file.file, null, 2)}`
       )
       return file.file
@@ -93,14 +88,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       for (const file of files) {
         names.add(file)
       }
-      logger.info(
+      log(
         `[ProxiedLSHost] getScriptFileNames() - ${JSON.stringify([...names], null, 2)}`
       )
       return [...names]
     }
 
     info.languageServiceHost.readFile = (fileName: string) => {
-      logger.info(`[ProxiedLSHost] readFile(${fileName})`)
+      log(`[ProxiedLSHost] readFile(${fileName})`)
       const file = virtualFiles[fileName]
       return file
         ? file.file.getText(0, file.file.getLength())
@@ -108,13 +103,13 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     }
 
     info.languageServiceHost.fileExists = (fileName: string) => {
-      logger.info(`[ProxiedLSHost] fileExists(${fileName})`)
+      log(`[ProxiedLSHost] fileExists(${fileName})`)
       return !!virtualFiles[fileName] || fileExists(fileName)
     }
 
     // @ts-ignore
     info.languageServiceHost.addFile = (fileName: string, body: string) => {
-      logger.info(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
+      log(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
       const snap = ts.ScriptSnapshot.fromString(body)
       snap.getChangeRange = (_) => undefined
       const existing = virtualFiles[fileName]

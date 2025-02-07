@@ -1,6 +1,7 @@
 import path from 'path'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
+
 export type PluginCreateInfo = Pick<
   tsModule.server.PluginCreateInfo,
   'languageService' | 'config' | 'project' | 'serverHost' | 'session'
@@ -14,19 +15,21 @@ let ts: TypeScript
 let info: PluginCreateInfo
 let appDirRegExp: RegExp
 
-export function log(message: string) {
-  info.project.projectService.logger.info(message)
+export const log = (message: string) => {
+  info.project.projectService.logger.info(`[Next.js] ${message}`)
 }
 
 // This function has to be called initially.
 export function init(opts: { ts: TypeScript; info: PluginCreateInfo }) {
   ts = opts.ts
   info = opts.info
+  log('Initializing...')
   const projectDir = info.project.getCurrentDirectory()
   appDirRegExp = new RegExp(
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
-  log('Starting Next.js TypeScript plugin: ' + projectDir)
+  log(`Starting Next.js TypeScript plugin: ${projectDir}`)
+  log('Initialized!')
 }
 
 export function getTs() {
