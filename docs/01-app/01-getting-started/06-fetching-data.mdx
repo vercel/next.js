@@ -100,6 +100,7 @@ You can use React's [`use` hook](https://react.dev/reference/react/use) to [stre
 
 ```tsx filename="app/blog/page.tsx" switcher
 import Posts from '@/app/ui/posts
+import { getPosts } from "@/app/lib/getPosts";
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -116,6 +117,7 @@ export default function Page() {
 
 ```jsx filename="app/blog/page.js" switcher
 import Posts from '@/app/ui/posts
+import { getPosts } from "@/app/lib/getPosts";
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -167,6 +169,30 @@ export default function Posts({ posts }) {
       ))}
     </ul>
   )
+}
+```
+
+```ts filename="app/lib/getPosts.tsx" switcher
+export async function getPosts() {
+  const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch posts");
+  }
+
+  return res.json(); // Returns a promise
+}
+```
+
+```js filename="app/lib/getPosts.js" switcher
+export async function getPosts() {
+  const res = await fetch("https://jsonplaceholder.typicode.com/posts");
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch posts");
+  }
+
+  return res.json(); // Returns a promise
 }
 ```
 
