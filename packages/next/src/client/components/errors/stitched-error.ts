@@ -22,7 +22,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
     ? stackLines.slice(0, indexOfSplit).join('\n')
     : originStack
 
-  const newError = new Error(originMessage)
+  const newError = isErrorInstance ? err : new Error(originMessage)
   // Copy all enumerable properties, e.g. digest
   Object.assign(newError, err)
   newError.stack = newStack
@@ -34,6 +34,9 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
 }
 
 function appendOwnerStack(error: Error) {
+  if (!React.captureOwnerStack) {
+    return
+  }
   let stack = error.stack || ''
   // This module is only bundled in development mode so this is safe.
   const ownerStack = React.captureOwnerStack()
