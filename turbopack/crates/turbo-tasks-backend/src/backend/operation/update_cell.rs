@@ -29,7 +29,7 @@ impl UpdateCellOperation {
             in_progress.event.notify(usize::MAX);
         }
 
-        let recomputed = old_content.is_none() && !task.has_key(&CachedDataItemKey::Dirty {});
+        let recomputed = !task.has_key(&CachedDataItemKey::Dirty {});
         // recomputed means task wasn't invalidated, so we just recompute, so the content has not
         // actually changed (At least we have to assume that tasks are deterministic and
         // pure).
