@@ -2,14 +2,17 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use const_format::concatcp;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use sourcemap::SourceMap;
-use turbo_tasks::Vc;
-use turbo_tasks_fs::{rope::Rope, util::uri_from_file, DiskFileSystem, FileSystemPath};
+use turbo_tasks::{ValueToString, Vc};
+use turbo_tasks_fs::{
+    rope::Rope, util::uri_from_file, DiskFileSystem, FileContent, FileSystemPath,
+};
 
 use crate::SOURCE_MAP_PREFIX;
 
-pub fn add_default_ignore_list(map: &mut SourceMap) {
+pub fn add_default_ignore_list(map: &mut sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
@@ -26,36 +29,124 @@ pub fn add_default_ignore_list(map: &mut SourceMap) {
     }
 }
 
-/// Turns `turbopack://[project]`` references in sourcemap sources into absolute
-/// `file://` uris. This is useful for debugging environments.
+#[derive(Serialize, Deserialize)]
+struct SourceMapSectionOffsetJson {
+    line: u32,
+    offset: u32,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SourceMapSectionItemJson {
+    offset: SourceMapSectionOffsetJson,
+    map: SourceMapSectionJson,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceMapSectionJson {
+    version: u32,
+    file: Option<String>,
+    source_root: Option<String>,
+    sources: Vec<Option<String>>,
+    sources_content: Option<Vec<Option<String>>>,
+    names: Vec<String>,
+    mappings: String,
+    ignore_list: Option<Vec<u32>>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SourceMapJson {
+    #[serde(flatten)]
+    map: SourceMapSectionJson,
+    sections: Option<Vec<SourceMapSectionItemJson>>,
+}
+
+/// Replace the origin prefix in the `sources` with `turbopack://` and read the the `sourceContent`s
+/// from disk.
+pub async fn resolve_source_map_sources(
+    map: Option<&Rope>,
+    origin: Vc<FileSystemPath>,
+) -> Result<Option<Rope>> {
+    async fn resolve_source(
+        original_source: &mut String,
+        original_content: &mut Option<String>,
+        origin: Vc<FileSystemPath>,
+    ) -> Result<()> {
+        if let Some(path) = *origin
+            .parent()
+            .try_join((&**original_source).into())
+            .await?
+        {
+            let path_str = path.to_string().await?;
+            let source = format!("{SOURCE_MAP_PREFIX}{}", path_str);
+            *original_source = source;
+
+            if original_content.is_none() {
+                if let FileContent::Content(file) = &*path.read().await? {
+                    let text = file.content().to_str()?;
+                    *original_content = Some(text.to_string())
+                } else {
+                    *original_content = Some(format!("unable to read source {path_str}"));
+                }
+            }
+        } else {
+            let origin_str = origin.to_string().await?;
+            static INVALID_REGEX: Lazy<Regex> =
+                Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
+            let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
+                s[0].replace('.', "_")
+            });
+            *original_source = format!("{SOURCE_MAP_PREFIX}{}/{}", origin_str, source);
+            if original_content.is_none() {
+                *original_content = Some(format!(
+                    "unable to access {original_source} in {origin_str} (it's leaving the \
+                     filesystem root)"
+                ));
+            }
+        }
+        anyhow::Ok(())
+    }
+
+    async fn resolve_map(map: &mut SourceMapSectionJson, origin: Vc<FileSystemPath>) -> Result<()> {
+        let sources = &mut map.sources;
+        let mut contents = if let Some(mut contents) = map.sources_content.take() {
+            contents.resize(sources.len(), None);
+            contents
+        } else {
+            Vec::with_capacity(sources.len())
+        };
+
+        for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
+            if let Some(source) = source {
+                resolve_source(source, content, origin).await?;
+            }
+        }
+
+        map.sources_content = Some(contents);
+        Ok(())
+    }
+
+    let Some(map) = map else {
+        return Ok(None);
+    };
+
+    let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
+
+    resolve_map(&mut map.map, origin).await?;
+    for section in map.sections.iter_mut().flatten() {
+        resolve_map(&mut section.map, origin).await?;
+    }
+
+    let map = Rope::from(serde_json::to_vec(&map)?);
+    Ok(Some(map))
+}
+
+/// Turns `turbopack://[project]` references in sourcemap sources into absolute `file://` uris. This
+/// is useful for debugging environments.
 pub async fn fileify_source_map(
     map: Option<&Rope>,
     context_path: Vc<FileSystemPath>,
 ) -> Result<Option<Rope>> {
-    #[derive(Serialize, Deserialize)]
-    struct SourceMapSectionOffsetJson {
-        line: u32,
-        offset: u32,
-    }
-    #[derive(Serialize, Deserialize)]
-    struct SourceMapSectionJson {
-        offset: SourceMapSectionOffsetJson,
-        map: SourceMapJson,
-    }
-    #[derive(Serialize, Deserialize)]
-    #[serde(rename_all = "camelCase")]
-    struct SourceMapJson {
-        version: u32,
-        file: Option<String>,
-        source_root: Option<String>,
-        sources: Vec<Option<String>>,
-        sources_content: Option<Vec<Option<String>>>,
-        names: Vec<String>,
-        mappings: String,
-        ignore_list: Option<Vec<u32>>,
-        sections: Option<Vec<SourceMapSectionJson>>,
-    }
-
     let Some(map) = map else {
         return Ok(None);
     };
@@ -80,7 +171,7 @@ pub async fn fileify_source_map(
         anyhow::Ok(())
     };
 
-    for src in map.sources.iter_mut() {
+    for src in map.map.sources.iter_mut() {
         transform_source(src).await?;
     }
     for section in map.sections.iter_mut().flatten() {

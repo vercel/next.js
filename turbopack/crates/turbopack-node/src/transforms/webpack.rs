@@ -33,7 +33,9 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -281,6 +283,8 @@ impl WebpackLoadersProcessedAsset {
                 .map
                 .map(|source_map| Rope::from(source_map.into_owned()))
         };
+        let source_map = resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
+
         let file = match processed.source {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),

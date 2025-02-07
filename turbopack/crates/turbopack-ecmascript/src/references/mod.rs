@@ -73,7 +73,9 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -543,13 +545,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             }
 
-            // TODO This is too eagerly generating the source map. We should store a
-            // GenerateSourceMap instead and only actually generate the SourceMap when
-            // it's needed. This would allow to avoid generating the source map when a
-            // module is never included in the final bundle. It allows analysis to
-            // finish earlier which makes references available earlier which benefits
-            // parallelism. When SourceMaps are emitted it moves that generation work to
-            // the code generation phase which is more parallelizable.
             let mut source_map_from_comment = false;
             if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
                 let origin_path = origin.origin_path();
@@ -563,9 +558,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
                 } else if path.starts_with("data:application/json;base64,") {
-                    // TODO what about the origin here?
-                    // let source_map_origin = origin_path;
                     let source_map = maybe_decode_data_url(path.into());
+                    let source_map =
+                        resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
                     analysis.set_source_map(ResolvedVc::cell(source_map));
                     source_map_from_comment = true;
                 }
@@ -574,10 +569,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(generate_source_map) =
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
-                    // TODO what about the origin here?
-                    // let source_map_origin = source.ident().path();
-                    let x = generate_source_map.generate_source_map();
-                    analysis.set_source_map(x.to_resolved().await?);
+                    analysis.set_source_map(
+                        generate_source_map
+                            .generate_source_map()
+                            .to_resolved()
+                            .await?,
+                    );
                 }
             }
             anyhow::Ok(())
