@@ -24,9 +24,20 @@ export function useOpenInEditor({
         }/__nextjs_launch-editor?${params.toString()}`
       )
       .then(
-        () => {},
-        () => {
-          console.error('There was an issue opening this code in your editor.')
+        (res) => {
+          if (!res.ok) {
+            console.error(
+              `Failed to open file "${file} (${lineNumber}:${column})" in your editor. Status:`,
+              res.status,
+              res.statusText
+            )
+          }
+        },
+        (cause) => {
+          console.error(
+            `Failed to open file "${file} (${lineNumber}:${column})" in your editor. Cause:`,
+            cause
+          )
         }
       )
   }, [file, lineNumber, column])

@@ -91,6 +91,11 @@ export function badRequest(res: ServerResponse) {
   res.end('Bad Request')
 }
 
+export function notFound(res: ServerResponse) {
+  res.statusCode = 404
+  res.end('Not Found')
+}
+
 export function internalServerError(res: ServerResponse, e?: any) {
   res.statusCode = 500
   res.end(e ?? 'Internal Server Error')

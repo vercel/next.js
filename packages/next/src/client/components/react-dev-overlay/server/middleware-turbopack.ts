@@ -6,6 +6,7 @@ import {
   json,
   jsonString,
   noContent,
+  notFound,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
@@ -385,7 +386,7 @@ export function getOverlayMiddleware(project: Project) {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return notFound(res)
 
       try {
         launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
@@ -394,7 +395,7 @@ export function getOverlayMiddleware(project: Project) {
         return internalServerError(res)
       }
 
-      noContent(res)
+      return noContent(res)
     }
 
     return next()
