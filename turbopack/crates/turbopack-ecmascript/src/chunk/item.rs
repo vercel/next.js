@@ -8,9 +8,10 @@ use turbo_tasks::{
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ChunkingContext},
-    code_builder::{fileify_source_map, Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
+    source_map::utils::fileify_source_map,
 };
 
 use crate::{

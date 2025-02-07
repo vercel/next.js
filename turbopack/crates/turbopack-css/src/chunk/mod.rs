@@ -13,7 +13,7 @@ use turbopack_core::{
         round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
         ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
-    code_builder::{fileify_source_map, Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::{
         module::IntrospectableModule,
@@ -24,7 +24,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::{utils::fileify_source_map, GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
