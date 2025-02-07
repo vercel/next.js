@@ -11,8 +11,9 @@ describe('use-cache-output-export', () => {
   })
 
   if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    // PPR is not compatible with `output: 'export'`.
-    return
+    return it.skip('for PPR', () => {
+      // PPR is not compatible with `output: 'export'`.
+    })
   }
 
   it('should work', async () => {
