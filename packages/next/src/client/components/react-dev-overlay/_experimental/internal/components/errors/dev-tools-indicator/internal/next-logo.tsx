@@ -16,7 +16,7 @@ const shortDurationMs = 150
 
 export const NextLogo = forwardRef(function NextLogo(
   {
-    issueCount: propIssueCount,
+    issueCount: issueCountProp,
     isDevBuilding,
     isDevRendering,
     onTriggerClick,
@@ -25,7 +25,7 @@ export const NextLogo = forwardRef(function NextLogo(
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
-  const [issueCount, setIssueCount] = useState(propIssueCount)
+  const [issueCount, setIssueCount] = useState(issueCountProp)
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [newErrorDetected, setNewErrorDetected] = useState(false)
@@ -51,7 +51,7 @@ export const NextLogo = forwardRef(function NextLogo(
     setIssueCount((prevIssueCount: number) => {
       // Check for 0, we don't want to animate on the first error surfacing
       // because the badge will already expand to draw attention to it
-      if (prevIssueCount !== 0 && prevIssueCount !== propIssueCount) {
+      if (prevIssueCount !== 0 && prevIssueCount !== issueCountProp) {
         setNewErrorDetected(true)
         // It is important to use a CSS transitioned state, not a CSS keyframed animation
         // because if the issue count increases faster than the animation duration, it
@@ -61,9 +61,9 @@ export const NextLogo = forwardRef(function NextLogo(
           clearTimeout(timeoutId)
         }, shortDurationMs)
       }
-      return propIssueCount
+      return issueCountProp
     })
-  }, [propIssueCount, issueCount, hasError])
+  }, [issueCountProp, issueCount, hasError])
 
   return (
     <div
