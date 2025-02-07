@@ -10,7 +10,7 @@ import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 const enableOwnerStacks = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -215,24 +215,48 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(await getRedboxTotalErrorCount(browser)).toBe(1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    expect(pseudoHtml).toMatchInlineSnapshot(`
-     "...
-         <HotReload assetPrefix="" globalError={[...]}>
-           <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
-             <DevRootHTTPAccessFallbackBoundary>
-               <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                   <RedirectBoundary>
-                     <RedirectErrorBoundary router={{...}}>
-                       <Head>
-                       <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                         <Root params={Promise}>
-                           <html
-     -                       className="server-html"
-                           >
-                       ...
-             ..."
-    `)
+    if (isTurbopack) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <script>
+                         <script>
+                         <script>
+                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                           <Root params={Promise}>
+                             <html
+       -                       className="server-html"
+                             >
+                         ...
+               ..."
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                           <Root params={Promise}>
+                             <html
+       -                       className="server-html"
+                             >
+                         ...
+               ..."
+      `)
+    }
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
@@ -419,9 +443,10 @@ describe('Error overlay for hydration errors in App router', () => {
     })
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-    )
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+     "In HTML, text nodes cannot be a child of <tr>.
+     This will cause a hydration error."
+    `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
     expect(pseudoHtml).toMatchInlineSnapshot(`

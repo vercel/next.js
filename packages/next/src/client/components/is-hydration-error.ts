@@ -25,18 +25,24 @@ export function isReactHydrationErrorMessage(msg: string): boolean {
 }
 
 const hydrationWarningRegexes = [
-  /In HTML, (.+?) cannot be a child of <(.+?)>\.(.*)\nThis will cause a hydration error\.(.*)/,
-  /In HTML, (.+?) cannot be a descendant of <(.+?)>\.\nThis will cause a hydration error\.(.*)/,
-  /In HTML, text nodes cannot be a child of <(.+?)>\.\nThis will cause a hydration error\./,
-  /In HTML, whitespace text nodes cannot be a child of <(.+?)>\. Make sure you don't have any extra whitespace between tags on each line of your source code\.\nThis will cause a hydration error\./,
-  /Expected server HTML to contain a matching <(.+?)> in <(.+?)>\.(.*)/,
-  /Did not expect server HTML to contain a <(.+?)> in <(.+?)>\.(.*)/,
-  /Expected server HTML to contain a matching text node for "(.+?)" in <(.+?)>\.(.*)/,
-  /Did not expect server HTML to contain the text node "(.+?)" in <(.+?)>\.(.*)/,
-  /Text content did not match\. Server: "(.+?)" Client: "(.+?)"(.*)/,
+  /^In HTML, (.+?) cannot be a child of <(.+?)>\.(.*)\nThis will cause a hydration error\.(.*)/,
+  /^In HTML, (.+?) cannot be a descendant of <(.+?)>\.\nThis will cause a hydration error\.(.*)/,
+  /^In HTML, text nodes cannot be a child of <(.+?)>\.\nThis will cause a hydration error\./,
+  /^In HTML, whitespace text nodes cannot be a child of <(.+?)>\. Make sure you don't have any extra whitespace between tags on each line of your source code\.\nThis will cause a hydration error\./,
+  /^Expected server HTML to contain a matching <(.+?)> in <(.+?)>\.(.*)/,
+  /^Did not expect server HTML to contain a <(.+?)> in <(.+?)>\.(.*)/,
+  /^Expected server HTML to contain a matching text node for "(.+?)" in <(.+?)>\.(.*)/,
+  /^Did not expect server HTML to contain the text node "(.+?)" in <(.+?)>\.(.*)/,
+  /^Text content did not match\. Server: "(.+?)" Client: "(.+?)"(.*)/,
 ]
 
 export function testReactHydrationWarning(msg: string): boolean {
+  if (!msg) return false
+  // React 18 has the `Warning: ` prefix.
+  // React 19 does not.
+  if (msg.startsWith('Warning: ')) {
+    msg = msg.slice('Warning: '.length)
+  }
   return hydrationWarningRegexes.some((regex) => regex.test(msg))
 }
 

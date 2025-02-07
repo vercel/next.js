@@ -9,7 +9,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -503,20 +503,37 @@ describe('Error overlay for hydration errors in Pages router', () => {
       `)
 
       const pseudoHtml = await session.getRedboxComponentStack()
-      expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<Root callbacks={[...]}>
-           <Head>
-           <AppContainer>
-             <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
-                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                       <Page>
-       +                 <table>
-       -                 {" 123"}
-                     ..."
-      `)
+      if (isTurbopack) {
+        expect(pseudoHtml).toMatchInlineSnapshot(`
+          "<Root callbacks={[...]}>
+              <Head>
+              <AppContainer>
+                <Container fn={function fn}>
+                  <ReactDevOverlay>
+                    <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                      <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                        <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                          <Page>
+          +                 <table>
+          -                 {" 123"}
+                        ..."
+         `)
+      } else {
+        expect(pseudoHtml).toMatchInlineSnapshot(`
+         "<Root callbacks={[...]}>
+             <Head>
+             <AppContainer>
+               <Container fn={function fn}>
+                 <ReactDevOverlay>
+                   <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                     <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                       <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                         <Page>
+         +                 <table>
+         -                 {" 123"}
+                       ..."
+        `)
+      }
       expect(await getRedboxTotalErrorCount(browser)).toBe(1)
     }
   })

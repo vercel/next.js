@@ -1,4 +1,7 @@
-import { getHydrationErrorStackInfo } from '../is-hydration-error'
+import {
+  getHydrationErrorStackInfo,
+  testReactHydrationWarning,
+} from '../is-hydration-error'
 
 export type HydrationErrorState = {
   // Hydration warning template format: <message> <serverContent> <clientContent>
@@ -28,8 +31,8 @@ const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
-const textMismatchWarning =
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
+// const textMismatchWarning =
+//   'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 export const getHydrationWarningType = (
   message: NullableText
@@ -52,27 +55,27 @@ export const getHydrationWarningType = (
 
 const isHtmlTagsWarning = (message: string) => htmlTagsWarnings.has(message)
 
-const isTextMismatchWarning = (message: string) =>
-  textMismatchWarning === message
+// const isTextMismatchWarning = (message: string) =>
+//   textMismatchWarning === message
 const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
 
-const isKnownHydrationWarning = (message: NullableText) => {
-  if (typeof message !== 'string') {
-    return false
-  }
-  // React 18 has the `Warning: ` prefix.
-  // React 19 does not.
-  const normalizedMessage = message.startsWith('Warning: ')
-    ? message
-    : `Warning: ${message}`
+// const isKnownHydrationWarning = (message: NullableText) => {
+//   if (typeof message !== 'string') {
+//     return false
+//   }
+//   // React 18 has the `Warning: ` prefix.
+//   // React 19 does not.
+//   const normalizedMessage = message.startsWith('Warning: ')
+//     ? message
+//     : `Warning: ${message}`
 
-  return (
-    isHtmlTagsWarning(normalizedMessage) ||
-    isTextInTagsMismatchWarning(normalizedMessage) ||
-    isTextMismatchWarning(normalizedMessage)
-  )
-}
+//   return (
+//     isHtmlTagsWarning(normalizedMessage) ||
+//     isTextInTagsMismatchWarning(normalizedMessage) ||
+//     isTextMismatchWarning(normalizedMessage)
+//   )
+// }
 
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
@@ -91,7 +94,7 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
 
 export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
   let [msg, firstContent, secondContent, ...rest] = args
-  if (isKnownHydrationWarning(msg)) {
+  if (testReactHydrationWarning(msg)) {
     // Some hydration warnings has 4 arguments, some has 3, fallback to the last argument
     // when the 3rd argument is not the component stack but an empty string
     const isReact18 = msg.startsWith('Warning: ')
