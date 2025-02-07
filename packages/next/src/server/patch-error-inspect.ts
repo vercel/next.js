@@ -158,7 +158,8 @@ interface SourcemappableStackFrame extends StackFrame {
  */
 function getSourcemappedFrameIfPossible(
   frame: SourcemappableStackFrame,
-  sourceMapCache: SourceMapCache
+  sourceMapCache: SourceMapCache,
+  inspectOptions: util.InspectOptions
 ): {
   stack: IgnoreableStackFrame
   // DEV only
@@ -272,7 +273,11 @@ function getSourcemappedFrameIfPossible(
 
   const codeFrame =
     process.env.NODE_ENV !== 'production'
-      ? getOriginalCodeFrame(originalFrame, sourceContent)
+      ? getOriginalCodeFrame(
+          originalFrame,
+          sourceContent,
+          inspectOptions.colors
+        )
       : null
 
   return {
@@ -281,7 +286,10 @@ function getSourcemappedFrameIfPossible(
   }
 }
 
-function parseAndSourceMap(error: Error): string {
+function parseAndSourceMap(
+  error: Error,
+  inspectOptions: util.InspectOptions
+): string {
   // TODO(veil): Expose as CLI arg or config option. Useful for local debugging.
   const showIgnoreListed = false
   // We overwrote Error.prepareStackTrace earlier so error.stack is not sourcemapped.
@@ -312,7 +320,8 @@ function parseAndSourceMap(error: Error): string {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
         // We narrowed this earlier by bailing if `frame.file` is null.
         frame as SourcemappableStackFrame,
-        sourceMapCache
+        sourceMapCache,
+        inspectOptions
       )
 
       if (
@@ -326,6 +335,8 @@ function parseAndSourceMap(error: Error): string {
       }
       if (!sourcemappedFrame.stack.ignored) {
         // TODO: Consider what happens if every frame is ignore listed.
+        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+      } else if (showIgnoreListed && !inspectOptions.colors) {
         sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
       } else if (showIgnoreListed) {
         sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
@@ -342,7 +353,11 @@ function parseAndSourceMap(error: Error): string {
   )
 }
 
-function sourceMapError(this: void, error: Error): Error {
+function sourceMapError(
+  this: void,
+  error: Error,
+  inspectOptions: util.InspectOptions
+): Error {
   // Create a new Error object with the source mapping applied and then use native
   // Node.js formatting on the result.
   const newError =
@@ -352,7 +367,7 @@ function sourceMapError(this: void, error: Error): Error {
       : new Error(error.message)
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
-  newError.stack = parseAndSourceMap(error)
+  newError.stack = parseAndSourceMap(error, inspectOptions)
 
   for (const key in error) {
     if (!Object.prototype.hasOwnProperty.call(newError, key)) {
@@ -381,7 +396,7 @@ export function patchErrorInspectNodeJS(
   ): string {
     // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
     return workUnitAsyncStorage.exit(() => {
-      const newError = sourceMapError(this)
+      const newError = sourceMapError(this, inspectOptions)
 
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.
@@ -422,7 +437,7 @@ export function patchErrorInspectEdgeLite(
   }): string {
     // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
     return workUnitAsyncStorage.exit(() => {
-      const newError = sourceMapError(this)
+      const newError = sourceMapError(this, {})
 
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.

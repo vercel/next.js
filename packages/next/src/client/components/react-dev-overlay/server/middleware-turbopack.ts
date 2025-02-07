@@ -21,6 +21,7 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -361,19 +362,25 @@ export function getOverlayMiddleware(project: Project) {
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
       const stackFrames = createStackFrames(request)
-      const result = (await Promise.allSettled(
+      const result: OriginalStackFramesResponse = await Promise.all(
         stackFrames.map(async (frame) => {
           try {
             const stackFrame = await createOriginalStackFrame(project, frame)
             if (stackFrame === null) {
-              return Promise.reject('Failed to create original stack frame')
+              return {
+                status: 'rejected',
+                reason: 'Failed to create original stack frame',
+              }
             }
-            return stackFrame
-          } catch (e: any) {
-            return Promise.reject(e.stack)
+            return { status: 'fulfilled', value: stackFrame }
+          } catch (error) {
+            return {
+              status: 'rejected',
+              reason: inspect(error, { colors: false }),
+            }
           }
         })
-      )) satisfies OriginalStackFramesResponse
+      )
 
       return json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
