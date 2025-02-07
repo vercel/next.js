@@ -236,7 +236,6 @@ export function Errors({
     return (
       <Toast
         data-nextjs-toast
-        data-issues
         className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
         onClick={fullscreen}
       >

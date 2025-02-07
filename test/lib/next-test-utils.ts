@@ -887,14 +887,16 @@ export async function assertNoRedbox(browser: BrowserInterface) {
 export async function hasErrorToast(
   browser: BrowserInterface
 ): Promise<boolean> {
-  return (
-    (await browser.eval(() => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) => p.shadowRoot.querySelector('[data-issues]'))
-      )
-    })) ?? false // When browser.eval() throws, it returns null.
+  return Boolean(
+    await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-issues]'))
+
+      const root = portal?.shadowRoot
+      const node = root?.querySelector('[data-issues-count]')
+      return !!node
+    })
   )
 }
 
