@@ -31,8 +31,6 @@ const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
-// const textMismatchWarning =
-//   'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 export const getHydrationWarningType = (
   message: NullableText
@@ -55,27 +53,8 @@ export const getHydrationWarningType = (
 
 const isHtmlTagsWarning = (message: string) => htmlTagsWarnings.has(message)
 
-// const isTextMismatchWarning = (message: string) =>
-//   textMismatchWarning === message
 const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
-
-// const isKnownHydrationWarning = (message: NullableText) => {
-//   if (typeof message !== 'string') {
-//     return false
-//   }
-//   // React 18 has the `Warning: ` prefix.
-//   // React 19 does not.
-//   const normalizedMessage = message.startsWith('Warning: ')
-//     ? message
-//     : `Warning: ${message}`
-
-//   return (
-//     isHtmlTagsWarning(normalizedMessage) ||
-//     isTextInTagsMismatchWarning(normalizedMessage) ||
-//     isTextMismatchWarning(normalizedMessage)
-//   )
-// }
 
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
