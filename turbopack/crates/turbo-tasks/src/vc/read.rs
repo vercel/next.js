@@ -183,6 +183,27 @@ where
     _phantom_cast: PhantomData<Cast>,
 }
 
+impl<T, Cast> ReadVcFuture<T, Cast>
+where
+    T: ?Sized,
+    Cast: VcCast,
+{
+    pub fn strongly_consistent(mut self) -> Self {
+        self.raw = self.raw.strongly_consistent();
+        self
+    }
+
+    pub fn untracked(mut self) -> Self {
+        self.raw = self.raw.untracked();
+        self
+    }
+
+    pub fn final_read_hint(mut self) -> Self {
+        self.raw = self.raw.final_read_hint();
+        self
+    }
+}
+
 impl<T> From<ReadRawVcFuture> for ReadVcFuture<T, VcValueTypeCast<T>>
 where
     T: VcValueType,

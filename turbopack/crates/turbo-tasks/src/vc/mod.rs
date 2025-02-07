@@ -597,14 +597,21 @@ where
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node.into_strongly_consistent_read().into()
+        self.node.into_read().strongly_consistent().into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node.into_read_untracked().into()
+        self.node.into_read().untracked().into()
+    }
+
+    /// Returns a untracked read of the value. This will not invalidate the current function when
+    /// the read value changed.
+    #[must_use]
+    pub fn final_read_hint(self) -> ReadVcFuture<T> {
+        self.node.into_read().final_read_hint().into()
     }
 }
 

@@ -9,9 +9,7 @@ use crate::{
     backend::{CellContent, TypedCellContent},
     event::EventListener,
     id::LocalTaskId,
-    manager::{
-        read_local_output, read_task_cell, read_task_output, with_turbo_tasks, TurboTasksApi,
-    },
+    manager::{read_local_output, read_task_cell, read_task_output, with_turbo_tasks},
     registry::{self, get_value_type},
     turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, TaskId, TraitTypeId,
     ValueType, ValueTypeId, Vc, VcValueTrait,
@@ -91,29 +89,6 @@ impl RawVc {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
         ReadRawVcFuture::new(self)
-    }
-
-    pub(crate) fn into_strongly_consistent_read(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_strongly_consistent(self)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub(crate) fn into_read_untracked(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_untracked(self)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    pub(crate) fn into_read_untracked_with_turbo_tasks(
-        self,
-        turbo_tasks: &dyn TurboTasksApi,
-    ) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_untracked_with_turbo_tasks(self, turbo_tasks)
-    }
-
-    pub(crate) fn into_strongly_consistent_read_untracked(self) -> ReadRawVcFuture {
-        ReadRawVcFuture::new_strongly_consistent_untracked(self)
     }
 
     pub(crate) async fn resolve_trait(
@@ -302,44 +277,21 @@ impl ReadRawVcFuture {
         }
     }
 
-    fn new_untracked_with_turbo_tasks(vc: RawVc, _turbo_tasks: &dyn TurboTasksApi) -> Self {
-        ReadRawVcFuture {
-            consistency: ReadConsistency::Eventual,
-            current: vc,
-            untracked: true,
-            read_cell_options: ReadCellOptions::default(),
-            listener: None,
-        }
+    pub fn strongly_consistent(mut self) -> Self {
+        self.consistency = ReadConsistency::Strong;
+        self
     }
 
-    fn new_untracked(vc: RawVc) -> Self {
-        ReadRawVcFuture {
-            consistency: ReadConsistency::Eventual,
-            current: vc,
-            untracked: true,
-            read_cell_options: ReadCellOptions::default(),
-            listener: None,
-        }
+    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// using it could break cache invalidation.
+    pub fn untracked(mut self) -> Self {
+        self.untracked = true;
+        self
     }
 
-    fn new_strongly_consistent(vc: RawVc) -> Self {
-        ReadRawVcFuture {
-            consistency: ReadConsistency::Strong,
-            current: vc,
-            untracked: false,
-            read_cell_options: ReadCellOptions::default(),
-            listener: None,
-        }
-    }
-
-    fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
-        ReadRawVcFuture {
-            consistency: ReadConsistency::Strong,
-            current: vc,
-            untracked: true,
-            read_cell_options: ReadCellOptions::default(),
-            listener: None,
-        }
+    pub fn final_read_hint(mut self) -> Self {
+        self.read_cell_options.final_read_hint = true;
+        self
     }
 }
 
