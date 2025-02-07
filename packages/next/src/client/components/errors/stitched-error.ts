@@ -22,7 +22,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
     ? stackLines.slice(0, indexOfSplit).join('\n')
     : originStack
 
-  const newError = isErrorInstance ? err : new Error(originMessage)
+  const newError = new Error(originMessage)
   // Copy all enumerable properties, e.g. digest
   Object.assign(newError, err)
   newError.stack = newStack
