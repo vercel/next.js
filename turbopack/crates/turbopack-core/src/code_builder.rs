@@ -229,11 +229,11 @@ pub async fn fileify_source_map(
         version: u32,
         file: Option<String>,
         source_root: Option<String>,
-        sources: Vec<String>,
-        sources_content: Vec<Option<String>>,
+        sources: Vec<Option<String>>,
+        sources_content: Option<Vec<Option<String>>>,
         names: Vec<String>,
         mappings: String,
-        ignore_list: Vec<u32>,
+        ignore_list: Option<Vec<u32>>,
         sections: Option<Vec<SourceMapSectionJson>>,
     }
 
@@ -252,9 +252,11 @@ pub async fn fileify_source_map(
     // (apart from `sources`) and just keep storing them as strings.
     let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
 
-    let transform_source = async |src: &mut String| {
-        if let Some(src_rest) = src.strip_prefix(&prefix) {
-            *src = uri_from_file(context_path, Some(src_rest)).await?;
+    let transform_source = async |src: &mut Option<String>| {
+        if let Some(src) = src {
+            if let Some(src_rest) = src.strip_prefix(&prefix) {
+                *src = uri_from_file(context_path, Some(src_rest)).await?;
+            }
         }
         anyhow::Ok(())
     };
