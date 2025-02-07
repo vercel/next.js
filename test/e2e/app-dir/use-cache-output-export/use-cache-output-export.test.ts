@@ -10,6 +10,11 @@ describe('use-cache-output-export', () => {
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
 
+  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+    // PPR is not compatible with `output: 'export'`.
+    return
+  }
+
   it('should work', async () => {
     let html: string
     let server: Server | undefined
