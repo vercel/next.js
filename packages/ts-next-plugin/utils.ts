@@ -85,13 +85,16 @@ export const isDefaultFunctionExport = (
 export const isInsideApp = (filePath: string) => {
   return appDirRegExp.test(filePath)
 }
+
 export const isAppEntryFile = (filePath: string) => {
+  // question: is this regex is intentionally missing mts, cts, cjs?
   return (
     appDirRegExp.test(filePath) &&
     /^(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
   )
 }
 export const isPageFile = (filePath: string) => {
+  // question: is this regex is intentionally missing mts, cts, cjs?
   return (
     appDirRegExp.test(filePath) &&
     /^page\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
@@ -158,8 +161,8 @@ export function getEntryInfo(
       }
     })
 
-    return { client: isClientEntry, server: isServerEntry }
+    return { isClientEntry, isServerEntry }
   }
 
-  return { client: false, server: false }
+  return { isClientEntry: false, isServerEntry: false }
 }

@@ -46,19 +46,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     const getScriptVersion = info.languageServiceHost.getScriptVersion.bind(
       info.languageServiceHost
     )
-    const getScriptSnapshot = info.languageServiceHost.getScriptSnapshot.bind(
-      info.languageServiceHost
-    )
-    const getScriptFileNames = info.languageServiceHost.getScriptFileNames.bind(
-      info.languageServiceHost
-    )
-    const readFile = info.languageServiceHost.readFile.bind(
-      info.languageServiceHost
-    )
-    const fileExists = info.languageServiceHost.fileExists.bind(
-      info.languageServiceHost
-    )
-
     info.languageServiceHost.getScriptVersion = (fileName: string) => {
       log(`[ProxiedLSHost] getScriptVersion(${fileName})`)
       const file = virtualFiles[fileName]
@@ -67,6 +54,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return file.ver.toString()
     }
 
+    const getScriptSnapshot = info.languageServiceHost.getScriptSnapshot.bind(
+      info.languageServiceHost
+    )
     info.languageServiceHost.getScriptSnapshot = (fileName: string) => {
       log(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
       const file = virtualFiles[fileName]
@@ -77,6 +67,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return file.file
     }
 
+    const getScriptFileNames = info.languageServiceHost.getScriptFileNames.bind(
+      info.languageServiceHost
+    )
     info.languageServiceHost.getScriptFileNames = () => {
       const names: Set<string> = new Set()
       for (var name in virtualFiles) {
@@ -94,6 +87,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return [...names]
     }
 
+    const readFile = info.languageServiceHost.readFile.bind(
+      info.languageServiceHost
+    )
     info.languageServiceHost.readFile = (fileName: string) => {
       log(`[ProxiedLSHost] readFile(${fileName})`)
       const file = virtualFiles[fileName]
@@ -102,11 +98,18 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         : readFile(fileName)
     }
 
+    const fileExists = info.languageServiceHost.fileExists.bind(
+      info.languageServiceHost
+    )
     info.languageServiceHost.fileExists = (fileName: string) => {
       log(`[ProxiedLSHost] fileExists(${fileName})`)
       return !!virtualFiles[fileName] || fileExists(fileName)
     }
 
+    // TODO(dimitri question for gadzik): why are we patching the `addFile` api, which doesn't exist in the language service host?
+    // const addFile = info.languageServiceHost.addFile.bind(
+    //   info.languageServiceHost
+    // )
     // @ts-ignore
     info.languageServiceHost.addFile = (fileName: string, body: string) => {
       log(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
@@ -123,6 +126,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       // This is the same function call that the Svelte TS plugin makes
       // @ts-expect-error internal API since TS 5.5
       info.project.markAsDirty?.()
+      // return addFile(fileName, body) // see TODO above
     }
 
     // Set up decorator object
@@ -163,8 +167,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       if (!isAppEntryFile(fileName)) return prior
 
       // If it's a server entry.
-      const entryInfo = getEntryInfo(fileName)
-      if (!entryInfo.client) {
+      const { isClientEntry } = getEntryInfo(fileName)
+      if (!isClientEntry) {
         // Remove specified entries from completion list
         prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
 
@@ -249,8 +253,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       if (!isAppEntryFile(fileName)) return prior
 
       // Remove type suggestions for disallowed APIs in server components.
-      const entryInfo = getEntryInfo(fileName)
-      if (!entryInfo.client) {
+      const { isClientEntry } = getEntryInfo(fileName)
+      if (!isClientEntry) {
         const definitions = info.languageService.getDefinitionAtPosition(
           fileName,
           position
@@ -283,9 +287,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       const isAppEntry = isAppEntryFile(fileName)
 
       try {
-        const entryInfo = getEntryInfo(fileName, true)
-        isClientEntry = entryInfo.client
-        isServerEntry = entryInfo.server
+        ;({ isClientEntry, isServerEntry } = getEntryInfo(fileName, true))
       } catch (e: any) {
         prior.push({
           file: source,
@@ -293,8 +295,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           code: NEXT_TS_ERRORS.MISPLACED_ENTRY_DIRECTIVE,
           ...e,
         })
-        isClientEntry = false
-        isServerEntry = false
       }
 
       if (isInsideApp(fileName)) {
@@ -454,8 +454,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
 
     // Get definition and link for specific node
     proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
-      const entryInfo = getEntryInfo(fileName)
-      if (isAppEntryFile(fileName) && !entryInfo.client) {
+      const { isClientEntry } = getEntryInfo(fileName)
+      if (isAppEntryFile(fileName) && !isClientEntry) {
         const metadataDefinition = metadata.getDefinitionAndBoundSpan(
           fileName,
           position
