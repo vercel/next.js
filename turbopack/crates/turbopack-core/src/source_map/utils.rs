@@ -45,12 +45,17 @@ struct SourceMapSectionItemJson {
 #[serde(rename_all = "camelCase")]
 struct SourceMapSectionJson {
     version: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     file: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     source_root: Option<String>,
     sources: Vec<Option<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     sources_content: Option<Vec<Option<String>>>,
-    names: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    names: Option<Vec<String>>,
     mappings: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     ignore_list: Option<Vec<u32>>,
 }
 
@@ -58,6 +63,7 @@ struct SourceMapSectionJson {
 struct SourceMapJson {
     #[serde(flatten)]
     map: SourceMapSectionJson,
+    #[serde(skip_serializing_if = "Option::is_none")]
     sections: Option<Vec<SourceMapSectionItemJson>>,
 }
 

@@ -181,12 +181,8 @@ impl GenerateSourceMap for Code {
             sections.push(SourceMapSection::new(pos, encoded))
         }
 
-        let mut result = vec![];
-        SourceMap::new_sectioned(sections)
-            .to_source_map()
-            .await?
-            .to_writer(&mut result)?;
-        Ok(Vc::cell(Some(Rope::from(result))))
+        let source_map = SourceMap::new_sectioned(sections).to_rope().await?;
+        Ok(Vc::cell(Some(source_map)))
     }
 }
 
