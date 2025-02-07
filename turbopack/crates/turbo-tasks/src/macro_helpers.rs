@@ -3,6 +3,7 @@
 pub use async_trait::async_trait;
 pub use once_cell::sync::{Lazy, OnceCell};
 pub use serde;
+pub use shrink_to_fit;
 pub use tracing;
 
 use crate::{
