@@ -6612,9 +6612,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "shrink-to-fit"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17807c995c8c40c976cbdd92977d9434c07fb408c9772e0bb6ffcce31067f179"
+checksum = "591e69dcef78cd085f47ef9a19058ff03d75c049609a31aaf34986fee4400f3d"
 dependencies = [
  "indexmap 2.7.1",
  "shrink-to-fit-macro",
