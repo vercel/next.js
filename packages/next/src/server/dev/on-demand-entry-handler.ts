@@ -45,6 +45,7 @@ import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { entries } from 'lodash'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -288,6 +289,7 @@ class Invalidator {
       }
 
       this.building.add(key)
+      console.trace('INVALIDATING', key)
       this.multiCompiler.compilers[COMPILER_INDEXES[key]].watching?.invalidate()
     }
   }
@@ -709,7 +711,9 @@ export function onDemandEntryHandler({
     isApp: boolean | undefined
     url?: string
   }): Promise<void> {
+    console.log('ensurePageImpl', page)
     const stalledTime = 60
+
     const stalledEnsureTimeout = setTimeout(() => {
       debug(
         `Ensuring ${page} has taken longer than ${stalledTime}s, if this continues to stall this may be a bug`
@@ -721,14 +725,20 @@ export function onDemandEntryHandler({
       if (definition) {
         route = definition
       } else {
-        route = await findPagePathData(
-          rootDir,
-          page,
-          nextConfig.pageExtensions,
-          pagesDir,
-          appDir
-        )
+        try {
+          route = await findPagePathData(
+            rootDir,
+            page,
+            nextConfig.pageExtensions,
+            pagesDir,
+            appDir
+          )
+        } catch (e) {
+          console.log('ensure failed for', page, e)
+          throw e
+        }
       }
+      console.log('ensurePageImpl 0', page)
 
       const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
 
@@ -742,6 +752,7 @@ export function onDemandEntryHandler({
       }
 
       const pageBundleType = getPageBundleType(route.bundlePath)
+      console.log('ensurePageImpl 1', page)
       const addEntry = (
         compilerType: CompilerNameValues
       ): {
@@ -749,6 +760,7 @@ export function onDemandEntryHandler({
         newEntry: boolean
         shouldInvalidate: boolean
       } => {
+        console.log('ensurePageImpl addEntry', page)
         const entryKey = getEntryKey(compilerType, pageBundleType, route.page)
         if (
           curEntries[entryKey] &&
@@ -790,6 +802,7 @@ export function onDemandEntryHandler({
           shouldInvalidate: true,
         }
       }
+      console.log('ensurePageImpl 2', page)
 
       const staticInfo = await getStaticInfoIncludingLayouts({
         page,
@@ -801,6 +814,7 @@ export function onDemandEntryHandler({
         appDir,
       })
 
+      console.log('ensurePageImpl 3', page)
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
@@ -811,6 +825,7 @@ export function onDemandEntryHandler({
         pageRuntime = 'edge'
       }
 
+      console.log('ensurePageImpl 4', page)
       runDependingOnPageType({
         page: route.page,
         pageRuntime,
@@ -856,6 +871,7 @@ export function onDemandEntryHandler({
           }
         },
       })
+      console.log('ensurePageImpl 4', page)
 
       const addedValues = [...added.values()]
       const entriesThatShouldBeInvalidated = [...added.entries()].filter(
@@ -868,6 +884,11 @@ export function onDemandEntryHandler({
         reportTrigger(routePage, url)
       }
 
+      console.log(
+        'entriesShouldBeInvalidate',
+        page,
+        JSON.stringify(entriesThatShouldBeInvalidated)
+      )
       if (entriesThatShouldBeInvalidated.length > 0) {
         const invalidatePromise = Promise.all(
           entriesThatShouldBeInvalidated.map(([compilerKey, { entryKey }]) => {

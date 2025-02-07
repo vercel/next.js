@@ -361,9 +361,23 @@ export default class BuildManifestPlugin {
       console.log('DONE')
     })
 
+    compiler.hooks.beforeCompile.tap('NextJsBuildManifest', () => {
+      console.log('BEFORE COMPILE', compiler.options.name)
+    })
+    compiler.hooks.afterCompile.tap('NextJsBuildManifest', () => {
+      console.log('AFTER COMPILE', compiler.options.name)
+    })
+
     compiler.hooks.compilation.tap('NextJsBuildManifest', (compilation) => {
       Error.stackTraceLimit = 100
-      console.trace('MODIFIED FILES', compilation.compiler.modifiedFiles)
+      console.log(
+        'COMPILE',
+        compiler.options.name,
+        'MODIFIED FILES',
+        compilation.compiler.modifiedFiles,
+        'REMOVED FILES',
+        compilation.compiler.removedFiles
+      )
     })
   }
 }

@@ -753,6 +753,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public async start(): Promise<void> {
+    console.log('*** START')
     if (process.env.NEXT_RSPACK_OTEL) {
       console.log('next bin rspack otel')
       await require('@rspack/core').experiments.globalTrace.register(
@@ -797,6 +798,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     for (const config of this.activeWebpackConfigs) {
       const defaultEntry = config.entry
       config.entry = async (...args) => {
+        console.trace('getting entry', config.name)
         const outputPath = this.multiCompiler?.outputPath || ''
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
@@ -1128,6 +1130,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]
         }
 
+        console.log('config entry DONE', config.name)
         return entrypoints
       }
     }
@@ -1136,6 +1139,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // @ts-ignore webpack 5
     this.activeWebpackConfigs.parallelism = 1
 
+    console.log('creating multi compiler')
     this.multiCompiler = webpack(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
@@ -1566,6 +1570,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public async stop(): Promise<void> {
+    console.log('!!STOP')
     await new Promise((resolve, reject) => {
       this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
     })
