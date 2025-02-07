@@ -222,6 +222,12 @@ export interface RenderOptsPartial {
   postponed?: string
 
   /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
+
+  /**
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */

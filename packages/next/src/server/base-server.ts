@@ -2068,6 +2068,14 @@ export default abstract class Server<
       }
     }
 
+    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(
+      req,
+      this.renderOpts.experimental.streamingMetadata
+    )
+    if (isHtmlBotRequest) {
+      this.renderOpts.serveStreamingMetadata = false
+    }
+
     if (
       hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
@@ -2076,6 +2084,10 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
+    } else if (isHtmlBotRequest) {
+      // When it's html limited bots request, disable SSG
+      // and perform the full blocking rendering.
+      isSSG = false
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
@@ -2169,14 +2181,6 @@ export default abstract class Server<
     // to enable debugging of the fallback shell.
     const hasDebugFallbackShellQuery =
       hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
-
-    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(
-      req,
-      this.renderOpts.experimental.streamingMetadata
-    )
-    if (isHtmlBotRequest) {
-      this.renderOpts.serveStreamingMetadata = false
-    }
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
@@ -2486,6 +2490,8 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
+
+      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBotRequest
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2523,6 +2529,7 @@ export default abstract class Server<
           isRoutePPREnabled,
         },
         supportsDynamicResponse,
+        shouldWaitOnAllReady,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
@@ -3586,37 +3593,6 @@ export default abstract class Server<
           type: 'html',
           body,
           revalidate: cacheEntry.revalidate,
-        }
-      }
-
-      // When serves html bot request, we don't consume the `postponed` state from build cache.
-      // Pass down a `undefined` postponed state to the renderer to avoid resume rendering.
-      if (isHtmlBotRequest) {
-        // When it's PPR, disable SSG to perform the full blocking rendering
-        if (isRoutePPREnabled) {
-          isSSG = false
-        }
-        const result = await doRender({
-          // No postpone and no resume, this is a dynamic rendering.
-          postponed: undefined,
-          pagesFallback: undefined,
-          fallbackRouteParams: null,
-        })
-
-        if (!result) {
-          throw new Error('Invariant: expected a result to be returned')
-        }
-
-        if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
-          throw new Error(
-            `Invariant: expected a page response, got ${result.value?.kind}`
-          )
-        }
-
-        return {
-          type: 'html',
-          body: result.value.html,
-          revalidate: result.revalidate,
         }
       }
 
