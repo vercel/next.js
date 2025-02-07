@@ -15896,14 +15896,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1850 = React.version;
 if (
-  "19.1.0-canary-d85cf3e5-20250205" !==
+  "19.1.0-canary-ff628334-20250205" !==
   isomorphicReactPackageVersion$jscomp$inline_1850
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1850,
-      "19.1.0-canary-d85cf3e5-20250205"
+      "19.1.0-canary-ff628334-20250205"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15925,10 +15925,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_1857 = {
   bundleType: 0,
-  version: "19.1.0-canary-d85cf3e5-20250205",
+  version: "19.1.0-canary-ff628334-20250205",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-d85cf3e5-20250205",
+  reconcilerVersion: "19.1.0-canary-ff628334-20250205",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$281 = 0;
@@ -16208,7 +16208,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-d85cf3e5-20250205";
+exports.version = "19.1.0-canary-ff628334-20250205";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
