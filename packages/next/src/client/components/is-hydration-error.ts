@@ -37,7 +37,7 @@ const hydrationWarningRegexes = [
 ]
 
 export function testReactHydrationWarning(msg: string): boolean {
-  if (typeof msg !== 'string' && msg) return false
+  if (typeof msg !== 'string' || !msg) return false
   // React 18 has the `Warning: ` prefix.
   // React 19 does not.
   if (msg.startsWith('Warning: ')) {
