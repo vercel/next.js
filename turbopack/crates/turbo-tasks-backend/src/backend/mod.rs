@@ -591,7 +591,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         reader: Option<TaskId>,
         cell: CellId,
-        _options: ReadCellOptions,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         fn add_cell_dependency<B: BackingStorage>(
@@ -634,8 +634,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
-            let content = content.clone();
+        let content = if options.final_read_hint {
+            remove!(task, CellData { cell })
+        } else {
+            if let Some(content) = get!(task, CellData { cell }) {
+                let content = content.clone();
+                Some(content)
+            } else {
+                None
+            }
+        };
+        if let Some(content) = content {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
