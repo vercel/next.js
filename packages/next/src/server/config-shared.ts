@@ -740,8 +740,8 @@ export interface NextConfig extends Record<string, any> {
   rewrites?: () => Promise<
     | Rewrite[]
     | {
-        beforeFiles: Rewrite[]
-        afterFiles: Rewrite[]
+        beforeFiles?: Rewrite[]
+        afterFiles?: Rewrite[]
         fallback: Rewrite[]
       }
   >
