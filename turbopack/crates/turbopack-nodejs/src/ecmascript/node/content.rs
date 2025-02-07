@@ -9,7 +9,7 @@ use turbopack_core::{
     chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{

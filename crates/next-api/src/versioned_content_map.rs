@@ -12,7 +12,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::OptionVersionedContent,
 };
 

@@ -30,7 +30,6 @@ use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
     common::{
@@ -74,10 +73,7 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{
-        convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap,
-        OptionStringifiedSourceMap, SourceMap,
-    },
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -567,7 +563,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
                 } else if path.starts_with("data:application/json;base64,") {
-                    let source_map_origin = origin_path;
+                    // TODO what about the origin here?
+                    // let source_map_origin = origin_path;
                     let source_map = maybe_decode_data_url(path.into());
                     analysis.set_source_map(ResolvedVc::cell(source_map));
                     source_map_from_comment = true;
@@ -577,7 +574,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(generate_source_map) =
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
-                    let source_map_origin = source.ident().path();
+                    // TODO what about the origin here?
+                    // let source_map_origin = source.ident().path();
                     let x = generate_source_map.generate_source_map();
                     analysis.set_source_map(x.to_resolved().await?);
                 }

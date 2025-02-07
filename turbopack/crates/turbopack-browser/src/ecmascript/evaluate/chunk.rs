@@ -17,7 +17,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},

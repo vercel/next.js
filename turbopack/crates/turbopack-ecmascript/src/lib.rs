@@ -82,7 +82,7 @@ use turbopack_core::{
         FindContextFileResult,
     },
     source::Source,
-    source_map::{OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::OptionStringifiedSourceMap,
 };
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
@@ -91,7 +91,6 @@ use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExp
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGens,
-    parse::InlineSourcesContentConfig,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };

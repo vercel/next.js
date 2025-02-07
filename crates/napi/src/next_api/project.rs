@@ -39,7 +39,7 @@ use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
-    source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
+    source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     SOURCE_MAP_PREFIX,
 };

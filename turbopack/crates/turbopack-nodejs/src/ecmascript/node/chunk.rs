@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{Chunk, ChunkingContext},
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;

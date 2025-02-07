@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;

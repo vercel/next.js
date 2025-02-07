@@ -28,10 +28,7 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{
-        utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap,
-        OptionStringifiedSourceMap,
-    },
+    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };

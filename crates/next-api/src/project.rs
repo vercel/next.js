@@ -56,7 +56,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source_map::{OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::OptionStringifiedSourceMap,
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },

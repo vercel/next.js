@@ -19,7 +19,7 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
-    source_map::{OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::OptionStringifiedSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{

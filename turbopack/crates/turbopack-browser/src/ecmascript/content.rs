@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};

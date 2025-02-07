@@ -11,7 +11,6 @@ use turbopack_core::{
     code_builder::{fileify_source_map, Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use crate::{

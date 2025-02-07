@@ -24,11 +24,11 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{process::ParseCssResultSourceMap, util::stringify_js, ImportAssetReference};
+use crate::{util::stringify_js, ImportAssetReference};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
