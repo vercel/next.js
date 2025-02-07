@@ -48,6 +48,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
+import React from 'react'
 
 type CacheKeyParts = [
   buildId: string,
@@ -861,7 +862,8 @@ export function cache(
       })
     },
   }[name]
-  return cachedFn
+
+  return React.cache(cachedFn)
 }
 
 /**

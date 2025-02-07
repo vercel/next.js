@@ -2376,7 +2376,7 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
     if bound.is_empty() {
         expr
     } else {
-        // expr.bind(null, [encryptActionBoundArgs("id", [arg1, ...])])
+        // expr.bind(null, [encryptActionBoundArgs("id", arg1, arg2, ...)])
         Expr::Call(CallExpr {
             span: DUMMY_SP,
             callee: Expr::Member(MemberExpr {
@@ -2395,19 +2395,12 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
                     expr: Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
                         callee: quote_ident!("encryptActionBoundArgs").as_callee(),
-                        args: vec![
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(action_id.into()),
-                            },
-                            ExprOrSpread {
-                                spread: None,
-                                expr: Box::new(Expr::Array(ArrayLit {
-                                    span: DUMMY_SP,
-                                    elems: bound,
-                                })),
-                            },
-                        ],
+                        args: std::iter::once(ExprOrSpread {
+                            spread: None,
+                            expr: Box::new(action_id.into()),
+                        })
+                        .chain(bound.into_iter().flatten())
+                        .collect(),
                         ..Default::default()
                     })),
                 },
