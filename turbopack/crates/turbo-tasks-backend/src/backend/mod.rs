@@ -682,6 +682,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Ok(Err(listener));
         }
 
+        let _span = tracing::trace_span!(
+            "recomputation",
+            cell_type = registry::get_value_type_global_name(cell.type_id),
+            cell_index = cell.index
+        )
+        .entered();
+
         // We create the event and potentially schedule the task
         let in_progress = InProgressCellState::new(task_id, cell);
 
