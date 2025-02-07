@@ -1213,44 +1213,37 @@ pub async fn project_trace_source(
 
             let project_root_uri =
                 uri_from_file(project.container.project().project_root_path(), None).await? + "/";
-            let (file, original_file, is_internal) = if let Some(source_file) =
-                original_file.strip_prefix(&project_root_uri)
-            {
-                // Client code uses file://
-                (
-                    get_relative_path_to(&current_directory_file_url, &original_file)
-                        // TODO(sokra) remove this to include a ./ here to make it a relative path
-                        .trim_start_matches("./")
-                        .to_string(),
-                    Some(source_file.to_string()),
-                    false,
-                )
-            } else if let Some(source_file) =
-                original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
-            {
-                // Server code uses turbopack://[project]
-                // TODO should this also be file://?
-                (
-                    get_relative_path_to(
-                        &current_directory_file_url,
-                        &format!("{}{}", project_root_uri, source_file),
+            let (file, original_file, is_internal) =
+                if let Some(source_file) = original_file.strip_prefix(&project_root_uri) {
+                    // Client code uses file://
+                    (
+                        get_relative_path_to(&current_directory_file_url, &original_file),
+                        Some(source_file.to_string()),
+                        false,
                     )
-                    // TODO(sokra) remove this to include a ./ here to make it a relative path
-                    .trim_start_matches("./")
-                    .to_string(),
-                    Some(source_file.to_string()),
-                    false,
-                )
-            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
-                // All other code like turbopack://[turbopack] is internal code
-                (source_file.to_string(), None, true)
-            } else {
-                bail!(
-                    "Original file ({}) outside project ({})",
-                    original_file,
-                    project_root_uri
-                )
-            };
+                } else if let Some(source_file) =
+                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+                {
+                    // Server code uses turbopack://[project]
+                    // TODO should this also be file://?
+                    (
+                        get_relative_path_to(
+                            &current_directory_file_url,
+                            &format!("{}{}", project_root_uri, source_file),
+                        ),
+                        Some(source_file.to_string()),
+                        false,
+                    )
+                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                    // All other code like turbopack://[turbopack] is internal code
+                    (source_file.to_string(), None, true)
+                } else {
+                    bail!(
+                        "Original file ({}) outside project ({})",
+                        original_file,
+                        project_root_uri
+                    )
+                };
 
             Ok(Some(StackFrame {
                 file,
