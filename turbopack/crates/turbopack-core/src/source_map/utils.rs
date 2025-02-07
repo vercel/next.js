@@ -38,12 +38,12 @@ struct SourceMapSectionOffsetJson {
 #[derive(Serialize, Deserialize)]
 struct SourceMapSectionItemJson {
     offset: SourceMapSectionOffsetJson,
-    map: SourceMapSectionJson,
+    map: SourceMapJson,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct SourceMapSectionJson {
+struct SourceMapJson {
     version: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     file: Option<String>,
@@ -57,12 +57,7 @@ struct SourceMapSectionJson {
     mappings: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_list: Option<Vec<u32>>,
-}
 
-#[derive(Serialize, Deserialize)]
-struct SourceMapJson {
-    #[serde(flatten)]
-    map: SourceMapSectionJson,
     #[serde(skip_serializing_if = "Option::is_none")]
     sections: Option<Vec<SourceMapSectionItemJson>>,
 }
@@ -113,7 +108,7 @@ pub async fn resolve_source_map_sources(
         anyhow::Ok(())
     }
 
-    async fn resolve_map(map: &mut SourceMapSectionJson, origin: Vc<FileSystemPath>) -> Result<()> {
+    async fn resolve_map(map: &mut SourceMapJson, origin: Vc<FileSystemPath>) -> Result<()> {
         let sources = &mut map.sources;
         let mut contents = if let Some(mut contents) = map.sources_content.take() {
             contents.resize(sources.len(), None);
@@ -138,7 +133,7 @@ pub async fn resolve_source_map_sources(
 
     let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
 
-    resolve_map(&mut map.map, origin).await?;
+    resolve_map(&mut map, origin).await?;
     for section in map.sections.iter_mut().flatten() {
         resolve_map(&mut section.map, origin).await?;
     }
@@ -177,7 +172,7 @@ pub async fn fileify_source_map(
         anyhow::Ok(())
     };
 
-    for src in map.map.sources.iter_mut() {
+    for src in map.sources.iter_mut() {
         transform_source(src).await?;
     }
     for section in map.sections.iter_mut().flatten() {
