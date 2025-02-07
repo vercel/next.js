@@ -22,8 +22,8 @@ use crate::{
     task::shared_reference::TypedSharedReference,
     task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
-    FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
-    ValueTypeId, VcRead, VcValueTrait, VcValueType,
+    FunctionId, RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef,
+    TraitTypeId, ValueTypeId, VcRead, VcValueTrait, VcValueType,
 };
 
 pub type TransientTaskRoot =
@@ -498,6 +498,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         index: CellId,
         reader: TaskId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
@@ -507,6 +508,7 @@ pub trait Backend: Sync + Send {
         &self,
         task: TaskId,
         index: CellId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
@@ -516,9 +518,10 @@ pub trait Backend: Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell_untracked(current_task, index, turbo_tasks)? {
+        match self.try_read_task_cell_untracked(current_task, index, options, turbo_tasks)? {
             Ok(content) => Ok(content),
             Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
         }

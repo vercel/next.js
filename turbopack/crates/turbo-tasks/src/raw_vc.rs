@@ -13,8 +13,8 @@ use crate::{
         read_local_output, read_task_cell, read_task_output, with_turbo_tasks, TurboTasksApi,
     },
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
-    Vc, VcValueTrait,
+    turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, TaskId, TraitTypeId,
+    ValueType, ValueTypeId, Vc, VcValueTrait,
 };
 
 #[derive(Error, Debug)]
@@ -157,7 +157,7 @@ impl RawVc {
                         .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::TaskCell(task, index) => {
-                    let content = read_task_cell(&*tt, task, index)
+                    let content = read_task_cell(&*tt, task, index, ReadCellOptions::default())
                         .await
                         .map_err(|source| ResolveTypeError::ReadError { source })?;
                     if let TypedCellContent(value_type, CellContent(Some(_))) = content {
@@ -287,6 +287,7 @@ pub struct ReadRawVcFuture {
     consistency: ReadConsistency,
     current: RawVc,
     untracked: bool,
+    read_cell_options: ReadCellOptions,
     listener: Option<EventListener>,
 }
 
@@ -296,6 +297,7 @@ impl ReadRawVcFuture {
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: false,
+            read_cell_options: ReadCellOptions::default(),
             listener: None,
         }
     }
@@ -305,6 +307,7 @@ impl ReadRawVcFuture {
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
+            read_cell_options: ReadCellOptions::default(),
             listener: None,
         }
     }
@@ -314,6 +317,7 @@ impl ReadRawVcFuture {
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
+            read_cell_options: ReadCellOptions::default(),
             listener: None,
         }
     }
@@ -323,6 +327,7 @@ impl ReadRawVcFuture {
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: false,
+            read_cell_options: ReadCellOptions::default(),
             listener: None,
         }
     }
@@ -332,6 +337,7 @@ impl ReadRawVcFuture {
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: true,
+            read_cell_options: ReadCellOptions::default(),
             listener: None,
         }
     }
@@ -376,9 +382,9 @@ impl Future for ReadRawVcFuture {
                     }
                     RawVc::TaskCell(task, index) => {
                         let read_result = if this.untracked {
-                            tt.try_read_task_cell_untracked(task, index)
+                            tt.try_read_task_cell_untracked(task, index, this.read_cell_options)
                         } else {
-                            tt.try_read_task_cell(task, index)
+                            tt.try_read_task_cell(task, index, this.read_cell_options)
                         };
                         match read_result {
                             Ok(Ok(content)) => {
