@@ -606,7 +606,7 @@ async fn apply_webpack_resolve_options(
     resolve_options: Vc<ResolveOptions>,
     webpack_resolve_options: WebpackResolveOptions,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     if let Some(alias_fields) = webpack_resolve_options.alias_fields {
         let mut old = resolve_options
             .in_package

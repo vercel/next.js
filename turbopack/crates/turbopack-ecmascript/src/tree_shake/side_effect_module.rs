@@ -53,7 +53,7 @@ impl SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.module.ident().await?.clone_value();
+        let mut ident = self.module.ident().owned().await?;
         ident.parts.push(self.part.clone());
 
         ident.add_asset(

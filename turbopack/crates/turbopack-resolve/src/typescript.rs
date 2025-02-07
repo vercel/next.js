@@ -38,7 +38,7 @@ pub struct TsConfigIssue {
 
 #[turbo_tasks::function]
 async fn json_only(resolve_options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
-    let mut opts = resolve_options.await?.clone_value();
+    let mut opts = resolve_options.owned().await?;
     opts.extensions = vec![".json".into()];
     Ok(opts.cell())
 }
@@ -353,7 +353,7 @@ pub async fn apply_tsconfig_resolve_options(
     tsconfig_resolve_options: Vc<TsConfigResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
     let tsconfig_resolve_options = tsconfig_resolve_options.await?;
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     if let Some(base_url) = tsconfig_resolve_options.base_url {
         // We want to resolve in `compilerOptions.baseUrl` first, then in other
         // locations as a fallback.
@@ -465,7 +465,7 @@ pub async fn type_resolve(
 
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
-    let mut result = result.await?.clone_value();
+    let mut result = result.owned().await?;
     result.primary = take(&mut result.primary)
         .into_iter()
         .map(|(mut k, v)| {
@@ -480,7 +480,7 @@ pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<Mod
 async fn apply_typescript_types_options(
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     resolve_options.extensions = vec![".tsx".into(), ".ts".into(), ".d.ts".into()];
     resolve_options.into_package = resolve_options
         .into_package

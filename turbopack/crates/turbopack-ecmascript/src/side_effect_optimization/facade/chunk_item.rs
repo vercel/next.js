@@ -63,7 +63,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             .get_async_module()
             .module_options(async_module_info);
 
-        let async_module = async_module_options.await?.clone_value();
+        let async_module = async_module_options.owned().await?;
 
         let mut code = RopeBuilder::default();
 

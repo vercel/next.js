@@ -167,12 +167,12 @@ pub trait Issue {
 
         Ok(PlainIssue {
             severity: *self.severity().await?,
-            file_path: self.file_path().to_string().await?.clone_value(),
-            stage: self.stage().await?.clone_value(),
-            title: self.title().await?.clone_value(),
+            file_path: self.file_path().to_string().owned().await?,
+            stage: self.stage().owned().await?,
+            title: self.title().owned().await?,
             description,
             detail,
-            documentation_link: self.documentation_link().await?.clone_value(),
+            documentation_link: self.documentation_link().owned().await?,
             source: {
                 if let Some(s) = &*self.source().await? {
                     Some(s.into_plain().await?)

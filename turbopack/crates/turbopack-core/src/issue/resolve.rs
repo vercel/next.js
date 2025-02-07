@@ -35,12 +35,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let request = self
-            .request
-            .request_pattern()
-            .to_string()
-            .await?
-            .clone_value();
+        let request = self.request.request_pattern().to_string().owned().await?;
         Ok(StyledString::Line(vec![
             StyledString::Strong("Module not found".into()),
             StyledString::Text(": Can't resolve ".into()),

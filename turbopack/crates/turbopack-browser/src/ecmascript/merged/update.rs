@@ -85,9 +85,8 @@ impl EcmascriptModuleEntry {
     async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
         let map = match &*code.generate_source_map().await? {
             Some(map) => {
-                let map = map.to_rope().await?;
                 // Cloning a rope is cheap.
-                Some(map.clone_value())
+                Some(map.to_rope().owned().await?)
             }
             None => None,
         };

@@ -306,7 +306,7 @@ impl OutputAsset for CssChunk {
     async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let content = this.content.await?;
-        let mut references = content.referenced_output_assets.await?.clone_value();
+        let mut references = content.referenced_output_assets.owned().await?;
         references.extend(
             content
                 .chunk_items
@@ -366,7 +366,7 @@ impl CssChunkContext {
         self: Vc<Self>,
         chunk_item: Vc<Box<dyn CssChunkItem>>,
     ) -> Result<Vc<ModuleId>> {
-        Ok(ModuleId::String(chunk_item.asset_ident().to_string().await?.clone_value()).cell())
+        Ok(ModuleId::String(chunk_item.asset_ident().to_string().owned().await?).cell())
     }
 }
 
@@ -443,8 +443,8 @@ impl Introspectable for CssChunk {
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let mut children = children_from_output_assets(OutputAsset::references(self))
-            .await?
-            .clone_value();
+            .owned()
+            .await?;
         children.extend(
             self.await?
                 .content

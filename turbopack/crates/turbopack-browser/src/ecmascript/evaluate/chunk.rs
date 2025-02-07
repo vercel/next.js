@@ -217,7 +217,7 @@ fn modifier() -> Vc<RcStr> {
 impl OutputAsset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let mut ident = self.ident.await?.clone_value();
+        let mut ident = self.ident.owned().await?;
 
         ident.add_modifier(modifier().to_resolved().await?);
 

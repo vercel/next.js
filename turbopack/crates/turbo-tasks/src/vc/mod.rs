@@ -26,7 +26,7 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc},
-    read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
@@ -36,6 +36,8 @@ use crate::{
     trace::{TraceRawVcs, TraceRawVcsContext},
     CellId, RawVc, ResolveTypeError,
 };
+
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
 /// heap or in persistent cache, depending on the Turbo Engine backend implementation.
@@ -607,11 +609,23 @@ where
         self.node.into_read().untracked().into()
     }
 
-    /// Returns a untracked read of the value. This will not invalidate the current function when
-    /// the read value changed.
+    /// Read the value with the hint that this is the final read of the value. This might drop the
+    /// cell content. Future reads might need to recompute the value.
     #[must_use]
     pub fn final_read_hint(self) -> ReadVcFuture<T> {
         self.node.into_read().final_read_hint().into()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Clone,
+{
+    /// Read the value and returns a owned version of it. It might clone the value.
+    pub fn owned(self) -> ReadOwnedVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.owned()
     }
 }
 
