@@ -6612,9 +6612,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "shrink-to-fit"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "591e69dcef78cd085f47ef9a19058ff03d75c049609a31aaf34986fee4400f3d"
+checksum = "8af666859c08b487626c0fcb54d3178a097c3e5108be4a804bf8c55393ac744e"
 dependencies = [
  "indexmap 2.7.1",
  "shrink-to-fit-macro",
@@ -9120,6 +9120,7 @@ dependencies = [
  "criterion",
  "new_debug_unreachable",
  "serde",
+ "shrink-to-fit",
  "triomphe 0.1.12",
  "turbo-tasks-hash",
 ]
