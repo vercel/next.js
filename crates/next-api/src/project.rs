@@ -56,7 +56,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source_map::OptionSourceMap,
+    source_map::{OptionSourceMap, OptionStringifiedSourceMap},
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
@@ -493,11 +493,11 @@ impl ProjectContainer {
         &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Vc<OptionSourceMap> {
+    ) -> Vc<OptionStringifiedSourceMap> {
         if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
-            OptionSourceMap::none()
+            OptionStringifiedSourceMap::none()
         }
     }
 }
