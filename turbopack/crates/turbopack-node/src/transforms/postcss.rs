@@ -22,7 +22,7 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };

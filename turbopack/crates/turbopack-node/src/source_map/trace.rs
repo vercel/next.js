@@ -1,16 +1,9 @@
 use std::{borrow::Cow, fmt::Display};
 
 use anyhow::Result;
-use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{rope::Rope, File};
-use turbopack_core::{
-    asset::AssetContent,
-    source_map::{SourceMap, Token},
-};
+use turbopack_core::source_map::{SourceMap, Token};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 /// An individual stack frame, as parsed by the stacktrace-parser npm module.
@@ -86,10 +79,10 @@ impl Display for StackFrame<'_> {
 /// trace's token.
 #[derive(Debug)]
 pub struct SourceMapTrace {
-    map: SourceMap,
-    line: u32,
-    column: u32,
-    name: Option<RcStr>,
+    // map: SourceMap,
+    // line: u32,
+    // column: u32,
+    // name: Option<RcStr>,
 }
 
 /// The result of performing a source map trace.

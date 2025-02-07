@@ -11,7 +11,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
     TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
-use turbo_tasks_bytes::{stream::SingleValue, Bytes};
+use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
     glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
@@ -33,7 +33,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -276,10 +276,10 @@ impl WebpackLoadersProcessedAsset {
         // handle SourceMap
         let source_map = if !transform.source_maps {
             None
-        } else if let Some(source_map) = processed.map {
-            Some(Rope::from(source_map.into_owned()))
         } else {
-            None
+            processed
+                .map
+                .map(|source_map| Rope::from(source_map.into_owned()))
         };
         let file = match processed.source {
             Either::Left(str) => File::from(str),
