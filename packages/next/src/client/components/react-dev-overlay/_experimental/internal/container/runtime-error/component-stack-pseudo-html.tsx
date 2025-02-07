@@ -24,15 +24,6 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     background: var(--color-amber-300);
     font-weight: bold;
   }
-  [data-nextjs-container-errors-pseudo-html-line--error]::before {
-    content: '>';
-    color: var(--color-red-900);
-    float: left;
-    width: 0;
-    margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-8);
-  }
-
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
     margin-left: var(--size-3);
@@ -43,24 +34,23 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
     background: var(--color-green-300);
   }
-  [data-nextjs-container-errors-pseudo-html--diff='add']::before {
-    content: '+';
-    color: var(--color-green-900);
-    float: left;
-    width: 0;
+  [data-nextjs-container-errors-pseudo-html-line-sign] {
     margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-8);
+    margin-right: var(--size-6);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='add'] [data-nextjs-container-errors-pseudo-html-line-sign] {
+    color: var(--color-green-900);
   }
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     background: var(--color-red-300);
   }
-  [data-nextjs-container-errors-pseudo-html--diff='remove']::before {
-    content: '-';
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] [data-nextjs-container-errors-pseudo-html-line-sign] {
     color: var(--color-red-900);
-    float: left;
-    width: 0;
     margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-8);
+    margin-right: var(--size-6);
+  }
+  [data-nextjs-container-errors-pseudo-html-line--error] [data-nextjs-container-errors-pseudo-html-line-sign] {
+    color: var(--color-red-900);
   }
   ${/* hide but text are still accessible in DOM */ ''}
   [data-nextjs-container-errors-pseudo-html--hint] {

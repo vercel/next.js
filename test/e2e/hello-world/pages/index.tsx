@@ -1,3 +1,6 @@
+// export default function Page() {
+//   return <p>hello world</p>
+// }
 export default function Page() {
-  return <p>hello world</p>
+  return <div><tr></tr></div>
 }

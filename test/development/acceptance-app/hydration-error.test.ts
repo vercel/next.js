@@ -104,23 +104,24 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<RenderFromTemplateContext>
-              <ScrollAndFocusHandler segmentPath={[...]}>
-                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                    <LoadingBoundary loading={null}>
-                      <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                          <RedirectBoundary>
-                            <RedirectErrorBoundary router={{...}}>
-                              <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                                  <Mismatch params={Promise} searchParams={Promise}>
-                                    <div className="parent">
-                                      <main className="child">
-                                       client
-                                       server
-                                ..."
+       "...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                         <RedirectBoundary>
+                           <RedirectErrorBoundary router={{...}}>
+                             <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                               <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                                 <Mismatch params={Promise} searchParams={Promise}>
+                                   <div className="parent">
+                                     <main className="child">
+       +                               client
+       -                               server
+                               ..."
       `)
     }
 
@@ -177,21 +178,22 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<RenderFromTemplateContext>
-              <ScrollAndFocusHandler segmentPath={[...]}>
-                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                    <LoadingBoundary loading={null}>
-                      <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                          <RedirectBoundary>
-                            <RedirectErrorBoundary router={{...}}>
-                              <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                                  <Mismatch params={Promise} searchParams={Promise}>
-                                    <div className="parent">
-                                     <main className="only">
-                                ..."
+       "...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                         <RedirectBoundary>
+                           <RedirectErrorBoundary router={{...}}>
+                             <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                               <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                                 <Mismatch params={Promise} searchParams={Promise}>
+                                   <div className="parent">
+       +                             <main className="only">
+                               ..."
       `)
     }
 
@@ -230,21 +232,22 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
     expect(pseudoHtml).toMatchInlineSnapshot(`
-     "<HotReload assetPrefix="" globalError={[...]}>
-            <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
-              <DevRootHTTPAccessFallbackBoundary>
-                <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                  <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                    <RedirectBoundary>
-                      <RedirectErrorBoundary router={{...}}>
-                        <Head>
-                        <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                          <Root params={Promise}>
-                            <html
-                             className="server-html"
-                            
-                        ...
-              ..."
+     "...
+         <HotReload assetPrefix="" globalError={[...]}>
+           <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
+             <DevRootHTTPAccessFallbackBoundary>
+               <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                   <RedirectBoundary>
+                     <RedirectErrorBoundary router={{...}}>
+                       <Head>
+                       <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                         <Root params={Promise}>
+                           <html
+     -                       className="server
+                           >
+                       ...
+             ..."
     `)
 
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
@@ -281,7 +284,7 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
+      expect(pseudoHtml).toMatchInlineSnapshot(`
         ...
           ...
             ...
@@ -290,7 +293,7 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(
-        outdent`
+        `
         ...
           <div className="parent">
         +    second
@@ -351,14 +354,14 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
+      expect(pseudoHtml).toMatchInlineSnapshot(`
         ...
           ...
         -  <main className="only">
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(
-        outdent`
+        `
         ...
           <div className="parent">
         -    <main className="only">
@@ -423,21 +426,22 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<RenderFromTemplateContext>
-              <ScrollAndFocusHandler segmentPath={[...]}>
-                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                    <LoadingBoundary loading={null}>
-                      <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                          <RedirectBoundary>
-                            <RedirectErrorBoundary router={{...}}>
-                              <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
-                                  <Mismatch params={Promise} searchParams={Promise}>
-                                    <div className="parent">
-                                     only
-                                ..."
+       "...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                         <RedirectBoundary>
+                           <RedirectErrorBoundary router={{...}}>
+                             <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                               <ClientPageRoot Component={function Mismatch} searchParams={{}} params={{}}>
+                                 <Mismatch params={Promise} searchParams={Promise}>
+                                   <div className="parent">
+       -                             only
+                               ..."
       `)
     }
   })
@@ -497,14 +501,14 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
+      expect(pseudoHtml).toMatchInlineSnapshot(`
         ...
           ...
         +  <table>
         -  test
       `)
     } else {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
+      expect(pseudoHtml).toMatchInlineSnapshot(`
         ...
           ...
         +  <table>
@@ -597,16 +601,16 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
-      ...
-        ...
-          ...
-      +  <main className="second">
-      -  <footer className="3">
-    `)
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+             ...
+               ...
+                 ...
+             +  <main className="second">
+             -  <footer className="3">
+          `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(
-        outdent`
+        `
       ...
         <div className="parent">
           <Suspense fallback={<p>}>
@@ -724,21 +728,22 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<RenderFromTemplateContext>
-              <ScrollAndFocusHandler segmentPath={[...]}>
-                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                    <LoadingBoundary loading={null}>
-                      <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                          <RedirectBoundary>
-                            <RedirectErrorBoundary router={{...}}>
-                              <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                                  <Page params={Promise} searchParams={Promise}>
-                                   <p>
-                                     <p>
-                                ..."
+       "...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                         <RedirectBoundary>
+                           <RedirectErrorBoundary router={{...}}>
+                             <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+       >                           <p
+       >                             <p
+                               ..."
       `)
     }
   })
@@ -783,22 +788,23 @@ describe('Error overlay for hydration errors in App router', () => {
     const pseudoHtml = await session.getRedboxComponentStack()
 
     expect(pseudoHtml).toMatchInlineSnapshot(`
-     "<ScrollAndFocusHandler segmentPath={[...]}>
-            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                <LoadingBoundary loading={null}>
-                  <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                      <RedirectBoundary>
-                        <RedirectErrorBoundary router={{...}}>
-                          <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                            <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                              <Page params={Promise} searchParams={Promise}>
-                                <div>
-                                  <div>
-                                   <p>
-                                     <div>
-                            ..."
+     "...
+         <ScrollAndFocusHandler segmentPath={[...]}>
+           <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <LoadingBoundary loading={null}>
+                 <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                           <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                             <Page params={Promise} searchParams={Promise}>
+                               <div>
+                                 <div>
+     >                             <p
+     >                               <div
+                           ..."
     `)
   })
 
@@ -827,7 +833,7 @@ describe('Error overlay for hydration errors in App router', () => {
 
     const description = await session.getRedboxDescription()
     expect(description).toMatchInlineSnapshot(
-      outdent`
+      `
       In HTML, <tr> cannot be a child of <div>.
       This will cause a hydration error.
     `,
@@ -841,7 +847,7 @@ describe('Error overlay for hydration errors in App router', () => {
 
     // Turbopack currently has longer component stack trace
     if (isTurbopack) {
-      expect(pseudoHtml).toMatchInlineSnapshot(outdent`
+      expect(pseudoHtml).toMatchInlineSnapshot(`
         ...
           <Page>
             <div>
@@ -851,7 +857,7 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(
-        outdent`
+        `
         <Page>
           <div>
           ^^^^^
@@ -927,25 +933,26 @@ describe('Error overlay for hydration errors in App router', () => {
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<RenderFromTemplateContext>
-              <ScrollAndFocusHandler segmentPath={[...]}>
-                <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-                  <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
-                    <LoadingBoundary loading={null}>
-                      <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
-                        <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
-                          <RedirectBoundary>
-                            <RedirectErrorBoundary router={{...}}>
-                              <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                                  <Page params={Promise} searchParams={Promise}>
-                                   <p>
-                                      <span>
-                                        <span>
-                                          <span>
-                                            <span>
-                                             <p>
-                                ..."
+       "...
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
+                       <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
+                         <RedirectBoundary>
+                           <RedirectErrorBoundary router={{...}}>
+                             <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                               <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                                 <Page params={Promise} searchParams={Promise}>
+       >                           <p
+                                     <span>
+                                       <span>
+                                         <span>
+                                           <span>
+       >                                     <p
+                               ..."
       `)
     }
   })
@@ -1169,25 +1176,26 @@ describe('Error overlay for hydration errors in App router', () => {
       expect(pseudoHtml).toMatchInlineSnapshot(`""`)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-       "<HotReload assetPrefix="" globalError={[...]}>
-              <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
-                <DevRootHTTPAccessFallbackBoundary>
-                  <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                      <RedirectBoundary>
-                        <RedirectErrorBoundary router={{...}}>
-                          <Head>
-                          <Layout>
-                            <html>
-                              <body>
-                               <html>
-                                  ...
-                                    <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                                      <Page>
-                                       <p>
-                                      ...
-                          ...
-                ..."
+       "...
+           <HotReload assetPrefix="" globalError={[...]}>
+             <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
+               <DevRootHTTPAccessFallbackBoundary>
+                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                     <RedirectBoundary>
+                       <RedirectErrorBoundary router={{...}}>
+                         <Head>
+                         <Layout>
+                           <html>
+                             <body>
+       >                       <html
+                                 ...
+                                   <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                                     <Page>
+       >                               <p
+                                     ...
+                         ...
+               ..."
       `)
     }
   })

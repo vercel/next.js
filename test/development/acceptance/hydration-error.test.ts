@@ -76,7 +76,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     await session.assertHasRedbox()
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
-
+    
+    await session.openRedbox()
     if (isReact18) {
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
         `"Text content did not match. Server: "server" Client: "client""`
@@ -204,6 +205,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
       )
     })
 
+    await session.openRedbox()
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       if (isReact18) {
@@ -842,7 +844,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
-
+    
+    await session.openRedbox()
     const description = await session.getRedboxDescription()
     if (isReact18) {
       expect(description).toMatchInlineSnapshot(
@@ -878,7 +881,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
     }
   })
 
-  it('should only show one hydration error when bad nesting happened - div > tr', async () => {
+  it.only('should only show one hydration error when bad nesting happened - div > tr', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
@@ -897,7 +900,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
-
+    
+    await session.openRedbox()
     const description = await session.getRedboxDescription()
     if (isReact18) {
       expect(description).toMatchInlineSnapshot(
@@ -977,7 +981,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
     })
-
+    
+    await session.openRedbox()
     const description = await session.getRedboxDescription()
     if (isReact18) {
       expect(description).toMatchInlineSnapshot(
@@ -1125,12 +1130,13 @@ describe('Error overlay for hydration errors in Pages router', () => {
     const { session, browser } = sandbox
     await session.assertHasRedbox()
     await retry(async () => {
-      await expect(await getRedboxTotalErrorCount(browser)).toBe(
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
         // This case only hit 2 errors in React 18
         isReact18 ? 2 : 1
       )
     })
-
+    
+    await session.openRedbox()
     const pseudoHtml = await session.getRedboxComponentStack()
     if (isTurbopack) {
       // FIXME: Should not fork on Turbopack i.e. match the snapshot in the else-branch

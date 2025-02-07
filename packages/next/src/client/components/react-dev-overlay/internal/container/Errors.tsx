@@ -297,24 +297,9 @@ export function Errors({
     : null
 
   const diffContent = (errorDetails.reactOutputComponentDiff || '')
-    .trim()
-    .replace(/\.\.\.\s*/, '')
   const showHydrationDiff = Boolean(
-    hydrationWarning &&
-      // activeError.componentStackFrames?.length ||
-      !!diffContent
+    hydrationWarning && !!diffContent
   )
-
-  // const componentStackNames: string[] = activeError.componentStackFrames
-  //   ? activeError.componentStackFrames.map((f) => f.component)
-  //   : ((errorDetails.componentStack || '')
-  //       .split('\n')
-  //       .map((line) => {
-  //         // at ComponentName (location)
-  //         const match = line.trim().match(/at ([\w]+)/)
-  //         return match ? match[1] : ''
-  //       })
-  //       .filter(Boolean) as string[])
 
   return (
     <Overlay>
@@ -402,7 +387,6 @@ export function Errors({
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
                 reactOutputComponentDiff={diffContent}

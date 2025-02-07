@@ -137,8 +137,8 @@ export function Errors({
     : undefined
 
   const diffContent = (errorDetails.reactOutputComponentDiff || '')
-    .trim()
-    .replace(/\.\.\.\s*/, '')
+    // .trim()
+    // .replace(/\.\.\.\s*/, '')
   const showHydrationDiff = Boolean(
     hydrationWarning &&
       // activeError.componentStackFrames?.length ||
@@ -193,7 +193,6 @@ export function Errors({
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
           hydrationMismatchType={hydrationErrorType}
-          componentStackFrames={activeError.componentStackFrames || []}
           firstContent={serverContent}
           secondContent={clientContent}
           reactOutputComponentDiff={diffContent}

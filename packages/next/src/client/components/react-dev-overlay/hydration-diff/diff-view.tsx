@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import type { ComponentStackFrame } from '../internal/helpers/parse-component-stack'
 import { CollapseIcon } from '../internal/icons/CollapseIcon'
 
 /**
@@ -51,14 +50,12 @@ import { CollapseIcon } from '../internal/icons/CollapseIcon'
  *
  */
 export function PseudoHtmlDiff({
-  componentStackFrames,
   firstContent,
   secondContent,
   hydrationMismatchType,
   reactOutputComponentDiff,
   ...props
 }: {
-  componentStackFrames: ComponentStackFrame[]
   firstContent: string
   secondContent: string
   reactOutputComponentDiff: string
@@ -68,22 +65,19 @@ export function PseudoHtmlDiff({
 
   const htmlComponents = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
-    let currentComponentIndex = componentStackFrames.length - 1
     const reactComponentDiffLines = reactOutputComponentDiff!.split('\n')
     reactComponentDiffLines.forEach((line, index) => {
       let trimmedLine = line.trim()
       const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
       const isHighlightedLine = trimmedLine[0] === '>'
-      const spaces = ' '.repeat(
-        line.length - trimmedLine.slice(1).trim().length
-      )
-      if (isHighlightedLine) {
-        trimmedLine = trimmedLine.slice(2).trim() // trim spaces after sign
-      }
+      
+      const sign = isHighlightedLine || isDiffLine ? trimmedLine[0] : ''
+      
+      const [prefix, suffix] = (isHighlightedLine || isDiffLine) 
+        ? line.split(sign, 2)
+        : [line, '']
 
       if (isDiffLine) {
-        const sign = trimmedLine[0]
-        trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
         componentStacks.push(
           <span
             key={'comp-diff' + index}
@@ -94,69 +88,37 @@ export function PseudoHtmlDiff({
           >
             <span>
               {/* Slice 2 spaces for the icon */}
-              {spaces}
-              {trimmedLine}
+              {prefix}
+              <span data-nextjs-container-errors-pseudo-html-line-sign>{sign}</span>
+              {suffix}
               {'\n'}
             </span>
           </span>
         )
-      } else if (currentComponentIndex >= 0) {
-        const isUserLandComponent = trimmedLine.startsWith(
-          '<' + componentStackFrames[currentComponentIndex].component
-        )
-        // If it's matched userland component or it's ... we will keep the component stack in diff
-        if (isUserLandComponent || trimmedLine === '...') {
-          currentComponentIndex--
-          componentStacks.push(
-            <span
-              data-nextjs-container-errors-pseudo-html-line
-              key={'comp-diff' + index}
-              {...(isHighlightedLine
-                ? {
-                    'data-nextjs-container-errors-pseudo-html-line--error':
-                      true,
-                  }
-                : undefined)}
-            >
-              {spaces}
-              {trimmedLine}
-              {'\n'}
-            </span>
-          )
-        } else {
-          componentStacks.push(
-            <span
-              data-nextjs-container-errors-pseudo-html-line
-              key={'comp-diff' + index}
-              {...(isHighlightedLine
-                ? {
-                    'data-nextjs-container-errors-pseudo-html-line--error':
-                      true,
-                  }
-                : undefined)}
-            >
-              {spaces}
-              {trimmedLine}
-              {'\n'}
-            </span>
-          )
-        }
       } else {
         // In general, if it's not collapsed, show the whole diff
         componentStacks.push(
           <span
             data-nextjs-container-errors-pseudo-html-line
             key={'comp-diff' + index}
+            {...(isHighlightedLine
+              ? {
+                  'data-nextjs-container-errors-pseudo-html-line--error':
+                    true,
+                }
+              : undefined
+            )}
           >
-            {spaces}
-            {trimmedLine}
+            {prefix}
+            <span data-nextjs-container-errors-pseudo-html-line-sign>{sign}</span>
+            {suffix}
             {'\n'}
           </span>
         )
       }
     })
     return componentStacks
-  }, [componentStackFrames, reactOutputComponentDiff])
+  }, [reactOutputComponentDiff])
 
   return (
     <div
