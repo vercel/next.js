@@ -6612,9 +6612,9 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "shrink-to-fit"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8af666859c08b487626c0fcb54d3178a097c3e5108be4a804bf8c55393ac744e"
+checksum = "3810141d47ddf81346984adf101fe0e5d113f8de0b2e6a289f85cb0757a8faf8"
 dependencies = [
  "indexmap 2.7.1",
  "serde_json",
@@ -6623,9 +6623,9 @@ dependencies = [
 
 [[package]]
 name = "shrink-to-fit-macro"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9f114dfc33c83794169f10e9c581b7be71720826fec1cf637cdc0b8a4eb8e2f"
+checksum = "f35af5115adf74b550ef873224dbc3d18f4cf7704b2af237fe8cc6047d6cf1dd"
 dependencies = [
  "proc-macro2",
  "quote",
