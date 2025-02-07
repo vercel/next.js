@@ -40,7 +40,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
-shrink-to-fit = { version = "0.2.4", features = ["indexmap", "nightly"] }
+shrink-to-fit = { version = "0.2.5", features = ["indexmap", "nightly"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
