@@ -25,10 +25,10 @@ export function init(opts: { ts: TypeScript; info: PluginCreateInfo }) {
   info = opts.info
   log('Initializing...')
   const projectDir = info.project.getCurrentDirectory()
-  appDirRegExp = new RegExp(
-    '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
-  )
   log(`Starting Next.js TypeScript plugin: ${projectDir}`)
+  appDirRegExp = new RegExp(
+    `^${`${projectDir}(/src)?/app`.replace(/[\\/]/g, '[\\/]')}`
+  )
   log('Initialized!')
 }
 

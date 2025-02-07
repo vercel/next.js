@@ -106,7 +106,8 @@
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
-    "styled-jsx": "5.1.6"
+    "styled-jsx": "5.1.6",
+    "ts-next-plugin": "workspace:*"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.1.0",

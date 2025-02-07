@@ -460,16 +460,10 @@ function createServer(
   if (options && (options.turbo || options.turbopack)) {
     process.env.TURBOPACK = '1'
   }
+
   // The package is used as a TypeScript plugin.
-  if (
-    options &&
-    'typescript' in options &&
-    'version' in (options as any).typescript
-  ) {
-    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
-    return pluginMod.createTSPlugin(
-      options as any
-    ) as unknown as NextWrapperServer
+  if (options && 'typescript' in options && 'version' in (options as any).typescript) {
+    return require('ts-plugin-next').createTSPlugin(options)
   }
 
   if (options == null) {
