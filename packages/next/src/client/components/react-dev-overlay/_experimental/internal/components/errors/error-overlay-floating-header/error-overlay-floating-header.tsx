@@ -21,7 +21,7 @@ export function ErrorOverlayFloatingHeader({
   isTurbopack,
 }: ErrorOverlayFloatingHeaderProps) {
   return (
-    <div className="error-overlay-floating-header" tabIndex={1}>
+    <div className="error-overlay-floating-header">
       {/* TODO: better passing data instead of nullish coalescing */}
       <ErrorOverlayPagination
         readyErrors={readyErrors ?? []}
