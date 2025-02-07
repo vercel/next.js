@@ -114,9 +114,15 @@ impl ParseResultSourceMap {
         mappings: Vec<(BytePos, LineCol)>,
         original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
     ) -> Result<Rope> {
-        let input_map = match &*original_source_map.await? {
-            Some(v) => Some(sourcemap::SourceMap::from_reader(v.read())?),
-            None => None,
+        let input_map = if let Some(original_source_map) = &*original_source_map.await? {
+            Some(match sourcemap::decode(original_source_map.read())? {
+                sourcemap::DecodedMap::Regular(source_map) => source_map,
+                // swc only accepts flattened sourcemaps as input
+                sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
+                _ => return Err(sourcemap::Error::IncompatibleSourceMap.into()),
+            })
+        } else {
+            None
         };
 
         let mut map = files_map.build_source_map_with_config(
