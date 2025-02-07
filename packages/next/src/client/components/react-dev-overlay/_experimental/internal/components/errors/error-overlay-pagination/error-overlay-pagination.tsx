@@ -180,10 +180,6 @@ export const styles = css`
     border: none;
     border-radius: var(--rounded-full);
 
-    &:focus {
-      outline: none;
-    }
-
     &:not(:disabled):active {
       background: var(--color-gray-500);
     }
