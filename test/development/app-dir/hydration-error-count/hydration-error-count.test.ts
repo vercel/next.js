@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxTotalErrorCount } from 'next-test-utils'
+import { hasErrorToast, getToastErrorCount, retry } from 'next-test-utils'
 
 describe('hydration-error-count', () => {
   const { next } = nextTestSetup({
@@ -10,20 +10,24 @@ describe('hydration-error-count', () => {
   it('should have correct hydration error count for bad nesting', async () => {
     const browser = await next.browser('/bad-nesting')
 
-    await assertHasRedbox(browser)
-    const totalErrorCount = await getRedboxTotalErrorCount(browser)
+    await retry(async () => {
+      await hasErrorToast(browser)
+      const totalErrorCount = await getToastErrorCount(browser)
 
-    // One hydration error and one warning
-    expect(totalErrorCount).toBe(2)
+      // One hydration error and one warning
+      expect(totalErrorCount).toBe(2)
+    })
   })
 
   it('should have correct hydration error count for html diff', async () => {
     const browser = await next.browser('/html-diff')
 
-    await assertHasRedbox(browser)
-    const totalErrorCount = await getRedboxTotalErrorCount(browser)
+    await retry(async () => {
+      await hasErrorToast(browser)
+      const totalErrorCount = await getToastErrorCount(browser)
 
-    // One hydration error and one warning
-    expect(totalErrorCount).toBe(1)
+      // One hydration error and one warning
+      expect(totalErrorCount).toBe(1)
+    })
   })
 })

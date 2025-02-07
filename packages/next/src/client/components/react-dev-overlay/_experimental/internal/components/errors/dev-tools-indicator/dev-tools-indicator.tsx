@@ -179,6 +179,7 @@ function DevToolsPopover({
   return (
     <Toast
       data-nextjs-toast
+      data-issues
       style={{
         boxShadow: 'none',
         zIndex: 2147483647,
