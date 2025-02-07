@@ -113,7 +113,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "<Mismatch>
            <div>
-             <main>"
+             <main>
+       +       "server"
+       -       "client""
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -135,7 +137,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
     await session.patch(
       'index.js',
       outdent`
-      'use client'
       export default function Mismatch() {
         return (
           <div className="parent">
@@ -245,7 +246,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     if (isReact18) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "<Mismatch>
-       >   <div>"
+           <div>
+       >     <div>
+       >       "second""
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -368,7 +371,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
     if (isReact18) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "<Mismatch>
-       >   <div>"
+           <div>
+       >     <div>
+       >       "only""
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
@@ -586,8 +591,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
         [
           'index.js',
           outdent`
-            'use client'
-
             import { useId } from "react"
 
             export default function Page() {
@@ -621,8 +624,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
         [
           'index.js',
           outdent`
-            'use client'
-
             export default function Page() {
               return (
                 <p>
@@ -686,8 +687,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
         [
           'index.js',
           outdent`
-            'use client'
-
             export default function Page() {
               return (
                 <div>
@@ -814,8 +813,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
         [
           'index.js',
           outdent`
-            'use client'
-
             export default function Page() {
               return (
                 <p><span><span><span><span><p>hello world</p></span></span></span></span></p>

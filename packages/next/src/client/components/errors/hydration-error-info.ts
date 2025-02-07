@@ -114,7 +114,7 @@ export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
       hydrationErrorState.reactOutputComponentDiff = lastArg
     } else {
       hydrationErrorState.reactOutputComponentDiff =
-        generateHydrationDiffReact18(firstContent, secondContent, lastArg)
+        generateHydrationDiffReact18(msg, firstContent, secondContent, lastArg)
     }
 
     hydrationErrorState.warning = warning
@@ -139,8 +139,10 @@ export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
  *      <div>
  *        <p>
  *  >       <div>
+ *
  */
 function generateHydrationDiffReact18(
+  message: string,
   firstContent: string,
   secondContent: string,
   lastArg: string
@@ -148,6 +150,7 @@ function generateHydrationDiffReact18(
   const componentStack = lastArg
   let firstIndex = -1
   let secondIndex = -1
+  const hydrationWarningType = getHydrationWarningType(message)
 
   // at div\n at Foo\n at Bar (....)\n -> [div, Foo]
   const components = componentStack
@@ -175,8 +178,11 @@ function generateHydrationDiffReact18(
   let diff = ''
   for (let i = 0; i < components.length; i++) {
     const component = components[i]
-    const matchFirstContent = i === components.length - firstIndex - 1
-    const matchSecondContent = i === components.length - secondIndex - 1
+    const matchFirstContent =
+      hydrationWarningType === 'tag' && i === components.length - firstIndex - 1
+    const matchSecondContent =
+      hydrationWarningType === 'tag' &&
+      i === components.length - secondIndex - 1
     if (matchFirstContent || matchSecondContent) {
       const spaces = ' '.repeat(Math.max(i * 2 - 2, 0) + 2)
       diff += `> ${spaces}<${component}>\n`
@@ -184,6 +190,15 @@ function generateHydrationDiffReact18(
       const spaces = ' '.repeat(i * 2 + 2)
       diff += `${spaces}<${component}>\n`
     }
+  }
+  if (hydrationWarningType === 'text') {
+    const spaces = ' '.repeat(components.length * 2)
+    diff += `+ ${spaces}"${firstContent}"\n`
+    diff += `- ${spaces}"${secondContent}"\n`
+  } else if (hydrationWarningType === 'text-in-tag') {
+    const spaces = ' '.repeat(components.length * 2)
+    diff += `> ${spaces}<${secondContent}>\n`
+    diff += `>   ${spaces}"${firstContent}"\n`
   }
   return diff
 }
