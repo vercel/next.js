@@ -2964,7 +2964,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -6612,18 +6612,19 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
 name = "shrink-to-fit"
-version = "0.2.1"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "040f84743f19cf4a481c2580f4d9d12beab78f401773314ff18835ef78c930ea"
+checksum = "17807c995c8c40c976cbdd92977d9434c07fb408c9772e0bb6ffcce31067f179"
 dependencies = [
+ "indexmap 2.7.1",
  "shrink-to-fit-macro",
 ]
 
 [[package]]
 name = "shrink-to-fit-macro"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5e9bca0d4a99ce6c7296fea5972a9327a5e70c062b73f38e11c7894cf7ec72c"
+checksum = "b9f114dfc33c83794169f10e9c581b7be71720826fec1cf637cdc0b8a4eb8e2f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9169,6 +9170,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
+ "shrink-to-fit",
  "thiserror",
  "tokio",
  "tokio-util",
