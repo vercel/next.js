@@ -1285,17 +1285,20 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+/**
+ * @returns `null` if there are no frames
+ */
 export async function getRedboxComponentStack(
   browser: BrowserInterface
-): Promise<string> {
-  await browser.waitForElementByCss(
-    '[data-nextjs-container-errors-pseudo-html] code',
-    30000
-  )
+): Promise<string | null> {
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
+  if (componentStackFrameElements.length === 0) {
+    return null
+  }
+
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )
