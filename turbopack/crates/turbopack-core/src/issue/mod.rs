@@ -25,7 +25,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, SourceMap, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -589,25 +589,30 @@ async fn source_pos(
 
     let srcmap = generator.generate_source_map();
 
-    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+    let Some(srcmap) = convert_to_turbopack_source_map(srcmap, origin).await? else {
         return Ok(None);
     };
+
+    let Some(srcmap) = SourceMap::new_from_rope(&srcmap)? else {
+        return Ok(None);
+    };
+    let srcmap = &srcmap;
 
     let find = |line: u32, col: u32| async move {
         let TokenWithSource {
             token,
             source_content,
-        } = &*srcmap.lookup_token_and_source(line, col).await?;
+        } = &srcmap.lookup_token_and_source(line, col).await?;
 
-        match &*token.await? {
-            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
+        match token {
+            crate::source_map::Token::Synthetic(t) => anyhow::Ok((
                 SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
                 },
                 *source_content,
             )),
-            crate::source_map::Token::Original(t) => Ok((
+            crate::source_map::Token::Original(t) => anyhow::Ok((
                 SourcePos {
                     line: t.original_line as _,
                     column: t.original_column as _,

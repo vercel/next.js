@@ -8,7 +8,7 @@ use crate::{
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
-    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 #[turbo_tasks::value]
@@ -60,11 +60,7 @@ impl GenerateSourceMap for SourceMapReference {
         let Some(file) = self.get_file().await else {
             return Ok(Vc::cell(None));
         };
-        let source_map = file
-            .read()
-            .await?
-            .as_content()
-            .map(|m| m.content().clone().resolved_cell());
+        let source_map = file.read().await?.as_content().map(|m| m.content().clone());
         Ok(Vc::cell(source_map))
     }
 }

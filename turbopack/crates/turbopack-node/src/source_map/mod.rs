@@ -16,7 +16,9 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    output::OutputAsset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
+    output::OutputAsset,
+    source_map::{GenerateSourceMap, SourceMap},
+    PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -222,13 +224,14 @@ async fn resolve_source_mapping(
     let Some(generate_source_map) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let Some(sm) = *generate_source_map.generate_source_map().await? else {
+    let Some(sm) = &*generate_source_map.generate_source_map().await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(*sm, line, column, name.map(|s| s.clone().into()))
-        .trace()
-        .await?;
-    match &*trace {
+    let Some(sm) = SourceMap::new_from_rope(sm)? else {
+        return Ok(ResolvedSourceMapping::NoSourceMap);
+    };
+    let trace = SourceMapTrace::trace(&sm, line, column, name.map(|s| s.clone().into())).await?;
+    match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(

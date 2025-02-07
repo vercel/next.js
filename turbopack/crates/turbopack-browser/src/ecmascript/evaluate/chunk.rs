@@ -17,7 +17,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
@@ -281,7 +281,7 @@ impl Asset for EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

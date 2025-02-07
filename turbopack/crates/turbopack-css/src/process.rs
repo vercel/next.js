@@ -15,7 +15,7 @@ use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
@@ -28,7 +28,10 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap},
+    source_map::{
+        utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap,
+        OptionStringifiedSourceMap,
+    },
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };
@@ -51,7 +54,7 @@ impl PartialEq for StyleSheetLike<'_, '_> {
     }
 }
 
-pub type CssOutput = (ToCssResult, Option<ParseCssResultSourceMap>);
+pub type CssOutput = (ToCssResult, Option<Rope>);
 
 impl StyleSheetLike<'_, '_> {
     pub fn to_static(
@@ -99,7 +102,12 @@ impl StyleSheetLike<'_, '_> {
             srcmap.set_source_content(0, code)?;
         }
 
-        Ok((result, srcmap.map(ParseCssResultSourceMap::new)))
+        let srcmap = match srcmap {
+            Some(srcmap) => Some(ParseCssResultSourceMap::generate_source_map(&srcmap)?),
+            None => None,
+        };
+
+        Ok((result, srcmap))
     }
 }
 
@@ -154,7 +162,7 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         exports: Option<CssModuleExports>,
 
-        source_map: ResolvedVc<ParseCssResultSourceMap>,
+        source_map: ResolvedVc<OptionStringifiedSourceMap>,
     },
     Unparseable,
     NotFound,
@@ -259,7 +267,7 @@ pub async fn finalize_css(
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
                 exports: result.exports,
-                source_map: srcmap.unwrap().resolved_cell(),
+                source_map: ResolvedVc::cell(srcmap),
             }
             .into())
         }
@@ -588,13 +596,8 @@ impl ParseCssResultSourceMap {
     pub fn new(source_map: parcel_sourcemap::SourceMap) -> Self {
         ParseCssResultSourceMap { source_map }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl GenerateSourceMap for ParseCssResultSourceMap {
-    #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Vc<OptionSourceMap> {
-        let source_map = &self.source_map;
+    fn generate_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
         let mut builder = SourceMapBuilder::new(None);
 
         for src in source_map.get_sources() {
@@ -619,11 +622,46 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
 
         let mut map = builder.into_sourcemap();
         add_default_ignore_list(&mut map);
-        Vc::cell(Some(
-            turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
-        ))
+        let mut result = vec![];
+        map.to_writer(&mut result)?;
+        Ok(Rope::from(result))
     }
 }
+
+// #[turbo_tasks::value_impl]
+// impl GenerateSourceMap for ParseCssResultSourceMap {
+//     #[turbo_tasks::function]
+//     fn generate_source_map(&self) -> Vc<OptionSourceMap> {
+//         let source_map = &self.source_map;
+//         let mut builder = SourceMapBuilder::new(None);
+
+//         for src in source_map.get_sources() {
+//             builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
+//         }
+
+//         for (idx, content) in source_map.get_sources_content().iter().enumerate() {
+//             builder.set_source_contents(idx as _, Some(content));
+//         }
+
+//         for m in source_map.get_mappings() {
+//             builder.add_raw(
+//                 m.generated_line,
+//                 m.generated_column,
+//                 m.original.map(|v| v.original_line).unwrap_or_default(),
+//                 m.original.map(|v| v.original_column).unwrap_or_default(),
+//                 Some(0),
+//                 None,
+//                 false,
+//             );
+//         }
+
+//         let mut map = builder.into_sourcemap();
+//         add_default_ignore_list(&mut map);
+//         Vc::cell(Some(
+//             turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
+//         ))
+//     }
+// }
 
 #[turbo_tasks::value]
 struct ParsingIssue {

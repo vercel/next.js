@@ -24,7 +24,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
     reference_type::ImportContext,
     server_fs::ServerFileSystem,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap},
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
@@ -82,15 +82,13 @@ impl CssChunk {
                 .should_use_file_source_map_uris()
                 .await?
             {
-                let source_map = content.source_map.map(|m| m.generate_source_map());
-                match source_map {
-                    Some(map) => (*(fileify_source_map(map, self.chunking_context().root_path())
-                        .await?))
-                        .map(ResolvedVc::upcast),
-                    None => None,
-                }
+                fileify_source_map(
+                    content.source_map.as_ref(),
+                    self.chunking_context().root_path(),
+                )
+                .await?
             } else {
-                content.source_map.map(ResolvedVc::upcast)
+                content.source_map.clone()
             };
 
             body.push_source(&content.inner_code, source_map);
@@ -344,7 +342,7 @@ impl Asset for CssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for CssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }
@@ -391,7 +389,7 @@ pub struct CssChunkItemContent {
     pub import_context: Option<ResolvedVc<ImportContext>>,
     pub imports: Vec<CssImport>,
     pub inner_code: Rope,
-    pub source_map: Option<ResolvedVc<ParseCssResultSourceMap>>,
+    pub source_map: Option<Rope>,
 }
 
 #[turbo_tasks::value_trait]

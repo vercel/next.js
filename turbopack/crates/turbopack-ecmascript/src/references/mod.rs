@@ -54,7 +54,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
     TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
@@ -74,7 +74,10 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{
+        convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap,
+        OptionStringifiedSourceMap, SourceMap,
+    },
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -164,7 +167,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: ResolvedVc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: ResolvedVc<OptionSourceMap>,
+    pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -178,7 +181,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<ResolvedVc<OptionSourceMap>>,
+    source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -243,7 +246,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionStringifiedSourceMap>) {
         self.source_map = Some(source_map);
     }
 
@@ -287,7 +290,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
-            OptionSourceMap::none().to_resolved().await?
+            OptionStringifiedSourceMap::none().to_resolved().await?
         };
 
         self.code_gens.shrink_to_fit();
@@ -561,20 +564,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         .await?;
                     analysis.add_reference(reference);
                     let source_map = reference.generate_source_map();
-                    analysis.set_source_map(
-                        convert_to_turbopack_source_map(source_map, source_map_origin)
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
                 } else if path.starts_with("data:application/json;base64,") {
                     let source_map_origin = origin_path;
                     let source_map = maybe_decode_data_url(path.into());
-                    analysis.set_source_map(
-                        convert_to_turbopack_source_map(source_map, source_map_origin)
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.set_source_map(ResolvedVc::cell(source_map));
                     source_map_from_comment = true;
                 }
             }
@@ -583,14 +578,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
                     let source_map_origin = source.ident().path();
-                    analysis.set_source_map(
-                        convert_to_turbopack_source_map(
-                            generate_source_map.generate_source_map(),
-                            source_map_origin,
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
+                    let x = generate_source_map.generate_source_map();
+                    analysis.set_source_map(x.to_resolved().await?);
                 }
             }
             anyhow::Ok(())
@@ -3534,11 +3523,15 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     false
 }
 
-#[turbo_tasks::function]
-fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
-    if let Ok(map) = decode_data_url(&url) {
-        Vc::cell(Some(SourceMap::new_decoded(map).resolved_cell()))
-    } else {
-        Vc::cell(None)
+fn maybe_decode_data_url(url: RcStr) -> Option<Rope> {
+    const DATA_PREAMBLE: &str = "data:application/json;base64,";
+
+    if !url.starts_with(DATA_PREAMBLE) {
+        return None;
     }
+    let data_b64 = &url[DATA_PREAMBLE.len()..];
+    data_encoding::BASE64
+        .decode(data_b64.as_bytes())
+        .ok()
+        .map(Rope::from)
 }

@@ -11,11 +11,11 @@ use turbo_tasks::{
     trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
     TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
-use turbo_tasks_bytes::stream::SingleValue;
+use turbo_tasks_bytes::{stream::SingleValue, Bytes};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, DirectoryEntry, File, FileContent,
-    FileSystemPath, ReadGlobResult,
+    glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
+    FileContent, FileSystemPath, ReadGlobResult,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -33,7 +33,7 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{GenerateSourceMap, OptionSourceMap, OptionStringifiedSourceMap, SourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -168,15 +168,15 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map))
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(*self.process().await?.source_map)
     }
 }
 
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
-    source_map: Option<ResolvedVc<SourceMap>>,
+    source_map: ResolvedVc<OptionStringifiedSourceMap>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -214,7 +214,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: None,
+                source_map: ResolvedVc::cell(None),
             }
             .cell());
         };
@@ -264,7 +264,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: None,
+                source_map: ResolvedVc::cell(None),
             }
             .cell());
         };
@@ -277,9 +277,7 @@ impl WebpackLoadersProcessedAsset {
         let source_map = if !transform.source_maps {
             None
         } else if let Some(source_map) = processed.map {
-            SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
-                .await?
-                .map(|source_map| source_map.resolved_cell())
+            Some(Rope::from(source_map.into_owned()))
         } else {
             None
         };
@@ -294,7 +292,7 @@ impl WebpackLoadersProcessedAsset {
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
-            source_map,
+            source_map: ResolvedVc::cell(source_map),
         }
         .cell())
     }

@@ -23,14 +23,14 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
-    source_map::{utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
     SOURCE_MAP_PREFIX,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -87,7 +87,7 @@ pub struct ParseResultSourceMap {
 
     /// An input's original source map, if one exists. This will be used to
     /// trace locations back to the input's pre-transformed sources.
-    original_source_map: ResolvedVc<OptionSourceMap>,
+    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
 }
 
 impl PartialEq for ParseResultSourceMap {
@@ -100,7 +100,7 @@ impl ParseResultSourceMap {
     pub fn new(
         files_map: Arc<swc_core::common::SourceMap>,
         mappings: Vec<(BytePos, LineCol)>,
-        original_source_map: ResolvedVc<OptionSourceMap>,
+        original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
     ) -> Self {
         ParseResultSourceMap {
             files_map,
@@ -108,36 +108,58 @@ impl ParseResultSourceMap {
             original_source_map,
         }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl GenerateSourceMap for ParseResultSourceMap {
-    #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
-        let original_src_map = if let Some(input) = *self.original_source_map.await? {
-            Some(input.await?.to_source_map().await?)
-        } else {
-            None
+    pub async fn generate_source_map(
+        files_map: Arc<swc_core::common::SourceMap>,
+        mappings: Vec<(BytePos, LineCol)>,
+        original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    ) -> Result<Rope> {
+        let input_map = match &*original_source_map.await? {
+            Some(v) => Some(sourcemap::SourceMap::from_reader(v.read())?),
+            None => None,
         };
-        let input_map = if let Some(map) = original_src_map.as_ref() {
-            map.as_regular_source_map()
-        } else {
-            None
-        };
-        let mut map = self.files_map.build_source_map_with_config(
-            &self.mappings,
-            input_map.as_deref(),
+
+        let mut map = files_map.build_source_map_with_config(
+            &mappings,
+            input_map.as_ref(),
             InlineSourcesContentConfig {},
         );
         add_default_ignore_list(&mut map);
-        Ok(Vc::cell(Some(SourceMap::new_regular(map).resolved_cell())))
+
+        let mut result = vec![];
+        map.to_writer(&mut result)?;
+        Ok(Rope::from(result))
     }
 }
+
+// #[turbo_tasks::value_impl]
+// impl GenerateSourceMap for ParseResultSourceMap {
+//     #[turbo_tasks::function]
+//     async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+//         let original_src_map = if let Some(input) = *self.original_source_map.await? {
+//             Some(input.await?.to_source_map().await?)
+//         } else {
+//             None
+//         };
+//         let input_map = if let Some(map) = original_src_map.as_ref() {
+//             map.as_regular_source_map()
+//         } else {
+//             None
+//         };
+//         let mut map = self.files_map.build_source_map_with_config(
+//             &self.mappings,
+//             input_map.as_deref(),
+//             InlineSourcesContentConfig {},
+//         );
+//         add_default_ignore_list(&mut map);
+//         Ok(Vc::cell(Some(SourceMap::new_regular(map).resolved_cell())))
+//     }
+// }
 
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-struct InlineSourcesContentConfig {}
+pub struct InlineSourcesContentConfig {}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
