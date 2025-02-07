@@ -9,7 +9,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -109,22 +109,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <ErrorBoundary>
-              <PathnameContextProviderAdapter>
-                <App>
-                  <Mismatch>
-                    <div>
-                      <main>
-                        "server"
-                        "client""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "...
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+           <div>
+             <main>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -134,30 +127,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
                        <Mismatch>
                          <div className="parent">
                            <main className="child">
-         +                    client
-         -                    server"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div>
-              <main>
-                "server"
-                "client""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div className="parent">
-              <main className="child">
-          +      client
-          -      server"
-        `)
-      }
+       +                     client
+       -                     server
+                     ..."
+      `)
     }
-
     await session.patch(
       'index.js',
       outdent`
@@ -205,19 +179,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
     })
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Mismatch>
-              <div>
-              ^^^^^
-                <main>
-                ^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "...
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+       >   <div>
+       >     <main>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -226,27 +196,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
-                           ...
-         +                  <main className="only">"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div>
-            ^^^^^
-              <main>
-              ^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div className="parent">
-              ...
-          +    <main className="only">"
-        `)
-      }
+       +                   <main className="only">
+                     ..."
+      `)
     }
 
     if (isReact18) {
@@ -290,22 +242,14 @@ describe('Error overlay for hydration errors in Pages router', () => {
     })
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <ReactDevOverlay>
-              <ErrorBoundary>
-                <PathnameContextProviderAdapter>
-                  <App>
-                    <Mismatch>
-                      <div>
-                        <div>
-                          "second""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "...
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+       >   <div>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -314,26 +258,12 @@ describe('Error overlay for hydration errors in Pages router', () => {
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
-         +                  second
-         -                  <footer className="3">"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div>
-              <div>
-                "second""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div className="parent">
-          +    second
-          -    <footer className="3">"
-        `)
-      }
+                           <header>
+       +                   second
+       -                   <footer className="3">
+                           ...
+                     ..."
+      `)
     }
 
     if (isReact18) {
@@ -371,15 +301,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
     expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 2 : 1)
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Root>
-            ..."
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "<Root callbacks={[...]}>
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+       >   <div>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -388,22 +318,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
-         -                  <main className="only">"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            ..."
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div className="parent">
-          -    <main className="only">"
-        `)
-      }
+       -                   <main className="only">
+                     ..."
+      `)
     }
 
     if (isReact18) {
@@ -448,22 +365,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <ReactDevOverlay>
-              <ErrorBoundary>
-                <PathnameContextProviderAdapter>
-                  <App>
-                    <Mismatch>
-                      <div>
-                        <div>
-                          "only""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "<Root callbacks={[...]}>
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+       >   <div>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -472,24 +382,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
                          <div className="parent">
-         -                  only"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div>
-              <div>
-                "only""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div className="parent">
-          -    only"
-        `)
-      }
+       -                   only
+                     ..."
+      `)
     }
   })
 
@@ -525,30 +420,27 @@ describe('Error overlay for hydration errors in Pages router', () => {
       )
     })
 
-    // FIXME: Should also have "text nodes cannot be a child of tr"
     if (isReact18) {
       expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
         `"Expected server HTML to contain a matching <table> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
-      )
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+       "In HTML, text nodes cannot be a child of <tr>.
+       This will cause a hydration error."
+      `)
     }
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Root>
-            ...
-              <Page>
-                <table>
-                ^^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-         "<Root callbacks={[...]}>
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Page>
+       >   <table>"
+      `)
+    } else {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
            <AppContainer>
              <Container fn={function fn}>
                <ReactDevOverlay>
@@ -556,26 +448,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
-                         ...
-         +                <table>
-         -                test"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <table>
-            ^^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            ...
-          +  <table>
-          -  test"
-        `)
-      }
+       +                 <table>
+       -                 test
+                     ..."
+      `)
     }
   })
 
@@ -589,7 +465,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             export default function Page() {
               return (
                 <table>
-                  {' '}
+                  {' 123'}
                   <tbody></tbody>
                 </table>
               )
@@ -598,23 +474,46 @@ describe('Error overlay for hydration errors in Pages router', () => {
         ],
       ])
     )
-    const { session } = sandbox
-    // FIXME: Should have getRedboxDescription() "text nodes cannot be a child of tr"
+    const { session, browser } = sandbox
     await expect(session.hasErrorToast()).resolves.toBe(false)
 
-    //
+    await session.assertHasRedbox()
 
-    // expect(await session.hasRedbox()).toBe(false)
-    // expect(await getRedboxTotalErrorCount(browser)).toBe(0)
+    if (isReact18) {
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Expected server HTML to contain a matching <table> in <div>."`
+      )
 
-    // expect(await session.getRedboxDescription()).toEqual(outdent`
-    //   Something
-    // `)
+      const pseudoHtml = await session.getRedboxComponentStack()
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Page>
+       >   <table>"
+      `)
 
-    // const pseudoHtml = await session.getRedboxComponentStack()
-    // expect(pseudoHtml).toEqual(outdent`
-    //   Something
-    // `)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(3)
+    } else {
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
+       "In HTML, text nodes cannot be a child of <table>.
+       This will cause a hydration error."
+      `)
+
+      const pseudoHtml = await session.getRedboxComponentStack()
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+       +                 <table>
+       -                 {" 123"}
+                     ..."
+      `)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(1)
+    }
   })
 
   it('should show correct hydration error when client renders an extra node inside Suspense content', async () => {
@@ -642,47 +541,31 @@ describe('Error overlay for hydration errors in Pages router', () => {
       ])
     )
     const { session } = sandbox
+    await session.assertHasRedbox()
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Mismatch>
-              <div>
-              ^^^^^
-                <Suspense>
-                  <main>
-                  ^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            ...
-              ...
-          +  <main className="second">
-          -  <footer className="3">"
-        `)
-      }
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Mismatch>
+       >   <div>
+             <Suspense>
+       >       <main>"
+      `)
     } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Mismatch>
-            <div>
-            ^^^^^
-              <Suspense>
-                <main>
-                ^^^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div className="parent">
-              <Suspense fallback={<p>}>
-                ...
-          +      <main className="second">
-          -      <footer className="3">"
-        `)
-      }
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "...
+           <ReactDevOverlay>
+             <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                 <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                   <Mismatch>
+                     <div className="parent">
+                       <Suspense fallback={<p>}>
+                         <header>
+       +                 <main className="second">
+       -                 <footer className="3">
+                         ...
+                 ..."
+      `)
     }
 
     if (isReact18) {
@@ -769,47 +652,30 @@ describe('Error overlay for hydration errors in Pages router', () => {
       `)
     }
 
+    await session.assertHasRedbox()
     const pseudoHtml = await session.getRedboxComponentStack()
 
-    // Turbopack currently has longer component stack trace
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Page>
-              <p>
-              ^^^
-                <p>
-                ^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Page>
-              <p>
-              ^^^
-                <p>
-                ^^^"
-        `)
-      }
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Page>
+       >   <p>
+       >     <p>"
+      `)
     } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <p>
-            ^^^
-              <p>
-              ^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <p>
-            ^^^
-              <p>
-              ^^^"
-        `)
-      }
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+       >                 <p>
+       >                   <p>
+                     ..."
+      `)
     }
   })
 
@@ -859,21 +725,26 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "...
-          <div>
-            <p>
-            ^^^
-              <div>
-              ^^^^^"
+       "<Page>
+           <div>
+             <div>
+       >       <p>
+       >         <div>"
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
-        "...
-          <div>
-            <p>
-            ^^^
-              <div>
-              ^^^^^"
+       "...
+           <Container fn={function fn}>
+             <ReactDevOverlay>
+               <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                 <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                   <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                     <Page>
+                       <div>
+                         <div>
+       >                   <p>
+       >                     <div>
+                   ..."
       `)
     }
   })
@@ -912,45 +783,27 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
-    // Turbopack currently has longer component stack trace
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Page>
-              <div>
-              ^^^^^
-                <tr>
-                ^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Page>
-              <div>
-              ^^^^^
-                <tr>
-                ^^^^"
-        `)
-      }
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Page>
+       >   <div>
+       >     <tr>"
+      `)
     } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <div>
-            ^^^^^
-              <tr>
-              ^^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <div>
-            ^^^^^
-              <tr>
-              ^^^^"
-        `)
-      }
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+       >                 <div>
+       >                   <tr>
+                     ..."
+      `)
     }
   })
 
@@ -992,52 +845,35 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     const pseudoHtml = await session.getRedboxComponentStack()
 
-    // Turbopack currently has longer component stack trace
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <span>
-              <span>
-              ^^^^^^
-                <p>
-                ^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <Page>
-              <p>
-              ^^^
-                <span>
-                  ...
-                    <span>
-                      <p>
-                      ^^^"
-        `)
-      }
+    if (isReact18) {
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Page>
+           <p>
+             <span>
+               <span>
+                 <span>
+       >           <span>
+       >             <p>"
+      `)
     } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <span>
-              <span>
-              ^^^^^^
-                <p>
-                ^^^"
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <p>
-            ^^^
-              <span>
-                ...
-                  <span>
-                    <p>
-                    ^^^"
-        `)
-      }
+      expect(pseudoHtml).toMatchInlineSnapshot(`
+       "<Root callbacks={[...]}>
+           <Head>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+       >                 <p>
+                           <span>
+                             <span>
+                               <span>
+                                 <span>
+       >                           <p>
+                     ..."
+      `)
     }
   })
 
@@ -1081,182 +917,5 @@ describe('Error overlay for hydration errors in Pages router', () => {
     const { session } = sandbox
     // FIXME: Should have a redbox just like with App router
     await session.assertNoRedbox()
-  })
-
-  it('should collapse and uncollapse properly when there are many frames', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        [
-          'index.js',
-          outdent`
-            'use client'
-
-            const isServer = typeof window === 'undefined'
-            
-            function Mismatch() {
-              return (
-                <p>
-                  <span>
-                    
-                    hello {isServer ? 'server' : 'client'}
-                  </span>
-                </p>
-              )
-            }
-            
-            export default function Page() {
-              return (
-                <div>
-                  <div>
-                    <div>
-                      <div>
-                        <Mismatch />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )
-            }
-          `,
-        ],
-      ])
-    )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
-    await retry(async () => {
-      await expect(await getRedboxTotalErrorCount(browser)).toBe(
-        // This case only hit 2 errors in React 18
-        isReact18 ? 2 : 1
-      )
-    })
-
-    const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      // FIXME: Should not fork on Turbopack i.e. match the snapshot in the else-branch
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div>
-              <div>
-                <div>
-                  <Mismatch>
-                    <p>
-                      <span>
-                        "server"
-                        "client""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            ...
-          +  client
-          -  server"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div>
-              <div>
-                <div>
-                  <Mismatch>
-                    <p>
-                      <span>
-                        "server"
-                        "client""
-        `)
-      } else {
-        expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <div>
-              <div>
-                <div>
-                  <div>
-                    <Mismatch>
-                      <p>
-                        <span>
-          +                client
-          -                server"
-        `)
-      }
-    }
-
-    await session.toggleCollapseComponentStack()
-
-    const fullPseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      if (isReact18) {
-        expect(fullPseudoHtml).toMatchInlineSnapshot(`
-          "<Root>
-            <AppContainer>
-              <Container>
-                <ReactDevOverlay>
-                  <ErrorBoundary>
-                    <PathnameContextProviderAdapter>
-                      <App>
-                        <Page>
-                          <div>
-                            <div>
-                              <div>
-                                <div>
-                                  <Mismatch>
-                                    <p>
-                                      <span>
-                                        "server"
-                                        "client""
-        `)
-      } else {
-        expect(fullPseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-              <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                <Page>
-                  <div>
-                    <div>
-                      <div>
-                        <div>
-                          <Mismatch>
-                            <p>
-                              <span>
-                                ...
-          +                      client
-          -                      server"
-        `)
-      }
-    } else {
-      if (isReact18) {
-        expect(fullPseudoHtml).toMatchInlineSnapshot(`
-          "<Page>
-            <div>
-              <div>
-                <div>
-                  <div>
-                    <Mismatch>
-                      <p>
-                        <span>
-                          "server"
-                          "client""
-        `)
-      } else {
-        expect(fullPseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-              <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                <Page>
-                  <div>
-                    <div>
-                      <div>
-                        <div>
-                          <Mismatch>
-                            <p>
-                              <span>
-                                ...
-          +                      client
-          -                      server"
-        `)
-      }
-    }
   })
 })

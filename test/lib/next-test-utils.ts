@@ -1306,8 +1306,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
 export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  // TODO: the type for elementsByCss is incorrect
-  const componentStackFrameElements: any = await browser.elementsByCss(
+  const componentStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
   if (componentStackFrameElements.length === 0) {
@@ -1321,13 +1320,13 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-export async function toggleCollapseComponentStack(
-  browser: BrowserInterface
-): Promise<void> {
-  await browser
-    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
-    .click()
-}
+// export async function toggleCollapseComponentStack(
+//   browser: BrowserInterface
+// ): Promise<void> {
+//   await browser
+//     .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
+//     .click()
+// }
 
 export async function hasRedboxCallStack(browser: BrowserInterface) {
   return browser.eval(() => {
