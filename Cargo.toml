@@ -202,6 +202,7 @@ smallvec = { version = "1.13.1", features = [
 ] }
 sourcemap = "9.0.0"
 strsim = "0.11.1"
+shrink-to-fit = "0.2.5"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
 syn = "1.0.107"
 tempfile = "3.3.0"
