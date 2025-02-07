@@ -10,8 +10,8 @@ import { getTs, isPageFile, isPositionInsideNode } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const entry = {
-  // Give auto completion for the component's props
+export const entry = {
+  /** Give auto completion for the component's props */
   getCompletionsAtPosition(
     fileName: string,
     node: tsModule.FunctionDeclaration,
@@ -108,7 +108,7 @@ const entry = {
     return entries
   },
 
-  // Give error diagnostics for the component
+  /** Give error diagnostics for the component */
   getSemanticDiagnostics(
     fileName: string,
     source: tsModule.SourceFile,
@@ -160,5 +160,3 @@ const entry = {
     return diagnostics
   },
 }
-
-export default entry

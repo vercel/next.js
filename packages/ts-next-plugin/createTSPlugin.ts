@@ -21,13 +21,13 @@ import {
 } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
-import entryConfig from './rules/config'
-import serverLayer from './rules/server'
-import entryDefault from './rules/entry'
-import clientBoundary from './rules/client-boundary'
-import serverBoundary from './rules/server-boundary'
-import metadata from './rules/metadata'
-import errorEntry from './rules/error'
+import { config, configOverrides } from './rules/config'
+import { server } from './rules/server'
+import { entry } from './rules/entry'
+import { clientBoundary } from './rules/client-boundary'
+import { serverBoundary } from './rules/server-boundary'
+import { metadata, metadataOverrides } from './rules/metadata'
+import { error } from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
 export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
@@ -170,7 +170,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       const { isClientEntry } = getEntryInfo(fileName)
       if (!isClientEntry) {
         // Remove specified entries from completion list
-        prior.entries = serverLayer.filterCompletionsAtPosition(prior.entries)
+        prior.entries = server.filterCompletionsAtPosition(prior.entries)
 
         // Provide autocompletion for metadata fields
         prior = metadata.filterCompletionsAtPosition(
@@ -182,7 +182,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       }
 
       // Add auto completions for export configs.
-      entryConfig.addCompletionsAtPosition(fileName, position, prior)
+      config.addCompletionsAtPosition(fileName, position, prior)
 
       const source = getSource(fileName)
       if (!source) return prior
@@ -194,7 +194,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           isDefaultFunctionExport(node)
         ) {
           prior.entries.push(
-            ...entryDefault.getCompletionsAtPosition(
+            ...entry.getCompletionsAtPosition(
               fileName,
               node as tsModule.FunctionDeclaration,
               position
@@ -216,21 +216,22 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       preferences: tsModule.UserPreferences,
       data: tsModule.CompletionEntryData
     ) => {
-      const entryCompletionEntryDetails = entryConfig.getCompletionEntryDetails(
+      const entryCompletionEntryDetails = config.getCompletionEntryDetails(
         entryName,
         data
       )
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
-      const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
-        fileName,
-        position,
-        entryName,
-        formatOptions,
-        source,
-        preferences,
-        data
-      )
+      const metadataCompletionEntryDetails =
+        metadataOverrides.getCompletionEntryDetails(
+          fileName,
+          position,
+          entryName,
+          formatOptions,
+          source,
+          preferences,
+          data
+        )
       if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
 
       return info.languageService.getCompletionEntryDetails(
@@ -261,16 +262,22 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         )
         if (
           definitions &&
-          serverLayer.hasDisallowedReactAPIDefinition(definitions)
+          server.hasDisallowedReactAPIDefinition(definitions)
         ) {
           return
         }
 
-        const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
+        const metadataInfo = metadataOverrides.getQuickInfoAtPosition(
+          fileName,
+          position
+        )
         if (metadataInfo) return metadataInfo
       }
 
-      const overridden = entryConfig.getQuickInfoAtPosition(fileName, position)
+      const overridden = configOverrides.getQuickInfoAtPosition(
+        fileName,
+        position
+      )
       if (overridden) return overridden
 
       return prior
@@ -298,7 +305,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       }
 
       if (isInsideApp(fileName)) {
-        const errorDiagnostic = errorEntry.getSemanticDiagnostics(
+        const errorDiagnostic = error.getSemanticDiagnostics(
           source!,
           isClientEntry
         )
@@ -312,10 +319,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
             if (!isClientEntry || isServerEntry) {
               // Check if it has valid imports in the server layer
               const diagnostics =
-                serverLayer.getSemanticDiagnosticsForImportDeclaration(
-                  source,
-                  node
-                )
+                server.getSemanticDiagnosticsForImportDeclaration(source, node)
               prior.push(...diagnostics)
             }
           }
@@ -327,7 +331,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           if (isAppEntry) {
             // Check if it has correct option exports
             const diagnostics =
-              entryConfig.getSemanticDiagnosticsForExportVariableStatement(
+              config.getSemanticDiagnosticsForExportVariableStatement(
                 source,
                 node
               )
@@ -363,7 +367,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         } else if (isDefaultFunctionExport(node)) {
           // export default function ...
           if (isAppEntry) {
-            const diagnostics = entryDefault.getSemanticDiagnostics(
+            const diagnostics = entry.getSemanticDiagnostics(
               fileName,
               source,
               node
@@ -456,7 +460,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
       const { isClientEntry } = getEntryInfo(fileName)
       if (isAppEntryFile(fileName) && !isClientEntry) {
-        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
+        const metadataDefinition = metadataOverrides.getDefinitionAndBoundSpan(
           fileName,
           position
         )

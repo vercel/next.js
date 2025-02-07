@@ -4,7 +4,7 @@ import { NEXT_TS_ERRORS } from '../constant'
 import { getTs, getTypeChecker } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const clientBoundary = {
+export const clientBoundary = {
   getSemanticDiagnosticsForExportVariableStatement(
     source: tsModule.SourceFile,
     node: tsModule.VariableStatement
@@ -102,5 +102,3 @@ const clientBoundary = {
     return diagnostics
   },
 }
-
-export default clientBoundary

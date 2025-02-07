@@ -232,37 +232,14 @@ function getAPIDescription(api: string): string {
       .join('\n')
   )
 }
-const config = {
-  // Auto completion for entry exported configs.
-  addCompletionsAtPosition(
-    fileName: string,
-    position: number,
-    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
-  ) {
-    visitEntryConfig(fileName, position, (entryConfig, declaration) => {
-      if (!API_DOCS[entryConfig]) {
-        if (isPositionInsideNode(position, declaration.name)) {
-          prior.entries.push(
-            ...Object.keys(API_DOCS).map((name, index) => {
-              return createAutoCompletionOptionName(index, name)
-            })
-          )
-        }
-        return
-      }
 
-      prior.entries.push(
-        ...Object.keys(API_DOCS[entryConfig].options || {}).map(
-          (name, index) => {
-            return createAutoCompletionOptionValue(index, name, entryConfig)
-          }
-        )
-      )
-    })
-  },
-
-  // Show docs when hovering on the exported configs.
-  getQuickInfoAtPosition(fileName: string, position: number) {
+/** these are functions that are intended to be direct overrides for language service methods */
+export const configOverrides: Pick<
+  tsModule.LanguageService,
+  'getQuickInfoAtPosition'
+> = {
+  /** Show docs when hovering on the exported configs. */
+  getQuickInfoAtPosition(fileName, position) {
     const ts = getTs()
 
     let overridden: tsModule.QuickInfo | undefined
@@ -344,8 +321,41 @@ const config = {
     })
     return overridden
   },
+}
 
-  // Show details on the side when auto completing.
+export const config = {
+  /** Auto completion for entry exported configs. */
+  addCompletionsAtPosition(
+    fileName: string,
+    position: number,
+    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
+  ) {
+    visitEntryConfig(fileName, position, (entryConfig, declaration) => {
+      if (!API_DOCS[entryConfig]) {
+        if (isPositionInsideNode(position, declaration.name)) {
+          prior.entries.push(
+            ...Object.keys(API_DOCS).map((name, index) => {
+              return createAutoCompletionOptionName(index, name)
+            })
+          )
+        }
+        return
+      }
+
+      prior.entries.push(
+        ...Object.keys(API_DOCS[entryConfig].options || {}).map(
+          (name, index) => {
+            return createAutoCompletionOptionValue(index, name, entryConfig)
+          }
+        )
+      )
+    })
+  },
+
+  /**
+   * Show details on the side when auto completing.
+   * Note that this does not directly compare to ts.LanguageService['getCompletionEntryDetails']
+   */
   getCompletionEntryDetails(
     entryName: string,
     data: tsModule.CompletionEntryData
@@ -379,7 +389,7 @@ const config = {
     }
   },
 
-  // Show errors for invalid export fields.
+  /** Show errors for invalid export fields. */
   getSemanticDiagnosticsForExportVariableStatement(
     source: tsModule.SourceFile,
     node: tsModule.VariableStatement
@@ -520,5 +530,3 @@ const config = {
     return diagnostics
   },
 }
-
-export default config

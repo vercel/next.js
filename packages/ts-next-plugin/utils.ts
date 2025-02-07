@@ -19,7 +19,7 @@ export const log = (message: string) => {
   info.project.projectService.logger.info(`[Next.js] ${message}`)
 }
 
-// This function has to be called initially.
+/** This function has to be called initially. */
 export function init(opts: { ts: TypeScript; info: PluginCreateInfo }) {
   ts = opts.ts
   info = opts.info

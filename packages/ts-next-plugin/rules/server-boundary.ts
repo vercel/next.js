@@ -4,7 +4,7 @@ import { NEXT_TS_ERRORS } from '../constant'
 import { getTs, getTypeChecker } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-// Check if the type is `Promise<T>`.
+/** Check if the type is `Promise<T>`. */
 function isPromiseType(type: tsModule.Type, typeChecker: tsModule.TypeChecker) {
   const typeReferenceType = type as tsModule.TypeReference
   if (!typeReferenceType.target) return false
@@ -52,7 +52,7 @@ function isFunctionReturningPromise(
   return isPromise
 }
 
-const serverBoundary = {
+export const serverBoundary = {
   getSemanticDiagnosticsForExportDeclaration(
     source: tsModule.SourceFile,
     node: tsModule.ExportDeclaration
@@ -155,5 +155,3 @@ const serverBoundary = {
     return diagnostics
   },
 }
-
-export default serverBoundary

@@ -5,6 +5,7 @@ import {
   getTs,
   getTypeChecker,
   isPositionInsideNode,
+  log,
 } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
@@ -22,7 +23,7 @@ function cacheKey(
   return `${fileName}:${isFunction ? 'function' : 'variable'}:${isGenerateMetadata ? 'generateMetadata' : 'metadata'}`
 }
 
-// Find the `export const metadata = ...` node.
+/** Find the `export const metadata = ...` node. */
 function getMetadataExport(fileName: string, position: number) {
   const source = getSource(fileName)
   let metadataExport: tsModule.VariableDeclaration | undefined
@@ -158,7 +159,88 @@ function proxyDiagnostics(
     })
 }
 
-const metadata = {
+/** these are functions that are intended to be direct overrides for language service methods */
+export const metadataOverrides: Pick<
+  tsModule.LanguageService,
+  | 'getQuickInfoAtPosition'
+  | 'getCompletionEntryDetails'
+  | 'getDefinitionAndBoundSpan'
+> = {
+  getQuickInfoAtPosition(fileName, position) {
+    log('getQuickInfoAtPosition')
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+
+    // We annotate with the type in a virtual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+
+    const { languageService } = getInfo()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+    const insight = languageService.getQuickInfoAtPosition(fileName, newPos)
+    return insight
+  },
+
+  getCompletionEntryDetails(
+    fileName,
+    position,
+    entryName,
+    formatOptions,
+    source,
+    preferences,
+    data
+  ) {
+    log('getCompletionEntryDetails')
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+
+    // We annotate with the type in a virtual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+
+    const { languageService } = getInfo()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+
+    const details = languageService.getCompletionEntryDetails(
+      fileName,
+      newPos,
+      entryName,
+      formatOptions,
+      source,
+      preferences,
+      data
+    )
+    return details
+  },
+
+  getDefinitionAndBoundSpan(fileName, position) {
+    const node = getMetadataExport(fileName, position)
+    if (!node) return
+    if (isTyped(node)) return
+    if (!isPositionInsideNode(position, node)) return
+    // We annotate with the type in a virtual language service
+    const pos = updateVirtualFileWithType(fileName, node)
+    if (pos === undefined) return
+    const { languageService } = getInfo()
+    const newPos = position <= pos[0] ? position : position + pos[1]
+
+    const definitionInfoAndBoundSpan =
+      languageService.getDefinitionAndBoundSpan(fileName, newPos)
+
+    if (definitionInfoAndBoundSpan) {
+      // Adjust the start position of the text span
+      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
+        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
+      }
+    }
+    return definitionInfoAndBoundSpan
+  },
+}
+
+/** these are helper functions related to metadata handling */
+export const metadata = {
   filterCompletionsAtPosition(
     fileName: string,
     position: number,
@@ -383,76 +465,4 @@ const metadata = {
 
     return []
   },
-
-  getCompletionEntryDetails(
-    fileName: string,
-    position: number,
-    entryName: string,
-    formatOptions: tsModule.FormatCodeOptions,
-    source: string,
-    preferences: tsModule.UserPreferences,
-    data: tsModule.CompletionEntryData
-  ) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-
-    const { languageService } = getInfo()
-    const newPos = position <= pos[0] ? position : position + pos[1]
-
-    const details = languageService.getCompletionEntryDetails(
-      fileName,
-      newPos,
-      entryName,
-      formatOptions,
-      source,
-      preferences,
-      data
-    )
-    return details
-  },
-
-  getQuickInfoAtPosition(fileName: string, position: number) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-
-    const { languageService } = getInfo()
-    const newPos = position <= pos[0] ? position : position + pos[1]
-    const insight = languageService.getQuickInfoAtPosition(fileName, newPos)
-    return insight
-  },
-
-  getDefinitionAndBoundSpan(fileName: string, position: number) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-    if (!isPositionInsideNode(position, node)) return
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-    const { languageService } = getInfo()
-    const newPos = position <= pos[0] ? position : position + pos[1]
-
-    const definitionInfoAndBoundSpan =
-      languageService.getDefinitionAndBoundSpan(fileName, newPos)
-
-    if (definitionInfoAndBoundSpan) {
-      // Adjust the start position of the text span
-      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
-        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
-      }
-    }
-    return definitionInfoAndBoundSpan
-  },
 }
-
-export default metadata

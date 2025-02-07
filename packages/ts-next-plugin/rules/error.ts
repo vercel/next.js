@@ -4,7 +4,7 @@ import { NEXT_TS_ERRORS } from '../constant'
 import { getTs } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const errorEntry = {
+export const error = {
   getSemanticDiagnostics(
     source: tsModule.SourceFile,
     isClientEntry: boolean
@@ -32,5 +32,3 @@ const errorEntry = {
     return []
   },
 }
-
-export default errorEntry

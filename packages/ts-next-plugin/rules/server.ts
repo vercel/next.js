@@ -6,8 +6,8 @@ import {
 import { getTs } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const serverLayer = {
-  // On the server layer we need to filter out some invalid completion results.
+export const server = {
+  /** On the server layer we need to filter out some invalid completion results. */
   filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
     return entries.filter((e: tsModule.CompletionEntry) => {
       // Remove disallowed React APIs.
@@ -21,7 +21,7 @@ const serverLayer = {
     })
   },
 
-  // Filter out quick info for some React APIs.
+  /** Filter out quick info for some React APIs. */
   hasDisallowedReactAPIDefinition(
     definitions: readonly tsModule.DefinitionInfo[]
   ) {
@@ -32,7 +32,7 @@ const serverLayer = {
     )
   },
 
-  // Give errors about disallowed imports such as `useState`.
+  /** Give errors about disallowed imports such as `useState`. */
   getSemanticDiagnosticsForImportDeclaration(
     source: tsModule.SourceFile,
     node: tsModule.ImportDeclaration
@@ -88,5 +88,3 @@ const serverLayer = {
     return diagnostics
   },
 }
-
-export default serverLayer
