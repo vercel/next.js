@@ -1,6 +1,6 @@
 // This module provides intellisense for page and layout's exported configs.
 
-import { isPositionInsideNode, removeStringQuotes } from '../utils'
+import { getAPIDescription, isPositionInsideNode, removeStringQuotes } from '../utils'
 import {
   NEXT_TS_ERRORS,
   ALLOWED_EXPORTS,
@@ -9,18 +9,6 @@ import {
 } from '../constant'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 import type { TSNextPlugin } from '../TSNextPlugin'
-
-function getAPIDescription(api: keyof typeof API_DOCS): string {
-  const apiDoc = API_DOCS[api]
-  if ('options' in apiDoc) {
-    const optionsDescription = Object.entries(apiDoc.options || {})
-      .map(([key, value]) => `- \`${key}\`: ${value}`)
-      .join('\n')
-
-    return `${apiDoc.description}\n\n${optionsDescription}`
-  }
-  return apiDoc.description
-}
 
 export const config = (tsNextPlugin: TSNextPlugin) => ({
   visitEntryConfig(
@@ -72,8 +60,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
       const docsLink = {
         kind: 'text',
         text:
-          `\n\nRead more about the "${entryConfig}" option: ` +
-          API_DOCS[entryConfig].link,
+          `\n\nRead more about the "${entryConfig}" option: ${
+          API_DOCS[entryConfig].link}`,
       }
 
       if (value && isPositionInsideNode(position, value)) {
@@ -147,7 +135,7 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
     return {
       name,
       insertText: removeStringQuotes(name),
-      sortText: '' + sort,
+      sortText: `${sort}`,
       kind: isString
         ? tsNextPlugin.ts.ScriptElementKind.string
         : tsNextPlugin.ts.ScriptElementKind.unknown,

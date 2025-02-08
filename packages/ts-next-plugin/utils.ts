@@ -1,4 +1,5 @@
 import type tsModule from 'typescript/lib/tsserverlibrary'
+import { API_DOCS } from './constant'
 
 export function removeStringQuotes(str: string): string {
   return str.replace(/^['"`]|['"`]$/g, '')
@@ -22,4 +23,16 @@ export const isPromiseType = (type: tsModule.Type, typeChecker: tsModule.TypeChe
   }
 
   return true
+}
+
+export function getAPIDescription(api: keyof typeof API_DOCS): string {
+  const apiDoc = API_DOCS[api]
+  if ('options' in apiDoc) {
+    const optionsDescription = Object.entries(apiDoc.options || {})
+      .map(([key, value]) => `- \`${key}\`: ${value}`)
+      .join('\n')
+
+    return `${apiDoc.description}\n\n${optionsDescription}`
+  }
+  return apiDoc.description
 }

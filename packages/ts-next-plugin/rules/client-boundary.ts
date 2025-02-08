@@ -15,10 +15,9 @@ export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
         const initializer = declaration.initializer
         if (initializer && tsNextPlugin.ts.isArrowFunction(initializer)) {
           diagnostics.push(
-            ...clientBoundary(tsNextPlugin).getSemanticDiagnosticsForFunctionExport(
-              source,
-              initializer
-            )
+            ...clientBoundary(
+              tsNextPlugin
+            ).getSemanticDiagnosticsForFunctionExport(source, initializer)
           )
         }
       }
@@ -68,10 +67,11 @@ export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
                 file: source,
                 category: tsNextPlugin.ts.DiagnosticCategory.Warning,
                 code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-                messageText:
-                  `Props must be serializable for components in the "use client" entry file. ` +
-                  `"${propName}" is a function that's not a Server Action. ` +
+                messageText: [
+                  `Props must be serializable for components in the "use client" entry file. `,
+                  `"${propName}" is a function that's not a Server Action. `,
                   `Rename "${propName}" either to "action" or have its name end with "Action" e.g. "${propName}Action" to indicate it is a Server Action.`,
+                ].join(''),
                 start: prop.getStart(),
                 length: prop.getWidth(),
               })

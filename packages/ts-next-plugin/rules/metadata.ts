@@ -192,11 +192,12 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
         annotation = TYPE_ANNOTATION
       }
 
-      const newSource =
-        sourceText.slice(0, nodeEnd) +
-        annotation +
-        sourceText.slice(nodeEnd) +
-        TYPE_IMPORT
+      const newSource = [
+        sourceText.slice(0, nodeEnd),
+        annotation,
+        sourceText.slice(nodeEnd),
+        TYPE_IMPORT,
+      ].join('')
 
       const { languageServiceHost } = tsNextPlugin.info
       // Add the file to the virtual language service
@@ -291,7 +292,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
             e.kind ===
               tsNextPlugin.ts.ScriptElementKind.memberVariableElement &&
             /^[a-zA-Z0-9_]+$/.test(e.name)
-              ? e.name + ': '
+              ? `${e.name}: `
               : e.name
 
           return {
@@ -299,7 +300,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
             insertText,
             kind: e.kind,
             kindModifiers: e.kindModifiers,
-            sortText: '!' + e.name,
+            sortText: `!${e.name}`,
             labelDetails: {
               description: `Next.js metadata`,
             },

@@ -67,7 +67,7 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                 entries.push({
                   name,
                   insertText: name,
-                  sortText: '_' + name,
+                  sortText: `_${name}`,
                   kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
                   kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
                   labelDetails: {
@@ -89,7 +89,7 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                 entries.push({
                   name,
                   insertText: name,
-                  sortText: '_' + name,
+                  sortText: `_${name}`,
                   kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
                   kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
                   labelDetails: {
