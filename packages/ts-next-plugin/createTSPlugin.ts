@@ -8,49 +8,44 @@
  * - Hover hint and docs for entry configurations.
  */
 
-import {
-  init,
-  getEntryInfo,
-  isAppEntryFile,
-  isDefaultFunctionExport,
-  isPositionInsideNode,
-  getSource,
-  isInsideApp,
-  log,
-  type PluginCreateInfo,
-} from './utils'
+import { isPositionInsideNode } from './utils'
 import { NEXT_TS_ERRORS } from './constant'
 
-import { config, configOverrides } from './rules/config'
-import { server } from './rules/server'
-import { entry } from './rules/entry'
-import { clientBoundary } from './rules/client-boundary'
-import { serverBoundary } from './rules/server-boundary'
-import { metadata, metadataOverrides } from './rules/metadata'
+import { config as configRule } from './rules/config'
+import { server as serverRule } from './rules/server'
+import { entry as entryRule } from './rules/entry'
+import { clientBoundary as clientBoundaryRule } from './rules/client-boundary'
+import { serverBoundary as serverBoundaryRule } from './rules/server-boundary'
+import { metadata as metadataRule } from './rules/metadata'
 import { error } from './rules/error'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import type ts from 'typescript/lib/tsserverlibrary'
+import { TSNextPlugin } from './TSNextPlugin'
 
-export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
+export const createTSPlugin: ts.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
-  function create(info: tsModule.server.PluginCreateInfo) {
-    init({
-      ts,
-      info: info as PluginCreateInfo,
-    })
+  function create(info: ts.server.PluginCreateInfo) {
+    const tsNextPlugin = new TSNextPlugin(ts, info)
+    const clientBoundary = clientBoundaryRule(tsNextPlugin);
+    const config = configRule(tsNextPlugin);
+    const entry = entryRule(tsNextPlugin);
+    const metadata = metadataRule(tsNextPlugin);
+    const serverBoundary = serverBoundaryRule(tsNextPlugin);
+    const server = serverRule(tsNextPlugin);
 
     const virtualFiles: Record<
       string,
-      { file: tsModule.IScriptSnapshot; ver: number }
+      { file: ts.IScriptSnapshot; ver: number }
     > = {}
+
     const getScriptVersion = info.languageServiceHost.getScriptVersion.bind(
       info.languageServiceHost
     )
     info.languageServiceHost.getScriptVersion = (fileName: string) => {
-      log(`[ProxiedLSHost] getScriptVersion(${fileName})`)
+      tsNextPlugin.log(`[ProxiedLSHost] getScriptVersion(${fileName})`)
       const file = virtualFiles[fileName]
       if (!file) return getScriptVersion(fileName)
-      log(`[ProxiedLSHost] getScriptVersion(${fileName}) - ${file.ver}`)
+      tsNextPlugin.log(`[ProxiedLSHost] getScriptVersion(${fileName}) - ${file.ver}`)
       return file.ver.toString()
     }
 
@@ -58,10 +53,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       info.languageServiceHost
     )
     info.languageServiceHost.getScriptSnapshot = (fileName: string) => {
-      log(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
+      tsNextPlugin.log(`[ProxiedLSHost] getScriptSnapshot(${fileName})`)
       const file = virtualFiles[fileName]
       if (!file) return getScriptSnapshot(fileName)
-      log(
+      tsNextPlugin.log(
         `[ProxiedLSHost] getScriptSnapshot(${fileName}) - ${JSON.stringify(file.file, null, 2)}`
       )
       return file.file
@@ -81,7 +76,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       for (const file of files) {
         names.add(file)
       }
-      log(
+      tsNextPlugin.log(
         `[ProxiedLSHost] getScriptFileNames() - ${JSON.stringify([...names], null, 2)}`
       )
       return [...names]
@@ -91,7 +86,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       info.languageServiceHost
     )
     info.languageServiceHost.readFile = (fileName: string) => {
-      log(`[ProxiedLSHost] readFile(${fileName})`)
+      tsNextPlugin.log(`[ProxiedLSHost] readFile(${fileName})`)
       const file = virtualFiles[fileName]
       return file
         ? file.file.getText(0, file.file.getLength())
@@ -102,7 +97,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       info.languageServiceHost
     )
     info.languageServiceHost.fileExists = (fileName: string) => {
-      log(`[ProxiedLSHost] fileExists(${fileName})`)
+      tsNextPlugin.log(`[ProxiedLSHost] fileExists(${fileName})`)
       return !!virtualFiles[fileName] || fileExists(fileName)
     }
 
@@ -112,7 +107,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     // )
     // @ts-ignore
     info.languageServiceHost.addFile = (fileName: string, body: string) => {
-      log(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
+      tsNextPlugin.log(`[ProxiedLSHost] addFile(${fileName})\n\n${body}\n<<EOF>>`)
       const snap = ts.ScriptSnapshot.fromString(body)
       snap.getChangeRange = (_) => undefined
       const existing = virtualFiles[fileName]
@@ -164,10 +159,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         entries: [],
       }
 
-      if (!isAppEntryFile(fileName)) return prior
+      if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
 
       // If it's a server entry.
-      const { isClientEntry } = getEntryInfo(fileName)
+      const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
       if (!isClientEntry) {
         // Remove specified entries from completion list
         prior.entries = server.filterCompletionsAtPosition(prior.entries)
@@ -184,19 +179,19 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       // Add auto completions for export configs.
       config.addCompletionsAtPosition(fileName, position, prior)
 
-      const source = getSource(fileName)
+      const source = tsNextPlugin.getSource(fileName)
       if (!source) return prior
 
       ts.forEachChild(source!, (node) => {
         // Auto completion for default export function's props.
         if (
           isPositionInsideNode(position, node) &&
-          isDefaultFunctionExport(node)
+          tsNextPlugin.isDefaultFunctionExport(node)
         ) {
           prior.entries.push(
             ...entry.getCompletionsAtPosition(
               fileName,
-              node as tsModule.FunctionDeclaration,
+              node as ts.FunctionDeclaration,
               position
             )
           )
@@ -211,10 +206,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       fileName: string,
       position: number,
       entryName: string,
-      formatOptions: tsModule.FormatCodeOptions,
+      formatOptions: ts.FormatCodeOptions,
       source: string,
-      preferences: tsModule.UserPreferences,
-      data: tsModule.CompletionEntryData
+      preferences: ts.UserPreferences,
+      data: ts.CompletionEntryData
     ) => {
       const entryCompletionEntryDetails = config.getCompletionEntryDetails(
         entryName,
@@ -223,7 +218,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       if (entryCompletionEntryDetails) return entryCompletionEntryDetails
 
       const metadataCompletionEntryDetails =
-        metadataOverrides.getCompletionEntryDetails(
+        metadata.getCompletionEntryDetails(
           fileName,
           position,
           entryName,
@@ -251,10 +246,10 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         fileName,
         position
       )
-      if (!isAppEntryFile(fileName)) return prior
+      if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
 
       // Remove type suggestions for disallowed APIs in server components.
-      const { isClientEntry } = getEntryInfo(fileName)
+      const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
       if (!isClientEntry) {
         const definitions = info.languageService.getDefinitionAtPosition(
           fileName,
@@ -267,14 +262,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
           return
         }
 
-        const metadataInfo = metadataOverrides.getQuickInfoAtPosition(
+        const metadataInfo = metadata.getQuickInfoAtPosition(
           fileName,
           position
         )
         if (metadataInfo) return metadataInfo
       }
 
-      const overridden = configOverrides.getQuickInfoAtPosition(
+      const overridden = config.getQuickInfoAtPosition(
         fileName,
         position
       )
@@ -286,15 +281,15 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     // Show errors for disallowed imports
     proxy.getSemanticDiagnostics = (fileName: string) => {
       const prior = info.languageService.getSemanticDiagnostics(fileName)
-      const source = getSource(fileName)
+      const source = tsNextPlugin.getSource(fileName)
       if (!source) return prior
 
       let isClientEntry = false
       let isServerEntry = false
-      const isAppEntry = isAppEntryFile(fileName)
+      const isAppEntry = tsNextPlugin.isAppEntryFile(fileName)
 
       try {
-        ;({ isClientEntry, isServerEntry } = getEntryInfo(fileName, true))
+        ;({ isClientEntry, isServerEntry } = tsNextPlugin.getEntryInfo(fileName, true))
       } catch (e: any) {
         prior.push({
           file: source,
@@ -304,8 +299,8 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
         })
       }
 
-      if (isInsideApp(fileName)) {
-        const errorDiagnostic = error.getSemanticDiagnostics(
+      if (tsNextPlugin.isInsideApp(fileName)) {
+        const errorDiagnostic = error(tsNextPlugin).getSemanticDiagnostics(
           source!,
           isClientEntry
         )
@@ -364,7 +359,7 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
               )
             )
           }
-        } else if (isDefaultFunctionExport(node)) {
+        } else if (tsNextPlugin.isDefaultFunctionExport(node)) {
           // export default function ...
           if (isAppEntry) {
             const diagnostics = entry.getSemanticDiagnostics(
@@ -458,9 +453,9 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
 
     // Get definition and link for specific node
     proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
-      const { isClientEntry } = getEntryInfo(fileName)
-      if (isAppEntryFile(fileName) && !isClientEntry) {
-        const metadataDefinition = metadataOverrides.getDefinitionAndBoundSpan(
+      const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
+      if (tsNextPlugin.isAppEntryFile(fileName) && !isClientEntry) {
+        const metadataDefinition = metadata.getDefinitionAndBoundSpan(
           fileName,
           position
         )

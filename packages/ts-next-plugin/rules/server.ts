@@ -3,10 +3,10 @@ import {
   DISALLOWED_SERVER_REACT_DOM_APIS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import { getTs } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
+import type { TSNextPlugin } from '../TSNextPlugin'
 
-export const server = {
+export const server = (tsNextPlugin: TSNextPlugin) => ({
   /** On the server layer we need to filter out some invalid completion results. */
   filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
     return entries.filter((e: tsModule.CompletionEntry) => {
@@ -37,8 +37,6 @@ export const server = {
     source: tsModule.SourceFile,
     node: tsModule.ImportDeclaration
   ) {
-    const ts = getTs()
-
     const diagnostics: tsModule.Diagnostic[] = []
 
     const importPath = node.moduleSpecifier.getText(source!)
@@ -48,14 +46,14 @@ export const server = {
     if (importClause) {
       if (/^['"]react['"]$/.test(importPath)) {
         // Check if it imports "useState"
-        if (namedBindings && ts.isNamedImports(namedBindings)) {
+        if (namedBindings && tsNextPlugin.ts.isNamedImports(namedBindings)) {
           const elements = namedBindings.elements
           for (const element of elements) {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
               diagnostics.push({
                 file: source,
-                category: ts.DiagnosticCategory.Error,
+                category: tsNextPlugin.ts.DiagnosticCategory.Error,
                 code: NEXT_TS_ERRORS.INVALID_SERVER_API,
                 messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
@@ -66,14 +64,14 @@ export const server = {
         }
       } else if (/^['"]react-dom['"]$/.test(importPath)) {
         // Check if it imports "useFormState"
-        if (namedBindings && ts.isNamedImports(namedBindings)) {
+        if (namedBindings && tsNextPlugin.ts.isNamedImports(namedBindings)) {
           const elements = namedBindings.elements
           for (const element of elements) {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_DOM_APIS.includes(name)) {
               diagnostics.push({
                 file: source,
-                category: ts.DiagnosticCategory.Error,
+                category: tsNextPlugin.ts.DiagnosticCategory.Error,
                 code: NEXT_TS_ERRORS.INVALID_SERVER_API,
                 messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
@@ -87,4 +85,4 @@ export const server = {
 
     return diagnostics
   },
-}
+})

@@ -1,10 +1,10 @@
-// This module provides intellisense for all components that has the `"use client"` directive.
 
 import { NEXT_TS_ERRORS } from '../constant'
-import { getTs } from '../utils'
+import type { TSNextPlugin } from '../TSNextPlugin'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-export const error = {
+// This module provides intellisense for all components that have the `"use client"` directive.
+export const error = (tsNextPlugin: TSNextPlugin) => ({
   getSemanticDiagnostics(
     source: tsModule.SourceFile,
     isClientEntry: boolean
@@ -13,15 +13,12 @@ export const error = {
     const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
     if (!isErrorFile && !isGlobalErrorFile) return []
-
-    const ts = getTs()
-
     if (!isClientEntry) {
       // Error components must be Client components
       return [
         {
           file: source,
-          category: ts.DiagnosticCategory.Error,
+          category: tsNextPlugin.ts.DiagnosticCategory.Error,
           code: NEXT_TS_ERRORS.INVALID_ERROR_COMPONENT,
           messageText: `Error Components must be Client Components, please add the "use client" directive: https://nextjs.org/docs/app/api-reference/file-conventions/error`,
           start: 0,
@@ -31,4 +28,4 @@ export const error = {
     }
     return []
   },
-}
+})

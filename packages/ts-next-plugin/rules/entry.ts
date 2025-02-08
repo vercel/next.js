@@ -6,18 +6,18 @@ import {
   ALLOWED_PAGE_PROPS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import { getTs, isPageFile, isPositionInsideNode } from '../utils'
+import { isPositionInsideNode } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
+import type { TSNextPlugin } from '../TSNextPlugin'
 
-export const entry = {
+export const entry = (tsNextPlugin: TSNextPlugin) => ({
   /** Give auto completion for the component's props */
   getCompletionsAtPosition(
     fileName: string,
     node: tsModule.FunctionDeclaration,
     position: number
   ) {
-    const ts = getTs()
     const entries: tsModule.CompletionEntry[] = []
 
     // Default export function might not accept parameters
@@ -27,12 +27,12 @@ export const entry = {
 
     if (paramNode && isPositionInsideNode(position, paramNode)) {
       const props = paramNode?.name
-      if (props && ts.isObjectBindingPattern(props)) {
+      if (props && tsNextPlugin.ts.isObjectBindingPattern(props)) {
         let validProps = []
         let validPropsWithType = []
         let type: string
 
-        if (isPageFile(fileName)) {
+        if (tsNextPlugin.isPageFile(fileName)) {
           // For page entries (page.js), it can only have `params` and `searchParams`
           // as the prop names.
           validProps = ALLOWED_PAGE_PROPS
@@ -68,8 +68,8 @@ export const entry = {
                   name,
                   insertText: name,
                   sortText: '_' + name,
-                  kind: ts.ScriptElementKind.memberVariableElement,
-                  kindModifiers: ts.ScriptElementKindModifier.none,
+                  kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
+                  kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop`,
                   },
@@ -82,7 +82,7 @@ export const entry = {
         }
 
         // Auto completion for types
-        if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
+        if (paramNode.type && tsNextPlugin.ts.isTypeLiteralNode(paramNode.type)) {
           for (const member of paramNode.type.members) {
             if (isPositionInsideNode(position, member)) {
               for (const name of validPropsWithType) {
@@ -90,8 +90,8 @@ export const entry = {
                   name,
                   insertText: name,
                   sortText: '_' + name,
-                  kind: ts.ScriptElementKind.memberVariableElement,
-                  kindModifiers: ts.ScriptElementKindModifier.none,
+                  kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
+                  kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop type`,
                   },
@@ -114,12 +114,10 @@ export const entry = {
     source: tsModule.SourceFile,
     node: tsModule.FunctionDeclaration
   ) {
-    const ts = getTs()
-
     let validProps = []
     let type: string
 
-    if (isPageFile(fileName)) {
+    if (tsNextPlugin.isPageFile(fileName)) {
       // For page entries (page.js), it can only have `params` and `searchParams`
       // as the prop names.
       validProps = ALLOWED_PAGE_PROPS
@@ -141,13 +139,13 @@ export const entry = {
     const diagnostics: tsModule.Diagnostic[] = []
 
     const props = node.parameters?.[0]?.name
-    if (props && ts.isObjectBindingPattern(props)) {
+    if (props && tsNextPlugin.ts.isObjectBindingPattern(props)) {
       for (const prop of props.elements) {
         const propName = (prop.propertyName || prop.name).getText()
         if (!validProps.includes(propName)) {
           diagnostics.push({
             file: source,
-            category: ts.DiagnosticCategory.Error,
+            category: tsNextPlugin.ts.DiagnosticCategory.Error,
             code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
             messageText: `"${propName}" is not a valid ${type} prop.`,
             start: prop.getStart(),
@@ -159,4 +157,4 @@ export const entry = {
 
     return diagnostics
   },
-}
+})
