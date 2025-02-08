@@ -62,6 +62,7 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   sriEnabled: boolean
+  streamingMetadata: boolean | undefined
 }
 
 export type ExportRouteResult =
