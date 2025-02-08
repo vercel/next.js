@@ -1,15 +1,13 @@
-import { isPositionInsideNode } from './utils'
-import { NEXT_TS_ERRORS } from './constant'
-
+import { isDefaultFunctionExport, isPositionInsideNode } from './utils'
 import { config as configRule } from './rules/config'
-import { server as serverRule } from './rules/server'
+import { server } from './rules/server'
 import { entry as entryRule } from './rules/entry'
 import { clientBoundary as clientBoundaryRule } from './rules/client-boundary'
 import { serverBoundary as serverBoundaryRule } from './rules/server-boundary'
 import { metadata as metadataRule } from './rules/metadata'
-import { error } from './rules/error'
-import type tsModule from 'typescript/lib/tsserverlibrary'
-import type { TSNextPlugin } from './TSNextPlugin'
+import { errorComponents } from './rules/errorComponents'
+import ts from 'typescript'
+import { DirectiveError, type TSNextPlugin } from './TSNextPlugin'
 
 export const createProxy = (tsNextPlugin: TSNextPlugin) => {
   const { info } = tsNextPlugin
@@ -18,7 +16,6 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
   const entry = entryRule(tsNextPlugin)
   const metadata = metadataRule(tsNextPlugin)
   const serverBoundary = serverBoundaryRule(tsNextPlugin)
-  const server = serverRule(tsNextPlugin)
 
   // Set up decorator object
   const proxy = Object.create(null)
@@ -54,7 +51,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
 
     // If it's a server entry.
-    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
+    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName, {
+      throwOnInvalidDirective: false,
+    })
     if (!isClientEntry) {
       // Remove specified entries from completion list
       prior.entries = server.filterCompletionsAtPosition(prior.entries)
@@ -74,16 +73,16 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     const source = tsNextPlugin.getSource(fileName)
     if (!source) return prior
 
-    tsNextPlugin.ts.forEachChild(source!, (node) => {
+    ts.forEachChild(source!, (node) => {
       // Auto completion for default export function's props.
       if (
         isPositionInsideNode(position, node) &&
-        tsNextPlugin.isDefaultFunctionExport(node)
+        isDefaultFunctionExport(node)
       ) {
         prior.entries.push(
           ...entry.getCompletionsAtPosition(
             fileName,
-            node as tsModule.FunctionDeclaration,
+            node as ts.FunctionDeclaration,
             position
           )
         )
@@ -98,10 +97,10 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     fileName: string,
     position: number,
     entryName: string,
-    formatOptions: tsModule.FormatCodeOptions,
+    formatOptions: ts.FormatCodeOptions,
     source: string,
-    preferences: tsModule.UserPreferences,
-    data: tsModule.CompletionEntryData
+    preferences: ts.UserPreferences,
+    data: ts.CompletionEntryData
   ) => {
     const entryCompletionEntryDetails = config.getCompletionEntryDetails(
       entryName,
@@ -140,7 +139,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
 
     // Remove type suggestions for disallowed APIs in server components.
-    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
+    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName, {
+      throwOnInvalidDirective: false,
+    })
     if (!isClientEntry) {
       const definitions = info.languageService.getDefinitionAtPosition(
         fileName,
@@ -171,29 +172,28 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     const isAppEntry = tsNextPlugin.isAppEntryFile(fileName)
 
     try {
-      ;({ isClientEntry, isServerEntry } = tsNextPlugin.getEntryInfo(
-        fileName,
-        true
-      ))
-    } catch (e: any) {
-      prior.push({
-        file: source,
-        category: tsNextPlugin.ts.DiagnosticCategory.Error,
-        code: NEXT_TS_ERRORS.MISPLACED_ENTRY_DIRECTIVE,
-        ...e,
-      })
+      ;({ isClientEntry, isServerEntry } = tsNextPlugin.getEntryInfo(fileName, {
+        throwOnInvalidDirective: true,
+      }))
+    } catch (directiveError: unknown) {
+      if (directiveError instanceof DirectiveError) {
+        prior.push({
+          ...directiveError,
+          file: source,
+        })
+      }
     }
 
     if (tsNextPlugin.isInsideApp(fileName)) {
-      const errorDiagnostic = error(tsNextPlugin).getSemanticDiagnostics(
+      const errorDiagnostic = errorComponents.getSemanticDiagnostics(
         source!,
         isClientEntry
       )
       prior.push(...errorDiagnostic)
     }
 
-    tsNextPlugin.ts.forEachChild(source!, (node) => {
-      if (tsNextPlugin.ts.isImportDeclaration(node)) {
+    ts.forEachChild(source!, (node) => {
+      if (ts.isImportDeclaration(node)) {
         // import ...
         if (isAppEntry) {
           if (!isClientEntry || isServerEntry) {
@@ -204,8 +204,8 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
           }
         }
       } else if (
-        tsNextPlugin.ts.isVariableStatement(node) &&
-        node.modifiers?.some((m) => m.kind === tsNextPlugin.ts.SyntaxKind.ExportKeyword)
+        ts.isVariableStatement(node) &&
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
       ) {
         // export const ...
         if (isAppEntry) {
@@ -244,7 +244,7 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
             )
           )
         }
-      } else if (tsNextPlugin.isDefaultFunctionExport(node)) {
+      } else if (isDefaultFunctionExport(node)) {
         // export default function ...
         if (isAppEntry) {
           const diagnostics = entry.getSemanticDiagnostics(
@@ -273,8 +273,8 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
           )
         }
       } else if (
-        tsNextPlugin.ts.isFunctionDeclaration(node) &&
-        node.modifiers?.some((m) => m.kind === tsNextPlugin.ts.SyntaxKind.ExportKeyword)
+        ts.isFunctionDeclaration(node) &&
+        node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
       ) {
         // export function ...
         if (isAppEntry) {
@@ -307,7 +307,7 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
             )
           )
         }
-      } else if (tsNextPlugin.ts.isExportDeclaration(node)) {
+      } else if (ts.isExportDeclaration(node)) {
         // export { ... }
         if (isAppEntry) {
           const metadataDiagnostics = isClientEntry
@@ -338,7 +338,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
 
   // Get definition and link for specific node
   proxy.getDefinitionAndBoundSpan = (fileName: string, position: number) => {
-    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName)
+    const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName, {
+      throwOnInvalidDirective: false,
+    })
     if (tsNextPlugin.isAppEntryFile(fileName) && !isClientEntry) {
       const metadataDefinition = metadata.getDefinitionAndBoundSpan(
         fileName,

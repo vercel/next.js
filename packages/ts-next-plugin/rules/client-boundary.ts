@@ -1,19 +1,19 @@
 import { NEXT_TS_ERRORS } from '../constant'
 import type { TSNextPlugin } from '../TSNextPlugin'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 
 // This module provides intellisense for all components that have the `"use client"` directive.
 export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
   getSemanticDiagnosticsForExportVariableStatement(
-    source: tsModule.SourceFile,
-    node: tsModule.VariableStatement
+    source: ts.SourceFile,
+    node: ts.VariableStatement
   ) {
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
-    if (tsNextPlugin.ts.isVariableDeclarationList(node.declarationList)) {
+    if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
         const initializer = declaration.initializer
-        if (initializer && tsNextPlugin.ts.isArrowFunction(initializer)) {
+        if (initializer && ts.isArrowFunction(initializer)) {
           diagnostics.push(
             ...clientBoundary(
               tsNextPlugin
@@ -26,26 +26,26 @@ export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getSemanticDiagnosticsForFunctionExport(
-    source: tsModule.SourceFile,
-    node: tsModule.FunctionDeclaration | tsModule.ArrowFunction
+    source: ts.SourceFile,
+    node: ts.FunctionDeclaration | ts.ArrowFunction
   ) {
     const typeChecker = tsNextPlugin.getTypeChecker()
     if (!typeChecker) return []
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
     const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
     const props = node.parameters?.[0]?.name
-    if (props && tsNextPlugin.ts.isObjectBindingPattern(props)) {
-      for (const prop of (props as tsModule.ObjectBindingPattern).elements) {
+    if (props && ts.isObjectBindingPattern(props)) {
+      for (const prop of (props as ts.ObjectBindingPattern).elements) {
         const type = typeChecker.getTypeAtLocation(prop)
         const typeDeclarationNode = type.symbol?.getDeclarations()?.[0]
         const propName = (prop.propertyName || prop.name).getText()
 
         if (typeDeclarationNode) {
-          if (tsNextPlugin.ts.isFunctionTypeNode(typeDeclarationNode)) {
+          if (ts.isFunctionTypeNode(typeDeclarationNode)) {
             // By convention, props named "action" can accept functions since we
             // assume these are Server Actions. Structurally, there's no
             // difference between a Server Action and a normal function until
@@ -64,28 +64,24 @@ export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
 
             if (!maybeServerAction && !isErrorReset) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP_NOT_SERVER_ACTION(
+                  propName
+                ),
                 file: source,
-                category: tsNextPlugin.ts.DiagnosticCategory.Warning,
-                code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-                messageText: [
-                  `Props must be serializable for components in the "use client" entry file. `,
-                  `"${propName}" is a function that's not a Server Action. `,
-                  `Rename "${propName}" either to "action" or have its name end with "Action" e.g. "${propName}Action" to indicate it is a Server Action.`,
-                ].join(''),
                 start: prop.getStart(),
                 length: prop.getWidth(),
               })
             }
           } else if (
             // Show warning for not serializable props.
-            tsNextPlugin.ts.isConstructorTypeNode(typeDeclarationNode) ||
-            tsNextPlugin.ts.isClassDeclaration(typeDeclarationNode)
+            ts.isConstructorTypeNode(typeDeclarationNode) ||
+            ts.isClassDeclaration(typeDeclarationNode)
           ) {
             diagnostics.push({
+              ...NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP_NOT_SERIALIZABLE(
+                propName
+              ),
               file: source,
-              category: tsNextPlugin.ts.DiagnosticCategory.Warning,
-              code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-              messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
               start: prop.getStart(),
               length: prop.getWidth(),
             })

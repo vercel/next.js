@@ -1,18 +1,18 @@
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 import { API_DOCS } from './constant'
 
 export function removeStringQuotes(str: string): string {
   return str.replace(/^['"`]|['"`]$/g, '')
 }
 
-export const isPositionInsideNode = (position: number, node: tsModule.Node) => {
+export const isPositionInsideNode = (position: number, node: ts.Node) => {
   const start = node.getFullStart()
   return start <= position && position <= node.getFullWidth() + start
 }
 
 /** Check if the type is `Promise<T>`. */
-export const isPromiseType = (type: tsModule.Type, typeChecker: tsModule.TypeChecker) => {
-  const typeReferenceType = type as tsModule.TypeReference
+export const isPromiseType = (type: ts.Type, typeChecker: ts.TypeChecker) => {
+  const typeReferenceType = type as ts.TypeReference
   if (!typeReferenceType.target) return false
 
   // target should be Promise or Promise<...>
@@ -35,4 +35,29 @@ export function getAPIDescription(api: keyof typeof API_DOCS): string {
     return `${apiDoc.description}\n\n${optionsDescription}`
   }
   return apiDoc.description
+}
+
+export const isDefaultFunctionExport = (
+  node: ts.Node
+): node is ts.FunctionDeclaration => {
+  if (ts.isFunctionDeclaration(node)) {
+    let hasExportKeyword = false
+    let hasDefaultKeyword = false
+
+    if (node.modifiers) {
+      for (const modifier of node.modifiers) {
+        if (modifier.kind === ts.SyntaxKind.ExportKeyword) {
+          hasExportKeyword = true
+        } else if (modifier.kind === ts.SyntaxKind.DefaultKeyword) {
+          hasDefaultKeyword = true
+        }
+      }
+    }
+
+    // `export default function`
+    if (hasExportKeyword && hasDefaultKeyword) {
+      return true
+    }
+  }
+  return false
 }

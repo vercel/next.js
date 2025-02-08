@@ -1,13 +1,39 @@
 import path from 'path'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
+import { NEXT_TS_ERRORS } from './constant'
+
+export class DirectiveError extends Error {
+  category: ts.Diagnostic['category']
+  code: ts.Diagnostic['code']
+  length: number | undefined
+  messageText: ts.Diagnostic['messageText']
+  start: number | undefined
+
+  constructor({
+    category,
+    code,
+    length,
+    messageText,
+    start,
+  }: Pick<
+    ts.Diagnostic,
+    'category' | 'code' | 'length' | 'messageText' | 'start'
+  >) {
+    super(messageText.toString())
+    this.name = 'DirectiveError'
+    this.category = category
+    this.code = code
+    this.length = length
+    this.messageText = messageText
+    this.start = start
+  }
+}
 
 export class TSNextPlugin {
-  ts: typeof tsModule
-  info: tsModule.server.PluginCreateInfo
+  info: ts.server.PluginCreateInfo
   appDirRegExp: RegExp
 
-  constructor(ts: typeof tsModule, info: tsModule.server.PluginCreateInfo) {
-    this.ts = ts
+  constructor(info: ts.server.PluginCreateInfo) {
     this.info = info
     this.log('Initializing...')
     const projectDir = info.project.getCurrentDirectory()
@@ -30,31 +56,6 @@ export class TSNextPlugin {
     return this.info.languageService.getProgram()?.getSourceFile(fileName)
   }
 
-  isDefaultFunctionExport(
-    node: tsModule.Node
-  ): node is tsModule.FunctionDeclaration {
-    if (this.ts.isFunctionDeclaration(node)) {
-      let hasExportKeyword = false
-      let hasDefaultKeyword = false
-
-      if (node.modifiers) {
-        for (const modifier of node.modifiers) {
-          if (modifier.kind === this.ts.SyntaxKind.ExportKeyword) {
-            hasExportKeyword = true
-          } else if (modifier.kind === this.ts.SyntaxKind.DefaultKeyword) {
-            hasDefaultKeyword = true
-          }
-        }
-      }
-
-      // `export default function`
-      if (hasExportKeyword && hasDefaultKeyword) {
-        return true
-      }
-    }
-    return false
-  }
-
   isInsideApp(filePath: string) {
     return this.appDirRegExp.test(filePath)
   }
@@ -66,6 +67,7 @@ export class TSNextPlugin {
       /^(page|layout)\.(mjs|js|jsx|ts|tsx)$/.test(path.basename(filePath))
     )
   }
+
   isPageFile(filePath: string) {
     // question: is this regex is intentionally missing mts, cts, cjs?
     return (
@@ -75,56 +77,57 @@ export class TSNextPlugin {
   }
 
   /** Check if a module is a client entry. */
-  getEntryInfo(fileName: string, throwOnInvalidDirective?: boolean) {
+  getEntryInfo(
+    fileName: string,
+    options: { throwOnInvalidDirective: boolean }
+  ) {
     const source = this.getSource(fileName)
     if (source) {
       let isDirective = true
       let isClientEntry = false
       let isServerEntry = false
 
-      this.ts.forEachChild(source!, (node) => {
+      ts.forEachChild(source!, (node) => {
         if (
-          this.ts.isExpressionStatement(node) &&
-          this.ts.isStringLiteral(node.expression)
+          ts.isExpressionStatement(node) &&
+          ts.isStringLiteral(node.expression)
         ) {
           if (node.expression.text === 'use client') {
             if (isDirective) {
               isClientEntry = true
             } else {
-              if (throwOnInvalidDirective) {
-                const e = {
-                  messageText:
-                    'The `"use client"` directive must be put at the top of the file.',
+              if (options.throwOnInvalidDirective) {
+                throw new DirectiveError({
+                  ...NEXT_TS_ERRORS.MISPLACED_DIRECTIVE_USE_CLIENT_TOP,
                   start: node.expression.getStart(),
                   length: node.expression.getWidth(),
-                }
-                throw e
+                })
               }
             }
-          } else if (node.expression.text === 'use server') {
+          }
+
+          if (node.expression.text === 'use server') {
             if (isDirective) {
               isServerEntry = true
             } else {
-              if (throwOnInvalidDirective) {
-                const e = {
-                  messageText:
-                    'The `"use server"` directive must be put at the top of the file.',
+              if (options.throwOnInvalidDirective) {
+                throw new DirectiveError({
+                  ...NEXT_TS_ERRORS.MISPLACED_DIRECTIVE_USE_SERVER_TOP,
                   start: node.expression.getStart(),
                   length: node.expression.getWidth(),
-                }
-                throw e
+                })
               }
             }
           }
 
           if (isClientEntry && isServerEntry) {
-            const e = {
-              messageText:
-                'Cannot use both "use client" and "use server" directives in the same file.',
-              start: node.expression.getStart(),
-              length: node.expression.getWidth(),
+            if (options.throwOnInvalidDirective) {
+              throw new DirectiveError({
+                ...NEXT_TS_ERRORS.EXTRANEOUS_DIRECTIVE,
+                start: node.expression.getStart(),
+                length: node.expression.getWidth(),
+              })
             }
-            throw e
           }
         } else {
           isDirective = false

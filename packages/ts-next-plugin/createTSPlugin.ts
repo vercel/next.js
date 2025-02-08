@@ -1,12 +1,10 @@
-import type ts from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 import { TSNextPlugin } from './TSNextPlugin'
 import { createProxy } from './proxy'
 
-export const createTSPlugin: ts.server.PluginModuleFactory = ({
-  typescript: ts,
-}) => {
+export const createTSPlugin: ts.server.PluginModuleFactory = () => {
   function create(info: ts.server.PluginCreateInfo) {
-    const tsNextPlugin = new TSNextPlugin(ts, info)
+    const tsNextPlugin = new TSNextPlugin(info)
 
     const virtualFiles: Record<
       string,

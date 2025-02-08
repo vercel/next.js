@@ -3,13 +3,12 @@ import {
   DISALLOWED_SERVER_REACT_DOM_APIS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import type tsModule from 'typescript/lib/tsserverlibrary'
-import type { TSNextPlugin } from '../TSNextPlugin'
+import ts from 'typescript'
 
-export const server = (tsNextPlugin: TSNextPlugin) => ({
+export const server = {
   /** On the server layer we need to filter out some invalid completion results. */
-  filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
-    return entries.filter((e: tsModule.CompletionEntry) => {
+  filterCompletionsAtPosition(entries: ts.CompletionEntry[]) {
+    return entries.filter((e: ts.CompletionEntry) => {
       // Remove disallowed React APIs.
       if (
         DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
@@ -22,9 +21,7 @@ export const server = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   /** Filter out quick info for some React APIs. */
-  hasDisallowedReactAPIDefinition(
-    definitions: readonly tsModule.DefinitionInfo[]
-  ) {
+  hasDisallowedReactAPIDefinition(definitions: readonly ts.DefinitionInfo[]) {
     return definitions?.some(
       (d) =>
         DISALLOWED_SERVER_REACT_APIS.includes(d.name) &&
@@ -34,10 +31,10 @@ export const server = (tsNextPlugin: TSNextPlugin) => ({
 
   /** Give errors about disallowed imports such as `useState`. */
   getSemanticDiagnosticsForImportDeclaration(
-    source: tsModule.SourceFile,
-    node: tsModule.ImportDeclaration
+    source: ts.SourceFile,
+    node: ts.ImportDeclaration
   ) {
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const importPath = node.moduleSpecifier.getText(source!)
     const importClause = node.importClause
@@ -46,16 +43,14 @@ export const server = (tsNextPlugin: TSNextPlugin) => ({
     if (importClause) {
       if (/^['"]react['"]$/.test(importPath)) {
         // Check if it imports "useState"
-        if (namedBindings && tsNextPlugin.ts.isNamedImports(namedBindings)) {
+        if (namedBindings && ts.isNamedImports(namedBindings)) {
           const elements = namedBindings.elements
           for (const element of elements) {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_SERVER_API(name),
                 file: source,
-                category: tsNextPlugin.ts.DiagnosticCategory.Error,
-                code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
                 length: element.name.getWidth(),
               })
@@ -64,16 +59,14 @@ export const server = (tsNextPlugin: TSNextPlugin) => ({
         }
       } else if (/^['"]react-dom['"]$/.test(importPath)) {
         // Check if it imports "useFormState"
-        if (namedBindings && tsNextPlugin.ts.isNamedImports(namedBindings)) {
+        if (namedBindings && ts.isNamedImports(namedBindings)) {
           const elements = namedBindings.elements
           for (const element of elements) {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_DOM_APIS.includes(name)) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_SERVER_API(name),
                 file: source,
-                category: tsNextPlugin.ts.DiagnosticCategory.Error,
-                code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
                 length: element.name.getWidth(),
               })
@@ -85,4 +78,4 @@ export const server = (tsNextPlugin: TSNextPlugin) => ({
 
     return diagnostics
   },
-})
+}

@@ -1,19 +1,16 @@
 // This module provides intellisense for all exports from `"use server"` directive.
 
 import { NEXT_TS_ERRORS } from '../constant'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 import type { TSNextPlugin } from '../TSNextPlugin'
 import { isPromiseType } from '../utils'
 
 export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
-  isFunctionReturningPromise(
-    node: tsModule.Node,
-    typeChecker: tsModule.TypeChecker
-  ) {
+  isFunctionReturningPromise(node: ts.Node, typeChecker: ts.TypeChecker) {
     const type = typeChecker.getTypeAtLocation(node)
     const signatures = typeChecker.getSignaturesOfType(
       type,
-      tsNextPlugin.ts.SignatureKind.Call
+      ts.SignatureKind.Call
     )
 
     let isPromise = true
@@ -38,30 +35,26 @@ export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
     return isPromise
   },
   getSemanticDiagnosticsForExportDeclaration(
-    source: tsModule.SourceFile,
-    node: tsModule.ExportDeclaration
+    source: ts.SourceFile,
+    node: ts.ExportDeclaration
   ) {
     const typeChecker = tsNextPlugin.getTypeChecker()
     if (!typeChecker) return []
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const exportClause = node.exportClause
-    if (
-      !node.isTypeOnly &&
-      exportClause &&
-      tsNextPlugin.ts.isNamedExports(exportClause)
-    ) {
+    if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
       for (const e of exportClause.elements) {
         if (e.isTypeOnly) {
           continue
         }
         if (!this.isFunctionReturningPromise(e, typeChecker)) {
           diagnostics.push({
+            ...NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN({
+              isAlreadyAFunction: false,
+            }),
             file: source,
-            category: tsNextPlugin.ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN,
-            messageText: `The "use server" file can only export async functions.`,
             start: e.getStart(),
             length: e.getWidth(),
           })
@@ -73,34 +66,31 @@ export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getSemanticDiagnosticsForExportVariableStatement(
-    source: tsModule.SourceFile,
-    node: tsModule.VariableStatement
+    source: ts.SourceFile,
+    node: ts.VariableStatement
   ) {
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
-    if (tsNextPlugin.ts.isVariableDeclarationList(node.declarationList)) {
+    if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
         const initializer = declaration.initializer
         if (
           initializer &&
-          (tsNextPlugin.ts.isArrowFunction(initializer) ||
-            tsNextPlugin.ts.isFunctionDeclaration(initializer) ||
-            tsNextPlugin.ts.isFunctionExpression(initializer) ||
-            tsNextPlugin.ts.isCallExpression(initializer) ||
-            tsNextPlugin.ts.isIdentifier(initializer))
+          (ts.isArrowFunction(initializer) ||
+            ts.isFunctionDeclaration(initializer) ||
+            ts.isFunctionExpression(initializer) ||
+            ts.isCallExpression(initializer) ||
+            ts.isIdentifier(initializer))
         ) {
           diagnostics.push(
-            ...this.getSemanticDiagnosticsForFunctionExport(
-              source,
-              initializer
-            )
+            ...this.getSemanticDiagnosticsForFunctionExport(source, initializer)
           )
         } else {
           diagnostics.push({
+            ...NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN({
+              isAlreadyAFunction: false,
+            }),
             file: source,
-            category: tsNextPlugin.ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN,
-            messageText: `The "use server" file can only export async functions.`,
             start: declaration.getStart(),
             length: declaration.getWidth(),
           })
@@ -112,25 +102,25 @@ export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getSemanticDiagnosticsForFunctionExport(
-    source: tsModule.SourceFile,
+    source: ts.SourceFile,
     node:
-      | tsModule.FunctionDeclaration
-      | tsModule.ArrowFunction
-      | tsModule.FunctionExpression
-      | tsModule.CallExpression
-      | tsModule.Identifier
+      | ts.FunctionDeclaration
+      | ts.ArrowFunction
+      | ts.FunctionExpression
+      | ts.CallExpression
+      | ts.Identifier
   ) {
     const typeChecker = tsNextPlugin.getTypeChecker()
     if (!typeChecker) return []
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     if (!this.isFunctionReturningPromise(node, typeChecker)) {
       diagnostics.push({
+        ...NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN({
+          isAlreadyAFunction: true,
+        }),
         file: source,
-        category: tsNextPlugin.ts.DiagnosticCategory.Error,
-        code: NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN,
-        messageText: `The "use server" file can only export async functions. Add "async" to the function declaration or return a Promise.`,
         start: node.getStart(),
         length: node.getWidth(),
       })

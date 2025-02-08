@@ -8,26 +8,26 @@ import {
 } from '../constant'
 import { isPositionInsideNode } from '../utils'
 
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 import type { TSNextPlugin } from '../TSNextPlugin'
 
 export const entry = (tsNextPlugin: TSNextPlugin) => ({
   /** Give auto completion for the component's props */
   getCompletionsAtPosition(
     fileName: string,
-    node: tsModule.FunctionDeclaration,
+    node: ts.FunctionDeclaration,
     position: number
   ) {
-    const entries: tsModule.CompletionEntry[] = []
+    const entries: ts.CompletionEntry[] = []
 
     // Default export function might not accept parameters
     const paramNode = node.parameters?.[0] as
-      | tsModule.ParameterDeclaration
+      | ts.ParameterDeclaration
       | undefined
 
     if (paramNode && isPositionInsideNode(position, paramNode)) {
       const props = paramNode?.name
-      if (props && tsNextPlugin.ts.isObjectBindingPattern(props)) {
+      if (props && ts.isObjectBindingPattern(props)) {
         let validProps = []
         let validPropsWithType = []
         let type: string
@@ -68,12 +68,12 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                   name,
                   insertText: name,
                   sortText: `_${name}`,
-                  kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
-                  kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+                  kind: ts.ScriptElementKind.memberVariableElement,
+                  kindModifiers: ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop`,
                   },
-                } as tsModule.CompletionEntry)
+                } as ts.CompletionEntry)
               }
             }
 
@@ -82,7 +82,7 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
         }
 
         // Auto completion for types
-        if (paramNode.type && tsNextPlugin.ts.isTypeLiteralNode(paramNode.type)) {
+        if (paramNode.type && ts.isTypeLiteralNode(paramNode.type)) {
           for (const member of paramNode.type.members) {
             if (isPositionInsideNode(position, member)) {
               for (const name of validPropsWithType) {
@@ -90,12 +90,12 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                   name,
                   insertText: name,
                   sortText: `_${name}`,
-                  kind: tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
-                  kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+                  kind: ts.ScriptElementKind.memberVariableElement,
+                  kindModifiers: ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop type`,
                   },
-                } as tsModule.CompletionEntry)
+                } as ts.CompletionEntry)
               }
 
               break
@@ -111,12 +111,11 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
   /** Give error diagnostics for the component */
   getSemanticDiagnostics(
     fileName: string,
-    source: tsModule.SourceFile,
-    node: tsModule.FunctionDeclaration
+    source: ts.SourceFile,
+    node: ts.FunctionDeclaration
   ) {
     let validProps = []
-    let type: string
-
+    let type: 'page' | 'layout'
     if (tsNextPlugin.isPageFile(fileName)) {
       // For page entries (page.js), it can only have `params` and `searchParams`
       // as the prop names.
@@ -136,18 +135,18 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
       type = 'layout'
     }
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const props = node.parameters?.[0]?.name
-    if (props && tsNextPlugin.ts.isObjectBindingPattern(props)) {
+    if (props && ts.isObjectBindingPattern(props)) {
       for (const prop of props.elements) {
         const propName = (prop.propertyName || prop.name).getText()
         if (!validProps.includes(propName)) {
           diagnostics.push({
+            ...NEXT_TS_ERRORS[
+              type === 'page' ? 'INVALID_PAGE_PROP' : 'INVALID_LAYOUT_PROP'
+            ](propName),
             file: source,
-            category: tsNextPlugin.ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-            messageText: `"${propName}" is not a valid ${type} prop.`,
             start: prop.getStart(),
             length: prop.getWidth(),
           })

@@ -1,11 +1,13 @@
 import { NEXT_TS_ERRORS } from '../constant'
 import type { TSNextPlugin } from '../TSNextPlugin'
 import { isPositionInsideNode } from '../utils'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 
 const TYPE_ANNOTATION = ': Metadata | null'
 const TYPE_ANNOTATION_ASYNC = ': Promise<Metadata | null>'
 const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
+const METADATA_EXPORT = 'metadata'
+const GENERATE_METADATA_EXPORT = 'generateMetadata'
 
 const updatedFilePositionsCache = new Map<string, number[]>()
 
@@ -14,12 +16,10 @@ function cacheKey(
   isFunction: boolean,
   isGenerateMetadata?: boolean
 ) {
-  return `${fileName}:${isFunction ? 'function' : 'variable'}:${isGenerateMetadata ? 'generateMetadata' : 'metadata'}`
+  return `${fileName}:${isFunction ? 'function' : 'variable'}:${isGenerateMetadata ? GENERATE_METADATA_EXPORT : METADATA_EXPORT}`
 }
 
-function isTyped(
-  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
-) {
+function isTyped(node: ts.VariableDeclaration | ts.FunctionDeclaration) {
   return node.type !== undefined
 }
 
@@ -28,7 +28,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   proxyDiagnostics(
     fileName: string,
     pos: number[],
-    n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
+    n: ts.VariableDeclaration | ts.FunctionDeclaration
   ) {
     // Get diagnostics
     const { languageService } = tsNextPlugin.info
@@ -57,13 +57,9 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getDefinitionAndBoundSpan(
-    fileName: Parameters<
-      tsModule.LanguageService['getDefinitionAndBoundSpan']
-    >[0],
-    position: Parameters<
-      tsModule.LanguageService['getDefinitionAndBoundSpan']
-    >[1]
-  ): ReturnType<tsModule.LanguageService['getDefinitionAndBoundSpan']> {
+    fileName: Parameters<ts.LanguageService['getDefinitionAndBoundSpan']>[0],
+    position: Parameters<ts.LanguageService['getDefinitionAndBoundSpan']>[1]
+  ): ReturnType<ts.LanguageService['getDefinitionAndBoundSpan']> {
     const node = this.getMetadataExport(fileName, position)
     if (!node) return
     if (isTyped(node)) return
@@ -87,9 +83,9 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getQuickInfoAtPosition(
-    fileName: Parameters<tsModule.LanguageService['getQuickInfoAtPosition']>[0],
-    position: Parameters<tsModule.LanguageService['getQuickInfoAtPosition']>[1]
-  ): ReturnType<tsModule.LanguageService['getQuickInfoAtPosition']> {
+    fileName: Parameters<ts.LanguageService['getQuickInfoAtPosition']>[0],
+    position: Parameters<ts.LanguageService['getQuickInfoAtPosition']>[1]
+  ): ReturnType<ts.LanguageService['getQuickInfoAtPosition']> {
     tsNextPlugin.log('getQuickInfoAtPosition')
     const node = this.getMetadataExport(fileName, position)
     if (!node) return
@@ -106,26 +102,16 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   },
 
   getCompletionEntryDetails(
-    fileName: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
-    >[0],
-    position: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
-    >[1],
-    entryName: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
-    >[2],
+    fileName: Parameters<ts.LanguageService['getCompletionEntryDetails']>[0],
+    position: Parameters<ts.LanguageService['getCompletionEntryDetails']>[1],
+    entryName: Parameters<ts.LanguageService['getCompletionEntryDetails']>[2],
     formatOptions: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
+      ts.LanguageService['getCompletionEntryDetails']
     >[3],
-    source: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
-    >[4],
-    preferences: Parameters<
-      tsModule.LanguageService['getCompletionEntryDetails']
-    >[5],
-    data: Parameters<tsModule.LanguageService['getCompletionEntryDetails']>[6]
-  ): ReturnType<tsModule.LanguageService['getCompletionEntryDetails']> {
+    source: Parameters<ts.LanguageService['getCompletionEntryDetails']>[4],
+    preferences: Parameters<ts.LanguageService['getCompletionEntryDetails']>[5],
+    data: Parameters<ts.LanguageService['getCompletionEntryDetails']>[6]
+  ): ReturnType<ts.LanguageService['getCompletionEntryDetails']> {
     tsNextPlugin.log('getCompletionEntryDetails')
     const node = this.getMetadataExport(fileName, position)
     if (!node) return
@@ -152,10 +138,10 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
 
   updateVirtualFileWithType(
     fileName: string,
-    node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration,
+    node: ts.VariableDeclaration | ts.FunctionDeclaration,
     isGenerateMetadata?: boolean
   ) {
-    const isFunction = tsNextPlugin.ts.isFunctionDeclaration(node)
+    const isFunction = ts.isFunctionDeclaration(node)
     const key = cacheKey(fileName, isFunction, isGenerateMetadata)
 
     if (updatedFilePositionsCache.has(key)) {
@@ -182,7 +168,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
       if (isFunction) {
         if (isGenerateMetadata) {
           const isAsync = node.modifiers?.some(
-            (m) => m.kind === tsNextPlugin.ts.SyntaxKind.AsyncKeyword
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
           )
           annotation = isAsync ? TYPE_ANNOTATION_ASYNC : TYPE_ANNOTATION
         } else {
@@ -217,24 +203,20 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   /** Find the `export const metadata = ...` node. */
   getMetadataExport(fileName: string, position: number) {
     const source = tsNextPlugin.getSource(fileName)
-    let metadataExport: tsModule.VariableDeclaration | undefined
+    let metadataExport: ts.VariableDeclaration | undefined
 
     if (source) {
-      tsNextPlugin.ts.forEachChild(source, function visit(node) {
+      ts.forEachChild(source, function visit(node) {
         if (metadataExport) return
 
         // Covered by this node
         if (isPositionInsideNode(position, node)) {
           // Export variable
           if (
-            tsNextPlugin.ts.isVariableStatement(node) &&
-            node.modifiers?.some(
-              (m) => m.kind === tsNextPlugin.ts.SyntaxKind.ExportKeyword
-            )
+            ts.isVariableStatement(node) &&
+            node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
           ) {
-            if (
-              tsNextPlugin.ts.isVariableDeclarationList(node.declarationList)
-            ) {
+            if (ts.isVariableDeclarationList(node.declarationList)) {
               for (const declaration of node.declarationList.declarations) {
                 if (
                   isPositionInsideNode(position, declaration) &&
@@ -257,7 +239,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
     fileName: string,
     position: number,
     options: any,
-    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
+    prior: ts.WithMetadata<ts.CompletionInfo>
   ) {
     const node = this.getMetadataExport(fileName, position)
     if (!node) return prior
@@ -282,15 +264,14 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
       completions.entries = completions.entries
         .filter((e) => {
           return [
-            tsNextPlugin.ts.ScriptElementKind.memberVariableElement,
-            tsNextPlugin.ts.ScriptElementKind.typeElement,
-            tsNextPlugin.ts.ScriptElementKind.string,
+            ts.ScriptElementKind.memberVariableElement,
+            ts.ScriptElementKind.typeElement,
+            ts.ScriptElementKind.string,
           ].includes(e.kind)
         })
         .map((e) => {
           const insertText =
-            e.kind ===
-              tsNextPlugin.ts.ScriptElementKind.memberVariableElement &&
+            e.kind === ts.ScriptElementKind.memberVariableElement &&
             /^[a-zA-Z0-9_]+$/.test(e.name)
               ? `${e.name}: `
               : e.name
@@ -316,19 +297,17 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
 
   getSemanticDiagnosticsForExportVariableStatementInClientEntry(
     fileName: string,
-    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
+    node: ts.VariableStatement | ts.FunctionDeclaration
   ) {
     const source = tsNextPlugin.getSource(fileName)
 
     // It is not allowed to export `metadata` or `generateMetadata` in client entry
-    if (tsNextPlugin.ts.isFunctionDeclaration(node)) {
-      if (node.name?.getText() === 'generateMetadata') {
+    if (ts.isFunctionDeclaration(node)) {
+      if (node.name?.getText() === GENERATE_METADATA_EXPORT) {
         return [
           {
+            ...NEXT_TS_ERRORS.INVALID_CLIENT_EXPORT(GENERATE_METADATA_EXPORT),
             file: source,
-            category: tsNextPlugin.ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-            messageText: `The Next.js 'generateMetadata' API is not allowed in a client component.`,
             start: node.name.getStart(),
             length: node.name.getWidth(),
           },
@@ -337,13 +316,11 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
     } else {
       for (const declaration of node.declarationList.declarations) {
         const name = declaration.name.getText()
-        if (name === 'metadata') {
+        if (name === METADATA_EXPORT) {
           return [
             {
               file: source,
-              category: tsNextPlugin.ts.DiagnosticCategory.Error,
-              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-              messageText: `The Next.js 'metadata' API is not allowed in a client component.`,
+              ...NEXT_TS_ERRORS.INVALID_CLIENT_EXPORT(METADATA_EXPORT),
               start: declaration.name.getStart(),
               length: declaration.name.getWidth(),
             },
@@ -356,10 +333,10 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
 
   getSemanticDiagnosticsForExportVariableStatement(
     fileName: string,
-    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
+    node: ts.VariableStatement | ts.FunctionDeclaration
   ) {
-    if (tsNextPlugin.ts.isFunctionDeclaration(node)) {
-      if (node.name?.getText() === 'generateMetadata') {
+    if (ts.isFunctionDeclaration(node)) {
+      if (node.name?.getText() === GENERATE_METADATA_EXPORT) {
         if (isTyped(node)) return []
 
         // We annotate with the type in a virtual language service
@@ -370,7 +347,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
       }
     } else {
       for (const declaration of node.declarationList.declarations) {
-        if (declaration.name.getText() === 'metadata') {
+        if (declaration.name.getText() === METADATA_EXPORT) {
           if (isTyped(declaration)) break
 
           // We annotate with the type in a virtual language service
@@ -386,20 +363,19 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
 
   getSemanticDiagnosticsForExportDeclarationInClientEntry(
     fileName: string,
-    node: tsModule.ExportDeclaration
+    node: ts.ExportDeclaration
   ) {
     const source = tsNextPlugin.getSource(fileName)
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const exportClause = node.exportClause
-    if (exportClause && tsNextPlugin.ts.isNamedExports(exportClause)) {
+    if (exportClause && ts.isNamedExports(exportClause)) {
       for (const e of exportClause.elements) {
-        if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
+        const name = e.name.getText()
+        if ([GENERATE_METADATA_EXPORT, METADATA_EXPORT].includes(name)) {
           diagnostics.push({
+            ...NEXT_TS_ERRORS.INVALID_CLIENT_EXPORT(name),
             file: source,
-            category: tsNextPlugin.ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-            messageText: `The Next.js '${e.name.getText()}' API is not allowed in a client component.`,
             start: e.name.getStart(),
             length: e.name.getWidth(),
           })
@@ -412,12 +388,12 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
 
   getSemanticDiagnosticsForExportDeclaration(
     fileName: string,
-    node: tsModule.ExportDeclaration
+    node: ts.ExportDeclaration
   ) {
     const exportClause = node.exportClause
-    if (exportClause && tsNextPlugin.ts.isNamedExports(exportClause)) {
+    if (exportClause && ts.isNamedExports(exportClause)) {
       for (const e of exportClause.elements) {
-        if (e.name.getText() === 'metadata') {
+        if (e.name.getText() === METADATA_EXPORT) {
           // Get the original declaration node of element
           const typeChecker = tsNextPlugin.getTypeChecker()
           if (typeChecker) {
@@ -426,10 +402,7 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
               const metadataSymbol = typeChecker.getAliasedSymbol(symbol)
               if (metadataSymbol && metadataSymbol.declarations) {
                 const declaration = metadataSymbol.declarations[0]
-                if (
-                  declaration &&
-                  tsNextPlugin.ts.isVariableDeclaration(declaration)
-                ) {
+                if (declaration && ts.isVariableDeclaration(declaration)) {
                   if (isTyped(declaration)) break
 
                   const declarationFileName =
@@ -454,10 +427,8 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
                     } else {
                       return [
                         {
+                          ...NEXT_TS_ERRORS.INVALID_METADATA_EXPORT_TYPE,
                           file: tsNextPlugin.getSource(fileName),
-                          category: tsNextPlugin.ts.DiagnosticCategory.Error,
-                          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
                           start: e.name.getStart(),
                           length: e.name.getWidth(),
                         },

@@ -1,36 +1,36 @@
 // This module provides intellisense for page and layout's exported configs.
 
-import { getAPIDescription, isPositionInsideNode, removeStringQuotes } from '../utils'
+import {
+  getAPIDescription,
+  isPositionInsideNode,
+  removeStringQuotes,
+} from '../utils'
 import {
   NEXT_TS_ERRORS,
   ALLOWED_EXPORTS,
   LEGACY_CONFIG_EXPORT,
   API_DOCS,
 } from '../constant'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 import type { TSNextPlugin } from '../TSNextPlugin'
 
 export const config = (tsNextPlugin: TSNextPlugin) => ({
   visitEntryConfig(
     fileName: string,
     position: number,
-    callback: (entryConfig: string, value: tsModule.VariableDeclaration) => void
+    callback: (entryConfig: string, value: ts.VariableDeclaration) => void
   ) {
     const source = tsNextPlugin.getSource(fileName)
     if (source) {
-      tsNextPlugin.ts.forEachChild(source, function visit(node) {
+      ts.forEachChild(source, function visit(node) {
         // Covered by this node
         if (isPositionInsideNode(position, node)) {
           // Export variable
           if (
-            tsNextPlugin.ts.isVariableStatement(node) &&
-            node.modifiers?.some(
-              (m) => m.kind === tsNextPlugin.ts.SyntaxKind.ExportKeyword
-            )
+            ts.isVariableStatement(node) &&
+            node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
           ) {
-            if (
-              tsNextPlugin.ts.isVariableDeclarationList(node.declarationList)
-            ) {
+            if (ts.isVariableDeclarationList(node.declarationList)) {
               for (const declaration of node.declarationList.declarations) {
                 if (isPositionInsideNode(position, declaration)) {
                   // `export const ... = ...`
@@ -47,10 +47,10 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 
   /** Show docs when hovering on the exported configs. */
   getQuickInfoAtPosition(
-    fileName: Parameters<tsModule.LanguageService['getQuickInfoAtPosition']>[0],
-    position: Parameters<tsModule.LanguageService['getQuickInfoAtPosition']>[1]
-  ): ReturnType<tsModule.LanguageService['getQuickInfoAtPosition']> {
-    let overridden: tsModule.QuickInfo | undefined
+    fileName: Parameters<ts.LanguageService['getQuickInfoAtPosition']>[0],
+    position: Parameters<ts.LanguageService['getQuickInfoAtPosition']>[1]
+  ): ReturnType<ts.LanguageService['getQuickInfoAtPosition']> {
+    let overridden: ts.QuickInfo | undefined
     this.visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!(entryConfig in API_DOCS)) return
 
@@ -59,14 +59,12 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 
       const docsLink = {
         kind: 'text',
-        text:
-          `\n\nRead more about the "${entryConfig}" option: ${
-          API_DOCS[entryConfig].link}`,
+        text: `\n\nRead more about the "${entryConfig}" option: ${API_DOCS[entryConfig].link}`,
       }
 
       if (value && isPositionInsideNode(position, value)) {
         // Hovers the value of the config
-        const isString = tsNextPlugin.ts.isStringLiteral(value)
+        const isString = ts.isStringLiteral(value)
         const text = removeStringQuotes(value.getText())
         const key = isString ? `"${text}"` : text
 
@@ -76,8 +74,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 
         if (isValid) {
           overridden = {
-            kind: tsNextPlugin.ts.ScriptElementKind.enumElement,
-            kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+            kind: ts.ScriptElementKind.enumElement,
+            kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
               start: value.getStart(),
               length: value.getWidth(),
@@ -97,8 +95,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         } else {
           // Wrong value, display the docs link
           overridden = {
-            kind: tsNextPlugin.ts.ScriptElementKind.enumElement,
-            kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+            kind: ts.ScriptElementKind.enumElement,
+            kindModifiers: ts.ScriptElementKindModifier.none,
             textSpan: {
               start: value.getStart(),
               length: value.getWidth(),
@@ -110,8 +108,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
       } else {
         // Hovers the name of the config
         overridden = {
-          kind: tsNextPlugin.ts.ScriptElementKind.enumElement,
-          kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+          kind: ts.ScriptElementKind.enumElement,
+          kindModifiers: ts.ScriptElementKindModifier.none,
           textSpan: {
             start: name.getStart(),
             length: name.getWidth(),
@@ -137,9 +135,9 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
       insertText: removeStringQuotes(name),
       sortText: `${sort}`,
       kind: isString
-        ? tsNextPlugin.ts.ScriptElementKind.string
-        : tsNextPlugin.ts.ScriptElementKind.unknown,
-      kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+        ? ts.ScriptElementKind.string
+        : ts.ScriptElementKind.unknown,
+      kindModifiers: ts.ScriptElementKindModifier.none,
       labelDetails: {
         description: `Next.js ${apiName} option`,
       },
@@ -147,15 +145,15 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         exportName: apiName,
         moduleSpecifier: 'next/typescript/entry_option_value',
       },
-    } as tsModule.CompletionEntry
+    } as ts.CompletionEntry
   },
 
   createAutoCompletionOptionName(sort: number, name: string) {
     return {
       name,
       sortText: `!${sort}`,
-      kind: tsNextPlugin.ts.ScriptElementKind.constElement,
-      kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.exportedModifier,
+      kind: ts.ScriptElementKind.constElement,
+      kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
       labelDetails: {
         description: `Next.js ${name} option`,
       },
@@ -163,14 +161,14 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         exportName: name,
         moduleSpecifier: 'next/typescript/entry_option_name',
       },
-    } as tsModule.CompletionEntry
+    } as ts.CompletionEntry
   },
 
   /** Auto completion for entry exported configs. */
   addCompletionsAtPosition(
     fileName: string,
     position: number,
-    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
+    prior: ts.WithMetadata<ts.CompletionInfo>
   ) {
     this.visitEntryConfig(fileName, position, (entryConfig, declaration) => {
       if (!API_DOCS[entryConfig]) {
@@ -202,10 +200,7 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
    * Show details on the side when auto completing.
    * Note that this does not directly compare to ts.LanguageService['getCompletionEntryDetails']
    */
-  getCompletionEntryDetails(
-    entryName: string,
-    data: tsModule.CompletionEntryData
-  ) {
+  getCompletionEntryDetails(entryName: string, data: ts.CompletionEntryData) {
     if (
       data &&
       data.moduleSpecifier &&
@@ -221,8 +216,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
       }
       return {
         name: entryName,
-        kind: tsNextPlugin.ts.ScriptElementKind.enumElement,
-        kindModifiers: tsNextPlugin.ts.ScriptElementKindModifier.none,
+        kind: ts.ScriptElementKind.enumElement,
+        kindModifiers: ts.ScriptElementKindModifier.none,
         displayParts: [],
         documentation: [
           {
@@ -236,134 +231,50 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 
   /** Show errors for invalid export fields. */
   getSemanticDiagnosticsForExportVariableStatement(
-    source: tsModule.SourceFile,
-    node: tsModule.VariableStatement
+    sourceFile: ts.SourceFile,
+    node: ts.VariableStatement
   ) {
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     // Check if it has correct option exports
-    if (tsNextPlugin.ts.isVariableDeclarationList(node.declarationList)) {
+    if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
         const name = declaration.name
-        if (tsNextPlugin.ts.isIdentifier(name)) {
+        if (ts.isIdentifier(name)) {
           if (!ALLOWED_EXPORTS.includes(name.text) && !API_DOCS[name.text]) {
             diagnostics.push({
-              file: source,
-              category: tsNextPlugin.ts.DiagnosticCategory.Error,
-              code: NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT,
-              messageText: `"${name.text}" is not a valid Next.js entry export value.`,
+              ...NEXT_TS_ERRORS.INVALID_ENTRY_EXPORT(name.text),
+              file: sourceFile,
               start: name.getStart(),
               length: name.getWidth(),
             })
           } else if (API_DOCS[name.text]) {
             // Check if the value is valid
-            const value = declaration.initializer
-            const options = API_DOCS[name.text].options
-
-            if (value && options) {
-              let displayedValue = ''
-              let errorMessage = ''
-              let isInvalid = false
-
-              if (
-                tsNextPlugin.ts.isStringLiteral(value) ||
-                tsNextPlugin.ts.isNoSubstitutionTemplateLiteral(value)
-              ) {
-                const val = `"${removeStringQuotes(value.getText())}"`
-                const allowedValues = Object.keys(options).filter((v) =>
-                  /^['"]/.test(v)
-                )
-
-                if (
-                  !allowedValues.includes(val) &&
-                  !API_DOCS[name.text].isValid?.(val)
-                ) {
-                  isInvalid = true
-                  displayedValue = val
-                }
-              } else if (
-                tsNextPlugin.ts.isNumericLiteral(value) ||
-                (tsNextPlugin.ts.isPrefixUnaryExpression(value) &&
-                  tsNextPlugin.ts.isMinusToken((value as any).operator) &&
-                  (tsNextPlugin.ts.isNumericLiteral(
-                    (value as any).operand.kind
-                  ) ||
-                    (tsNextPlugin.ts.isIdentifier(
-                      (value as any).operand.kind
-                    ) &&
-                      (value as any).operand.kind.getText() === 'Infinity'))) ||
-                (tsNextPlugin.ts.isIdentifier(value) &&
-                  value.getText() === 'Infinity')
-              ) {
-                const v = value.getText()
-                if (!API_DOCS[name.text].isValid?.(v)) {
-                  isInvalid = true
-                  displayedValue = v
-                }
-              } else if (
-                value.kind === tsNextPlugin.ts.SyntaxKind.TrueKeyword ||
-                value.kind === tsNextPlugin.ts.SyntaxKind.FalseKeyword
-              ) {
-                const v = value.getText()
-                if (!API_DOCS[name.text].isValid?.(v)) {
-                  isInvalid = true
-                  displayedValue = v
-                }
-              } else if (tsNextPlugin.ts.isArrayLiteralExpression(value)) {
-                const v = value.getText()
-                if (
-                  !API_DOCS[name.text].isValid?.(
-                    JSON.stringify(value.elements.map((e) => e.getText()))
-                  )
-                ) {
-                  isInvalid = true
-                  displayedValue = v
-                }
-              } else if (
-                // Other literals
-                tsNextPlugin.ts.isBigIntLiteral(value) ||
-                tsNextPlugin.ts.isObjectLiteralExpression(value) ||
-                tsNextPlugin.ts.isRegularExpressionLiteral(value) ||
-                tsNextPlugin.ts.isPrefixUnaryExpression(value)
-              ) {
-                isInvalid = true
-                displayedValue = value.getText()
-              } else {
-                // Not a literal, error because it's not statically analyzable
-                isInvalid = true
-                displayedValue = value.getText()
-                errorMessage = `"${displayedValue}" is not a valid value for the "${name.text}" option. The configuration must be statically analyzable.`
-              }
-
-              if (isInvalid) {
-                diagnostics.push({
-                  file: source,
-                  category: tsNextPlugin.ts.DiagnosticCategory.Error,
-                  code: NEXT_TS_ERRORS.INVALID_OPTION_VALUE,
-                  messageText:
-                    errorMessage ||
-                    `"${displayedValue}" is not a valid value for the "${name.text}" option.`,
-                  start: value.getStart(),
-                  length: value.getWidth(),
-                })
-              }
+            const expression = declaration.initializer
+            if (!expression) continue
+            const invalidOptionError = validateOptions(expression, name.text)
+            if (invalidOptionError) {
+              diagnostics.push({
+                ...invalidOptionError,
+                file: sourceFile,
+                start: expression.getStart(),
+                length: expression.getWidth(),
+              })
             }
           } else if (name.text === LEGACY_CONFIG_EXPORT) {
             // export const config = { ... }
             // Error if using `amp: ...`
             const value = declaration.initializer
-            if (value && tsNextPlugin.ts.isObjectLiteralExpression(value)) {
+            if (value && ts.isObjectLiteralExpression(value)) {
               for (const prop of value.properties) {
                 if (
-                  tsNextPlugin.ts.isPropertyAssignment(prop) &&
-                  tsNextPlugin.ts.isIdentifier(prop.name) &&
+                  ts.isPropertyAssignment(prop) &&
+                  ts.isIdentifier(prop.name) &&
                   prop.name.text === 'amp'
                 ) {
                   diagnostics.push({
-                    file: source,
-                    category: tsNextPlugin.ts.DiagnosticCategory.Error,
-                    code: NEXT_TS_ERRORS.INVALID_CONFIG_OPTION,
-                    messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
+                    ...NEXT_TS_ERRORS.INVALID_AMP_IN_APP_DIR,
+                    file: sourceFile,
                     start: prop.getStart(),
                     length: prop.getWidth(),
                   })
@@ -378,3 +289,71 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
     return diagnostics
   },
 })
+
+const validateOptions = (expression: ts.Expression, option: string) => {
+  const valueText = expression.getText()
+  const options = API_DOCS[option].options
+  if (!options) return
+
+  if (
+    ts.isStringLiteral(expression) ||
+    ts.isNoSubstitutionTemplateLiteral(expression)
+  ) {
+    const val = `"${removeStringQuotes(valueText)}"`
+    const allowedValues = Object.keys(options).filter((v) => /^['"]/.test(v))
+    if (!allowedValues.includes(val) && !API_DOCS[option].isValid?.(val)) {
+      return NEXT_TS_ERRORS.INVALID_OPTION_STATIC_VALUE(val, option)
+    }
+    return
+  }
+
+  if (
+    ts.isNumericLiteral(expression) ||
+    (ts.isPrefixUnaryExpression(expression) &&
+      ts.isMinusToken((expression as any).operator) &&
+      (ts.isNumericLiteral((expression as any).operand.kind) ||
+        (ts.isIdentifier((expression as any).operand.kind) &&
+          (expression as any).operand.kind.getText() === 'Infinity'))) ||
+    (ts.isIdentifier(expression) && valueText === 'Infinity')
+  ) {
+    if (!API_DOCS[option].isValid?.(valueText)) {
+      return NEXT_TS_ERRORS.INVALID_OPTION_STATIC_VALUE(valueText, option)
+    }
+    return
+  }
+
+  if (
+    expression.kind === ts.SyntaxKind.TrueKeyword ||
+    expression.kind === ts.SyntaxKind.FalseKeyword
+  ) {
+    if (!API_DOCS[option].isValid?.(valueText)) {
+      return NEXT_TS_ERRORS.INVALID_OPTION_STATIC_VALUE(valueText, option)
+    }
+    return
+  }
+
+  if (ts.isArrayLiteralExpression(expression)) {
+    if (
+      !API_DOCS[option].isValid?.(
+        JSON.stringify(expression.elements.map((e) => e.getText()))
+      )
+    ) {
+      return NEXT_TS_ERRORS.INVALID_OPTION_STATIC_VALUE(valueText, option)
+    }
+    return
+  }
+
+  if (
+    // Other literals
+    ts.isBigIntLiteral(expression) ||
+    ts.isObjectLiteralExpression(expression) ||
+    ts.isRegularExpressionLiteral(expression) ||
+    ts.isPrefixUnaryExpression(expression)
+  ) {
+    // Not a literal, error because it's not statically analyzable
+    return NEXT_TS_ERRORS.INVALID_OPTION_STATIC_VALUE(valueText, option)
+  }
+
+  // Not a literal, error because it's not statically analyzable
+  return NEXT_TS_ERRORS.INVALID_OPTION_NOT_STATIC_VALUE(valueText, option)
+}

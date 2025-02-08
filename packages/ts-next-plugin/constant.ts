@@ -1,15 +1,139 @@
+import ts from 'typescript'
+
+type PartialDiagnostic = Pick<
+  ts.Diagnostic,
+  'category' | 'messageText' | 'code'
+>
+
 export const NEXT_TS_ERRORS = {
-  INVALID_SERVER_API: 71001,
-  INVALID_ENTRY_EXPORT: 71002,
-  INVALID_OPTION_VALUE: 71003,
-  MISPLACED_ENTRY_DIRECTIVE: 71004,
-  INVALID_PAGE_PROP: 71005,
-  INVALID_CONFIG_OPTION: 71006,
-  INVALID_CLIENT_ENTRY_PROP: 71007,
-  INVALID_METADATA_EXPORT: 71008,
-  INVALID_ERROR_COMPONENT: 71009,
-  INVALID_ENTRY_DIRECTIVE: 71010,
-  INVALID_SERVER_ENTRY_RETURN: 71011,
+  /** @deprecated replaced by 71012 and 71013 */
+  DEPRECATED_INVALID_OPTION_VALUE: 71003,
+  /** @deprecated replaced by 71014, 71015, and 71016 */
+  DEPRECATED_MISPLACED_ENTRY_DIRECTIVE: 71004,
+  /** @deprecated replaced by 71017 and 71018 */
+  DEPRECATED_INVALID_PAGE_PROP: 71005,
+  /** @deprecated unused */
+  DEPRECATED_INVALID_ENTRY_DIRECTIVE: 71010,
+  /** @deprecated replaced by 71019 and 71020 */
+  DEPRECATED_INVALID_CLIENT_ENTRY: 71007,
+  /** @deprecated replaced by 71021 and 71022 */
+  DEPRECATED_INVALID_METADATA_EXPORT: 71008,
+
+  INVALID_SERVER_API: (name: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71001,
+    messageText: `"${name}" is not allowed in Server Components.`,
+  }),
+  INVALID_ENTRY_EXPORT: (name: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71002,
+    messageText: `"${name}" is not a valid Next.js entry export value.`,
+  }),
+  INVALID_AMP_IN_APP_DIR: {
+    category: ts.DiagnosticCategory.Error,
+    code: 71006,
+    messageText: `AMP is not supported in the app directory. If you need to use AMP it will continue to be supported in the pages directory.`,
+  },
+  INVALID_ERROR_COMPONENT: (isGlobalErrorFile: boolean) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71009,
+    messageText: `${isGlobalErrorFile ? 'Global' : ''}Error Components must be Client Components, please add the "use client" directive: https://nextjs.org/docs/app/api-reference/file-conventions/error`,
+  }),
+  INVALID_SERVER_ENTRY_RETURN: ({
+    isAlreadyAFunction,
+  }: {
+    isAlreadyAFunction: boolean
+  }) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71011,
+    messageText: `The "use server" file can only export async functions.${isAlreadyAFunction ? ' Add "async" to the function declaration or return a Promise.' : ''}`,
+  }),
+  INVALID_OPTION_STATIC_VALUE: (displayedValue: string, option: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    messageText: `"${displayedValue}" is not a valid value for the "${option}" option.`,
+    code: 71012,
+  }),
+  INVALID_OPTION_NOT_STATIC_VALUE: (
+    displayedValue: string,
+    option: string
+  ) => ({
+    category: ts.DiagnosticCategory.Error,
+    messageText: `"${displayedValue}" is not a valid value for the "${option}" option. The configuration must be statically analyzable.`,
+    code: 71013,
+  }),
+  MISPLACED_DIRECTIVE_USE_CLIENT_TOP: {
+    category: ts.DiagnosticCategory.Error,
+    code: 71014,
+    messageText:
+      'The `"use client"` directive must be put at the top of the file.',
+  },
+  MISPLACED_DIRECTIVE_USE_SERVER_TOP: {
+    category: ts.DiagnosticCategory.Error,
+    code: 71015,
+    messageText:
+      'The `"use server"` directive must be put at the top of the file.',
+  },
+  EXTRANEOUS_DIRECTIVE: {
+    category: ts.DiagnosticCategory.Error,
+    code: 71016,
+    messageText:
+      'Cannot use both "use client" and "use server" directives in the same file.',
+  },
+  INVALID_PAGE_PROP: (propName: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71017,
+    messageText: `"${propName}" is not a valid page prop. Only ${toEnglishList(ALLOWED_PAGE_PROPS, '`')} are allowed.`,
+  }),
+  INVALID_LAYOUT_PROP: (propName: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71018,
+    messageText: `"${propName}" is not a valid layout prop. Only ${toEnglishList(ALLOWED_LAYOUT_PROPS, '`')} are allowed.`,
+  }),
+  INVALID_CLIENT_ENTRY_PROP_NOT_SERVER_ACTION: (name: string) => ({
+    category: ts.DiagnosticCategory.Warning,
+    messageText: [
+      `Props must be serializable for components in the "use client" entry file. `,
+      `"${name}" is a function that's not a Server Action. `,
+      `Rename "${name}" either to "action" or have its name end with "Action" e.g. "${name}Action" to indicate it is a Server Action.`,
+    ].join(''),
+    code: 71019,
+  }),
+  INVALID_CLIENT_ENTRY_PROP_NOT_SERIALIZABLE: (name: string) => ({
+    category: ts.DiagnosticCategory.Warning,
+    messageText: `Props must be serializable for components in the "use client" entry file. "${name}" is not serializable.`,
+    code: 71020,
+  }),
+  INVALID_CLIENT_EXPORT: (name: string) => ({
+    category: ts.DiagnosticCategory.Error,
+    code: 71021,
+    messageText: `The Next.js "${name}" API is not allowed in a client component.`,
+  }),
+  INVALID_METADATA_EXPORT_TYPE: {
+    category: ts.DiagnosticCategory.Error,
+    // TODO: this is not the most helpful error message
+    messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
+    code: 71022,
+  },
+} satisfies Record<
+  string,
+  number | PartialDiagnostic | ((...args: any[]) => PartialDiagnostic)
+>
+
+/**
+ * loops through the strings in a string[] and:
+ * 1. wraps each with a wrapper character
+ * 2. joins them with a comma
+ * 3. adds an "and" before the last item
+ */
+const toEnglishList = (strings: string[], wrapper: string = '') => {
+  return strings
+    .map((s, i) => {
+      if (i === strings.length - 1) {
+        return `and ${wrapper}${s}${wrapper}`
+      }
+      return `${wrapper}${s}${wrapper}`
+    })
+    .join(', ')
 }
 
 export const ALLOWED_EXPORTS = [
@@ -187,7 +311,4 @@ export const API_DOCS: Record<string, APIDoc> = {
       return value === 'true' || value === 'false'
     },
   },
-} satisfies Record<
-  string,
-  APIDoc
->
+} satisfies Record<string, APIDoc>
