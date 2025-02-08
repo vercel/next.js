@@ -4,19 +4,21 @@ This is a TypeScript Language Server plugin for the Next.js app directory.
 
 ## What it does
 
-### Intellisense
+### 🗄️ Server Layer
 
-- \[Server Layer\] Hide autocompletions for disallowed APIs such as `useState`
-- \[Client Layer\] autocompletion (prop hints) such as params and `searchParams` for pages, and named slots for layouts
-- \[Config Files\] Autocompletion and docs for configs
-- \[Config Files\] Hover hints for configs
-- \[Client Layer\] Intellisense for client boundary modules
+- Hide autocompletions for disallowed APIs such as `useState`
+- Show errors if disallowed APIs such as `useState` are used
 
-### Errors
+### 📺 Client Layer
 
-- \[Server Layer\] Show errors if disallowed APIs such as `useState` are used
-- invalid props
-- \[Config Files\] invalid configs
-- \[Page Exports\] extra exports in page and layout
-- \[Client Layer\] `"use client";` directive isn't above other expressions
-- unserializable props passed to exported functions
+- Intellisense for client boundary modules
+- autocompletion (prop hints) such as params and `searchParams` for pages, and named slots for layouts
+- error if unserializable props passed to exported functions
+- error if there are extra exports in page and layout
+- error if `"use client";` directive isn't above other expressions
+
+### ⚙️ Config Files
+
+- Autocompletion and docs for configs
+- Hover hints for configs
+- error on invalid configs
