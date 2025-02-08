@@ -760,6 +760,34 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         ''
       )
     }
+    if (process.env.NEXT_RSPACK_CPU_PROF) {
+      console.log('next rspack cpu prof')
+      const { Session } = require('inspector') as typeof import('inspector')
+      const session = new Session()
+      session.connect()
+      session.post('Profiler.enable')
+      session.post('Profiler.start')
+
+      function saveProfile() {
+        session.post('Profiler.stop', (error, param) => {
+          if (error) {
+            console.error('Cannot generate CPU profiling:', error)
+            return
+          }
+
+          // Write profile to disk
+          const filename = `next-rspack-${Date.now()}.cpuprofile`
+          require('fs').writeFileSync(
+            `./${filename}`,
+            JSON.stringify(param.profile)
+          )
+          process.exit(0)
+        })
+      }
+      process.on('SIGINT', saveProfile)
+      process.on('SIGTERM', saveProfile)
+      process.on('exit', saveProfile)
+    }
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
