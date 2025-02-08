@@ -6619,6 +6619,7 @@ dependencies = [
  "indexmap 2.7.1",
  "serde_json",
  "shrink-to-fit-macro",
+ "smallvec",
 ]
 
 [[package]]
