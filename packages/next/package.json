@@ -103,7 +103,7 @@
     "@swc/counter": "0.1.3",
     "@swc/helpers": "0.5.15",
     "enhanced-resolve": "5.17.1",
-    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050",
+    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-c84ebcc9-20250208092413",
     "@rspack/plugin-react-refresh": "1.0.1",
     "busboy": "1.6.0",
     "caniuse-lite": "^1.0.30001579",
