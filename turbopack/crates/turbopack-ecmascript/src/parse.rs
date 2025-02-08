@@ -22,7 +22,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{util::WrapFuture, ResolvedVc, ShrinkToFit, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -429,6 +429,8 @@ async fn parse_file_content(
             parsed_program.visit_mut_with(
                 &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
             );
+
+            parsed_program.shrink_to_fit();
 
             let eval_context = EvalContext::new(
                 &parsed_program,
