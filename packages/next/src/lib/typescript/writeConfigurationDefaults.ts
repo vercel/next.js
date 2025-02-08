@@ -93,7 +93,7 @@ function getDesiredCompilerOptions(
               ts.ModuleResolutionKind.NodeNext,
               ts.ModuleResolutionKind.Bundler,
             ].filter((val) => typeof val !== 'undefined'),
-            value: 'node',
+            value: 'bundler',
             reason: 'to match webpack resolution',
           },
           resolveJsonModule: {
