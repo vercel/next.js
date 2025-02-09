@@ -66,12 +66,12 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   }
 
   if (isReactHydrationWarning) {
-    const [message, diff] = rawMessage.split('\n\n')
+    const [message, diffLog] = rawMessage.split('\n\n')
     return {
       message: message.trim(),
       link: reactHydrationErrorDocLink,
       stack: '',
-      diff: diff.trim(),
+      diff: (diffLog || '').trim(),
     }
   }
 
