@@ -17,27 +17,14 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = a
         window
     });
     console.log(a, $$ACTION_ARG_0, action2);
-    var action2 = registerServerReference($$RSC_SERVER_ACTION_0, "606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
-        $$ACTION_ARG_1,
-        d,
-        f,
-        $$ACTION_ARG_2
-    ]));
+    var action2 = registerServerReference($$RSC_SERVER_ACTION_0, "606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("606a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_ARG_1, d, f, $$ACTION_ARG_2));
     return [
         action2,
-        registerServerReference($$RSC_SERVER_ACTION_1, "6090b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", [
-            action2,
-            $$ACTION_ARG_1,
-            d
-        ]))
+        registerServerReference($$RSC_SERVER_ACTION_1, "6090b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("6090b5db271335765a4b0eab01f044b381b5ebd5cd", action2, $$ACTION_ARG_1, d))
     ];
 };
 export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action0(b, c, ...g) {
-    return registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
-        b,
-        c,
-        g
-    ]));
+    return registerServerReference($$RSC_SERVER_ACTION_2, "601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("601c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", b, c, g));
 }
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([

@@ -236,6 +236,7 @@ export function Errors({
     return (
       <Toast
         data-nextjs-toast
+        data-issues
         className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
         onClick={fullscreen}
       >
@@ -256,7 +257,8 @@ export function Errors({
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <span>
-            {readyErrors.length} issue{readyErrors.length > 1 ? 's' : ''}
+            <span data-issues-count>{readyErrors.length}</span> issue
+            {readyErrors.length > 1 ? 's' : ''}
           </span>
           <button
             data-nextjs-toast-errors-hide-button

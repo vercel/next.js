@@ -91,7 +91,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "13.0.4", features = [
+swc_core = { version = "13.1.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -202,6 +202,7 @@ smallvec = { version = "1.13.1", features = [
 ] }
 sourcemap = "9.0.0"
 strsim = "0.11.1"
+shrink-to-fit = "0.2.10"
 swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
 syn = "1.0.107"
 tempfile = "3.3.0"

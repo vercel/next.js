@@ -206,8 +206,6 @@ export const styles = css`
     bottom: calc(var(--size-gap-double) * 4.5);
   }
   p.nextjs__container_errors__link {
-    color: var(--color-red-900);
-    font-weight: 600;
     font-size: 14px;
   }
   p.nextjs__container_errors__notes {

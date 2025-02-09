@@ -1,5 +1,6 @@
 import type { StackFrame } from 'stacktrace-parser'
 import type { ServerResponse } from 'http'
+import { inspect } from 'util'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import isInternal, {
   nextInternalsRe,
@@ -61,7 +62,8 @@ export function findSourcePackage({
  */
 export function getOriginalCodeFrame(
   frame: StackFrame,
-  source: string | null
+  source: string | null,
+  colors: boolean = process.stdout.isTTY
 ): string | null {
   if (!source || isInternal(frame.file)) {
     return null
@@ -77,7 +79,7 @@ export function getOriginalCodeFrame(
         column: frame.column ?? 0,
       },
     },
-    { forceColor: process.stdout.isTTY }
+    { forceColor: colors }
   )
 }
 
@@ -96,9 +98,14 @@ export function notFound(res: ServerResponse) {
   res.end('Not Found')
 }
 
-export function internalServerError(res: ServerResponse, e?: any) {
+export function internalServerError(res: ServerResponse, error?: unknown) {
   res.statusCode = 500
-  res.end(e ?? 'Internal Server Error')
+  res.setHeader('Content-Type', 'text/plain')
+  res.end(
+    error !== undefined
+      ? inspect(error, { colors: false })
+      : 'Internal Server Error'
+  )
 }
 
 export function json(res: ServerResponse, data: any) {

@@ -11,6 +11,7 @@ use std::{
 
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
@@ -295,6 +296,12 @@ impl Drop for RcStr {
             unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
     }
+}
+
+/// noop
+impl ShrinkToFit for RcStr {
+    #[inline(always)]
+    fn shrink_to_fit(&mut self) {}
 }
 
 #[cfg(test)]
