@@ -1006,8 +1006,10 @@ function getRedboxFloatingHeaderText(
       .find((p) =>
         p.shadowRoot.querySelector('[data-nextjs-dialog-header-total-count]')
       )
-    const root = portal.shadowRoot
-    return root?.innerText
+
+    const root = portal?.shadowRoot
+    return root?.querySelector('[data-nextjs-dialog-header-total-count]')
+      ?.innerText
   })
 }
 
