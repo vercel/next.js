@@ -16,8 +16,8 @@ pub fn add_default_ignore_list(map: &mut sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
-        if source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "+next+"))
-            || source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "+turbopack+"))
+        if source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "~next"))
+            || source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "~turbopack"))
             || source.contains("/node_modules/")
         {
             ignored_ids.insert(source_id);
@@ -163,7 +163,7 @@ pub async fn fileify_source_map(
         .await?
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
-    let prefix = format!("{}+{}+/", SOURCE_MAP_PREFIX, context_fs.name());
+    let prefix = format!("{}~{}/", SOURCE_MAP_PREFIX, context_fs.name());
 
     // TODO this could be made (much) more efficient by not even de- and serializing other fields
     // (apart from `sources`) and just keep storing them as strings.
