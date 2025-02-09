@@ -939,7 +939,7 @@ impl Project {
         Ok(get_server_compile_time_info(
             self.env(),
             this.define_env.nodejs(),
-            // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
+            // `/ROOT` corresponds to `+project+/`, so we need exactly the `path` part.
             format!("/ROOT/{}", self.project_path().await?.path).into(),
         ))
     }

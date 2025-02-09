@@ -466,7 +466,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   updatedModules: payload.updatedModules.map((m: string) =>
                     m
                       .replace(`(${WEBPACK_LAYERS.appPagesBrowser})/`, '')
-                      .replace(/^\.\//, '[project]/')
+                      .replace(/^\.\//, '+project+/')
                   ),
                   page: payload.page,
                   isPageHidden: payload.isPageHidden,

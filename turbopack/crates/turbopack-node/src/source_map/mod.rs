@@ -234,9 +234,9 @@ async fn resolve_source_mapping(
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
                 SOURCE_MAP_PREFIX,
-                "[",
+                "+",
                 PROJECT_FILESYSTEM_NAME,
-                "]/"
+                "+/"
             )) {
                 let fs_path = project_dir.join(project_path.into());
                 if lib_code {

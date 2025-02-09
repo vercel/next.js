@@ -138,7 +138,10 @@ pub fn format_issue(
     // TODO CLICKABLE PATHS
     let context_path = plain_issue
         .file_path
-        .replace("[project]", &current_dir.to_string_lossy())
+        // TODO: This seemed like it was always inaccurate
+        // {project} shouldn't be in here to begin with
+        // or it should be an actual URL where we could just read the pathname.
+        .replace("+project+", &current_dir.to_string_lossy())
         .replace("/./", "/")
         .replace("\\\\?\\", "");
     let stgae = plain_issue.stage.to_string();
@@ -507,7 +510,7 @@ impl IssueReporter for ConsoleUi {
 }
 
 fn make_relative_to_cwd<'a>(path: &'a str, project_dir: &Path, cwd: &Path) -> Cow<'a, str> {
-    if let Some(path_in_project) = path.strip_prefix("[project]/") {
+    if let Some(path_in_project) = path.strip_prefix("+project+/") {
         let abs_path = if std::path::MAIN_SEPARATOR != '/' {
             project_dir.join(path_in_project.replace('/', std::path::MAIN_SEPARATOR_STR))
         } else {
