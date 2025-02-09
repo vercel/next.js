@@ -61,7 +61,7 @@ describe('Basic CSS Module Support', () => {
         if (process.env.TURBOPACK) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
+          ).toMatchInlineSnapshot(`".index-module__6KixXq__redText{color:red}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -83,7 +83,7 @@ describe('Basic CSS Module Support', () => {
 
         if (process.env.TURBOPACK) {
           expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-            `"index-module__VJHdSq__redText"`
+            `"index-module__6KixXq__redText"`
           )
         } else {
           expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
@@ -137,7 +137,7 @@ describe('3rd Party CSS Module Support', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+            `".index-module__tvzWIG__foo{position:relative}.index-module__tvzWIG__foo .bar,.index-module__tvzWIG__foo .baz{height:100%;overflow:hidden}.index-module__tvzWIG__foo .lol{width:80%}.index-module__tvzWIG__foo>.lel{width:80%}"`
           )
         } else {
           expect(
@@ -162,7 +162,7 @@ describe('3rd Party CSS Module Support', () => {
 
         if (process.env.TURBOPACK) {
           expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-            `"index-module__jAE1EW__foo"`
+            `"index-module__tvzWIG__foo"`
           )
         } else {
           expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
@@ -377,7 +377,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         const cssPreload = $('#nm-div')
         if (process.env.TURBOPACK) {
           expect(cssPreload.text()).toMatchInlineSnapshot(
-            `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
+            `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__dAuWMq__redText","default":{"redText":"index-module__dAuWMq__redText"}}"`
           )
         } else {
           expect(cssPreload.text()).toMatchInlineSnapshot(
@@ -401,7 +401,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         if (process.env.TURBOPACK) {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
+          ).toMatchInlineSnapshot(`".index-module__dAuWMq__redText{color:red}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -522,7 +522,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__QppuLW__className{background:red;color:#ff0}.index-module__QppuLW__subClass{background:#00f;}"`
+            `".index-module__JlRpuq__className{background:red;color:#ff0}.index-module__JlRpuq__subClass{background:#00f;}"`
           )
         } else {
           expect(
@@ -643,7 +643,7 @@ describe('Dynamic Route CSS Module Usage', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__Iury9a__home{background:red}"`
+            `".index-module__xIjKQW__home{background:red}"`
           )
         } else {
           expect(
@@ -708,10 +708,10 @@ describe('Catch-all Route CSS Module Usage', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
             .toMatchInlineSnapshot(`
-            ".index-module___rV4CG__home{background:red}
+           ".index-module__zd-b3a__home{background:red}
 
 
-            .\\35 5css-module__qe774W__home{color:green}"
+           .\\35 5css-module__Ok7alW__home{color:green}"
           `)
         } else {
           expect(
