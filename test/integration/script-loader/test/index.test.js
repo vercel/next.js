@@ -118,7 +118,7 @@ const runTests = (isDev) => {
         // Turbopack generates different script names
         expect(
           $(
-            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+            `#${id} ~ script[src^="/_next/static/chunks/%2Broot%20of%20the%20server%2B__"]`
           ).length
         ).toBeGreaterThan(0)
       } else {
@@ -148,7 +148,7 @@ const runTests = (isDev) => {
         // Turbopack generates different script names
         expect(
           $(
-            `#${id} ~ script[src^="/_next/static/chunks/%5Broot%20of%20the%20server%5D__"]`
+            `#${id} ~ script[src^="/_next/static/chunks/%2Broot%20of%20the%20server%2B__"]`
           ).length
         ).toBeGreaterThan(0)
       } else {

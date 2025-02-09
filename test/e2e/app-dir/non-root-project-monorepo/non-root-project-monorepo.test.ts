@@ -116,7 +116,7 @@ describe('non-root-project-monorepo', () => {
             )
           ).toMatchInlineSnapshot(`
            "<unknown>
-           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_XXXXXX._.js (7:7)
+           +project+/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_XXXXXX._.js (7:7)
            innerArrowFunction
            app/source-maps-rsc/page.tsx (13:28)
            innerFunction
@@ -160,7 +160,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ +project+/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -168,7 +168,7 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "+project+/apps/web/app/separate-file.ts [app-client] (ecmascript)
            app/separate-file.ts (1:7)
            innerArrowFunction
            app/source-maps-ssr/page.tsx (15:28)
@@ -217,7 +217,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ +project+/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
            > 1 | throw new Error('Expected error')
                |       ^
@@ -225,7 +225,7 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "+project+/apps/web/app/separate-file.ts [app-client] (ecmascript)
            app/separate-file.ts (1:7)
            innerArrowFunction
            app/source-maps-client/page.tsx (16:28)

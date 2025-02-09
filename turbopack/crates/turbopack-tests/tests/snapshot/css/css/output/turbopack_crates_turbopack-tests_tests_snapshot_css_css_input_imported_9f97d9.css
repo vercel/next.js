@@ -1,4 +1,4 @@
-/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
 @layer layer {
 @media print {
 .imported{color:#0ff}

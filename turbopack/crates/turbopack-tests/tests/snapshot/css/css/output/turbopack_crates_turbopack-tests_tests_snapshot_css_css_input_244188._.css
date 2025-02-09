@@ -1,0 +1,23 @@
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css [test] (css) */
+.foo-style{color:green}
+
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, ) */
+.imported{color:#0ff}
+
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css [test] (css, layer(layer) print) */
+@layer layer {
+@media print {
+.imported{color:#0ff}
+}
+}
+
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.css [test] (css) */
+.style{color:#ff0}
+
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css [test] (css) */
+.style-module__0Nmk_q__foo-module-style{color:#00f}
+
+/* +project+/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css [test] (css) */
+.style-module__avSYuG__module-style{color:#f0f}.style-module__avSYuG__module-style>h1,.style-module__avSYuG__module-style+.style-module__avSYuG__inner{background:purple}.style-module__avSYuG__composed-module-style{color:green;}.style-module__avSYuG__another-composed-module-style{color:#ff0;}
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_css_input_244188._.css.map*/

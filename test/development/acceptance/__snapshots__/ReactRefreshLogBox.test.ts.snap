@@ -107,7 +107,7 @@ exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 8`] = 
 exports[`ReactRefreshLogBox turbo logbox: anchors links in error messages 10`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox turbo module init error not shown 1`] = `
-"index.js (3:7) @ [project]/index.js [ssr] (ecmascript)
+"index.js (3:7) @ +project+/index.js [ssr] (ecmascript)
 
   1 | // top offset for snapshot
   2 | import * as React from 'react';
