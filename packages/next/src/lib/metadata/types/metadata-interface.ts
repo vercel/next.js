@@ -227,7 +227,7 @@ interface Metadata extends DeprecatedMetadataFields {
    * { canonical: "https://example.com" }
    * <link rel="canonical" href="https://example.com" />
    *
-   * { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } }
+   * { canonical: "https://example.com", languages: { "en-US": "https://example.com/en-US" } }
    * <link rel="canonical" href="https://example.com" />
    * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
    * ```
