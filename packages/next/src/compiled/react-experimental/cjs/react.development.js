@@ -256,7 +256,8 @@
         oldElement._debugStack,
         oldElement._debugTask
       );
-      newKey._store.validated = oldElement._store.validated;
+      oldElement._store &&
+        (newKey._store.validated = oldElement._store.validated);
       return newKey;
     }
     function isValidElement(object) {
@@ -1257,7 +1258,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-37906d4d-20250127";
+    exports.version = "19.1.0-experimental-ff628334-20250205";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -59,7 +59,7 @@ impl EcmascriptDevChunkContent {
     pub(crate) fn own_version(&self) -> Vc<EcmascriptDevChunkVersion> {
         EcmascriptDevChunkVersion::new(
             self.chunking_context.output_root(),
-            self.chunk.ident().path(),
+            self.chunk.path(),
             *self.entries,
         )
     }
@@ -71,7 +71,7 @@ impl EcmascriptDevChunkContent {
         let source_maps = this
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
-        let chunk_path_vc = this.chunk.ident().path();
+        let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path

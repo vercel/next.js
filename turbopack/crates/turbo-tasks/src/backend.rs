@@ -12,7 +12,7 @@ use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use tracing::Span;
 
-pub use crate::id::{BackendJobId, ExecutionId};
+pub use crate::id::BackendJobId;
 use crate::{
     event::EventListener,
     magic_any::MagicAny,
@@ -20,6 +20,7 @@ use crate::{
     raw_vc::CellId,
     registry,
     task::shared_reference::TypedSharedReference,
+    task_statistics::TaskStatisticsApi,
     triomphe_utils::unchecked_sidecast_triomphe_arc,
     FunctionId, RawVc, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
     ValueTypeId, VcRead, VcValueTrait, VcValueType,
@@ -432,7 +433,7 @@ pub trait Backend: Sync + Send {
     ///
     /// This data may be shared across multiple threads (must be `Sync`) in order to support
     /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
-    /// `local_cells`][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
+    /// `local` execution][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
     /// concurrent access.
     type TaskState: Send + Sync + 'static;
 
@@ -589,6 +590,15 @@ pub trait Backend: Sync + Send {
         // Do nothing by default
     }
 
+    fn set_own_task_aggregation_number(
+        &self,
+        _task: TaskId,
+        _aggregation_number: u32,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Do nothing by default
+    }
+
     fn mark_own_task_as_session_dependent(
         &self,
         _task: TaskId,
@@ -604,4 +614,6 @@ pub trait Backend: Sync + Send {
     ) -> TaskId;
 
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+
+    fn task_statistics(&self) -> &TaskStatisticsApi;
 }

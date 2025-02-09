@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -6,6 +6,7 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
@@ -163,8 +164,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[turbo_tasks::value(shared, serialization = "none")]
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),

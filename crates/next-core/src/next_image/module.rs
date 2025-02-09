@@ -74,7 +74,7 @@ impl CustomModuleType for StructuredImageModuleType {
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _part: Option<Vc<ModulePart>>,
+        _part: Option<ModulePart>,
     ) -> Vc<Box<dyn Module>> {
         StructuredImageModuleType::create_module(
             source,

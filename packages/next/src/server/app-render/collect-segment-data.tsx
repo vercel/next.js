@@ -379,7 +379,7 @@ async function renderSegmentPrefetch(
   if (key === ROOT_SEGMENT_KEY) {
     return ['/_index', segmentBuffer]
   } else {
-    return ['/' + key, segmentBuffer]
+    return [key, segmentBuffer]
   }
 }
 

@@ -89,7 +89,7 @@ pub async fn esm_resolve(
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
@@ -102,7 +102,7 @@ pub async fn esm_resolve(
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -117,7 +117,7 @@ pub async fn cjs_resolve(
 pub async fn cjs_resolve_source(
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -150,7 +150,7 @@ async fn specific_resolve(
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin
         .resolve_asset(request, options, reference_type.clone())

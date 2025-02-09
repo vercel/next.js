@@ -81,6 +81,7 @@ export interface ReloadPageAction {
 
 interface ServerComponentChangesAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  hash: string
 }
 
 interface MiddlewareChangesAction {

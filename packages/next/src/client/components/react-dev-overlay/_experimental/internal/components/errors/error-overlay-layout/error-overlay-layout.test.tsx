@@ -14,6 +14,12 @@ jest.mock('../../../components/overlay/maintain--tab-focus', () => ({
   })),
 }))
 
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
+}))
+
 const renderTestComponent = () => {
   return render(
     <ErrorOverlayLayout
@@ -23,6 +29,13 @@ const renderTestComponent = () => {
       error={new Error('Sample error')}
       isBuildError={true}
       onClose={() => {}}
+      rendered={true}
+      transitionDurationMs={200}
+      isTurbopack={false}
+      versionInfo={{
+        installed: '15.0.0',
+        staleness: 'fresh',
+      }}
     >
       Module not found: Cannot find module './missing-module'
     </ErrorOverlayLayout>

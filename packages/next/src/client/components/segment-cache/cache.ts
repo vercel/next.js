@@ -961,7 +961,7 @@ export async function fetchSegmentOnCacheMiss(
           // It just needs to match the equivalent logic that happens when
           // prerendering the responses. It should not leak outside of Next.js.
           '/_index'
-        : '/' + segmentKeyPath,
+        : segmentKeyPath,
       routeKey.nextUrl
     )
     if (

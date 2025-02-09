@@ -34,6 +34,9 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
 }
 
 function appendOwnerStack(error: Error) {
+  if (!React.captureOwnerStack) {
+    return
+  }
   let stack = error.stack || ''
   // This module is only bundled in development mode so this is safe.
   const ownerStack = React.captureOwnerStack()

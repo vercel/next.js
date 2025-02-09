@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
 use futures::future::Either;
-use swc_core::alloc::collections::FxHashMap;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
@@ -19,8 +19,8 @@ use crate::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
     output::OutputAssets,
-    rebase::RebasedAsset,
     reference::ModuleReference,
+    traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
@@ -184,13 +184,7 @@ pub async fn make_chunk_group(
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
-                RebasedAsset::new(
-                    *module,
-                    module.ident().path().root(),
-                    module.ident().path().root(),
-                )
-                .to_resolved()
-                .await?,
+                TracedAsset::new(*module).to_resolved().await?,
             ))
         })
         .try_join()
@@ -318,7 +312,7 @@ pub async fn chunk_group_content(
                 }
 
                 let Some(chunkable_module) =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
                 else {
                     return Ok(GraphTraversalAction::Skip);
                 };
@@ -337,7 +331,7 @@ pub async fn chunk_group_content(
                 };
 
                 let parent_module =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(parent_node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(parent_node.module)
                         .context("Expected parent module to be chunkable")?;
 
                 Ok(match edge {

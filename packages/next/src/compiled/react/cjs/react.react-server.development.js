@@ -449,7 +449,8 @@
         oldElement._owner,
         oldElement.props
       );
-      newKey._store.validated = oldElement._store.validated;
+      oldElement._store &&
+        (newKey._store.validated = oldElement._store.validated);
       return newKey;
     }
     function validateChildKeys(node, parentType) {
@@ -1110,5 +1111,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-canary-37906d4d-20250127";
+    exports.version = "19.1.0-canary-ff628334-20250205";
   })();

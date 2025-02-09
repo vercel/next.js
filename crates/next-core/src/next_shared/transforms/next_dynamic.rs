@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
-use swc_core::{common::FileName, ecma::ast::Program};
+use swc_core::{atoms::atom, common::FileName, ecma::ast::Program};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -51,8 +51,8 @@ impl CustomTransformer for NextJsDynamic {
             self.is_react_server_layer,
             self.is_app_dir,
             NextDynamicMode::Turbopack {
-                dynamic_client_transition_name: "next-dynamic-client".to_string(),
-                dynamic_transition_name: "next-dynamic".to_string(),
+                dynamic_client_transition_name: atom!("next-dynamic-client"),
+                dynamic_transition_name: atom!("next-dynamic"),
             },
             FileName::Real(ctx.file_path_str.into()).into(),
             None,

@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { noop as css } from '../../helpers/noop-template'
+import { cx } from '../../helpers/cx'
 
 function useCopyLegacy(content: string) {
   type CopyState =
@@ -184,7 +185,11 @@ export function CopyButton({
       aria-disabled={isDisabled}
       disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button
-      className={`${props.className || ''} nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
+      className={cx(
+        props.className,
+        'nextjs-data-runtime-error-copy-button',
+        `nextjs-data-runtime-error-copy-button--${copyState.state}`
+      )}
       onClick={() => {
         if (!isDisabled) {
           copy()
@@ -251,10 +256,6 @@ export const COPY_BUTTON_STYLES = css`
   }
   .nextjs-data-runtime-error-copy-button--initial:hover {
     cursor: pointer;
-  }
-  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
-    opacity: 0.3;
-    cursor: not-allowed;
   }
   .nextjs-data-runtime-error-copy-button--error,
   .nextjs-data-runtime-error-copy-button--error:hover {

@@ -180,7 +180,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         .map(|content| async move {
             let content_ref = content.await?;
             let output_root = content_ref.chunking_context.output_root().await?;
-            let path = content_ref.chunk.ident().path().await?;
+            let path = content_ref.chunk.path().await?;
             Ok((*content, content_ref, output_root, path))
         })
         .try_join()

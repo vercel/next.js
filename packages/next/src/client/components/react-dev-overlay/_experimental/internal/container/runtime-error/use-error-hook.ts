@@ -1,4 +1,3 @@
-import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import type {
   OverlayState,
   UnhandledErrorAction,
@@ -6,11 +5,14 @@ import type {
 } from '../../../../shared'
 
 import { useMemo, useState, useEffect } from 'react'
-import { getErrorByType } from '../../helpers/get-error-by-type'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
 } from '../../../../shared'
+import {
+  getErrorByType,
+  type ReadyRuntimeError,
+} from '../../../../internal/helpers/get-error-by-type'
 
 export type SupportedErrorEvent = {
   id: number
@@ -24,12 +26,12 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default: {
-    }
+    default:
+      break
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event as never
+  const _ = event satisfies never
   return ''
 }
 
@@ -110,6 +112,6 @@ export function useErrorHook({
       ? rootLayoutMissingTags.length
       : !!buildError
         ? 1
-        : errors.length,
+        : readyErrors.length,
   }
 }

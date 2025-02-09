@@ -27,7 +27,7 @@ concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
 erased-serde = { workspace = true }
-event-listener = "2.5.3"
+event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
@@ -40,6 +40,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
+shrink-to-fit = { workspace=true,features = ["indexmap", "serde_json", "smallvec", "nightly"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }

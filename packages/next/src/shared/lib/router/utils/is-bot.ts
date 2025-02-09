@@ -12,7 +12,7 @@ export const HTML_LIMITED_BOT_UA_RE = new RegExp(
   'i'
 )
 
-function isHeadlessBrowserBotUA(userAgent: string) {
+function isDomBotUA(userAgent: string) {
   return HEADLESS_BROWSER_BOT_UA_RE.test(userAgent)
 }
 
@@ -21,5 +21,15 @@ function isHtmlLimitedBotUA(userAgent: string) {
 }
 
 export function isBot(userAgent: string): boolean {
-  return isHeadlessBrowserBotUA(userAgent) || isHtmlLimitedBotUA(userAgent)
+  return isDomBotUA(userAgent) || isHtmlLimitedBotUA(userAgent)
+}
+
+export function getBotType(userAgent: string): 'dom' | 'html' | undefined {
+  if (isDomBotUA(userAgent)) {
+    return 'dom'
+  }
+  if (isHtmlLimitedBotUA(userAgent)) {
+    return 'html'
+  }
+  return undefined
 }

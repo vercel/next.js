@@ -61,6 +61,7 @@ export async function turbopackBuild(): Promise<{
     'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
   ]
 
+  const persistentCaching = isPersistentCachingEnabled(config)
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
@@ -91,8 +92,9 @@ export async function turbopackBuild(): Promise<{
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
-      persistentCaching: isPersistentCachingEnabled(config),
+      persistentCaching,
       memoryLimit: config.experimental.turbo?.memoryLimit,
+      dependencyTracking: persistentCaching,
     }
   )
 
@@ -304,6 +306,7 @@ export async function turbopackBuild(): Promise<{
   }
 }
 
+let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
 }): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
@@ -330,5 +333,12 @@ export async function workerMain(workerData: {
   setGlobal('telemetry', telemetry)
 
   const result = await turbopackBuild()
+  shutdownPromise = result.shutdownPromise
   return result
+}
+
+export async function waitForShutdown(): Promise<void> {
+  if (shutdownPromise) {
+    await shutdownPromise
+  }
 }

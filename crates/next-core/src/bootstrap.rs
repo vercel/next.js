@@ -111,7 +111,6 @@ pub async fn bootstrap(
         .await?;
 
     let asset = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(asset)
-        .await?
         .context("internal module must be evaluatable")?;
 
     Ok(*asset)

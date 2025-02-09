@@ -30,16 +30,13 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub ty: ResolvedVc<ModulePart>,
+    pub ty: ModulePart,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    pub fn new(
-        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        ty: ResolvedVc<ModulePart>,
-    ) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ty: ModulePart) -> Vc<Self> {
         EcmascriptModuleFacadeModule { module, ty }.cell()
     }
 
@@ -68,15 +65,15 @@ impl Module for EcmascriptModuleFacadeModule {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(*self.ty))
+        Ok(inner.with_part(self.ty.clone()))
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let references = match &*self.ty.await? {
+        let references = match &self.ty {
             ModulePart::Evaluation => {
                 let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module)
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
@@ -95,7 +92,7 @@ impl Module for EcmascriptModuleFacadeModule {
             }
             ModulePart::Exports => {
                 let Some(module) =
-                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(self.module)
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
@@ -184,7 +181,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         let mut exports = BTreeMap::new();
         let mut star_exports = Vec::new();
 
-        match &*self.ty.await? {
+        match &self.ty {
             ModulePart::Exports => {
                 let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
                 else {
@@ -270,23 +267,22 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 original_export,
                 export,
             } => {
-                let original_export = original_export.await?;
                 exports.insert(
-                    export.await?.clone_value(),
+                    export.clone(),
                     EsmExport::ImportedBinding(
                         ResolvedVc::upcast(
                             EcmascriptModulePartReference::new(*self.module)
                                 .to_resolved()
                                 .await?,
                         ),
-                        original_export.clone_value(),
+                        original_export.clone(),
                         false,
                     ),
                 );
             }
             ModulePart::RenamedNamespace { export } => {
                 exports.insert(
-                    export.await?.clone_value(),
+                    export.clone(),
                     EsmExport::ImportedNamespace(ResolvedVc::upcast(
                         EcmascriptModulePartReference::new(*self.module)
                             .to_resolved()
@@ -313,7 +309,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         &self,
         side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
-        Ok(match *self.ty.await? {
+        Ok(match self.ty {
             ModulePart::Evaluation | ModulePart::Facade => self
                 .module
                 .is_marked_as_side_effect_free(side_effect_free_packages),

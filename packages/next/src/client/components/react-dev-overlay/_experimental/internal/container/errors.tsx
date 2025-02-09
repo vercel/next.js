@@ -1,10 +1,8 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
-import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
@@ -18,11 +16,11 @@ import {
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-export type ErrorsProps = {
+export interface ErrorsProps extends ErrorBaseProps {
   readyErrors: ReadyRuntimeError[]
-  isTurbopack: boolean
-  versionInfo: VersionInfo
   debugInfo: DebugInfo
   onClose: () => void
 }
@@ -74,10 +72,11 @@ function ErrorDescription({
 export function Errors({
   readyErrors,
   debugInfo,
-  versionInfo,
-  isTurbopack,
   onClose,
+  ...props
 }: ErrorsProps) {
+  const dialogResizerRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     // Close the error overlay when pressing escape
     function handleKeyDown(event: KeyboardEvent) {
@@ -157,8 +156,8 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
-      versionInfo={versionInfo}
-      isTurbopack={isTurbopack}
+      dialogResizerRef={dialogResizerRef}
+      {...props}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -193,7 +192,11 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      <RuntimeError key={activeError.id.toString()} error={activeError} />
+      <RuntimeError
+        key={activeError.id.toString()}
+        error={activeError}
+        dialogResizerRef={dialogResizerRef}
+      />
     </ErrorOverlayLayout>
   )
 }
@@ -203,14 +206,12 @@ export const styles = css`
     bottom: calc(var(--size-gap-double) * 4.5);
   }
   p.nextjs__container_errors__link {
-    color: var(--color-text-color-red-1);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
@@ -266,5 +267,8 @@ export const styles = css`
   }
   .error-overlay-notes-container {
     padding: 0 var(--size-4);
+  }
+  .error-overlay-notes-container p {
+    white-space: pre-wrap;
   }
 `

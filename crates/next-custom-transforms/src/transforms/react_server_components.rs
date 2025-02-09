@@ -1,16 +1,17 @@
 use std::{
-    collections::HashMap,
     fmt::{self, Display},
+    iter::FromIterator,
     path::PathBuf,
     rc::Rc,
     sync::Arc,
 };
 
-use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
+    atoms::{atom, Atom},
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
@@ -19,7 +20,6 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
             noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
@@ -29,6 +29,7 @@ use swc_core::{
 };
 
 use super::{cjs_finder::contains_cjs, import_analyzer::ImportMap};
+use crate::FxIndexMap;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -65,13 +66,13 @@ struct ReactServerComponents<C: Comments> {
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
-    directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
+    directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<Atom>)>,
 }
 
 #[derive(Clone, Debug)]
 struct ModuleImports {
-    source: (JsWord, Span),
-    specifiers: Vec<(JsWord, Span)>,
+    source: (Atom, Span),
+    specifiers: Vec<(Atom, Span)>,
 }
 
 enum RSCErrorKind {
@@ -247,13 +248,21 @@ impl<C: Comments> ReactServerComponents<C> {
                 kind: CommentKind::Block,
                 text: format!(
                     " __next_internal_client_entry_do_not_use__ {} {} ",
-                    export_names.join(","),
+                    join_atoms(export_names),
                     if is_cjs { "cjs" } else { "auto" }
                 )
                 .into(),
             },
         );
     }
+}
+
+fn join_atoms(atoms: &[Atom]) -> String {
+    atoms
+        .iter()
+        .map(|atom| atom.as_ref())
+        .collect::<Vec<_>>()
+        .join(",")
 }
 
 /// Consolidated place to parse, generate error messages for the RSC parsing
@@ -356,7 +365,7 @@ fn collect_top_level_directives_and_imports(
     app_dir: &Option<PathBuf>,
     filepath: &str,
     module: &Module,
-) -> (bool, bool, Vec<ModuleImports>, Vec<String>) {
+) -> (bool, bool, Vec<ModuleImports>, Vec<Atom>) {
     let mut imports: Vec<ModuleImports> = vec![];
     let mut finished_directives = false;
     let mut is_client_entry = false;
@@ -459,8 +468,8 @@ fn collect_top_level_directives_and_imports(
                             },
                             None => (named.local.to_id().0, named.local.span),
                         },
-                        ImportSpecifier::Default(d) => (js_word!(""), d.span),
-                        ImportSpecifier::Namespace(n) => ("*".into(), n.span),
+                        ImportSpecifier::Default(d) => (atom!(""), d.span),
+                        ImportSpecifier::Namespace(n) => (atom!("*"), n.span),
                     })
                     .collect();
 
@@ -475,16 +484,16 @@ fn collect_top_level_directives_and_imports(
             ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(e)) => {
                 for specifier in &e.specifiers {
                     export_names.push(match specifier {
-                        ExportSpecifier::Default(_) => "default".to_string(),
-                        ExportSpecifier::Namespace(_) => "*".to_string(),
+                        ExportSpecifier::Default(_) => atom!("default"),
+                        ExportSpecifier::Namespace(_) => atom!("*"),
                         ExportSpecifier::Named(named) => match &named.exported {
                             Some(exported) => match &exported {
-                                ModuleExportName::Ident(i) => i.sym.to_string(),
-                                ModuleExportName::Str(s) => s.value.to_string(),
+                                ModuleExportName::Ident(i) => i.sym.clone(),
+                                ModuleExportName::Str(s) => s.value.clone(),
                             },
                             _ => match &named.orig {
-                                ModuleExportName::Ident(i) => i.sym.to_string(),
-                                ModuleExportName::Str(s) => s.value.to_string(),
+                                ModuleExportName::Ident(i) => i.sym.clone(),
+                                ModuleExportName::Str(s) => s.value.clone(),
                             },
                         },
                     })
@@ -494,15 +503,15 @@ fn collect_top_level_directives_and_imports(
             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl { decl, .. })) => {
                 match decl {
                     Decl::Class(ClassDecl { ident, .. }) => {
-                        export_names.push(ident.sym.to_string());
+                        export_names.push(ident.sym.clone());
                     }
                     Decl::Fn(FnDecl { ident, .. }) => {
-                        export_names.push(ident.sym.to_string());
+                        export_names.push(ident.sym.clone());
                     }
                     Decl::Var(var) => {
                         for decl in &var.decls {
                             if let Pat::Ident(ident) = &decl.name {
-                                export_names.push(ident.id.sym.to_string());
+                                export_names.push(ident.id.sym.clone());
                             }
                         }
                     }
@@ -514,18 +523,18 @@ fn collect_top_level_directives_and_imports(
                 decl: _,
                 ..
             })) => {
-                export_names.push("default".to_string());
+                export_names.push(atom!("default"));
                 finished_directives = true;
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(ExportDefaultExpr {
                 expr: _,
                 ..
             })) => {
-                export_names.push("default".to_string());
+                export_names.push(atom!("default"));
                 finished_directives = true;
             }
             ModuleItem::ModuleDecl(ModuleDecl::ExportAll(_)) => {
-                export_names.push("*".to_string());
+                export_names.push(atom!("*"));
             }
             _ => {
                 finished_directives = true;
@@ -543,12 +552,12 @@ struct ReactServerComponentValidator {
     use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
-    invalid_server_imports: Vec<JsWord>,
-    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    deprecated_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    invalid_client_imports: Vec<JsWord>,
-    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
+    invalid_server_imports: Vec<Atom>,
+    invalid_server_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    deprecated_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    invalid_client_imports: Vec<Atom>,
+    invalid_client_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<Atom>)>,
     imports: ImportMap,
 }
 
@@ -573,7 +582,7 @@ impl ReactServerComponentValidator {
             // react -> [apis]
             // react-dom -> [apis]
             // next/navigation -> [apis]
-            invalid_server_lib_apis_mapping: [
+            invalid_server_lib_apis_mapping: FxHashMap::from_iter([
                 (
                     "react",
                     vec![
@@ -618,20 +627,19 @@ impl ReactServerComponentValidator {
                         "ServerInsertedHTMLContext",
                     ],
                 ),
-            ]
-            .into(),
-            deprecated_apis_mapping: [("next/server", vec!["ImageResponse"])].into(),
+            ]),
+            deprecated_apis_mapping: FxHashMap::from_iter([("next/server", vec!["ImageResponse"])]),
 
             invalid_server_imports: vec![
-                JsWord::from("client-only"),
-                JsWord::from("react-dom/client"),
-                JsWord::from("react-dom/server"),
-                JsWord::from("next/router"),
+                Atom::from("client-only"),
+                Atom::from("react-dom/client"),
+                Atom::from("react-dom/server"),
+                Atom::from("next/router"),
             ],
 
-            invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
+            invalid_client_imports: vec![Atom::from("server-only"), Atom::from("next/headers")],
 
-            invalid_client_lib_apis_mapping: [("next/server", vec!["after"])].into(),
+            invalid_client_lib_apis_mapping: FxHashMap::from_iter([("next/server", vec!["after"])]),
             imports: ImportMap::default(),
         }
     }
@@ -781,25 +789,23 @@ impl ReactServerComponentValidator {
         let is_layout_or_page = RE.is_match(&self.filepath);
 
         if is_layout_or_page {
-            let mut possibly_invalid_exports: IndexMap<String, (InvalidExportKind, Span)> =
-                IndexMap::new();
+            let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
+                FxIndexMap::default();
 
             let mut collect_possibly_invalid_exports =
-                |export_name: &str, span: &Span| match export_name {
+                |export_name: &Atom, span: &Span| match &**export_name {
                     "getServerSideProps" | "getStaticProps" => {
                         possibly_invalid_exports
-                            .insert(export_name.to_string(), (InvalidExportKind::General, *span));
+                            .insert(export_name.clone(), (InvalidExportKind::General, *span));
                     }
                     "generateMetadata" | "metadata" => {
-                        possibly_invalid_exports.insert(
-                            export_name.to_string(),
-                            (InvalidExportKind::Metadata, *span),
-                        );
+                        possibly_invalid_exports
+                            .insert(export_name.clone(), (InvalidExportKind::Metadata, *span));
                     }
                     "runtime" => {
                         if self.dynamic_io_enabled {
                             possibly_invalid_exports.insert(
-                                export_name.to_string(),
+                                export_name.clone(),
                                 (
                                     InvalidExportKind::RouteSegmentConfig(
                                         NextConfigProperty::DynamicIo,
@@ -809,7 +815,7 @@ impl ReactServerComponentValidator {
                             );
                         } else if self.use_cache_enabled {
                             possibly_invalid_exports.insert(
-                                export_name.to_string(),
+                                export_name.clone(),
                                 (
                                     InvalidExportKind::RouteSegmentConfig(
                                         NextConfigProperty::UseCache,
@@ -822,7 +828,7 @@ impl ReactServerComponentValidator {
                     "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
                         if self.dynamic_io_enabled {
                             possibly_invalid_exports.insert(
-                                export_name.to_string(),
+                                export_name.clone(),
                                 (
                                     InvalidExportKind::RouteSegmentConfig(
                                         NextConfigProperty::DynamicIo,
@@ -876,7 +882,7 @@ impl ReactServerComponentValidator {
                             &self.filepath,
                             RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
                                 *span,
-                                export_name.clone(),
+                                export_name.to_string(),
                                 *property,
                             ),
                         );
@@ -890,7 +896,7 @@ impl ReactServerComponentValidator {
                                 &self.app_dir,
                                 &self.filepath,
                                 RSCErrorKind::NextRscErrClientMetadataExport((
-                                    export_name.clone(),
+                                    export_name.to_string(),
                                     *span,
                                 )),
                             );
@@ -902,7 +908,7 @@ impl ReactServerComponentValidator {
                         report_error(
                             &self.app_dir,
                             &self.filepath,
-                            RSCErrorKind::NextRscErrInvalidApi((export_name.clone(), *span)),
+                            RSCErrorKind::NextRscErrInvalidApi((export_name.to_string(), *span)),
                         );
                     }
                 }
@@ -910,8 +916,8 @@ impl ReactServerComponentValidator {
 
             // Server entry can't export `generateMetadata` and `metadata` together.
             if !is_client_entry {
-                let export1 = possibly_invalid_exports.get("generateMetadata");
-                let export2 = possibly_invalid_exports.get("metadata");
+                let export1 = possibly_invalid_exports.get(&atom!("generateMetadata"));
+                let export2 = possibly_invalid_exports.get(&atom!("metadata"));
 
                 if let (Some((_, span1)), Some((_, span2))) = (export1, export2) {
                     report_error(

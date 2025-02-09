@@ -33,6 +33,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -198,6 +200,10 @@ import {
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import {
+  buildPrefetchSegmentDataRoute,
+  type PrefetchSegmentDataRoute,
+} from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
 
@@ -343,9 +349,10 @@ export type ManifestRoute = ManifestBuiltRoute & {
   page: string
   namedRegex?: string
   routeKeys?: { [key: string]: string }
+  prefetchSegmentDataRoutes?: PrefetchSegmentDataRoute[]
 }
 
-export type ManifestDataRoute = {
+type ManifestDataRoute = {
   page: string
   routeKeys?: { [key: string]: string }
   dataRouteRegex: string
@@ -387,6 +394,9 @@ export type RoutesManifest = {
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
+    prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
+    prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
+    prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -497,12 +507,19 @@ async function writeClientSsgManifest(
   )
 }
 
-interface FunctionsConfigManifest {
+export interface FunctionsConfigManifest {
   version: number
   functions: Record<
     string,
     {
       maxDuration?: number | undefined
+      runtime?: 'nodejs'
+      matchers?: Array<{
+        regexp: string
+        originalSource: string
+        has?: Rewrite['has']
+        missing?: Rewrite['has']
+      }>
     }
   >
 }
@@ -578,6 +595,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -595,6 +613,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
+        hasNodeMiddleware,
         hasInstrumentationHook,
         staticPages
       )
@@ -621,6 +640,23 @@ async function writeStandaloneDirectory(
         })
         await fs.copyFile(filePath, outputPath)
       }
+
+      if (hasNodeMiddleware) {
+        const middlewareOutput = path.join(
+          distDir,
+          STANDALONE_DIRECTORY,
+          requiredServerFiles.config.distDir,
+          SERVER_DIRECTORY,
+          'middleware.js'
+        )
+
+        await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
+        await fs.copyFile(
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          middlewareOutput
+        )
+      }
+
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),
         path.join(
@@ -1249,6 +1285,9 @@ export default async function build(
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
+              prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
+              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2224,6 +2263,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               ...(config.experimental.streamingMetadata
@@ -2300,6 +2340,36 @@ export default async function build(
         )
       }
 
+      const middlewareFile = rootPaths.find((p) =>
+        p.includes(MIDDLEWARE_FILENAME)
+      )
+      let hasNodeMiddleware = false
+
+      if (middlewareFile) {
+        const staticInfo = await getStaticInfoIncludingLayouts({
+          isInsideAppDir: false,
+          pageFilePath: path.join(dir, middlewareFile),
+          config,
+          appDir,
+          pageExtensions: config.pageExtensions,
+          isDev: false,
+          page: 'middleware',
+        })
+
+        if (staticInfo.runtime === 'nodejs') {
+          hasNodeMiddleware = true
+          functionsConfigManifest.functions['/_middleware'] = {
+            runtime: staticInfo.runtime,
+            matchers: staticInfo.middleware?.matchers ?? [
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
+            ],
+          }
+        }
+      }
+
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
       if (!isGenerateMode && !buildTracesPromise) {
@@ -2328,8 +2398,6 @@ export default async function build(
         ]).map((page) => {
           return buildDataRoute(page, buildId)
         })
-
-        // await writeManifest(routesManifestPath, routesManifest)
       }
 
       // We need to write the manifest with rewrites before build
@@ -2890,6 +2958,24 @@ export default async function build(
                   )
                 }
 
+                if (!isAppRouteHandler && metadata?.segmentPaths) {
+                  const dynamicRoute = routesManifest.dynamicRoutes.find(
+                    (r) => r.page === page
+                  )
+                  if (!dynamicRoute) {
+                    throw new Error('Dynamic route not found')
+                  }
+
+                  dynamicRoute.prefetchSegmentDataRoutes = []
+                  for (const segmentPath of metadata.segmentPaths) {
+                    const result = buildPrefetchSegmentDataRoute(
+                      route.pathname,
+                      segmentPath
+                    )
+                    dynamicRoute.prefetchSegmentDataRoutes.push(result)
+                  }
+                }
+
                 pageInfos.set(route.pathname, {
                   ...(pageInfos.get(route.pathname) as PageInfo),
                   isDynamicAppRoute: true,
@@ -3298,6 +3384,12 @@ export default async function build(
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        // We need to write the manifest with rewrites after build as it might
+        // have been modified.
+        await nextBuildSpan
+          .traceChild('write-routes-manifest')
+          .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
       const postBuildSpinner = createSpinner('Finalizing page optimization')
@@ -3472,6 +3564,7 @@ export default async function build(
           outputFileTracingRoot,
           requiredServerFilesManifest,
           middlewareManifest,
+          hasNodeMiddleware,
           hasInstrumentationHook,
           staticPages,
           loadedEnvFiles,

@@ -1,9 +1,9 @@
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
 import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 import { noop as css } from '../../../helpers/noop-template'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 type ErrorOverlayFloatingHeaderProps = {
   readyErrors?: ReadyRuntimeError[]
@@ -47,17 +47,6 @@ export const styles = css`
     transform: translateY(calc(-1 * var(--size-10_5)));
 
     outline: none;
-
-    @media (min-width: 576px) {
-      max-width: 540px;
-    }
-
-    @media (min-width: 768px) {
-      max-width: 720px;
-    }
-
-    @media (min-width: 992px) {
-      max-width: 960px;
-    }
+    max-width: var(--next-dialog-max-width);
   }
 `

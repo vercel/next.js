@@ -23,7 +23,7 @@ pub struct ResolvingIssue {
     pub file_path: ResolvedVc<FileSystemPath>,
     pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
-    pub source: Option<ResolvedVc<IssueSource>>,
+    pub source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -122,12 +122,12 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match self.source {
+        Ok(Vc::cell(match &self.source {
             Some(source) => Some(
                 source
                     .resolve_source_map(*self.file_path)
-                    .to_resolved()
-                    .await?,
+                    .await?
+                    .into_owned(),
             ),
             None => None,
         }))

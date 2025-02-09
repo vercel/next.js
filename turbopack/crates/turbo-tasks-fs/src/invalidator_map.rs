@@ -1,15 +1,13 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::{LockResult, Mutex, MutexGuard},
-};
+use std::sync::{LockResult, Mutex, MutexGuard};
 
 use concurrent_queue::ConcurrentQueue;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{de::Visitor, Deserialize, Serialize};
 use turbo_tasks::Invalidator;
 
 pub struct InvalidatorMap {
     queue: ConcurrentQueue<(String, Invalidator)>,
-    map: Mutex<HashMap<String, HashSet<Invalidator>>>,
+    map: Mutex<FxHashMap<String, FxHashSet<Invalidator>>>,
 }
 
 impl Default for InvalidatorMap {
@@ -26,7 +24,7 @@ impl InvalidatorMap {
         Self::default()
     }
 
-    pub fn lock(&self) -> LockResult<MutexGuard<'_, HashMap<String, HashSet<Invalidator>>>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, FxHashMap<String, FxHashSet<Invalidator>>>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value)) = self.queue.pop() {
             guard.entry(key).or_default().insert(value);

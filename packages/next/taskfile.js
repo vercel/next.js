@@ -2723,7 +2723,7 @@ export async function check_error_codes(task, opts) {
   } catch (err) {
     if (process.env.CI) {
       await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` and then commit the change in errors.json.',
+        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
         {
           stdio: 'inherit',
         }

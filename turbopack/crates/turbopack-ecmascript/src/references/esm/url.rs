@@ -1,10 +1,13 @@
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
+};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -25,14 +28,28 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::{
+        TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
+    },
     utils::module_id_to_lit,
 };
 
 /// Determines how to treat `new URL(...)` rewrites.
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Copy, Clone, Hash)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,
@@ -52,10 +69,10 @@ pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     rendering: ResolvedVc<Rendering>,
-    ast_path: ResolvedVc<AstPath>,
-    issue_source: ResolvedVc<IssueSource>,
+    ast_path: AstPath,
+    issue_source: IssueSource,
     in_try: bool,
-    url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
+    url_rewrite_behavior: UrlRewriteBehavior,
 }
 
 #[turbo_tasks::value_impl]
@@ -65,10 +82,10 @@ impl UrlAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         rendering: ResolvedVc<Rendering>,
-        ast_path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        ast_path: AstPath,
+        issue_source: IssueSource,
         in_try: bool,
-        url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
+        url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Vc<Self> {
         UrlAssetReference {
             origin,
@@ -96,7 +113,7 @@ impl ModuleReference for UrlAssetReference {
             *self.origin,
             *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -147,12 +164,10 @@ impl CodeGenerateable for UrlAssetReference {
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
         let mut visitors = vec![];
-        let rewrite_behavior = &*this.url_rewrite_behavior.await?;
 
-        match rewrite_behavior {
+        match this.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
                 let referenced_asset = self.get_referenced_asset().await?;
-                let ast_path = this.ast_path.await?;
 
                 // if the referenced url is in the module graph of turbopack, replace it into
                 // the chunk item will be emitted into output path to point the
@@ -169,7 +184,7 @@ impl CodeGenerateable for UrlAssetReference {
                             .id()
                             .await?;
 
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -178,7 +193,9 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__(__turbopack_require__($id))" as Expr,
+                                    "new $turbopack_relative_url($turbopack_require($id))" as Expr,
+                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
+                                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                     id: Expr = module_id_to_lit(&id),
                                 );
                             }
@@ -186,7 +203,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -195,7 +212,8 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__($id)" as Expr,
+                                    "new $turbopack_relative_url($id)" as Expr,
+                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
                                     id: Expr = request.as_str().into(),
                                 );
                             }
@@ -213,7 +231,6 @@ impl CodeGenerateable for UrlAssetReference {
             }
             UrlRewriteBehavior::Full => {
                 let referenced_asset = self.get_referenced_asset().await?;
-                let ast_path = this.ast_path.await?;
 
                 // For rendering environments (CSR), we rewrite the `import.meta.url` to
                 // be a location.origin because it allows us to access files from the root of
@@ -245,17 +262,19 @@ impl CodeGenerateable for UrlAssetReference {
                         // runtime fn __turbopack_resolve_module_id_path__.
                         let url_segment_resolver = if rewrite_url_base.is_some() {
                             quote!(
-                                "__turbopack_require__($id)" as Expr,
+                                "$turbopack_require($id)" as Expr,
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 id: Expr = module_id_to_lit(&id),
                             )
                         } else {
                             quote!(
-                                "__turbopack_resolve_module_id_path__($id)" as Expr,
+                                "$turbopack_resolve_module_id_path($id)" as Expr,
+                                turbopack_resolve_module_id_path: Expr = TURBOPACK_RESOLVE_MODULE_ID_PATH.into(),
                                 id: Expr = module_id_to_lit(&id),
                             )
                         };
 
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = url_segment_resolver.clone();
@@ -275,7 +294,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = request.as_str().into()
@@ -304,6 +323,6 @@ impl CodeGenerateable for UrlAssetReference {
             }
         };
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }

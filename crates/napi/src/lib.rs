@@ -40,10 +40,10 @@ use std::{
 };
 
 use backtrace::Backtrace;
-use dashmap::DashMap;
-use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
@@ -98,17 +98,17 @@ fn init() {
 }
 
 #[inline]
-fn get_compiler() -> Arc<Compiler> {
+fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    Arc::new(Compiler::new(cm))
+    Compiler::new(cm)
 }
 
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
-    eliminated_packages: FxHashSet<String>,
-    use_cache_telemetry_tracker: DashMap<String, usize>,
+    eliminated_packages: FxHashSet<Atom>,
+    use_cache_telemetry_tracker: FxHashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
@@ -127,7 +127,7 @@ pub fn complete_output(
             env.create_string_from_std(serde_json::to_string(
                 &use_cache_telemetry_tracker
                     .iter()
-                    .map(|entry| (entry.key().clone(), *entry.value()))
+                    .map(|(k, v)| (k.clone(), *v))
                     .collect::<Vec<_>>(),
             )?)?,
         )?;
@@ -135,8 +135,6 @@ pub fn complete_output(
 
     Ok(js_output)
 }
-
-pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 

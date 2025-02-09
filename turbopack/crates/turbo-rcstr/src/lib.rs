@@ -3,7 +3,7 @@ use std::{
     ffi::OsStr,
     fmt::{Debug, Display},
     hash::{Hash, Hasher},
-    mem::forget,
+    mem::{forget, ManuallyDrop},
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
@@ -11,6 +11,7 @@ use std::{
 
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
@@ -96,15 +97,11 @@ impl RcStr {
     pub fn into_owned(self) -> String {
         match self.tag() {
             DYNAMIC_TAG => {
-                let arc = unsafe { dynamic::restore_arc(self.unsafe_data) };
-
-                match Arc::try_unwrap(arc.clone()) {
+                // convert `self` into `arc`
+                let arc = unsafe { dynamic::restore_arc(ManuallyDrop::new(self).unsafe_data) };
+                match Arc::try_unwrap(arc) {
                     Ok(v) => v,
-                    Err(arc) => {
-                        let s = arc.to_string();
-                        forget(arc);
-                        s
-                    }
+                    Err(arc) => arc.to_string(),
                 }
             }
             INLINE_TAG => self.as_str().to_string(),
@@ -298,5 +295,41 @@ impl Drop for RcStr {
         if self.tag() == DYNAMIC_TAG {
             unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
+    }
+}
+
+/// noop
+impl ShrinkToFit for RcStr {
+    #[inline(always)]
+    fn shrink_to_fit(&mut self) {}
+}
+
+#[cfg(test)]
+mod tests {
+    use std::mem::ManuallyDrop;
+
+    use super::*;
+
+    #[test]
+    fn test_refcount() {
+        fn refcount(str: &RcStr) -> usize {
+            assert!(str.tag() == DYNAMIC_TAG);
+            let arc = ManuallyDrop::new(unsafe { dynamic::restore_arc(str.unsafe_data) });
+            triomphe::Arc::count(&arc)
+        }
+
+        let str = RcStr::from("this is a long string that won't be inlined");
+
+        assert_eq!(refcount(&str), 1);
+        assert_eq!(refcount(&str), 1); // refcount should not modify the refcount itself
+
+        let cloned_str = str.clone();
+        assert_eq!(refcount(&str), 2);
+
+        drop(cloned_str);
+        assert_eq!(refcount(&str), 1);
+
+        let _ = str.clone().into_owned();
+        assert_eq!(refcount(&str), 1);
     }
 }

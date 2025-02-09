@@ -20,6 +20,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
     references::esm::base::ReferencedAsset,
+    runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
 
@@ -28,7 +29,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub part: Option<ResolvedVc<ModulePart>>,
+    pub part: Option<ModulePart>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,7 +37,7 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        part: ResolvedVc<ModulePart>,
+        part: ModulePart,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
@@ -54,9 +55,11 @@ impl EcmascriptModulePartReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptModulePartReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        self.part
-            .map_or_else(|| Vc::cell("module".into()), |part| part.to_string())
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(match &self.part {
+            Some(part) => Vc::cell(part.to_string().into()),
+            None => Vc::cell("module".into()),
+        })
     }
 }
 
@@ -64,10 +67,10 @@ impl ValueToString for EcmascriptModulePartReference {
 impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let module = if let Some(part) = self.part {
-            match *part.await? {
+        let module = if let Some(part) = &self.part {
+            match part {
                 ModulePart::Locals => {
-                    let Some(module) = ResolvedVc::try_downcast_type(self.module).await? else {
+                    let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
                         bail!(
                             "Expected EcmascriptModuleAsset for a EcmascriptModulePartReference \
                              with ModulePart::Locals"
@@ -79,15 +82,15 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
-                | ModulePart::RenamedNamespace { .. } => {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module, *part))
-                }
+                | ModulePart::RenamedNamespace { .. } => Vc::upcast(
+                    EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
+                ),
                 ModulePart::Export(..)
                 | ModulePart::Internal(..)
                 | ModulePart::InternalEvaluation(..) => {
                     bail!(
-                        "Unexpected ModulePart {} for EcmascriptModulePartReference",
-                        part.to_string().await?
+                        "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
+                        part
                     );
                 }
             }
@@ -119,7 +122,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
-            .get_ident()
+            .get_ident(module_graph, chunking_context)
             .await?
             .context("part module reference should have an ident")?;
 
@@ -134,10 +137,12 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         Ok(CodeGeneration::hoisted_stmt(
             ident.clone().into(),
             quote!(
-                "var $name = __turbopack_import__($id);" as Stmt,
+                "var $name = $turbopack_import($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),
-        ))
+        )
+        .cell())
     }
 }

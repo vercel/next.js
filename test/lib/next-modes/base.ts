@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs, rmSync } from 'fs'
+import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy } from '../e2e-utils'
@@ -519,6 +519,10 @@ export class NextInstance {
 
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+
+  public readFileSync(filename: string) {
+    return readFileSync(path.join(this.testDir, filename), 'utf8')
   }
 
   public async readJSON(filename: string) {

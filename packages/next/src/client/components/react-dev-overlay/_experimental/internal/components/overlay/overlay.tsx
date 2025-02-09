@@ -12,6 +12,7 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
   className,
   children,
   fixed,
+  ...props
 }) {
   React.useEffect(() => {
     lock()
@@ -37,7 +38,12 @@ const Overlay: React.FC<OverlayProps> = function Overlay({
   }, [overlay])
 
   return (
-    <div data-nextjs-dialog-overlay className={className} ref={onOverlay}>
+    <div
+      data-nextjs-dialog-overlay
+      className={className}
+      ref={onOverlay}
+      {...props}
+    >
       <div
         data-nextjs-dialog-backdrop
         data-nextjs-dialog-backdrop-fixed={fixed ? true : undefined}

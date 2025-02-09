@@ -1,5 +1,9 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrameResponse } from '../../server/shared'
+import type {
+  OriginalStackFrameResponse,
+  OriginalStackFrameResponseResult,
+  OriginalStackFramesRequest,
+} from '../../server/shared'
 import {
   isWebpackInternalResource,
   formatFrameSourceFile,
@@ -14,37 +18,15 @@ export interface OriginalStackFrame extends OriginalStackFrameResponse {
 
 function getOriginalStackFrame(
   source: StackFrame,
-  type: 'server' | 'edge-server' | null,
-  isAppDir: boolean,
-  errorMessage: string
+  response: OriginalStackFrameResponseResult
 ): Promise<OriginalStackFrame> {
   async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
-    const params = new URLSearchParams()
-    params.append('isServer', String(type === 'server'))
-    params.append('isEdgeServer', String(type === 'edge-server'))
-    params.append('isAppDirectory', String(isAppDir))
-    params.append('errorMessage', errorMessage)
-    for (const key in source) {
-      params.append(key, ((source as any)[key] ?? '').toString())
+    if (response.status === 'rejected') {
+      return Promise.reject(new Error(response.reason))
     }
 
-    const controller = new AbortController()
-    const tm = setTimeout(() => controller.abort(), 3000)
-    const res = await self
-      .fetch(
-        `${
-          process.env.__NEXT_ROUTER_BASEPATH || ''
-        }/__nextjs_original-stack-frame?${params.toString()}`,
-        { signal: controller.signal }
-      )
-      .finally(() => {
-        clearTimeout(tm)
-      })
-    if (!res.ok || res.status === 204) {
-      return Promise.reject(new Error(await res.text()))
-    }
+    const body: OriginalStackFrameResponse = response.value
 
-    const body: OriginalStackFrameResponse = await res.json()
     return {
       error: false,
       reason: null,
@@ -83,16 +65,41 @@ function getOriginalStackFrame(
   }))
 }
 
-export function getOriginalStackFrames(
+export async function getOriginalStackFrames(
   frames: StackFrame[],
   type: 'server' | 'edge-server' | null,
-  isAppDir: boolean,
-  errorMessage: string
-) {
-  return Promise.all(
-    frames.map((frame) =>
-      getOriginalStackFrame(frame, type, isAppDir, errorMessage)
+  isAppDir: boolean
+): Promise<OriginalStackFrame[]> {
+  const req: OriginalStackFramesRequest = {
+    frames,
+    isServer: type === 'server',
+    isEdgeServer: type === 'edge-server',
+    isAppDirectory: isAppDir,
+  }
+
+  const res = await fetch('/__nextjs_original-stack-frames', {
+    method: 'POST',
+    body: JSON.stringify(req),
+  })
+
+  // When fails to fetch the original stack frames, we reject here to be
+  // caught at `_getOriginalStackFrame()` and return the stack frames so
+  // that the error overlay can render.
+  if (!res.ok || res.status === 204) {
+    const reason = await res.text()
+    return Promise.all(
+      frames.map((frame) =>
+        getOriginalStackFrame(frame, {
+          status: 'rejected',
+          reason: `Failed to fetch the original stack frames: ${reason}`,
+        })
+      )
     )
+  }
+
+  const data = await res.json()
+  return Promise.all(
+    frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
   )
 }
 

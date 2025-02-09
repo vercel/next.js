@@ -1028,7 +1028,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         builder = builder.use_file_source_map_uris();
     } else {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
+            max_chunk_count_per_group: 100,
+            max_merge_chunk_size: 100_000,
             ..Default::default()
         })
     }
@@ -1078,7 +1080,9 @@ pub async fn get_server_chunking_context(
         builder = builder.use_file_source_map_uris()
     } else {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
+            max_chunk_count_per_group: 100,
+            max_merge_chunk_size: 100_000,
             ..Default::default()
         })
     }

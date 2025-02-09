@@ -23,10 +23,10 @@ tracing = "0.1"
 tracing-subscriber = "0.3"
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
-turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }

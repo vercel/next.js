@@ -17,6 +17,7 @@ use crate::{
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     references::async_module::AsyncModuleOptions,
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
     EcmascriptModuleContent,
@@ -48,7 +49,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let module = self.module.await?;
 
         let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, *module.part);
+        let parsed = part_of_module(split_data, module.part.clone());
 
         let analyze = self.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);
@@ -168,7 +169,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
             code.push_bytes(
                 format!(
-                    "{}__turbopack_import__({});\n",
+                    "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
                     StringifyModuleId(
                         &*side_effect
@@ -183,7 +184,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
         code.push_bytes(
             format!(
-                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
+                "{TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));\n",
                 StringifyModuleId(
                     &*module
                         .resolved_as

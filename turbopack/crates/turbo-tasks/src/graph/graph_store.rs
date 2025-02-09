@@ -1,4 +1,6 @@
-use std::{collections::HashSet, hash::Hash};
+use std::hash::Hash;
+
+use rustc_hash::FxHashSet;
 
 use super::VisitedNodes;
 
@@ -53,7 +55,7 @@ where
     StoreImpl: GraphStore,
 {
     store: StoreImpl,
-    visited: HashSet<StoreImpl::Node>,
+    visited: FxHashSet<StoreImpl::Node>,
 }
 
 impl<StoreImpl> SkipDuplicates<StoreImpl>
@@ -63,11 +65,11 @@ where
     pub fn new(store: StoreImpl) -> Self {
         Self {
             store,
-            visited: Default::default(),
+            visited: FxHashSet::default(),
         }
     }
 
-    pub fn new_with_visited_nodes(store: StoreImpl, visited: HashSet<StoreImpl::Node>) -> Self {
+    pub fn new_with_visited_nodes(store: StoreImpl, visited: FxHashSet<StoreImpl::Node>) -> Self {
         Self { store, visited }
     }
 }

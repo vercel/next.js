@@ -232,17 +232,17 @@ graph TD
 
 ```
 {
-    Export(
-        "connectHMR",
-    ): 2,
     ModuleEvaluation: 5,
     Export(
         "addMessageListener",
     ): 3,
-    Exports: 6,
+    Export(
+        "connectHMR",
+    ): 2,
     Export(
         "sendMessage",
     ): 4,
+    Exports: 6,
 }
 ```
 
@@ -385,17 +385,17 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 
 ```
 {
-    Export(
-        "connectHMR",
-    ): 2,
     ModuleEvaluation: 5,
     Export(
         "addMessageListener",
     ): 3,
-    Exports: 6,
+    Export(
+        "connectHMR",
+    ): 2,
     Export(
         "sendMessage",
     ): 4,
+    Exports: 6,
 }
 ```
 

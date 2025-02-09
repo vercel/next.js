@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use anyhow::Result;
 use next_core::{
@@ -9,6 +9,7 @@ use next_core::{
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
@@ -58,8 +59,8 @@ impl NextDynamicGraph {
         // This would clone the graph and allow changing the node weights. We can probably get away
         // with keeping the sidecar information separate from the graph itself, though.
         //
-        // let mut reduced_modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // HashMap::new(); let mut reduced_graph = DiGraph::new();
+        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
+        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
         // for idx in graph.node_indices() {
         //     let weight = *graph.node_weight(idx).unwrap();
         //     let new_idx = reduced_graph.add_node(weight);
@@ -112,7 +113,7 @@ impl NextDynamicGraph {
             let mut result = vec![];
 
             // module -> the client reference entry (if any)
-            let mut state_map = HashMap::new();
+            let mut state_map = FxHashMap::default();
             graph.traverse_edges_from_entries(entries, |parent_info, node| {
                 let module = node.module;
                 let Some((parent_node, _)) = parent_info else {
@@ -210,7 +211,7 @@ impl ServerActionsGraph {
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = HashMap::new();
+                let mut result = FxHashMap::default();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
                         result.insert(node.module, *node_data);
@@ -309,7 +310,7 @@ impl ClientReferencesGraph {
             graph.traverse_edges_from_entries_topological(
                 entries,
                 // state_map is `module -> Option< the current so parent server component >`
-                &mut HashMap::new(),
+                &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
                     let module = node.module;
                     let module_type = data.get(&module);

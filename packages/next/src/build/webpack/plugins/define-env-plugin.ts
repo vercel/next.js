@@ -288,11 +288,7 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      // When `__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY` is set on CI,
-      // we need to pass it here so it can be enabled.
-      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
-      config.experimental.newDevOverlay ||
-      false,
+      config.experimental.newDevOverlay || false,
     'process.env.__NEXT_REACT_OWNER_STACK':
       config.experimental.reactOwnerStack ?? false,
   }

@@ -23,9 +23,12 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     source::Source,
 };
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
-    EcmascriptExports,
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
+    },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
 
 #[turbo_tasks::function]
@@ -132,8 +135,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
         match &*data {
             FileJsonContent::Content(data) => {
                 let js_str_content = serde_json::to_string(&data.to_string())?;
-                let inner_code =
-                    format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
+                let inner_code = format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));");
 
                 Ok(EcmascriptChunkItemContent {
                     inner_code: inner_code.into(),

@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
+use std::{collections::BTreeMap, io::Write};
 
 use anyhow::{bail, Context, Result};
 use next_core::{
@@ -10,6 +7,7 @@ use next_core::{
     },
     util::NextRuntime,
 };
+use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
     common::comments::Comments,
@@ -248,7 +246,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
     {
         if matches!(
-            &*module.await?.part.await?,
+            module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(Vc::cell(None));
@@ -399,7 +397,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(HashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(FxHashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {

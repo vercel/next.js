@@ -1,7 +1,9 @@
 mod aggregation_update;
 mod cleanup_old_edges;
 mod connect_child;
+mod connect_children;
 mod invalidate;
+mod prepare_new_children;
 mod update_cell;
 mod update_collectible;
 mod update_output;
@@ -746,9 +748,12 @@ impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
-        get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
+        get_aggregation_number, get_uppers, is_aggregating_node, is_root_node,
+        AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    connect_children::connect_children,
+    prepare_new_children::prepare_new_children,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

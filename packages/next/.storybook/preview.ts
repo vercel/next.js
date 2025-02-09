@@ -13,7 +13,7 @@ const preview: Preview = {
     },
     backgrounds: {
       values: [
-        { name: 'backdrop', value: 'rgb(44, 44, 46);' },
+        { name: 'backdrop', value: 'rgba(250, 250, 250, 0.80)' },
         { name: 'background-100-light', value: '#ffffff' },
         { name: 'background-200-light', value: '#fafafa' },
         { name: 'background-100-dark', value: '#0a0a0a' },

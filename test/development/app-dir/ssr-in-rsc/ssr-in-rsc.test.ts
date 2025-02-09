@@ -397,55 +397,54 @@ describe('react-dom/server in React Server environment', () => {
       // TODO(jiwon): Remove this once we have a new dev overlay at stable.
       if (isNewDevOverlay) {
         expect(redbox).toMatchInlineSnapshot(`
-       {
-         "description": "Failed to compile",
-         "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
-
-       Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-          ,-[1:1]
-        1 | import * as ReactDOMServerNode from 'react-dom/server'
-          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        2 | // Fine to drop once React is on ESM
-        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-          \`----
-         x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-          ,-[3:1]
-        1 | import * as ReactDOMServerNode from 'react-dom/server'
-        2 | // Fine to drop once React is on ESM
-        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        4 | 
-        5 | export const runtime = 'nodejs'
-          \`----",
-       }
-      `)
+         {
+           "description": "Failed to compile",
+           "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
+         Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+           | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+            ,-[1:1]
+          1 | import * as ReactDOMServerNode from 'react-dom/server'
+            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          2 | // Fine to drop once React is on ESM
+          3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+            \`----
+           x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+           | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+            ,-[3:1]
+          1 | import * as ReactDOMServerNode from 'react-dom/server'
+          2 | // Fine to drop once React is on ESM
+          3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+            : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          4 | 
+          5 | export const runtime = 'nodejs'
+            \`----",
+         }
+        `)
       } else {
         expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Failed to compile",
-          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
-        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-           ,-[1:1]
-         1 | import * as ReactDOMServerNode from 'react-dom/server'
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         2 | // Fine to drop once React is on ESM
-         3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-           \`----
-          x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-          | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
-           ,-[3:1]
-         1 | import * as ReactDOMServerNode from 'react-dom/server'
-         2 | // Fine to drop once React is on ESM
-         3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         4 | 
-         5 | export const runtime = 'nodejs'
-           \`----",
-        }
-      `)
+                 {
+                   "description": "Failed to compile",
+                   "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
+                 Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+                   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+                    ,-[1:1]
+                  1 | import * as ReactDOMServerNode from 'react-dom/server'
+                    : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  2 | // Fine to drop once React is on ESM
+                  3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+                    \`----
+                   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+                   | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+                    ,-[3:1]
+                  1 | import * as ReactDOMServerNode from 'react-dom/server'
+                  2 | // Fine to drop once React is on ESM
+                  3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+                    : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  4 | 
+                  5 | export const runtime = 'nodejs'
+                    \`----",
+                 }
+              `)
       }
     }
   })

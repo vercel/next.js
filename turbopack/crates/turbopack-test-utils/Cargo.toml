@@ -24,6 +24,7 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+rustc-hash = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
