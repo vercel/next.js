@@ -52,7 +52,6 @@ export const CallStackFrame: React.FC<{
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
-      data-animate={frame.ignored}
       {...props}
       style={
         {
@@ -89,24 +88,16 @@ export const CALL_STACK_FRAME_STYLES = css`
     user-select: text;
     display: block;
     box-sizing: border-box;
-    width: 100%;
 
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
 
-    padding: var(--size-1_5) var(--size-2);
-    margin-bottom: var(--size-1);
+    padding: 6px 8px;
 
     border-radius: var(--rounded-lg);
     transition: background 100ms ease-out;
-
-    &[data-animate='true'] {
-      filter: blur(4px);
-      animation: fadeIn 250ms var(--timing-swift) forwards
-        calc(var(--index) * 25ms);
-    }
 
     &:not(:disabled)[role='button']:hover {
       background: var(--color-gray-alpha-100);
@@ -140,11 +131,5 @@ export const CALL_STACK_FRAME_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
     line-height: var(--size-5);
-  }
-
-  @keyframes fadeIn {
-    to {
-      filter: blur(0px);
-    }
   }
 `

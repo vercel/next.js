@@ -990,15 +990,13 @@ export function getRedboxHeader(browser: BrowserInterface) {
   })
 }
 
-export function getRedboxFloatingHeaderText(
-  browser: BrowserInterface
-): Promise<string> {
+export function getRedboxNavText(browser: BrowserInterface): Promise<string> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('.error-overlay-floating-header'))
+      .find((p) => p.shadowRoot.querySelector('.error-overlay-nav'))
     const root = portal.shadowRoot
-    return root.querySelector('.error-overlay-floating-header')?.innerText
+    return root.querySelector('.error-overlay-nav')?.innerText
   })
 }
 
@@ -1006,7 +1004,7 @@ export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
   // TODO(jiwon): Remove this once we have a new dev overlay at stable.
   if (isNewDevOverlay) {
     // N/M\nNext.js X.Y.Z -> M
-    const text = (await getRedboxFloatingHeaderText(browser)) || ''
+    const text = (await getRedboxNavText(browser)) || ''
     return parseInt(text.match(/\/(\d+)/)?.[1])
   }
 

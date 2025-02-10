@@ -51,16 +51,10 @@ export function ErrorOverlayPagination({
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonLeft.current) {
-          buttonLeft.current.focus()
-        }
         handlePrevious && handlePrevious()
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonRight.current) {
-          buttonRight.current.focus()
-        }
         handleNext && handleNext()
       }
     }
@@ -150,14 +144,8 @@ export const styles = css`
     display: flex;
     justify-content: center;
     align-items: center;
-
-    padding: 4px;
     gap: 8px;
-    background: var(--color-background-100);
-    background-clip: padding-box;
-    box-shadow: var(--shadow-small);
-    border: 1px solid var(--color-gray-alpha-400);
-    border-radius: var(--rounded-full);
+    width: fit-content;
   }
 
   .error-overlay-pagination-count {
@@ -174,11 +162,17 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    padding: 4px;
+    width: 24px;
+    height: 24px;
     background: var(--color-gray-300);
+    flex-shrink: 0;
 
     border: none;
     border-radius: var(--rounded-full);
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+    }
 
     &:not(:disabled):active {
       background: var(--color-gray-500);

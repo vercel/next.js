@@ -18,9 +18,9 @@ import {
   styles as errorTypeLabelStyles,
 } from '../error-type-label/error-type-label'
 import {
-  ErrorOverlayFloatingHeader,
+  ErrorOverlayNav,
   styles as floatingHeaderStyles,
-} from '../error-overlay-floating-header/error-overlay-floating-header'
+} from '../error-overlay-nav/error-overlay-nav'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
@@ -87,20 +87,11 @@ export function ErrorOverlayLayout({
       <div data-nextjs-dialog-root {...animationProps}>
         <ErrorOverlayDialog
           onClose={onClose}
-          isTurbopack={isTurbopack}
           dialogResizerRef={dialogResizerRef}
           data-has-footer={hasFooter}
         >
           <DialogContent>
-            <ErrorOverlayFloatingHeader
-              readyErrors={readyErrors}
-              activeIdx={activeIdx}
-              setActiveIndex={setActiveIndex}
-              versionInfo={versionInfo}
-              isTurbopack={isTurbopack}
-            />
-
-            <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
+            <ErrorOverlayDialogHeader>
               <div
                 className="nextjs__container_errors__error_title"
                 // allow assertion in tests before error rating is implemented
@@ -127,6 +118,13 @@ export function ErrorOverlayLayout({
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
+        <ErrorOverlayNav
+          readyErrors={readyErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          versionInfo={versionInfo}
+          isTurbopack={isTurbopack}
+        />
       </div>
     </ErrorOverlayOverlay>
   )

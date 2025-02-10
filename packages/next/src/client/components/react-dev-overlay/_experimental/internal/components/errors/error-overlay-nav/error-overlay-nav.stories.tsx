@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ErrorOverlayFloatingHeader } from './error-overlay-floating-header'
+import { ErrorOverlayNav } from './error-overlay-nav'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof ErrorOverlayFloatingHeader> = {
-  component: ErrorOverlayFloatingHeader,
+const meta: Meta<typeof ErrorOverlayNav> = {
+  component: ErrorOverlayNav,
   parameters: {
     layout: 'fullscreen',
   },
@@ -11,7 +11,7 @@ const meta: Meta<typeof ErrorOverlayFloatingHeader> = {
 }
 
 export default meta
-type Story = StoryObj<typeof ErrorOverlayFloatingHeader>
+type Story = StoryObj<typeof ErrorOverlayNav>
 
 export const Default: Story = {
   args: {
