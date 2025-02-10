@@ -416,10 +416,7 @@ export function createPatchedFetcher(
             cacheSignal.endRead()
             cacheSignal = null
           }
-          return makeHangingPromise<Response>(
-            workUnitStore.renderSignal,
-            'fetch()'
-          )
+          return makeHangingPromise<Response>(workUnitStore, 'fetch()')
         }
 
         switch (pageFetchCacheMode) {
@@ -508,10 +505,7 @@ export function createPatchedFetcher(
                 cacheSignal.endRead()
                 cacheSignal = null
               }
-              return makeHangingPromise<Response>(
-                workUnitStore.renderSignal,
-                'fetch()'
-              )
+              return makeHangingPromise<Response>(workUnitStore, 'fetch()')
             } else {
               markCurrentScopeAsDynamic(
                 workStore,
@@ -866,10 +860,7 @@ export function createPatchedFetcher(
                 cacheSignal.endRead()
                 cacheSignal = null
               }
-              return makeHangingPromise<Response>(
-                workUnitStore.renderSignal,
-                'fetch()'
-              )
+              return makeHangingPromise<Response>(workUnitStore, 'fetch()')
             } else {
               markCurrentScopeAsDynamic(
                 workStore,
@@ -889,10 +880,7 @@ export function createPatchedFetcher(
             if (next.revalidate === 0) {
               // If enabled, we should bail out of static generation.
               if (workUnitStore && workUnitStore.type === 'prerender') {
-                return makeHangingPromise<Response>(
-                  workUnitStore.renderSignal,
-                  'fetch()'
-                )
+                return makeHangingPromise<Response>(workUnitStore, 'fetch()')
               } else {
                 markCurrentScopeAsDynamic(
                   workStore,

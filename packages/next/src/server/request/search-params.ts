@@ -113,7 +113,7 @@ export function createPrerenderSearchParamsForClientPage(
     // dynamicIO Prerender
     // We're prerendering in a mode that aborts (dynamicIO) and should stall
     // the promise to ensure the RSC side is considered dynamic
-    return makeHangingPromise(prerenderStore.renderSignal, '`searchParams`')
+    return makeHangingPromise(prerenderStore, '`searchParams`')
   }
   // We're prerendering in a mode that does not aborts. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
@@ -183,7 +183,7 @@ function makeAbortingExoticSearchParams(
   }
 
   const promise = makeHangingPromise<SearchParams>(
-    prerenderStore.renderSignal,
+    prerenderStore,
     '`searchParams`'
   )
 

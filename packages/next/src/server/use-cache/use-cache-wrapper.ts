@@ -660,10 +660,7 @@ export function cache(
             if (cacheSignal) {
               cacheSignal.endRead()
             }
-            return makeHangingPromise(
-              workUnitStore.renderSignal,
-              'dynamic "use cache"'
-            )
+            return makeHangingPromise(workUnitStore, 'dynamic "use cache"')
           }
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
@@ -716,10 +713,7 @@ export function cache(
             cacheSignal.endRead()
           }
 
-          return makeHangingPromise(
-            workUnitStore.renderSignal,
-            'dynamic "use cache"'
-          )
+          return makeHangingPromise(workUnitStore, 'dynamic "use cache"')
         } else if (
           entry === undefined ||
           currentTime > entry.timestamp + entry.expire * 1000 ||

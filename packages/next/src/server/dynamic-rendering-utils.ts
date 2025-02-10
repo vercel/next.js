@@ -1,3 +1,7 @@
+import { annotateDynamicAccess } from './app-render/dynamic-rendering'
+import type { PrerenderStoreModern } from './app-render/work-unit-async-storage.external'
+import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
+
 export function isHangingPromiseRejectionError(
   err: unknown
 ): err is HangingPromiseRejectionError {
@@ -28,11 +32,11 @@ class HangingPromiseRejectionError extends Error {
  * @internal
  */
 export function makeHangingPromise<T>(
-  signal: AbortSignal,
+  prerenderStore: PrerenderStoreModern,
   expression: string
 ): Promise<T> {
   const hangingPromise = new Promise<T>((_, reject) => {
-    signal.addEventListener(
+    prerenderStore.renderSignal.addEventListener(
       'abort',
       () => {
         reject(new HangingPromiseRejectionError(expression))
@@ -44,7 +48,18 @@ export function makeHangingPromise<T>(
   // we attach a noop catch handler here to suppress this warning. If you actually await somewhere or construct
   // your own promise out of it you'll need to ensure you handle the error when it rejects.
   hangingPromise.catch(ignoreReject)
-  return hangingPromise
+
+  return new Proxy(hangingPromise, {
+    get: function get(target, prop, receiver) {
+      if (prop === 'then' || prop === 'status') {
+        const capturedError = new Error()
+        Error.captureStackTrace(capturedError, get)
+        annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
 }
 
 function ignoreReject() {}

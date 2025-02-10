@@ -125,7 +125,7 @@ export function createPrerenderParamsForClientSegment(
           // This params object has one of more fallback params so we need to consider
           // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
           // we encode this as a promise that never resolves
-          return makeHangingPromise(prerenderStore.renderSignal, '`params`')
+          return makeHangingPromise(prerenderStore, '`params`')
         }
       }
     }
@@ -205,10 +205,7 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>(
-    prerenderStore.renderSignal,
-    '`params`'
-  )
+  const promise = makeHangingPromise<Params>(prerenderStore, '`params`')
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {

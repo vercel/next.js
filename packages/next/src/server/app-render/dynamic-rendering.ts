@@ -611,7 +611,7 @@ export function useDynamicRouteParams(expression: string) {
           // We are in a prerender with dynamicIO semantics
           // We are going to hang here and never resolve. This will cause the currently
           // rendering component to effectively be a dynamic hole
-          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
+          React.use(makeHangingPromise(workUnitStore, expression))
         } else if (workUnitStore.type === 'prerender-ppr') {
           // We're prerendering with PPR
           postponeWithTracking(
