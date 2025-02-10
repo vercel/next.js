@@ -1,5 +1,4 @@
 import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
-import { cx } from '../../helpers/cx'
 import { noop as css } from '../../helpers/noop-template'
 
 export function VersionStalenessInfo({
