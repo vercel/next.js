@@ -16,11 +16,16 @@ import path from 'path'
 import url from 'url'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import {
+  SourceMapConsumer,
+  type BasicSourceMapConsumer,
+  type NullableMappedPosition,
+} from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -229,39 +234,58 @@ function findApplicableSourceMapPayload(
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceMap = findSourceMap(
-    // TODO(veil): Why are the frames sent encoded?
+  const sourceURL = // TODO(veil): Why are the frames sent encoded?
     decodeURIComponent(frame.file)
-  )
-  if (sourceMap !== undefined) {
-    const traced = await SourceMapConsumer.with(
-      sourceMap.payload,
-      null,
-      async (consumer) => {
-        const originalPosition = consumer.originalPositionFor({
-          line: frame.line ?? 1,
-          column: frame.column ?? 1,
-        })
+  let sourceMapPayload: ModernSourceMapPayload | undefined
+  try {
+    sourceMapPayload = findSourceMap(sourceURL)?.payload
+  } catch (cause) {
+    throw new Error(
+      `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
+  }
 
-        if (originalPosition.source === null) {
-          return null
-        }
+  if (sourceMapPayload !== undefined) {
+    let consumer: BasicSourceMapConsumer
+    try {
+      consumer = await new SourceMapConsumer(sourceMapPayload)
+    } catch (cause) {
+      throw new Error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+        { cause }
+      )
+    }
+    let traced: {
+      originalPosition: NullableMappedPosition
+      sourceContent: string | null
+    } | null
+    try {
+      const originalPosition = consumer.originalPositionFor({
+        line: frame.line ?? 1,
+        column: frame.column ?? 1,
+      })
 
+      if (originalPosition.source === null) {
+        traced = null
+      } else {
         const sourceContent: string | null =
           consumer.sourceContentFor(
             originalPosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
 
-        return { originalPosition, sourceContent }
+        traced = { originalPosition, sourceContent }
       }
-    )
+    } finally {
+      consumer.destroy()
+    }
 
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
         frame,
-        sourceMap.payload
+        sourceMapPayload
       )
 
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
@@ -361,19 +385,25 @@ export function getOverlayMiddleware(project: Project) {
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
       const stackFrames = createStackFrames(request)
-      const result = (await Promise.allSettled(
+      const result: OriginalStackFramesResponse = await Promise.all(
         stackFrames.map(async (frame) => {
           try {
             const stackFrame = await createOriginalStackFrame(project, frame)
             if (stackFrame === null) {
-              return Promise.reject('Failed to create original stack frame')
+              return {
+                status: 'rejected',
+                reason: 'Failed to create original stack frame',
+              }
             }
-            return stackFrame
-          } catch (e: any) {
-            return Promise.reject(e.stack)
+            return { status: 'fulfilled', value: stackFrame }
+          } catch (error) {
+            return {
+              status: 'rejected',
+              reason: inspect(error, { colors: false }),
+            }
           }
         })
-      )) satisfies OriginalStackFramesResponse
+      )
 
       return json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {

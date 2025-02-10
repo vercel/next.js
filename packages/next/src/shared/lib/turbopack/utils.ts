@@ -1,7 +1,14 @@
-import type { Issue, StyledString, TurbopackResult } from '../../../build/swc/types'
+import type {
+  Issue,
+  StyledString,
+  TurbopackResult,
+} from '../../../build/swc/types'
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import isInternal from '../is-internal'
-import { decodeMagicIdentifier, MAGIC_IDENTIFIER_REGEX } from '../magic-identifier'
+import {
+  decodeMagicIdentifier,
+  MAGIC_IDENTIFIER_REGEX,
+} from '../magic-identifier'
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
@@ -60,7 +67,6 @@ export async function getTurbopackJsConfig(
   const { jsConfig } = await loadJsConfig(dir, nextConfig)
   return jsConfig ?? { compilerOptions: {} }
 }
-
 
 export function processIssues(
   currentEntryIssues: EntryIssuesMap,

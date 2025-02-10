@@ -200,4 +200,42 @@ describe('app-dir - server source maps', () => {
       isNextDev ? 'Error [MyError]: Bar' : 'Error [MyError]: Bar'
     )
   })
+
+  it('handles invalid sourcemaps gracefully', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/bad-sourcemap')
+
+    await retry(() => {
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: Boom!'
+      )
+    })
+
+    if (isNextDev) {
+      if (isTurbopack) {
+        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+          // Node.js is fine with invalid URLs in index maps apparently.
+          '' +
+            '\nError: Boom!' +
+            // TODO(veil): Turbopack's sourcemap loader generates a wrong source entry here
+            // Should not be sourcemapped or "custom://[badhost]/app/bad-sourcemap/page.js"
+            '\n    at Page (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:9:15)' +
+            // TODO: Remove blank line
+            '\n'
+        )
+      } else {
+        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+          // Node.js is not fine with invalid URLs in vanilla source maps.
+          // Feel free to adjust these locations. They're just here to showcase
+          // sourcemapping is broken on invalid sources.
+          '' +
+            `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
+            '\nError: Boom!' +
+            '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:19)'
+        )
+      }
+    } else {
+      // TODO: test `next start` with `--enable-source-maps`
+    }
+  })
 })

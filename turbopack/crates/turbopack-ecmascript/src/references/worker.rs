@@ -29,8 +29,8 @@ use crate::{
 pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub path: AstPath,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -40,8 +40,8 @@ impl WorkerAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        path: AstPath,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerAssetReference {
@@ -63,7 +63,7 @@ impl WorkerAssetReference {
             *self.request,
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         );
 
@@ -131,9 +131,7 @@ impl CodeGenerateable for WorkerAssetReference {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let path = &self.path.await?;
-
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {

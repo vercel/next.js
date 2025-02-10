@@ -24,13 +24,13 @@ use crate::{
 #[derive(Hash, Debug)]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
-    ast_path: ResolvedVc<AstPath>,
+    ast_path: AstPath,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmModuleIdAssetReference {
     #[turbo_tasks::function]
-    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: ResolvedVc<AstPath>) -> Vc<Self> {
+    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: AstPath) -> Vc<Self> {
         Self::cell(EsmModuleIdAssetReference { inner, ast_path })
     }
 }
@@ -78,7 +78,7 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
                 .await?;
             let id = module_id_to_lit(&id);
             visitors.push(
-                create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
+                create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
                     *expr = id.clone()
                 }),
             );
@@ -87,7 +87,7 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
             visitors.push(
-                create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
+                create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
                     *expr = quote!("null" as Expr);
                 }),
             );

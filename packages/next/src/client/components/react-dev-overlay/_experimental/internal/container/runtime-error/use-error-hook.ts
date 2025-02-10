@@ -21,18 +21,13 @@ export type SupportedErrorEvent = {
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
+  // eslint-disable-next-line default-case -- TypeScript checks this
   switch (event.type) {
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default: {
-    }
   }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event as never
-  return ''
 }
 
 export function useErrorHook({
@@ -109,7 +104,7 @@ export function useErrorHook({
     // missing tags won't be dismissed until resolved, the
     // total number of errors may be fixed to their length.
     totalErrorCount: rootLayoutMissingTags?.length
-      ? rootLayoutMissingTags.length
+      ? 1
       : !!buildError
         ? 1
         : readyErrors.length,

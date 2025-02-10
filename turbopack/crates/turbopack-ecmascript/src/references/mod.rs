@@ -18,7 +18,7 @@ pub mod unreachable;
 pub mod util;
 pub mod worker;
 
-use std::{borrow::Cow, collections::BTreeMap, mem::take, ops::Deref, sync::Arc};
+use std::{borrow::Cow, collections::BTreeMap, future::Future, mem::take, ops::Deref, sync::Arc};
 
 use anyhow::{bail, Result};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
@@ -29,6 +29,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -49,11 +50,15 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
+        FreeVarReferencesIndividual,
     },
     environment::Rendering,
     error::PrettyPrintError,
@@ -259,7 +264,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
-        self,
+        mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let references = self.references.into_iter().collect();
@@ -284,6 +289,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         } else {
             OptionSourceMap::none().to_resolved().await?
         };
+
+        self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: ResolvedVc::cell(references),
@@ -315,6 +322,7 @@ struct AnalysisState<'a> {
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
+    var_cache: Mutex<FxHashMap<Id, JsValue>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -322,13 +330,13 @@ struct AnalysisState<'a> {
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    free_var_references: ReadRef<FreeVarReferencesIndividual>,
 }
 
 impl AnalysisState<'_> {
     /// Links a value to the graph, returning the linked value.
     async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
-        let fun_args_values = self.fun_args_values.lock().clone();
-        link(
+        Ok(link(
             self.var_graph,
             value,
             &early_value_visitor,
@@ -337,13 +345,16 @@ impl AnalysisState<'_> {
                     *self.origin,
                     value,
                     *self.compile_time_info,
+                    &self.free_var_references,
                     self.var_graph,
                     attributes,
                 )
             },
-            fun_args_values,
+            &self.fun_args_values,
+            &self.var_cache,
         )
-        .await
+        .await?
+        .0)
     }
 }
 
@@ -358,7 +369,7 @@ where
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: ResolvedVc<EcmascriptModuleAsset>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
@@ -379,7 +390,7 @@ pub(crate) async fn analyse_ecmascript_module(
 
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
@@ -405,7 +416,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let parsed = if let Some(part) = part {
         let parsed = parse(*source, ty, *transforms);
         let split_data = split(source.ident(), *source, parsed);
-        part_of_module(split_data, part)
+        part_of_module(split_data, part.clone())
     } else {
         module.failsafe_parse()
     };
@@ -606,42 +617,30 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 Request::parse(Value::new(RcStr::from(&*r.module_path).into()))
                     .to_resolved()
                     .await?,
-                if let Some(issue_source) = r.issue_source {
-                    issue_source.to_resolved().await?
-                } else {
-                    IssueSource::from_source_only(*source).to_resolved().await?
-                },
+                r.issue_source
+                    .clone()
+                    .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 Value::new(r.annotations.clone()),
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                         ImportedSymbol::ModuleEvaluation => {
                             evaluation_references.push(i);
-                            Some(ModulePart::evaluation().to_resolved().await?)
+                            Some(ModulePart::evaluation())
                         }
-                        ImportedSymbol::Symbol(name) => {
-                            Some(ModulePart::export((&**name).into()).to_resolved().await?)
-                        }
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(part_id) => {
                             evaluation_references.push(i);
-                            Some(
-                                ModulePart::internal_evaluation(*part_id)
-                                    .to_resolved()
-                                    .await?,
-                            )
+                            Some(ModulePart::internal_evaluation(*part_id))
                         }
-                        ImportedSymbol::Part(part_id) => {
-                            Some(ModulePart::internal(*part_id).to_resolved().await?)
-                        }
-                        ImportedSymbol::Exports => Some(ModulePart::exports().to_resolved().await?),
+                        ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
+                        ImportedSymbol::Exports => Some(ModulePart::exports()),
                     },
                     Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                         ImportedSymbol::ModuleEvaluation => {
                             evaluation_references.push(i);
-                            Some(ModulePart::evaluation().to_resolved().await?)
+                            Some(ModulePart::evaluation())
                         }
-                        ImportedSymbol::Symbol(name) => {
-                            Some(ModulePart::export((&**name).into()).to_resolved().await?)
-                        }
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                             bail!("Internal imports doesn't exist in reexports only mode")
                         }
@@ -878,7 +877,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 StyledString::Text("top level await is only supported in ESM modules.".into())
                     .cell(),
                 None,
-                Some(issue_source(*source, span)),
+                Some(issue_source(source, span)),
             )
             .to_resolved()
             .await?
@@ -899,12 +898,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
-            fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
+            fun_args_values: Default::default(),
+            var_cache: Default::default(),
             first_import_meta: true,
             tree_shaking_mode: options.tree_shaking_mode,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
+            free_var_references: compile_time_info
+                .await?
+                .free_var_references
+                .individual()
+                .await?,
         };
 
         enum Action {
@@ -1229,9 +1234,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
-                    let obj = analysis_state
-                        .link_value(*obj, ImportAttributes::empty_ref())
-                        .await?;
+                    // Intentionally not awaited because `handle_member` reads this only when neeed.
+                    let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
+
                     let prop = analysis_state
                         .link_value(*prop, ImportAttributes::empty_ref())
                         .await?;
@@ -1249,7 +1254,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if let Some(&r) = import_references.get(esm_reference_index) {
                         if let Some("__turbopack_module_id__") = export.as_deref() {
                             analysis.add_reference(
-                                EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path))
+                                EsmModuleIdAssetReference::new(*r, ast_path.into())
                                     .to_resolved()
                                     .await?,
                             )
@@ -1262,9 +1267,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                         EsmAssetReference::new(
                                             r_ref.origin,
                                             r_ref.request,
-                                            r_ref.issue_source,
+                                            r_ref.issue_source.clone(),
                                             Value::new(r_ref.annotations.clone()),
-                                            Some(ModulePart::export(export).to_resolved().await?),
+                                            Some(ModulePart::export(export)),
                                             r_ref.import_externals,
                                         )
                                         .to_resolved()
@@ -1462,8 +1467,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 *origin,
                                 Request::parse(Value::new(pat)),
                                 compile_time_info.environment().rendering(),
-                                Vc::cell(ast_path.to_vec()),
-                                issue_source(*source, span),
+                                ast_path.to_vec().into(),
+                                issue_source(source, span),
                                 in_try,
                                 url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                             )
@@ -1497,8 +1502,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             WorkerAssetReference::new(
                                 *origin,
                                 Request::parse(Value::new(pat)),
-                                Vc::cell(ast_path.to_vec()),
-                                issue_source(*source, span),
+                                ast_path.to_vec().into(),
+                                issue_source(source, span),
                                 in_try,
                             )
                             .to_resolved()
@@ -1596,8 +1601,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     EsmAsyncAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        ast_path.to_vec().into(),
+                        issue_source(source, span),
                         Value::new(import_annotations),
                         in_try,
                         state.import_externals,
@@ -1638,8 +1643,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsRequireAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        ast_path.to_vec().into(),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -1692,8 +1697,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsRequireResolveAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        ast_path.to_vec().into(),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -1738,8 +1743,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     options.dir,
                     options.include_subdirs,
                     Vc::cell(options.filter),
-                    Vc::cell(ast_path.to_vec()),
-                    Some(issue_source(*source, span)),
+                    ast_path.to_vec().into(),
+                    Some(issue_source(source, span)),
                     in_try,
                 )
                 .to_resolved()
@@ -1883,7 +1888,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             CjsAssetReference::new(
                                 *origin,
                                 Request::parse(Value::new(pat)),
-                                issue_source(*source, span),
+                                issue_source(source, span),
                                 in_try,
                             )
                             .to_resolved()
@@ -1945,7 +1950,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2122,7 +2127,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                         CjsAssetReference::new(
                                             *origin,
                                             Request::parse(Value::new(pat)),
-                                            issue_source(*source, span),
+                                            issue_source(source, span),
                                             in_try,
                                         )
                                         .to_resolved()
@@ -2194,7 +2199,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(Value::new(js_value_to_pattern(&args[1]))),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2269,42 +2274,57 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
 
 async fn handle_member(
     ast_path: &[AstParentKind],
-    obj: JsValue,
+    link_obj: impl Future<Output = Result<JsValue>> + Send + Sync,
     prop: JsValue,
     span: Span,
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
-        let prop = DefineableNameSegment::Name(prop.into());
-        if let Some(def_name_len) = obj.get_defineable_name_len() {
-            let compile_time_info = state.compile_time_info.await?;
-            let free_var_references = compile_time_info.free_var_references.individual().await?;
-            for (name, value) in free_var_references.iter() {
-                if name.len() != def_name_len + 1 {
-                    continue;
-                }
-                let mut it = name.iter().map(Cow::Borrowed).rev();
-                if it.next().unwrap().as_ref() != &prop {
-                    continue;
-                }
-                if it.eq(obj.iter_defineable_name_rev())
-                    && handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
+        let prop_seg = DefineableNameSegment::Name(prop.into());
+
+        let references = state.free_var_references.get(&prop_seg);
+        let is_prop_cache = prop == "cache";
+
+        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        let obj = if references.is_some() || is_prop_cache {
+            Some(link_obj.await?)
+        } else {
+            None
+        };
+
+        if let Some(references) = references {
+            let obj = obj.as_ref().unwrap();
+            if let Some(def_name_len) = obj.get_defineable_name_len() {
+                for (name, value) in references {
+                    if name.len() != def_name_len {
+                        continue;
+                    }
+
+                    let it = name.iter().map(Cow::Borrowed).rev();
+                    if it.eq(obj.iter_defineable_name_rev())
+                        && handle_free_var_reference(
+                            ast_path,
+                            &*value.await?,
+                            span,
+                            state,
+                            analysis,
+                        )
                         .await?
-                {
-                    return Ok(());
+                    {
+                        return Ok(());
+                    }
                 }
             }
         }
-    }
-    match (obj, prop) {
-        (
-            JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }),
-            JsValue::Constant(s),
-        ) if s.as_str() == Some("cache") => {
-            analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+
+        if is_prop_cache {
+            if let JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }) =
+                obj.as_ref().unwrap()
+            {
+                analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+            }
         }
-        _ => {}
     }
 
     Ok(())
@@ -2325,7 +2345,7 @@ async fn handle_typeof(
             .free_var_references
             .individual()
             .await?,
-        &Some(DefineableNameSegment::TypeOf),
+        &DefineableNameSegment::TypeOf,
     ) {
         handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
     }
@@ -2341,19 +2361,19 @@ async fn handle_free_var(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(def_name_len) = var.get_defineable_name_len() {
-        let compile_time_info = state.compile_time_info.await?;
-        let free_var_references = compile_time_info.free_var_references.individual().await?;
-        for (name, value) in free_var_references.iter() {
-            if name.len() != def_name_len {
-                continue;
-            }
+        let first = var.iter_defineable_name_rev().next().unwrap();
+        if let Some(references) = state.free_var_references.get(&*first) {
+            for (name, value) in references {
+                if name.len() + 1 != def_name_len {
+                    continue;
+                }
 
-            if var
-                .iter_defineable_name_rev()
-                .eq(name.iter().map(Cow::Borrowed).rev())
-            {
-                handle_free_var_reference(ast_path, &*value.await?, span, state, analysis).await?;
-                return Ok(());
+                let it = name.iter().map(Cow::Borrowed).rev();
+                if it.eq(var.iter_defineable_name_rev().skip(1)) {
+                    handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)
+                        .await?;
+                    return Ok(());
+                }
             }
         }
     }
@@ -2427,22 +2447,12 @@ async fn handle_free_var_reference(
                 Request::parse(Value::new(request.clone().into()))
                     .to_resolved()
                     .await?,
-                IssueSource::from_swc_offsets(
-                    *state.source,
-                    span.lo.to_usize(),
-                    span.hi.to_usize(),
-                )
-                .to_resolved()
-                .await?,
+                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
                     | Some(TreeShakingMode::ReexportsOnly) => {
-                        if let Some(export) = export {
-                            Some(ModulePart::export(export.clone()).to_resolved().await?)
-                        } else {
-                            None
-                        }
+                        export.clone().map(ModulePart::export)
                     }
                     None => None,
                 },
@@ -2461,7 +2471,7 @@ async fn handle_free_var_reference(
     Ok(true)
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
+fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
@@ -2506,7 +2516,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2520,7 +2530,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2534,7 +2544,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2544,7 +2554,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Value,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2558,7 +2568,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2610,7 +2620,7 @@ async fn analyze_amd_define_with_deps(
                     let reference = AmdDefineAssetReference::new(
                         *origin,
                         *request,
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2646,7 +2656,7 @@ async fn analyze_amd_define_with_deps(
         origin,
         ast_path.to_vec().into(),
         AmdDefineFactoryType::Function,
-        issue_source(*source, span).to_resolved().await?,
+        issue_source(source, span),
         in_try,
     ));
 
@@ -2677,11 +2687,22 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    free_var_references: &FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, attributes).await?;
+    let (mut v, modified) = value_visitor_inner(
+        origin,
+        v,
+        compile_time_info,
+        free_var_references,
+        var_graph,
+        attributes,
+    )
+    .await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2690,6 +2711,10 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    free_var_references: &FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
@@ -2697,11 +2722,11 @@ async fn value_visitor_inner(
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
-        if let JsValue::TypeOf(..) = v {
-            if let Some(value) = v.match_free_var_reference(
+        if let JsValue::TypeOf(_, arg) = &v {
+            if let Some(value) = arg.match_free_var_reference(
                 Some(var_graph),
-                &*compile_time_info.free_var_references.individual().await?,
-                &None,
+                free_var_references,
+                &DefineableNameSegment::TypeOf,
             ) {
                 return Ok(((&*value.await?).into(), true));
             }
@@ -2888,9 +2913,7 @@ async fn require_context_visitor(
 
     Ok(JsValue::WellKnownFunction(
         WellKnownFunctionKind::RequireContextRequire(
-            RequireContextValue::from_context_map(map)
-                .to_resolved()
-                .await?,
+            RequireContextValue::from_context_map(map).await?,
         ),
     ))
 }
@@ -3319,9 +3342,15 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-#[turbo_tasks::value(transparent)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs)]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
+
+impl TaskInput for AstPath {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+unsafe impl NonLocalValue for AstPath {}
 
 impl Deref for AstPath {
     type Target = [AstParentKind];

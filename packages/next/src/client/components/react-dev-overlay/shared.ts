@@ -94,7 +94,7 @@ function pushErrorFilterDuplicates(
   return [
     ...errors.filter((e) => {
       // Filter out duplicate errors
-      return e.event.reason !== err.event.reason
+      return e.event.reason.stack !== err.event.reason.stack
     }),
     err,
   ]

@@ -306,7 +306,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
@@ -418,7 +421,7 @@ export async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }

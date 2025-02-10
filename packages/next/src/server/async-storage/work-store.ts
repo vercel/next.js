@@ -126,6 +126,7 @@ export function createWorkStore({
     assetPrefix: renderOpts?.assetPrefix || '',
 
     afterContext: createAfterContext(renderOpts),
+    dynamicIOEnabled: renderOpts.experimental.dynamicIO,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

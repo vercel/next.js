@@ -12,7 +12,7 @@ use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use tracing::Span;
 
-pub use crate::id::{BackendJobId, ExecutionId};
+pub use crate::id::BackendJobId;
 use crate::{
     event::EventListener,
     magic_any::MagicAny,
@@ -433,7 +433,7 @@ pub trait Backend: Sync + Send {
     ///
     /// This data may be shared across multiple threads (must be `Sync`) in order to support
     /// detached futures ([`crate::TurboTasksApi::detached_for_testing`]) and [pseudo-tasks using
-    /// `local_cells`][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
+    /// `local` execution][crate::function]. A [`RwLock`][std::sync::RwLock] is used to provide
     /// concurrent access.
     type TaskState: Send + Sync + 'static;
 

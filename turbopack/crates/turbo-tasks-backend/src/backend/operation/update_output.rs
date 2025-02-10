@@ -91,9 +91,6 @@ impl UpdateOutputOperation {
                     cell,
                 })
             }
-            Ok(Ok(RawVc::LocalCell(_, _))) => {
-                panic!("LocalCell must not be output of a task");
-            }
             Ok(Ok(RawVc::LocalOutput(_, _))) => {
                 panic!("LocalOutput must not be output of a task");
             }

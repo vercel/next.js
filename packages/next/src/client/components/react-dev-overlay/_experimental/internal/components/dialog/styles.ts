@@ -30,7 +30,9 @@ const styles = css`
     outline: none;
   }
 
-  /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
+  ${
+    '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
+  }
   [data-nextjs-dialog-sizer] {
     overflow: hidden;
     border-radius: inherit;
@@ -50,9 +52,9 @@ const styles = css`
     overflow-y: auto;
     border: none;
     margin: 0;
-    height: 100%;
     display: flex;
     flex-direction: column;
+    position: relative;
   }
 
   /* Account for the footer height, when present */

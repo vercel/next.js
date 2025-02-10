@@ -49,7 +49,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let module = self.module.await?;
 
         let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, *module.part);
+        let parsed = part_of_module(split_data, module.part.clone());
 
         let analyze = self.module.analyze().await?;
         let async_module_options = analyze.async_module.module_options(async_module_info);

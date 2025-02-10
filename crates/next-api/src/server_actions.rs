@@ -246,7 +246,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
     {
         if matches!(
-            &*module.await?.part.await?,
+            module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(Vc::cell(None));

@@ -99,19 +99,46 @@ describe('use-cache', () => {
     expect(a).toBe(b)
   })
 
+  it('should return the same object reference for multiple invocations', async () => {
+    const browser = await next.browser('/referential-equality')
+    expect(await browser.elementById('same-arg').text()).toBe('true')
+    expect(await browser.elementById('different-args').text()).toBe('true')
+    expect(await browser.elementById('same-bound-arg').text()).toBe('true')
+    expect(await browser.elementById('different-bound-args').text()).toBe(
+      'true'
+    )
+  })
+
+  it('should dedupe cached data in the RSC payload', async () => {
+    const text = await next
+      .fetch('/rsc-payload')
+      .then((response) => response.text())
+
+    // The cached data is passed to two client components, but should appear
+    // only once in the RSC payload that's included in the HTML document.
+    expect(text).toIncludeRepeated(
+      '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
+      1
+    )
+  })
+
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
     const browser = await next.browser('/errors')
-    expect(await browser.waitForElementByCss('#cookies').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "cookies" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#headers').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "headers" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
+
+    await retry(async () => {
+      expect(await browser.elementById('cookies').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "cookies" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+      expect(await browser.elementById('headers').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "headers" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+    })
+
+    expect(await browser.elementById('draft-mode').text()).toContain(
       'Editing: false'
     )
 
@@ -273,6 +300,48 @@ describe('use-cache', () => {
   }
 
   if (isNextStart) {
+    it('should prerender fully cacheable pages as static HTML', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      let prerenderedRoutes = Object.keys(prerenderManifest.routes).sort()
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // For the purpose of this test we don't consider an incomplete shell.
+        prerenderedRoutes = prerenderedRoutes.filter((route) => {
+          const filename = route.replace(/^\//, '').replace(/^$/, 'index')
+
+          return next
+            .readFileSync(`.next/server/app/${filename}.html`)
+            .endsWith('</html>')
+        })
+      }
+
+      expect(prerenderedRoutes).toEqual([
+        // [id] route, first entry in generateStaticParams
+        expect.stringMatching(/\/a\d/),
+        // [id] route, second entry in generateStaticParams
+        expect.stringMatching(/\/b\d/),
+        '/cache-fetch',
+        '/cache-fetch-no-store',
+        '/cache-life',
+        '/cache-tag',
+        '/form',
+        '/imported-from-client',
+        '/logs',
+        '/method-props',
+        '/not-found',
+        '/passed-to-client',
+        '/react-cache',
+        '/referential-equality',
+        '/rsc-payload',
+        '/static-class-method',
+        '/use-action-state',
+        '/with-server-action',
+      ])
+    })
+
     it('should match the expected revalidate config on the prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')

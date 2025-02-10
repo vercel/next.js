@@ -70,8 +70,8 @@ export function useErrorHandler(
       )
 
       // Reset error queues.
-      errorQueue.splice(0, 0)
-      rejectionQueue.splice(0, 0)
+      errorQueue.splice(0, errorQueue.length)
+      rejectionQueue.splice(0, rejectionQueue.length)
     }
   }, [handleOnUnhandledError, handleOnUnhandledRejection])
 }

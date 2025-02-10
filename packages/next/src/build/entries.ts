@@ -714,7 +714,7 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath] = getEdgeServerEntry({
+            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
