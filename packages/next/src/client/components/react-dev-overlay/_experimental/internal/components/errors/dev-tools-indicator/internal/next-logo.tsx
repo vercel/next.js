@@ -442,29 +442,20 @@ export const NextLogo = forwardRef(function NextLogo(
 })
 
 function AnimateCount({
-  children: propChildren,
+  children: count,
   animate = true,
   ...props
 }: {
   children: number
   animate: boolean
 }) {
-  const [exit, setExit] = useState(propChildren)
-  const [enter, setEnter] = useState(propChildren)
-
-  useEffect(() => {
-    setExit(enter)
-    setEnter(propChildren)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propChildren])
-
   return (
-    <div {...props} key={String(enter)} data-animate={animate}>
+    <div {...props} key={String(count)} data-animate={animate}>
       <div aria-hidden data-issues-count-exit>
-        {exit}
+        {count - 1}
       </div>
       <div data-issues-count data-issues-count-enter>
-        {enter}
+        {count}
       </div>
     </div>
   )
