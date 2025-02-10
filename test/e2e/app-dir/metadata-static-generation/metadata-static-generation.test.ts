@@ -7,10 +7,15 @@ describe('app-dir - metadata-static-generation', () => {
     files: __dirname,
   })
 
-  if (isNextStart && !isPPREnabled) {
-    // Precondition for the following tests in build mode.
-    // This test is only useful for non-PPR mode as in PPR mode those routes
-    // are all listed in the prerender manifest.
+  // /suspenseful/dynamic will behave differently when PPR is enabled.
+  // We'll visit PPR tests in the new test suite.
+  if (isPPREnabled) {
+    it('skip ppr test', () => {})
+    return
+  }
+
+  if (isNextStart) {
+    // Precondition for the following tests in build mode
     it('should generate all pages static', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
