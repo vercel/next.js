@@ -468,7 +468,7 @@ fn node_file_trace<B: Backend + 'static>(
 
                 let emit_op =
                     emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
-                emit_op.connect().strongly_consistent().await?;
+                emit_op.read_strongly_consistent().await?;
                 apply_effects(emit_op).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
