@@ -16,7 +16,7 @@ const shortDurationMs = 150
 
 export const NextLogo = forwardRef(function NextLogo(
   {
-    issueCount: issueCountProp,
+    issueCount,
     isDevBuilding,
     isDevRendering,
     onTriggerClick,
@@ -25,13 +25,13 @@ export const NextLogo = forwardRef(function NextLogo(
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
-  const [issueCount, setIssueCount] = useState(issueCountProp)
   const hasError = issueCount > 0
-  const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [newErrorDetected, setNewErrorDetected] = useState(false)
+  const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
+  const prevIssueCountRef = useRef(issueCount)
   const width = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
@@ -39,31 +39,23 @@ export const NextLogo = forwardRef(function NextLogo(
   )
 
   useEffect(() => {
-    if (hasError) {
-      setIsErrorExpanded(true)
-    } else {
-      setIsErrorExpanded(false)
-    }
+    setIsErrorExpanded(hasError)
 
-    let timeoutId: number
+    if (hasError && prevIssueCountRef.current < issueCount) {
+      setNewErrorDetected(true)
+      // It is important to use a CSS transitioned state, not a CSS keyframed animation
+      // because if the issue count increases faster than the animation duration, it
+      // will abruptly stop and not transition smoothly back to its original state.
+      const timeoutId = window.setTimeout(() => {
+        setNewErrorDetected(false)
+      }, shortDurationMs)
 
-    // Bounce the entire element subtly to draw attention to the new error
-    setIssueCount((prevIssueCount: number) => {
-      // Check for 0, we don't want to animate on the first error surfacing
-      // because the badge will already expand to draw attention to it
-      if (prevIssueCount !== 0 && prevIssueCount !== issueCountProp) {
-        setNewErrorDetected(true)
-        // It is important to use a CSS transitioned state, not a CSS keyframed animation
-        // because if the issue count increases faster than the animation duration, it
-        // will abruptly stop and not transition smoothly back to its original state.
-        timeoutId = window.setTimeout(() => {
-          setNewErrorDetected(false)
-          clearTimeout(timeoutId)
-        }, shortDurationMs)
+      return () => {
+        clearTimeout(timeoutId)
+        prevIssueCountRef.current = issueCount
       }
-      return issueCountProp
-    })
-  }, [issueCountProp, issueCount, hasError])
+    }
+  }, [hasError, issueCount])
 
   return (
     <div
@@ -473,13 +465,14 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     const observer = new ResizeObserver(() => {
       const { width: w } = el.getBoundingClientRect()
-      setWidth(w)
+      if (w !== width) {
+        setWidth(w)
+      }
     })
 
     observer.observe(el)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ref, width])
 
   return width
 }
