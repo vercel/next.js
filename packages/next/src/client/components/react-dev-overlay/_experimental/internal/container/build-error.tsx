@@ -13,7 +13,6 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   ...props
 }) {
   const noop = React.useCallback(() => {}, [])
-  console.log(props)
   return (
     <ErrorOverlayLayout
       errorType="Build Error"

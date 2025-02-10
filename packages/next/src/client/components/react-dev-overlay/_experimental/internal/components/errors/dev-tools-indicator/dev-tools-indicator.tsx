@@ -92,16 +92,7 @@ function DevToolsPopover({
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
-  function select(index: number | 'first' | 'last') {
-    if (index === 'first') {
-      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
-      if (all) {
-        const firstIndex = all[0].getAttribute('data-index')
-        select(Number(firstIndex))
-      }
-      return
-    }
-
+  function select(index: number | 'last') {
     if (index === 'last') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
       if (all) {
@@ -133,7 +124,7 @@ function DevToolsPopover({
         select(prev)
         break
       case 'Home':
-        select('first')
+        select(0)
         break
       case 'End':
         select('last')
@@ -153,7 +144,7 @@ function DevToolsPopover({
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
-        select('first')
+        select(0)
       })
     }
 
@@ -185,8 +176,6 @@ function DevToolsPopover({
     }, ANIMATE_OUT_DURATION_MS)
   }
 
-  console.log(issueCount)
-
   return (
     <Toast
       data-nextjs-toast
@@ -197,6 +186,7 @@ function DevToolsPopover({
     >
       <NextLogo
         ref={triggerRef}
+        key={issueCount}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen}
         aria-controls="nextjs-dev-tools-menu"
@@ -237,14 +227,12 @@ function DevToolsPopover({
             }}
           >
             <div className="inner">
-              {issueCount > 0 && (
-                <MenuItem
-                  index={0}
-                  label="Issues"
-                  value={<IssueCount>{issueCount}</IssueCount>}
-                  onClick={openErrorOverlay}
-                />
-              )}
+              <MenuItem
+                index={0}
+                label="Issues"
+                value={<IssueCount>{issueCount}</IssueCount>}
+                onClick={openErrorOverlay}
+              />
               <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
