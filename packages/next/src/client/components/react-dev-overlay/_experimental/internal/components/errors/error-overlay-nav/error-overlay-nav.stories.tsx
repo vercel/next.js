@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ErrorOverlayNav } from './error-overlay-floating-header'
+import { ErrorOverlayNav } from './error-overlay-nav'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayNav> = {

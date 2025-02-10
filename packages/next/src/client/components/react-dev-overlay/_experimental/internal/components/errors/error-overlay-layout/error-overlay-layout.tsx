@@ -20,7 +20,7 @@ import {
 import {
   ErrorOverlayNav,
   styles as floatingHeaderStyles,
-} from '../error-overlay-floating-header/error-overlay-floating-header'
+} from '../error-overlay-nav/error-overlay-nav'
 
 import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
