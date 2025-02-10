@@ -8,7 +8,10 @@ import type { CachedFetchValue } from '../response-cache/types'
 /**
  * A generic cache store type that provides a subset of Map functionality
  */
-type CacheStore<T> = Pick<Map<string, T>, 'entries' | 'size' | 'get' | 'set'>
+type CacheStore<T> = Pick<
+  Map<string, T>,
+  'entries' | 'keys' | 'size' | 'get' | 'set'
+>
 
 /**
  * A cache store specifically for fetch cache values
