@@ -56,7 +56,7 @@ const styles = css`
   }
 
   /* Account for the footer height, when present */
-  [data-nextjs-dialog-body]:has(~ [data-nextjs-dialog-footer]) {
+  [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
     margin-bottom: calc(var(--next-dialog-footer-height) + 2px);
   }
 
@@ -72,7 +72,10 @@ const styles = css`
 
   [data-nextjs-dialog-footer] {
     width: 100%;
-    /* We make this element absolute to fix it to the bottom during the height transition */
+    /* 
+      We make this element absolute to fix it to the bottom during the height transition.
+      If you make this relative it will jump during the transition and not collapse or expand smoothly.
+    */
     position: absolute;
     bottom: 0;
     min-height: var(--next-dialog-footer-height);

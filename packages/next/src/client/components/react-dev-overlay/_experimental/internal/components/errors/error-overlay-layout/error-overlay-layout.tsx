@@ -80,6 +80,8 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
+  const hasFooter = footerMessage || errorCode
+
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
       <div data-nextjs-dialog-root {...animationProps}>
@@ -87,6 +89,7 @@ export function ErrorOverlayLayout({
           onClose={onClose}
           isTurbopack={isTurbopack}
           dialogResizerRef={dialogResizerRef}
+          data-has-footer={!!hasFooter}
         >
           <DialogContent>
             <ErrorOverlayFloatingHeader
@@ -110,16 +113,15 @@ export function ErrorOverlayLayout({
             </ErrorOverlayDialogHeader>
 
             <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
-
-            {(footerMessage || errorCode) && (
-              <DialogFooter>
-                <ErrorOverlayFooter
-                  footerMessage={footerMessage}
-                  errorCode={errorCode}
-                />
-              </DialogFooter>
-            )}
           </DialogContent>
+          {hasFooter && (
+            <DialogFooter>
+              <ErrorOverlayFooter
+                footerMessage={footerMessage}
+                errorCode={errorCode}
+              />
+            </DialogFooter>
+          )}
           <ErrorOverlayBottomStack
             count={readyErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
