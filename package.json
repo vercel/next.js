@@ -21,6 +21,7 @@
     "test-start": "cross-env NEXT_TEST_MODE=start pnpm testheadless",
     "test-start-rspack": "pnpm run with-rspack pnpm run test-start",
     "test-start-turbo": "cross-env NEXT_TEST_MODE=start TURBOPACK=1 TURBOPACK_BUILD=1 pnpm testheadless",
+    "test-start-ppr": "cross-env __NEXT_EXPERIMENTAL_PPR=true NEXT_TEST_MODE=start pnpm testheadless",
     "test-deploy": "cross-env NEXT_TEST_MODE=deploy pnpm testheadless",
     "testonly-dev": "cross-env NEXT_TEST_MODE=dev pnpm testonly",
     "testonly-dev-rspack": "pnpm run with-rspack pnpm run testonly-dev",

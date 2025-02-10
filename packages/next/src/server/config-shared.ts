@@ -1184,7 +1184,19 @@ export const defaultConfig: NextConfig = {
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
-    clientSegmentCache: false,
+    clientSegmentCache:
+      // Enable the client segment cache by default when the
+      // `__NEXT_EXPERIMENTAL_PPR` environment variable is set to `true`. This
+      // flag is set during certain CI workflows. We're piggy backing off the
+      // PPR flag instead of adding a new one for the Segment Cache, to save
+      // CI resources.
+      //
+      // This only affects the default configuration value. It can be overriden
+      // by setting an explicit value in the Next.js config.
+      !!(
+        process.env.__NEXT_TEST_MODE &&
+        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ),
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
