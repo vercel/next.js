@@ -174,6 +174,18 @@ createNextDescribe(
       await browser.deleteCookies()
     })
 
+    it('should omit internal headers for middleware cookies', async () => {
+      const response = await next.fetch('/rsc-cookies/cookie-options')
+      expect(response.status).toBe(200)
+      expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+
+      const response2 = await next.fetch('/cookies/api')
+      expect(response2.status).toBe(200)
+      expect(response2.headers.get('x-middleware-set-cookie')).toBeNull()
+      expect(response2.headers.get('set-cookie')).toBeDefined()
+      expect(response2.headers.get('set-cookie')).toContain('example')
+    })
+
     it('should respect cookie options of merged middleware cookies', async () => {
       const browser = await next.browser('/rsc-cookies/cookie-options')
 
