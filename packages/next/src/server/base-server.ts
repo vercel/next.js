@@ -2068,10 +2068,7 @@ export default abstract class Server<
       }
     }
 
-    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(
-      req,
-      this.renderOpts.experimental.streamingMetadata
-    )
+    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(req)
     if (isHtmlBotRequest) {
       this.renderOpts.serveStreamingMetadata = false
     }
@@ -2084,12 +2081,14 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
-    } else if (isHtmlBotRequest) {
-      // When it's html limited bots request, disable SSG
-      // and perform the full blocking rendering.
-      isSSG = false
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
+
+      if (isHtmlBotRequest) {
+        // When it's html limited bots request, disable SSG
+        // and perform the full blocking & dynamic rendering.
+        isSSG = false
+      }
     }
 
     // Toggle whether or not this is a Data request
@@ -2168,7 +2167,8 @@ export default abstract class Server<
     const couldSupportPPR: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule)
+      isAppPageRouteModule(routeModule) &&
+      !isHtmlBotRequest
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
     // enable debugging of the static shell.
@@ -3230,7 +3230,8 @@ export default abstract class Server<
 
     const didPostpone =
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      typeof cacheEntry.value.postponed === 'string'
+      typeof cacheEntry.value.postponed === 'string' &&
+      !isHtmlBotRequest
 
     if (
       isSSG &&
@@ -3546,7 +3547,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone && !isHtmlBotRequest) {
+      if (didPostpone) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
