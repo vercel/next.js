@@ -78,24 +78,13 @@ describe(`app-dir-hmr`, () => {
             const fastRefreshLogs = logs.filter((log) => {
               return log.message.startsWith('[Fast Refresh]')
             })
-            // FIXME:  3+ "rebuilding" but no "done" is confusing.
-            // There may actually be more "rebuilding" but not reliably.
-            // To ignore this flakiness, we just assert on subset matches.
-            // Once the  bug is fixed, each "rebuilding" should be paired with a "done in" exactly.
             expect(fastRefreshLogs).toEqual(
               expect.arrayContaining([
                 { source: 'log', message: '[Fast Refresh] rebuilding' },
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-              ])
-            )
-            // FIXME: Turbopack should have matching "done in" for each "rebuilding"
-            expect(logs).not.toEqual(
-              expect.arrayContaining([
-                expect.objectContaining({
-                  message: expect.stringContaining('[Fast Refresh] done in'),
+                {
                   source: 'log',
-                }),
+                  message: expect.stringContaining('[Fast Refresh] done in'),
+                },
               ])
             )
           })
@@ -172,26 +161,14 @@ describe(`app-dir-hmr`, () => {
             expect(await browser.elementByCss('p').text()).toBe('ipad')
           })
 
-          if (process.env.TURBOPACK) {
-            // FIXME: Turbopack should have matching "done in" for each "rebuilding"
-            expect(logs).not.toEqual(
-              expect.arrayContaining([
-                expect.objectContaining({
-                  message: expect.stringContaining('[Fast Refresh] done in'),
-                  source: 'log',
-                }),
-              ])
-            )
-          } else {
-            expect(logs).toEqual(
-              expect.arrayContaining([
-                expect.objectContaining({
-                  message: expect.stringContaining('[Fast Refresh] done in'),
-                  source: 'log',
-                }),
-              ])
-            )
-          }
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
         })
 
         // ensure it's restored back to "mac" before the next test
@@ -221,54 +198,25 @@ describe(`app-dir-hmr`, () => {
 
       const logs = await browser.log()
       // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
-      if (process.env.TURBOPACK) {
-        // FIXME: logging "rebuilding" multiple times instead of closing it of with "done in"
-        // Should just not branch here and have the same logs as Webpack.
-        expect(logs).toEqual(
-          expect.arrayContaining([
-            {
-              message: '[Fast Refresh] rebuilding',
-              source: 'log',
-            },
-            {
-              message: '[Fast Refresh] rebuilding',
-              source: 'log',
-            },
-            {
-              message: '[Fast Refresh] rebuilding',
-              source: 'log',
-            },
-          ])
-        )
-        expect(logs).not.toEqual(
-          expect.arrayContaining([
-            {
-              message: expect.stringContaining('[Fast Refresh] done in'),
-              source: 'log',
-            },
-          ])
-        )
-      } else {
-        expect(logs).toEqual(
-          expect.arrayContaining([
-            {
-              message: '[Fast Refresh] rebuilding',
-              source: 'log',
-            },
-            {
-              message: expect.stringContaining('[Fast Refresh] done in'),
-              source: 'log',
-            },
-          ])
-        )
-        expect(logs).not.toEqual(
-          expect.arrayContaining([
-            expect.objectContaining({
-              source: 'error',
-            }),
-          ])
-        )
-      }
+      expect(logs).toEqual(
+        expect.arrayContaining([
+          {
+            message: '[Fast Refresh] rebuilding',
+            source: 'log',
+          },
+          {
+            message: expect.stringContaining('[Fast Refresh] done in'),
+            source: 'log',
+          },
+        ])
+      )
+      expect(logs).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            source: 'error',
+          }),
+        ])
+      )
       // No MPA navigation triggered
       expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(true)
     })
