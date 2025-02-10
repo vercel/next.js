@@ -70,8 +70,16 @@ export class NextStartInstance extends NextInstance {
       buildArgs = this.buildCommand.split(' ')
     }
 
+    if (this.buildOptions) {
+      buildArgs.push(...this.buildOptions)
+    }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (this.startOptions) {
+      startArgs.push(...this.startOptions)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
@@ -185,6 +193,10 @@ export class NextStartInstance extends NextInstance {
     return new Promise((resolve) => {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']
+
+      if (this.buildOptions) {
+        exportArgs.push(...this.buildOptions)
+      }
 
       if (this.childProcess) {
         throw new Error(
