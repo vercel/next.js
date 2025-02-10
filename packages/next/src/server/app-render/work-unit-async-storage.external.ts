@@ -163,6 +163,7 @@ export type UseCacheStore = {
   readonly hmrRefreshHash: string | undefined
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly forceRevalidate: boolean
 } & PhasePartial
 
 export type UnstableCacheStore = {
