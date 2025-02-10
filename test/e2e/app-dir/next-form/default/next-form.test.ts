@@ -56,6 +56,28 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
+  it(
+    'should not append empty inputs to the URL' +
+      (isAppDir ? ' and show the prefetched loading state' : ''),
+    async () => {
+      const session = await next.browser(pathPrefix + '/forms/basic')
+      const navigationTracker = await trackMpaNavs(session)
+
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
+
+      if (isAppDir) {
+        // we should have prefetched a loading state, so it should be displayed
+        await session.waitForElementByCss('#loading')
+      }
+
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: undefined/)
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+    }
+  )
+
   // `<form action={someFunction}>` is only supported in React 19.x
   ;(isReact18 ? describe.skip : describe)('functions passed to action', () => {
     it.each([
@@ -239,9 +261,9 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     await session.eval(`
       const fileInput = document.querySelector(${JSON.stringify(fileInputSelector)});
       const file = new File(['hello'], 'hello.txt', { type: 'text/plain' });
-      const list = new DataTransfer(); 
-      list.items.add(file); 
-      fileInput.files = list.files; 
+      const list = new DataTransfer();
+      list.items.add(file);
+      fileInput.files = list.files;
     `)
 
     const searchInput = await session.elementByCss('input[name="query"]')
