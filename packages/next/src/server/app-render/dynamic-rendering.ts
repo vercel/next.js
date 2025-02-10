@@ -463,7 +463,7 @@ export function createDynamicAccessDebugErrors(
 ): Error[] {
   const errors: Error[] = []
 
-  for (const { expression, stack } of dynamicAccesses) {
+  for (const { stack } of dynamicAccesses) {
     if (typeof stack !== 'string' || stack.length === 0) {
       continue
     }
@@ -510,7 +510,7 @@ export function createDynamicAccessDebugErrors(
 
     // TODO: Do we even need to include the expression here, since we're showing
     // the source of the call site when printing the error?
-    const error = new Error(`Dynamic Usage - ${expression}`)
+    const error = new Error(`Dynamic usage detected`)
 
     // Make sure the default "Error: " prefix is not used when the error is
     // logged. This only works for the terminal though, because Flight does not
