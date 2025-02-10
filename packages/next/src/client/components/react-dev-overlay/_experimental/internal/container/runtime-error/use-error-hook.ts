@@ -21,17 +21,13 @@ export type SupportedErrorEvent = {
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
+  // eslint-disable-next-line default-case -- TypeScript checks this
   switch (event.type) {
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default:
-      break
   }
-
-  event satisfies never
-  return ''
 }
 
 export function useErrorHook({
