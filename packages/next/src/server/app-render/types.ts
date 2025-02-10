@@ -177,6 +177,7 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
+  botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
@@ -219,6 +220,12 @@ export interface RenderOptsPartial {
     htmlLimitedBots: string | undefined
   }
   postponed?: string
+
+  /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
 
   /**
    * The resume data cache that was generated for this partially prerendered
