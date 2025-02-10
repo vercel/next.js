@@ -178,7 +178,7 @@ import { scheduleOnNextTick } from '../lib/scheduler'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import {
   shouldServeStreamingMetadata,
-  isHtmlBotRequestStreamingMetadata,
+  isHtmlBotRequest,
 } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
@@ -2068,8 +2068,8 @@ export default abstract class Server<
       }
     }
 
-    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(req)
-    if (isHtmlBotRequest) {
+    const isHtmlBot = isHtmlBotRequest(req)
+    if (isHtmlBot) {
       this.renderOpts.serveStreamingMetadata = false
     }
 
@@ -2083,8 +2083,7 @@ export default abstract class Server<
       isSSG = true
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
-
-      if (isHtmlBotRequest) {
+      if (isHtmlBot) {
         // When it's html limited bots request, disable SSG
         // and perform the full blocking & dynamic rendering.
         isSSG = false
@@ -2168,7 +2167,7 @@ export default abstract class Server<
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
       isAppPageRouteModule(routeModule) &&
-      !isHtmlBotRequest
+      !isHtmlBot
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
     // enable debugging of the static shell.
@@ -2491,7 +2490,7 @@ export default abstract class Server<
         query: origQuery,
       })
 
-      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBotRequest
+      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBot
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -3231,7 +3230,7 @@ export default abstract class Server<
     const didPostpone =
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
       typeof cacheEntry.value.postponed === 'string' &&
-      !isHtmlBotRequest
+      !isHtmlBot
 
     if (
       isSSG &&
