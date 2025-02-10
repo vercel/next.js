@@ -33,7 +33,8 @@ class HangingPromiseRejectionError extends Error {
  */
 export function makeHangingPromise<T>(
   prerenderStore: PrerenderStoreModern,
-  expression: string
+  expression: string,
+  handler?: ProxyHandler<Promise<T>>
 ): Promise<T> {
   const hangingPromise = new Promise<T>((_, reject) => {
     prerenderStore.renderSignal.addEventListener(
@@ -57,8 +58,13 @@ export function makeHangingPromise<T>(
         annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
       }
 
+      if (handler?.get) {
+        return handler.get(target, prop, receiver)
+      }
+
       return ReflectAdapter.get(target, prop, receiver)
     },
+    ...handler,
   })
 }
 
