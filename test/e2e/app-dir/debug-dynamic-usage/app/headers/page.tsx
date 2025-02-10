@@ -11,7 +11,7 @@ async function indirect(headers: Promise<ReadonlyHeaders>) {
 export default function Page() {
   return (
     <>
-      <p>This page accesses headers in the root layout.</p>
+      <p>This page accesses headers.</p>
       <ServerComp promise={indirect(headers())} />
     </>
   )
