@@ -41,4 +41,11 @@ describe('debug-dynamic-usage', () => {
   6 |
   7 |   return userAgent`)
   })
+
+  it.skip('shows dynamic usage log when connection() is used', async () => {})
+  it.skip('shows dynamic usage log when cookies() is used', async () => {})
+  it.skip('shows dynamic usage log when params prop is used', async () => {})
+  it.skip('shows dynamic usage log when searchParams prop is used', async () => {})
+  it.skip('shows dynamic usage log when useParams() is used', async () => {})
+  it.skip('shows dynamic usage log when useSearchParams() is used', async () => {})
 })
