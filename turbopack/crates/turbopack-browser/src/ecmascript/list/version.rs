@@ -45,7 +45,7 @@ impl Version for EcmascriptDevChunkListVersion {
                 .by_merger
                 .iter()
                 .map(|(_merger, version)| async move {
-                    Ok(TraitRef::cell(version.clone()).id().owned().await?)
+                    TraitRef::cell(version.clone()).id().owned().await
                 })
                 .try_join()
                 .await?;

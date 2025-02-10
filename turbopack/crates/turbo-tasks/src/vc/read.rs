@@ -222,7 +222,7 @@ where
 
 impl<T> ReadVcFuture<T, VcValueTypeCast<T>>
 where
-    T: VcValueType + ?Sized,
+    T: VcValueType,
     VcReadTarget<T>: Clone,
 {
     pub fn owned(self) -> ReadOwnedVcFuture<T> {
@@ -272,7 +272,7 @@ where
 
 pub struct ReadOwnedVcFuture<T>
 where
-    T: VcValueType + ?Sized,
+    T: VcValueType,
     VcReadTarget<T>: Clone,
 {
     future: ReadVcFuture<T, VcValueTypeCast<T>>,
@@ -280,7 +280,7 @@ where
 
 impl<T> Future for ReadOwnedVcFuture<T>
 where
-    T: VcValueType + ?Sized,
+    T: VcValueType,
     VcReadTarget<T>: Clone,
 {
     type Output = Result<VcReadTarget<T>>;

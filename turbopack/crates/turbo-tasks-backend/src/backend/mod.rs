@@ -636,13 +636,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
         let content = if options.final_read_hint {
             remove!(task, CellData { cell })
+        } else if let Some(content) = get!(task, CellData { cell }) {
+            let content = content.clone();
+            Some(content)
         } else {
-            if let Some(content) = get!(task, CellData { cell }) {
-                let content = content.clone();
-                Some(content)
-            } else {
-                None
-            }
+            None
         };
         if let Some(content) = content {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);

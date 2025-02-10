@@ -503,10 +503,10 @@ impl ReducedGraphs {
                     .server_actions
                     .iter()
                     .map(|graph| async move {
-                        Ok(graph
+                        graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await?)
+                            .await
                     })
                     .try_flat_join()
                     .await?;
