@@ -74,8 +74,9 @@ const styles = css`
     /* Subtract border width */
     width: calc(100% - 2px);
     /* 
-      We make this element absolute to fix it to the bottom during the height transition.
+      We make this element fixed to anchor it to the bottom during the height transition.
       If you make this relative it will jump during the transition and not collapse or expand smoothly.
+      If you make this absolute it will remain stuck at its initial position when scrolling the dialog.
     */
     position: fixed;
     bottom: 1px;
