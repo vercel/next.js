@@ -295,7 +295,9 @@ function onFormSubmit(
       value = value.name
     }
 
-    targetUrl.searchParams.append(name, value)
+    if (value !== "") {
+      targetUrl.searchParams.append(name, value)
+    }
   }
 
   // Finally, no more reasons for bailing out.
