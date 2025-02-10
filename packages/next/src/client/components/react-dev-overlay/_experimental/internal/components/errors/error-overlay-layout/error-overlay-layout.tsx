@@ -119,12 +119,11 @@ export function ErrorOverlayLayout({
                 />
               </DialogFooter>
             )}
-
-            <ErrorOverlayBottomStack
-              count={readyErrors?.length ?? 0}
-              activeIdx={activeIdx ?? 0}
-            />
           </DialogContent>
+          <ErrorOverlayBottomStack
+            count={readyErrors?.length ?? 0}
+            activeIdx={activeIdx ?? 0}
+          />
         </ErrorOverlayDialog>
       </div>
     </ErrorOverlayOverlay>
