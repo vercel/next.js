@@ -57,7 +57,7 @@ const styles = css`
 
   /* Account for the footer height, when present */
   [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
-    margin-bottom: calc(var(--next-dialog-footer-height) + 2px);
+    margin-bottom: var(--next-dialog-footer-height);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
