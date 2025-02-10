@@ -994,9 +994,11 @@ export function getRedboxNavText(browser: BrowserInterface): Promise<string> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('.error-overlay-nav'))
+      .find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-error-overlay-nav]')
+      )
     const root = portal.shadowRoot
-    return root.querySelector('.error-overlay-nav')?.innerText
+    return root.querySelector('[data-nextjs-error-overlay-nav]')?.innerText
   })
 }
 

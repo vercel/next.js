@@ -41,11 +41,16 @@ export const DIALOG_STYLES = css`
       border-color: var(--color-gray-400);
     }
 
-    &:has(~ .error-overlay-nav .error-overlay-notch[data-side='left']) {
+    &:has(
+        ~ [data-nextjs-error-overlay-nav] .error-overlay-notch[data-side='left']
+      ) {
       border-top-left-radius: 0;
     }
 
-    &:has(~ .error-overlay-nav .error-overlay-notch[data-side='right']) {
+    &:has(
+        ~ [data-nextjs-error-overlay-nav]
+          .error-overlay-notch[data-side='right']
+      ) {
       border-top-right-radius: 0;
     }
   }

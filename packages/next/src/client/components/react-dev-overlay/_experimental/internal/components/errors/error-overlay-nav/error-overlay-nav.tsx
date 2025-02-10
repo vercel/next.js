@@ -21,7 +21,7 @@ export function ErrorOverlayNav({
   isTurbopack,
 }: ErrorOverlayNavProps) {
   return (
-    <div className="error-overlay-nav">
+    <div data-nextjs-error-overlay-nav>
       <Notch side="left">
         {/* TODO: better passing data instead of nullish coalescing */}
         <ErrorOverlayPagination
@@ -43,7 +43,7 @@ export function ErrorOverlayNav({
 }
 
 export const styles = css`
-  .error-overlay-nav {
+  [data-nextjs-error-overlay-nav] {
     display: flex;
     justify-content: space-between;
     align-items: center;
