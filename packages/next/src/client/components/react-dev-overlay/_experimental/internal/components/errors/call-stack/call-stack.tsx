@@ -127,7 +127,6 @@ function ChevronUpDown() {
 
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
-    border-top: 1px solid var(--color-gray-400);
     position: relative;
   }
 
