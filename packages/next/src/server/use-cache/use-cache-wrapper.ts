@@ -168,6 +168,7 @@ function generateCacheEntryWithCacheContext(
     hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
     isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
+    forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(
@@ -698,10 +699,7 @@ export function cache(
             ? []
             : workUnitStore.implicitTags
 
-        const forceRevalidate =
-          workStore.dev &&
-          workUnitStore?.type === 'request' &&
-          workUnitStore.headers.get('cache-control') === 'no-cache'
+        const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
         const entry = forceRevalidate
           ? undefined
@@ -906,4 +904,21 @@ function isPageComponent(
     typeof props === 'object' &&
     (props as UseCachePageComponentProps).$$isPageComponent
   )
+}
+
+function shouldForceRevalidate(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (workStore.dev && workUnitStore) {
+    if (workUnitStore.type === 'request') {
+      return workUnitStore.headers.get('cache-control') === 'no-cache'
+    }
+
+    if (workUnitStore.type === 'cache') {
+      return workUnitStore.forceRevalidate
+    }
+  }
+
+  return false
 }

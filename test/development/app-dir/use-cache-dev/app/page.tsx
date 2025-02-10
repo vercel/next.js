@@ -1,8 +1,17 @@
+async function getRandomValue() {
+  'use cache'
+
+  return Math.random()
+}
+
 async function getData() {
   'use cache'
 
   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
-    (res) => res.text().then((text) => [text, 'foo', Math.random()] as const)
+    (res) =>
+      res
+        .text()
+        .then(async (text) => [text, 'foo', await getRandomValue()] as const)
   )
 }
 
