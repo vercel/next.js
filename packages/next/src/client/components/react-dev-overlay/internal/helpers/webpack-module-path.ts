@@ -26,10 +26,10 @@ export function isWebpackInternalResource(file: string) {
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
  */
-export function formatFrameSourceFile(file: string) {
+export function formatFrameSourceFile(sourceURL: string) {
   for (const regex of replacementRegExes) {
-    file = file.replace(regex, '')
+    sourceURL = sourceURL.replace(regex, '')
   }
 
-  return file
+  return sourceURL
 }
