@@ -21,7 +21,7 @@ abstract class ResourceManager<T, Args> {
   }
 }
 
-class IntervalsManager extends ResourceManager<
+export class IntervalsManager extends ResourceManager<
   number,
   Parameters<typeof setInterval>
 > {
@@ -35,7 +35,7 @@ class IntervalsManager extends ResourceManager<
   }
 }
 
-class TimeoutsManager extends ResourceManager<
+export class TimeoutsManager extends ResourceManager<
   number,
   Parameters<typeof setTimeout>
 > {
@@ -84,6 +84,3 @@ function webSetTimeoutPolyfill<TArgs extends any[]>(
   const timeout = setTimeout(wrappedCallback, ms)
   return timeout[Symbol.toPrimitive]()
 }
-
-export const intervalsManager = new IntervalsManager()
-export const timeoutsManager = new TimeoutsManager()

@@ -20,7 +20,7 @@ import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
-import { intervalsManager, timeoutsManager } from './resource-managers'
+import { IntervalsManager, TimeoutsManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
 import {
   patchErrorInspectEdgeLite,
@@ -31,6 +31,8 @@ interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
+  intervalsManager: IntervalsManager
+  timeoutsManager: TimeoutsManager
 }
 
 let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
@@ -52,18 +54,28 @@ if (process.env.NODE_ENV === 'development') {
  * to have a different cache scoped per module name or depending on the
  * provided module key on creation.
  */
-const moduleContexts = new Map<string, ModuleContext>()
+let moduleContexts = new Map<string, ModuleContext>()
 
-const pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
+let pendingModuleCaches = new Map<string, Promise<ModuleContext>>()
 
 /**
  * Same as clearModuleContext but for all module contexts.
  */
 export async function clearAllModuleContexts() {
-  intervalsManager.removeAll()
-  timeoutsManager.removeAll()
-  moduleContexts.clear()
-  pendingModuleCaches.clear()
+  const oldModuleContexts = moduleContexts
+  moduleContexts = new Map()
+  const oldPendingModuleCaches = pendingModuleCaches
+  pendingModuleCaches = new Map()
+
+  for (const [, context] of oldModuleContexts) {
+    destroyModuleContext(context)
+  }
+
+  await Promise.all(
+    [...oldPendingModuleCaches.values()].map(async (contextPromise) => {
+      destroyModuleContext(await contextPromise)
+    })
+  )
 }
 
 /**
@@ -75,16 +87,14 @@ export async function clearAllModuleContexts() {
  * module context.
  */
 export async function clearModuleContext(path: string) {
-  intervalsManager.removeAll()
-  timeoutsManager.removeAll()
-
   const handleContext = (
     key: string,
-    cache: ReturnType<(typeof moduleContexts)['get']>,
-    context: typeof moduleContexts | typeof pendingModuleCaches
+    context: ModuleContext,
+    contexts: typeof moduleContexts | typeof pendingModuleCaches
   ) => {
-    if (cache?.paths.has(path)) {
-      context.delete(key)
+    if (context.paths.has(path)) {
+      contexts.delete(key)
+      destroyModuleContext(context)
     }
   }
 
@@ -255,11 +265,15 @@ export const edgeSandboxNextRequestContext = createLocalRequestContext()
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
  */
-async function createModuleContext(options: ModuleContextOptions) {
+async function createModuleContext(
+  options: ModuleContextOptions
+): Promise<ModuleContext> {
   const warnedEvals = new Set<string>()
   const warnedWasmCodegens = new Set<string>()
   const { edgeFunctionEntry } = options
   const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
+  const timeoutsManager = new TimeoutsManager()
+  const intervalsManager = new IntervalsManager()
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -491,6 +505,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     runtime,
     paths: new Map<string, string>(),
     warnedEvals: new Set<string>(),
+    intervalsManager,
+    timeoutsManager,
   }
 }
 
@@ -501,6 +517,11 @@ interface ModuleContextOptions {
   useCache: boolean
   distDir: string
   edgeFunctionEntry: Pick<EdgeFunctionDefinition, 'assets' | 'wasm' | 'env'>
+}
+
+function destroyModuleContext(context: ModuleContext) {
+  context.intervalsManager.removeAll()
+  context.timeoutsManager.removeAll()
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {
