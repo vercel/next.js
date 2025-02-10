@@ -12,7 +12,11 @@ export const isPositionInsideNode = (position: number, node: ts.Node) => {
 
 /** Check if the type is `Promise<T>`. */
 export const isPromiseType = (type: ts.Type, typeChecker: ts.TypeChecker) => {
-  const typeReferenceType = type as ts.TypeReference
+  if (!('target' in type)) {
+    return false
+  }
+
+  const typeReferenceType = type as ts.TypeReference // TODO this appears like it could be a bug - ts.Type and ts.TypeReference are not the same
   if (!typeReferenceType.target) return false
 
   // target should be Promise or Promise<...>

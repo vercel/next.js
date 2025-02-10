@@ -73,7 +73,7 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                   labelDetails: {
                     description: `Next.js ${type} prop`,
                   },
-                } as ts.CompletionEntry)
+                })
               }
             }
 
@@ -95,7 +95,7 @@ export const entry = (tsNextPlugin: TSNextPlugin) => ({
                   labelDetails: {
                     description: `Next.js ${type} prop type`,
                   },
-                } as ts.CompletionEntry)
+                })
               }
 
               break

@@ -80,11 +80,7 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
         isDefaultFunctionExport(node)
       ) {
         prior.entries.push(
-          ...entry.getCompletionsAtPosition(
-            fileName,
-            node as ts.FunctionDeclaration,
-            position
-          )
+          ...entry.getCompletionsAtPosition(fileName, node, position)
         )
       }
     })

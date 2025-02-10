@@ -6,10 +6,7 @@ import type ts from 'typescript'
  * see: https://nextjs.org/docs/app/api-reference/file-conventions/error
  */
 export const errorComponents = {
-  getSemanticDiagnostics(
-    source: ts.SourceFile,
-    isClientEntry: boolean
-  ): ts.Diagnostic[] {
+  getSemanticDiagnostics(source: ts.SourceFile, isClientEntry: boolean) {
     // if it already has the 'use client' directive, then all is good
     if (isClientEntry) return []
 
@@ -19,7 +16,7 @@ export const errorComponents = {
     if (!isErrorFile && !isGlobalErrorFile) return []
 
     // Error components must be Client components
-    return [
+    const diagnostics: ts.Diagnostic[] = [
       {
         ...NEXT_TS_ERRORS.INVALID_ERROR_COMPONENT(isGlobalErrorFile),
         file: source,
@@ -27,5 +24,6 @@ export const errorComponents = {
         length: source.text.length,
       },
     ]
+    return diagnostics
   },
 }

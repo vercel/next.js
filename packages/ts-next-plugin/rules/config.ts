@@ -130,7 +130,7 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 
   createAutoCompletionOptionValue(sort: number, name: string, apiName: string) {
     const isString = name.startsWith('"')
-    return {
+    const completion: ts.CompletionEntry = {
       name,
       insertText: removeStringQuotes(name),
       sortText: `${sort}`,
@@ -145,11 +145,12 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         exportName: apiName,
         moduleSpecifier: 'next/typescript/entry_option_value',
       },
-    } as ts.CompletionEntry
+    }
+    return completion
   },
 
   createAutoCompletionOptionName(sort: number, name: string) {
-    return {
+    const completion: ts.CompletionEntry = {
       name,
       sortText: `!${sort}`,
       kind: ts.ScriptElementKind.constElement,
@@ -161,7 +162,8 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         exportName: name,
         moduleSpecifier: 'next/typescript/entry_option_name',
       },
-    } as ts.CompletionEntry
+    }
+    return completion
   },
 
   /** Auto completion for entry exported configs. */
@@ -310,7 +312,7 @@ const validateOptions = (expression: ts.Expression, option: string) => {
   if (
     ts.isNumericLiteral(expression) ||
     (ts.isPrefixUnaryExpression(expression) &&
-      ts.isMinusToken((expression as any).operator) &&
+      ts.isMinusToken((expression as any).operator) && // TODO: these look wrong
       (ts.isNumericLiteral((expression as any).operand.kind) ||
         (ts.isIdentifier((expression as any).operand.kind) &&
           (expression as any).operand.kind.getText() === 'Infinity'))) ||

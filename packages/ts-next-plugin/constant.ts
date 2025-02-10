@@ -120,19 +120,17 @@ export const NEXT_TS_ERRORS = {
 >
 
 /**
- * loops through the strings in a string[] and:
- * 1. wraps each with a wrapper character
- * 2. joins them with a comma
- * 3. adds an "and" before the last item
+ * loops through the items in a string[] and:
+ * 1. (optional) wraps each item with a wrapper character
+ * 1. adds an "and" before the last item
+ * 1. joins all items with a comma
  */
 const toEnglishList = (strings: string[], wrapper: string = '') => {
   return strings
-    .map((s, i) => {
-      if (i === strings.length - 1) {
-        return `and ${wrapper}${s}${wrapper}`
-      }
-      return `${wrapper}${s}${wrapper}`
-    })
+    .map(
+      (s, i) =>
+        `${i === strings.length - 1 ? 'and ' : ''}${wrapper}${s}${wrapper}`
+    )
     .join(', ')
 }
 
