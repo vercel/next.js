@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
 import { noop as css } from '../helpers/noop-template'
@@ -192,11 +192,13 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      <RuntimeError
-        key={activeError.id.toString()}
-        error={activeError}
-        dialogResizerRef={dialogResizerRef}
-      />
+      <Suspense fallback={<div data-nextjs-error-suspended />}>
+        <RuntimeError
+          key={activeError.id.toString()}
+          error={activeError}
+          dialogResizerRef={dialogResizerRef}
+        />
+      </Suspense>
     </ErrorOverlayLayout>
   )
 }

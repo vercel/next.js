@@ -825,6 +825,21 @@ export async function retry<T>(
   }
 }
 
+async function ensureNoSuspendedComponentsInRedBox(browser: BrowserInterface) {
+  await retry(async () => {
+    const suspended = await browser.eval(() => {
+      return Boolean(
+        [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-error-suspended]')
+          )
+      )
+    })
+    expect(suspended).toBe(false)
+  }, 10000)
+}
+
 export async function assertHasRedbox(browser: BrowserInterface) {
   try {
     await retry(
@@ -845,6 +860,8 @@ export async function assertHasRedbox(browser: BrowserInterface) {
       5000,
       200
     )
+
+    await ensureNoSuspendedComponentsInRedBox(browser)
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found none')
     Error.captureStackTrace(error, assertHasRedbox)
@@ -1014,7 +1031,9 @@ export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
   return parseInt(header.match(/\d+ of (\d+) issue/)?.[1], 10)
 }
 
-export function getRedboxSource(browser: BrowserInterface) {
+export async function getRedboxSource(browser: BrowserInterface) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
+
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1330,6 +1349,7 @@ export async function toggleCollapseComponentStack(
 }
 
 export async function hasRedboxCallStack(browser: BrowserInterface) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1343,8 +1363,7 @@ export async function hasRedboxCallStack(browser: BrowserInterface) {
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
-
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -1358,8 +1377,7 @@ export async function getRedboxCallStack(
 export async function getRedboxCallStackCollapsed(
   browser: BrowserInterface
 ): Promise<string> {
-  await browser.waitForElementByCss('.nextjs-container-errors-body', 30000)
-
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
       '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
@@ -1581,6 +1599,7 @@ export const checkLink = (
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
 export async function getStackFramesContent(browser) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
