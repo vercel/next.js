@@ -215,7 +215,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
 impl From<AmdDefineWithDependenciesCodeGen> for CodeGen {
     fn from(val: AmdDefineWithDependenciesCodeGen) -> Self {
-        CodeGen::AmdDefineWithDependenciesCodeGen(val)
+        CodeGen::AmdDefineWithDependenciesCodeGen(Box::new(val))
     }
 }
 

@@ -76,10 +76,27 @@ export async function getOriginalStackFrames(
     isEdgeServer: type === 'edge-server',
     isAppDirectory: isAppDir,
   }
+
   const res = await fetch('/__nextjs_original-stack-frames', {
     method: 'POST',
     body: JSON.stringify(req),
   })
+
+  // When fails to fetch the original stack frames, we reject here to be
+  // caught at `_getOriginalStackFrame()` and return the stack frames so
+  // that the error overlay can render.
+  if (!res.ok || res.status === 204) {
+    const reason = await res.text()
+    return Promise.all(
+      frames.map((frame) =>
+        getOriginalStackFrame(frame, {
+          status: 'rejected',
+          reason: `Failed to fetch the original stack frames: ${reason}`,
+        })
+      )
+    )
+  }
+
   const data = await res.json()
   return Promise.all(
     frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))

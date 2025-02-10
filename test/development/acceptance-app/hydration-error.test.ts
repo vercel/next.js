@@ -7,6 +7,8 @@ import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
+const enableOwnerStacks = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -797,32 +799,25 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(4)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // One error for "Cannot render a sync or defer <script>"
+        enableOwnerStacks
+          ? // With owner stacks, we also get an error for the parent context.
+            3
+          : 2
+      )
     })
 
+    // TODO: assert on 2nd error being "In HTML, <script> cannot be a child of <html>."
+    // TODO: assert on 3rd error that's specific to owner stacks
     const description = await session.getRedboxDescription()
     expect(description).toEqual(outdent`
-      In HTML, <script> cannot be a child of <html>.
-      This will cause a hydration error.
+      Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.
     `)
 
     const pseudoHtml = await session.getRedboxComponentStack()
-    if (isTurbopack) {
-      expect(pseudoHtml).toEqual(outdent`
-        ...
-          <Layout>
-            <html>
-            ^^^^^^
-              <Script>
-                <script>
-                ^^^^^^^^
-      `)
-    } else {
-      expect(pseudoHtml).toEqual(outdent`
-        <script>
-        ^^^^^^^^
-      `)
-    }
+    // 1st error has no component context.
+    expect(pseudoHtml).toEqual(null)
   })
 
   it('should collapse and uncollapse properly when there are many frames', async () => {

@@ -39,7 +39,7 @@ pub async fn minify(
     let code = code.await?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
-    let (src, src_map_buf) = {
+    let (src, mut src_map_buf) = {
         let compiler = Arc::new(Compiler::new(cm.clone()));
         let fm = compiler.cm.new_source_file(
             FileName::Custom(path.path.to_string()).into(),
@@ -116,6 +116,7 @@ pub async fn minify(
 
     let mut builder = CodeBuilder::default();
     if let Some(original_map) = source_maps {
+        src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
             Some(ResolvedVc::upcast(

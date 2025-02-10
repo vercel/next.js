@@ -148,6 +148,9 @@ export async function createSandbox(
           }
           return source
         },
+        /**
+         * @returns `null` if there are no frames
+         */
         async getRedboxComponentStack() {
           return getRedboxComponentStack(browser)
         },

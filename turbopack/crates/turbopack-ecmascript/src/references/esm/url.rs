@@ -69,7 +69,7 @@ pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     rendering: ResolvedVc<Rendering>,
-    ast_path: ResolvedVc<AstPath>,
+    ast_path: AstPath,
     issue_source: IssueSource,
     in_try: bool,
     url_rewrite_behavior: UrlRewriteBehavior,
@@ -82,7 +82,7 @@ impl UrlAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         rendering: ResolvedVc<Rendering>,
-        ast_path: ResolvedVc<AstPath>,
+        ast_path: AstPath,
         issue_source: IssueSource,
         in_try: bool,
         url_rewrite_behavior: UrlRewriteBehavior,
@@ -168,7 +168,6 @@ impl CodeGenerateable for UrlAssetReference {
         match this.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
                 let referenced_asset = self.get_referenced_asset().await?;
-                let ast_path = this.ast_path.await?;
 
                 // if the referenced url is in the module graph of turbopack, replace it into
                 // the chunk item will be emitted into output path to point the
@@ -185,7 +184,7 @@ impl CodeGenerateable for UrlAssetReference {
                             .id()
                             .await?;
 
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -204,7 +203,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -232,7 +231,6 @@ impl CodeGenerateable for UrlAssetReference {
             }
             UrlRewriteBehavior::Full => {
                 let referenced_asset = self.get_referenced_asset().await?;
-                let ast_path = this.ast_path.await?;
 
                 // For rendering environments (CSR), we rewrite the `import.meta.url` to
                 // be a location.origin because it allows us to access files from the root of
@@ -276,7 +274,7 @@ impl CodeGenerateable for UrlAssetReference {
                             )
                         };
 
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = url_segment_resolver.clone();
@@ -296,7 +294,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = request.as_str().into()

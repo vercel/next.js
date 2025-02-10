@@ -6,6 +6,28 @@ export function Colors() {
     <style>
       {css`
         :host {
+          ${
+            // CAUTION: THIS IS A WORKAROUND!
+            // For now, we use @babel/code-frame to parse the code frame which does not support option to change the color.
+            // x-ref: https://github.com/babel/babel/blob/efa52324ff835b794c48080f14877b6caf32cd15/packages/babel-code-frame/src/defs.ts#L40-L54
+            // So, we do a workaround mapping to change the color matching the theme.
+
+            // For example, in @babel/code-frame, the `keyword` is mapped to ANSI "cyan".
+            // We want the `keyword` to use the `syntax-keyword` color in the theme.
+            // So, we map the "cyan" to the `syntax-keyword` in the theme.
+            ''
+          }
+          /* cyan: keyword */
+          --color-ansi-cyan: var(--color-syntax-keyword);
+          /* yellow: capitalized, jsxIdentifier, punctuation */
+          --color-ansi-yellow: var(--color-syntax-punctuation);
+          /* magenta: number, regex */
+          --color-ansi-magenta: var(--color-syntax-number);
+          /* green: string */
+          --color-ansi-green: var(--color-syntax-string);
+          /* gray (bright black): comment, gutter */
+          --color-ansi-bright-black: var(--color-syntax-comment);
+
           /* Ansi - Temporary */
           --color-ansi-selection: var(--color-gray-alpha-300);
           --color-ansi-bg: var(--color-background-200);
@@ -14,13 +36,8 @@ export function Colors() {
           --color-ansi-white: var(--color-gray-700);
           --color-ansi-black: var(--color-gray-200);
           --color-ansi-blue: var(--color-blue-700);
-          --color-ansi-cyan: var(--color-blue-700);
-          --color-ansi-green: var(--color-green-700);
-          --color-ansi-magenta: var(--color-blue-700);
           --color-ansi-red: var(--color-red-700);
-          --color-ansi-yellow: var(--color-amber-800);
           --color-ansi-bright-white: var(--color-gray-1000);
-          --color-ansi-bright-black: var(--color-gray-700);
           --color-ansi-bright-blue: var(--color-blue-800);
           --color-ansi-bright-cyan: var(--color-blue-800);
           --color-ansi-bright-green: var(--color-green-800);

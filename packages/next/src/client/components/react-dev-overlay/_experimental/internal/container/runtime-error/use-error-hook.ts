@@ -26,12 +26,11 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default: {
-    }
+    default:
+      break
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event as never
+  event satisfies never
   return ''
 }
 
@@ -109,7 +108,7 @@ export function useErrorHook({
     // missing tags won't be dismissed until resolved, the
     // total number of errors may be fixed to their length.
     totalErrorCount: rootLayoutMissingTags?.length
-      ? rootLayoutMissingTags.length
+      ? 1
       : !!buildError
         ? 1
         : readyErrors.length,

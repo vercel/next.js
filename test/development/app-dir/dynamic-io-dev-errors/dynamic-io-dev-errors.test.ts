@@ -32,7 +32,9 @@ describe('Dynamic IO Dev Errors', () => {
   it('should show a red box error on client navigations', async () => {
     const browser = await next.browser('/no-error')
 
-    expect(await hasErrorToast(browser)).toBe(false)
+    await retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(false)
+    })
 
     await browser.elementByCss("[href='/error']").click()
 

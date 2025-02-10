@@ -29,6 +29,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -50,7 +51,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -262,7 +264,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
-        self,
+        mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         let references = self.references.into_iter().collect();
@@ -287,6 +289,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         } else {
             OptionSourceMap::none().to_resolved().await?
         };
+
+        self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: ResolvedVc::cell(references),
@@ -365,7 +369,7 @@ where
 #[turbo_tasks::function]
 pub(crate) async fn analyse_ecmascript_module(
     module: ResolvedVc<EcmascriptModuleAsset>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
@@ -386,7 +390,7 @@ pub(crate) async fn analyse_ecmascript_module(
 
 pub(crate) async fn analyse_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let raw_module = module.await?;
 
@@ -412,7 +416,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     let parsed = if let Some(part) = part {
         let parsed = parse(*source, ty, *transforms);
         let split_data = split(source.ident(), *source, parsed);
-        part_of_module(split_data, part)
+        part_of_module(split_data, part.clone())
     } else {
         module.failsafe_parse()
     };
@@ -621,32 +625,22 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                         ImportedSymbol::ModuleEvaluation => {
                             evaluation_references.push(i);
-                            Some(ModulePart::evaluation().to_resolved().await?)
+                            Some(ModulePart::evaluation())
                         }
-                        ImportedSymbol::Symbol(name) => {
-                            Some(ModulePart::export((&**name).into()).to_resolved().await?)
-                        }
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(part_id) => {
                             evaluation_references.push(i);
-                            Some(
-                                ModulePart::internal_evaluation(*part_id)
-                                    .to_resolved()
-                                    .await?,
-                            )
+                            Some(ModulePart::internal_evaluation(*part_id))
                         }
-                        ImportedSymbol::Part(part_id) => {
-                            Some(ModulePart::internal(*part_id).to_resolved().await?)
-                        }
-                        ImportedSymbol::Exports => Some(ModulePart::exports().to_resolved().await?),
+                        ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
+                        ImportedSymbol::Exports => Some(ModulePart::exports()),
                     },
                     Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                         ImportedSymbol::ModuleEvaluation => {
                             evaluation_references.push(i);
-                            Some(ModulePart::evaluation().to_resolved().await?)
+                            Some(ModulePart::evaluation())
                         }
-                        ImportedSymbol::Symbol(name) => {
-                            Some(ModulePart::export((&**name).into()).to_resolved().await?)
-                        }
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                             bail!("Internal imports doesn't exist in reexports only mode")
                         }
@@ -1260,7 +1254,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     if let Some(&r) = import_references.get(esm_reference_index) {
                         if let Some("__turbopack_module_id__") = export.as_deref() {
                             analysis.add_reference(
-                                EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path))
+                                EsmModuleIdAssetReference::new(*r, ast_path.into())
                                     .to_resolved()
                                     .await?,
                             )
@@ -1275,7 +1269,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                             r_ref.request,
                                             r_ref.issue_source.clone(),
                                             Value::new(r_ref.annotations.clone()),
-                                            Some(ModulePart::export(export).to_resolved().await?),
+                                            Some(ModulePart::export(export)),
                                             r_ref.import_externals,
                                         )
                                         .to_resolved()
@@ -1473,7 +1467,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 *origin,
                                 Request::parse(Value::new(pat)),
                                 compile_time_info.environment().rendering(),
-                                Vc::cell(ast_path.to_vec()),
+                                ast_path.to_vec().into(),
                                 issue_source(source, span),
                                 in_try,
                                 url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
@@ -1508,7 +1502,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             WorkerAssetReference::new(
                                 *origin,
                                 Request::parse(Value::new(pat)),
-                                Vc::cell(ast_path.to_vec()),
+                                ast_path.to_vec().into(),
                                 issue_source(source, span),
                                 in_try,
                             )
@@ -1607,7 +1601,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     EsmAsyncAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
+                        ast_path.to_vec().into(),
                         issue_source(source, span),
                         Value::new(import_annotations),
                         in_try,
@@ -1649,7 +1643,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsRequireAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
+                        ast_path.to_vec().into(),
                         issue_source(source, span),
                         in_try,
                     )
@@ -1703,7 +1697,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsRequireResolveAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        Vc::cell(ast_path.to_vec()),
+                        ast_path.to_vec().into(),
                         issue_source(source, span),
                         in_try,
                     )
@@ -1749,7 +1743,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     options.dir,
                     options.include_subdirs,
                     Vc::cell(options.filter),
-                    Vc::cell(ast_path.to_vec()),
+                    ast_path.to_vec().into(),
                     Some(issue_source(source, span)),
                     in_try,
                 )
@@ -2458,11 +2452,7 @@ async fn handle_free_var_reference(
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
                     | Some(TreeShakingMode::ReexportsOnly) => {
-                        if let Some(export) = export {
-                            Some(ModulePart::export(export.clone()).to_resolved().await?)
-                        } else {
-                            None
-                        }
+                        export.clone().map(ModulePart::export)
                     }
                     None => None,
                 },
@@ -3352,9 +3342,15 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-#[turbo_tasks::value(transparent)]
-#[derive(Hash, Debug, Clone)]
+#[derive(Hash, Debug, Clone, Eq, Serialize, Deserialize, PartialEq, TraceRawVcs)]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
+
+impl TaskInput for AstPath {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+unsafe impl NonLocalValue for AstPath {}
 
 impl Deref for AstPath {
     type Target = [AstParentKind];

@@ -18,6 +18,7 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
@@ -33,7 +34,7 @@ use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, RawVc, ResolveTypeError, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError,
 };
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the

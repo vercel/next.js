@@ -11,10 +11,7 @@ use lightningcss::{
 };
 use rustc_hash::FxHashMap;
 use smallvec::smallvec;
-use swc_core::{
-    base::sourcemap::SourceMapBuilder,
-    common::{BytePos, LineCol},
-};
+use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -31,14 +28,13 @@ use turbopack_core::{
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{utils::add_default_ignore_list, GenerateSourceMap, OptionSourceMap},
     source_pos::SourcePos,
     SOURCE_MAP_PREFIX,
 };
 
 use crate::{
     lifetime_util::stylesheet_into_static,
-    parse::InlineSourcesContentConfig,
     references::{
         analyze_references,
         url::{replace_url_references, resolve_url_reference, UrlAssetReference},
@@ -103,10 +99,7 @@ impl StyleSheetLike<'_, '_> {
             srcmap.set_source_content(0, code)?;
         }
 
-        Ok((
-            result,
-            srcmap.map(ParseCssResultSourceMap::new_lightningcss),
-        ))
+        Ok((result, srcmap.map(ParseCssResultSourceMap::new)))
     }
 }
 
@@ -580,21 +573,9 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
 }
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub enum ParseCssResultSourceMap {
-    Parcel {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        source_map: parcel_sourcemap::SourceMap,
-    },
-
-    Swc {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        source_map: Arc<swc_core::common::SourceMap>,
-
-        /// The position mappings that can generate a real source map given a
-        /// (SWC) SourceMap.
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        mappings: Vec<(BytePos, LineCol)>,
-    },
+pub struct ParseCssResultSourceMap {
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    source_map: parcel_sourcemap::SourceMap,
 }
 
 impl PartialEq for ParseCssResultSourceMap {
@@ -604,18 +585,8 @@ impl PartialEq for ParseCssResultSourceMap {
 }
 
 impl ParseCssResultSourceMap {
-    pub fn new_lightningcss(source_map: parcel_sourcemap::SourceMap) -> Self {
-        ParseCssResultSourceMap::Parcel { source_map }
-    }
-
-    pub fn new_swc(
-        source_map: Arc<swc_core::common::SourceMap>,
-        mappings: Vec<(BytePos, LineCol)>,
-    ) -> Self {
-        ParseCssResultSourceMap::Swc {
-            source_map,
-            mappings,
-        }
+    pub fn new(source_map: parcel_sourcemap::SourceMap) -> Self {
+        ParseCssResultSourceMap { source_map }
     }
 }
 
@@ -623,49 +594,34 @@ impl ParseCssResultSourceMap {
 impl GenerateSourceMap for ParseCssResultSourceMap {
     #[turbo_tasks::function]
     fn generate_source_map(&self) -> Vc<OptionSourceMap> {
-        match self {
-            ParseCssResultSourceMap::Parcel { source_map } => {
-                let mut builder = SourceMapBuilder::new(None);
+        let source_map = &self.source_map;
+        let mut builder = SourceMapBuilder::new(None);
 
-                for src in source_map.get_sources() {
-                    builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
-                }
-
-                for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-                    builder.set_source_contents(idx as _, Some(content));
-                }
-
-                for m in source_map.get_mappings() {
-                    builder.add_raw(
-                        m.generated_line,
-                        m.generated_column,
-                        m.original.map(|v| v.original_line).unwrap_or_default(),
-                        m.original.map(|v| v.original_column).unwrap_or_default(),
-                        Some(0),
-                        None,
-                        false,
-                    );
-                }
-
-                Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(builder.into_sourcemap())
-                        .resolved_cell(),
-                ))
-            }
-            ParseCssResultSourceMap::Swc {
-                source_map,
-                mappings,
-            } => {
-                let map = source_map.build_source_map_with_config(
-                    mappings,
-                    None,
-                    InlineSourcesContentConfig {},
-                );
-                Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
-                ))
-            }
+        for src in source_map.get_sources() {
+            builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
         }
+
+        for (idx, content) in source_map.get_sources_content().iter().enumerate() {
+            builder.set_source_contents(idx as _, Some(content));
+        }
+
+        for m in source_map.get_mappings() {
+            builder.add_raw(
+                m.generated_line,
+                m.generated_column,
+                m.original.map(|v| v.original_line).unwrap_or_default(),
+                m.original.map(|v| v.original_column).unwrap_or_default(),
+                Some(0),
+                None,
+                false,
+            );
+        }
+
+        let mut map = builder.into_sourcemap();
+        add_default_ignore_list(&mut map);
+        Vc::cell(Some(
+            turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
+        ))
     }
 }
 

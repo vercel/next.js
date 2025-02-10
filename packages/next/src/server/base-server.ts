@@ -83,7 +83,7 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { isBot } from '../shared/lib/router/utils/is-bot'
+import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -175,8 +175,11 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
-import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
+import {
+  shouldServeStreamingMetadata,
+  isHtmlBotRequestStreamingMetadata,
+} from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1761,6 +1764,7 @@ export default abstract class Server<
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
+        botType: getBotType(ua),
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.renderOpts.experimental
@@ -2064,6 +2068,14 @@ export default abstract class Server<
       }
     }
 
+    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(
+      req,
+      this.renderOpts.experimental.streamingMetadata
+    )
+    if (isHtmlBotRequest) {
+      this.renderOpts.serveStreamingMetadata = false
+    }
+
     if (
       hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
@@ -2072,6 +2084,10 @@ export default abstract class Server<
       req.headers['x-now-route-matches']
     ) {
       isSSG = true
+    } else if (isHtmlBotRequest) {
+      // When it's html limited bots request, disable SSG
+      // and perform the full blocking rendering.
+      isSSG = false
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
     }
@@ -2474,6 +2490,8 @@ export default abstract class Server<
         // make sure to only add query values from original URL
         query: origQuery,
       })
+
+      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBotRequest
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2511,6 +2529,7 @@ export default abstract class Server<
           isRoutePPREnabled,
         },
         supportsDynamicResponse,
+        shouldWaitOnAllReady,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
@@ -3527,7 +3546,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone) {
+      if (didPostpone && !isHtmlBotRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 

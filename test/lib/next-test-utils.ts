@@ -887,17 +887,32 @@ export async function assertNoRedbox(browser: BrowserInterface) {
 export async function hasErrorToast(
   browser: BrowserInterface
 ): Promise<boolean> {
-  return (
+  return Boolean(
+    await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-issues]'))
+
+      const root = portal?.shadowRoot
+      const node = root?.querySelector('[data-issues-count]')
+      return !!node
+    })
+  )
+}
+
+export async function getToastErrorCount(
+  browser: BrowserInterface
+): Promise<number> {
+  return parseInt(
     (await browser.eval(() => {
-      return Boolean(
-        [].slice.call(document.querySelectorAll('nextjs-portal')).find((p) =>
-          p.shadowRoot.querySelector(
-            // TODO(jiwon): data-nextjs-toast may not be an error indicator in new UI
-            isNewDevOverlay ? '[data-issues]' : '[data-nextjs-toast]'
-          )
-        )
-      )
-    })) ?? false // When browser.eval() throws, it returns null.
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-issues]'))
+
+      const root = portal?.shadowRoot
+      const node = root?.querySelector('[data-issues-count]')
+      return node?.innerText || '0'
+    })) ?? 0
   )
 }
 
@@ -1285,17 +1300,20 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+/**
+ * @returns `null` if there are no frames
+ */
 export async function getRedboxComponentStack(
   browser: BrowserInterface
-): Promise<string> {
-  await browser.waitForElementByCss(
-    '[data-nextjs-container-errors-pseudo-html] code',
-    30000
-  )
+): Promise<string | null> {
   // TODO: the type for elementsByCss is incorrect
   const componentStackFrameElements: any = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
+  if (componentStackFrameElements.length === 0) {
+    return null
+  }
+
   const componentStackFrameTexts = await Promise.all(
     componentStackFrameElements.map((f) => f.innerText())
   )

@@ -29,7 +29,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    pub part: Option<ResolvedVc<ModulePart>>,
+    pub part: Option<ModulePart>,
 }
 
 #[turbo_tasks::value_impl]
@@ -37,7 +37,7 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        part: ResolvedVc<ModulePart>,
+        part: ModulePart,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
@@ -55,9 +55,11 @@ impl EcmascriptModulePartReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptModulePartReference {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        self.part
-            .map_or_else(|| Vc::cell("module".into()), |part| part.to_string())
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(match &self.part {
+            Some(part) => Vc::cell(part.to_string().into()),
+            None => Vc::cell("module".into()),
+        })
     }
 }
 
@@ -65,8 +67,8 @@ impl ValueToString for EcmascriptModulePartReference {
 impl ModuleReference for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let module = if let Some(part) = self.part {
-            match *part.await? {
+        let module = if let Some(part) = &self.part {
+            match part {
                 ModulePart::Locals => {
                     let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
                         bail!(
@@ -80,15 +82,15 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Evaluation
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
-                | ModulePart::RenamedNamespace { .. } => {
-                    Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module, *part))
-                }
+                | ModulePart::RenamedNamespace { .. } => Vc::upcast(
+                    EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
+                ),
                 ModulePart::Export(..)
                 | ModulePart::Internal(..)
                 | ModulePart::InternalEvaluation(..) => {
                     bail!(
-                        "Unexpected ModulePart {} for EcmascriptModulePartReference",
-                        part.to_string().await?
+                        "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
+                        part
                     );
                 }
             }

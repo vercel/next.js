@@ -737,7 +737,7 @@ dependencies = [
  "bitflags 2.5.0",
  "cexpr",
  "clang-sys",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -2964,7 +2964,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -4080,8 +4080,9 @@ dependencies = [
 
 [[package]]
 name = "mdxjs"
-version = "0.3.0"
-source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-13#f5f4feadf77529bc47fe7ca91b5999aaf6c06921"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ff80857915f8617faedd7b1da6e89b3670ffd26cbfe9ac53b16b333ac86f320"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.0",
@@ -4451,11 +4452,11 @@ dependencies = [
  "tracing-subscriber",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
- "turbo-tasks-memory",
  "turbopack",
  "turbopack-browser",
  "turbopack-cli-utils",
@@ -5476,7 +5477,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
 dependencies = [
  "anyhow",
- "itertools 0.10.5",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.95",
@@ -6610,6 +6611,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
+name = "shrink-to-fit"
+version = "0.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "939a4c696178684fc5fc1426625b882805418bbb56e056d21f9d4946a9d6ff51"
+dependencies = [
+ "indexmap 2.7.1",
+ "serde_json",
+ "shrink-to-fit-macro",
+ "smallvec",
+]
+
+[[package]]
+name = "shrink-to-fit-macro"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16d9bafdb4ba0cafd45a5aea7e8bc35b0f6280a603795c2ba9a823ca6afaba73"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.95",
+]
+
+[[package]]
 name = "signal-hook"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6766,8 +6790,9 @@ dependencies = [
 
 [[package]]
 name = "sourcemap"
-version = "9.0.0"
-source = "git+https://github.com/wbinnssmith/rust-sourcemap?branch=wbinnssmith%2Fignore-list#5ddd8f176e537ced3b024363d3bd04444d442cd7"
+version = "9.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27c4ea7042fd1a155ad95335b5d505ab00d5124ea0332a06c8390d200bb1a76a"
 dependencies = [
  "base64-simd",
  "bitvec",
@@ -7027,9 +7052,9 @@ dependencies = [
 
 [[package]]
 name = "swc_atoms"
-version = "3.0.5"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31b770be7f8c626633841a0408e2b66b0d6a395a5a0a565a1591f15dc05af8d3"
+checksum = "c24077f986f0bc1c07823f850f688dd9be91b186efdb03fe1d52f7c2f2a4a346"
 dependencies = [
  "bytecheck 0.8.0",
  "hstr",
@@ -7038,6 +7063,7 @@ dependencies = [
  "rkyv 0.8.9",
  "rustc-hash 2.1.0",
  "serde",
+ "shrink-to-fit",
 ]
 
 [[package]]
@@ -7089,9 +7115,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "6.0.0"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa92d673f12585e950300d3d397eefd2da9effe3373d7882f46b35b0f9ef9cec"
+checksum = "4247defb6017aa8799c43e03da35a5ef7ce737189001392083619711c6d4811e"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7108,6 +7134,7 @@ dependencies = [
  "rkyv 0.8.9",
  "rustc-hash 2.1.0",
  "serde",
+ "shrink-to-fit",
  "siphasher",
  "sourcemap",
  "swc_allocator",
@@ -7177,9 +7204,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "13.0.4"
+version = "13.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e814dad92d1131b53798fca4a9711f634484a11a24f85cf2e84749c729910de5"
+checksum = "a4c990d3317f36a5a8038c8de567ef95fd6532301bfb998f23930e1cce868598"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7347,9 +7374,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "6.0.0"
+version = "6.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d16cd007587c1cccaabe76ad640a59a05e51fed0ec4c0600b8ed6f26c9be2ec"
+checksum = "dbd513dab5fb1181e66ac34c4c959e9e8824d8d2c8bd50f698f5f2943794c0cc"
 dependencies = [
  "bitflags 2.5.0",
  "bytecheck 0.8.0",
@@ -7360,6 +7387,7 @@ dependencies = [
  "rkyv 0.8.9",
  "scoped-tls",
  "serde",
+ "shrink-to-fit",
  "string_enum",
  "swc_atoms",
  "swc_common",
@@ -7369,9 +7397,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "6.0.1"
+version = "6.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ab1c30908a59fa1f103b7f2ae0b2788271d05c2a9d4f174e44cca4367aa6d7d"
+checksum = "b342d4f7b09d2bc669c92e53748bc3db134ecb2473e4f16bc3eec6ec473ba49a"
 dependencies = [
  "ascii",
  "memchr",
@@ -7658,9 +7686,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "10.0.0"
+version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dac6648ce5f9dda34a683132771aa8be50c96ca89440cf8197d6f9ff019e9e47"
+checksum = "319b869cc0807416a800272fc1f000db29893aafca4e208d366a46361c097b64"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -7695,9 +7723,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "8.0.0"
+version = "8.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d99556f20b91452fa4c6da1891f90e58998e89842d6321bb7326ebfe81c37dca"
+checksum = "7a3e9d2f5091bb851423ca66c239802212e2c80451242ff29941bc21058376ef"
 dependencies = [
  "either",
  "new_debug_unreachable",
@@ -8028,9 +8056,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_usage_analyzer"
-version = "10.0.0"
+version = "10.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b2031aed05786c806c8092b16cafad791be16f28e7222a9db069320937c1eb9"
+checksum = "c339a654c31223690a0733f268e4ab497ca6d02b4b76aa0dde71ff5ad395d30b"
 dependencies = [
  "indexmap 2.7.1",
  "rustc-hash 2.1.0",
@@ -9094,6 +9122,7 @@ dependencies = [
  "criterion",
  "new_debug_unreachable",
  "serde",
+ "shrink-to-fit",
  "triomphe 0.1.12",
  "turbo-tasks-hash",
 ]
@@ -9144,6 +9173,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
+ "shrink-to-fit",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -9552,6 +9582,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",
+ "const_format",
  "either",
  "futures",
  "indexmap 2.7.1",
@@ -9680,7 +9711,6 @@ dependencies = [
  "sourcemap",
  "strsim 0.11.1",
  "swc_core",
- "swc_ecma_visit",
  "tokio",
  "tracing",
  "turbo-rcstr",
