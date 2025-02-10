@@ -48,6 +48,7 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
+            IS_NEXT_WORKER: 'true',
           } as any,
         },
       }) as JestWorker
@@ -73,7 +74,7 @@ export class Worker {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
-                `Static worker exited with code: ${code} and signal: ${signal}`
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // We're restarting the worker, so we don't want to exit the parent process
@@ -96,7 +97,7 @@ export class Worker {
       if (!worker) return
       const resolve = resolveRestartPromise
       logger.warn(
-        `Sending SIGTERM signal to static worker due to timeout${
+        `Sending SIGTERM signal to Next.js build worker due to timeout${
           timeout ? ` of ${timeout / 1000} seconds` : ''
         }. Subsequent errors may be a result of the worker exiting.`
       )
