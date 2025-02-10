@@ -1,0 +1,290 @@
+{
+    "name": "_media",
+    "label": "Media (internal)",
+    "workflowId": "generic",
+    "internal": true,
+    "schemaDefinition": {
+      "type": "object",
+      "allOf": [
+        {
+          "$ref": "#/components/schemas/AbstractContentTypeSchemaDefinition"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "alt": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string",
+              "minLength": 1
+            },
+            "size": {
+              "type": "number",
+              "minLength": 1
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DataSource"
+              },
+              "minItems": 0
+            },
+            "type": {
+              "type": "string",
+              "minLength": 1
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fileName": {
+              "type": "string",
+              "minLength": 1
+            },
+            "mimeType": {
+              "type": "string",
+              "minLength": 1
+            },
+            "variants": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "pattern": "^[_a-zA-Z0-9]+$",
+                    "minLength": 1
+                  },
+                  "trim": {
+                    "type": "object",
+                    "required": [
+                      "top",
+                      "left"
+                    ],
+                    "properties": {
+                      "top": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 0
+                      },
+                      "left": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 0
+                      },
+                      "right": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 0
+                      },
+                      "width": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 1
+                      },
+                      "bottom": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 0
+                      },
+                      "height": {
+                        "type": "number",
+                        "maximum": 9999999,
+                        "minimum": 1
+                      }
+                    }
+                  }
+                }
+              },
+              "minItems": 0
+            },
+            "extension": {
+              "type": "string",
+              "minLength": 1
+            },
+            "externalId": {
+              "type": "string"
+            }
+          }
+        }
+      ],
+      "required": [
+        "fileName",
+        "mimeType",
+        "size",
+        "url",
+        "source",
+        "extension",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "metaDefinition": {
+      "order": [
+        "fileName",
+        "mimeType",
+        "size",
+        "width",
+        "height",
+        "url",
+        "externalId",
+        "source",
+        "extension",
+        "type",
+        "tags",
+        "alt",
+        "variants"
+      ],
+      "propertiesConfig": {
+        "alt": {
+          "label": "ALT",
+          "unique": false,
+          "inputType": "text"
+        },
+        "url": {
+          "label": "Url",
+          "unique": false,
+          "inputType": "text"
+        },
+        "size": {
+          "label": "Size",
+          "unique": false,
+          "inputType": "number"
+        },
+        "tags": {
+          "label": "Tags",
+          "unique": false,
+          "helpText": "",
+          "inputType": "datasource",
+          "validation": {
+            "relationMultiple": true,
+            "relationContenttype": "_tag"
+          }
+        },
+        "type": {
+          "label": "Type",
+          "unique": false,
+          "options": [
+            "image",
+            "file"
+          ],
+          "inputType": "select"
+        },
+        "width": {
+          "label": "Width",
+          "unique": false,
+          "inputType": "number"
+        },
+        "height": {
+          "label": "Height",
+          "unique": false,
+          "inputType": "number"
+        },
+        "source": {
+          "label": "Source",
+          "unique": false,
+          "options": [
+            "disk",
+            "unsplash"
+          ],
+          "inputType": "select"
+        },
+        "fileName": {
+          "label": "File name",
+          "unique": false,
+          "inputType": "text",
+          "isTitlePart": true
+        },
+        "mimeType": {
+          "label": "MIME type",
+          "unique": false,
+          "inputType": "text"
+        },
+        "variants": {
+          "items": {
+            "order": [
+              "name",
+              "trim"
+            ],
+            "propertiesConfig": {
+              "name": {
+                "label": "name",
+                "unique": true,
+                "inputType": "text"
+              },
+              "trim": {
+                "label": "Trim",
+                "order": [
+                  "top",
+                  "right",
+                  "bottom",
+                  "left",
+                  "width",
+                  "height"
+                ],
+                "unique": false,
+                "inputType": "custom",
+                "propertiesConfig": {
+                  "top": {
+                    "label": "Top",
+                    "unique": false,
+                    "inputType": "number"
+                  },
+                  "left": {
+                    "label": "Left",
+                    "unique": false,
+                    "inputType": "number"
+                  },
+                  "right": {
+                    "label": "Right",
+                    "unique": false,
+                    "inputType": "number"
+                  },
+                  "width": {
+                    "label": "Width",
+                    "unique": false,
+                    "inputType": "number"
+                  },
+                  "bottom": {
+                    "label": "Bottom",
+                    "unique": false,
+                    "inputType": "number"
+                  },
+                  "height": {
+                    "label": "Height",
+                    "unique": false,
+                    "inputType": "number"
+                  }
+                }
+              }
+            }
+          },
+          "label": "Variants",
+          "unique": false,
+          "helpText": "",
+          "inputType": "object"
+        },
+        "extension": {
+          "label": "Extension",
+          "unique": false,
+          "inputType": "text"
+        },
+        "externalId": {
+          "label": "External id",
+          "unique": false,
+          "inputType": "text"
+        }
+      }
+    },
+    "featuredImage": []
+  }

@@ -1,0 +1,85 @@
+{
+  "name": "blogpost",
+  "label": "Blog Post",
+  "workflowId": "generic",
+  "internal": false,
+  "schemaDefinition": {
+    "type": "object",
+    "allOf": [
+      {
+        "$ref": "#/components/schemas/AbstractContentTypeSchemaDefinition"
+      },
+      {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9-_]*$",
+            "minLength": 1
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1
+          },
+          "excerpt": {
+            "type": "string",
+            "minLength": 1
+          },
+          "headerImage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DataSource"
+            },
+            "minItems": 0
+          }
+        }
+      }
+    ],
+    "required": ["title", "slug", "excerpt", "content"],
+    "additionalProperties": false
+  },
+  "metaDefinition": {
+    "order": ["title", "slug", "excerpt", "content", "headerImage"],
+    "propertiesConfig": {
+      "slug": {
+        "label": "Slug",
+        "unique": true,
+        "helpText": "Slug can only have alphanumerical characters, - and _",
+        "inputType": "text"
+      },
+      "title": {
+        "label": "Title",
+        "unique": false,
+        "helpText": "",
+        "inputType": "text",
+        "isTitlePart": true
+      },
+      "content": {
+        "label": "Content",
+        "unique": false,
+        "helpText": "",
+        "inputType": "richtext"
+      },
+      "excerpt": {
+        "label": "Excerpt",
+        "unique": false,
+        "helpText": "",
+        "inputType": "textarea"
+      },
+      "headerImage": {
+        "label": "Header image",
+        "unique": false,
+        "helpText": "",
+        "inputType": "datasource",
+        "validation": {
+          "relationContenttype": "_media"
+        }
+      }
+    }
+  },
+  "featuredImage": []
+}
