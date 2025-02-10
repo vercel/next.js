@@ -97,7 +97,7 @@ export class Worker {
       if (!worker) return
       const resolve = resolveRestartPromise
       logger.warn(
-        `Sending SIGTERM signal to static worker due to timeout${
+        `Sending SIGTERM signal to Next.js build worker due to timeout${
           timeout ? ` of ${timeout / 1000} seconds` : ''
         }. Subsequent errors may be a result of the worker exiting.`
       )
