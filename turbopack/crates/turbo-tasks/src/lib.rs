@@ -69,7 +69,6 @@ mod read_ref;
 pub mod registry;
 mod scope;
 mod serialization_invalidation;
-mod shrink_to_fit;
 pub mod small_duration;
 mod state;
 pub mod task;

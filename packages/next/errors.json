@@ -632,5 +632,6 @@
   "631": "Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.",
   "632": "Invariant (SlowModuleDetectionPlugin): Module is missing a required debugId. This is a Next.js internal bug.",
   "633": "Dynamic route not found",
-  "634": "Route %s used \"searchParams\" inside \"use cache\". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \"searchParams\" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
+  "634": "Route %s used \"searchParams\" inside \"use cache\". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \"searchParams\" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "635": "%s: Invalid source map. Only conformant source maps can be used to find the original code."
 }

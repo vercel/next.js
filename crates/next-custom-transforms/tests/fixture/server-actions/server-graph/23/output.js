@@ -9,12 +9,8 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = a
     console.log(a, b, $$ACTION_ARG_0, c, d);
 };
 export default function Page({ foo, x, y }) {
-    var action = registerServerReference($$RSC_SERVER_ACTION_0, "7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
-        x
-    ]));
+    var action = registerServerReference($$RSC_SERVER_ACTION_0, "7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("7c6a88810ecce4a4e8b59d53b8327d7e98bbf251d7", x));
     action.bind(null, foo[0], foo[1], foo.x, foo[y]);
-    const action2 = registerServerReference($$RSC_SERVER_ACTION_1, "7c90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("7c90b5db271335765a4b0eab01f044b381b5ebd5cd", [
-        x
-    ]));
+    const action2 = registerServerReference($$RSC_SERVER_ACTION_1, "7c90b5db271335765a4b0eab01f044b381b5ebd5cd", null).bind(null, encryptActionBoundArgs("7c90b5db271335765a4b0eab01f044b381b5ebd5cd", x));
     action2.bind(null, foo[0], foo[1], foo.x, foo[y]);
 }
