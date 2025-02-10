@@ -24,6 +24,7 @@ Once you have access to [the environment variables you'll need](#step-3-set-up-e
 - [DotCMS](/examples/cms-dotcms)
 - [Drupal](/examples/cms-drupal)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Flotiq](/examples/cms-flotiq)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent.ai](/examples/cms-kontent-ai)

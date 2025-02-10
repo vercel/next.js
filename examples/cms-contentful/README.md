@@ -23,6 +23,7 @@ Using the Deploy Button below, you'll deploy the Next.js project as well as conn
 - [DotCMS](/examples/cms-dotcms)
 - [Drupal](/examples/cms-drupal)
 - [Enterspeed](/examples/cms-enterspeed)
+- [Flotiq](/examples/cms-flotiq)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
 - [Kontent.ai](/examples/cms-kontent-ai)
