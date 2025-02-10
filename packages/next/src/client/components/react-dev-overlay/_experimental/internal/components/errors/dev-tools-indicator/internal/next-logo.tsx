@@ -442,7 +442,7 @@ function AnimateCount({
   animate: boolean
 }) {
   return (
-    <div {...props} key={String(count)} data-animate={animate}>
+    <div {...props} key={`${count}-${Date.now()}`} data-animate={animate}>
       <div aria-hidden data-issues-count-exit>
         {count - 1}
       </div>
