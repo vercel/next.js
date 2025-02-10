@@ -475,7 +475,7 @@ impl IssueSource {
         }
     }
 
-    pub async fn resolve_source_map(&self, origin: Vc<FileSystemPath>) -> Result<Cow<'_, Self>> {
+    pub async fn resolve_source_map(&self) -> Result<Cow<'_, Self>> {
         if let Some(range) = &self.range {
             let (start, end) = match range {
                 SourceRange::LineColumn(start, end) => (*start, *end),
@@ -491,7 +491,7 @@ impl IssueSource {
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(self.source, origin, start, end).await?;
+            let mapped = source_pos(self.source, start, end).await?;
 
             if let Some((source, start, end)) = mapped {
                 return Ok(Cow::Owned(IssueSource {
@@ -579,7 +579,6 @@ impl IssueSource {
 
 async fn source_pos(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<FileSystemPath>,
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {

@@ -687,7 +687,7 @@ impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(match &self.source {
-            Some(s) => Some(s.resolve_source_map(*self.file).await?.into_owned()),
+            Some(s) => Some(s.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }
