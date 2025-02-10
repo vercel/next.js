@@ -19,11 +19,19 @@ describe('debug-dynamic-usage', () => {
     expect(logs).toMatchObject(
       expect.arrayContaining([
         expect.objectContaining({
-          // TODO(veil): The stack frames should be source-mapped.
-          message: expect.stringContaining(`Debug: Dynamic usage detected
-    at getUserAgent (rsc://React/Server/webpack-internal:///(rsc)/./app/headers/lib.ts?0:6:25)
-    at indirect (rsc://React/Server/webpack-internal:///(rsc)/./app/headers/page.tsx?1:18:68)
-    at Page (rsc://React/Server/webpack-internal:///(rsc)/./app/headers/page.tsx?2:31:26)`),
+          // TODO(veil): The stack frames should be source-mapped. Using
+          // `stringMatching`+`RegExp` instead of `stringContaining` to avoid
+          // dealing with Webpack/Turbopack differences in the un-source-mapped
+          // frames. In any case, there should be no rsc://React/Server/ prefix.
+          message: expect.stringMatching(
+            new RegExp(
+              `Debug: Dynamic usage detected
+    at getUserAgent \\(rsc://React/Server/.*\\)
+    at indirect \\(rsc://React/Server/.*\\)
+    at Page \\(rsc://React/Server/.*\\)`,
+              'm'
+            )
+          ),
         }),
       ])
     )
