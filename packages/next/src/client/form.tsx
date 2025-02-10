@@ -295,9 +295,7 @@ function onFormSubmit(
       value = value.name
     }
 
-    if (value === '') {
-      targetUrl.searchParams.delete(name)
-    } else {
+    if (value !== '') {
       targetUrl.searchParams.append(name, value)
     }
   }
