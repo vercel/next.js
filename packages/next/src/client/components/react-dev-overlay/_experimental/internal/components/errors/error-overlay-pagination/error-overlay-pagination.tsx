@@ -109,6 +109,7 @@ export function ErrorOverlayPagination({
 
   return (
     <nav
+      data-nextjs-error-overlay-pagination
       className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
       ref={onNav}
     >

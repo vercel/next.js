@@ -162,7 +162,8 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
-        "packages/next/next-runtime.webpack-config.js"
+        "packages/next/next-runtime.webpack-config.js",
+        "packages/next/src/client/components/react-dev-overlay/**/*.stories.tsx"
       ],
       "rules": {
         "no-shadow": ["error", { "builtinGlobals": false }],

@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import { within } from '@storybook/testing-library'
+import { expect } from '@storybook/jest'
+
 import { RootLayoutMissingTagsError } from './root-layout-missing-tags-error'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 
@@ -13,6 +16,19 @@ const meta: Meta<typeof RootLayoutMissingTagsError> = {
 export default meta
 type Story = StoryObj<typeof RootLayoutMissingTagsError>
 
+const play: Story['play'] = async ({ canvasElement }) => {
+  const canvas = within(canvasElement)
+  console.log({ canvasElement: canvasElement.shadowRoot })
+
+  const portal = canvas.getByTestId('nextjs-portal')
+  console.log({ portal })
+
+  const pagination = portal.querySelector(
+    '[data-nextjs-error-overlay-pagination]'
+  )
+  expect(pagination).toBeInTheDocument()
+}
+
 export const Default: Story = {
   args: {
     missingTags: ['html', 'body'],
@@ -21,6 +37,7 @@ export const Default: Story = {
       staleness: 'fresh',
     },
   },
+  play,
 }
 
 export const SingleTag: Story = {
