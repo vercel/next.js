@@ -21,7 +21,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html-line--error] {
-    background: var(--color-amber-300);
+    background: var(--color-amber-100);
     font-weight: bold;
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
@@ -53,7 +53,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   }
   [data-nextjs-container-errors-pseudo-html-line--error]
     [data-nextjs-container-errors-pseudo-html-line-sign] {
-    color: var(--color-red-900);
+    color: var(--color-amber-900);
   }
   ${/* hide but text are still accessible in DOM */ ''}
   [data-nextjs-container-errors-pseudo-html--hint] {
