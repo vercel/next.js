@@ -70,8 +70,16 @@ export class NextStartInstance extends NextInstance {
       buildArgs = this.buildCommand.split(' ')
     }
 
+    if (this.buildOptions) {
+      buildArgs.push(...this.buildOptions)
+    }
+
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
+    }
+
+    if (this.startOptions) {
+      startArgs.push(...this.startOptions)
     }
 
     if (process.env.NEXT_SKIP_ISOLATE) {
