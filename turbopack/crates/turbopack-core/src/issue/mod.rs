@@ -595,9 +595,8 @@ async fn source_pos(
     let Some(srcmap) = SourceMap::new_from_rope(srcmap)? else {
         return Ok(None);
     };
-    let srcmap = &srcmap.with_resolved_sources(origin).await?;
 
-    let find = |line: u32, col: u32| async move {
+    let find = async |line: u32, col: u32| {
         let TokenWithSource {
             token,
             source_content,
