@@ -442,11 +442,11 @@ function AnimateCount({
   animate: boolean
 }) {
   return (
-    <div {...props} key={`${count}-${Date.now()}`} data-animate={animate}>
-      <div aria-hidden data-issues-count-exit>
+    <div {...props} key={`animate-${count}`} data-animate={animate}>
+      <div aria-hidden data-issues-count-exit key={`exit-${count}`}>
         {count - 1}
       </div>
-      <div data-issues-count data-issues-count-enter>
+      <div data-issues-count data-issues-count-enter key={`enter-${count}`}>
         {count}
       </div>
     </div>
