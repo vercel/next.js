@@ -500,6 +500,18 @@ impl SourceMap {
     }
 }
 
+#[turbo_tasks::function]
+fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
+    VirtualFileSystem::new_with_name("sourcemap-content".into()).root()
+}
+
+#[turbo_tasks::function]
+fn sourcemap_content_source(path: RcStr, content: RcStr) -> Vc<Box<dyn Source>> {
+    let path = sourcemap_content_fs_root().join(path);
+    let content = AssetContent::file(FileContent::new(File::from(content)).cell());
+    Vc::upcast(VirtualSource::new(path, content))
+}
+
 impl SourceMap {
     async fn lookup_token_and_source_internal(
         &self,
@@ -542,12 +554,7 @@ impl SourceMap {
                             let content = map.get_source_contents(src_id);
 
                             let (name, content) = name.zip(content)?;
-
-                            let path = VirtualFileSystem::new().root().join(name.into());
-                            let content =
-                                AssetContent::file(FileContent::new(File::from(content)).cell());
-
-                            Some(Vc::upcast(VirtualSource::new(path, content)))
+                            Some(sourcemap_content_source(name.into(), content.into()))
                         });
                     }
                 }
