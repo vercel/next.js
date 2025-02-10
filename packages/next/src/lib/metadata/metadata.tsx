@@ -3,7 +3,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
-import { Suspense, cache, cloneElement } from 'react'
+import { cache, cloneElement } from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -38,7 +38,6 @@ import {
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
 import { AsyncMetadata } from './async-metadata'
-import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -148,8 +147,8 @@ export function createMetadataComponents({
   async function resolveFinalMetadata() {
     try {
       return await metadata()
-    } catch (metadataErr) {
-      if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
+    } catch (error) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundMetadata(
             tree,
@@ -159,18 +158,7 @@ export function createMetadataComponents({
             createServerParamsForMetadata,
             workStore
           )
-        } catch (notFoundMetadataErr) {
-          // In PPR rendering we still need to throw the postpone error.
-          // If metadata is postponed, React needs to be aware of the location of error.
-          if (isPostpone(notFoundMetadataErr)) {
-            throw notFoundMetadataErr
-          }
-        }
-      }
-      // In PPR rendering we still need to throw the postpone error.
-      // If metadata is postponed, React needs to be aware of the location of error.
-      if (isPostpone(metadataErr)) {
-        throw metadataErr
+        } catch {}
       }
       // We don't actually want to error in this component. We will
       // also error in the MetadataOutlet which causes the error to
@@ -180,15 +168,10 @@ export function createMetadataComponents({
     }
   }
   async function Metadata() {
-    const promise = resolveFinalMetadata()
     if (serveStreamingMetadata) {
-      return (
-        <Suspense fallback={null}>
-          <AsyncMetadata promise={promise} />
-        </Suspense>
-      )
+      return <AsyncMetadata promise={resolveFinalMetadata()} />
     }
-    return await promise
+    return await resolveFinalMetadata()
   }
 
   Metadata.displayName = METADATA_BOUNDARY_NAME

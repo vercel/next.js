@@ -266,7 +266,6 @@ export type RenderOptsPartial = {
   domainLocales?: readonly DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicResponse: boolean
-  botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
