@@ -58,7 +58,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
   }
 
   return (
-    <div data-nextjs-call-stack className="error-overlay-call-stack-container">
+    <div className="error-overlay-call-stack-container">
       <div className="error-overlay-call-stack-header">
         <p className="error-overlay-call-stack-title">
           Call Stack{' '}

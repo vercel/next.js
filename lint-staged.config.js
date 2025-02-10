@@ -7,5 +7,4 @@ module.exports = {
     'prettier --with-node-modules --ignore-path .prettierignore --write',
   ],
   '*.rs': ['cargo fmt --'],
-  g,
 }
