@@ -213,14 +213,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:1
-        Parsing ecmascript source code failed
-          5 |     div
-          6 |   )
-        > 7 | }
-            | ^
+       "./index.js (7:1)
+       Parsing ecmascript source code failed
+         5 |     div
+         6 |   )
+       > 7 | }
+           | ^
 
-        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
@@ -345,8 +345,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     expect(source).toMatch(
       process.env.TURBOPACK
-        ? './index.module.css:1:9'
-        : './index.module.css:1:1'
+        ? './index.module.css (1:9)'
+        : './index.module.css (1:1)'
     )
     if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
@@ -798,13 +798,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (process.env.TURBOPACK) {
       expect(stack).toMatchInlineSnapshot(`
        "at <unknown> (pages/index.js (3:11))
-       at Array.map ()
+       at Array.map (<anonymous> (0:0))
        at Page (pages/index.js (2:13))"
       `)
     } else {
       expect(stack).toMatchInlineSnapshot(`
        "at eval (pages/index.js (3:11))
-       at Array.map ()
+       at Array.map (<anonymous> (0:0))
        at Page (pages/index.js (2:13))"
       `)
     }
@@ -837,7 +837,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const stack = await getStackFramesContent(browser)
     expect(stack).toMatchInlineSnapshot(`
      "at createURL (pages/index.js (4:3))
-     at getServerSideProps (pages/index.js (8:3))"
+     at getServerSideProps (pages/index.js (8:3))
+     at eval (./dist/esm/server/route-modules/pages/module.js)
+     at renderToHTMLImpl (./dist/esm/server/route-modules/pages/module.js)"
     `)
 
     await toggleCollapseCallStackFrames(browser)

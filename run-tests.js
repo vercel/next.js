@@ -50,6 +50,17 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 
 const externalTestsFilter = getTestFilter()
 
+// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
+if (!process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
+  console.log('Setting __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY to true')
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY = 'true'
+} else {
+  console.log(
+    '__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY is already set to',
+    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
+  )
+}
+
 const timings = []
 const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2

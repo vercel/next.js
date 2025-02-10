@@ -175,7 +175,7 @@ describe('Error overlay - RSC build errors', () => {
       // TODO: fix the issue ordering.
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-       "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+       "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
        Ecmascript file had an error
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
@@ -348,13 +348,13 @@ describe('Error overlay - RSC build errors', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./app/server-with-errors/error-file/error.js:1:1
-        Ecmascript file had an error
-        > 1 | export default function Error() {}
-            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       "./app/server-with-errors/error-file/error.js (1:1)
+       Ecmascript file had an error
+       > 1 | export default function Error() {}
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
+       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(

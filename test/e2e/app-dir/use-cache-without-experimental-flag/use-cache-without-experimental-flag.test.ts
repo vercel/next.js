@@ -89,7 +89,7 @@ describe('use-cache-without-experimental-flag', () => {
 
       expect(errorDescription).toBe('Failed to compile')
 
-      // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+      // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
       if (isNewDevOverlay) {
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
@@ -125,7 +125,7 @@ describe('use-cache-without-experimental-flag', () => {
       } else {
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx:1:1
+           "./app/page.tsx (1:1)
            Ecmascript file had an error
            > 1 | 'use cache'
                | ^^^^^^^^^^^

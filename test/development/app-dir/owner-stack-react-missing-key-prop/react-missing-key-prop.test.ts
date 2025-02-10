@@ -6,7 +6,8 @@ import {
 } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isOwnerStackEnabled =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
 async function getStackFramesContent(browser) {
   await hasRedboxCallStack(browser)

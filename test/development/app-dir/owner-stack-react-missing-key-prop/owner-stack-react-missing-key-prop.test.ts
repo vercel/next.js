@@ -6,7 +6,8 @@ import {
 } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isOwnerStackEnabled =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
 ;(isOwnerStackEnabled ? describe : describe.skip)(
   'app-dir - owner-stack-react-missing-key-prop',
@@ -29,8 +30,8 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
           at Page (app/rsc/page.tsx (6:13))"
           `)
         expect(source).toMatchInlineSnapshot(`
-            "app/rsc/page.tsx (7:10) @ <anonymous>
-            
+         "app/rsc/page.tsx (7:10) @ <anonymous>
+
             5 |     <div>
             6 |       {list.map((item, index) => (
          >  7 |         <span>{item}</span>
@@ -38,7 +39,7 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
             8 |       ))}
             9 |     </div>
            10 |   )"
-              `)
+        `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
          "at span ()

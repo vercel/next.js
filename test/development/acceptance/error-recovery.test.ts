@@ -437,14 +437,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       expect(redboxSource).toMatchInlineSnapshot(`
-        "./index.js:7:41
-        Parsing ecmascript source code failed
-          5 |   throw Error('no ' + i)
-          6 | }, 1000)
-        > 7 | export default function FunctionNamed() {
-            |                                         ^
+       "./index.js (7:41)
+       Parsing ecmascript source code failed
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+       > 7 | export default function FunctionNamed() {
+           |                                         ^
 
-        Expected '}', got '<eof>'"
+       Expected '}', got '<eof>'"
       `)
     } else {
       expect(redboxSource).toMatchInlineSnapshot(`
@@ -474,14 +474,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       expect(redboxSource).toMatchInlineSnapshot(`
-        "./index.js:7:41
-        Parsing ecmascript source code failed
-          5 |   throw Error('no ' + i)
-          6 | }, 1000)
-        > 7 | export default function FunctionNamed() {
-            |                                         ^
+       "./index.js (7:41)
+       Parsing ecmascript source code failed
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+       > 7 | export default function FunctionNamed() {
+           |                                         ^
 
-        Expected '}', got '<eof>'"
+       Expected '}', got '<eof>'"
       `)
     } else {
       expect(redboxSource).toMatchInlineSnapshot(`

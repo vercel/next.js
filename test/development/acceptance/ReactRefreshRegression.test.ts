@@ -285,8 +285,8 @@ describe('ReactRefreshRegression', () => {
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                    ^"
+     "> 1 | export default function () { throw new Error('boom'); }
+         |                                    ^"
     `)
   })
 

@@ -262,6 +262,7 @@ function DevToolsPopover({
 
             <div className="footer">
               <MenuItem
+                data-hide-dev-tools
                 label="Hide Dev Tools"
                 value={<HideShortcut />}
                 onClick={hide}

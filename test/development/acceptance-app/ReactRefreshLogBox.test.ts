@@ -2,11 +2,11 @@
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
   describeVariants as describe,
   getStackFramesContent,
   retry,
   getRedboxCallStack,
+  getToastErrorCount,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -220,7 +220,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (isTurbopack) {
       expect(source).toEqual(outdent`
-        ./index.js:7:1
+        ./index.js (7:1)
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
@@ -351,7 +351,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      isTurbopack ? './index.module.css:1:9' : './index.module.css:1:1'
+      isTurbopack ? './index.module.css (1:9)' : './index.module.css (1:1)'
     )
     if (!isTurbopack) {
       expect(source).toMatch('Syntax error: ')
@@ -735,23 +735,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.patch('index.js', file)
 
     // Unhandled error and rejection in setTimeout
-    expect(
-      await browser.waitForElementByCss('.nextjs-toast-errors').text()
-    ).toBe('2 issues')
+    expect(await getToastErrorCount(browser)).toBe(2)
 
     // Unhandled error in event handler
     await browser.elementById('unhandled-error').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /3 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(3)
 
     // Unhandled rejection in event handler
     await browser.elementById('unhandled-rejection').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /4 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(4)
     await session.assertNoRedbox()
 
     // Add Component error
@@ -1059,7 +1051,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     if (isTurbopack) {
       expect(await session.getRedboxSource()).toEqual(outdent`
-          ./app/styles2.css:1:2
+          ./app/styles2.css (1:2)
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
               |  ^
@@ -1245,16 +1237,16 @@ export default function Home() {
     } else {
       // FIXME: Webpack stack frames are not source mapped
       expect(stackFrames).toMatchInlineSnapshot(`
-        "at eval (app/utils.ts (1:7))
-        at ./app/utils.ts ()
-        at options.factory ()
-        at __webpack_require__ ()
-        at fn ()
-        at eval ()
-        at ./app/page.js ()
-        at options.factory ()
-        at __webpack_require__ ()
-        at fn ()"
+       "at eval (app/utils.ts (1:7))
+       at ./app/utils.ts (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/app/page.js (39:1))
+       at options.factory (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (700:31))
+       at __webpack_require__ (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (37:33))
+       at fn (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (357:21))
+       at eval (./app/page.js)
+       at ./app/page.js (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/app/page.js (28:1))
+       at options.factory (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (700:31))
+       at __webpack_require__ (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (37:33))
+       at fn (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (357:21))"
       `)
     }
   })
