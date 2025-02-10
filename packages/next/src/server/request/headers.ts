@@ -25,6 +25,7 @@ import {
   describeHasCheckingStringProperty,
   describeStringPropertyAccess,
   isRequestAPICallableInsideAfter,
+  wellKnownProperties,
 } from './utils'
 
 /**
@@ -181,29 +182,6 @@ function makeDynamicallyTrackedExoticHeaders(
           annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
           return ReflectAdapter.get(target, prop, receiver)
         }
-        // Object prototype
-        case 'hasOwnProperty':
-        case 'isPrototypeOf':
-        case 'propertyIsEnumerable':
-        case 'toString':
-        case 'valueOf':
-        case 'toLocaleString':
-
-        // Promise prototype
-        // fallthrough
-        case 'catch':
-        case 'finally':
-
-        // Common tested properties
-        // fallthrough
-        case 'toJSON':
-        case '$$typeof':
-        case '__esModule': {
-          // These properties cannot be shadowed because they need to be the
-          // true underlying value for Promises to work correctly at runtime
-          return ReflectAdapter.get(target, prop, receiver)
-        }
-
         case 'append': {
           const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
           const error = createHeadersAccessError(route, expression)
@@ -327,7 +305,7 @@ function makeDynamicallyTrackedExoticHeaders(
         }
 
         default: {
-          if (typeof prop === 'string') {
+          if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
             const expression = describeStringPropertyAccess('headers()', prop)
             const error = createHeadersAccessError(route, expression)
             abortAndThrowOnSynchronousRequestDataAccess(
