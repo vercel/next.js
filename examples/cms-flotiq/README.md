@@ -10,9 +10,9 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 To deploy the project, you have to configure:
 
-1. [you account](#configuration)
+1. [your account](#configuration)
 2. [environment variables](#env-variables)
-3. (additional) [webhooks](#nextjs-data-cache) to clear the data cache
+3. (additional) [webhooks](#nextjs-data-cache) to revalidate data cache after making changes in [Flotiq](https://editor.flotiq.com/al)
 
 ## How to use
 
@@ -58,23 +58,22 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
    flotiq import .flotiq [flotiqApiKey]
    ```
 
-   _Note: You don't need any content types in your account._
+   _Note: You don't need any content types in your account. The import command will create the blogpost content type used in this example._
 
-3. Configure application
+3. Add env variables
 
-   The next step is to configure our application to know from where it has to fetch the data.
+   Project requires the following variables to start:
 
-   Flotiq provides a tool named [flotiq-setup](https://github.com/flotiq/flotiq-setup)
-   for automatically populating`.env` files with your Flotiq API keys.
+   | Name                     | Description                                                 |
+   | ------------------------ | ----------------------------------------------------------- |
+   | `FLOTIQ_CLIENT_AUTH_KEY` | The key used to [revalidate cache](#nextjs-data-cache)      |
+   | `FLOTIQ_API_KEY`         | Flotiq Read API key with access to blogpost content objects |
 
-   ```bash
-   npx flotiq-setup
-   ```
+   You can use any value for `FLOTIQ_CLIENT_AUTH_KEY`. Make sure to use different values for production and non production variables.
 
-   After executing this command, a browser window will open with the Flotiq login screen. Upon successful authentication,
-   the command will automatically generate appropriately filled `.env` files for you.
+   You can find the read-only API key on the API keys page in the [Flotiq panel](https://editor.flotiq.com/)
 
-   _Note: If there are existing .env files in the project, flotiq-setup may overwrite them._
+   <img src=".docs/ro-api-key.png" alt="Read only API key" width="1000px" />
 
 4. Install dependencies
 
@@ -140,7 +139,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
    More examples of its usage can be found in the [@flotiq/flotiq-api-sdk readme](https://www.npmjs.com/package/@flotiq/flotiq-api-sdk#usage-examples)
 
-   _Note: If you make any changes (additions or deletions) to the `content type definitions` in your Flotiq account, you will need to rerun the `flotiq-api-typegen` command.
+   _Note: If you make any changes (additions or deletions) to the content type definitions in your Flotiq account, you will need to rerun the `flotiq-api-typegen` command.
    If you are making changes during development, you can use `--watch` option, which will regenerate types for you, every time you change content type definition._
 
 6. Developing
@@ -171,7 +170,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
    You can now easily manage your content using [Flotiq editor](https://editor.flotiq.com)
 
-   _Note: If you make any changes (additions or deletions) to the `content type definitions` in your Flotiq account, you will need to rerun the `flotiq-api-typegen` command.
+   _Note: If you make any changes (additions or deletions) to the content type definitions in your Flotiq account, you will need to rerun the `flotiq-api-typegen` command.
    If you are making changes during development, you can use `--watch` option, which will regenerate types for you, every time you change content type definition._
 
 ## Deployment
@@ -184,10 +183,12 @@ Deploy using the template:
 
 Project requires the following variables to start:
 
-| Name                     | Description                                            |
-| ------------------------ | ------------------------------------------------------ |
-| `FLOTIQ_CLIENT_AUTH_KEY` | The key used to [revalidate cache](#nextjs-data-cache) |
-| `FLOTIQ_API_KEY`         | Flotiq Read API key for blogpost content objects       |
+| Name                     | Description                                                 |
+| ------------------------ | ----------------------------------------------------------- |
+| `FLOTIQ_CLIENT_AUTH_KEY` | The key used to [revalidate cache](#nextjs-data-cache)      |
+| `FLOTIQ_API_KEY`         | Flotiq Read API key with access to blogpost content objects |
+
+You can use any value for `FLOTIQ_CLIENT_AUTH_KEY`. Make sure to use different values for production and non production variables.
 
 You can find the read-only API key on the API keys page in the [Flotiq panel](https://editor.flotiq.com/)
 
@@ -210,7 +211,7 @@ Replace `https://your-domain.com` with your actual `URL` and `FLOTIQ_CLIENT_AUTH
 
 #### Webhooks in Flotiq space
 
-To add a webhook that automatically clears the cache after saving a blog post, follow these instructions:
+Once you have your app deployed, you can add a webhook that automatically clears the cache after saving a blog post, follow these instructions:
 
 1. Go to [Flotiq dashboard](https://editor.flotiq.com/login)
 2. Go to the _Webhooks_ page and click _Add new webhook_
