@@ -49,7 +49,9 @@ struct SourceMapJson {
     file: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     source_root: Option<String>,
-    sources: Vec<Option<String>>,
+    // Technically a required field, but we don't want to error here.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    sources: Option<Vec<Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     sources_content: Option<Vec<Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -57,6 +59,9 @@ struct SourceMapJson {
     mappings: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_list: Option<Vec<u32>>,
+
+    // A somewhat widespread non-standard extension
+    debug_id: Option<String>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
     sections: Option<Vec<SourceMapSectionItemJson>>,
@@ -109,21 +114,22 @@ pub async fn resolve_source_map_sources(
     }
 
     async fn resolve_map(map: &mut SourceMapJson, origin: Vc<FileSystemPath>) -> Result<()> {
-        let sources = &mut map.sources;
-        let mut contents = if let Some(mut contents) = map.sources_content.take() {
-            contents.resize(sources.len(), None);
-            contents
-        } else {
-            Vec::with_capacity(sources.len())
-        };
+        if let Some(sources) = &mut map.sources {
+            let mut contents = if let Some(mut contents) = map.sources_content.take() {
+                contents.resize(sources.len(), None);
+                contents
+            } else {
+                Vec::with_capacity(sources.len())
+            };
 
-        for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
-            if let Some(source) = source {
-                resolve_source(source, content, origin).await?;
+            for (source, content) in sources.iter_mut().zip(contents.iter_mut()) {
+                if let Some(source) = source {
+                    resolve_source(source, content, origin).await?;
+                }
             }
-        }
 
-        map.sources_content = Some(contents);
+            map.sources_content = Some(contents);
+        }
         Ok(())
     }
 
@@ -172,11 +178,11 @@ pub async fn fileify_source_map(
         anyhow::Ok(())
     };
 
-    for src in map.sources.iter_mut() {
+    for src in map.sources.iter_mut().flatten() {
         transform_source(src).await?;
     }
     for section in map.sections.iter_mut().flatten() {
-        for src in section.map.sources.iter_mut() {
+        for src in section.map.sources.iter_mut().flatten() {
             transform_source(src).await?;
         }
     }
