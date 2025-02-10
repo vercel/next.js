@@ -11,8 +11,8 @@ interface Props extends React.ComponentProps<'button'> {
   openErrorOverlay: () => void
 }
 
-const size = 36
-const shortDurationMs = 150
+const SIZE = 36
+const SHORE_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
   {
@@ -41,14 +41,14 @@ export const NextLogo = forwardRef(function NextLogo(
   useEffect(() => {
     setIsErrorExpanded(hasError)
 
-    if (hasError && prevIssueCountRef.current < issueCount) {
+    if (hasError && prevIssueCountRef.current !== issueCount) {
       setNewErrorDetected(true)
       // It is important to use a CSS transitioned state, not a CSS keyframed animation
       // because if the issue count increases faster than the animation duration, it
       // will abruptly stop and not transition smoothly back to its original state.
       const timeoutId = window.setTimeout(() => {
         setNewErrorDetected(false)
-      }, shortDurationMs)
+      }, SHORE_DURATION_MS)
 
       return () => {
         clearTimeout(timeoutId)
@@ -62,8 +62,8 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': `${size}px`,
-          '--duration-short': `${shortDurationMs}ms`,
+          '--size': `${SIZE}px`,
+          '--duration-short': `${SHORE_DURATION_MS}ms`,
         } as React.CSSProperties
       }
     >
@@ -378,7 +378,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error-expanded={isErrorExpanded}
         data-animate={newErrorDetected}
         style={{
-          width: hasError && width > size ? width : size,
+          width: hasError && width > SIZE ? width : SIZE,
         }}
       >
         <div ref={ref}>
