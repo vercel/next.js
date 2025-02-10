@@ -89,7 +89,7 @@ export function ErrorOverlayLayout({
           onClose={onClose}
           isTurbopack={isTurbopack}
           dialogResizerRef={dialogResizerRef}
-          data-has-footer={!!hasFooter}
+          data-has-footer={hasFooter}
         >
           <DialogContent>
             <ErrorOverlayFloatingHeader
