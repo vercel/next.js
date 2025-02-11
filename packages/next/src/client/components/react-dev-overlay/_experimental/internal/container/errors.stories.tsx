@@ -153,8 +153,8 @@ export const Default: Story = {
   args: {
     readyErrors,
     versionInfo: {
-      installed: '14.0.0',
-      staleness: 'stale-minor',
+      installed: '15.0.0',
+      staleness: 'fresh',
     },
     debugInfo: { devtoolsFrontendUrl: undefined },
     isTurbopack: false,
