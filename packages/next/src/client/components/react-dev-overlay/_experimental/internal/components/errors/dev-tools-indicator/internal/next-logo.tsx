@@ -39,11 +39,7 @@ export const NextLogo = forwardRef(function NextLogo(
   )
 
   useEffect(() => {
-    if (hasError) {
-      setIsErrorExpanded(true)
-    } else {
-      setIsErrorExpanded(false)
-    }
+    setIsErrorExpanded(hasError)
 
     let timeoutId: number
 
@@ -58,11 +54,14 @@ export const NextLogo = forwardRef(function NextLogo(
         // will abruptly stop and not transition smoothly back to its original state.
         timeoutId = window.setTimeout(() => {
           setNewErrorDetected(false)
-          clearTimeout(timeoutId)
         }, SHORT_DURATION_MS)
       }
       return issueCountProp
     })
+
+    return () => {
+      clearTimeout(timeoutId)
+    }
   }, [issueCountProp, issueCount, hasError])
 
   return (
