@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('use-cache-hmr', () => {
+describe('use-cache-dev', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
@@ -100,6 +100,37 @@ describe('use-cache-hmr', () => {
           }
         })
     )
+  })
+
+  it('should return cached data after reload', async () => {
+    let $ = await next.render$('/')
+    const initialContent = $('#container').text()
+    $ = await next.render$('/')
+    const content = $('#container').text()
+
+    expect(content).toEqual(initialContent)
+  })
+
+  it('should return fresh data after hard reload', async () => {
+    let $ = await next.render$('/')
+    const initialContent = $('#container').text()
+
+    $ = await next.render$(
+      '/',
+      {},
+      { headers: { 'cache-control': 'no-cache' } }
+    )
+
+    const hardReloadContent = $('#container').text()
+
+    expect(hardReloadContent).not.toEqual(initialContent)
+
+    // After a subsequent soft reload, cached data from the hard reload should
+    // be returned.
+
+    const softReloadContent = $('#container').text()
+
+    expect(softReloadContent).toEqual(hardReloadContent)
   })
 
   it('should successfully finish compilation when "use cache" directive is added/removed', async () => {

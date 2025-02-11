@@ -73,6 +73,7 @@ export interface WorkStore {
 
   rootParams: Params
   dynamicIOEnabled: boolean
+  dev: boolean
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

@@ -109,16 +109,18 @@ async fn get_client_module_options_context(
     node_env: Vc<NodeEnv>,
     source_maps_type: SourceMapsType,
 ) -> Result<Vc<ModuleOptionsContext>> {
+    let is_dev = matches!(*node_env.await?, NodeEnv::Development);
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        keep_last_successful_parse: is_dev,
         ..Default::default()
     };
 
     let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
 
-    let enable_react_refresh = matches!(*node_env.await?, NodeEnv::Development)
+    let enable_react_refresh = is_dev
         && assert_can_resolve_react_refresh(project_path, resolve_options_context)
             .await?
             .is_found();
@@ -153,7 +155,7 @@ async fn get_client_module_options_context(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
             source_maps: source_maps_type,
-            ..Default::default()
+            ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(

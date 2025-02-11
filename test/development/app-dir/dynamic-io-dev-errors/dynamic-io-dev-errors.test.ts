@@ -77,7 +77,9 @@ describe('Dynamic IO Dev Errors', () => {
           ? '\n    at main (<anonymous>)' +
             '\n    at body (<anonymous>)' +
             '\n    at html (<anonymous>)' +
-            '\n    at Root [Server] (<anonymous>)'
+            '\n    at Root [Server] (<anonymous>)' +
+            // Just need some string to assert that this is the whole stack
+            '\n GET /no-accessed-data 200'
           : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
             '\n    at InnerLayoutRouter (..')
     )

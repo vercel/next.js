@@ -556,6 +556,7 @@ pub async fn get_server_module_options_context(
         } else {
             None
         },
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 
