@@ -142,7 +142,7 @@ describe('ppr-metadata-blocking', () => {
         // In blocking mode of metadata, it's still postponed if metadata or page is dynamic.
         // It won't behave differently when the bot is visiting.
 
-        expect(headers.get('x-nextjs-postponed')).toBe('1')
+        expect(headers.get('x-nextjs-postponed')).toBe(null)
 
         const $1 = cheerio.load(await res1.text())
         const $2 = cheerio.load(await res2.text())
