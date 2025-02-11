@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"001c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":"$$RSC_SERVER_ACTION_2","0090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","606a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"001c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":{"exported":"$$RSC_SERVER_ACTION_2","original":null,"span":{"start":356,"end":390}},"0090b5db271335765a4b0eab01f044b381b5ebd5cd":{"exported":"$$RSC_SERVER_ACTION_1","original":null,"span":{"start":302,"end":332}},"606a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"exported":"$$RSC_SERVER_ACTION_0","original":null,"span":{"start":201,"end":275}}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { validator, another } from 'auth';
 const x = 1;

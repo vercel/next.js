@@ -106,31 +106,58 @@ const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
 const ACTION_MODULE_LABEL =
-  /\/\* __next_internal_action_entry_do_not_use__ (\{[^}]+\}) \*\//
+  /\/\* __next_internal_action_entry_do_not_use__ (\{.*?\}) \*\//
 
 const CLIENT_DIRECTIVE = 'use client'
 const SERVER_ACTION_DIRECTIVE = 'use server'
 
 export type RSCModuleType = 'server' | 'client'
+
+export type ActionSpan = { start: number; end: number }
+export type ActionSourceInfo = {
+  name: string | null
+  span: ActionSpan | null
+}
+
+export type ActionInfo = {
+  exported: string
+  original: string | null
+  span: ActionSpan | null
+}
+
 export function getRSCModuleInformation(
   source: string,
   isReactServerLayer: boolean
 ): RSCMeta {
   const actionsJson = source.match(ACTION_MODULE_LABEL)
   const parsedActionsMeta = actionsJson
-    ? (JSON.parse(actionsJson[1]) as Record<string, string>)
-    : undefined
-  const actions = parsedActionsMeta
-    ? (Object.values(parsedActionsMeta) as string[])
+    ? (JSON.parse(actionsJson[1]) as Record<string, ActionInfo>)
     : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
+  const actionIds = parsedActionsMeta
+    ? Object.fromEntries(
+        Object.entries(parsedActionsMeta).map(([id, info]) => [
+          id,
+          info.exported,
+        ])
+      )
+    : undefined
+  const actionSourceInfo = parsedActionsMeta
+    ? Object.fromEntries(
+        Object.entries(parsedActionsMeta).map(([id, info]) => [
+          id,
+          { name: info.original, span: info.span },
+        ])
+      )
+    : undefined
+
   if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
-      actions,
-      actionIds: parsedActionsMeta,
+      actionIds,
+      actionSourceInfo,
       isClientRef,
     }
   }
@@ -145,8 +172,8 @@ export function getRSCModuleInformation(
 
   return {
     type,
-    actions,
-    actionIds: parsedActionsMeta,
+    actionIds,
+    actionSourceInfo,
     clientRefs,
     clientEntryType,
     isClientRef,

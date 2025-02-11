@@ -24,10 +24,10 @@ import {
   DEFAULT_RUNTIME_WEBPACK,
   EDGE_RUNTIME_WEBPACK,
   SERVER_REFERENCE_MANIFEST,
+  SERVER_REFERENCE_SOURCE_INFO,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
-  getActionsFromBuildInfo,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -46,6 +46,8 @@ import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
+import type { ActionSourceInfo } from '../../analysis/get-page-static-info'
+import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 
 interface Options {
   dev: boolean
@@ -68,7 +70,14 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = [id: string, name: string]
+type ActionSourceInfoWithFile = ActionSourceInfo & { file: string }
+
+// TODO: better name
+export type ActionInfoForManifest = {
+  id: string
+  name: string
+  sourceInfo: ActionSourceInfoWithFile
+}
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -86,6 +95,7 @@ const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
   serverActions: {} as ActionManifest['node'],
   edgeServerActions: {} as ActionManifest['edge'],
+  actionSourceInfos: {} as Record<string, ActionSourceInfo>,
 
   serverActionModules: {} as {
     [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
@@ -284,7 +294,7 @@ export class FlightClientEntryPlugin {
       []
     const actionMapsPerEntry: Record<
       string,
-      Map<string, ActionIdNamePair[]>
+      Map<string, ActionInfoForManifest[]>
     > = {}
     const createdActionIds = new Set<string>()
 
@@ -292,7 +302,7 @@ export class FlightClientEntryPlugin {
     // client component entry.
     forEachEntryModule(compilation, ({ name, entryModule }) => {
       const internalClientComponentEntryImports: ClientComponentImports = {}
-      const actionEntryImports = new Map<string, ActionIdNamePair[]>()
+      const actionEntryImports = new Map<string, ActionInfoForManifest[]>()
       const clientEntriesToInject = []
       const mergedCSSimports: CssImports = {}
 
@@ -479,7 +489,7 @@ export class FlightClientEntryPlugin {
     const addedClientActionEntryList: Promise<any>[] = []
     const actionMapsPerClientEntry: Record<
       string,
-      Map<string, ActionIdNamePair[]>
+      Map<string, ActionInfoForManifest[]>
     > = {}
 
     // We need to create extra action entries that are created from the
@@ -514,12 +524,15 @@ export class FlightClientEntryPlugin {
       // This is to avoid duplicate action instances and make sure the module
       // state is shared.
       let remainingClientImportedActions = false
-      const remainingActionEntryImports = new Map<string, ActionIdNamePair[]>()
+      const remainingActionEntryImports = new Map<
+        string,
+        ActionInfoForManifest[]
+      >()
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
           // `action` is a [id, name] pair.
-          if (!createdActionIds.has(entryName + '@' + action[0])) {
+          if (!createdActionIds.has(entryName + '@' + action.id)) {
             remainingActionNames.push(action)
           }
         }
@@ -555,7 +568,7 @@ export class FlightClientEntryPlugin {
     dependencies: ReturnType<typeof webpack.EntryPlugin.createDependency>[]
   }) {
     // action file path -> action names
-    const collectedActions = new Map<string, ActionIdNamePair[]>()
+    const collectedActions = new Map<string, ActionInfoForManifest[]>()
 
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visitedModule = new Set<string>()
@@ -578,9 +591,18 @@ export class FlightClientEntryPlugin {
         if (visitedModule.has(modResource)) return
         visitedModule.add(modResource)
 
-        const actions = getActionsFromBuildInfo(mod)
-        if (actions) {
-          collectedActions.set(modResource, Object.entries(actions))
+        const rscInfo = getModuleBuildInfo(mod).rsc
+        const actionIds = rscInfo?.actionIds
+        const actionSourceInfo = rscInfo?.actionSourceInfo
+        if (actionIds) {
+          collectedActions.set(
+            modResource,
+            Object.entries(actionIds).map(([id, name]) => ({
+              id,
+              name,
+              sourceInfo: { ...actionSourceInfo![id], file: modResource },
+            }))
+          )
         }
 
         // Collect used exported actions transversely.
@@ -639,14 +661,14 @@ export class FlightClientEntryPlugin {
   }): {
     cssImports: CssImports
     clientComponentImports: ClientComponentImports
-    actionImports: [string, ActionIdNamePair[]][]
+    actionImports: [string, ActionInfoForManifest[]][]
   } {
     // Keep track of checked modules to avoid infinite loops with recursive imports.
     const visitedOfClientComponentsTraverse = new Set()
 
     // Info to collect.
     const clientComponentImports: ClientComponentImports = {}
-    const actionImports: [string, ActionIdNamePair[]][] = []
+    const actionImports: [string, ActionInfoForManifest[]][] = []
     const CSSImports = new Set<string>()
 
     const filterClientComponents = (
@@ -672,9 +694,18 @@ export class FlightClientEntryPlugin {
       }
       visitedOfClientComponentsTraverse.add(modResource)
 
-      const actions = getActionsFromBuildInfo(mod)
-      if (actions) {
-        actionImports.push([modResource, Object.entries(actions)])
+      const rscMeta = getModuleBuildInfo(mod).rsc
+      const actionIds = rscMeta?.actionIds
+      const actionSourceInfo = rscMeta?.actionSourceInfo
+      if (actionIds) {
+        actionImports.push([
+          modResource,
+          Object.entries(actionIds).map(([id, name]) => ({
+            id,
+            name,
+            sourceInfo: { ...actionSourceInfo![id], file: modResource },
+          })),
+        ])
       }
 
       if (isCSSMod(mod)) {
@@ -863,7 +894,7 @@ export class FlightClientEntryPlugin {
   }: {
     compiler: webpack.Compiler
     compilation: webpack.Compilation
-    actions: Map<string, ActionIdNamePair[]>
+    actions: Map<string, ActionInfoForManifest[]>
     entryName: string
     bundlePath: string
     createdActionIds: Set<string>
@@ -871,7 +902,7 @@ export class FlightClientEntryPlugin {
   }) {
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         createdActionIds.add(entryName + '@' + id)
       }
     }
@@ -881,7 +912,9 @@ export class FlightClientEntryPlugin {
     }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actions: JSON.stringify(actionsArray),
+      actions: JSON.stringify(
+        actionsArray satisfies FlightActionEntryLoaderActions
+      ),
       __client_imported__: fromClient,
     })}!`
 
@@ -890,7 +923,7 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const [id] of actionsFromModule) {
+      for (const { id, sourceInfo } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
@@ -905,6 +938,8 @@ export class FlightClientEntryPlugin {
         currentCompilerServerActions[id].layer[bundlePath] = fromClient
           ? WEBPACK_LAYERS.actionBrowser
           : WEBPACK_LAYERS.reactServerComponents
+
+        pluginState.actionSourceInfos[id] = sourceInfo
       }
     }
 
@@ -1038,6 +1073,11 @@ export class FlightClientEntryPlugin {
       null,
       this.dev ? 2 : undefined
     )
+    const sourceInfosJson = JSON.stringify(
+      pluginState.actionSourceInfos,
+      null,
+      this.dev ? 2 : undefined
+    )
 
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
       new sources.RawSource(
@@ -1045,6 +1085,10 @@ export class FlightClientEntryPlugin {
       ) as unknown as webpack.sources.RawSource
     assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    assets[`${this.assetPrefix}${SERVER_REFERENCE_SOURCE_INFO}.json`] =
+      new sources.RawSource(
+        sourceInfosJson
+      ) as unknown as webpack.sources.RawSource
   }
 }
 

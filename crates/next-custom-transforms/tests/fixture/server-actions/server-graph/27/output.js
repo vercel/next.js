@@ -1,7 +1,7 @@
 // Rules here:
 // 1. Each exported function should still be exported, but as a reference `registerServerReference(...)`.
 // 2. Actual action functions should be renamed to `$$ACTION_...` and got exported.
-/*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ /* __next_internal_action_entry_do_not_use__ {"001c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":"$$RSC_SERVER_ACTION_2","006a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","0090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","009ed0cc47abc4e1c64320cf42b74ae60b58c40f00":"$$RSC_SERVER_ACTION_3","00a9b2939c1f39073a6bed227fd20233064c8b7869":"$$RSC_SERVER_ACTION_4"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ /* __next_internal_action_entry_do_not_use__ {"001c36b06e398c97abe5d5d7ae8c672bfddf4e1b91":{"exported":"$$RSC_SERVER_ACTION_2","original":"baz","span":{"start":361,"end":417}},"006a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"exported":"$$RSC_SERVER_ACTION_0","original":"foo","span":{"start":207,"end":263}},"0090b5db271335765a4b0eab01f044b381b5ebd5cd":{"exported":"$$RSC_SERVER_ACTION_1","original":"bar","span":{"start":288,"end":344}},"009ed0cc47abc4e1c64320cf42b74ae60b58c40f00":{"exported":"$$RSC_SERVER_ACTION_3","original":null,"span":{"start":438,"end":485}},"00a9b2939c1f39073a6bed227fd20233064c8b7869":{"exported":"$$RSC_SERVER_ACTION_4","original":"quuux","span":{"start":507,"end":565}}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export const $$RSC_SERVER_ACTION_0 = async function foo() {
     console.log(1);

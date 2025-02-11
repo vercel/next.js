@@ -1,5 +1,5 @@
 // app/send.ts
-/* __next_internal_action_entry_do_not_use__ {"70e10665baac148856374b2789aceb970f66fec33e":"myAction"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"70e10665baac148856374b2789aceb970f66fec33e":{"exported":"myAction","original":"myAction","span":{"start":36,"end":91}}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ myAction(a, b, c) {
     console.log('a');
