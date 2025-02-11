@@ -12,7 +12,10 @@ export function VersionStalenessInfo({
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
   return (
-    <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
+    <span
+      className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click"
+      aria-label="Next.js Version Staleness Indicator"
+    >
       <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
       <span data-nextjs-version-checker title={title}>
         {text}

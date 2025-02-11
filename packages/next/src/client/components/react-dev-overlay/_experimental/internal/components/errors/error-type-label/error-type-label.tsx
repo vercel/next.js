@@ -16,6 +16,7 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
     <span
       id="nextjs__container_errors_label"
       className="nextjs__container_errors_label"
+      aria-label="Error Type Label"
     >
       {errorType}
     </span>

@@ -109,7 +109,6 @@ export function ErrorOverlayPagination({
 
   return (
     <nav
-      data-nextjs-error-overlay-pagination
       className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
       ref={onNav}
     >
@@ -118,6 +117,7 @@ export function ErrorOverlayPagination({
         type="button"
         disabled={activeIdx === 0}
         aria-disabled={activeIdx === 0}
+        aria-label="Previous Error"
         onClick={handlePrevious}
         className="error-overlay-pagination-button"
       >
@@ -134,11 +134,12 @@ export function ErrorOverlayPagination({
         </span>
       </div>
       <button
-        ref={buttonRight}
         type="button"
+        ref={buttonRight}
         // If no errors or the last error is active, disable the button.
         disabled={activeIdx >= readyErrors.length - 1}
         aria-disabled={activeIdx >= readyErrors.length - 1}
+        aria-label="Next Error"
         onClick={handleNext}
         className="error-overlay-pagination-button"
       >
