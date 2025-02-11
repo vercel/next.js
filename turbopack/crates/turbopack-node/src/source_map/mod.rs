@@ -8,7 +8,7 @@ use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{SourceMapTrace, StackFrame, TraceResult};
+pub use trace::{trace_source_map, StackFrame, TraceResult};
 use tracing::{instrument, Level};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
@@ -228,7 +228,7 @@ async fn resolve_source_mapping(
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::trace(sm, line, column, name.map(|s| s.clone().into())).await?;
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
     match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
