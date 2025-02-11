@@ -10,7 +10,7 @@ use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap, SourceMapSection},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap},
     source_pos::SourcePos,
 };
 
@@ -170,18 +170,10 @@ impl GenerateSourceMap for Code {
             }
             last_byte_pos = *byte_pos;
 
-            let encoded = match map {
-                None => SourceMap::empty_uncelled(),
-                Some(map) => match SourceMap::new_from_rope(map)? {
-                    None => SourceMap::empty_uncelled(),
-                    Some(map) => map,
-                },
-            };
-
-            sections.push(SourceMapSection::new(pos, encoded))
+            sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
         }
 
-        let source_map = SourceMap::new_sectioned(sections).to_rope().await?;
+        let source_map = SourceMap::sections_to_rope(sections)?;
         Ok(Vc::cell(Some(source_map)))
     }
 }

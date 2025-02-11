@@ -273,6 +273,9 @@ impl SourceMap {
     }
 }
 
+static EMPTY_SOURCE_MAP_ROPE: Lazy<Rope> =
+    Lazy::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
+
 impl SourceMap {
     /// A source map that contains no actual source location information (no
     /// `sources`, no mappings that point into a source). This is used to tell
@@ -282,6 +285,60 @@ impl SourceMap {
         let mut builder = SourceMapBuilder::new(None);
         builder.add(0, 0, 0, 0, None, None, false);
         SourceMap::new_regular(builder.into_sourcemap())
+    }
+
+    /// A source map that contains no actual source location information (no
+    /// `sources`, no mappings that point into a source). This is used to tell
+    /// Chrome that the generated code starting at a particular offset is no
+    /// longer part of the previous section's mappings.
+    pub fn empty_rope() -> Rope {
+        EMPTY_SOURCE_MAP_ROPE.clone()
+    }
+
+    pub fn sections_to_rope(sections: impl IntoIterator<Item = (SourcePos, Rope)>) -> Result<Rope> {
+        let mut sections = sections.into_iter().peekable();
+
+        let mut first = sections.next();
+        if let Some((offset, map)) = &mut first {
+            if sections.peek().is_none() && *offset == (0, 0) {
+                // There is just a single sourcemap that starts at the beginning of the file.
+                return Ok(std::mem::take(map));
+            }
+        }
+
+        // My kingdom for a decent dedent macro with interpolation!
+        // NOTE: The empty `sources` array is technically incorrect, but there is a bug
+        // in Node.js that requires sectioned source maps to have a `sources` array.
+        let mut rope = RopeBuilder::from(
+            r#"{
+  "version": 3,
+  "sources": [],
+  "sections": ["#,
+        );
+
+        let mut first_section = true;
+        for (offset, section_map) in first.into_iter().chain(sections) {
+            if !first_section {
+                rope += ",";
+            }
+            first_section = false;
+
+            write!(
+                rope,
+                r#"
+    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
+                offset.line, offset.column,
+            )?;
+
+            rope += &section_map;
+
+            rope += "}";
+        }
+
+        rope += "]
+}";
+
+        Ok(rope.build())
     }
 
     /// Stringifies the source map into JSON bytes.
@@ -294,23 +351,6 @@ impl SourceMap {
             }
 
             SourceMap::Sectioned(s) => {
-                if s.sections.len() == 1 {
-                    let s = &s.sections[0];
-                    if s.offset == (0, 0) {
-                        return Box::pin(s.map.to_rope()).await;
-                    }
-                }
-
-                // My kingdom for a decent dedent macro with interpolation!
-                // NOTE: The empty `sources` array is technically incorrect, but there is a bug
-                // in Node.js that requires sectioned source maps to have a `sources` array.
-                let mut rope = RopeBuilder::from(
-                    r#"{
-  "version": 3,
-  "sources": [],
-  "sections": ["#,
-                );
-
                 let sections = s
                     .sections
                     .iter()
@@ -318,29 +358,7 @@ impl SourceMap {
                     .try_join()
                     .await?;
 
-                let mut first_section = true;
-                for (offset, section_map) in sections {
-                    if !first_section {
-                        rope += ",";
-                    }
-                    first_section = false;
-
-                    write!(
-                        rope,
-                        r#"
-    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
-                        offset.line, offset.column,
-                    )?;
-
-                    rope += &section_map;
-
-                    rope += "}";
-                }
-
-                rope += "]
-}";
-
-                rope.build()
+                Self::sections_to_rope(sections)?
             }
         };
         Ok(rope)

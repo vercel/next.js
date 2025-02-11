@@ -47,7 +47,7 @@ impl Asset for SourceMapAsset {
             Ok(AssetContent::file(File::from(sm.clone()).into()))
         } else {
             Ok(AssetContent::file(
-                File::from(SourceMap::empty().to_rope().await?).into(),
+                File::from(SourceMap::empty_rope()).into(),
             ))
         }
     }
