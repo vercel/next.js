@@ -134,8 +134,8 @@ export function ErrorOverlayPagination({
         </span>
       </div>
       <button
-        type="button"
         ref={buttonRight}
+        type="button"
         // If no errors or the last error is active, disable the button.
         disabled={activeIdx >= readyErrors.length - 1}
         aria-disabled={activeIdx >= readyErrors.length - 1}
