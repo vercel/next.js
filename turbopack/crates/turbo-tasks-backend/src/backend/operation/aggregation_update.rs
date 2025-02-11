@@ -1187,7 +1187,16 @@ impl AggregationUpdateQueue {
             name = ctx.get_task_description(task_id)
         )
         .entered();
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let task = ctx.task(task_id, TaskDataCategory::Meta);
+        self.find_and_schedule_dirty_internal(task_id, task, ctx);
+    }
+
+    fn find_and_schedule_dirty_internal(
+        &mut self,
+        task_id: TaskId,
+        mut task: impl TaskGuard,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) {
         let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
         let dirty = get!(task, Dirty).map_or(false, |d| d.get(session_id));
@@ -1967,13 +1976,14 @@ impl AggregationUpdateQueue {
         }
         if is_positive_now {
             let followers = get_followers(&task);
-            drop(task);
+            // Fast path to schedule
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+
             if !followers.is_empty() {
                 self.push(AggregationUpdateJob::IncreaseActiveCounts {
                     task_ids: followers,
                 });
             }
-            self.push_find_and_schedule_dirty(task_id);
         }
     }
 
