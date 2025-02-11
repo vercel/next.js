@@ -70,8 +70,8 @@ describe('hydration-error-count', () => {
                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                                <Page params={Promise} searchParams={Promise}>
                                  <p
-     +                             className="1739298269563"
-     -                             className="1739298269352"
+     +                             className="client"
+     -                             className="server"
                                  >
                              ...",
        "notes": "- A server/client branch \`if (typeof window !== 'undefined')\`.
@@ -104,7 +104,7 @@ describe('hydration-error-count', () => {
                            <InnerLayoutRouter url="/two-issues" tree={[...]} cacheNode={{lazyData:null, ...}} ...>
                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                                <Page params={Promise} searchParams={Promise}>
-     >                           <p className="1739298269563">
+     >                           <p className="client">
      >                             <p>
                              ...",
        "notes": undefined,
