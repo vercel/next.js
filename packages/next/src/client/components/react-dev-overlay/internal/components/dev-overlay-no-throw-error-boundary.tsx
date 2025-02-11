@@ -1,6 +1,8 @@
 import * as React from 'react'
 
-class ErrorBoundary extends React.Component<{ children: React.ReactNode }> {
+export class DevOverlayNoThrowErrorBoundary extends React.Component<{
+  children: React.ReactNode
+}> {
   state = { error: null }
 
   static getDerivedStateFromError(error: Error) {
@@ -20,17 +22,5 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }> {
   render() {
     // Return null if there was an error to prevent infinite loops
     return this.state.error ? null : this.props.children
-  }
-}
-
-export function withSwallowError<P extends object>(
-  Component: React.ComponentType<P>
-): React.ComponentType<P> {
-  return function WithSwallowError(props: P): React.ReactElement {
-    return (
-      <ErrorBoundary>
-        <Component {...props} />
-      </ErrorBoundary>
-    )
   }
 }

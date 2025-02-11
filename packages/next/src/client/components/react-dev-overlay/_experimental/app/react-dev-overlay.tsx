@@ -1,7 +1,7 @@
 import type { OverlayState } from '../../shared'
 import type { GlobalErrorComponent } from '../../../error-boundary'
 
-import { useState } from 'react'
+import { useState, type ComponentProps } from 'react'
 import { DevOverlayErrorBoundary } from './error-boundary'
 import { ShadowPortal } from '../internal/components/shadow-portal'
 import { Base } from '../internal/styles/base'
@@ -11,9 +11,9 @@ import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
 import { useErrorHook } from '../internal/container/runtime-error/use-error-hook'
-import { withSwallowError } from '../../internal/components/with-swallow-error'
+import { DevOverlayNoThrowErrorBoundary } from '../../internal/components/dev-overlay-no-throw-error-boundary'
 
-export default withSwallowError(function ReactDevOverlay({
+function ReactDevOverlayImpl({
   state,
   globalError,
   children,
@@ -63,4 +63,14 @@ export default withSwallowError(function ReactDevOverlay({
       {children}
     </DevOverlayErrorBoundary>
   )
-})
+}
+
+export default function ReactDevOverlay(
+  props: ComponentProps<typeof ReactDevOverlayImpl>
+) {
+  return (
+    <DevOverlayNoThrowErrorBoundary>
+      <ReactDevOverlayImpl {...props} />
+    </DevOverlayNoThrowErrorBoundary>
+  )
+}
