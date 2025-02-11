@@ -236,7 +236,7 @@ export class NextInstance {
               recursive: true,
             })
           } else {
-            const { installDir, tmpRepoDir } = await createNextInstall({
+            const { tmpRepoDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
@@ -244,24 +244,25 @@ export class NextInstance {
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
               keepRepoDir: true,
+              beforeInstall: async (span, installDir) => {
+                this.testDir = installDir
+                await span
+                  .traceChild('writeInitialFiles')
+                  .traceAsyncFn(async () => {
+                    await this.writeInitialFiles()
+                  })
+
+                await span
+                  .traceChild('writeOverrideFiles')
+                  .traceAsyncFn(async () => {
+                    await this.writeOverrideFiles()
+                  })
+              },
             })
-            this.testDir = installDir
             this.tmpRepoDir = tmpRepoDir
           }
           require('console').log('created next.js install, writing test files')
         }
-
-        await rootSpan
-          .traceChild('writeInitialFiles')
-          .traceAsyncFn(async () => {
-            await this.writeInitialFiles()
-          })
-
-        await rootSpan
-          .traceChild('writeOverrideFiles')
-          .traceAsyncFn(async () => {
-            await this.writeOverrideFiles()
-          })
 
         const testDirFiles = await fs.readdir(this.testDir)
 
