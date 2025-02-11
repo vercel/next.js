@@ -100,7 +100,7 @@ impl StyleSheetLike<'_, '_> {
         }
 
         let srcmap = match srcmap {
-            Some(srcmap) => Some(ParseCssResultSourceMap::generate_source_map(&srcmap)?),
+            Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
             None => None,
         };
 
@@ -577,88 +577,35 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub struct ParseCssResultSourceMap {
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    source_map: parcel_sourcemap::SourceMap,
-}
+fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
+    let mut builder = SourceMapBuilder::new(None);
 
-impl PartialEq for ParseCssResultSourceMap {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
-impl ParseCssResultSourceMap {
-    pub fn new(source_map: parcel_sourcemap::SourceMap) -> Self {
-        ParseCssResultSourceMap { source_map }
+    for src in source_map.get_sources() {
+        builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
     }
 
-    fn generate_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
-        let mut builder = SourceMapBuilder::new(None);
-
-        for src in source_map.get_sources() {
-            builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
-        }
-
-        for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-            builder.set_source_contents(idx as _, Some(content));
-        }
-
-        for m in source_map.get_mappings() {
-            builder.add_raw(
-                m.generated_line,
-                m.generated_column,
-                m.original.map(|v| v.original_line).unwrap_or_default(),
-                m.original.map(|v| v.original_column).unwrap_or_default(),
-                Some(0),
-                None,
-                false,
-            );
-        }
-
-        let mut map = builder.into_sourcemap();
-        add_default_ignore_list(&mut map);
-        let mut result = vec![];
-        map.to_writer(&mut result)?;
-        Ok(Rope::from(result))
+    for (idx, content) in source_map.get_sources_content().iter().enumerate() {
+        builder.set_source_contents(idx as _, Some(content));
     }
+
+    for m in source_map.get_mappings() {
+        builder.add_raw(
+            m.generated_line,
+            m.generated_column,
+            m.original.map(|v| v.original_line).unwrap_or_default(),
+            m.original.map(|v| v.original_column).unwrap_or_default(),
+            Some(0),
+            None,
+            false,
+        );
+    }
+
+    let mut map = builder.into_sourcemap();
+    add_default_ignore_list(&mut map);
+    let mut result = vec![];
+    map.to_writer(&mut result)?;
+    Ok(Rope::from(result))
 }
-
-// #[turbo_tasks::value_impl]
-// impl GenerateSourceMap for ParseCssResultSourceMap {
-//     #[turbo_tasks::function]
-//     fn generate_source_map(&self) -> Vc<OptionSourceMap> {
-//         let source_map = &self.source_map;
-//         let mut builder = SourceMapBuilder::new(None);
-
-//         for src in source_map.get_sources() {
-//             builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
-//         }
-
-//         for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-//             builder.set_source_contents(idx as _, Some(content));
-//         }
-
-//         for m in source_map.get_mappings() {
-//             builder.add_raw(
-//                 m.generated_line,
-//                 m.generated_column,
-//                 m.original.map(|v| v.original_line).unwrap_or_default(),
-//                 m.original.map(|v| v.original_column).unwrap_or_default(),
-//                 Some(0),
-//                 None,
-//                 false,
-//             );
-//         }
-
-//         let mut map = builder.into_sourcemap();
-//         add_default_ignore_list(&mut map);
-//         Vc::cell(Some(
-//             turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
-//         ))
-//     }
-// }
 
 #[turbo_tasks::value]
 struct ParsingIssue {

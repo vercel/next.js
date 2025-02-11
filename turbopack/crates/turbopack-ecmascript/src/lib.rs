@@ -40,7 +40,6 @@ use std::fmt::{Display, Formatter};
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
-pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
@@ -91,6 +90,7 @@ use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExp
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGens,
+    parse::generate_js_source_map,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
@@ -882,12 +882,8 @@ async fn gen_content_with_code_gens(
 
             let source_map = if generate_source_map {
                 Some(
-                    ParseResultSourceMap::generate_source_map(
-                        source_map.clone(),
-                        mappings,
-                        original_source_map,
-                    )
-                    .await?,
+                    generate_js_source_map(source_map.clone(), mappings, original_source_map)
+                        .await?,
                 )
             } else {
                 None

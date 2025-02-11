@@ -768,22 +768,3 @@ impl SourceMapSection {
         })
     }
 }
-
-pub async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionStringifiedSourceMap>,
-    origin: Vc<FileSystemPath>,
-) -> Result<Option<Rope>> {
-    let Some(source_map) = &*source_map.await? else {
-        return Ok(None);
-    };
-    let Some(source_map) = SourceMap::new_from_rope(source_map)? else {
-        return Ok(None);
-    };
-    Ok(Some(
-        source_map
-            .with_resolved_sources(origin)
-            .await?
-            .to_rope()
-            .await?,
-    ))
-}

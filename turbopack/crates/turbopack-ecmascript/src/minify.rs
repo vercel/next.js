@@ -26,7 +26,7 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
 #[turbo_tasks::function]
 pub async fn minify(
@@ -119,14 +119,7 @@ pub async fn minify(
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(
-                ParseResultSourceMap::generate_source_map(
-                    cm,
-                    src_map_buf,
-                    original_map.to_resolved().await?,
-                )
-                .await?,
-            ),
+            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
         );
 
         write!(

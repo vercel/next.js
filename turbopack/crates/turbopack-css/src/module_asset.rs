@@ -26,9 +26,9 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
-    ParseResultSourceMap,
 };
 
 use crate::{
@@ -442,7 +442,7 @@ async fn generate_minimal_source_map(filename: String, source: String) -> Result
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = ParseResultSourceMap::generate_source_map(
+    let map = generate_js_source_map(
         sm,
         mappings,
         OptionStringifiedSourceMap::none().to_resolved().await?,
