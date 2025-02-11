@@ -1596,7 +1596,7 @@ export default class NextNodeServer extends BaseServer<
         throw new MiddlewareNotFoundError()
       }
       const adapterFn: typeof import('./web/adapter').adapter =
-        middlewareModule.default || middlewareModule
+        (await middlewareModule).default || await middlewareModule
 
       result = await adapterFn({
         handler: middlewareModule.middleware || middlewareModule,

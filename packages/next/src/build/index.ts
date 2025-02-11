@@ -645,8 +645,7 @@ async function writeStandaloneDirectory(
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
-          path.relative(outputFileTracingRoot, requiredServerFiles.appDir),
-          requiredServerFiles.config.distDir,
+          path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'middleware.js'
         )
