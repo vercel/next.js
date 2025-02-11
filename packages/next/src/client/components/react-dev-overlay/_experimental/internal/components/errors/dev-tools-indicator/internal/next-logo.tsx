@@ -82,6 +82,10 @@ export const NextLogo = forwardRef(function NextLogo(
     isDevBuilding || isDevRendering
   )
 
+  useEffect(() => {
+    setIsErrorExpanded(hasError)
+  }, [hasError])
+
   return (
     <div
       data-next-badge-root
