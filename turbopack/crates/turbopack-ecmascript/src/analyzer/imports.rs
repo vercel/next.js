@@ -426,7 +426,7 @@ impl Analyzer<'_> {
     ) -> Option<usize> {
         let issue_source = self
             .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
+            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
 
         let r = ImportMapReference {
             module_path,

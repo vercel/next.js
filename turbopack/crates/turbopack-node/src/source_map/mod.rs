@@ -52,8 +52,8 @@ pub async fn apply_source_mapping(
         let file = cap.get(2).unwrap().as_str();
         let line = cap.get(3).unwrap().as_str();
         let column = cap.get(4).unwrap().as_str();
-        let line = line.parse::<usize>()?;
-        let column = column.parse::<usize>()?;
+        let line = line.parse::<u32>()?;
+        let column = column.parse::<u32>()?;
         let frame = StackFrame {
             name: name.map(|s| s.into()),
             file: file.into(),

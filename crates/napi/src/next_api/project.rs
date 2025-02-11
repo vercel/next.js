@@ -1190,8 +1190,8 @@ pub async fn project_trace_source(
 
             let token = map
                 .lookup_token(
-                    (line as usize).saturating_sub(1),
-                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                    line.saturating_sub(1),
+                    frame.column.unwrap_or(1).saturating_sub(1),
                 )
                 .await?;
 
@@ -1199,8 +1199,8 @@ pub async fn project_trace_source(
                 Token::Original(token) => (
                     urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
-                    Some(token.original_line as u32 + 1),
-                    Some(token.original_column as u32 + 1),
+                    Some(token.original_line + 1),
+                    Some(token.original_column + 1),
                     token.name.clone(),
                 ),
                 Token::Synthetic(token) => {

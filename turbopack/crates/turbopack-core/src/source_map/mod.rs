@@ -101,8 +101,8 @@ pub struct TokenWithSource {
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct SyntheticToken {
-    pub generated_line: usize,
-    pub generated_column: usize,
+    pub generated_line: u32,
+    pub generated_column: u32,
     pub guessed_original_file: Option<String>,
 }
 
@@ -111,23 +111,23 @@ pub struct SyntheticToken {
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct OriginalToken {
-    pub generated_line: usize,
-    pub generated_column: usize,
+    pub generated_line: u32,
+    pub generated_column: u32,
     pub original_file: String,
-    pub original_line: usize,
-    pub original_column: usize,
+    pub original_line: u32,
+    pub original_column: u32,
     pub name: Option<RcStr>,
 }
 
 impl Token {
-    pub fn generated_line(&self) -> usize {
+    pub fn generated_line(&self) -> u32 {
         match self {
             Self::Original(t) => t.generated_line,
             Self::Synthetic(t) => t.generated_line,
         }
     }
 
-    pub fn generated_column(&self) -> usize {
+    pub fn generated_column(&self) -> u32 {
         match self {
             Self::Original(t) => t.generated_column,
             Self::Synthetic(t) => t.generated_column,
@@ -139,20 +139,20 @@ impl From<sourcemap::Token<'_>> for Token {
     fn from(t: sourcemap::Token) -> Self {
         if t.has_source() {
             Token::Original(OriginalToken {
-                generated_line: t.get_dst_line() as usize,
-                generated_column: t.get_dst_col() as usize,
+                generated_line: t.get_dst_line(),
+                generated_column: t.get_dst_col(),
                 original_file: t
                     .get_source()
                     .expect("already checked token has source")
                     .to_string(),
-                original_line: t.get_src_line() as usize,
-                original_column: t.get_src_col() as usize,
+                original_line: t.get_src_line(),
+                original_column: t.get_src_col(),
                 name: t.get_name().map(RcStr::from),
             })
         } else {
             Token::Synthetic(SyntheticToken {
-                generated_line: t.get_dst_line() as usize,
-                generated_column: t.get_dst_col() as usize,
+                generated_line: t.get_dst_line(),
+                generated_column: t.get_dst_col(),
                 guessed_original_file: None,
             })
         }
@@ -165,20 +165,20 @@ impl TryInto<sourcemap::RawToken> for Token {
     fn try_into(self) -> Result<sourcemap::RawToken, Self::Error> {
         Ok(match self {
             Self::Original(t) => sourcemap::RawToken {
-                dst_col: t.generated_column as u32,
-                dst_line: t.generated_line as u32,
+                dst_col: t.generated_column,
+                dst_line: t.generated_line,
                 name_id: match t.name {
                     None => SOURCEMAP_CRATE_NONE_U32,
                     Some(name) => name.parse()?,
                 },
-                src_col: t.original_column as u32,
-                src_line: t.original_line as u32,
+                src_col: t.original_column,
+                src_line: t.original_line,
                 src_id: t.original_file.parse()?,
                 is_range: false,
             },
             Self::Synthetic(t) => sourcemap::RawToken {
-                dst_col: t.generated_column as u32,
-                dst_line: t.generated_line as u32,
+                dst_col: t.generated_column,
+                dst_line: t.generated_line,
                 name_id: SOURCEMAP_CRATE_NONE_U32,
                 src_col: SOURCEMAP_CRATE_NONE_U32,
                 src_line: SOURCEMAP_CRATE_NONE_U32,
@@ -234,7 +234,7 @@ impl SourceMap {
                     .iter()
                     .map(|s| {
                         sourcemap::SourceMapSection::new(
-                            (s.offset.line as u32, s.offset.column as u32),
+                            (s.offset.line, s.offset.column),
                             None,
                             Some(s.map.0.clone()),
                         )
@@ -328,7 +328,7 @@ impl SourceMap {
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
     #[turbo_tasks::function]
-    pub async fn lookup_token(self: Vc<Self>, line: usize, column: usize) -> Result<Vc<Token>> {
+    pub async fn lookup_token(self: Vc<Self>, line: u32, column: u32) -> Result<Vc<Token>> {
         let (token, _) = self
             .await?
             .lookup_token_and_source_internal(line, column, true)
@@ -341,8 +341,8 @@ impl SourceMap {
     #[turbo_tasks::function]
     pub async fn lookup_token_and_source(
         self: Vc<Self>,
-        line: usize,
-        column: usize,
+        line: u32,
+        column: u32,
     ) -> Result<Vc<TokenWithSource>> {
         let (token, content) = self
             .await?
@@ -499,15 +499,15 @@ impl SourceMap {
 impl SourceMap {
     async fn lookup_token_and_source_internal(
         &self,
-        line: usize,
-        column: usize,
+        line: u32,
+        column: u32,
         need_source_content: bool,
     ) -> Result<(Vc<Token>, Option<Vc<Box<dyn Source>>>)> {
         let mut content: Option<Vc<Box<dyn Source>>> = None;
 
         let token: Token = match self {
             SourceMap::Decoded(map) => {
-                let tok = map.lookup_token(line as u32, column as u32);
+                let tok = map.lookup_token(line, column);
                 let mut token = tok.map(Token::from).unwrap_or_else(|| {
                     Token::Synthetic(SyntheticToken {
                         generated_line: line,

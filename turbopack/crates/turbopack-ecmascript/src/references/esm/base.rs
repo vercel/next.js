@@ -284,7 +284,7 @@ impl CodeGenerateable for EsmAssetReference {
                     .to_swc_offsets()
                     .await?
                     .map_or(DUMMY_SP, |(start, end)| {
-                        Span::new(BytePos(start as u32), BytePos(end as u32))
+                        Span::new(BytePos(start), BytePos(end))
                     });
                 match &*referenced_asset {
                     ReferencedAsset::Unresolvable => {

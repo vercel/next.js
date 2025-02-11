@@ -202,18 +202,18 @@ impl MdxTransformedAsset {
                             // Both end positions point to the first character after the range
                             markdown::message::Place::Position(p) => (
                                 SourcePos {
-                                    line: p.start.line - 1,
-                                    column: p.start.column - 1,
+                                    line: (p.start.line - 1) as u32,
+                                    column: (p.start.column - 1) as u32,
                                 },
                                 SourcePos {
-                                    line: p.end.line - 1,
-                                    column: p.end.column - 1,
+                                    line: (p.end.line - 1) as u32,
+                                    column: (p.end.column - 1) as u32,
                                 },
                             ),
                             markdown::message::Place::Point(p) => {
                                 let p = SourcePos {
-                                    line: p.line - 1,
-                                    column: p.column - 1,
+                                    line: (p.line - 1) as u32,
+                                    column: (p.column - 1) as u32,
                                 };
                                 (p, p)
                             }
