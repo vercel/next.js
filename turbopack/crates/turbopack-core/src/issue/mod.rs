@@ -586,12 +586,8 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let srcmap = generator.generate_source_map().await?;
-    let Some(srcmap) = srcmap.as_ref() else {
-        return Ok(None);
-    };
-
-    let Some(srcmap) = SourceMap::new_from_rope(srcmap)? else {
+    let srcmap = generator.generate_source_map();
+    let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
 

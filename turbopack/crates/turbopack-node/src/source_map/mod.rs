@@ -224,13 +224,11 @@ async fn resolve_source_mapping(
     let Some(generate_source_map) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let Some(sm) = &*generate_source_map.generate_source_map().await? else {
+    let sm = generate_source_map.generate_source_map();
+    let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let Some(sm) = SourceMap::new_from_rope(sm)? else {
-        return Ok(ResolvedSourceMapping::NoSourceMap);
-    };
-    let trace = SourceMapTrace::trace(&sm, line, column, name.map(|s| s.clone().into())).await?;
+    let trace = SourceMapTrace::trace(sm, line, column, name.map(|s| s.clone().into())).await?;
     match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");

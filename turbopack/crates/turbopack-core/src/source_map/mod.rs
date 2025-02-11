@@ -248,6 +248,21 @@ impl SourceMap {
     }
 }
 
+#[turbo_tasks::value_impl]
+impl SourceMap {
+    /// This function should be used sparingly to reduce memory usage, only in cold code paths
+    /// (issue resolving, etc).
+    #[turbo_tasks::function]
+    pub async fn new_from_rope_cached(
+        content: Vc<OptionStringifiedSourceMap>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        let Some(content) = &*content.await? else {
+            return Ok(OptionSourceMap::none());
+        };
+        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
+    }
+}
+
 impl SourceMap {
     pub async fn to_source_map(&self) -> Result<Arc<CrateMapWrapper>> {
         Ok(match self {
