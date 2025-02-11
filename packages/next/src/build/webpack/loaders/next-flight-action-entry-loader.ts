@@ -6,7 +6,7 @@ export type NextFlightActionEntryLoaderOptions = {
 
 export type FlightActionEntryLoaderActions = [
   path: string,
-  actions: [id: string, name: string][],
+  actions: { id: string; exportedName: string }[],
 ][]
 
 function nextFlightActionEntryLoader(
@@ -17,17 +17,17 @@ function nextFlightActionEntryLoader(
   const actionList = JSON.parse(actions) as FlightActionEntryLoaderActions
   const individualActions = actionList
     .map(([path, actionsFromModule]) => {
-      return actionsFromModule.map(([id, name]) => {
-        return [id, path, name] as const
+      return actionsFromModule.map(({ id, exportedName }) => {
+        return [id, path, exportedName] as const
       })
     })
     .flat()
 
   return `
 ${individualActions
-  .map(([id, path, name]) => {
+  .map(([id, path, exportedName]) => {
     // Re-export the same functions from the original module path as action IDs.
-    return `export { ${name} as "${id}" } from ${JSON.stringify(path)}`
+    return `export { ${exportedName} as "${id}" } from ${JSON.stringify(path)}`
   })
   .join('\n')}
 `

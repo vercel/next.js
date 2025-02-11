@@ -68,7 +68,7 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = [id: string, name: string]
+type ActionIdNamePair = { id: string; exportedName: string }
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -518,8 +518,7 @@ export class FlightClientEntryPlugin {
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
-          // `action` is a [id, name] pair.
-          if (!createdActionIds.has(entryName + '@' + action[0])) {
+          if (!createdActionIds.has(entryName + '@' + action.id)) {
             remainingActionNames.push(action)
           }
         }
@@ -578,9 +577,15 @@ export class FlightClientEntryPlugin {
         if (visitedModule.has(modResource)) return
         visitedModule.add(modResource)
 
-        const actionsIds = getModuleBuildInfo(mod).rsc?.actionIds
-        if (actionsIds) {
-          collectedActions.set(modResource, Object.entries(actionsIds))
+        const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+        if (actionIds) {
+          collectedActions.set(
+            modResource,
+            Object.entries(actionIds).map(([id, exportedName]) => ({
+              id,
+              exportedName,
+            }))
+          )
         }
 
         // Collect used exported actions transversely.
@@ -672,9 +677,15 @@ export class FlightClientEntryPlugin {
       }
       visitedOfClientComponentsTraverse.add(modResource)
 
-      const actionsIds = getModuleBuildInfo(mod).rsc?.actionIds
-      if (actionsIds) {
-        actionImports.push([modResource, Object.entries(actionsIds)])
+      const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+      if (actionIds) {
+        actionImports.push([
+          modResource,
+          Object.entries(actionIds).map(([id, exportedName]) => ({
+            id,
+            exportedName,
+          })),
+        ])
       }
 
       if (isCSSMod(mod)) {
@@ -871,7 +882,7 @@ export class FlightClientEntryPlugin {
   }) {
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         createdActionIds.add(entryName + '@' + id)
       }
     }
@@ -892,7 +903,7 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
