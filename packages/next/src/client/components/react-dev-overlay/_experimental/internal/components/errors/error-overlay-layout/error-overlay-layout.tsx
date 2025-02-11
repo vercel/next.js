@@ -80,7 +80,7 @@ export function ErrorOverlayLayout({
     } as React.CSSProperties,
   }
 
-  const hasFooter = Boolean(footerMessage || errorCode)
+  const hasFooter = true
 
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>

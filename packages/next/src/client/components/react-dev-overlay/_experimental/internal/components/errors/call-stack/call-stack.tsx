@@ -122,10 +122,8 @@ function ChevronUpDown() {
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
     position: relative;
-    padding: var(--size-4) var(--size-3);
-    /* To optically align last item */
-    padding-bottom: 8px;
-    position: relative;
+    padding: var(--next-dialog-container-padding);
+    padding-bottom: 0;
   }
 
   .error-overlay-call-stack-header {
@@ -133,8 +131,8 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    margin-bottom: var(--size-3);
-    padding: 0 var(--size-2);
+    margin-bottom: 12px;
+    padding: 0 8px;
     width: 100%;
   }
 
@@ -142,14 +140,13 @@ export const CALL_STACK_STYLES = css`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--size-2);
+    gap: 8px;
 
     margin: 0;
 
     color: var(--color-gray-1000);
-    font-size: var(--size-font);
+    font-size: var(--size-16px);
     font-weight: 500;
-    line-height: var(--size-5);
   }
 
   .error-overlay-call-stack-count {
@@ -157,15 +154,14 @@ export const CALL_STACK_STYLES = css`
     justify-content: center;
     align-items: center;
 
-    width: 20px;
-    height: 20px;
-    gap: var(--size-1);
+    width: var(--size-20px);
+    height: var(--size-20px);
+    gap: 4px;
 
     color: var(--color-gray-1000);
     text-align: center;
-    font-size: var(--size-font-11);
+    font-size: var(--size-11px);
     font-weight: 500;
-    line-height: var(--size-4);
 
     border-radius: var(--rounded-full);
     background: var(--color-gray-300);
@@ -177,8 +173,8 @@ export const CALL_STACK_STYLES = css`
     align-items: center;
     gap: 6px;
     color: var(--color-gray-900);
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14px);
+    line-height: var(--size-20px);
     border-radius: 6px;
     padding: 4px 6px;
     margin-right: -6px;
@@ -190,6 +186,11 @@ export const CALL_STACK_STYLES = css`
 
     &:focus {
       outline: var(--focus-ring);
+    }
+
+    svg {
+      width: var(--size-16px);
+      height: var(--size-16px);
     }
   }
 `

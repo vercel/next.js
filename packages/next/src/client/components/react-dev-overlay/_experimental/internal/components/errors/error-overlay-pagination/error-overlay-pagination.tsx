@@ -163,9 +163,8 @@ export const styles = css`
   .error-overlay-pagination-count {
     color: var(--color-gray-900);
     text-align: center;
-    font-size: var(--size-font-small);
+    font-size: var(--size-14px);
     font-weight: 500;
-    line-height: 16px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -174,8 +173,8 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    width: 24px;
-    height: 24px;
+    width: var(--size-24px);
+    height: var(--size-24px);
     background: var(--color-gray-300);
     flex-shrink: 0;
 
@@ -193,6 +192,11 @@ export const styles = css`
     &:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    svg {
+      width: var(--size-16px);
+      height: var(--size-16px);
     }
   }
 

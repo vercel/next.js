@@ -115,6 +115,30 @@ export function Base() {
           --size-11: 2.75rem; /* 44px */
           --size-11_5: 2.875rem; /* 46px */
           --size-12: 3rem; /* 48px */
+
+          /* 
+            Values to be used where responsive behavior is desirable.        
+            E.g. we generally want to scale font sizes, but not radii or padding which would make things feel more cramped.
+           */
+          --size-1px: 0.0625rem; /* 1px */
+          --size-2px: 0.125rem; /* 2px */
+          --size-6px: 0.375rem; /* 6px */
+          --size-8px: 0.5rem; /* 8px */
+          --size-11px: 0.6875rem; /* 11px */
+          --size-12px: 0.75rem; /* 12px */
+          --size-13px: 0.8125rem; /* 13px */
+          --size-14px: 0.875rem; /* 14px */
+          --size-15px: 0.9375rem; /* 15px */
+          --size-16px: 1rem; /* 16px */
+          --size-17px: 1.0625rem; /* 17px */
+          --size-18px: 1.125rem; /* 18px */
+          --size-20px: 1.25rem; /* 20px */
+          --size-24px: 1.5rem; /* 24px */
+          --size-26px: 1.625rem; /* 26px */
+          --size-32px: 2rem; /* 32px */
+          --size-36px: 2.25rem; /* 36px */
+          --size-40px: 2.5rem; /* 40px */
+          --size-48px: 3rem; /* 48px */
         }
 
         @media (prefers-color-scheme: dark) {

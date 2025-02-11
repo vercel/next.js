@@ -11,7 +11,8 @@ interface Props extends React.ComponentProps<'button'> {
   openErrorOverlay: () => void
 }
 
-const SIZE = 36
+const SIZE = '2.25rem' // 36px
+const SIZE_PX = toPx(SIZE)
 const SHORE_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
@@ -62,7 +63,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': `${SIZE}px`,
+          '--size': SIZE,
           '--duration-short': `${SHORE_DURATION_MS}ms`,
         } as React.CSSProperties
       }
@@ -78,7 +79,7 @@ export const NextLogo = forwardRef(function NextLogo(
             --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
-            --padding: 2px;
+            --padding: var(--size-2px);
             --mark-size: calc(var(--size) - var(--padding) * 2);
 
             --focus-color: var(--color-blue-800);
@@ -102,7 +103,7 @@ export const NextLogo = forwardRef(function NextLogo(
               inset 0 0 0 1px var(--color-inner-border),
               0px 16px 32px -8px rgba(0, 0, 0, 0.24);
             backdrop-filter: blur(48px);
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             user-select: none;
             cursor: pointer;
             scale: 1;
@@ -166,11 +167,11 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-dot] {
             content: '';
-            width: 8px;
-            height: 8px;
+            width: var(--size-8px);
+            height: var(--size-8px);
             background: #fff;
             box-shadow: 0 0 0 1px var(--color-outer-border);
-            border-radius: 50%;
+            border-radius: var(--rounded-full);
             position: absolute;
             top: 2px;
             right: 0px;
@@ -184,11 +185,11 @@ export const NextLogo = forwardRef(function NextLogo(
             display: flex;
             gap: var(--padding);
             align-items: center;
-            padding-left: 8px;
+            padding-left: var(--size-8px);
             padding-right: calc(var(--padding) * 2);
-            height: 32px;
+            height: var(--size-32px);
             margin: 0 var(--padding);
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
@@ -201,7 +202,7 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-open] {
-            font-size: 13px;
+            font-size: var(--size-13px);
             color: white;
             width: fit-content;
             height: 100%;
@@ -220,9 +221,9 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-collapse] {
-            width: 24px;
-            height: 24px;
-            border-radius: 9999px;
+            width: var(--size-24px);
+            height: var(--size-24px);
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:hover {
@@ -232,6 +233,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-cross] {
             color: #fff;
+            width: var(--size-12px);
+            height: var(--size-12px);
           }
 
           [data-next-mark] {
@@ -240,7 +243,7 @@ export const NextLogo = forwardRef(function NextLogo(
             margin-left: var(--padding);
             display: flex;
             align-items: center;
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-long) var(--timing);
 
             &:focus-visible {
@@ -253,6 +256,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
             svg {
               flex-shrink: 0;
+              width: var(--size-40px);
+              height: var(--size-40px);
             }
           }
 
@@ -378,7 +383,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error-expanded={isErrorExpanded}
         data-animate={newErrorDetected}
         style={{
-          width: hasError && width > SIZE ? width : SIZE,
+          width: hasError && width > SIZE_PX ? width : SIZE,
         }}
       >
         <div ref={ref}>
@@ -538,8 +543,8 @@ function Cross() {
   return (
     <svg
       data-cross
-      width="12"
-      height="12"
+      width="12px"
+      height="12px"
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -552,4 +557,12 @@ function Cross() {
       />
     </svg>
   )
+}
+
+function toPx(rem: string): number {
+  return parseFloat(rem) * 16
+}
+
+function toRem(px: number): string {
+  return `${px / 16}rem`
 }

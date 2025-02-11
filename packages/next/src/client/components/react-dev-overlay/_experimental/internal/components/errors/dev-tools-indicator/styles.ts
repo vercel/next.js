@@ -10,7 +10,7 @@ export const styles = css`
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
     box-shadow: var(--shadow-menu);
-    border-radius: var(--rounded-xl);
+    border-radius: 12px;
     position: absolute;
     font-family: var(--font-stack-sans);
     bottom: calc(100% + var(--size-gap));
@@ -37,11 +37,13 @@ export const styles = css`
   .item {
     display: flex;
     align-items: center;
+    gap: 8px;
     padding: 8px 6px;
-    height: 36px;
+    height: var(--size-36px);
     border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
+    white-space: nowrap;
 
     &:focus-visible {
       outline: 0;
@@ -61,14 +63,12 @@ export const styles = css`
   }
 
   .label {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14px);
     color: var(--color-gray-1000);
   }
 
   .value {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14px);
     color: var(--color-gray-900);
     margin-left: auto;
   }
@@ -81,8 +81,8 @@ export const styles = css`
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: 41px;
-    height: 24px;
+    min-width: var(--size-40px);
+    height: var(--size-24px);
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
@@ -91,7 +91,7 @@ export const styles = css`
     color: var(--color-gray-1000);
     border-radius: 128px;
     font-weight: 500;
-    font-size: 13px;
+    font-size: var(--size-13px);
     font-variant-numeric: tabular-nums;
 
     &[data-has-issues='true'] {
@@ -100,8 +100,8 @@ export const styles = css`
     }
 
     .indicator {
-      width: 8px;
-      height: 8px;
+      width: var(--size-8px);
+      height: var(--size-8px);
       background: var(--color-primary);
       box-shadow: 0 0 0 2px var(--color-secondary);
       border-radius: 50%;
@@ -124,7 +124,7 @@ export const styles = css`
       background: var(--color-background-100);
       color: var(--color-gray-1000);
       text-align: center;
-      font-size: var(--size-font-smaller);
+      font-size: var(--size-14pxer);
       line-height: var(--size-4);
     }
   }

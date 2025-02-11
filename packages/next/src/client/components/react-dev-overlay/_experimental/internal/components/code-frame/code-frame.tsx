@@ -107,9 +107,10 @@ export const CODE_FRAME_STYLES = css`
     border: 1px solid var(--color-gray-400);
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
-    font-size: 12px;
-    line-height: 16px;
+    font-size: var(--size-12px);
+    line-height: var(--size-16px);
     margin: var(--next-dialog-row-padding);
+    margin-bottom: 0;
 
     &:has(~ [data-nextjs-call-stack]) {
       margin-bottom: 0;
@@ -173,6 +174,8 @@ export const CODE_FRAME_STYLES = css`
   }
 
   [data-nextjs-codeframe] svg {
+    width: var(--size-16px);
+    height: var(--size-16px);
     color: var(--color-gray-900);
   }
 `

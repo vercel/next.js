@@ -16,9 +16,7 @@ export function ErrorOverlayFooter({
       {footerMessage ? (
         <p className="error-overlay-footer-message">{footerMessage}</p>
       ) : null}
-      {errorCode ? (
-        <ErrorFeedback className="error-feedback" errorCode={errorCode} />
-      ) : null}
+      {errorCode ? <ErrorFeedback errorCode={errorCode} /> : null}
     </footer>
   )
 }
@@ -29,8 +27,8 @@ export const styles = css`
     flex-direction: row;
     justify-content: space-between;
 
-    gap: var(--size-gap);
-    padding: var(--size-3);
+    gap: 8px;
+    padding: 12px;
     background: var(--color-background-200);
     border-top: 1px solid var(--color-gray-400);
   }
@@ -39,7 +37,7 @@ export const styles = css`
     margin-left: auto;
 
     p {
-      font-size: 14px;
+      font-size: var(--size-14px);
       font-weight: 500;
       margin: 0;
     }
@@ -48,9 +46,9 @@ export const styles = css`
   .error-overlay-footer-message {
     color: var(--color-gray-900);
     margin: 0;
-    font-size: 14px;
+    font-size: var(--size-14px);
     font-weight: 400;
-    line-height: var(--size-font-big);
+    line-height: var(--size-20px);
   }
 
   ${feedbackStyles}

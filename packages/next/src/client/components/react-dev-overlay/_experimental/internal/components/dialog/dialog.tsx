@@ -83,6 +83,8 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     }
   }, [dialog])
 
+  console.log(height)
+
   return (
     <div
       ref={onDialog}
@@ -107,6 +109,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
         // [x] No duplicate elements
         // [x] Responds to content growth
         style={{
+          // height: `calc(${height}px + var(--next-dialog-footer-height))`,
           height,
           transition: pristine ? undefined : 'height 250ms var(--timing-swift)',
         }}

@@ -3,9 +3,10 @@ import { noop as css } from '../../helpers/noop-template'
 const styles = css`
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
-    --next-dialog-footer-height: 48px;
+    --next-dialog-footer-height: var(--size-48px);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
+    --next-dialog-container-padding: 12px;
 
     display: flex;
     flex-direction: column-reverse;
@@ -59,7 +60,9 @@ const styles = css`
 
   /* Account for the footer height, when present */
   [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
-    margin-bottom: var(--next-dialog-footer-height);
+    margin-bottom: calc(
+      var(--next-dialog-footer-height) + var(--next-dialog-container-padding)
+    );
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {

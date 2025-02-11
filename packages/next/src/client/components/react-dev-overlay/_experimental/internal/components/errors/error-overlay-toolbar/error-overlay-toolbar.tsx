@@ -27,7 +27,7 @@ export function ErrorOverlayToolbar({
 export const styles = css`
   .error-overlay-toolbar {
     display: flex;
-    gap: var(--size-1_5);
+    gap: 6px;
   }
 
   .nodejs-inspector-button,
@@ -37,13 +37,18 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    width: 32px;
-    height: 32px;
+    width: var(--size-32px);
+    height: var(--size-32px);
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-alpha-400);
     box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
+
+    svg {
+      width: var(--size-16px);
+      height: var(--size-16px);
+    }
 
     &:focus {
       outline: var(--focus-ring);
