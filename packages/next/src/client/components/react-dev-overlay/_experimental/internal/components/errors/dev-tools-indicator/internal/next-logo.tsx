@@ -14,9 +14,51 @@ interface Props extends React.ComponentProps<'button'> {
 const SIZE = 36
 const SHORT_DURATION_MS = 150
 
+/**
+ * A hook that creates an animated state based on changes to a dependency.
+ * When the dependency changes and passes the shouldSkip check, it triggers
+ * an animation state that lasts for the specified duration.
+ *
+ * @param dep The dependency to watch for changes
+ * @param config Configuration object containing:
+ *               - shouldSkip: Function to determine if animation should be skipped
+ *               - animationDuration: Duration of the animation in milliseconds
+ * @returns Boolean indicating if animation is currently active
+ */
+const useAnimated = <T,>(
+  dep: T,
+  config: { shouldSkip: (dep: T) => boolean; animationDuration: number }
+) => {
+  const { shouldSkip: _shouldSkip, animationDuration } = config
+  const shouldSkipRef = useRef(_shouldSkip) // ensure stable reference in case it's not
+
+  const [animatedDep, setAnimatedDep] = useState(false)
+  const isInitialRef = useRef(true)
+
+  useEffect(() => {
+    if (isInitialRef.current) {
+      isInitialRef.current = false
+      return
+    }
+
+    if (shouldSkipRef.current(dep)) {
+      return
+    }
+
+    setAnimatedDep(true)
+    const timeoutId = setTimeout(() => {
+      setAnimatedDep(false)
+    }, animationDuration)
+
+    return () => clearTimeout(timeoutId)
+  }, [dep, animationDuration])
+
+  return animatedDep
+}
+
 export const NextLogo = forwardRef(function NextLogo(
   {
-    issueCount: issueCountProp,
+    issueCount,
     isDevBuilding,
     isDevRendering,
     onTriggerClick,
@@ -25,10 +67,12 @@ export const NextLogo = forwardRef(function NextLogo(
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
-  const [issueCount, setIssueCount] = useState(issueCountProp)
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const [newErrorDetected, setNewErrorDetected] = useState(false)
+  const newErrorDetected = useAnimated(issueCount, {
+    shouldSkip: (count) => count === 0,
+    animationDuration: SHORT_DURATION_MS,
+  })
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
@@ -37,32 +81,6 @@ export const NextLogo = forwardRef(function NextLogo(
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
-
-  useEffect(() => {
-    setIsErrorExpanded(hasError)
-
-    let timeoutId: number
-
-    // Bounce the entire element subtly to draw attention to the new error
-    setIssueCount((prevIssueCount: number) => {
-      // Check for 0, we don't want to animate on the first error surfacing
-      // because the badge will already expand to draw attention to it
-      if (prevIssueCount !== 0 && prevIssueCount !== issueCountProp) {
-        setNewErrorDetected(true)
-        // It is important to use a CSS transitioned state, not a CSS keyframed animation
-        // because if the issue count increases faster than the animation duration, it
-        // will abruptly stop and not transition smoothly back to its original state.
-        timeoutId = window.setTimeout(() => {
-          setNewErrorDetected(false)
-        }, SHORT_DURATION_MS)
-      }
-      return issueCountProp
-    })
-
-    return () => {
-      clearTimeout(timeoutId)
-    }
-  }, [issueCountProp, issueCount, hasError])
 
   return (
     <div
@@ -479,8 +497,7 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     observer.observe(el)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ref])
 
   return width
 }
