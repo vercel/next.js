@@ -151,6 +151,10 @@ pub struct EcmascriptOptions {
     /// If true, it reads a sourceMappingURL comment from the end of the file,
     /// reads and generates a source map.
     pub extract_source_map: bool,
+    /// If true, it stores the last successful parse result in state and keeps using it when
+    /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
+    /// are temporarily introduced.
+    pub keep_last_successful_parse: bool,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -347,16 +351,20 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
         let real_result = self.parse();
-        let real_result_value = real_result.await?;
         let this = self.await?;
-        let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-            this.last_successful_parse.set(real_result_value.clone());
-            real_result_value
+        if this.options.await?.keep_last_successful_parse {
+            let real_result_value = real_result.await?;
+            let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
+                this.last_successful_parse.set(real_result_value.clone());
+                real_result_value
+            } else {
+                let state_ref = this.last_successful_parse.get();
+                state_ref.as_ref().unwrap_or(&real_result_value).clone()
+            };
+            Ok(ReadRef::cell(result_value))
         } else {
-            let state_ref = this.last_successful_parse.get();
-            state_ref.as_ref().unwrap_or(&real_result_value).clone()
-        };
-        Ok(ReadRef::cell(result_value))
+            Ok(real_result)
+        }
     }
 
     #[turbo_tasks::function]
