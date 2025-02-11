@@ -29,6 +29,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import { isDynamicServerError } from '../../client/components/hooks-server-context'
 
 export async function prospectiveRenderAppPage(
   req: MockedRequest,
@@ -288,14 +289,21 @@ export async function exportAppPage(
 
     if (debugOutput) {
       const store = (renderOpts as any).store as WorkStore
-      const { dynamicUsageDescription, dynamicUsageStack } = store
       fetchMetrics = store.fetchMetrics
 
-      logDynamicUsageWarning({
-        path,
-        description: dynamicUsageDescription ?? '',
-        stack: dynamicUsageStack,
-      })
+      if (isDynamicServerError(err)) {
+        console.warn(
+          Object.assign(new Error(err.description), { stack: err.stack })
+        )
+      } else {
+        const { dynamicUsageDescription, dynamicUsageStack } = store
+
+        logDynamicUsageWarning({
+          path,
+          description: dynamicUsageDescription ?? '',
+          stack: dynamicUsageStack,
+        })
+      }
     }
 
     return { revalidate: 0, fetchMetrics }

@@ -3502,9 +3502,13 @@ async function prerenderToStream(
             ? getFirstDynamicReason(serverDynamicTracking)
             : getFirstDynamicReason(clientDynamicTracking)
           if (dynamicReason) {
-            throw new DynamicServerError(
-              `Route "${workStore.route}" couldn't be rendered statically because it used \`${dynamicReason}\`. See more info here: https://nextjs.org/docs/messages/next-prerender-data`
+            const err = new DynamicServerError(
+              `Route "${workStore.route}" couldn't be rendered statically because it used \`${dynamicReason.expression}\`. See more info here: https://nextjs.org/docs/messages/next-prerender-data`
             )
+            if (dynamicReason.stack) {
+              err.stack = dynamicReason.stack
+            }
+            throw err
           } else {
             throw new DynamicServerError(
               `Route "${workStore.route}" couldn't be rendered statically it accessed data without explicitly caching it. See more info here: https://nextjs.org/docs/messages/next-prerender-data`

@@ -110,8 +110,8 @@ export function createDynamicValidationState(): DynamicValidationState {
 
 export function getFirstDynamicReason(
   trackingState: DynamicTrackingState
-): undefined | string {
-  return trackingState.dynamicAccesses[0]?.expression
+): undefined | DynamicAccess {
+  return trackingState.dynamicAccesses[0]
 }
 
 /**
@@ -585,10 +585,7 @@ export function annotateDynamicAccess(
 ) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
-    dynamicTracking.dynamicAccesses.push({
-      stack: dynamicTracking.isDebugDynamicAccesses ? stack : undefined,
-      expression,
-    })
+    dynamicTracking.dynamicAccesses.push({ stack, expression })
   }
 }
 
