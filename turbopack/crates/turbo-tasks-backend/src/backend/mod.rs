@@ -682,6 +682,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Ok(Err(listener));
         }
 
+        let _span = tracing::trace_span!(
+            "recomputation",
+            cell_type = registry::get_value_type_global_name(cell.type_id),
+            cell_index = cell.index
+        )
+        .entered();
+
         // We create the event and potentially schedule the task
         let in_progress = InProgressCellState::new(task_id, cell);
 
@@ -1216,8 +1223,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // take the children from the task to process them
         let mut new_children = take(new_children);
 
-        // TODO handle stateful
-        let _ = stateful;
+        // handle stateful
+        if stateful {
+            task.insert(CachedDataItem::Stateful { value: () });
+        }
 
         // handle cell counters: update max index and remove cells that are no longer used
         let mut old_counters: FxHashMap<_, _> =
