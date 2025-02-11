@@ -263,7 +263,7 @@ export class FlightClientEntryPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createActionAssets(compilation, assets)
+        () => this.createActionAssets(compilation)
       )
     })
   }
@@ -963,10 +963,7 @@ export class FlightClientEntryPlugin {
     })
   }
 
-  async createActionAssets(
-    compilation: webpack.Compilation,
-    assets: webpack.Compilation['assets']
-  ) {
+  async createActionAssets(compilation: webpack.Compilation) {
     const serverActions: ActionManifest['node'] = {}
     const edgeServerActions: ActionManifest['edge'] = {}
 
@@ -1039,12 +1036,16 @@ export class FlightClientEntryPlugin {
       this.dev ? 2 : undefined
     )
 
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`,
       new sources.RawSource(
         `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
       ) as unknown as webpack.sources.RawSource
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+    )
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`,
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    )
   }
 }
 

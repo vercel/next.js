@@ -31,12 +31,12 @@ export class AppBuildManifestPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        () => this.createAsset(compilation)
       )
     })
   }
 
-  private createAsset(assets: any, compilation: webpack.Compilation) {
+  private createAsset(compilation: webpack.Compilation) {
     const manifest: AppBuildManifest = {
       pages: {},
     }
@@ -67,6 +67,9 @@ export class AppBuildManifestPlugin {
 
     const json = JSON.stringify(manifest, null, 2)
 
-    assets[APP_BUILD_MANIFEST] = new sources.RawSource(json)
+    compilation.emitAsset(
+      APP_BUILD_MANIFEST,
+      new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    )
   }
 }
