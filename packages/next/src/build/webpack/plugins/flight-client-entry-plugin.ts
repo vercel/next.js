@@ -27,7 +27,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
-  getActionsFromBuildInfo,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -578,9 +577,9 @@ export class FlightClientEntryPlugin {
         if (visitedModule.has(modResource)) return
         visitedModule.add(modResource)
 
-        const actions = getActionsFromBuildInfo(mod)
-        if (actions) {
-          collectedActions.set(modResource, Object.entries(actions))
+        const actionsIds = getModuleBuildInfo(mod).rsc?.actionIds
+        if (actionsIds) {
+          collectedActions.set(modResource, Object.entries(actionsIds))
         }
 
         // Collect used exported actions transversely.
@@ -672,9 +671,9 @@ export class FlightClientEntryPlugin {
       }
       visitedOfClientComponentsTraverse.add(modResource)
 
-      const actions = getActionsFromBuildInfo(mod)
-      if (actions) {
-        actionImports.push([modResource, Object.entries(actions)])
+      const actionsIds = getModuleBuildInfo(mod).rsc?.actionIds
+      if (actionsIds) {
+        actionImports.push([modResource, Object.entries(actionsIds)])
       }
 
       if (isCSSMod(mod)) {
