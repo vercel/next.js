@@ -13,8 +13,8 @@ describe('app-dir - server source maps', () => {
     // 'link:' is not suitable for this test since this makes packages
     // not appear in node_modules.
     {
-      'internal-pkg': `file:${path.resolve(__dirname, 'fixtures/default/internal-pkg')}`,
-      'external-pkg': `file:${path.resolve(__dirname, 'fixtures/default/external-pkg')}`,
+      'internal-pkg': `file:./internal-pkg`,
+      'external-pkg': `file:./external-pkg`,
     }
   const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
