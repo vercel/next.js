@@ -201,35 +201,4 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
   }
-
-  [data-nextjs-container-errors-pseudo-html] {
-    position: relative;
-  }
-  [data-nextjs-container-errors-pseudo-html-collapse] {
-    position: absolute;
-    left: 10px;
-    top: 10px;
-    color: inherit;
-    background: none;
-    border: none;
-    padding: 0;
-  }
-  [data-nextjs-container-errors-pseudo-html--diff='add'] {
-    color: var(--color-ansi-green);
-  }
-  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
-    color: var(--color-ansi-red);
-  }
-  [data-nextjs-container-errors-pseudo-html--tag-error] {
-    color: var(--color-ansi-red);
-    font-weight: bold;
-  }
-  /* hide but text are still accessible in DOM */
-  [data-nextjs-container-errors-pseudo-html--hint] {
-    display: inline-block;
-    font-size: 0;
-  }
-  [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
-    color: var(--color-accents-1);
-  }
 `

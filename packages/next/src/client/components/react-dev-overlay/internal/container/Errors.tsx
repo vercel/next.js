@@ -381,10 +381,11 @@ export function Errors({
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+                reactOutputComponentDiff={
+                  errorDetails.reactOutputComponentDiff || ''
+                }
               />
             ) : null}
             {isServerError ? (
