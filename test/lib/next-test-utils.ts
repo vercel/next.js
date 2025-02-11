@@ -997,10 +997,10 @@ export function getRedboxHeader(browser: BrowserInterface) {
   })
 }
 
-function getRedboxFloatingHeaderText(
+export async function getRedboxTotalErrorCount(
   browser: BrowserInterface
-): Promise<string> {
-  return browser.eval(() => {
+): Promise<number> {
+  const text = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) =>
@@ -1011,12 +1011,7 @@ function getRedboxFloatingHeaderText(
     return root?.querySelector('[data-nextjs-dialog-header-total-count]')
       ?.innerText
   })
-}
-
-export async function getRedboxTotalErrorCount(
-  browser: BrowserInterface
-): Promise<number> {
-  return parseInt((await getRedboxFloatingHeaderText(browser)) || '-1')
+  return parseInt(text || '-1')
 }
 
 export async function getRedboxSource(browser: BrowserInterface) {
