@@ -11,8 +11,9 @@ import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
 import { useErrorHook } from '../internal/container/runtime-error/use-error-hook'
+import { withSwallowError } from '../../internal/components/with-swallow-error'
 
-export default function ReactDevOverlay({
+export default withSwallowError(function ReactDevOverlay({
   state,
   globalError,
   children,
@@ -62,4 +63,4 @@ export default function ReactDevOverlay({
       {children}
     </DevOverlayErrorBoundary>
   )
-}
+})
