@@ -1223,8 +1223,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // take the children from the task to process them
         let mut new_children = take(new_children);
 
-        // TODO handle stateful
-        let _ = stateful;
+        // handle stateful
+        if stateful {
+            task.insert(CachedDataItem::Stateful { value: () });
+        }
 
         // handle cell counters: update max index and remove cells that are no longer used
         let mut old_counters: FxHashMap<_, _> =
