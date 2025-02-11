@@ -465,14 +465,13 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     const observer = new ResizeObserver(() => {
       const { width: w } = el.getBoundingClientRect()
-      if (w !== width) {
-        setWidth(w)
-      }
+      setWidth(w)
     })
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [ref, width])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return width
 }
