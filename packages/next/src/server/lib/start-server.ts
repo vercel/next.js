@@ -273,7 +273,7 @@ export async function startServer(
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
       if (isDev) {
-        const startServerInfo = await getStartServerInfo(dir, isDev)
+        const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
         envInfo = startServerInfo.envInfo
         experimentalFeatures = startServerInfo.experimentalFeatures
       }

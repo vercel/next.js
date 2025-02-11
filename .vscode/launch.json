@@ -8,7 +8,7 @@
       "id": "appDirname",
       "type": "promptString",
       "description": "Enter an app dirname from examples or test/e2e",
-      "default": "examples/hello-world"
+      "default": "test/e2e/app-dir/dynamic-io-errors/fixtures/dynamic-root-layout"
     },
     {
       "id": "nextCommand",
@@ -45,11 +45,12 @@
         "webpack://_N_E/[.]/(.*)": "${workspaceFolder}/${input:appDirname}/.next/server/$1",
         "webpack-internal:///(ssr)/./*": "${workspaceFolder}/${input:appDirname}/*",
         "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
-        "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack:///./dist/src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
-        "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
+        "webpack:///./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
+        "webpack-internal:///(react-server)/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
         "turbopack://[project]/*": "${workspaceFolder}/*"
       },
       "env": {

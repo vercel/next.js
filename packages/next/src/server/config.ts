@@ -3,7 +3,11 @@ import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
   ExperimentalConfig,
@@ -1040,14 +1044,17 @@ export default async function loadConfig(
     silent = true,
     onLoadUserConfig,
     reactProductionProfiling,
+    debugOutput,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
     onLoadUserConfig?: (conf: NextConfig) => void
     reactProductionProfiling?: boolean
+    debugOutput?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
+  console.trace('loadConfig', { debugOutput, phase, silent })
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
       loadWebpackHook()
@@ -1252,7 +1259,27 @@ export default async function loadConfig(
         userConfig.experimental.htmlLimitedBots.source
     }
 
+    // TODO: Do we need to support PHASE_EXPORT as well?
+    if (phase === PHASE_PRODUCTION_BUILD && debugOutput) {
+      // userConfig.experimental.serverSourceMaps = true
+
+      if (!silent) {
+        Log.warn(
+          `\`experimental.serverSourceMaps\` has been set to \`true\` because \`next build\` was run with \`--debug\`.`
+        )
+      }
+
+      // userConfig.experimental.serverMinification = false
+
+      if (!silent) {
+        Log.warn(
+          `\`experimental.serverMinification\` has been set to \`false\` because \`next build\` was run with \`--debug\`.`
+        )
+      }
+    }
+
     onLoadUserConfig?.(userConfig)
+
     const completeConfig = assignDefaults(
       dir,
       {

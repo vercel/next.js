@@ -61,10 +61,15 @@ export function logStartInfo({
   Log.info('')
 }
 
-export async function getStartServerInfo(
-  dir: string,
+export async function getStartServerInfo({
+  dir,
+  dev,
+  debugOutput,
+}: {
+  dir: string
   dev: boolean
-): Promise<{
+  debugOutput?: boolean
+}): Promise<{
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
 }> {
@@ -81,6 +86,7 @@ export async function getStartServerInfo(
           ({ name: a }, { name: b }) => a.length - b.length
         )
       },
+      debugOutput,
     }
   )
 

@@ -292,7 +292,7 @@ export async function exportAppPage(
       fetchMetrics = store.fetchMetrics
 
       if (isDynamicServerError(err)) {
-        console.warn(
+        console.error(
           Object.assign(new Error(err.description), { stack: err.stack })
         )
       } else {

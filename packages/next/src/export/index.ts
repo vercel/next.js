@@ -78,7 +78,9 @@ async function exportAppImpl(
     options.nextConfig ||
     (await span
       .traceChild('load-next-config')
-      .traceAsyncFn(() => loadConfig(PHASE_EXPORT, dir)))
+      .traceAsyncFn(() =>
+        loadConfig(PHASE_EXPORT, dir, { debugOutput: options.debugOutput })
+      ))
 
   const distDir = join(dir, nextConfig.distDir)
   const telemetry = options.buildExport ? null : new Telemetry({ distDir })
