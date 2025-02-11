@@ -327,11 +327,6 @@ async function createComponentTreeInternal({
   const isPossiblyPartialResponse =
     isStaticGeneration && experimental.isRoutePPREnabled === true
 
-  // If there's a dynamic usage error attached to the store, throw it.
-  if (workStore.dynamicUsageErr) {
-    throw workStore.dynamicUsageErr
-  }
-
   const LayoutOrPage: React.ComponentType<any> | undefined = layoutOrPageMod
     ? interopDefault(layoutOrPageMod)
     : undefined

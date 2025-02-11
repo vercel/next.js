@@ -1,6 +1,5 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
-import type { DynamicServerError } from '../../client/components/hooks-server-context'
 import type { FetchMetrics } from '../base-http'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
@@ -50,7 +49,6 @@ export interface WorkStore {
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
-  dynamicUsageErr?: DynamicServerError
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
