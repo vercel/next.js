@@ -4,7 +4,7 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{bail, Context, Result};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, EdgeRef, IntoNodeReferences, VisitMap, Visitable},
@@ -608,20 +608,21 @@ macro_rules! get_node {
             .graph
             .node_weight(node_idx.node_idx)
         {
-            Some(SingleModuleGraphNode::Module(node)) => anyhow::Ok(node),
+            Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok(node),
             Some(SingleModuleGraphNode::VisitedModule { idx }) => {
                 match $graphs[idx.graph_idx].graph.node_weight(idx.node_idx) {
                     Some(SingleModuleGraphNode::Module(node)) => anyhow::Ok(node),
-                    Some(SingleModuleGraphNode::VisitedModule { .. }) => {
-                        Err(anyhow!("Expected visited target node to be module"))
-                    }
-                    None => Err(anyhow!("Expected visited target node")),
+                    Some(SingleModuleGraphNode::VisitedModule { .. }) => Err(::anyhow::anyhow!(
+                        "Expected visited target node to be module"
+                    )),
+                    None => Err(::anyhow::anyhow!("Expected visited target node")),
                 }
             }
-            None => Err(anyhow!("Expected graph node")),
+            None => Err(::anyhow::anyhow!("Expected graph node")),
         }
     }};
 }
+pub(crate) use get_node;
 
 impl ModuleGraph {
     async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {

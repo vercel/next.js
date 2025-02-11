@@ -20,7 +20,7 @@ use crate::{
     chunk::ChunkingType,
     module::Module,
     module_graph::{
-        GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
+        get_node, GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
         SingleModuleGraphNode,
     },
 };
@@ -81,13 +81,13 @@ pub struct ChunkGroupInfo(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWr
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroup {
-    /// e.g. A page
+    /// e.g. a page
     Entry(ResolvedVc<Box<dyn Module>>),
-    /// a module that has an incoming async edge
+    /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with a incoming non-merged isolated edge
+    /// a module with an incoming non-merged isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
-    /// a module with a incoming merging isolated edge
+    /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
@@ -97,28 +97,6 @@ enum ChunkGroup {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct ChunkGroupId(u32);
 
-macro_rules! get_node {
-    ($graphs:expr, $node:expr) => {{
-        let node_idx = $node;
-        match $graphs[node_idx.graph_idx]
-            .graph
-            .node_weight(node_idx.node_idx)
-            .unwrap()
-        {
-            SingleModuleGraphNode::Module(node) => node,
-            SingleModuleGraphNode::VisitedModule { idx } => {
-                let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
-                    .graph
-                    .node_weight(idx.node_idx)
-                    .unwrap()
-                else {
-                    panic!("expected Module node");
-                };
-                node
-            }
-        }
-    }};
-}
 fn iter_neighbors<N, E>(
     graph: &DiGraph<N, E>,
     node: NodeIndex,
@@ -329,14 +307,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             for entry_node in &queue {
                 visitor(
                     None,
-                    get_node!(graphs, entry_node.node),
+                    get_node!(graphs, entry_node.node)?,
                     &mut module_chunk_groups,
                 );
             }
             while let Some(NodeWithPriority { node, .. }) = queue.pop() {
                 queue_set.remove(&node);
                 let graph = &graphs[node.graph_idx].graph;
-                let node_weight = get_node!(graphs, node);
+                let node_weight = get_node!(graphs, node)?;
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
                 visit_count += 1;
@@ -346,7 +324,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ);
+                    let succ_weight = get_node!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight, edge_weight)),
