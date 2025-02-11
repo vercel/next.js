@@ -12,6 +12,8 @@ When self-hosting your Next.js application across multiple servers, each server 
 
 To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key. This variable **must** be AES-GCM encrypted.
 
+In a non-self-hosted environment, you can use a feature such as [Skew Protection](https://vercel.com/docs/deployments/skew-protection) to ensure assets and functions from the previous version are still available, even after a new version is deployed.
+
 ## Useful Links
 
 - [Server Actions - Security](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#security)
