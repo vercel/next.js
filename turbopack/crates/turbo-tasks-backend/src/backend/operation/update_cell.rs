@@ -33,7 +33,12 @@ impl UpdateCellOperation {
         // if it's not equal to the old content, as not all values implement Eq). We have to
         // assume that tasks are deterministic and pure.
 
-        if ctx.should_track_dependencies() && task.has_key(&CachedDataItemKey::Dirty {}) {
+        if ctx.should_track_dependencies()
+            && (task.has_key(&CachedDataItemKey::Dirty {})
+                ||
+                // This is a hack for the streaming hack. Stateful tasks are never recomputed, so this forces invalidation for them in case of this hack.
+                task.has_key(&CachedDataItemKey::Stateful {}))
+        {
             let dependent = get_many!(
                 task,
                 CellDependent { cell: dependent_cell, task }

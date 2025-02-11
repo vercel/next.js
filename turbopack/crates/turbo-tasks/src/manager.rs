@@ -1676,6 +1676,7 @@ pub fn mark_stateful() -> SerializationInvalidator {
 }
 
 pub fn prevent_gc() {
+    // There is a hack in UpdateCellOperation that need to be updated when this is changed.
     mark_stateful();
 }
 
