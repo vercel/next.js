@@ -121,6 +121,13 @@ pub struct BackendOptions {
     /// considered as active. Collectibles are disabled.
     pub children_tracking: bool,
 
+    /// Enables active tracking.
+    ///
+    /// Automatically disabled when `dependency_tracking` is disabled.
+    ///
+    /// When disabled: All tasks are considered as active.
+    pub active_tracking: bool,
+
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
 }
@@ -130,6 +137,7 @@ impl Default for BackendOptions {
         Self {
             dependency_tracking: true,
             children_tracking: true,
+            active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
         }
     }
@@ -194,10 +202,13 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
 }
 
 impl<B: BackingStorage> TurboTasksBackendInner<B> {
-    pub fn new(options: BackendOptions, backing_storage: B) -> Self {
+    pub fn new(mut options: BackendOptions, backing_storage: B) -> Self {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         let need_log = matches!(options.storage_mode, Some(StorageMode::ReadWrite));
+        if !options.dependency_tracking {
+            options.active_tracking = false;
+        }
         Self {
             options,
             start_time: Instant::now(),
@@ -338,6 +349,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn should_track_dependencies(&self) -> bool {
         self.options.dependency_tracking
+    }
+
+    fn should_track_activeness(&self) -> bool {
+        self.options.active_tracking
     }
 
     fn should_track_children(&self) -> bool {
@@ -499,16 +514,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // is automatically removed when this task is clean.
                     get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id))
                         .set_active_until_clean();
-                    // A newly added Activeness need to make sure to schedule the tasks
-                    task_ids_to_schedule = get_many!(
-                        task,
-                        AggregatedDirtyContainer {
-                            task
-                        } count if count.get(self.session_id) > 0 => {
-                            task
-                        }
-                    );
-                    task_ids_to_schedule.push(task_id);
+                    if ctx.should_track_activeness() {
+                        // A newly added Activeness need to make sure to schedule the tasks
+                        task_ids_to_schedule = get_many!(
+                            task,
+                            AggregatedDirtyContainer {
+                                task
+                            } count if count.get(self.session_id) > 0 => {
+                                task
+                            }
+                        );
+                        task_ids_to_schedule.push(task_id);
+                    }
                     get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {
@@ -1403,14 +1420,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut queue = AggregationUpdateQueue::new();
 
         if has_children {
-            let has_active_count =
-                get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
+            let has_active_count = ctx.should_track_activeness()
+                && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
                 task_id,
                 &mut task,
                 new_children,
                 &mut queue,
                 has_active_count,
+                ctx.should_track_activeness(),
             );
         }
 
@@ -1855,9 +1873,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            task.add(CachedDataItem::Activeness {
-                value: ActivenessState::new_root(root_type, task_id),
-            });
+            if self.should_track_activeness() {
+                task.add(CachedDataItem::Activeness {
+                    value: ActivenessState::new_root(root_type, task_id),
+                });
+            }
             task.add(CachedDataItem::new_scheduled(move || match root_type {
                 RootType::RootTask => "Root Task".to_string(),
                 RootType::OnceTask => "Once Task".to_string(),

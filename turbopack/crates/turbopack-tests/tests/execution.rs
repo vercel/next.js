@@ -171,6 +171,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
+            dependency_tracking: false,
             ..Default::default()
         },
         noop_backing_storage(),
