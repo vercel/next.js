@@ -7,7 +7,7 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-blocking', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -69,8 +69,14 @@ describe('ppr-metadata-blocking', () => {
   describe('partial shell', () => {
     it('should insert metadata into head with dynamic metadata and wrapped under layout Suspense boundary', async () => {
       const $ = await next.render$('/dynamic-metadata/partial')
-      expect(countSubstring($.html(), '<title>')).toBe(0)
-      // expect($('head title').text()).toBe('dynamic-metadata - partial')
+      // Dev: dynamic rendering
+      if (isNextDev) {
+        expect(countSubstring($.html(), '<title>')).toBe(1)
+        expect($('head title').text()).toBe('dynamic-metadata - partial')
+      } else {
+        // Production: PPR
+        expect(countSubstring($.html(), '<title>')).toBe(0)
+      }
 
       const browser = await next.browser('/dynamic-metadata/partial')
       expect(await browser.waitForElementByCss('head title').text()).toBe(
