@@ -29,34 +29,32 @@ impl UpdateCellOperation {
             in_progress.event.notify(usize::MAX);
         }
 
-        let recomputed = !task.has_key(&CachedDataItemKey::Dirty {});
-        // recomputed means task wasn't invalidated, so we just recompute, so the content has not
-        // actually changed (At least we have to assume that tasks are deterministic and
-        // pure).
+        // We need to detect recomputation, because here the content has not actually changed (even
+        // if it's not equal to the old content, as not all values implement Eq). We have to
+        // assume that tasks are deterministic and pure.
 
-        if recomputed || !ctx.should_track_dependencies() {
+        if ctx.should_track_dependencies() && task.has_key(&CachedDataItemKey::Dirty {}) {
+            let dependent = get_many!(
+                task,
+                CellDependent { cell: dependent_cell, task }
+                if dependent_cell == cell
+                => task
+            );
+
             drop(task);
             drop(old_content);
-            return;
+
+            InvalidateOperation::run(
+                dependent,
+                #[cfg(feature = "trace_task_dirty")]
+                TaskDirtyCause::CellChange {
+                    value_type: cell.type_id,
+                },
+                ctx,
+            );
+        } else {
+            drop(task);
+            drop(old_content);
         }
-
-        let dependent = get_many!(
-            task,
-            CellDependent { cell: dependent_cell, task }
-            if dependent_cell == cell
-            => task
-        );
-
-        drop(task);
-        drop(old_content);
-
-        InvalidateOperation::run(
-            dependent,
-            #[cfg(feature = "trace_task_dirty")]
-            TaskDirtyCause::CellChange {
-                value_type: cell.type_id,
-            },
-            ctx,
-        );
     }
 }
