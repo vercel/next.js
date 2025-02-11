@@ -179,7 +179,6 @@
     "@storybook/jest": "0.2.3",
     "@storybook/react": "8.5.2",
     "@storybook/react-webpack5": "8.5.2",
-    "@storybook/test": "8.5.2",
     "@storybook/test-runner": "0.21.0",
     "@storybook/testing-library": "0.2.2",
     "@swc/core": "1.9.3",
