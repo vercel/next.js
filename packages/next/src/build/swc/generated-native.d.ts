@@ -128,6 +128,8 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: string
+  /** Whether mangling should be disabled */
+  noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -166,6 +168,8 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: string
+  /** Whether mangling should be disabled */
+  noMangling?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiEnvVar>

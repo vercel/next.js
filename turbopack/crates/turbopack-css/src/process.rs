@@ -85,7 +85,7 @@ impl StyleSheetLike<'_, '_> {
         };
 
         let result = ss.to_css(PrinterOptions {
-            minify: matches!(minify_type, MinifyType::Minify),
+            minify: matches!(minify_type, MinifyType::Minify { .. }),
             source_map: srcmap.as_mut(),
             targets,
             analyze_dependencies: None,

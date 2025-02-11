@@ -144,6 +144,9 @@ pub struct NapiProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: String,
+
+    /// Whether mangling should be disabled
+    pub no_mangling: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -190,6 +193,9 @@ pub struct NapiPartialProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<String>,
+
+    /// Whether mangling should be disabled
+    pub no_mangling: Option<bool>,
 }
 
 #[napi(object)]
@@ -241,6 +247,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query.into(),
+            no_mangling: val.no_mangling,
         }
     }
 }

@@ -174,6 +174,9 @@ pub struct ProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
+
+    /// Whether mangling should be disabled
+    pub no_mangling: bool,
 }
 
 #[derive(
@@ -421,6 +424,7 @@ impl ProjectContainer {
         let build_id;
         let preview_props;
         let browserslist_query;
+        let no_mangling;
         {
             let options = self.options_state.get();
             let options = options
@@ -443,6 +447,7 @@ impl ProjectContainer {
             build_id = options.build_id.clone();
             preview_props = options.preview_props.clone();
             browserslist_query = options.browserslist_query.clone();
+            no_mangling = options.no_mangling
         }
 
         let dist_dir = next_config
@@ -470,6 +475,7 @@ impl ProjectContainer {
             build_id,
             encryption_key,
             preview_props,
+            no_mangling,
         }
         .cell())
     }
@@ -542,6 +548,9 @@ pub struct Project {
     encryption_key: RcStr,
 
     preview_props: DraftModeOptions,
+
+    /// Whether mangling should be disabled
+    no_mangling: bool,
 }
 
 #[turbo_tasks::value]
@@ -727,6 +736,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
         Vc::cell(self.encryption_key.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn no_mangling(&self) -> Vc<bool> {
+        Vc::cell(self.no_mangling)
     }
 
     #[turbo_tasks::function]
@@ -950,6 +964,7 @@ impl Project {
             self.module_id_strategy(),
             self.next_config().turbo_minify(self.next_mode()),
             self.next_config().turbo_source_maps(),
+            self.no_mangling(),
         )
     }
 
@@ -970,6 +985,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         } else {
             get_server_chunking_context(
@@ -981,6 +997,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         }
     }
@@ -1002,6 +1019,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         } else {
             get_edge_chunking_context(
@@ -1013,6 +1031,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         }
     }

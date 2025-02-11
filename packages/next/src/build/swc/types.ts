@@ -380,6 +380,11 @@ export interface ProjectOptions {
    * The browserslist query to use for targeting browsers.
    */
   browserslistQuery: string
+
+  /**
+   * Whether mangling should be disabled
+   */
+  noMangling: boolean
 }
 
 export interface DefineEnv {
