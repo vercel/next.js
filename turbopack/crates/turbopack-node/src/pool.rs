@@ -706,8 +706,11 @@ enum AcquiredPermits {
     },
 }
 
-static ACTIVE_POOLS: Lazy<Mutex<Vec<Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>>>> =
-    Lazy::new(|| Default::default());
+type IdleProcessesList = Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>;
+
+/// All non-empty `IdleProcessesList`s of the whole application.
+/// This is used to scale down processes globally.
+static ACTIVE_POOLS: Lazy<Mutex<Vec<IdleProcessesList>>> = Lazy::new(Default::default);
 
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
