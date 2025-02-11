@@ -13,23 +13,35 @@ export function VersionStalenessInfo({
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
   const shouldBeLink = staleness.startsWith('stale')
-  const InfoText = shouldBeLink ? 'a' : 'span'
+  if (shouldBeLink) {
+    return (
+      <a
+        className={cx(
+          'nextjs-container-build-error-version-status',
+          'dialog-exclude-closing-from-outside-click',
+          isTurbopack && 'turbopack-border'
+        )}
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://nextjs.org/docs/messages/version-staleness"
+      >
+        <Eclipse
+          className={cx('version-staleness-indicator', indicatorClass)}
+        />
+        <span data-nextjs-version-checker title={title}>
+          {text}
+        </span>
+        {isTurbopack && <span className="turbopack-text">Turbopack</span>}
+      </a>
+    )
+  }
 
   return (
     <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
       <Eclipse className={cx('version-staleness-indicator', indicatorClass)} />
-      <InfoText
-        data-nextjs-version-checker
-        className={cx('version-staleness-info-text', indicatorClass)}
-        title={title}
-        {...(shouldBeLink && {
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          href: 'https://nextjs.org/docs/messages/version-staleness',
-        })}
-      >
+      <span data-nextjs-version-checker title={title}>
         {text}
-      </InfoText>
+      </span>
       {isTurbopack && <span className="turbopack-text">Turbopack</span>}
     </span>
   )
@@ -96,13 +108,17 @@ export const styles = css`
     line-height: var(--size-4);
   }
 
-  .version-staleness-info-text.stale {
-    color: var(--color-amber-900);
-    text-decoration: underline;
-  }
-  .version-staleness-info-text.outdated {
-    color: var(--color-red-900);
-    text-decoration: underline;
+  a.nextjs-container-build-error-version-status {
+    text-decoration: none;
+    color: var(--color-gray-900);
+
+    &:hover {
+      background: var(--color-gray-100);
+    }
+
+    &:focus {
+      outline: var(--focus-ring);
+    }
   }
 
   .version-staleness-indicator.fresh {
