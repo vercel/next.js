@@ -162,14 +162,14 @@ export function createMetadataComponents({
         } catch (notFoundMetadataErr) {
           // In PPR rendering we still need to throw the postpone error.
           // If metadata is postponed, React needs to be aware of the location of error.
-          if (isPostpone(notFoundMetadataErr)) {
+          if (serveStreamingMetadata && isPostpone(notFoundMetadataErr)) {
             throw notFoundMetadataErr
           }
         }
       }
       // In PPR rendering we still need to throw the postpone error.
       // If metadata is postponed, React needs to be aware of the location of error.
-      if (isPostpone(metadataErr)) {
+      if (serveStreamingMetadata && isPostpone(metadataErr)) {
         throw metadataErr
       }
       // We don't actually want to error in this component. We will
