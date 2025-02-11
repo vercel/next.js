@@ -1,12 +1,9 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
-use turbopack_core::{
-    chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
-        ChunkType, ChunkingContext,
-    },
-    output::OutputAssets,
+use turbopack_core::chunk::{
+    round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
+    ChunkType, ChunkingContext,
 };
 
 use super::{
@@ -38,7 +35,6 @@ impl ChunkType for EcmascriptChunkType {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
-        referenced_output_assets: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let Some(chunking_context) =
             Vc::try_resolve_downcast::<Box<dyn ChunkingContext>>(chunking_context).await?
@@ -72,7 +68,6 @@ impl ChunkType for EcmascriptChunkType {
                 )
                 .try_join()
                 .await?,
-            referenced_output_assets: referenced_output_assets.owned().await?,
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))

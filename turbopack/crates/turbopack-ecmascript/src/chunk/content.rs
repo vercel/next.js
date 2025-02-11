@@ -1,16 +1,12 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::{
-    chunk::{ChunkItem, ChunkItemTy, ChunkItems},
-    output::OutputAsset,
-};
+use turbopack_core::chunk::{ChunkItem, ChunkItemTy, ChunkItems};
 
 use super::item::EcmascriptChunkItemWithAsyncInfo;
 
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<EcmascriptChunkItemWithAsyncInfo>,
-    pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 #[turbo_tasks::value_impl]

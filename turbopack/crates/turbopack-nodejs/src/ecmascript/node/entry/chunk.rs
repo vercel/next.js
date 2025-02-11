@@ -26,6 +26,7 @@ pub(crate) struct EcmascriptBuildNodeEntryChunk {
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    referenced_output_assets: ResolvedVc<OutputAssets>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
@@ -39,6 +40,7 @@ impl EcmascriptBuildNodeEntryChunk {
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        referenced_output_assets: ResolvedVc<OutputAssets>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<NodeJsChunkingContext>,
     ) -> Vc<Self> {
@@ -47,6 +49,7 @@ impl EcmascriptBuildNodeEntryChunk {
             other_chunks,
             evaluatable_assets,
             exported_module,
+            referenced_output_assets,
             module_graph,
             chunking_context,
         }
@@ -197,6 +200,11 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
         let other_chunks = this.other_chunks.await?;
         for &other_chunk in &*other_chunks {
             references.push(ResolvedVc::upcast(other_chunk));
+        }
+
+        let referenced_output_assets = this.referenced_output_assets.await?;
+        for &referenced_output_asset in &*referenced_output_assets {
+            references.push(ResolvedVc::upcast(referenced_output_asset));
         }
 
         Ok(Vc::cell(references))

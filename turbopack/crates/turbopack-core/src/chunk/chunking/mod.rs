@@ -1,8 +1,6 @@
 mod dev;
 mod production;
 
-use std::mem::replace;
-
 use anyhow::Result;
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
@@ -18,7 +16,6 @@ use crate::{
         ChunkableModule,
     },
     module_graph::ModuleGraph,
-    output::OutputAssets,
 };
 
 #[turbo_tasks::value]
@@ -45,14 +42,12 @@ async fn chunk_item_info(
     .cell())
 }
 
-/// Creates chunks based on heuristics for the passed `chunk_items`. Also
-/// attaches `referenced_output_assets` to the first chunk.
+/// Creates chunks based on heuristics for the passed `chunk_items`.
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     key_prefix: RcStr,
-    mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
 
@@ -112,8 +107,6 @@ pub async fn make_chunks(
                 ty,
                 chunking_context,
                 chunks: &mut chunks,
-                referenced_output_assets: &mut referenced_output_assets,
-                empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
             };
 
             if let Some(chunking_config) = chunking_configs.get(&ty) {
@@ -168,8 +161,6 @@ struct SplitContext<'a> {
     ty: ResolvedVc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
-    referenced_output_assets: &'a mut Vc<OutputAssets>,
-    empty_referenced_output_assets: Vc<OutputAssets>,
 }
 
 /// Creates a chunk with the given `chunk_items. `key` should be unique.
@@ -199,10 +190,6 @@ async fn make_chunk(
                     },
                 )
                 .collect(),
-            replace(
-                split_context.referenced_output_assets,
-                split_context.empty_referenced_output_assets,
-            ),
         ),
     );
     Ok(())

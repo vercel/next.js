@@ -17,7 +17,7 @@ use turbopack_core::{
         module::IntrospectableModule, utils::children_from_output_assets, Introspectable,
         IntrospectableChildren,
     },
-    output::{OutputAsset, OutputAssets},
+    output::OutputAssets,
     server_fs::ServerFileSystem,
 };
 
@@ -134,7 +134,7 @@ impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let content = self.content.await?;
-        let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
+        let referenced_output_assets = content
             .chunk_items
             .iter()
             .map(async |with_info| {
@@ -147,7 +147,6 @@ impl Chunk for EcmascriptChunk {
             })
             .try_flat_join()
             .await?;
-        referenced_output_assets.extend(content.referenced_output_assets.iter().copied());
         Ok(Vc::cell(referenced_output_assets))
     }
 

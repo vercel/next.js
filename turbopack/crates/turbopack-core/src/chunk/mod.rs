@@ -260,7 +260,6 @@ pub trait ChunkType: ValueToString {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
-        referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
     fn chunk_item_size(

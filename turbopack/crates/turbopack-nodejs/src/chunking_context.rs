@@ -367,6 +367,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let modules = modules.await?;
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 modules.iter().copied().map(ResolvedVc::upcast),
@@ -376,11 +377,12 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .await?;
 
-            let assets = chunks
+            let mut assets = chunks
                 .iter()
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
                 .try_join()
                 .await?;
+            assets.extend(referenced_output_assets);
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
@@ -409,6 +411,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
         let MakeChunkGroupResult {
             chunks,
+            referenced_output_assets,
             availability_info,
         } = make_chunk_group(
             once(module).chain(
@@ -424,17 +427,12 @@ impl ChunkingContext for NodeJsChunkingContext {
         .await?;
 
         let extra_chunks = extra_chunks.await?;
-        let other_chunks: Vec<_> = extra_chunks
+        let mut other_chunks = chunks
             .iter()
-            .copied()
-            .chain(
-                chunks
-                    .iter()
-                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
-                    .try_join()
-                    .await?,
-            )
-            .collect();
+            .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+            .try_join()
+            .await?;
+        other_chunks.extend(extra_chunks.iter().copied());
 
         let Some(module) = ResolvedVc::try_downcast(module) else {
             bail!("module must be placeable in an ecmascript chunk");
@@ -446,6 +444,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 Vc::cell(other_chunks),
                 evaluatable_assets,
                 *module,
+                Vc::cell(referenced_output_assets),
                 module_graph,
                 *self,
             )
