@@ -151,7 +151,7 @@ describe('ppr-metadata-blocking', () => {
         const attribute2 = parseInt($2('[data-date]').attr('data-date'))
 
         // Two requests are dynamic and should not have the same data-date attribute
-        expect(attribute2).toEqual(attribute1)
+        expect(attribute2).not.toEqual(attribute1)
         expect(attribute1).toBeTruthy()
       })
     })
