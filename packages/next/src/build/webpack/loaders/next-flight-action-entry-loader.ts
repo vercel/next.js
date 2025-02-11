@@ -1,18 +1,24 @@
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+
 export type NextFlightActionEntryLoaderOptions = {
   actions: string
 }
 
-function nextFlightActionEntryLoader(this: any) {
+export type FlightActionEntryLoaderActions = [
+  path: string,
+  actions: [id: string, name: string][],
+][]
+
+function nextFlightActionEntryLoader(
+  this: webpack.LoaderContext<NextFlightActionEntryLoaderOptions>
+) {
   const { actions }: NextFlightActionEntryLoaderOptions = this.getOptions()
 
-  const actionList = JSON.parse(actions) as [
-    string,
-    [id: string, name: string][],
-  ][]
+  const actionList = JSON.parse(actions) as FlightActionEntryLoaderActions
   const individualActions = actionList
     .map(([path, actionsFromModule]) => {
       return actionsFromModule.map(([id, name]) => {
-        return [id, path, name]
+        return [id, path, name] as const
       })
     })
     .flat()

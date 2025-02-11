@@ -45,6 +45,7 @@ import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
+import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 
 interface Options {
   dev: boolean
@@ -880,7 +881,9 @@ export class FlightClientEntryPlugin {
     }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actions: JSON.stringify(actionsArray),
+      actions: JSON.stringify(
+        actionsArray satisfies FlightActionEntryLoaderActions
+      ),
       __client_imported__: fromClient,
     })}!`
 
