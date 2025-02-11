@@ -58,76 +58,44 @@ describe(`app-dir-hmr`, () => {
 
     it('should update server components after navigating to a page with a different runtime', async () => {
       const browser = await next.browser('/env/node')
+      expect(await browser.elementByCss('p').text()).toBe('mac')
+
       await browser.loadPage(`${next.url}/env/edge`)
       await browser.eval('window.__TEST_NO_RELOAD = true')
-
       expect(await browser.elementByCss('p').text()).toBe('mac')
 
       const getCliOutput = next.getCliOutputFromHere()
       await next.patchFile(envFile, 'MY_DEVICE="ipad"', async () => {
         await waitFor(() => getCliOutput().includes('Reload env'))
 
+        // use an extra-long timeout since the environment reload can be a
+        // little slow (especially on overloaded CI servers)
         await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
-        })
+        }, 5000 /* ms */)
+
+        expect(
+          await browser.eval('window.__TEST_NO_RELOAD === undefined')
+        ).toBe(false)
 
         const logs = await browser.log()
+        const fastRefreshLogs = logs.filter((log) => {
+          return log.message.startsWith('[Fast Refresh]')
+        })
 
-        if (process.env.TURBOPACK) {
-          await retry(async () => {
-            const fastRefreshLogs = logs.filter((log) => {
-              return log.message.startsWith('[Fast Refresh]')
-            })
-            expect(fastRefreshLogs).toEqual(
-              expect.arrayContaining([
-                { source: 'log', message: '[Fast Refresh] rebuilding' },
-                {
-                  source: 'log',
-                  message: expect.stringContaining('[Fast Refresh] done in'),
-                },
-              ])
-            )
-          })
-        } else {
-          await retry(
-            async () => {
-              const envValue = await browser.elementByCss('p').text()
-              const mpa = await browser.eval(
-                'window.__TEST_NO_RELOAD === undefined'
-              )
-              // Used to be flaky but presumably no longer is.
-              // If this flakes again, please add the received value as a comment.
-              expect({ envValue, mpa }).toEqual({
-                envValue: 'ipad',
-                mpa: false,
-              })
-            },
-            // Very slow Hot Update for some reason.
-            // May be related to receiving 3 rebuild events but only one finish event
-            5000
-          )
-
-          const fastRefreshLogs = logs.filter((log) => {
-            return log.message.startsWith('[Fast Refresh]')
-          })
-          expect(fastRefreshLogs).toEqual([
+        // The exact ordering and number of these messages is implementation
+        // dependent and subject to race conditions, just check that we have at
+        // least one "rebuilding" and "done in" message in the logs, the exact
+        // details are unimportant.
+        expect(fastRefreshLogs).toEqual(
+          expect.arrayContaining([
             { source: 'log', message: '[Fast Refresh] rebuilding' },
-            {
-              source: 'log',
-              message: expect.stringContaining('[Fast Refresh] done in '),
-            },
-            { source: 'log', message: '[Fast Refresh] rebuilding' },
-            { source: 'log', message: '[Fast Refresh] rebuilding' },
-            {
-              source: 'log',
-              message: expect.stringContaining('[Fast Refresh] done in '),
-            },
             {
               source: 'log',
               message: expect.stringContaining('[Fast Refresh] done in '),
             },
           ])
-        }
+        )
       })
 
       // ensure it's restored back to "mac" before the next test
