@@ -10,7 +10,7 @@
   turbo_tasks::TurboTasks::new(
     turbo_tasks_backend::TurboTasksBackend::new(
       turbo_tasks_backend::BackendOptions {
-        allowed_memory_usage: 0,
+        hard_memory_limit: 128_000_000,
         ..Default::default()
       },
       turbo_tasks_backend::default_backing_storage(

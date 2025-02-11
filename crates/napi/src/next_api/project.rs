@@ -390,7 +390,7 @@ pub async fn project_new(
     let memory_limit = turbo_engine_options
         .memory_limit
         .map(|m| m as usize)
-        .unwrap_or(usize::MAX);
+        .unwrap_or(0);
     let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
     let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
     let turbo_tasks = create_turbo_tasks(
