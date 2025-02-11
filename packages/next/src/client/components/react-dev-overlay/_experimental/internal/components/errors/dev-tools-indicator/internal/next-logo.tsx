@@ -12,7 +12,7 @@ interface Props extends React.ComponentProps<'button'> {
 }
 
 const SIZE = 36
-const SHORE_DURATION_MS = 150
+const SHORT_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
   {
@@ -48,7 +48,7 @@ export const NextLogo = forwardRef(function NextLogo(
       // will abruptly stop and not transition smoothly back to its original state.
       const timeoutId = window.setTimeout(() => {
         setNewErrorDetected(false)
-      }, SHORE_DURATION_MS)
+      }, SHORT_DURATION_MS)
 
       return () => {
         clearTimeout(timeoutId)
@@ -63,7 +63,7 @@ export const NextLogo = forwardRef(function NextLogo(
       style={
         {
           '--size': `${SIZE}px`,
-          '--duration-short': `${SHORE_DURATION_MS}ms`,
+          '--duration-short': `${SHORT_DURATION_MS}ms`,
         } as React.CSSProperties
       }
     >
