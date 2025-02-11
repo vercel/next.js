@@ -61,7 +61,18 @@ describe('app-dir - missing required html tags', () => {
       )
     )
 
-    // TODO(NDX-768): Should show "missing tags" error
-    await assertNoRedbox(browser)
+    if (process.env.TURBOPACK) {
+      await assertHasRedbox(browser)
+      // Wait for the HMR to apply and the updated error to show.
+      await retry(async () => {
+        expect(await getRedboxDescription(browser)).toEqual(outdent`
+          The following tags are missing in the Root Layout: <html>, <body>.
+          Read more at https://nextjs.org/docs/messages/missing-root-layout-tags
+        `)
+      })
+    } else {
+      // TODO(NDX-768): Should show "missing tags" error
+      await assertNoRedbox(browser)
+    }
   })
 })
