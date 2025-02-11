@@ -12,6 +12,49 @@ interface Props extends React.ComponentProps<'button'> {
 }
 
 const SIZE = 36
+const SHORT_DURATION_MS = 150
+
+/**
+ * A hook that creates an animated state based on changes to a dependency.
+ * When the dependency changes and passes the shouldSkip check, it triggers
+ * an animation state that lasts for the specified duration.
+ *
+ * @param dep The dependency to watch for changes
+ * @param config Configuration object containing:
+ *               - shouldSkip: Function to determine if animation should be skipped
+ *               - animationDuration: Duration of the animation in milliseconds
+ * @returns Boolean indicating if animation is currently active
+ */
+const useAnimated = <T,>(
+  dep: T,
+  config: { shouldSkip: (dep: T) => boolean; animationDuration: number }
+) => {
+  const { shouldSkip: _shouldSkip, animationDuration } = config
+  const shouldSkipRef = useRef(_shouldSkip) // ensure stable reference in case it's not
+
+  const [animatedDep, setAnimatedDep] = useState(false)
+  const isInitialRef = useRef(true)
+
+  useEffect(() => {
+    if (isInitialRef.current) {
+      isInitialRef.current = false
+      return
+    }
+
+    if (shouldSkipRef.current(dep)) {
+      return
+    }
+
+    setAnimatedDep(true)
+    const timeoutId = setTimeout(() => {
+      setAnimatedDep(false)
+    }, animationDuration)
+
+    return () => clearTimeout(timeoutId)
+  }, [dep, animationDuration])
+
+  return animatedDep
+}
 
 export const NextLogo = forwardRef(function NextLogo(
   {
@@ -26,18 +69,30 @@ export const NextLogo = forwardRef(function NextLogo(
 ) {
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
+  const newErrorDetected = useAnimated(issueCount, {
+    shouldSkip: (count) => count === 0,
+    animationDuration: SHORT_DURATION_MS,
+  })
+
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const width = useMeasureWidth(ref)
+
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
+
+  useEffect(() => {
+    setIsErrorExpanded(hasError)
+  }, [hasError])
+
   return (
     <div
       data-next-badge-root
       style={
         {
           '--size': `${SIZE}px`,
+          '--duration-short': `${SHORT_DURATION_MS}ms`,
         } as React.CSSProperties
       }
     >
@@ -46,11 +101,12 @@ export const NextLogo = forwardRef(function NextLogo(
         {css`
           [data-next-badge-root] {
             --timing: cubic-bezier(0.23, 0.88, 0.26, 0.92);
-            --duration: 250ms;
+            --duration-long: 250ms;
             --color-outer-border: #171717;
             --color-inner-border: hsla(0, 0%, 100%, 0.14);
-            --color-hover-alpha: hsla(0, 0%, 100%, 0.14);
-            --color-hover-alpha-2: hsla(0, 0%, 100%, 0.23);
+            --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
+            --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
+            --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
             --padding: 2px;
             --mark-size: calc(var(--size) - var(--padding) * 2);
 
@@ -82,13 +138,17 @@ export const NextLogo = forwardRef(function NextLogo(
             overflow: hidden;
             will-change: scale, box-shadow, width, background;
             transition:
-              scale 150ms var(--timing),
-              width var(--duration) var(--timing),
-              box-shadow var(--duration) var(--timing),
-              background 150ms ease;
+              scale var(--duration-short) var(--timing),
+              width var(--duration-long) var(--timing),
+              box-shadow var(--duration-long) var(--timing),
+              background var(--duration-short) ease;
 
             &:active[data-error='false'] {
               scale: 0.95;
+            }
+
+            &[data-animate='true']:not(:hover) {
+              scale: 1.02;
             }
 
             &[data-error='false']:has([data-next-mark]:focus-visible) {
@@ -101,7 +161,7 @@ export const NextLogo = forwardRef(function NextLogo(
               --color-inner-border: #e5484d;
 
               [data-next-mark] {
-                background: var(--color-hover-alpha);
+                background: var(--color-hover-alpha-error);
                 outline-offset: 0px;
 
                 &:focus-visible {
@@ -110,7 +170,7 @@ export const NextLogo = forwardRef(function NextLogo(
                 }
 
                 &:hover {
-                  background: var(--color-hover-alpha-2);
+                  background: var(--color-hover-alpha-error-2);
                 }
               }
             }
@@ -146,7 +206,7 @@ export const NextLogo = forwardRef(function NextLogo(
             scale: 0;
             pointer-events: none;
             transition: scale 200ms var(--timing);
-            transition-delay: 150ms;
+            transition-delay: var(--duration-short);
           }
 
           [data-issues] {
@@ -158,10 +218,10 @@ export const NextLogo = forwardRef(function NextLogo(
             height: 32px;
             margin: 0 var(--padding);
             border-radius: 9999px;
-            transition: background 150ms ease;
+            transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
-              background: var(--color-hover-alpha);
+              background: var(--color-hover-alpha-error);
             }
 
             [data-cross] {
@@ -192,10 +252,10 @@ export const NextLogo = forwardRef(function NextLogo(
             width: 24px;
             height: 24px;
             border-radius: 9999px;
-            transition: background 150ms ease;
+            transition: background var(--duration-short) ease;
 
             &:hover {
-              background: var(--color-hover-alpha);
+              background: var(--color-hover-alpha-error);
             }
           }
 
@@ -210,15 +270,49 @@ export const NextLogo = forwardRef(function NextLogo(
             display: flex;
             align-items: center;
             border-radius: 9999px;
-            transition: background var(--duration) var(--timing);
+            transition: background var(--duration-long) var(--timing);
 
             &:focus-visible {
               outline: 0;
             }
 
+            &:hover {
+              background: var(--color-hover-alpha-subtle);
+            }
+
             svg {
               flex-shrink: 0;
             }
+          }
+
+          [data-issues-count-animation] {
+            display: grid;
+            place-items: center center;
+            font-variant-numeric: tabular-nums;
+
+            &[data-animate='false'] {
+              [data-issues-count-exit],
+              [data-issues-count-enter] {
+                animation-duration: 0ms;
+              }
+            }
+
+            > * {
+              grid-area: 1 / 1;
+            }
+
+            [data-issues-count-exit] {
+              animation: fadeOut 300ms var(--timing) forwards;
+            }
+
+            [data-issues-count-enter] {
+              animation: fadeIn 300ms var(--timing) forwards;
+            }
+          }
+
+          [data-issues-count-plural] {
+            display: inline-block;
+            animation: fadeIn 300ms var(--timing) forwards;
           }
 
           .path0 {
@@ -232,6 +326,32 @@ export const NextLogo = forwardRef(function NextLogo(
 
           .paused {
             stroke-dashoffset: 0;
+          }
+
+          @keyframes fadeIn {
+            0% {
+              opacity: 0;
+              filter: blur(2px);
+              transform: translateY(8px);
+            }
+            100% {
+              opacity: 1;
+              filter: blur(0px);
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes fadeOut {
+            0% {
+              opacity: 1;
+              filter: blur(0px);
+              transform: translateY(0);
+            }
+            100% {
+              opacity: 0;
+              transform: translateY(-12px);
+              filter: blur(2px);
+            }
           }
 
           @keyframes draw0 {
@@ -271,12 +391,21 @@ export const NextLogo = forwardRef(function NextLogo(
               stroke-dashoffset: 11.6;
             }
           }
+
+          @media (prefers-reduced-motion) {
+            [data-issues-count-exit],
+            [data-issues-count-enter],
+            [data-issues-count-plural] {
+              animation-duration: 0ms !important;
+            }
+          }
         `}
       </style>
       <div
         data-next-badge
         data-error={hasError}
         data-error-expanded={isErrorExpanded}
+        data-animate={newErrorDetected}
         style={{
           width: hasError && width > SIZE ? width : SIZE,
         }}
@@ -298,8 +427,22 @@ export const NextLogo = forwardRef(function NextLogo(
                 aria-label="Open issues overlay"
                 onClick={openErrorOverlay}
               >
-                <span data-issues-count>{issueCount}</span>{' '}
-                {issueCount === 1 ? 'Issue' : 'Issues'}
+                <AnimateCount
+                  // Used the key to force a re-render when the count changes.
+                  key={issueCount}
+                  animate={newErrorDetected}
+                  data-issues-count-animation
+                >
+                  {issueCount}
+                </AnimateCount>{' '}
+                <div>
+                  Issue
+                  {issueCount > 1 && (
+                    <span aria-hidden data-issues-count-plural>
+                      s
+                    </span>
+                  )}
+                </div>
               </button>
               <button
                 data-issues-collapse
@@ -321,6 +464,26 @@ export const NextLogo = forwardRef(function NextLogo(
   )
 })
 
+function AnimateCount({
+  children: count,
+  animate = true,
+  ...props
+}: {
+  children: number
+  animate: boolean
+}) {
+  return (
+    <div {...props} data-animate={animate}>
+      <div aria-hidden data-issues-count-exit>
+        {count - 1}
+      </div>
+      <div data-issues-count data-issues-count-enter>
+        {count}
+      </div>
+    </div>
+  )
+}
+
 function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
   const [width, setWidth] = useState<number>(0)
 
@@ -338,8 +501,7 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     observer.observe(el)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ref])
 
   return width
 }
