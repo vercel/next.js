@@ -399,6 +399,8 @@ export const NextLogo = forwardRef(function NextLogo(
                 onClick={openErrorOverlay}
               >
                 <AnimateCount
+                  // Used the key to force a re-render when the count changes.
+                  key={issueCount}
                   animate={newErrorDetected}
                   data-issues-count-animation
                 >
@@ -442,11 +444,11 @@ function AnimateCount({
   animate: boolean
 }) {
   return (
-    <div {...props} key={`animate-${count}`} data-animate={animate}>
-      <div aria-hidden data-issues-count-exit key={`exit-${count}`}>
+    <div {...props} data-animate={animate}>
+      <div aria-hidden data-issues-count-exit>
         {count - 1}
       </div>
-      <div data-issues-count data-issues-count-enter key={`enter-${count}`}>
+      <div data-issues-count data-issues-count-enter>
         {count}
       </div>
     </div>
