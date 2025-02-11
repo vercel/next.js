@@ -1,7 +1,7 @@
 {
   "name": "@next/font",
   "private": true,
-  "version": "15.1.6",
+  "version": "15.1.7",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
