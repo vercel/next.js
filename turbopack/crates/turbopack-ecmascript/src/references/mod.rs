@@ -1338,7 +1338,7 @@ async fn compile_time_info_for_module_type(
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
 
-    let mut free_var_references = free_var_references.await?.clone_value();
+    let mut free_var_references = free_var_references.owned().await?;
     let (typeof_exports, typeof_module, require) = if is_esm {
         ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
     } else {

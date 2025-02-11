@@ -253,13 +253,13 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .await?
         .iter()
         .map(|reference| async {
-            Ok(reference
+            reference
                 .resolve_reference()
                 .resolve()
                 .await?
                 .primary_modules()
-                .await?
-                .clone_value())
+                .owned()
+                .await
         })
         .try_join()
         .await?
@@ -297,8 +297,8 @@ pub async fn primary_chunkable_referenced_modules(
                         .resolve()
                         .await?
                         .primary_modules()
-                        .await?
-                        .clone_value();
+                        .owned()
+                        .await?;
                     return Ok(Some((chunking_type.clone(), resolved)));
                 }
             }

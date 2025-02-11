@@ -46,7 +46,7 @@ impl EcmascriptChunkItemContent {
             .await?;
 
         let content = content.await?;
-        let async_module = async_module_options.await?.clone_value();
+        let async_module = async_module_options.owned().await?;
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {

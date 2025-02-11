@@ -1511,7 +1511,9 @@ impl Project {
         // first seen version of the session.
         let state = VersionState::new(
             version
-                .into_trait_ref_strongly_consistent_untracked()
+                .into_trait_ref()
+                .strongly_consistent()
+                .untracked()
                 .await?,
         )
         .await?;
@@ -1674,7 +1676,7 @@ async fn any_output_changed(
 async fn get_referenced_output_assets(
     parent: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().await?.clone_value().into_iter())
+    Ok(parent.references().owned().await?.into_iter())
 }
 
 #[turbo_tasks::function(operation)]

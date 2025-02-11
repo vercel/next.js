@@ -565,7 +565,7 @@ impl Module for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         if let Some(inner_assets) = self.inner_assets {
-            let mut ident = self.source.ident().await?.clone_value();
+            let mut ident = self.source.ident().owned().await?;
             for (name, asset) in inner_assets.await?.iter() {
                 ident.add_asset(
                     ResolvedVc::cell(name.to_string().into()),

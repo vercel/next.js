@@ -265,11 +265,23 @@ where
 impl<T> ReadRef<T>
 where
     T: VcValueType,
+{
+    pub fn try_unwrap(this: Self) -> Result<VcReadTarget<T>, Self> {
+        match triomphe::Arc::try_unwrap(this.0) {
+            Ok(value) => Ok(T::Read::value_to_target(value)),
+            Err(arc) => Err(Self(arc)),
+        }
+    }
+}
+
+impl<T> ReadRef<T>
+where
+    T: VcValueType,
     VcReadTarget<T>: Clone,
 {
-    /// This will clone the contained value instead of cloning the ReadRef.
-    /// This clone is more expensive, but allows to get an mutable owned value.
-    pub fn clone_value(&self) -> VcReadTarget<T> {
-        (**self).clone()
+    /// This is return a owned version of the value. It potentially clones the value.
+    /// The clone might be expensive. Prefer Deref to get a reference to the value.
+    pub fn into_owned(this: Self) -> VcReadTarget<T> {
+        Self::try_unwrap(this).unwrap_or_else(|this| (*this).clone())
     }
 }

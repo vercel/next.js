@@ -455,7 +455,7 @@ impl Issue for InvalidExport {
                     StyledString::Text("The export ".into()),
                     StyledString::Code(self.export.clone()),
                     StyledString::Text(" was not found in module ".into()),
-                    StyledString::Strong(self.module.ident().to_string().await?.clone_value()),
+                    StyledString::Strong(self.module.ident().to_string().owned().await?),
                     StyledString::Text(".".into()),
                 ]),
                 if let Some(did_you_mean) = did_you_mean {

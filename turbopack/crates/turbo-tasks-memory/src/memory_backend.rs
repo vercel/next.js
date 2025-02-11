@@ -25,7 +25,7 @@ use turbo_tasks::{
     event::EventListener,
     task_statistics::TaskStatisticsApi,
     util::{IdFactoryWithReuse, NoMoveVec},
-    CellId, FunctionId, RawVc, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
+    CellId, FunctionId, RawVc, ReadCellOptions, ReadConsistency, TaskId, TaskIdSet, TraitTypeId,
     TurboTasksBackendApi, Unused, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
@@ -504,6 +504,7 @@ impl Backend for MemoryBackend {
         task_id: TaskId,
         index: CellId,
         reader: TaskId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         if task_id == reader {
@@ -535,6 +536,7 @@ impl Backend for MemoryBackend {
         &self,
         current_task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         _turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<TypedCellContent> {
         Ok(self.with_task(current_task, |task| {
@@ -547,6 +549,7 @@ impl Backend for MemoryBackend {
         &self,
         task_id: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<MemoryBackend>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.with_task(task_id, |task| {
