@@ -217,9 +217,7 @@ describe('app-dir - server source maps', () => {
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
             '\nError: Boom!' +
-            // TODO(veil): Turbopack's sourcemap loader generates a wrong source entry here
-            // Should not be sourcemapped or "custom://[badhost]/app/bad-sourcemap/page.js"
-            '\n    at Page (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:9:15)' +
+            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:9:15)' +
             // TODO: Remove blank line
             '\n'
         )
