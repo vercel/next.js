@@ -5,12 +5,15 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-blocking-ppr-fallback', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
     env: {
       __NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING: '1',
     },
   })
+
+  if (skipped) return
 
   it('should not include metadata in partial shell when page is fully dynamic', async () => {
     const $ = await next.render$('/fully-dynamic?__nextppronly=fallback')
