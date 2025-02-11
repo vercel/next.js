@@ -17,11 +17,10 @@ export function getElementsFromShadowPortal() {
     .find((p: any) =>
       p.shadowRoot.querySelector('[data-nextjs-dialog-overlay]')
     ) as unknown as Element
+  expect(portal).toBeDefined()
 
-  const root = portal?.shadowRoot
-  if (!root) {
-    throw new Error('No shadow root found.')
-  }
+  const root = portal.shadowRoot!
+  expect(root).toBeDefined()
 
   const prevNav = root.querySelector('[aria-label="Previous Error"]')!
   expect(prevNav).toBeInTheDocument()
