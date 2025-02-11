@@ -10,6 +10,7 @@ const BUFFER_SIZE: u64 = 1024;
 
 pub struct BufferedAgeQueue {
     queue: Mutex<AgeQueue>,
+    completed: Mutex<RoaringBitmap>,
     thread_local: ThreadLocal<UnsafeCell<RoaringBitmap>>,
 }
 
@@ -17,6 +18,7 @@ impl BufferedAgeQueue {
     pub fn new() -> Self {
         Self {
             queue: Mutex::new(AgeQueue::new()),
+            completed: Mutex::new(RoaringBitmap::new()),
             thread_local: ThreadLocal::new(),
         }
     }
@@ -36,5 +38,9 @@ impl BufferedAgeQueue {
 
     pub fn queue(&self) -> &Mutex<AgeQueue> {
         &self.queue
+    }
+
+    pub fn completed(&self) -> &Mutex<RoaringBitmap> {
+        &self.completed
     }
 }

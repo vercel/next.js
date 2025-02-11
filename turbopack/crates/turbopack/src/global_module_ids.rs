@@ -57,6 +57,16 @@ pub async fn get_global_module_id_strategy(
 
         finalize_module_ids(&mut module_id_map);
 
+        let mut modules = String::new();
+        for module in module_id_map.keys() {
+            use std::fmt::Write;
+            let name = module.to_string().await?;
+            if name.contains("opentelemetry") {
+                writeln!(modules, "  {} {:?}", name, module).unwrap();
+            }
+        }
+        eprintln!("Module IDs:\n{}", modules);
+
         Ok(GlobalModuleIdStrategy {
             module_id_map: module_id_map
                 .into_iter()

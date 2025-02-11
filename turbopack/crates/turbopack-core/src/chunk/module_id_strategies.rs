@@ -57,14 +57,27 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
             // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
             // imports of a server component from another server component.
 
+            let mut modules = String::new();
+            for module in self.module_id_map.keys() {
+                use std::fmt::Write;
+                let name = module.to_string().await?;
+                if name.contains("opentelemetry") {
+                    writeln!(modules, "  {} {:?}", name, module).unwrap();
+                }
+            }
+
             ModuleIssue {
                 ident,
                 title: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {} {:?}", ident_string, ident).into(),
                 )
                 .resolved_cell(),
                 description: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!(
+                        "ModuleId not found for ident: {:?}\n{}",
+                        ident_string, modules
+                    )
+                    .into(),
                 )
                 .resolved_cell(),
             }
