@@ -28,6 +28,9 @@
     // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
     "./server-graph/25/output.js",
     "./server-graph/28/output.js",
-    "./server-graph/30/output.js"
+    "./server-graph/30/output.js",
+    // Excluded because of weird TS behavior around `action.bind(...)` making args optional
+    // (but only if no JSDoc type annotations are present)
+    "./server-graph/24/output.js"
   ]
 }
