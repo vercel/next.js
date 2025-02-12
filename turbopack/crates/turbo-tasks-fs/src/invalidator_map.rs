@@ -13,9 +13,11 @@ pub enum WriteContent {
     Link(ReadRef<LinkContent>),
 }
 
+type InnerMap = FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>;
+
 pub struct InvalidatorMap {
     queue: ConcurrentQueue<(String, Invalidator, Option<WriteContent>)>,
-    map: Mutex<FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>>,
+    map: Mutex<InnerMap>,
 }
 
 impl Default for InvalidatorMap {
@@ -32,10 +34,7 @@ impl InvalidatorMap {
         Self::default()
     }
 
-    pub fn lock(
-        &self,
-    ) -> LockResult<MutexGuard<'_, FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>>>
-    {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, InnerMap>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value, write_content)) = self.queue.pop() {
             guard.entry(key).or_default().insert(value, write_content);
