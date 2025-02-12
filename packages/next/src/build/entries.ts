@@ -869,7 +869,9 @@ export function finalizeEntrypoint({
           ? WEBPACK_LAYERS.instrument
           : isServerComponent
             ? WEBPACK_LAYERS.reactServerComponents
-            : undefined
+            : name.startsWith('pages/')
+              ? WEBPACK_LAYERS.pagesDirNode
+              : undefined
 
       return {
         publicPath: isApi ? '' : undefined,
@@ -884,7 +886,9 @@ export function finalizeEntrypoint({
           ? WEBPACK_LAYERS.api
           : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
-            : undefined,
+            : name.startsWith('pages/')
+              ? WEBPACK_LAYERS.pagesDirEdge
+              : undefined,
         library: { name: ['_ENTRIES', `middleware_[name]`], type: 'assign' },
         runtime: EDGE_RUNTIME_WEBPACK,
         asyncChunks: false,
@@ -919,6 +923,7 @@ export function finalizeEntrypoint({
             name.startsWith('pages/') && name !== 'pages/_app'
               ? 'pages/_app'
               : CLIENT_STATIC_FILES_RUNTIME_MAIN,
+          layer: WEBPACK_LAYERS.pagesDirBrowser,
           ...entry,
         }
       }
@@ -930,7 +935,10 @@ export function finalizeEntrypoint({
         }
       }
 
-      return entry
+      return {
+        layer: WEBPACK_LAYERS.pagesDirBrowser,
+        ...entry,
+      }
     }
     default: {
       // Should never happen.
