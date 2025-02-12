@@ -325,7 +325,7 @@ export function makeExternalHandler({
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
     if (!resolvedExternalPackageDirs) {
-      resolvedExternalPackageDirs = new Promise(async (resolve) => {
+      resolvedExternalPackageDirs = (async () => {
         const m = new Map<string, string>()
         // We need to resolve all the external package dirs initially.
         for (const pkg of transpiledPackages) {
@@ -343,8 +343,8 @@ export function makeExternalHandler({
             m.set(pkg, path.dirname(pkgRes.res))
           }
         }
-        resolve(m)
-      })
+        return m
+      })()
     }
 
     const resolvedBundlingOptOutRes = resolveBundlingOptOutPackages({
