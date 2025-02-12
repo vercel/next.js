@@ -100,13 +100,12 @@ describe('app-dir - server source maps', () => {
           ? '\nError: Boom' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
-              // TODO(veil): Turbopack's sourcemap loader drops `ignoreList`
-              '\n    at runInternalIgnored (internal-pkg/ignored.ts:6:9)' +
               '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
               '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
               '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:9)' +
+              // TODO(veil): Should be internal-pkg/sourcemapped.ts
+              '\n    at runInternalSourceMapped (sourcemapped.ts:5:9)' +
               '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:9)' +
@@ -117,12 +116,14 @@ describe('app-dir - server source maps', () => {
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
-              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
+              // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               '\n    at runInternalIgnored (webpack-internal:/(ssr)/internal-pkg/ignored.ts:6:9)' +
               '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
               '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
               '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
-              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
+              // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternalSourceMapped (webpack-internal:/(ssr)/internal-pkg/sourcemapped.ts:5:9)' +
               '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
@@ -152,13 +153,12 @@ describe('app-dir - server source maps', () => {
           ? '\nError: Boom' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
-              // TODO(veil): Turbopack's sourcemap loader drops `ignoreList`
-              '\n    at runInternalIgnored (internal-pkg/ignored.ts:6:9)' +
               '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
               '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
               '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:9)' +
+              // TODO(veil): Should be internal-pkg/sourcemapped.ts
+              '\n    at runInternalSourceMapped (sourcemapped.ts:5:9)' +
               '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:9)' +
@@ -169,12 +169,14 @@ describe('app-dir - server source maps', () => {
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
-              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
+              // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               '\n    at runInternalIgnored (webpack-internal:/(rsc)/internal-pkg/ignored.ts:6:9)' +
               '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
               '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
               '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
-              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry.
+              // Can be worked around by using `./sourcemapped.ts` instead of `sourcemapped.ts`.
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternalSourceMapped (webpack-internal:/(rsc)/internal-pkg/sourcemapped.ts:5:9)' +
               '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
