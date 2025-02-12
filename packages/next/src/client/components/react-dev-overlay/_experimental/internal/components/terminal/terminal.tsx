@@ -136,11 +136,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 }
 
 export const TERMINAL_STYLES = css`
-  .terminal-source {
-    display: flex;
-    align-items: center;
-  }
-
   [data-nextjs-terminal]::selection,
   [data-nextjs-terminal] *::selection {
     background-color: var(--color-ansi-selection);
