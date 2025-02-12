@@ -820,18 +820,23 @@ import remarkRehype from 'remark-rehype'
 import rehypeSanitize from 'rehype-sanitize'
 import rehypeStringify from 'rehype-stringify'
 
-main()
+async function processMarkdown() {
+  try {
+    const file = await unified()
+      .use(remarkParse) // Convert into markdown AST
+      .use(remarkRehype) // Transform to HTML AST
+      .use(rehypeSanitize) // Sanitize HTML input
+      .use(rehypeStringify) // Convert AST into serialized HTML
+      .process('Hello, Next.js!')
 
-async function main() {
-  const file = await unified()
-    .use(remarkParse) // Convert into markdown AST
-    .use(remarkRehype) // Transform to HTML AST
-    .use(rehypeSanitize) // Sanitize HTML input
-    .use(rehypeStringify) // Convert AST into serialized HTML
-    .process('Hello, Next.js!')
-
-  console.log(String(file)) // <p>Hello, Next.js!</p>
+    console.log(String(file)) // <p>Hello, Next.js!</p>
+  } catch (error) {
+    console.error('Error processing markdown:', error) // Log errors in markdown processing 
+  }
 }
+
+processMarkdown()
+
 ```
 
 The `remark` and `rehype` ecosystem contains plugins for [syntax highlighting](https://github.com/atomiks/rehype-pretty-code), [linking headings](https://github.com/rehypejs/rehype-autolink-headings), [generating a table of contents](https://github.com/remarkjs/remark-toc), and more.
