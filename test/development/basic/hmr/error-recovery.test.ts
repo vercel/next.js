@@ -15,8 +15,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 
 describe.each([
-  // { basePath: '', assetPrefix: '' },
-  // { basePath: '', assetPrefix: '/asset-prefix' },
+  { basePath: '', assetPrefix: '' },
+  { basePath: '', assetPrefix: '/asset-prefix' },
   { basePath: '/docs', assetPrefix: '' },
   { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])(
