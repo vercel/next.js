@@ -119,18 +119,18 @@ export function UserProvider({
 ```
 
 ```js filename="app/user-provider.js" switcher
-'use client';
+'use client'
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, ReactNode } from 'react'
 
-const UserContext = createContext(null);
+const UserContext = createContext(null)
 
 export function useUser() {
-  let context = useContext(UserContext);
+  let context = useContext(UserContext)
   if (context === null) {
-    throw new Error('useUser must be used within a UserProvider');
+    throw new Error('useUser must be used within a UserProvider')
   }
-  return context;
+  return context
 }
 
 export function UserProvider({ children, userPromise }) {
@@ -138,7 +138,7 @@ export function UserProvider({ children, userPromise }) {
     <UserContext.Provider value={{ userPromise }}>
       {children}
     </UserContext.Provider>
-  );
+  )
 }
 ```
 
@@ -147,12 +147,12 @@ Finally, you can call the `useUser()` custom hook in any client component and un
 ```tsx filename="app/profile.tsx" switcher
 'use client'
 
-import { use } from 'react';
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
   const { userPromise } = useUser()
-  const user = use(userPromise);
+  const user = use(userPromise)
 
   return '...'
 }
@@ -161,12 +161,12 @@ export function Profile() {
 ```jsx filename="app/profile.js" switcher
 'use client'
 
-import { use } from 'react';
+import { use } from 'react'
 import { useUser } from './user-provider'
 
 export function Profile() {
   const { userPromise } = useUser()
-  const user = use(userPromise);
+  const user = use(userPromise)
 
   return '...'
 }
