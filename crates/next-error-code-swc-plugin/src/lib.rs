@@ -223,6 +223,13 @@ impl VisitMut for TransformVisitor {
                                         value: false,
                                     }))),
                                 }))),
+                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                    key: PropName::Ident("configurable".into()),
+                                    value: Box::new(Expr::Lit(Lit::Bool(Bool {
+                                        span: new_error_expr.span,
+                                        value: true,
+                                    }))),
+                                }))),
                             ],
                         })), // { value: "$code", enumerable: false }
                     },
@@ -303,21 +310,24 @@ async function fetchUserData(userId) {
         if (!response.ok) {
             throw Object.defineProperty(new Error(`Failed to fetch user ${userId}: ${response.statusText}`), "__NEXT_ERROR_CODE", {
                 value: "E1",
-                enumerable: false
+                enumerable: false,
+                configurable: true
             });
         }
         return await response.json();
     } catch (err) {
         throw Object.defineProperty(new Error(`Request failed: ${err.message}`), "__NEXT_ERROR_CODE", {
             value: "E2",
-            enumerable: false
+            enumerable: false,
+            configurable: true
         });
     }
 }
 function test1() {
     throw Object.defineProperty(new Error("Generic error"), "__NEXT_ERROR_CODE", {
         value: "E3",
-        enumerable: false
+        enumerable: false,
+        configurable: true
     });
 }
 function test2() {
@@ -326,14 +336,16 @@ function test2() {
 function test3() {
     throw Object.defineProperty(new Error("Generic error"), "__NEXT_ERROR_CODE", {
         value: "E3",
-        enumerable: false
+        enumerable: false,
+        configurable: true
     });
 }
 function test4() {
     throw new Error();
     throw Object.defineProperty(new Error("Pattern should define hostname but found\n" + JSON.stringify(pattern)), "__NEXT_ERROR_CODE", {
         value: "E5",
-        enumerable: false
+        enumerable: false,
+        configurable: true
     });
 }
 "#
