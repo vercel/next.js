@@ -5,7 +5,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     return 'data';
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "my_fn",
-    "writable": false
+    value: "my_fn",
+    writable: false
 });
 export const my_fn = registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);

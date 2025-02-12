@@ -2,8 +2,8 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 export default /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ async function $$RSC_SERVER_ACTION_0() {}
 Object.defineProperty($$RSC_SERVER_ACTION_0, "name", {
-    "value": "default",
-    "writable": false
+    value: "default",
+    writable: false
 });
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([

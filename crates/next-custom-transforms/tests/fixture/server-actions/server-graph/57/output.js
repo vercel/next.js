@@ -5,8 +5,8 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     return fetch('https://example.com').then((res)=>res.json());
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "foo",
-    "writable": false
+    value: "foo",
+    writable: false
 });
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function bar() {
     console.log(42);

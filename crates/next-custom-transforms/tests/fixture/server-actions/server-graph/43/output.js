@@ -16,7 +16,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_1 = $$ca
     };
 });
 Object.defineProperty($$RSC_SERVER_CACHE_1, "name", {
-    "value": "getCachedRandom",
-    "writable": false
+    value: "getCachedRandom",
+    writable: false
 });
 var getCachedRandom = registerServerReference($$RSC_SERVER_CACHE_1, "e0951c375b4a6a6e89d67b743ec5808127cfde405d", null);

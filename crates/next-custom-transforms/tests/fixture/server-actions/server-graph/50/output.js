@@ -9,7 +9,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     </div>;
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "default",
-    "writable": false
+    value: "default",
+    writable: false
 });
 export default registerServerReference($$RSC_SERVER_CACHE_0, "f03128060c414d59f8552e4788b846c0d2b7f74743", null);

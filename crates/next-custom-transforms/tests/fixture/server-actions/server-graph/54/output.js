@@ -5,8 +5,8 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     return $$ACTION_ARG_0 * $$ACTION_ARG_1;
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "foo",
-    "writable": false
+    value: "foo",
+    writable: false
 });
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function bar($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", $$ACTION_CLOSURE_BOUND);

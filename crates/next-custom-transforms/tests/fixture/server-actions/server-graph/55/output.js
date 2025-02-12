@@ -5,8 +5,8 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     return fetch('https://example.com').then((res)=>res.json());
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "fetch",
-    "writable": false
+    value: "fetch",
+    writable: false
 });
 export const api = {
     product: {

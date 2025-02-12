@@ -9,8 +9,8 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = a
 };
 export default registerServerReference($$RSC_SERVER_ACTION_1, "7090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
 Object.defineProperty($$RSC_SERVER_ACTION_0, "name", {
-    "value": "default",
-    "writable": false
+    value: "default",
+    writable: false
 });
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function foo(a, b) {
     return <div>

@@ -6,8 +6,8 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "fn1",
-    "writable": false
+    value: "fn1",
+    writable: false
 });
 export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_2 = $$cache__("default", "c069348c79fce073bae2f70f139565a2fda1c74c74", 2, async function // Should be 1 100000 0, which is "c0" in hex (counts as one param,
 // because of the encrypted bound args param)
@@ -15,8 +15,8 @@ fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
 });
 Object.defineProperty($$RSC_SERVER_CACHE_2, "name", {
-    "value": "fn2",
-    "writable": false
+    value: "fn2",
+    writable: false
 });
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_4 = async function // Should be 0 110000 0, which is "60" in hex (counts as two params,
 // because of the encrypted bound args param)

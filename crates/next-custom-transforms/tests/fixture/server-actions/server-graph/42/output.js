@@ -8,8 +8,8 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
     };
 });
 Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "fn",
-    "writable": false
+    value: "fn",
+    writable: false
 });
 async function Component({ foo }) {
     const a = 123;

@@ -23,7 +23,7 @@
     "moduleDetection": "force"
   },
   "files": ["./index.ts"], // loads ambient declarations for modules used in tests
-  "include": ["./**/*/input.js", "./**/*/output.js"],
+  "include": ["./**/*/input.js", "./**/*/output.js", "./**/*/output.tsx"],
   "exclude": [
     // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
     "./server-graph/25/output.js",
