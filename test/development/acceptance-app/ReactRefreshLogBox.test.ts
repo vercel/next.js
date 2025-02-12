@@ -1237,16 +1237,16 @@ export default function Home() {
     } else {
       // FIXME: Webpack stack frames are not source mapped
       expect(stackFrames).toMatchInlineSnapshot(`
-       "at eval (app/utils.ts (1:7))
-       at ./app/utils.ts (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/app/page.js (39:1))
-       at options.factory (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (700:31))
-       at __webpack_require__ (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (37:33))
-       at fn (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (357:21))
-       at eval (./app/page.js)
-       at ./app/page.js (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/app/page.js (28:1))
-       at options.factory (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (700:31))
-       at __webpack_require__ (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (37:33))
-       at fn (file:///private/var/folders/58/nhbh7xmd0s99w53vj614rpt80000gn/T/next-install-4d87682b727bfff5d64b51099d2fc0569b4bfc5c58908a4bb599bf25594f1c45/.next/static/chunks/webpack.js (357:21))"
+        "at eval (app/utils.ts (1:7))
+        at ./app/utils.ts ()
+        at options.factory ()
+        at __webpack_require__ ()
+        at fn ()
+        at eval ()
+        at ./app/page.js ()
+        at options.factory ()
+        at __webpack_require__ ()
+        at fn ()"
       `)
     }
   })

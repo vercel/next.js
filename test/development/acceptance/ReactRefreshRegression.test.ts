@@ -284,7 +284,8 @@ describe('ReactRefreshRegression', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
      "> 1 | export default function () { throw new Error('boom'); }
          |                                    ^"
     `)
