@@ -259,7 +259,7 @@ describe('app-dir - owner-stack', () => {
        at renderRootSync 
        at performWorkOnRoot 
        at performWorkOnRootViaSchedulerTask 
-       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
       `)
     }
   })

@@ -94,7 +94,6 @@ describe('use-cache-without-experimental-flag', () => {
         if (isTurbopack) {
           expect(errorSource).toMatchInlineSnapshot(`
            "./app/page.tsx (1:1)
-
            Ecmascript file had an error
            > 1 | 'use cache'
                | ^^^^^^^^^^^

@@ -800,7 +800,10 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(2)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // With owner stacks, we also get an error for the parent context
+        isNewDevOverlay ? 3 : 2
+      )
     })
 
     const description = await session.getRedboxDescription()
