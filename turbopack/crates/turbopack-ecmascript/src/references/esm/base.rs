@@ -1,5 +1,4 @@
 use anyhow::{anyhow, bail, Result};
-use serde::{Deserialize, Serialize};
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, Span, DUMMY_SP},
@@ -7,10 +6,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
-};
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
@@ -37,7 +33,7 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
-    code_gen::{CodeGen, CodeGeneration},
+    code_gen::{CodeGenerateable, CodeGeneration},
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
@@ -114,7 +110,7 @@ impl ReferencedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -256,33 +252,35 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 }
 
-impl EsmAssetReference {
-    pub fn into_code_gen_reference(self) -> (ResolvedVc<EsmAssetReference>, CodeGen) {
-        let reference = self.resolved_cell();
-        (
-            reference,
-            CodeGen::EsmAssetReferenceCodeGen(EsmAssetReferenceCodeGen { reference }),
-        )
-    }
-}
+// impl EsmAssetReference {
+//     pub fn into_code_gen_reference(self) -> (ResolvedVc<EsmAssetReference>, CodeGen) {
+//         let reference = self.resolved_cell();
+//         (
+//             reference,
+//             CodeGen::EsmAssetReferenceCodeGen(EsmAssetReferenceCodeGen { reference }),
+//         )
+//     }
+// }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
-pub struct EsmAssetReferenceCodeGen {
-    reference: ResolvedVc<EsmAssetReference>,
-}
+// #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+// pub struct EsmAssetReferenceCodeGen {
+//     reference: ResolvedVc<EsmAssetReference>,
+// }
 
-impl EsmAssetReferenceCodeGen {
-    pub async fn code_generation(
-        &self,
+#[turbo_tasks::value_impl]
+impl CodeGenerateable for EsmAssetReference {
+    #[turbo_tasks::function]
+    async fn code_generation(
+        self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<CodeGeneration> {
-        let this = &*self.reference.await?;
+    ) -> Result<Vc<CodeGeneration>> {
+        let this = &*self.await?;
 
         // only chunked references can be imported
         let result = if this.annotations.chunking_type() != Some("none") {
             let import_externals = this.import_externals;
-            let referenced_asset = self.reference.get_referenced_asset().await?;
+            let referenced_asset = self.get_referenced_asset().await?;
             if let ReferencedAsset::Unresolvable = &*referenced_asset {
                 // Insert code that throws immediately at time of import if a request is
                 // unresolvable
@@ -409,9 +407,9 @@ impl EsmAssetReferenceCodeGen {
         };
 
         if let Some((key, stmt)) = result {
-            Ok(CodeGeneration::hoisted_stmt(key, stmt))
+            Ok(CodeGeneration::hoisted_stmt(key, stmt).cell())
         } else {
-            Ok(CodeGeneration::empty())
+            Ok(CodeGeneration::empty().cell())
         }
     }
 }
