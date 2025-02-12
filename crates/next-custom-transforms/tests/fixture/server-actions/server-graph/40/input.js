@@ -1,3 +1,5 @@
+import { Form } from 'components'
+
 async function Component({ a }) {
   const b = 1
 
@@ -16,8 +18,8 @@ async function Component({ a }) {
   }
 
   return (
-    <form action={action}>
+    <Form action={action}>
       <button>Submit</button>
-    </form>
+    </Form>
   )
 }
