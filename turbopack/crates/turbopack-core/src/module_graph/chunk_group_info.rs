@@ -269,7 +269,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         } else {
                             // Fast path
                             let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
-                                module_chunk_groups.get_many_mut([&parent, &node.module])
+                                module_chunk_groups.get_disjoint_mut([&parent, &node.module])
                             else {
                                 // All modules are inserted in the previous iteration
                                 unreachable!()
