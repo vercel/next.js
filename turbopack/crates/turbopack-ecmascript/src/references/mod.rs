@@ -219,25 +219,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.references.insert(ResolvedVc::upcast(reference));
     }
 
-    /// Adds an asset reference with codegen to the analysis result.
-    pub fn add_import_reference_code_gen<R: IntoCodeGenReference>(
-        &mut self,
-        reference: R,
-        path: AstPath,
-    ) {
-        let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.add_import_reference(reference);
-        self.add_code_gen(code_gen);
-    }
-
-    /// Adds an reexport reference to the analysis result.
-    pub fn add_local_reference(
-        &mut self,
-        reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>,
-    ) {
-        self.local_references.insert(ResolvedVc::upcast(reference));
-    }
-
     /// Adds an reexport reference to the analysis result.
     pub fn add_reexport_reference(
         &mut self,
