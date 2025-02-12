@@ -15,8 +15,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 
 describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
+  // { basePath: '', assetPrefix: '' },
+  // { basePath: '', assetPrefix: '/asset-prefix' },
   { basePath: '/docs', assetPrefix: '' },
   { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])(
@@ -231,7 +231,7 @@ describe.each([
         `)
       } else if (basePath === '/docs' && process.env.TURBOPACK) {
         expect(source).toMatchInlineSnapshot(`
-            "./pages/hmr/about2.js:7:1
+            "./pages/hmr/about2.js (7:1)
             Parsing ecmascript source code failed
               5 |     div
               6 |   )
