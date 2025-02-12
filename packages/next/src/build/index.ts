@@ -80,7 +80,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
-  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -1341,24 +1340,6 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
-      // if (config.experimental.streamingMetadata) {
-      //   // Write html limited bots config to response-config-manifest
-      //   const responseConfigManifestPath = path.join(
-      //     distDir,
-      //     RESPONSE_CONFIG_MANIFEST
-      //   )
-      //   const responseConfigManifest: {
-      //     version: number
-      //     htmlLimitedBots: string
-      //   } = {
-      //     version: 0,
-      //     htmlLimitedBots:
-      //       config.experimental.htmlLimitedBots ||
-      //       HTML_LIMITED_BOT_UA_RE_STRING,
-      //   }
-      //   await writeManifest(responseConfigManifestPath, responseConfigManifest)
-      // }
-
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
       await writeFileUtf8(
@@ -2269,9 +2250,6 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(config.experimental.streamingMetadata
-                ? [RESPONSE_CONFIG_MANIFEST]
-                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
