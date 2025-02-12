@@ -443,10 +443,9 @@ describe('Error overlay for hydration errors in App router', () => {
     })
 
     // FIXME: Should also have "text nodes cannot be a child of tr"
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-     "In HTML, text nodes cannot be a child of <tr>.
-     This will cause a hydration error."
-    `)
+    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+      `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
+    )
 
     const pseudoHtml = await session.getRedboxComponentStack()
     expect(pseudoHtml).toMatchInlineSnapshot(`

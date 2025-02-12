@@ -430,10 +430,10 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `"Expected server HTML to contain a matching <table> in <div>."`
       )
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-       "In HTML, text nodes cannot be a child of <tr>.
-       This will cause a hydration error."
-      `)
+      // FIXME: should show "Expected server HTML to contain a matching <table> in <div>." first
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
+      )
     }
 
     const pseudoHtml = await session.getRedboxComponentStack()
@@ -497,10 +497,9 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
       expect(await getRedboxTotalErrorCount(browser)).toBe(3)
     } else {
-      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(`
-       "In HTML, text nodes cannot be a child of <table>.
-       This will cause a hydration error."
-      `)
+      expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
+        `"Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:"`
+      )
 
       const pseudoHtml = await session.getRedboxComponentStack()
       if (isTurbopack) {
