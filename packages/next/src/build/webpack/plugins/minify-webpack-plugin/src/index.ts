@@ -47,7 +47,7 @@ export class MinifyPlugin {
       RawSource: typeof sources.RawSource
     }
   ) {
-    const mangle = this.options.noMangling ? false : true
+    const mangle = !this.options.noMangling
     const compilationSpan = spans.get(compilation)! || spans.get(compiler)
 
     const MinifierSpan = compilationSpan.traceChild(
