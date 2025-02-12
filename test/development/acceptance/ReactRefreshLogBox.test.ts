@@ -798,13 +798,13 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (process.env.TURBOPACK) {
       expect(stack).toMatchInlineSnapshot(`
        "at <unknown> (pages/index.js (3:11))
-       at Array.map (<anonymous> (0:0))
+       at Array.map ()
        at Page (pages/index.js (2:13))"
       `)
     } else {
       expect(stack).toMatchInlineSnapshot(`
        "at eval (pages/index.js (3:11))
-       at Array.map (<anonymous> (0:0))
+       at Array.map ()
        at Page (pages/index.js (2:13))"
       `)
     }
@@ -837,9 +837,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const stack = await getStackFramesContent(browser)
     expect(stack).toMatchInlineSnapshot(`
      "at createURL (pages/index.js (4:3))
-     at getServerSideProps (pages/index.js (8:3))
-     at eval (./dist/esm/server/route-modules/pages/module.js)
-     at renderToHTMLImpl (./dist/esm/server/route-modules/pages/module.js)"
+     at getServerSideProps (pages/index.js (8:3))"
     `)
 
     await toggleCollapseCallStackFrames(browser)
