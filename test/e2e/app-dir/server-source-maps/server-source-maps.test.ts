@@ -9,13 +9,11 @@ function normalizeCliOutput(output: string) {
 }
 
 describe('app-dir - server source maps', () => {
-  const dependencies =
-    // 'link:' is not suitable for this test since this makes packages
-    // not appear in node_modules.
-    {
-      'internal-pkg': `file:./internal-pkg`,
-      'external-pkg': `file:./external-pkg`,
-    }
+  const dependencies = {
+    // `link:` simulates a package in a monorepo
+    'internal-pkg': `link:./internal-pkg`,
+    'external-pkg': `file:./external-pkg`,
+  }
   const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
@@ -89,71 +87,107 @@ describe('app-dir - server source maps', () => {
     }
   })
 
-  // TODO(veil): Turbopack resolver bug
-  // TODO(veil): Turbopack build? bugs taint the whole dev server
-  ;(isTurbopack ? it.skip : it)(
-    'stack frames are ignore-listed in ssr',
-    async () => {
-      const outputIndex = next.cliOutput.length
-      await next.render('/ssr-error-log-ignore-listed')
+  it('stack frames are ignore-listed in ssr', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/ssr-error-log-ignore-listed')
 
-      if (isNextDev) {
-        await retry(() => {
-          expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
-        })
-        expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-          isTurbopack
-            ? // TODO(veil): Turbopack resolver bug
-              "Module not found: Can't resolve 'internal-pkg'"
-            : '\nError: Boom' +
-                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:8:16)' +
-                '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:17:10)' +
-                '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:16:32)' +
-                '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:15:18)' +
-                '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:14:28)' +
-                '\n    at Page (app/ssr-error-log-ignore-listed/page.js:13:14)' +
-                '\n   6 |' +
-                '\n'
-        )
-      } else {
-        // TODO: Test `next build` with `--enable-source-maps`.
-      }
+    if (isNextDev) {
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        isTurbopack
+          ? '\nError: Boom' +
+              '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
+              '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
+              // TODO(veil): Turbopack's sourcemap loader drops `ignoreList`
+              '\n    at runInternalIgnored (internal-pkg/ignored.ts:6:9)' +
+              '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
+              '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
+              '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:9)' +
+              '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternal (internal-pkg/index.js:2:9)' +
+              '\n    at Page (app/ssr-error-log-ignore-listed/page.js:14:14)' +
+              '\n   7 |' +
+              '\n'
+          : '\nError: Boom' +
+              '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:16)' +
+              '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:12)' +
+              // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              '\n    at runInternalIgnored (webpack-internal:/(ssr)/internal-pkg/ignored.ts:6:9)' +
+              '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
+              '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
+              '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternalSourceMapped (webpack-internal:/(ssr)/internal-pkg/sourcemapped.ts:5:9)' +
+              '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternal (internal-pkg/index.js:2:9)' +
+              '\n    at Page (app/ssr-error-log-ignore-listed/page.js:14:14)' +
+              '\n   7 |' +
+              '\n'
+      )
+    } else {
+      // TODO: Test `next build` with `--enable-source-maps`.
     }
-  )
+  })
 
-  // TODO(veil): Turbopack resolver bug
-  // TODO(veil): Turbopack build? bugs taint the whole dev server
-  ;(isTurbopack ? it.skip : it)(
-    'stack frames are ignore-listed in rsc',
-    async () => {
-      const outputIndex = next.cliOutput.length
-      await next.render('/rsc-error-log-ignore-listed')
+  it('stack frames are ignore-listed in rsc', async () => {
+    const outputIndex = next.cliOutput.length
+    await next.render('/rsc-error-log-ignore-listed')
 
-      if (isNextDev) {
-        await retry(() => {
-          expect(
-            normalizeCliOutput(next.cliOutput.slice(outputIndex))
-          ).toContain('Error: Boom')
-        })
+    if (isNextDev) {
+      await retry(() => {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-          isTurbopack
-            ? // TODO(veil): Turbopack resolver bug
-              "Module not found: Can't resolve 'internal-pkg'"
-            : '\nError: Boom' +
-                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:16)' +
-                '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:19:10)' +
-                '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:18:32)' +
-                '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:18)' +
-                '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:16:28)' +
-                '\n    at Page (app/rsc-error-log-ignore-listed/page.js:15:14)' +
-                '\n   6 |' +
-                '\n'
+          'Error: Boom'
         )
-      } else {
-        // TODO: Test `next build` with `--enable-source-maps`.
-      }
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        isTurbopack
+          ? '\nError: Boom' +
+              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
+              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
+              // TODO(veil): Turbopack's sourcemap loader drops `ignoreList`
+              '\n    at runInternalIgnored (internal-pkg/ignored.ts:6:9)' +
+              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
+              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
+              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:9)' +
+              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternal (internal-pkg/index.js:2:9)' +
+              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:16:14)' +
+              '\n   7 |' +
+              '\n'
+          : '\nError: Boom' +
+              '\n    at logError (app/rsc-error-log-ignore-listed/page.js:9:16)' +
+              '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:21:12)' +
+              // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              '\n    at runInternalIgnored (webpack-internal:/(rsc)/internal-pkg/ignored.ts:6:9)' +
+              '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:20:29)' +
+              '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:19:32)' +
+              '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:18:18)' +
+              // TODO(veil): Webpack's sourcemap loader creates an incorrect `sources` entry
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternalSourceMapped (webpack-internal:/(rsc)/internal-pkg/sourcemapped.ts:5:9)' +
+              '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:17:28)' +
+              // Realpath does not point into node_modules so we don't ignore it.
+              '\n    at runInternal (internal-pkg/index.js:2:9)' +
+              '\n    at Page (app/rsc-error-log-ignore-listed/page.js:16:14)' +
+              '\n   7 |' +
+              '\n'
+      )
+    } else {
+      // TODO: Test `next build` with `--enable-source-maps`.
     }
-  )
+  })
 
   it('thrown SSR errors', async () => {
     const outputIndex = next.cliOutput.length
