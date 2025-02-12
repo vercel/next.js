@@ -4,7 +4,7 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "803128060c414d59f8552e4788b846c0d2b7f74743", 0, async function foo() {
     return fetch('https://example.com').then((res)=>res.json());
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "foo",
     writable: false
 });

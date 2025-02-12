@@ -9,7 +9,7 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e47
         b
     ];
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "f1",
     writable: false
 });
@@ -30,7 +30,7 @@ export var // Should be 1 111111 1, which is "ff" in hex.
         rest
     ];
 });
-Object.defineProperty($$RSC_SERVER_CACHE_2, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
     value: "f3",
     writable: false
 });
@@ -70,7 +70,7 @@ export var // Should be 1 111111 1, which is "ff" in hex.
         g
     ];
 });
-Object.defineProperty($$RSC_SERVER_CACHE_5, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_5, "name", {
     value: "f6",
     writable: false
 });

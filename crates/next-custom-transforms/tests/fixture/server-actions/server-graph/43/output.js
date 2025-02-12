@@ -15,7 +15,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_1 = $$ca
         r: children
     };
 });
-Object.defineProperty($$RSC_SERVER_CACHE_1, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "getCachedRandom",
     writable: false
 });

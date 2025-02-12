@@ -15,7 +15,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_1 = $$ca
     // @ts-expect-error: data is not a valid react child
     return <div>{data}</div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_1, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "Component",
     writable: false
 });

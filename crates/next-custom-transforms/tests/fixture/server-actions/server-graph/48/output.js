@@ -30,7 +30,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
       {b}
     </div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "cache",
     writable: false
 });

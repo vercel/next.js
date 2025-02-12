@@ -5,7 +5,7 @@ import { Client } from 'components';
 export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, async function([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "fn1",
     writable: false
 });
@@ -14,7 +14,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_2 = $$ca
 fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_2, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
     value: "fn2",
     writable: false
 });

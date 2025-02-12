@@ -8,7 +8,7 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
       {c}
     </div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "default",
     writable: false
 });
