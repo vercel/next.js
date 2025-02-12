@@ -211,8 +211,9 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.add_code_gen(code_gen);
     }
 
-    /// Adds an asset reference to the analysis result.
-    pub fn add_import_reference(
+    /// Adds a reference belonging to ESM imports to the analysis result.
+    /// If you're unsure about which function to use, use `add_reference()`
+    pub fn add_non_local_reference(
         &mut self,
         reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>,
     ) {
@@ -220,6 +221,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an reexport reference to the analysis result.
+    /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_reexport_reference(
         &mut self,
         reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>,
@@ -229,6 +231,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an evaluation reference to the analysis result.
+    /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_evaluation_reference(&mut self, reference: ResolvedVc<EsmAssetReference>) {
         self.evaluation_references
             .insert(ResolvedVc::upcast(reference));
@@ -642,7 +645,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             import_references.push(reference);
             if should_add_evaluation {
                 analysis.add_evaluation_reference(reference);
-                analysis.add_import_reference(reference);
+                analysis.add_non_local_reference(reference);
             }
         }
         anyhow::Ok(())
@@ -658,13 +661,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let mut visitor =
                     ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
+                let mut esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = vec![];
+
                 for (i, reexport) in eval_context.imports.reexports() {
                     let import_ref = import_references[i];
                     match reexport {
                         Reexport::Star => {
-                            visitor
-                                .esm_star_exports
-                                .push(ResolvedVc::upcast(import_ref));
+                            esm_star_exports.push(ResolvedVc::upcast(import_ref));
                         }
                         Reexport::Namespace { exported: n } => {
                             visitor.esm_exports.insert(
@@ -695,7 +698,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     visitor.webpack_entry,
                     visitor.webpack_chunks,
                     visitor.esm_exports,
-                    visitor.esm_star_exports,
+                    esm_star_exports,
                 )
             });
 
@@ -704,18 +707,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 EsmExport::LocalBinding(..) => {}
                 EsmExport::ImportedNamespace(reference) => {
                     analysis.add_reexport_reference(reference);
-                    analysis.add_import_reference(reference);
+                    analysis.add_non_local_reference(reference);
                 }
                 EsmExport::ImportedBinding(reference, ..) => {
                     analysis.add_reexport_reference(reference);
-                    analysis.add_import_reference(reference);
+                    analysis.add_non_local_reference(reference);
                 }
                 EsmExport::Error => {}
             }
         }
         for reference in &esm_star_exports {
             analysis.add_reexport_reference(*reference);
-            analysis.add_import_reference(*reference);
+            analysis.add_non_local_reference(*reference);
         }
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
             if specified_type == SpecifiedModuleType::CommonJs {
@@ -2959,7 +2962,6 @@ struct ModuleReferencesVisitor<'a> {
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: BTreeMap<RcStr, EsmExport>,
-    esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
@@ -2977,7 +2979,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
             import_references,
             analysis,
             esm_exports: BTreeMap::new(),
-            esm_star_exports: Vec::new(),
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
