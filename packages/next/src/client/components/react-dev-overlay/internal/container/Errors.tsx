@@ -309,7 +309,10 @@ export function Errors({
               close={isServerError ? undefined : minimize}
             >
               <small>
-                <span>{activeIdx + 1}</span> of{' '}
+                <span data-nextjs-dialog-error-index={activeIdx}>
+                  {activeIdx + 1}
+                </span>{' '}
+                of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
                 </span>
