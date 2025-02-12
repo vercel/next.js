@@ -1,4 +1,5 @@
 import type {
+  ActionSourceInfo,
   MiddlewareConfig,
   MiddlewareMatcher,
   RSCModuleType,
@@ -28,8 +29,8 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
 
 export interface RSCMeta {
   type: RSCModuleType
-  actions?: string[]
   actionIds?: Record<string, string>
+  actionSourceInfo?: Record<string, ActionSourceInfo>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean

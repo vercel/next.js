@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","c0951c375b4a6a6e89d67b743ec5808127cfde405d":"$$RSC_SERVER_CACHE_1"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"exported":"$$RSC_SERVER_ACTION_0","original":"fn","span":{"start":76,"end":156}},"c0951c375b4a6a6e89d67b743ec5808127cfde405d":{"exported":"$$RSC_SERVER_CACHE_1","original":"Component","span":{"start":21,"end":212}}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function fn($$ACTION_CLOSURE_BOUND) {

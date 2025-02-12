@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":"$$RSC_SERVER_ACTION_0","e0951c375b4a6a6e89d67b743ec5808127cfde405d":"$$RSC_SERVER_CACHE_1"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"406a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"exported":"$$RSC_SERVER_ACTION_0","original":null,"span":{"start":212,"end":292}},"e0951c375b4a6a6e89d67b743ec5808127cfde405d":{"exported":"$$RSC_SERVER_CACHE_1","original":"getCachedRandom","span":{"start":76,"end":332}}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 import { Foo } from './client';

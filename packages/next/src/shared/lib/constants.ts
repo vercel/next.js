@@ -68,6 +68,7 @@ export const BARREL_OPTIMIZATION_PREFIX = '__barrel_optimize__'
 export const CLIENT_REFERENCE_MANIFEST = 'client-reference-manifest'
 // server/server-reference-manifest
 export const SERVER_REFERENCE_MANIFEST = 'server-reference-manifest'
+export const SERVER_REFERENCE_SOURCE_INFO = 'server-reference-source-info'
 // server/middleware-build-manifest.js
 export const MIDDLEWARE_BUILD_MANIFEST = 'middleware-build-manifest'
 // server/middleware-react-loadable-manifest.js

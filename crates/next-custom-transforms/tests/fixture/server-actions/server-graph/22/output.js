@@ -1,4 +1,4 @@
-/* __next_internal_action_entry_do_not_use__ {"7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":"default","7ff14702b5a021dd117f7ec7a3c838f397c2046d3b":"action"} */ import { registerServerReference } from "private-next-rsc-server-reference";
+/* __next_internal_action_entry_do_not_use__ {"7fc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"exported":"default","original":null,"span":{"start":112,"end":137}},"7ff14702b5a021dd117f7ec7a3c838f397c2046d3b":{"exported":"action","original":"action","span":null}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { validator } from 'auth';
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action = validator(async ()=>{});
