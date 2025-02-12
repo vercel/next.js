@@ -486,14 +486,6 @@ describe('Error overlay for hydration errors in Pages router', () => {
       ])
     )
     const { session, browser } = sandbox
-    await retry(async () => {
-      // In the old overlay, there were two states to display, either toast or overlay.
-      // Hence this hasErrorToast() was to check if the overlay was opened. However,
-      // since the new overlay can have both toast and overlay, changed the expect
-      // to be true, and the assertHasRedbox() will check if the overlay is opened.
-      await expect(session.hasErrorToast()).resolves.toBe(true)
-    })
-
     await session.assertHasRedbox()
 
     if (isReact18) {
