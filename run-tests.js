@@ -54,11 +54,6 @@ const externalTestsFilter = getTestFilter()
 if (!process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
   console.log('Setting __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY to true')
   process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY = 'true'
-} else {
-  console.log(
-    '__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY is already set to',
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
-  )
 }
 
 const timings = []
