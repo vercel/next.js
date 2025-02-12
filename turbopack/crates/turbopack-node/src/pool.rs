@@ -801,7 +801,7 @@ impl NodeJsPool {
                 let process = {
                     let mut processes = self.processes.lock();
                     let process = processes.pop().unwrap();
-                    {
+                    if processes.is_empty() {
                         let mut pools = ACTIVE_POOLS.lock();
                         if let Some(idx) = pools.iter().position(|p| Arc::ptr_eq(p, &self.processes)) {
                             pools.swap_remove(idx);
