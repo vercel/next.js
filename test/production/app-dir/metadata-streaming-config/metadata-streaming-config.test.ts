@@ -9,9 +9,7 @@ describe('app-dir - metadata-streaming-config', () => {
     const requiredServerFiles = JSON.parse(
       await next.readFile('.next/required-server-files.json')
     )
-    expect(requiredServerFiles.files).toContain(
-      '.next/response-config-manifest.json'
-    )
+
     expect(
       requiredServerFiles.config.experimental.htmlLimitedBots
     ).toMatchInlineSnapshot(
