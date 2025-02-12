@@ -724,10 +724,44 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         });
 
         // Schedule the task, if not already scheduled
-        if task.add(CachedDataItem::new_scheduled(
-            self.get_task_desc_fn(task_id),
-        )) {
-            turbo_tasks.schedule(task_id);
+        if let Some(existing) = get!(task, InProgress) {
+            match existing {
+                InProgressState::InProgress(box InProgressStateInner { stale, .. }) => {
+                    if !*stale {
+                        let idx = get!(
+                            task,
+                            CellTypeMaxIndex {
+                                cell_type: cell.type_id
+                            }
+                        )
+                        .copied()
+                        .unwrap_or_default();
+                        if cell.index <= idx {
+                            // The current execution is past the cell, so we need to reexecute.
+                            let Some(InProgressState::InProgress(box InProgressStateInner {
+                                stale,
+                                ..
+                            })) = get_mut!(task, InProgress)
+                            else {
+                                unreachable!();
+                            };
+                            *stale = true;
+                        } else {
+                            // The cell will still be written in the current execution, so we can
+                            // just continue here.
+                        }
+                    }
+                }
+                InProgressState::Scheduled { .. } => {
+                    // Already scheduled
+                }
+            }
+        } else {
+            if task.add(CachedDataItem::new_scheduled(
+                self.get_task_desc_fn(task_id),
+            )) {
+                turbo_tasks.schedule(task_id);
+            }
         }
 
         Ok(Err(listener))
