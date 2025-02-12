@@ -68,8 +68,8 @@ export function PseudoHtmlDiff({
     const reactComponentDiffLines = reactOutputComponentDiff!.split('\n')
     reactComponentDiffLines.forEach((line, index) => {
       let trimmedLine = line.trim()
-      const isDiffLine = trimmedLine[0] === '+' || trimmedLine[0] === '-'
-      const isHighlightedLine = trimmedLine[0] === '>'
+      const isDiffLine = line[0] === '+' || line[0] === '-'
+      const isHighlightedLine = line[0] === '>'
       const hasSign = isDiffLine || isHighlightedLine
       const sign = hasSign ? trimmedLine[0] : ''
       const signIndex = hasSign ? line.indexOf(sign) : -1
@@ -105,7 +105,7 @@ export function PseudoHtmlDiff({
             key={'comp-diff' + index}
             {...(isHighlightedLine
               ? {
-                  'data-nextjs-container-errors-pseudo-html-line--error': true,
+                  'data-nextjs-container-errors-pseudo-html--diff': 'error',
                 }
               : undefined)}
           >
