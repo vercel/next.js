@@ -144,7 +144,7 @@ export function makeExternalHandler({
   transpiledPackages: string[]
   dir: string
 }) {
-  let resolvedExternalPackageDirs: Map<string, string>
+  let resolvedExternalPackageDirs: Promise<Map<string, string>>
   const looseEsmExternals = config.experimental?.esmExternals === 'loose'
 
   return async function handleExternals(
@@ -324,30 +324,33 @@ export function makeExternalHandler({
 
     // If a package should be transpiled by Next.js, we skip making it external.
     // It doesn't matter what the extension is, as we'll transpile it anyway.
-    if (transpiledPackages && !resolvedExternalPackageDirs) {
-      resolvedExternalPackageDirs = new Map()
-      // We need to resolve all the external package dirs initially.
-      for (const pkg of transpiledPackages) {
-        const pkgRes = await resolveExternal(
-          dir,
-          config.experimental.esmExternals,
-          context,
-          pkg + '/package.json',
-          isEsmRequested,
-          optOutBundlingPackages,
-          getResolve,
-          isLocal ? resolveNextExternal : undefined
-        )
-        if (pkgRes.res) {
-          resolvedExternalPackageDirs.set(pkg, path.dirname(pkgRes.res))
+    if (!resolvedExternalPackageDirs) {
+      resolvedExternalPackageDirs = new Promise(async (resolve) => {
+        const m = new Map<string, string>()
+        // We need to resolve all the external package dirs initially.
+        for (const pkg of transpiledPackages) {
+          const pkgRes = await resolveExternal(
+            dir,
+            config.experimental.esmExternals,
+            context,
+            pkg + '/package.json',
+            isEsmRequested,
+            optOutBundlingPackages,
+            getResolve,
+            isLocal ? resolveNextExternal : undefined
+          )
+          if (pkgRes.res) {
+            m.set(pkg, path.dirname(pkgRes.res))
+          }
         }
-      }
+        resolve(m)
+      })
     }
 
     const resolvedBundlingOptOutRes = resolveBundlingOptOutPackages({
       resolvedRes: res,
       config,
-      resolvedExternalPackageDirs,
+      resolvedExternalPackageDirs: await resolvedExternalPackageDirs,
       isAppLayer,
       externalType,
       isOptOutBundling,
