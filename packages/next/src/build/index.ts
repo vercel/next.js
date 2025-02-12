@@ -1341,23 +1341,23 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
-      if (config.experimental.streamingMetadata) {
-        // Write html limited bots config to response-config-manifest
-        const responseConfigManifestPath = path.join(
-          distDir,
-          RESPONSE_CONFIG_MANIFEST
-        )
-        const responseConfigManifest: {
-          version: number
-          htmlLimitedBots: string
-        } = {
-          version: 0,
-          htmlLimitedBots:
-            config.experimental.htmlLimitedBots ||
-            HTML_LIMITED_BOT_UA_RE_STRING,
-        }
-        await writeManifest(responseConfigManifestPath, responseConfigManifest)
-      }
+      // if (config.experimental.streamingMetadata) {
+      //   // Write html limited bots config to response-config-manifest
+      //   const responseConfigManifestPath = path.join(
+      //     distDir,
+      //     RESPONSE_CONFIG_MANIFEST
+      //   )
+      //   const responseConfigManifest: {
+      //     version: number
+      //     htmlLimitedBots: string
+      //   } = {
+      //     version: 0,
+      //     htmlLimitedBots:
+      //       config.experimental.htmlLimitedBots ||
+      //       HTML_LIMITED_BOT_UA_RE_STRING,
+      //   }
+      //   await writeManifest(responseConfigManifestPath, responseConfigManifest)
+      // }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
@@ -2778,6 +2778,10 @@ export default async function build(
                 ? true
                 : undefined
 
+            const htmlBotsRegexString =
+              config.experimental.htmlLimitedBots ||
+              HTML_LIMITED_BOT_UA_RE_STRING
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2787,6 +2791,17 @@ export default async function build(
                 key: 'content-type',
                 value: 'multipart/form-data;.*',
               },
+              // If it's PPR rendered non-static page, bypass the PPR cache when streaming metadata is enabled.
+              // This will skip the postpone data for those bots requests and instead produce a dynamic render.
+              ...(isRoutePPREnabled && config.experimental.streamingMetadata
+                ? [
+                    {
+                      type: 'header',
+                      key: 'user-agent',
+                      value: htmlBotsRegexString,
+                    },
+                  ]
+                : []),
             ]
 
             // We should collect all the dynamic routes into a single array for

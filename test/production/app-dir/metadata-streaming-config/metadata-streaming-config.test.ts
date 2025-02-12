@@ -18,14 +18,27 @@ describe('app-dir - metadata-streaming-config', () => {
       `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview"`
     )
 
-    const responseConfigManifest = JSON.parse(
-      await next.readFile('.next/response-config-manifest.json')
+    const prerenderManifest = JSON.parse(
+      await next.readFile('.next/prerender-manifest.json')
     )
+    const { routes } = prerenderManifest
 
-    expect(responseConfigManifest).toMatchInlineSnapshot(`
+    const bypassConfigs = Object.keys(routes)
+      // Pick the 3rd bypass config for each route
+      .map((route) => [route, routes[route].experimentalBypassFor?.[2]])
+      .filter(([, bypassConfig]) => Boolean(bypassConfig))
+      .reduce((acc, [route, bypassConfig]) => {
+        acc[route] = bypassConfig
+        return acc
+      }, {})
+
+    expect(bypassConfigs).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview",
-       "version": 0,
+       "/ppr": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview",
+       },
      }
     `)
   })
