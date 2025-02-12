@@ -26,14 +26,25 @@ pub use source_map_asset::SourceMapAsset;
 /// Represents an empty value in a u32 variable in the sourcemap crate.
 static SOURCEMAP_CRATE_NONE_U32: u32 = !0;
 
+#[turbo_tasks::value(transparent)]
+pub struct OptionStringifiedSourceMap(Option<Rope>);
+
+#[turbo_tasks::value_impl]
+impl OptionStringifiedSourceMap {
+    #[turbo_tasks::function]
+    pub fn none() -> Vc<Self> {
+        Vc::cell(None)
+    }
+}
+
 /// Allows callers to generate source maps.
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap>;
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
 
     /// Returns an individual section of the larger source map, if found.
-    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionSourceMap> {
+    fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         Vc::cell(None)
     }
 }
@@ -49,6 +60,7 @@ pub trait GenerateSourceMap {
 /// [SourceMap::Sectioned] is whether the sections are represented with Vcs
 /// pointers.
 #[turbo_tasks::value(shared, cell = "new")]
+#[derive(Debug)]
 pub enum SourceMap {
     /// A decoded source map contains no Vcs.
     Decoded(#[turbo_tasks(trace_ignore)] InnerSourceMap),
@@ -58,7 +70,7 @@ pub enum SourceMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionSourceMap(Option<ResolvedVc<SourceMap>>);
+pub struct OptionSourceMap(Option<SourceMap>);
 
 #[turbo_tasks::value_impl]
 impl OptionSourceMap {
@@ -92,7 +104,7 @@ pub enum Token {
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct TokenWithSource {
-    pub token: ResolvedVc<Token>,
+    pub token: Token,
     pub source_content: Option<ResolvedVc<Box<dyn Source>>>,
 }
 
@@ -190,6 +202,12 @@ impl TryInto<sourcemap::RawToken> for Token {
 }
 
 impl SourceMap {
+    pub fn empty_uncelled() -> Self {
+        let mut builder = SourceMapBuilder::new(None);
+        builder.add(0, 0, 0, 0, None, None, false);
+        SourceMap::new_regular(builder.into_sourcemap())
+    }
+
     /// Creates a new SourceMap::Decoded Vc out of a [RegularMap] instance.
     pub fn new_regular(map: RegularMap) -> Self {
         Self::new_decoded(DecodedMap::Regular(map))
@@ -206,6 +224,13 @@ impl SourceMap {
         SourceMap::Sectioned(SectionedSourceMap::new(sections))
     }
 
+    pub fn new_from_rope(content: &Rope) -> Result<Option<Self>> {
+        let Ok(map) = DecodedMap::from_reader(content.read()) else {
+            return Ok(None);
+        };
+        Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
+    }
+
     pub async fn new_from_file(file: Vc<FileSystemPath>) -> Result<Option<Self>> {
         let read = file.read();
         Self::new_from_file_content(read).await
@@ -220,6 +245,21 @@ impl SourceMap {
             return Ok(None);
         };
         Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl SourceMap {
+    /// This function should be used sparingly to reduce memory usage, only in cold code paths
+    /// (issue resolving, etc).
+    #[turbo_tasks::function]
+    pub async fn new_from_rope_cached(
+        content: Vc<OptionStringifiedSourceMap>,
+    ) -> Result<Vc<OptionSourceMap>> {
+        let Some(content) = &*content.await? else {
+            return Ok(OptionSourceMap::none());
+        };
+        Ok(Vc::cell(SourceMap::new_from_rope(content)?))
     }
 }
 
@@ -248,24 +288,77 @@ impl SourceMap {
     }
 }
 
-#[turbo_tasks::value_impl]
+static EMPTY_SOURCE_MAP_ROPE: Lazy<Rope> =
+    Lazy::new(|| Rope::from(r#"{"version":3,"sources":[],"names":[],"mappings":"A"}"#));
+
 impl SourceMap {
     /// A source map that contains no actual source location information (no
     /// `sources`, no mappings that point into a source). This is used to tell
     /// Chrome that the generated code starting at a particular offset is no
     /// longer part of the previous section's mappings.
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
+    pub fn empty() -> Self {
         let mut builder = SourceMapBuilder::new(None);
         builder.add(0, 0, 0, 0, None, None, false);
-        SourceMap::new_regular(builder.into_sourcemap()).cell()
+        SourceMap::new_regular(builder.into_sourcemap())
+    }
+
+    /// A source map that contains no actual source location information (no
+    /// `sources`, no mappings that point into a source). This is used to tell
+    /// Chrome that the generated code starting at a particular offset is no
+    /// longer part of the previous section's mappings.
+    pub fn empty_rope() -> Rope {
+        EMPTY_SOURCE_MAP_ROPE.clone()
+    }
+
+    pub fn sections_to_rope(sections: impl IntoIterator<Item = (SourcePos, Rope)>) -> Result<Rope> {
+        let mut sections = sections.into_iter().peekable();
+
+        let mut first = sections.next();
+        if let Some((offset, map)) = &mut first {
+            if sections.peek().is_none() && *offset == (0, 0) {
+                // There is just a single sourcemap that starts at the beginning of the file.
+                return Ok(std::mem::take(map));
+            }
+        }
+
+        // My kingdom for a decent dedent macro with interpolation!
+        // NOTE: The empty `sources` array is technically incorrect, but there is a bug
+        // in Node.js that requires sectioned source maps to have a `sources` array.
+        let mut rope = RopeBuilder::from(
+            r#"{
+  "version": 3,
+  "sources": [],
+  "sections": ["#,
+        );
+
+        let mut first_section = true;
+        for (offset, section_map) in first.into_iter().chain(sections) {
+            if !first_section {
+                rope += ",";
+            }
+            first_section = false;
+
+            write!(
+                rope,
+                r#"
+    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
+                offset.line, offset.column,
+            )?;
+
+            rope += &section_map;
+
+            rope += "}";
+        }
+
+        rope += "]
+}";
+
+        Ok(rope.build())
     }
 
     /// Stringifies the source map into JSON bytes.
-    #[turbo_tasks::function]
-    pub async fn to_rope(self: Vc<Self>) -> Result<Vc<Rope>> {
-        let this = self.await?;
-        let rope = match &*this {
+    pub async fn to_rope(&self) -> Result<Rope> {
+        let rope = match self {
             SourceMap::Decoded(r) => {
                 let mut bytes = vec![];
                 r.0.to_writer(&mut bytes)?;
@@ -273,64 +366,23 @@ impl SourceMap {
             }
 
             SourceMap::Sectioned(s) => {
-                if s.sections.len() == 1 {
-                    let s = &s.sections[0];
-                    if s.offset == (0, 0) {
-                        return Ok(s.map.to_rope());
-                    }
-                }
-
-                // My kingdom for a decent dedent macro with interpolation!
-                // NOTE: The empty `sources` array is technically incorrect, but there is a bug
-                // in Node.js that requires sectioned source maps to have a `sources` array.
-                let mut rope = RopeBuilder::from(
-                    r#"{
-  "version": 3,
-  "sources": [],
-  "sections": ["#,
-                );
-
                 let sections = s
                     .sections
                     .iter()
-                    .map(|s| async move { Ok((s.offset, s.map.to_rope().await?)) })
+                    .map(async |s| Ok((s.offset, s.map.to_rope().await?)))
                     .try_join()
                     .await?;
 
-                let mut first_section = true;
-                for (offset, section_map) in sections {
-                    if !first_section {
-                        rope += ",";
-                    }
-                    first_section = false;
-
-                    write!(
-                        rope,
-                        r#"
-    {{"offset": {{"line": {}, "column": {}}}, "map": "#,
-                        offset.line, offset.column,
-                    )?;
-
-                    rope += &*section_map;
-
-                    rope += "}";
-                }
-
-                rope += "]
-}";
-
-                rope.build()
+                Self::sections_to_rope(sections)?
             }
         };
-        Ok(rope.cell())
+        Ok(rope)
     }
 
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
-    #[turbo_tasks::function]
-    pub async fn lookup_token(self: Vc<Self>, line: u32, column: u32) -> Result<Vc<Token>> {
+    pub async fn lookup_token(&self, line: u32, column: u32) -> Result<Token> {
         let (token, _) = self
-            .await?
             .lookup_token_and_source_internal(line, column, true)
             .await?;
         Ok(token)
@@ -338,30 +390,20 @@ impl SourceMap {
 
     /// Traces a generated line/column into an mapping token representing either
     /// synthetic code or user-authored original code.
-    #[turbo_tasks::function]
-    pub async fn lookup_token_and_source(
-        self: Vc<Self>,
-        line: u32,
-        column: u32,
-    ) -> Result<Vc<TokenWithSource>> {
+    pub async fn lookup_token_and_source(&self, line: u32, column: u32) -> Result<TokenWithSource> {
         let (token, content) = self
-            .await?
             .lookup_token_and_source_internal(line, column, true)
             .await?;
         Ok(TokenWithSource {
-            token: token.to_resolved().await?,
+            token,
             source_content: match content {
                 Some(v) => Some(v.to_resolved().await?),
                 None => None,
             },
-        }
-        .cell())
+        })
     }
-    #[turbo_tasks::function]
-    pub async fn with_resolved_sources(
-        self: Vc<Self>,
-        origin: Vc<FileSystemPath>,
-    ) -> Result<Vc<Self>> {
+
+    pub async fn with_resolved_sources(&self, origin: Vc<FileSystemPath>) -> Result<Self> {
         async fn resolve_source(
             source_request: Arc<str>,
             source_content: Option<Arc<str>>,
@@ -474,7 +516,7 @@ impl SourceMap {
                 }
             }))
         }
-        Ok(match &*self.await? {
+        Ok(match self {
             Self::Decoded(m) => {
                 let map = Box::pin(decoded_map_with_resolved_sources(&m.map, origin)).await?;
                 Self::Decoded(InnerSourceMap::new(map.0))
@@ -482,18 +524,25 @@ impl SourceMap {
             Self::Sectioned(m) => {
                 let mut sections = Vec::with_capacity(m.sections.len());
                 for section in &m.sections {
-                    let map = section
-                        .map
-                        .with_resolved_sources(origin)
-                        .to_resolved()
-                        .await?;
+                    let map = Box::pin(section.map.with_resolved_sources(origin)).await?;
                     sections.push(SourceMapSection::new(section.offset, map));
                 }
                 SourceMap::new_sectioned(sections)
             }
-        }
-        .cell())
+        })
     }
+}
+
+#[turbo_tasks::function]
+fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
+    VirtualFileSystem::new_with_name("sourcemap-content".into()).root()
+}
+
+#[turbo_tasks::function]
+fn sourcemap_content_source(path: RcStr, content: RcStr) -> Vc<Box<dyn Source>> {
+    let path = sourcemap_content_fs_root().join(path);
+    let content = AssetContent::file(FileContent::new(File::from(content)).cell());
+    Vc::upcast(VirtualSource::new(path, content))
 }
 
 impl SourceMap {
@@ -502,7 +551,7 @@ impl SourceMap {
         line: u32,
         column: u32,
         need_source_content: bool,
-    ) -> Result<(Vc<Token>, Option<Vc<Box<dyn Source>>>)> {
+    ) -> Result<(Token, Option<Vc<Box<dyn Source>>>)> {
         let mut content: Option<Vc<Box<dyn Source>>> = None;
 
         let token: Token = match self {
@@ -538,12 +587,7 @@ impl SourceMap {
                             let content = map.get_source_contents(src_id);
 
                             let (name, content) = name.zip(content)?;
-
-                            let path = VirtualFileSystem::new().root().join(name.into());
-                            let content =
-                                AssetContent::file(FileContent::new(File::from(content)).cell());
-
-                            Some(Vc::upcast(VirtualSource::new(path, content)))
+                            Some(sourcemap_content_source(name.into(), content.into()))
                         });
                     }
                 }
@@ -585,10 +629,10 @@ impl SourceMap {
                     };
 
                     if need_source_content {
-                        let result = map.lookup_token_and_source(l, c).await?;
-                        return Ok((*result.token, result.source_content.map(|v| *v)));
+                        let result = Box::pin(map.lookup_token_and_source(l, c)).await?;
+                        return Ok((result.token, result.source_content.map(|v| *v)));
                     } else {
-                        return Ok((map.lookup_token(l, c), None));
+                        return Ok((Box::pin(map.lookup_token(l, c)).await?, None));
                     }
                 }
                 Token::Synthetic(SyntheticToken {
@@ -599,20 +643,15 @@ impl SourceMap {
             }
         };
 
-        Ok((token.cell(), content))
+        Ok((token, content))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(self: ResolvedVc<Self>) -> Vc<OptionSourceMap> {
-        Vc::cell(Some(self))
-    }
-
-    #[turbo_tasks::function]
-    fn by_section(&self, _section: RcStr) -> Vc<OptionSourceMap> {
-        Vc::cell(None)
+    async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.await?.to_rope().await?)))
     }
 }
 
@@ -746,35 +785,19 @@ impl SectionedSourceMap {
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SourceMapSection {
     offset: SourcePos,
-    map: ResolvedVc<SourceMap>,
+    map: SourceMap,
 }
 
 impl SourceMapSection {
-    pub fn new(offset: SourcePos, map: ResolvedVc<SourceMap>) -> Self {
+    pub fn new(offset: SourcePos, map: SourceMap) -> Self {
         Self { offset, map }
     }
 
     pub async fn to_crate_wrapper(&self) -> Result<CrateSectionWrapper> {
-        let map = Box::pin((*self.map.await?).to_source_map()).await?;
+        let map = Box::pin(self.map.to_source_map()).await?;
         Ok(CrateSectionWrapper {
             offset: self.offset,
             map,
         })
     }
-}
-
-#[turbo_tasks::function]
-pub async fn convert_to_turbopack_source_map(
-    source_map: Vc<OptionSourceMap>,
-    origin: Vc<FileSystemPath>,
-) -> Result<Vc<OptionSourceMap>> {
-    let Some(source_map) = *source_map.await? else {
-        return Ok(Vc::cell(None));
-    };
-    Ok(Vc::cell(Some(
-        source_map
-            .with_resolved_sources(origin)
-            .to_resolved()
-            .await?,
-    )))
 }

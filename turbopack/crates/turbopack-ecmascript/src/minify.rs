@@ -19,14 +19,14 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
 #[turbo_tasks::function]
 pub async fn minify(
@@ -119,10 +119,7 @@ pub async fn minify(
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(ResolvedVc::upcast(
-                ParseResultSourceMap::new(cm, src_map_buf, original_map.to_resolved().await?)
-                    .resolved_cell(),
-            )),
+            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
         );
 
         write!(

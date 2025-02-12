@@ -9695,6 +9695,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "criterion",
+ "data-encoding",
  "either",
  "indexmap 2.7.1",
  "indoc",
