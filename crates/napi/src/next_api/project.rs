@@ -145,7 +145,9 @@ pub struct NapiProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: String,
 
-    /// Whether mangling should be disabled
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
     pub no_mangling: bool,
 }
 
@@ -194,7 +196,9 @@ pub struct NapiPartialProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<String>,
 
-    /// Whether mangling should be disabled
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
 }
 

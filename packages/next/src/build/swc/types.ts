@@ -382,7 +382,9 @@ export interface ProjectOptions {
   browserslistQuery: string
 
   /**
-   * Whether mangling should be disabled
+   * When the code is minified, this opts out of the default mangling of local
+   * names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
    */
   noMangling: boolean
 }

@@ -128,7 +128,11 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: string
-  /** Whether mangling should be disabled */
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
   noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
@@ -168,7 +172,11 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: string
-  /** Whether mangling should be disabled */
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
   noMangling?: boolean
 }
 export interface NapiDefineEnv {
