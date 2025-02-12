@@ -119,13 +119,11 @@ fn patch_opts(opts: &mut JsMinifyOptions) {
         ..Default::default()
     });
 
-    if opts.mangle.is_true() {
-        opts.mangle = BoolOrDataConfig::from_obj(MangleOptions {
-            reserved: vec!["AbortSignal".into()],
-            ..Default::default()
-        });
-    } else if opts.mangle.is_obj() {
-        let mangle = std::mem::take(&mut opts.mangle);
+    if !opts.mangle.is_false() {
+        let mut mangle = std::mem::take(&mut opts.mangle);
+        if mangle.is_true() {
+            mangle = BoolOrDataConfig::from_obj(MangleOptions::default());
+        }
         opts.mangle = mangle.map(|mut mangle_opts| {
             mangle_opts.reserved.push("AbortSignal".into());
             mangle_opts
