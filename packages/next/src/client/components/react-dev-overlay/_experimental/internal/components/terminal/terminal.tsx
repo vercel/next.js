@@ -92,7 +92,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   const fileExtension = stackFrame?.file?.split('.').pop()
 
   return (
-    <div data-nextjs-terminal>
+    <div data-nextjs-codeframe>
       <button
         aria-label="Open in editor"
         className="code-frame-header"
