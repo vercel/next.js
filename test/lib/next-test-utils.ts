@@ -1673,13 +1673,14 @@ export async function assertNoConsoleErrors(browser: BrowserInterface) {
 
 export async function getHighlightedDiffLines(
   browser: BrowserInterface
-): Promise<string[]> {
+): Promise<[string, string][]> {
   const lines = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html--diff]'
   )
   return Promise.all(
-    lines.map((line) =>
-      line.getAttribute('data-nextjs-container-errors-pseudo-html--diff')
-    )
+    lines.map(async (line) => [
+      await line.getAttribute('data-nextjs-container-errors-pseudo-html--diff'),
+      (await line.innerText())[0],
+    ])
   )
 }

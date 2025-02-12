@@ -67,11 +67,10 @@ export function PseudoHtmlDiff({
     const componentStacks: React.ReactNode[] = []
     const reactComponentDiffLines = reactOutputComponentDiff!.split('\n')
     reactComponentDiffLines.forEach((line, index) => {
-      let trimmedLine = line.trim()
       const isDiffLine = line[0] === '+' || line[0] === '-'
       const isHighlightedLine = line[0] === '>'
       const hasSign = isDiffLine || isHighlightedLine
-      const sign = hasSign ? trimmedLine[0] : ''
+      const sign = hasSign ? line[0] : ''
       const signIndex = hasSign ? line.indexOf(sign) : -1
       const [prefix, suffix] = hasSign
         ? [line.slice(0, signIndex), line.slice(signIndex + 1)]

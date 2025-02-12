@@ -76,8 +76,14 @@ describe('hydration-error-count', () => {
                                  >
                              ...",
        "highlightedLines": [
-         "add",
-         "remove",
+         [
+           "add",
+           "+",
+         ],
+         [
+           "remove",
+           "-",
+         ],
        ],
        "notes": "- A server/client branch \`if (typeof window !== 'undefined')\`.
      - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
@@ -113,8 +119,14 @@ describe('hydration-error-count', () => {
      >                             <p>
                              ...",
        "highlightedLines": [
-         "error",
-         "error",
+         [
+           "error",
+           ">",
+         ],
+         [
+           "error",
+           ">",
+         ],
        ],
        "notes": undefined,
      }
