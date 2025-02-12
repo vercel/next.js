@@ -95,6 +95,12 @@ export function getModuleReferencesInOrder(
   module: Module,
   moduleGraph: ModuleGraph
 ): ModuleGraphConnection[] {
+  if (
+    'getOutgoingConnectionsInOrder' in moduleGraph &&
+    typeof moduleGraph.getOutgoingConnectionsInOrder === 'function'
+  ) {
+    return moduleGraph.getOutgoingConnectionsInOrder(module)
+  }
   const connections = []
   for (const connection of moduleGraph.getOutgoingConnections(module)) {
     if (connection.dependency && connection.module) {
