@@ -614,7 +614,7 @@ impl AggregationUpdateQueue {
     /// Creates a new empty queue.
     pub fn new() -> Self {
         Self {
-            jobs: VecDeque::with_capacity(8),
+            jobs: VecDeque::with_capacity(0),
             number_updates: FxIndexMap::default(),
             done_number_updates: FxHashMap::default(),
             find_and_schedule: DequeSet::default(),
