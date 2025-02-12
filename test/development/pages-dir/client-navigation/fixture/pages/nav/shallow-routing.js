@@ -41,7 +41,7 @@ export default withRouter(
 
     render() {
       return (
-        <div className="shallow-routing">
+        <div className="shallow-routing" style={{ paddingBottom: 60 }}>
           <Link href="/nav" id="home-link" style={linkStyle}>
             Home
           </Link>

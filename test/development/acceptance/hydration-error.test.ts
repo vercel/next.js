@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
@@ -6,6 +5,9 @@ import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
+const isNewDevOverlay =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
 describe('Error overlay for hydration errors in Pages router', () => {
@@ -486,6 +488,12 @@ describe('Error overlay for hydration errors in Pages router', () => {
       ])
     )
     const { session, browser } = sandbox
+
+    // in the new overlay, `assertHasRedbox` is redundant with `hasErrorToast`
+    if (!isNewDevOverlay) {
+      await expect(session.hasErrorToast()).resolves.toBe(false)
+    }
+
     await session.assertHasRedbox()
 
     if (isReact18) {
@@ -519,7 +527,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
                          <Page>
          +                 <table>
          -                 {" 123"}
-                       ..."
+                       ...
+                   ..."
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
