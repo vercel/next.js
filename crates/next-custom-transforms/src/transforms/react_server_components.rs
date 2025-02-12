@@ -333,7 +333,6 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
             vec![span1, span2]
         ),
-        //NEXT_RSC_ERR_INVALID_API
         RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
             format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), vec![span]
         ),
