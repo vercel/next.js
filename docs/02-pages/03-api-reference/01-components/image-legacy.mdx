@@ -512,7 +512,7 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support, which will fallback to PNG if the browser [does not support AVIF](https://caniuse.com/avif):
+You can enable AVIF support, which will fallback to the original format of the src image if the browser [does not support AVIF](https://caniuse.com/avif):
 
 ```js filename="next.config.js"
 module.exports = {
