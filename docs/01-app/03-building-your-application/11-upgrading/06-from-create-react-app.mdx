@@ -490,7 +490,7 @@ You can now remove artifacts that are specific to Create React App:
 
 ### Using a Custom `homepage` in CRA
 
-If you used the `homepage` field in your CRA `package.json` to serve the app under a specific subpath, you can replicate that in Next.js using the [`basePath` configuration](/docs/app/api-reference/next-config-js/basepath) in `next.config.ts`:
+If you used the `homepage` field in your CRA `package.json` to serve the app under a specific subpath, you can replicate that in Next.js using the [`basePath` configuration](/docs/app/api-reference/config/next-config-js/basePath) in `next.config.ts`:
 
 ```ts filename="next.config.ts"
 import { NextConfig } from 'next'
@@ -509,7 +509,7 @@ If you used CRA’s service worker (e.g., `serviceWorker.js` from `create-react-
 
 ### Proxying API Requests
 
-If your CRA app used the `proxy` field in `package.json` to forward requests to a backend server, you can replicate this with [Next.js rewrites](/docs/app/api-reference/next-config-js/rewrites) in `next.config.ts`:
+If your CRA app used the `proxy` field in `package.json` to forward requests to a backend server, you can replicate this with [Next.js rewrites](/docs/app/api-reference/config/next-config-js/rewrites) in `next.config.ts`:
 
 ```ts filename="next.config.ts"
 import { NextConfig } from 'next'
