@@ -273,6 +273,41 @@ describe('Error overlay - RSC build errors', () => {
     )
   })
 
+  describe("importing 'next/cache' APIs in a client component", () => {
+    test.each([
+      'revalidatePath',
+      'revalidateTag',
+      'unstable_cacheLife',
+      'unstable_cacheTag',
+      'unstable_expirePath',
+      'unstable_expireTag',
+    ])('%s is not allowed', async (api) => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
+      )
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      )
+    })
+
+    test.each([
+      'unstable_cache', // useless in client, but doesn't technically error
+      'unstable_noStore', // no-op in client, but allowed for legacy reasons
+    ])('%s is allowed', async (api) => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
+      )
+      const { session } = sandbox
+      await session.assertNoRedbox()
+    })
+  })
+
   it('should error for invalid undefined module retuning from next dynamic', async () => {
     await using sandbox = await createSandbox(
       next,
