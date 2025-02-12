@@ -68,8 +68,7 @@ export const CallStackFrame: React.FC<{
       </span>
       <span
         className="call-stack-frame-file-source"
-        data-has-source={hasSource ? 'true' : undefined}
-        data-no-source={hasSource ? undefined : 'true'}
+        data-has-source={hasSource}
       >
         {fileSource}
       </span>

@@ -41,7 +41,7 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
               `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at span (<anonymous> (0:0))
+         "at span ()
          at eval (app/rsc/page.tsx (7:10))
          at Page (app/rsc/page.tsx (6:13))"
         `)
@@ -85,9 +85,9 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at p (<anonymous> (0:0))
+         "at p ()
          at eval (app/ssr/page.tsx (9:10))
-         at Array.map (<anonymous> (0:0))
+         at Array.map ()
          at Page (app/ssr/page.tsx (8:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
