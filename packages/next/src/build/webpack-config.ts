@@ -2133,6 +2133,12 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    (webpack5Config.experiments as any).incremental = {
+      providedExports: true
+    };
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
