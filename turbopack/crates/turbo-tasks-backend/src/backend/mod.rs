@@ -1381,6 +1381,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if !queue.is_empty() || !old_edges.is_empty() {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
@@ -1443,6 +1444,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if has_children {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(&mut ctx);
         }
