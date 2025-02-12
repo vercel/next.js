@@ -200,7 +200,7 @@ export default class BuildManifestPlugin {
     this.rewrites.fallback = options.rewrites.fallback.map(processRoute)
   }
 
-  createAssets(compiler: any, compilation: any, assets: any) {
+  createAssets(compiler: any, compilation: any) {
     const compilationSpan = spans.get(compilation) || spans.get(compiler)
     const createAssetsSpan = compilationSpan?.traceChild(
       'NextJsBuildManifest-createassets'
@@ -297,7 +297,10 @@ export default class BuildManifestPlugin {
           this.buildId
         )
         assetMap.lowPriorityFiles.push(buildManifestPath, ssgManifestPath)
-        assets[ssgManifestPath] = new sources.RawSource(srcEmptySsgManifest)
+        compilation.emitAsset(
+          ssgManifestPath,
+          new sources.RawSource(srcEmptySsgManifest)
+        )
       }
 
       assetMap.pages = Object.keys(assetMap.pages)
@@ -314,29 +317,30 @@ export default class BuildManifestPlugin {
         buildManifestName = `fallback-${BUILD_MANIFEST}`
       }
 
-      assets[buildManifestName] = new sources.RawSource(
-        JSON.stringify(assetMap, null, 2)
+      compilation.emitAsset(
+        buildManifestName,
+        new sources.RawSource(JSON.stringify(assetMap, null, 2))
       )
 
-      assets[`server/${MIDDLEWARE_BUILD_MANIFEST}.js`] = new sources.RawSource(
-        `${createEdgeRuntimeManifest(assetMap)}`
+      compilation.emitAsset(
+        `server/${MIDDLEWARE_BUILD_MANIFEST}.js`,
+        new sources.RawSource(`${createEdgeRuntimeManifest(assetMap)}`)
       )
 
       if (!this.isDevFallback) {
-        const clientManifestPath = `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`
-
-        assets[clientManifestPath] = new sources.RawSource(
-          `self.__BUILD_MANIFEST = ${generateClientManifest(
-            assetMap,
-            this.rewrites,
-            this.clientRouterFilters,
-            compiler,
-            compilation
-          )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+        compilation.emitAsset(
+          `${CLIENT_STATIC_FILES_PATH}/${this.buildId}/_buildManifest.js`,
+          new sources.RawSource(
+            `self.__BUILD_MANIFEST = ${generateClientManifest(
+              assetMap,
+              this.rewrites,
+              this.clientRouterFilters,
+              compiler,
+              compilation
+            )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+          )
         )
       }
-
-      return assets
     })
   }
 
@@ -347,8 +351,8 @@ export default class BuildManifestPlugin {
           name: 'NextJsBuildManifest',
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => {
-          this.createAssets(compiler, compilation, assets)
+        () => {
+          this.createAssets(compiler, compilation)
         }
       )
     })
