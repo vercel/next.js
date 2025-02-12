@@ -99,7 +99,7 @@
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
-    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-ef771fc5-20250206101425",
+    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-396dbff5-20250211161916",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.9.3",
