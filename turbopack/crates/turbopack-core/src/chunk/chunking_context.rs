@@ -18,7 +18,6 @@ use crate::{
 
 #[derive(
     Debug,
-    Default,
     TaskInput,
     Clone,
     Copy,
@@ -32,9 +31,14 @@ use crate::{
     NonLocalValue,
 )]
 pub enum MinifyType {
-    #[default]
-    Minify,
+    Minify { mangle: bool },
     NoMinify,
+}
+
+impl Default for MinifyType {
+    fn default() -> Self {
+        Self::Minify { mangle: true }
+    }
 }
 
 #[derive(

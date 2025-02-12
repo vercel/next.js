@@ -107,11 +107,9 @@ impl EcmascriptBuildNodeChunkContent {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code, source_maps));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)

@@ -33,6 +33,7 @@ pub async fn minify(
     path: Vc<FileSystemPath>,
     code: Vc<Code>,
     source_maps: Vc<bool>,
+    mangle: bool,
 ) -> Result<Vc<Code>> {
     let path = path.await?;
     let source_maps = source_maps.await?.then(|| code.generate_source_map());
@@ -91,10 +92,14 @@ pub async fn minify(
                                 passes: 2,
                                 ..Default::default()
                             }),
-                            mangle: Some(MangleOptions {
-                                reserved: vec!["AbortSignal".into()],
-                                ..Default::default()
-                            }),
+                            mangle: if mangle {
+                                Some(MangleOptions {
+                                    reserved: vec!["AbortSignal".into()],
+                                    ..Default::default()
+                                })
+                            } else {
+                                None
+                            },
                             ..Default::default()
                         },
                         &ExtraOptions {

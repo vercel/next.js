@@ -35,7 +35,9 @@ export interface NextInstanceOpts {
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
+  buildOptions?: string[]
   startCommand?: string
+  startOptions?: string[]
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
@@ -64,7 +66,9 @@ export class NextInstance {
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   protected buildCommand?: string
+  protected buildOptions?: string
   protected startCommand?: string
+  protected startOptions?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
