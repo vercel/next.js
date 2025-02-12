@@ -440,6 +440,11 @@ pub enum CachedDataItem {
         value: DirtyContainerCount,
     },
 
+    // Flags
+    Stateful {
+        value: (),
+    },
+
     // Transient Root Type
     #[serde(skip)]
     Activeness {
@@ -509,6 +514,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItem::Stateful { .. } => true,
             CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -562,7 +568,8 @@ impl CachedDataItem {
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
@@ -601,6 +608,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
@@ -642,7 +650,8 @@ impl CachedDataItemType {
             | Self::Upper { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }

@@ -2,7 +2,6 @@ import type { OriginalStackFrame } from '../../../../../internal/helpers/stack-f
 import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
-import { useMeasureHeight } from '../../../hooks/use-measure-height'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]
@@ -10,10 +9,8 @@ interface CallStackProps {
 }
 
 export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
-  const ignoreListRef = useRef<HTMLDivElement | null>(null)
   const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
-  const [ignoreListHeight] = useMeasureHeight(ignoreListRef)
 
   const { visibleFrames, ignoredFrames, ignoreListLength } = useMemo(() => {
     const visible: OriginalStackFrame[] = []
@@ -50,14 +47,13 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
 
     if (isIgnoreListOpen) {
       function onTransitionEnd() {
-        setIsIgnoreListOpen(false)
         dialog.removeEventListener('transitionend', onTransitionEnd)
+        setIsIgnoreListOpen(false)
       }
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {
-      dialog.style.height = `${initialDialogHeight.current + ignoreListHeight}px`
-      setIsIgnoreListOpen(!isIgnoreListOpen)
+      setIsIgnoreListOpen(true)
     }
   }
 
@@ -81,27 +77,25 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
           </button>
         )}
       </div>
-      <div className="error-overlay-call-stack-body">
-        {visibleFrames.map((frame, frameIndex) => (
-          <CallStackFrame
-            key={`call-stack-leading-${frameIndex}`}
-            frame={frame}
-            index={frameIndex}
-          />
-        ))}
+      {visibleFrames.map((frame, frameIndex) => (
+        <CallStackFrame
+          key={`call-stack-leading-${frameIndex}`}
+          frame={frame}
+          index={frameIndex}
+        />
+      ))}
 
-        {isIgnoreListOpen && (
-          <div ref={ignoreListRef}>
-            {ignoredFrames.map((frame, frameIndex) => (
-              <CallStackFrame
-                key={`call-stack-ignored-${frameIndex}`}
-                frame={frame}
-                index={frameIndex}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {isIgnoreListOpen && (
+        <>
+          {ignoredFrames.map((frame, frameIndex) => (
+            <CallStackFrame
+              key={`call-stack-ignored-${frameIndex}`}
+              frame={frame}
+              index={frameIndex}
+            />
+          ))}
+        </>
+      )}
     </div>
   )
 }
@@ -127,15 +121,11 @@ function ChevronUpDown() {
 
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
-    border-top: 1px solid var(--color-gray-400);
     position: relative;
-  }
-
-  .error-overlay-call-stack-body {
     padding: var(--size-4) var(--size-3);
-    padding-top: 0;
     /* To optically align last item */
     padding-bottom: 8px;
+    position: relative;
   }
 
   .error-overlay-call-stack-header {
@@ -143,19 +133,9 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    padding: var(--size-4) var(--size-5) var(--size-3) var(--size-4);
-    background: rgba(255, 255, 255, 0.7);
-    mask-image: linear-gradient(to top, transparent, #000 12%);
-    backdrop-filter: blur(8px);
+    margin-bottom: var(--size-3);
+    padding: 0 var(--size-2);
     width: 100%;
-    position: fixed;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-
-    @media (prefers-color-scheme: dark) {
-      background: #0a0a0a70;
-    }
   }
 
   .error-overlay-call-stack-title {

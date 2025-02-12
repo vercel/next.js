@@ -21,11 +21,15 @@ export default function ReactDevOverlay({
   globalError: [GlobalErrorComponent, React.ReactNode]
   children: React.ReactNode
 }) {
-  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
+  const [_isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
   const { readyErrors, totalErrorCount } = useErrorHook({
     state,
     isAppDir: true,
   })
+
+  // Build errors cannot be dismissed. If one is triggered, we ignore the
+  // user's preference and open the error overlay.
+  const isErrorOverlayOpen = Boolean(state.buildError) || _isErrorOverlayOpen
 
   const devOverlay = (
     <ShadowPortal>

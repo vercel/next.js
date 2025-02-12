@@ -28,14 +28,11 @@ export function shouldServeStreamingMetadata(
   )
 }
 
-// When streaming metadata is enabled and request UA is a html-limited bot, we should do a dynamic render.
+// When the request UA is a html-limited bot, we should do a dynamic render.
 // In this case, postpone state is not sent.
-export function isHtmlBotRequestStreamingMetadata(
-  req: BaseNextRequest,
-  streamingMetadata: boolean
-): boolean {
+export function isHtmlBotRequest(req: BaseNextRequest): boolean {
   const ua = req.headers['user-agent'] || ''
   const botType = getBotType(ua)
 
-  return botType === 'html' && streamingMetadata
+  return botType === 'html'
 }

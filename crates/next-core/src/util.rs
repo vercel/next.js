@@ -98,7 +98,7 @@ pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
     project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
+    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,

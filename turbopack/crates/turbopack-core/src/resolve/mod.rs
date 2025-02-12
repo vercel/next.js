@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -240,7 +240,7 @@ impl ModuleResolveResult {
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         this.add_affecting_source_ref(source);
         Ok(this.into())
     }
@@ -250,7 +250,7 @@ impl ModuleResolveResult {
         self: Vc<Self>,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         for source in sources {
             this.add_affecting_source_ref(source);
         }
@@ -284,7 +284,7 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -313,7 +313,7 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -815,7 +815,7 @@ impl ResolveResult {
         self: Vc<Self>,
         affecting_source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         this.add_affecting_source_ref(affecting_source);
         Ok(this.into())
     }
@@ -825,7 +825,7 @@ impl ResolveResult {
         self: Vc<Self>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         for affecting_source in affecting_sources {
             this.add_affecting_source_ref(affecting_source);
         }
@@ -859,7 +859,7 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -888,7 +888,7 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;

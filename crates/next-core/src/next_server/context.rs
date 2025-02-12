@@ -155,8 +155,8 @@ pub async fn get_server_resolve_options_context(
     .await?;
 
     let mut transpiled_packages = get_transpiled_packages(next_config, *project_path)
-        .await?
-        .clone_value();
+        .owned()
+        .await?;
 
     transpiled_packages.extend(
         (*next_config.optimize_package_imports().await?)
@@ -325,7 +325,7 @@ pub async fn get_server_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
@@ -550,12 +550,13 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         enable_externals_tracing: if next_mode.is_production() {
             Some(project_path)
         } else {
             None
         },
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 

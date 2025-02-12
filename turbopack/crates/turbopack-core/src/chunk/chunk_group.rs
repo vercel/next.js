@@ -233,8 +233,8 @@ pub async fn make_chunk_group(
         "".into(),
         Vc::cell(referenced_output_assets),
     )
-    .await?
-    .clone_value();
+    .owned()
+    .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,

@@ -338,11 +338,12 @@ impl ClientReferenceManifest {
                     .server_path()
                     .with_extension("".into())
                     .to_string()
+                    .owned()
                     .await?;
                 let mut entry_css_files_with_chunk = Vec::new();
                 let entry_js_files = entry_manifest
                     .entry_js_files
-                    .entry(server_component_name.clone_value())
+                    .entry(server_component_name.clone())
                     .or_default();
 
                 let client_chunks = &client_chunks.await?;
@@ -388,7 +389,7 @@ impl ClientReferenceManifest {
 
                 let entry_css_files = entry_manifest
                     .entry_css_files
-                    .entry(server_component_name.clone_value())
+                    .entry(server_component_name)
                     .or_default();
                 entry_css_files.extend(entry_css_files_vec);
             }

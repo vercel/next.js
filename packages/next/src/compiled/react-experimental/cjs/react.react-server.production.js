@@ -554,9 +554,6 @@ exports.unstable_postpone = function (reason) {
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
-exports.useActionState = function (action, initialState, permalink) {
-  return ReactSharedInternals.H.useActionState(action, initialState, permalink);
-};
 exports.useCallback = function (callback, deps) {
   return ReactSharedInternals.H.useCallback(callback, deps);
 };
@@ -567,4 +564,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.1.0-experimental-ff628334-20250205";
+exports.version = "19.1.0-experimental-cd90a4d8-20250210";

@@ -2,14 +2,12 @@ import { Dialog } from '../../dialog/dialog'
 import { noop as css } from '../../../helpers/noop-template'
 
 type ErrorOverlayDialogProps = {
-  isTurbopack?: boolean
   children?: React.ReactNode
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayDialog({
-  isTurbopack,
   children,
   onClose,
   ...props
@@ -21,7 +19,6 @@ export function ErrorOverlayDialog({
       aria-describedby="nextjs__container_errors_desc"
       onClose={onClose}
       className="error-overlay-dialog"
-      data-turbo={isTurbopack}
       {...props}
     >
       {children}
@@ -44,26 +41,17 @@ export const DIALOG_STYLES = css`
       border-color: var(--color-gray-400);
     }
 
-    &[data-turbo='true']::after {
-      content: '';
-      --size: 1px;
-      --gradient: linear-gradient(
-        to right top,
-        transparent 75%,
-        var(--color-turbopack-border-blue) 87.5%,
-        var(--color-turbopack-border-red) 100%
-      );
-      position: absolute;
-      inset: -1px;
-      pointer-events: none;
-      border-radius: var(--next-dialog-radius);
-      padding: var(--size);
-      background: var(--gradient);
-      mask:
-        linear-gradient(black, black) content-box,
-        linear-gradient(black, black);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
+    &:has(
+        ~ [data-nextjs-error-overlay-nav] .error-overlay-notch[data-side='left']
+      ) {
+      border-top-left-radius: 0;
+    }
+
+    &:has(
+        ~ [data-nextjs-error-overlay-nav]
+          .error-overlay-notch[data-side='right']
+      ) {
+      border-top-right-radius: 0;
     }
   }
 `

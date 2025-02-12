@@ -36,10 +36,6 @@ export { shouldRunTurboDevTest }
 export const nextServer = server
 export const pkg = _pkg
 
-// TODO(jiwon): Remove this once we have a new dev overlay at stable.
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
 export function initNextServerScript(
   scriptPath: string,
   successRegexp: RegExp,
@@ -825,6 +821,21 @@ export async function retry<T>(
   }
 }
 
+async function ensureNoSuspendedComponentsInRedBox(browser: BrowserInterface) {
+  await retry(async () => {
+    const suspended = await browser.eval(() => {
+      return Boolean(
+        [].slice
+          .call(document.querySelectorAll('nextjs-portal'))
+          .find((p) =>
+            p.shadowRoot.querySelector('[data-nextjs-error-suspended]')
+          )
+      )
+    })
+    expect(suspended).toBe(false)
+  }, 10000)
+}
+
 export async function assertHasRedbox(browser: BrowserInterface) {
   try {
     await retry(
@@ -845,6 +856,8 @@ export async function assertHasRedbox(browser: BrowserInterface) {
       5000,
       200
     )
+
+    await ensureNoSuspendedComponentsInRedBox(browser)
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found none')
     Error.captureStackTrace(error, assertHasRedbox)
@@ -922,19 +935,34 @@ export async function getToastErrorCount(
  */
 export async function openRedbox(browser: BrowserInterface): Promise<void> {
   try {
-    //TODO(jiwon): data-nextjs-toast won't open red box in new UI.
-    if (isNewDevOverlay) {
-      await browser.waitForElementByCss('[data-error-expanded="true"]')
-      await browser.waitForElementByCss('[data-issues-open]').click()
-    } else {
-      await browser.waitForElementByCss('[data-nextjs-toast]').click()
-    }
+    await browser.waitForElementByCss('[data-issues]').click()
   } catch (cause) {
     const error = new Error('No Redbox to open.', { cause })
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
   await assertHasRedbox(browser)
+}
+
+export async function goToNextErrorView(
+  browser: BrowserInterface
+): Promise<void> {
+  try {
+    const currentErrorIndex = await browser
+      .elementByCss('[data-nextjs-dialog-error-index]')
+      .text()
+    await browser.elementByCss('[data-nextjs-dialog-error-next]').click()
+    await retry(async () => {
+      const nextErrorIndex = await browser
+        .elementByCss('[data-nextjs-dialog-error-index]')
+        .text()
+      expect(nextErrorIndex).not.toBe(currentErrorIndex)
+    })
+  } catch (cause) {
+    const error = new Error('No Redbox to open.', { cause })
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
 }
 
 export async function openDevToolsIndicatorPopover(
@@ -990,31 +1018,26 @@ export function getRedboxHeader(browser: BrowserInterface) {
   })
 }
 
-export function getRedboxFloatingHeaderText(
+export async function getRedboxTotalErrorCount(
   browser: BrowserInterface
-): Promise<string> {
-  return browser.eval(() => {
+): Promise<number> {
+  const text = await browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('.error-overlay-floating-header'))
-    const root = portal.shadowRoot
-    return root.querySelector('.error-overlay-floating-header')?.innerText
+      .find((p) =>
+        p.shadowRoot.querySelector('[data-nextjs-dialog-header-total-count]')
+      )
+
+    const root = portal?.shadowRoot
+    return root?.querySelector('[data-nextjs-dialog-header-total-count]')
+      ?.innerText
   })
+  return parseInt(text || '-1')
 }
 
-export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
-  // TODO(jiwon): Remove this once we have a new dev overlay at stable.
-  if (isNewDevOverlay) {
-    // N/M\nNext.js X.Y.Z -> M
-    const text = (await getRedboxFloatingHeaderText(browser)) || ''
-    return parseInt(text.match(/\/(\d+)/)?.[1])
-  }
+export async function getRedboxSource(browser: BrowserInterface) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
 
-  const header = (await getRedboxHeader(browser)) || ''
-  return parseInt(header.match(/\d+ of (\d+) issue/)?.[1], 10)
-}
-
-export function getRedboxSource(browser: BrowserInterface) {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1306,8 +1329,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
 export async function getRedboxComponentStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  // TODO: the type for elementsByCss is incorrect
-  const componentStackFrameElements: any = await browser.elementsByCss(
+  const componentStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
   if (componentStackFrameElements.length === 0) {
@@ -1321,15 +1343,8 @@ export async function getRedboxComponentStack(
   return componentStackFrameTexts.join('\n').trim()
 }
 
-export async function toggleCollapseComponentStack(
-  browser: BrowserInterface
-): Promise<void> {
-  await browser
-    .elementByCss('[data-nextjs-container-errors-pseudo-html-collapse]')
-    .click()
-}
-
 export async function hasRedboxCallStack(browser: BrowserInterface) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1343,8 +1358,7 @@ export async function hasRedboxCallStack(browser: BrowserInterface) {
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  await browser.waitForElementByCss('[data-nextjs-call-stack-frame]', 30000)
-
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -1358,8 +1372,7 @@ export async function getRedboxCallStack(
 export async function getRedboxCallStackCollapsed(
   browser: BrowserInterface
 ): Promise<string> {
-  await browser.waitForElementByCss('.nextjs-container-errors-body', 30000)
-
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
       '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
@@ -1581,6 +1594,7 @@ export const checkLink = (
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
 export async function getStackFramesContent(browser) {
+  await ensureNoSuspendedComponentsInRedBox(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -1588,7 +1602,7 @@ export async function getStackFramesContent(browser) {
     await Promise.all(
       stackFrameElements.map(async (frame) => {
         const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
-        const sourceEl = await frame.$('[data-has-source]')
+        const sourceEl = await frame.$('[data-has-source="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()
           : ''
@@ -1655,4 +1669,18 @@ export async function assertNoConsoleErrors(browser: BrowserInterface) {
   })
 
   expect(warningsAndErrors).toEqual([])
+}
+
+export async function getHighlightedDiffLines(
+  browser: BrowserInterface
+): Promise<[string, string][]> {
+  const lines = await browser.elementsByCss(
+    '[data-nextjs-container-errors-pseudo-html--diff]'
+  )
+  return Promise.all(
+    lines.map(async (line) => [
+      await line.getAttribute('data-nextjs-container-errors-pseudo-html--diff'),
+      (await line.innerText())[0],
+    ])
+  )
 }

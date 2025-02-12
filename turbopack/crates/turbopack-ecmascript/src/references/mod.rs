@@ -30,7 +30,6 @@ use parking_lot::Mutex;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
     common::{
@@ -54,7 +53,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
     TryJoinIterExt, Upcast, Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
@@ -74,7 +73,9 @@ use turbopack_core::{
         resolve, FindContextFileResult, ModulePart,
     },
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
 };
 use turbopack_resolve::{
     ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
@@ -164,7 +165,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub async_module: ResolvedVc<OptionAsyncModule>,
     /// `true` when the analysis was successful.
     pub successful: bool,
-    pub source_map: ResolvedVc<OptionSourceMap>,
+    pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
 }
 
 /// A temporary analysis result builder to pass around, to be turned into an
@@ -178,7 +179,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
-    source_map: Option<ResolvedVc<OptionSourceMap>>,
+    source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -243,7 +244,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionSourceMap>) {
+    pub fn set_source_map(&mut self, source_map: ResolvedVc<OptionStringifiedSourceMap>) {
         self.source_map = Some(source_map);
     }
 
@@ -287,7 +288,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         let source_map = if let Some(source_map) = self.source_map {
             source_map
         } else {
-            OptionSourceMap::none().to_resolved().await?
+            OptionStringifiedSourceMap::none().to_resolved().await?
         };
 
         self.code_gens.shrink_to_fit();
@@ -544,13 +545,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
             }
 
-            // TODO This is too eagerly generating the source map. We should store a
-            // GenerateSourceMap instead and only actually generate the SourceMap when
-            // it's needed. This would allow to avoid generating the source map when a
-            // module is never included in the final bundle. It allows analysis to
-            // finish earlier which makes references available earlier which benefits
-            // parallelism. When SourceMaps are emitted it moves that generation work to
-            // the code generation phase which is more parallelizable.
             let mut source_map_from_comment = false;
             if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
                 let origin_path = origin.origin_path();
@@ -561,20 +555,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         .await?;
                     analysis.add_reference(reference);
                     let source_map = reference.generate_source_map();
-                    analysis.set_source_map(
-                        convert_to_turbopack_source_map(source_map, source_map_origin)
-                            .to_resolved()
-                            .await?,
-                    );
+                    analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
                 } else if path.starts_with("data:application/json;base64,") {
-                    let source_map_origin = origin_path;
                     let source_map = maybe_decode_data_url(path.into());
-                    analysis.set_source_map(
-                        convert_to_turbopack_source_map(source_map, source_map_origin)
-                            .to_resolved()
-                            .await?,
-                    );
+                    let source_map =
+                        resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
+                    analysis.set_source_map(ResolvedVc::cell(source_map));
                     source_map_from_comment = true;
                 }
             }
@@ -582,14 +569,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(generate_source_map) =
                     ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
-                    let source_map_origin = source.ident().path();
                     analysis.set_source_map(
-                        convert_to_turbopack_source_map(
-                            generate_source_map.generate_source_map(),
-                            source_map_origin,
-                        )
-                        .to_resolved()
-                        .await?,
+                        generate_source_map
+                            .generate_source_map()
+                            .to_resolved()
+                            .await?,
                     );
                 }
             }
@@ -1338,7 +1322,7 @@ async fn compile_time_info_for_module_type(
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
 
-    let mut free_var_references = free_var_references.await?.clone_value();
+    let mut free_var_references = free_var_references.owned().await?;
     let (typeof_exports, typeof_module, require) = if is_esm {
         ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
     } else {
@@ -2447,7 +2431,7 @@ async fn handle_free_var_reference(
                 Request::parse(Value::new(request.clone().into()))
                     .to_resolved()
                     .await?,
-                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
+                IssueSource::from_swc_offsets(state.source, span.lo.to_u32(), span.hi.to_u32()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
@@ -2472,7 +2456,7 @@ async fn handle_free_var_reference(
 }
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
-    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
+    IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
 }
 
 async fn analyze_amd_define(
@@ -3534,11 +3518,15 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
     false
 }
 
-#[turbo_tasks::function]
-fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
-    if let Ok(map) = decode_data_url(&url) {
-        Vc::cell(Some(SourceMap::new_decoded(map).resolved_cell()))
-    } else {
-        Vc::cell(None)
+fn maybe_decode_data_url(url: RcStr) -> Option<Rope> {
+    const DATA_PREAMBLE: &str = "data:application/json;base64,";
+
+    if !url.starts_with(DATA_PREAMBLE) {
+        return None;
     }
+    let data_b64 = &url[DATA_PREAMBLE.len()..];
+    data_encoding::BASE64
+        .decode(data_b64.as_bytes())
+        .ok()
+        .map(Rope::from)
 }

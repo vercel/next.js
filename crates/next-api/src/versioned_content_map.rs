@@ -12,7 +12,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::Asset,
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::OptionVersionedContent,
 };
 
@@ -189,7 +189,7 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Result<Vc<OptionSourceMap>> {
+    ) -> Result<Vc<OptionStringifiedSourceMap>> {
         let Some(asset) = &*self.get_asset(path).await? else {
             return Ok(Vc::cell(None));
         };

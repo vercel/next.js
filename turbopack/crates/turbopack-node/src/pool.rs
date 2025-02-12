@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     cmp::max,
+    collections::BinaryHeap,
     fmt::{Debug, Display},
     future::Future,
     mem::take,
@@ -76,6 +77,34 @@ struct NodeJsPoolProcess {
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
+    cpu_time_invested: Duration,
+}
+
+impl Ord for NodeJsPoolProcess {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cpu_time_invested
+            .cmp(&other.cpu_time_invested)
+            .then_with(|| {
+                self.child
+                    .as_ref()
+                    .map(|c| c.id())
+                    .cmp(&other.child.as_ref().map(|c| c.id()))
+            })
+    }
+}
+
+impl PartialOrd for NodeJsPoolProcess {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for NodeJsPoolProcess {}
+
+impl PartialEq for NodeJsPoolProcess {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
 }
 
 impl NodeJsPoolProcess {
@@ -432,6 +461,7 @@ impl NodeJsPoolProcess {
             stdout_handler,
             stderr_handler,
             debug,
+            cpu_time_invested: Duration::ZERO,
         };
 
         drop(guard);
@@ -693,7 +723,7 @@ pub struct NodeJsPool {
     pub assets_root: ResolvedVc<FileSystemPath>,
     pub project_dir: ResolvedVc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(trace_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -733,7 +763,7 @@ impl NodeJsPool {
             assets_for_source_mapping,
             assets_root,
             project_dir,
-            processes: Arc::new(Mutex::new(Vec::new())),
+            processes: Arc::new(Mutex::new(BinaryHeap::new())),
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
             idle_process_semaphore: Arc::new(Semaphore::new(0)),
@@ -826,7 +856,7 @@ pub struct NodeJsOperation {
     // This is used for drop
     #[allow(dead_code)]
     permits: AcquiredPermits,
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     idle_process_semaphore: Arc<Semaphore>,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
@@ -930,7 +960,7 @@ impl NodeJsOperation {
 
 impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if let Some(process) = self.process.take() {
+        if let Some(mut process) = self.process.take() {
             let elapsed = self.start.elapsed();
             {
                 let stats = &mut self.stats.lock();
@@ -940,6 +970,7 @@ impl Drop for NodeJsOperation {
                 }
             }
             if self.allow_process_reuse {
+                process.cpu_time_invested += elapsed;
                 self.processes.lock().push(process);
                 self.idle_process_semaphore.add_permits(1);
             }

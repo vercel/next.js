@@ -21,17 +21,13 @@ export type SupportedErrorEvent = {
 
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
+  // eslint-disable-next-line default-case -- TypeScript checks this
   switch (event.type) {
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
     }
-    default:
-      break
   }
-
-  event satisfies never
-  return ''
 }
 
 export function useErrorHook({
@@ -80,21 +76,17 @@ export function useErrorHook({
     if (nextError == null) {
       return
     }
+
     let mounted = true
 
-    getErrorByType(nextError, isAppDir).then(
-      (resolved) => {
+    getErrorByType(nextError, isAppDir).then((resolved) => {
+      if (mounted) {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
-        if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-        }
-      },
-      () => {
-        // TODO: handle this, though an edge case
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
       }
-    )
+    })
 
     return () => {
       mounted = false

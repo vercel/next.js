@@ -13,15 +13,17 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   ...props
 }) {
   const noop = React.useCallback(() => {}, [])
+  const error = new Error(message)
   return (
     <ErrorOverlayLayout
       errorType="Build Error"
       errorMessage="Failed to compile"
       onClose={noop}
+      error={error}
       footerMessage="This error occurred during the build process and can only be dismissed by fixing the error."
       {...props}
     >
-      <Terminal content={message} />
+      <Terminal content={error.message} />
     </ErrorOverlayLayout>
   )
 }

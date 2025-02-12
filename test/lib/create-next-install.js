@@ -38,6 +38,7 @@ async function createNextInstall({
   packageJson = {},
   dirSuffix = '',
   keepRepoDir = false,
+  beforeInstall,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
 
@@ -151,6 +152,12 @@ async function createNextInstall({
           2
         )
       )
+
+      if (beforeInstall !== undefined) {
+        rootSpan.traceChild('beforeInstall').traceAsyncFn(async (span) => {
+          await beforeInstall(span, installDir)
+        })
+      }
 
       if (installCommand) {
         const installString =

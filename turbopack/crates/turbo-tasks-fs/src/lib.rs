@@ -1545,7 +1545,7 @@ impl FileSystemPath {
             .cell());
         }
         let parent = self.parent().to_resolved().await?;
-        let parent_result = parent.realpath_with_links().await?;
+        let parent_result = parent.realpath_with_links().owned().await?;
         let basename = this
             .path
             .rsplit_once('/')
@@ -1559,7 +1559,7 @@ impl FileSystemPath {
         } else {
             self
         };
-        let mut result = parent_result.clone_value();
+        let mut result = parent_result;
         if matches!(*real_self.get_type().await?, FileSystemEntryType::Symlink) {
             if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
                 result.symlinks.push(real_self);
@@ -1864,7 +1864,7 @@ impl From<&[u8]> for File {
 
 impl From<ReadRef<Rope>> for File {
     fn from(rope: ReadRef<Rope>) -> Self {
-        File::from_rope(rope.clone_value())
+        File::from_rope(ReadRef::into_owned(rope))
     }
 }
 
@@ -2084,7 +2084,7 @@ impl FileContent {
                                     content: l.to_string(),
                                     bytes_offset,
                                 };
-                                bytes_offset += l.len() + 1;
+                                bytes_offset += (l.len() + 1) as u32;
                                 line
                             })
                             .collect(),
@@ -2195,7 +2195,7 @@ impl FileJsonContent {
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileLine {
     pub content: String,
-    pub bytes_offset: usize,
+    pub bytes_offset: u32,
 }
 
 #[turbo_tasks::value(shared, serialization = "none")]

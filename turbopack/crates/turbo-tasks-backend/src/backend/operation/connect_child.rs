@@ -26,7 +26,7 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         if !ctx.should_track_children() {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
             if !task.has_key(&CachedDataItemKey::Output {}) {
                 let description = ctx.get_task_desc_fn(child_task_id);
                 let should_schedule = task.add(CachedDataItem::new_scheduled(description));
@@ -67,9 +67,21 @@ impl ConnectChildOperation {
             });
         }
 
-        queue.push(AggregationUpdateJob::IncreaseActiveCount {
-            task: child_task_id,
-        });
+        if ctx.should_track_activeness() {
+            queue.push(AggregationUpdateJob::IncreaseActiveCount {
+                task: child_task_id,
+            });
+        } else {
+            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
+            if !task.has_key(&CachedDataItemKey::Output {}) {
+                let description = ctx.get_task_desc_fn(child_task_id);
+                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
+                drop(task);
+                if should_schedule {
+                    ctx.schedule(child_task_id);
+                }
+            }
+        }
 
         ConnectChildOperation::UpdateAggregation {
             aggregation_update: queue,

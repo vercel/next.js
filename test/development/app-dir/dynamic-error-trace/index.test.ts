@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  getRedboxSource,
+  hasRedboxCallStack,
+} from 'next-test-utils'
 import { outdent } from 'outdent'
 
 function normalizeStackTrace(trace) {
@@ -24,6 +28,7 @@ describe('app dir - dynamic error trace', () => {
       )
     ).resolves.toEqual(false)
 
+    await hasRedboxCallStack(browser)
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )

@@ -79,11 +79,11 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
                 match entry {
                     DirectoryEntry::File(path) => {
                         let name = filename(**path).await?;
-                        hashes.insert(name, hash_file(**path).await?.clone_value());
+                        hashes.insert(name, hash_file(**path).owned().await?);
                     }
                     DirectoryEntry::Directory(path) => {
                         let name = filename(**path).await?;
-                        hashes.insert(name, hash_directory(**path).await?.clone_value());
+                        hashes.insert(name, hash_directory(**path).owned().await?);
                     }
                     _ => {}
                 }

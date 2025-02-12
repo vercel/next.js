@@ -8,7 +8,7 @@ use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{SourceMapTrace, StackFrame, TraceResult};
+pub use trace::{trace_source_map, StackFrame, TraceResult};
 use tracing::{instrument, Level};
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
@@ -16,7 +16,9 @@ use turbo_tasks_fs::{
 };
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
-    output::OutputAsset, source_map::GenerateSourceMap, PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
+    output::OutputAsset,
+    source_map::{GenerateSourceMap, SourceMap},
+    PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -52,8 +54,8 @@ pub async fn apply_source_mapping(
         let file = cap.get(2).unwrap().as_str();
         let line = cap.get(3).unwrap().as_str();
         let column = cap.get(4).unwrap().as_str();
-        let line = line.parse::<usize>()?;
-        let column = column.parse::<usize>()?;
+        let line = line.parse::<u32>()?;
+        let column = column.parse::<u32>()?;
         let frame = StackFrame {
             name: name.map(|s| s.into()),
             file: file.into(),
@@ -222,13 +224,12 @@ async fn resolve_source_mapping(
     let Some(generate_source_map) = map.get(file.as_ref()) else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let Some(sm) = *generate_source_map.generate_source_map().await? else {
+    let sm = generate_source_map.generate_source_map();
+    let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(*sm, line, column, name.map(|s| s.clone().into()))
-        .trace()
-        .await?;
-    match &*trace {
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
+    match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(

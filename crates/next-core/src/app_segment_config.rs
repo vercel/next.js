@@ -247,10 +247,7 @@ impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(Some(
-            self.source
-                .resolve_source_map(self.ident.path())
-                .await?
-                .into_owned(),
+            self.source.resolve_source_map().await?.into_owned(),
         )))
     }
 }
@@ -348,10 +345,6 @@ pub async fn parse_segment_config_from_source(
     Ok(config.cell())
 }
 
-fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
-    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
-}
-
 async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
@@ -370,10 +363,14 @@ async fn parse_config_value(
         let detail =
             StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
 
-        NextSegmentConfigParsingIssue::new(source.ident(), *detail, issue_source(source, span))
-            .to_resolved()
-            .await?
-            .emit();
+        NextSegmentConfigParsingIssue::new(
+            source.ident(),
+            *detail,
+            IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
+        )
+        .to_resolved()
+        .await?
+        .emit();
         Ok(())
     }
 
