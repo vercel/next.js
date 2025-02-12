@@ -5,7 +5,7 @@ import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
 
 type ErrorOverlayToolbarProps = {
-  error: Error | undefined
+  error: Error
   debugInfo: DebugInfo | undefined
 }
 
@@ -19,7 +19,7 @@ export function ErrorOverlayToolbar({
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
-      <DocsLinkButton errorMessage={error?.message || ''} />
+      <DocsLinkButton errorMessage={error.message} />
     </span>
   )
 }
