@@ -77,8 +77,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   const open = useOpenInEditor({
     file: file?.fileName,
-    lineNumber: file?.location?.line,
-    column: file?.location?.column,
+    lineNumber: file?.location?.line ?? 1,
+    column: file?.location?.column ?? 0,
   })
 
   const stackFrame = {
@@ -96,6 +96,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
       <button
         aria-label="Open in editor"
         className="code-frame-header"
+        data-with-open-in-editor-link-source-file
         onClick={open}
       >
         <div className="code-frame-link">
