@@ -577,9 +577,7 @@ export const css = curry(async function css(
             // Exclude extensions that webpack handles by default
             exclude: [
               /\.(js|mjs|jsx|ts|tsx)$/,
-              // TODO investigate why this is needed
-              ...(isRspack ? [/^$/] : []),
-              /\.html$/,
+              /\.html$/, 
               /\.json$/,
               /\.webpack\[[^\]]+\]$/,
             ],
