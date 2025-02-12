@@ -8,6 +8,7 @@ import {
   getRedboxComponentStack,
   goToNextErrorView,
   getRedboxDescriptionWarning,
+  getHighlightedDiffLines,
 } from 'next-test-utils'
 import { BrowserInterface } from 'next-webdriver'
 
@@ -74,6 +75,16 @@ describe('hydration-error-count', () => {
      -                             className="server"
                                  >
                              ...",
+       "highlightedLines": [
+         [
+           "add",
+           "+",
+         ],
+         [
+           "remove",
+           "-",
+         ],
+       ],
        "notes": "- A server/client branch \`if (typeof window !== 'undefined')\`.
      - Variable input such as \`Date.now()\` or \`Math.random()\` which changes each time it's called.
      - Date formatting in a user's locale which doesn't match the server.
@@ -107,6 +118,16 @@ describe('hydration-error-count', () => {
      >                           <p className="client">
      >                             <p>
                              ...",
+       "highlightedLines": [
+         [
+           "error",
+           ">",
+         ],
+         [
+           "error",
+           ">",
+         ],
+       ],
        "notes": undefined,
      }
     `)
@@ -117,10 +138,12 @@ async function getHydrationErrorSnapshot(browser: BrowserInterface) {
   const description = await getRedboxDescription(browser)
   const notes = await getRedboxDescriptionWarning(browser)
   const diff = await getRedboxComponentStack(browser)
+  const highlightedLines = await getHighlightedDiffLines(browser)
 
   return {
     description,
     notes,
     diff,
+    highlightedLines,
   }
 }
