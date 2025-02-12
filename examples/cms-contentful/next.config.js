@@ -2,5 +2,6 @@
 module.exports = {
   images: {
     loader: "custom",
+    search: "",
   },
 };
