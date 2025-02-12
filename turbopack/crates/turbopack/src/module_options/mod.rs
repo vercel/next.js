@@ -70,6 +70,55 @@ impl ModuleOptions {
         resolve_options_context: Vc<ResolveOptionsContext>,
     ) -> Result<Vc<ModuleOptions>> {
         let ModuleOptionsContext {
+            css: CssOptionsContext { enable_raw_css, .. },
+            ref enable_postcss_transform,
+            ref enable_webpack_loaders,
+            ref rules,
+            ..
+        } = *module_options_context.await?;
+
+        if !rules.is_empty() {
+            let path_value = path.await?;
+
+            for (condition, new_context) in rules.iter() {
+                if condition.matches(&path_value).await? {
+                    return Ok(ModuleOptions::new(
+                        path,
+                        **new_context,
+                        resolve_options_context,
+                    ));
+                }
+            }
+        }
+
+        let need_path = (!enable_raw_css
+            && if let Some(options) = enable_postcss_transform {
+                let options = options.await?;
+                options.postcss_package.is_none()
+            } else {
+                false
+            })
+            || if let Some(options) = enable_webpack_loaders {
+                let options = options.await?;
+                options.loader_runner_package.is_none()
+            } else {
+                false
+            };
+
+        Ok(Self::new_internal(
+            need_path.then_some(path),
+            module_options_context,
+            resolve_options_context,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn new_internal(
+        path: Option<Vc<FileSystemPath>>,
+        module_options_context: Vc<ModuleOptionsContext>,
+        resolve_options_context: Vc<ResolveOptionsContext>,
+    ) -> Result<Vc<ModuleOptions>> {
+        let ModuleOptionsContext {
             ecmascript:
                 EcmascriptOptionsContext {
                     enable_jsx,
@@ -101,20 +150,6 @@ impl ModuleOptions {
             keep_last_successful_parse,
             ..
         } = *module_options_context.await?;
-
-        if !rules.is_empty() {
-            let path_value = path.await?;
-
-            for (condition, new_context) in rules.iter() {
-                if condition.matches(&path_value).await? {
-                    return Ok(ModuleOptions::new(
-                        path,
-                        **new_context,
-                        resolve_options_context,
-                    ));
-                }
-            }
-        }
 
         let mut refresh = false;
         let mut transforms = vec![];
@@ -416,7 +451,10 @@ impl ModuleOptions {
                 let import_map = if let Some(postcss_package) = options.postcss_package {
                     package_import_map_from_import_mapping("postcss".into(), *postcss_package)
                 } else {
-                    package_import_map_from_context("postcss".into(), path)
+                    package_import_map_from_context(
+                        "postcss".into(),
+                        path.context("need_path in ModuleOptions::new is incorrect")?,
+                    )
                 };
 
                 rules.push(ModuleRule::new(
@@ -548,7 +586,10 @@ impl ModuleOptions {
                     *loader_runner_package,
                 )
             } else {
-                package_import_map_from_context("loader-runner".into(), path)
+                package_import_map_from_context(
+                    "loader-runner".into(),
+                    path.context("need_path in ModuleOptions::new is incorrect")?,
+                )
             };
             for (glob, rule) in webpack_loaders_options.rules.await?.iter() {
                 rules.push(ModuleRule::new(
@@ -587,6 +628,7 @@ impl ModuleOptions {
             }
         }
 
+        // Avoid cloning module_rules by
         rules.extend(module_rules.iter().cloned());
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
