@@ -3758,11 +3758,11 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
+pub struct RequireContextValue(Box<FxIndexMap<RcStr, RcStr>>);
 
 impl RequireContextValue {
     pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
-        let mut context_map = FxIndexMap::default();
+        let mut context_map = Box::new(FxIndexMap::default());
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
@@ -3899,7 +3899,7 @@ pub mod test_utils {
                 ref args,
             ) => match parse_require_context(args) {
                 Ok(options) => {
-                    let mut map = FxIndexMap::default();
+                    let mut map = Box::new(FxIndexMap::default());
 
                     map.insert("./a".into(), format!("[context: {}]/a", options.dir).into());
                     map.insert("./b".into(), format!("[context: {}]/b", options.dir).into());
