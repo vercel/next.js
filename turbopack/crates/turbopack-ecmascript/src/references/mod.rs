@@ -276,16 +276,17 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .esm_references
             .into_iter()
             .map(|i| ResolvedVc::upcast(import_references[i]));
-        let (local_references, reexport_references, evaluation_references) =
+        let (esm_local_references, esm_reexport_references, esm_evaluation_references) =
             if track_reexport_references {
                 self.esm_local_references.sort();
                 self.esm_reexport_references.sort();
                 self.esm_evaluation_references.sort();
                 (
-                    self.esm_local_references
-                        .into_iter()
-                        .map(|i| ResolvedVc::upcast(import_references[i]))
-                        .collect(),
+                    Some(
+                        self.esm_local_references
+                            .into_iter()
+                            .map(|i| ResolvedVc::upcast(import_references[i])),
+                    ),
                     self.esm_reexport_references
                         .into_iter()
                         .map(|i| ResolvedVc::upcast(import_references[i]))
@@ -296,10 +297,15 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                         .collect(),
                 )
             } else {
-                (vec![], vec![], vec![])
+                (None, vec![], vec![])
             };
 
         let references: Vec<_> = esm_references.chain(self.references.into_iter()).collect();
+        let local_references: Vec<_> = esm_local_references
+            .into_iter()
+            .flatten()
+            .chain(self.local_references.into_iter())
+            .collect();
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -312,8 +318,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             AnalyzeEcmascriptModuleResult {
                 references: ResolvedVc::cell(references),
                 local_references: ResolvedVc::cell(local_references),
-                reexport_references: ResolvedVc::cell(reexport_references),
-                evaluation_references: ResolvedVc::cell(evaluation_references),
+                reexport_references: ResolvedVc::cell(esm_reexport_references),
+                evaluation_references: ResolvedVc::cell(esm_evaluation_references),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
