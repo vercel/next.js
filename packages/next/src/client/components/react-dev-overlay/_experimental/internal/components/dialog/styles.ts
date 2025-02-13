@@ -58,6 +58,10 @@ const styles = css`
     position: relative;
   }
 
+  [data-nextjs-dialog-body] {
+    margin-bottom: var(--next-dialog-container-padding);
+  }
+
   /* Account for the footer height, when present */
   [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
     margin-bottom: calc(

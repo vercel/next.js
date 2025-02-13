@@ -92,7 +92,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': `${SIZE}px`,
+          '--size': SIZE,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
         } as React.CSSProperties
       }
