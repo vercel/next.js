@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
-import { formatConsoleArgs, parseEnvironmentName } from '../../lib/console'
+import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
 import isError from '../../../lib/is-error'
 import {
   createUnhandledError,
@@ -40,7 +40,7 @@ export function handleClientError(
 
   if (isUnhandledConsoleOrRejection(error)) {
     if (!error.environmentName) {
-      const environmentName = parseEnvironmentName(consoleErrorArgs)
+      const { environmentName } = parseConsoleArgs(consoleErrorArgs)
       if (environmentName) {
         error.environmentName = environmentName
       }

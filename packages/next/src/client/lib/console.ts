@@ -1,3 +1,5 @@
+import isError from '../../lib/is-error'
+
 function formatObject(arg: unknown, depth: number) {
   switch (typeof arg) {
     case 'object':
@@ -111,7 +113,10 @@ export function formatConsoleArgs(args: unknown[]): string {
 }
 
 // TODO: Infer type for `environmentName` if available.
-export function parseEnvironmentName(args: unknown[]): string | null {
+export function parseConsoleArgs(args: unknown[]): {
+  environmentName: string | null
+  error: Error | null
+} {
   // See
   // https://github.com/facebook/react/blob/65a56d0e99261481c721334a3ec4561d173594cd/packages/react-devtools-shared/src/backend/flight/renderer.js#L88-L93
   //
@@ -134,8 +139,16 @@ export function parseEnvironmentName(args: unknown[]): string | null {
     typeof args[3] === 'string'
   ) {
     const environmentName = args[2]
-    return environmentName.trim()
+    const maybeError = args[4]
+
+    return {
+      environmentName: environmentName.trim(),
+      error: isError(maybeError) ? maybeError : null,
+    }
   }
 
-  return null
+  return {
+    environmentName: null,
+    error: null,
+  }
 }
