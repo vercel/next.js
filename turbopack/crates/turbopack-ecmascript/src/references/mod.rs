@@ -2303,7 +2303,7 @@ async fn handle_member(
         }
 
         if is_prop_cache {
-            if let JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }) =
+            if let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) =
                 obj.as_ref().unwrap()
             {
                 analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));

@@ -65,7 +65,7 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
 }
 
 async fn filename(path: Vc<FileSystemPath>) -> Result<String> {
-    Ok(path.await?.path.split('/').last().unwrap().to_string())
+    Ok(path.await?.path.split('/').next_back().unwrap().to_string())
 }
 
 #[turbo_tasks::function]

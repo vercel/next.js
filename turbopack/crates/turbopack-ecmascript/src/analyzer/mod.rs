@@ -1723,11 +1723,11 @@ impl JsValue {
                         format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
-                    WellKnownFunctionKind::Import { .. } => (
+                    WellKnownFunctionKind::Import => (
                         "import".to_string(),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
-                    WellKnownFunctionKind::Require { .. } => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -1802,7 +1802,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor { .. } => (
+                    WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -3876,7 +3876,7 @@ pub mod test_utils {
         let mut new_value = match v {
             JsValue::Call(
                 _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import { .. }),
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => JsValue::Module(ModuleValue {
