@@ -1229,7 +1229,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span: _,
                     in_try: _,
                 } => {
-                    let Some(mut r) = import_references.get(esm_reference_index).copied() else {
+                    let Some(r) = import_references.get(esm_reference_index).copied() else {
                         continue;
                     };
 
@@ -1245,8 +1245,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         ) {
                             let r_ref = r.await?;
                             if r_ref.export_name.is_none() && export.is_some() {
-                                if let Some(export) = &export {
-                                    r = *import_references_namespace_rewritten
+                                if let Some(export) = export {
+                                    let r = *import_references_namespace_rewritten
                                         .entry((esm_reference_index, export.clone()))
                                         .or_insert_with(|| {
                                             EsmAssetReference::new(
@@ -1259,11 +1259,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                             )
                                             .resolved_cell()
                                         });
+                                    analysis.add_reference(r);
+                                    analysis.add_code_gen(EsmBinding::new(
+                                        r,
+                                        Some(export),
+                                        ast_path.into(),
+                                    ));
+                                    continue;
                                 }
                             }
                         }
 
-                        analysis.add_reference(r);
+                        analysis.add_esm_reference(esm_reference_index);
                         analysis.add_code_gen(EsmBinding::new(r, export, ast_path.into()));
                     }
                 }
