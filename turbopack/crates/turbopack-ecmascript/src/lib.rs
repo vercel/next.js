@@ -783,9 +783,15 @@ impl EcmascriptModuleContent {
                 chunking_context,
             ));
         }
-        if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gen_cells.push(exports.code_generation(module_graph, chunking_context));
-        }
+        let exports_codegen = if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+            Some(
+                exports
+                    .code_generation(module_graph, chunking_context)
+                    .await?,
+            )
+        } else {
+            None
+        };
 
         let code_gens = code_generation
             .await?
@@ -795,7 +801,11 @@ impl EcmascriptModuleContent {
             .await?;
         let code_gen_cells = code_gen_cells.into_iter().try_join().await?;
 
-        let code_gens = code_gen_cells.iter().map(|c| &**c).chain(code_gens.iter());
+        let code_gens = code_gen_cells
+            .iter()
+            .map(|c| &**c)
+            .chain(exports_codegen.iter())
+            .chain(code_gens.iter());
         gen_content_with_code_gens(
             parsed,
             ident,

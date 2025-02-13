@@ -69,21 +69,27 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let references = self.module.references();
         let references_ref = references.await?;
-        let mut code_gens = Vec::with_capacity(references_ref.len() + 2);
+        let mut code_gens_cells = Vec::with_capacity(references_ref.len() + 2);
         for r in &references_ref {
             if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
-                code_gens.push(code_gen.code_generation(*self.module_graph, *chunking_context));
+                code_gens_cells
+                    .push(code_gen.code_generation(*self.module_graph, *chunking_context));
             }
         }
-        code_gens.push(self.module.async_module().code_generation(
+        code_gens_cells.push(self.module.async_module().code_generation(
             async_module_info,
             references,
             *self.module_graph,
             *chunking_context,
         ));
-        code_gens.push(exports.code_generation(*self.module_graph, *chunking_context));
-        let code_gens = code_gens.into_iter().try_join().await?;
-        let code_gens = code_gens.iter().map(|cg| &**cg);
+        let exports_codegen = exports
+            .code_generation(*self.module_graph, *chunking_context)
+            .await?;
+        let code_gen_cells = code_gens_cells.into_iter().try_join().await?;
+        let code_gens = code_gen_cells
+            .iter()
+            .map(|cg| &**cg)
+            .chain(std::iter::once(&exports_codegen));
 
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
         process_content_with_code_gens(&mut program, &Globals::new(), None, code_gens);
