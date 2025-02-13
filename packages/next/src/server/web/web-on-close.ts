@@ -22,12 +22,57 @@ export function trackStreamConsumed<TChunk>(
   stream: ReadableStream<TChunk>,
   onEnd: () => void
 ): ReadableStream<TChunk> {
-  const closePassThrough = new TransformStream<TChunk, TChunk>({
-    flush: () => {
-      return onEnd()
+  // NOTE:
+  // This needs to be robust against the stream being cancelled.
+  //
+  // This can happen e.g. during redirects -- we'll stream a response,
+  // but if we're not fast enough, the browser can disconnect before we finish
+  // (because it wants to navigate to the redirect location anyway)
+  // and we'll get cancelled with a `ResponseAborted`.
+  //
+  // Ideally, we would just do this:
+  //
+  //    const closePassThrough = new TransformStream<TChunk, TChunk>({
+  //      flush() { onEnd() },
+  //      cancel() { onEnd() },
+  //    })
+  //    return stream.pipeThrough(closePassThrough)
+  //
+  // But cancellation handling via `Transformer.cancel` is only available in node >20
+  // so we can't use it yet, so we need to use a `ReadableStream` instead.
+
+  let calledOnEnd = false
+  return new ReadableStream<TChunk>({
+    async start(controller) {
+      const reader = stream.getReader()
+      while (true) {
+        try {
+          const { done, value } = await reader.read()
+          if (!done) {
+            controller.enqueue(value)
+          } else {
+            controller.close()
+            break
+          }
+        } catch (err) {
+          controller.error(err)
+          break
+        }
+      }
+      if (!calledOnEnd) {
+        calledOnEnd = true
+        onEnd()
+      }
+    },
+    cancel() {
+      // NOTE: apparently `cancel()` can be called even after the reader above exits,
+      // so we need to guard against calling the callback twice
+      if (!calledOnEnd) {
+        calledOnEnd = true
+        onEnd()
+      }
     },
   })
-  return stream.pipeThrough(closePassThrough)
 }
 
 export class CloseController {
