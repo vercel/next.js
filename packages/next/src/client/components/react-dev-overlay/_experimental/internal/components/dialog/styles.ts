@@ -55,7 +55,7 @@ const styles = css`
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: 16px 12px;
+    padding: var(--size-4) var(--size-3);
   }
 
   /* Account for the footer height, when present */
