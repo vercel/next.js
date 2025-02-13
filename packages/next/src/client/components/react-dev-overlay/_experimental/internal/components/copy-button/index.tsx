@@ -237,12 +237,10 @@ function CopySuccessIcon() {
   )
 }
 
-// TODO(jiwon): Is not used anymore, should we decouple the styles?
 export const COPY_BUTTON_STYLES = css`
   [data-nextjs-data-runtime-error-copy-button],
   [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
     position: relative;
-    margin-left: var(--size-gap);
     padding: 0;
     border: none;
     background: none;

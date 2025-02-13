@@ -264,7 +264,7 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--size-3);
+    margin-bottom: var(--size-3_5);
   }
   .error-overlay-notes-container {
     padding: 0 var(--size-4);
