@@ -273,13 +273,19 @@ describe('use-cache-hanging-inputs', () => {
         const title = await getRedboxTitle(browser)
         const description = await getRedboxDescription(browser)
 
-        expect({ count, title, description }).toEqual({
-          count: 1,
-          title: 'Unhandled Runtime Error',
-          description: isNewDevOverlay
-            ? 'Error: kaputt!'
-            : '[ Cache ] Error: kaputt!',
-        })
+        if (isNewDevOverlay) {
+          expect({ count, title, description }).toEqual({
+            count: 1,
+            title: 'Unhandled Runtime Error\nCache',
+            description: 'Error: kaputt!',
+          })
+        } else {
+          expect({ count, title, description }).toEqual({
+            count: 1,
+            title: 'Unhandled Runtime Error',
+            description: '[ Cache ] Error: kaputt!',
+          })
+        }
       })
     })
   } else {
