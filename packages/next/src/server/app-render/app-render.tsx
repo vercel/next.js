@@ -1932,11 +1932,7 @@ async function renderToStream(
           })
         },
         maxHeadersLength: renderOpts.reactMaxHeadersLength,
-        // When debugging the static shell, client-side rendering should be
-        // disabled to prevent blanking out the page.
-        bootstrapScripts: renderOpts.isDebugStaticShell
-          ? []
-          : [bootstrapScript],
+        bootstrapScripts: [bootstrapScript],
         formState,
       }
     )
@@ -2825,11 +2821,7 @@ async function prerenderToStream(
                       )
                     }
                   },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
+                  bootstrapScripts: [bootstrapScript],
                 }
               ),
             () => {
@@ -2992,11 +2984,7 @@ async function prerenderToStream(
                   })
                 },
                 maxHeadersLength: renderOpts.reactMaxHeadersLength,
-                // When debugging the static shell, client-side rendering should be
-                // disabled to prevent blanking out the page.
-                bootstrapScripts: renderOpts.isDebugStaticShell
-                  ? []
-                  : [bootstrapScript],
+                bootstrapScripts: [bootstrapScript],
               }
             ),
           () => {
@@ -3299,11 +3287,7 @@ async function prerenderToStream(
                   )
                 }
               },
-              // When debugging the static shell, client-side rendering should be
-              // disabled to prevent blanking out the page.
-              bootstrapScripts: renderOpts.isDebugStaticShell
-                ? []
-                : [bootstrapScript],
+              bootstrapScripts: [bootstrapScript],
             }
           )
           pendingInitialClientResult.catch((err: unknown) => {
@@ -3457,11 +3441,7 @@ async function prerenderToStream(
 
                     return htmlRendererErrorHandler(err, errorInfo)
                   },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
+                  bootstrapScripts: [bootstrapScript],
                 }
               ),
             () => {
@@ -3620,11 +3600,7 @@ async function prerenderToStream(
             })
           },
           maxHeadersLength: renderOpts.reactMaxHeadersLength,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
+          bootstrapScripts: [bootstrapScript],
         }
       )
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3829,11 +3805,7 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce: ctx.nonce,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
+          bootstrapScripts: [bootstrapScript],
         }
       )
 
