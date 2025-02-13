@@ -5,7 +5,7 @@ import {
   getRedboxSource,
 } from 'next-test-utils'
 
-// Enabling PPR testing also enables the new dev overlay.
+// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
 const isNewDevOverlay =
   process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
@@ -24,23 +24,22 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
 
     expect(redbox.description).toBe('Failed to compile')
 
-    // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+    // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
     if (isNewDevOverlay) {
       if (process.env.TURBOPACK) {
         expect(redbox.source).toMatchInlineSnapshot(`
-                "./app/page.js (3:23)
+         "./app/page.js (3:23)
+         Ecmascript file had an error
+           1 | import dynamic from 'next/dynamic'
+           2 |
+         > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
+             |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           4 |
+           5 | export default function Page() {
+           6 |   return <DynamicClient />
 
-                Ecmascript file had an error
-                  1 | import dynamic from 'next/dynamic'
-                  2 |
-                > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
-                    |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                  4 |
-                  5 | export default function Page() {
-                  6 |   return <DynamicClient />
-
-                \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."
-              `)
+         \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."
+        `)
       } else {
         expect(redbox.source).toMatchInlineSnapshot(`
          "./app/page.js
@@ -59,18 +58,18 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
     } else {
       if (process.env.TURBOPACK) {
         expect(redbox.source).toMatchInlineSnapshot(`
-                 "./app/page.js:3:23
-                 Ecmascript file had an error
-                   1 | import dynamic from 'next/dynamic'
-                   2 |
-                 > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
-                     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-                   4 |
-                   5 | export default function Page() {
-                   6 |   return <DynamicClient />
+         "./app/page.js (3:23)
+         Ecmascript file had an error
+           1 | import dynamic from 'next/dynamic'
+           2 |
+         > 3 | const DynamicClient = dynamic(() => import('./client'), { ssr: false })
+             |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           4 |
+           5 | export default function Page() {
+           6 |   return <DynamicClient />
 
-                 \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."
-              `)
+         \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."
+        `)
       } else {
         expect(redbox.source).toMatchInlineSnapshot(`
                  "./app/page.js

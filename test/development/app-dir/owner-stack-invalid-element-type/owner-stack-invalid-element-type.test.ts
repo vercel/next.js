@@ -5,10 +5,10 @@ import {
   getStackFramesContent,
 } from 'next-test-utils'
 
-// TODO: When owner stack is enabled by default, remove the condition and only keep one test
+// TODO(new-dev-overlay): When owner stack is enabled by default, remove the condition and only keep one test
 const isOwnerStackEnabled =
   process.env.TEST_OWNER_STACK !== 'false' ||
-  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
 ;(isOwnerStackEnabled ? describe : describe.skip)(
   'app-dir - owner-stack-invalid-element-type',

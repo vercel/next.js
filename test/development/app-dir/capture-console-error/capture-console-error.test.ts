@@ -34,8 +34,8 @@ describe('app-dir - capture-console-error', () => {
     files: __dirname,
   })
 
-  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    it('skip test for experimental PPR', () => {
+  if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
+    it('skip test for new overlay', () => {
       // Cover these tests in the owner stack tests suite
     })
     return

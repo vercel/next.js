@@ -25,8 +25,12 @@ describe('dynamic-io', () => {
       expect(await browser.elementByCss('p').text()).toBe('result')
     })
 
-    if (process.env.__NEXT_EXPERIMENTAL_PPR && isNextDev) {
-      // TODO(react-time-info): Remove this branch for PPR in dev mode when the
+    if (
+      (process.env.__NEXT_EXPERIMENTAL_PPR ||
+        process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) &&
+      isNextDev
+    ) {
+      // TODO(react-time-info): Remove this branch for experimental React in dev mode when the
       // issue is resolved where the inclusion of server timings in the RSC
       // payload makes the serialized bound args not suitable to be used as a
       // cache key.

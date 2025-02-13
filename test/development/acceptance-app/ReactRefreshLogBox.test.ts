@@ -2,11 +2,11 @@
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
   describeVariants as describe,
   getStackFramesContent,
   retry,
   getRedboxCallStack,
+  getToastErrorCount,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -220,7 +220,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (isTurbopack) {
       expect(source).toEqual(outdent`
-        ./index.js:7:1
+        ./index.js (7:1)
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
@@ -351,7 +351,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      isTurbopack ? './index.module.css:1:9' : './index.module.css:1:1'
+      isTurbopack ? './index.module.css (1:9)' : './index.module.css (1:1)'
     )
     if (!isTurbopack) {
       expect(source).toMatch('Syntax error: ')
@@ -436,7 +436,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -481,7 +481,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -526,7 +526,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toEqual(
@@ -735,23 +735,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.patch('index.js', file)
 
     // Unhandled error and rejection in setTimeout
-    expect(
-      await browser.waitForElementByCss('.nextjs-toast-errors').text()
-    ).toBe('2 issues')
+    expect(await getToastErrorCount(browser)).toBe(2)
 
     // Unhandled error in event handler
     await browser.elementById('unhandled-error').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /3 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(3)
 
     // Unhandled rejection in event handler
     await browser.elementById('unhandled-rejection').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /4 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(4)
     await session.assertNoRedbox()
 
     // Add Component error
@@ -1059,7 +1051,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     if (isTurbopack) {
       expect(await session.getRedboxSource()).toEqual(outdent`
-          ./app/styles2.css:1:2
+          ./app/styles2.css (1:2)
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
               |  ^

@@ -7,7 +7,9 @@ import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
-const enableOwnerStacks = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const enableOwnerStacks =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -220,41 +222,43 @@ describe('Error overlay for hydration errors in App router', () => {
        "...
            <HotReload assetPrefix="" globalError={[...]}>
              <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
-               <DevRootHTTPAccessFallbackBoundary>
-                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <Head>
-                         <script>
-                         <script>
-                         <script>
-                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                           <Root params={Promise}>
-                             <html
-       -                       className="server-html"
-                             >
-                         ...
-               ..."
+               <DevOverlayErrorBoundary devOverlay={<ShadowPortal>} globalError={[...]} ...>
+                 <DevRootHTTPAccessFallbackBoundary>
+                   <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <Head>
+                           <script>
+                           <script>
+                           <script>
+                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <Root params={Promise}>
+                               <html
+       -                         className="server-html"
+                               >
+                           ...
+                 ..."
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "...
            <HotReload assetPrefix="" globalError={[...]}>
              <ReactDevOverlay state={{nextId:1, ...}} dispatcher={{...}} globalError={[...]}>
-               <DevRootHTTPAccessFallbackBoundary>
-                 <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
-                     <RedirectBoundary>
-                       <RedirectErrorBoundary router={{...}}>
-                         <Head>
-                         <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                           <Root params={Promise}>
-                             <html
-       -                       className="server-html"
-                             >
-                         ...
-               ..."
+               <DevOverlayErrorBoundary devOverlay={<ShadowPortal>} globalError={[...]} ...>
+                 <DevRootHTTPAccessFallbackBoundary>
+                   <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <Head>
+                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <Root params={Promise}>
+                               <html
+       -                         className="server-html"
+                               >
+                           ...
+                 ..."
       `)
     }
 
@@ -796,7 +800,10 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(2)
+      expect(await getRedboxTotalErrorCount(browser)).toBe(
+        // With owner stacks, we also get an error for the parent context
+        enableOwnerStacks ? 3 : 2
+      )
     })
 
     const description = await session.getRedboxDescription()

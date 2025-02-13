@@ -415,6 +415,7 @@ export const NextLogo = forwardRef(function NextLogo(
           <button
             ref={mergeRefs(triggerRef, propRef)}
             data-next-mark
+            data-next-mark-loading={isLoading}
             onClick={onTriggerClick}
             {...props}
           >
