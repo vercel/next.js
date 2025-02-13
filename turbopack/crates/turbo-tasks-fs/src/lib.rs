@@ -271,7 +271,7 @@ impl DiskFileSystemInner {
                 i == &invalidator
                     || old_write_content
                         .as_ref()
-                        .is_some_and(|old| old != &write_content)
+                        .is_none_or(|old| old != &write_content)
             })
             .collect::<Vec<_>>();
         drop(invalidator_map);
