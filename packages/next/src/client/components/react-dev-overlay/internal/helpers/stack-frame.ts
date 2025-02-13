@@ -78,8 +78,8 @@ export async function getOriginalStackFrames(
   }
 
   let res: Response | undefined = undefined
-  let errored = false
   let reason: string | undefined = undefined
+  let errored = false
   try {
     res = await fetch('/__nextjs_original-stack-frames', {
       method: 'POST',
@@ -93,17 +93,7 @@ export async function getOriginalStackFrames(
   // When fails to fetch the original stack frames, we reject here to be
   // caught at `_getOriginalStackFrame()` and return the stack frames so
   // that the error overlay can render.
-  if (!res) {
-    return Promise.all(
-      frames.map((frame) =>
-        getOriginalStackFrame(frame, {
-          status: 'rejected',
-          reason: 'Failed to fetch the original stack frames: No response',
-        })
-      )
-    )
-  }
-  if (!res.ok || res.status === 204) {
+  if (res && (!res.ok || res.status === 204)) {
     errored = true // if it's 204 the reason is empty, but we still need to mark as errored
     reason = await res.text()
   }
