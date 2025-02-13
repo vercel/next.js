@@ -18,6 +18,9 @@ describe('use-cache-close-over-function', () => {
     return
   }
 
+  const isNewOverlay =
+    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
   if (isNextDev) {
     it('should show an error toast for client-side usage', async () => {
       const outputIndex = next.cliOutput.length
@@ -28,11 +31,19 @@ describe('use-cache-close-over-function', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toMatchInlineSnapshot(`
-        "${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+      if (isNewOverlay) {
+        expect(errorDescription).toMatchInlineSnapshot(`
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
+      } else {
+        expect(errorDescription).toMatchInlineSnapshot(`
+        "[ Server ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+          [function fn]
+           ^^^^^^^^^^^"
+      `)
+      }
 
       expect(errorSource).toMatchInlineSnapshot(`
         "app/client/page.tsx (8:3) @ createCachedFn
@@ -86,11 +97,19 @@ describe('use-cache-close-over-function', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toMatchInlineSnapshot(`
-        "${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+      if (isNewOverlay) {
+        expect(errorDescription).toMatchInlineSnapshot(`
+        "Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
+      } else {
+        expect(errorDescription).toMatchInlineSnapshot(`
+        "[ Server ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+          [function fn]
+           ^^^^^^^^^^^"
+      `)
+      }
 
       expect(errorSource).toMatchInlineSnapshot(`
         "app/server/page.tsx (6:3) @ createCachedFn

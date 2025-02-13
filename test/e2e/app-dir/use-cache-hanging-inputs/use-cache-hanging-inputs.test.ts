@@ -203,9 +203,13 @@ describe('use-cache-hanging-inputs', () => {
           const expectedErrorMessagePpr =
             'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
 
-          expect(errorDescription).toBe(
-            `${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}${expectedErrorMessagePpr}`
-          )
+          if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
+            expect(errorDescription).toBe(expectedErrorMessagePpr)
+          } else {
+            expect(errorDescription).toBe(
+              `[ Server ] ${expectedErrorMessagePpr}`
+            )
+          }
 
           expect(cliOutput).toContain(
             `${expectedErrorMessagePpr}
