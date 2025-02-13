@@ -119,6 +119,9 @@ export function Base() {
           /* 
             Values to be used where responsive behavior is desirable.        
             E.g. we generally want to scale font sizes, but not radii or padding which would make things feel more cramped.
+
+            The reason why we dont use the scale above is because using this scale is more ergonomic,
+            you don't need to remember what size-4 means.
            */
           --size-1px: 0.0625rem; /* 1px */
           --size-2px: 0.125rem; /* 2px */

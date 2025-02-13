@@ -208,11 +208,11 @@ export const styles = css`
     bottom: calc(var(--size-gap-double) * 4.5);
   }
   p.nextjs__container_errors__link {
-    font-size: 14px;
+    font-size: var(--size-14px);
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-size: 14px;
+    font-size: var(--size-14px);
     line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
@@ -268,7 +268,8 @@ export const styles = css`
     margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: 0 var(--size-4);
+    padding: 0 var(--next-dialog-row-padding);
+    margin: 8px 0;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;
