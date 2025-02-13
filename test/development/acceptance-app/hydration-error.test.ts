@@ -7,9 +7,9 @@ import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 
-// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+const enableOwnerStacks =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
@@ -802,7 +802,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(
         // With owner stacks, we also get an error for the parent context
-        isNewDevOverlay ? 3 : 2
+        enableOwnerStacks ? 3 : 2
       )
     })
 
@@ -874,7 +874,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(
         // One error for "Cannot render a sync or defer <script>"
-        isNewDevOverlay
+        enableOwnerStacks
           ? // With owner stacks, we also get an error for the parent context.
             3
           : 2

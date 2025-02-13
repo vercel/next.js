@@ -1,4 +1,3 @@
-/* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
@@ -8,8 +7,12 @@ import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
+const isReactExperimental =
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
 describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
@@ -98,18 +101,24 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   })
 
   describe('interrupted RSC renders', () => {
-    it('runs callbacks if redirect() was called', async () => {
-      await next.browser(pathPrefix + '/interrupted/calls-redirect')
+    // This is currently broken with experimental React & Turbopack
+    // https://github.com/vercel/next.js/pull/75989
 
-      await retry(() => {
-        expect(getLogs()).toContainEqual({
-          source: '[page] /interrupted/calls-redirect',
+    ;(isTurbopack && isReactExperimental ? it.skip : it)(
+      'runs callbacks if redirect() was called',
+      async () => {
+        await next.browser(pathPrefix + '/interrupted/calls-redirect')
+
+        await retry(() => {
+          expect(getLogs()).toContainEqual({
+            source: '[page] /interrupted/calls-redirect',
+          })
+          expect(getLogs()).toContainEqual({
+            source: '[page] /interrupted/redirect-target',
+          })
         })
-        expect(getLogs()).toContainEqual({
-          source: '[page] /interrupted/redirect-target',
-        })
-      })
-    })
+      }
+    )
 
     it('runs callbacks if notFound() was called', async () => {
       await next.browser(pathPrefix + '/interrupted/calls-not-found')
