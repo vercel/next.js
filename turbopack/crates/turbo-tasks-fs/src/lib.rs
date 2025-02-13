@@ -286,7 +286,8 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_dir_invalidator(&self, path: &Path, invalidator: Invalidator) -> Result<()> {
+    fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+        let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path_to_key(path), invalidator, None);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
@@ -538,9 +539,7 @@ impl FileSystem for DiskFileSystem {
     async fn raw_read_dir(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
-        let invalidator = turbo_tasks::get_invalidator();
-        self.inner
-            .register_dir_invalidator(&full_path, invalidator)?;
+        self.inner.register_dir_invalidator(&full_path)?;
 
         // we use the sync std function here as it's a lot faster (600%) in
         // node-file-trace
