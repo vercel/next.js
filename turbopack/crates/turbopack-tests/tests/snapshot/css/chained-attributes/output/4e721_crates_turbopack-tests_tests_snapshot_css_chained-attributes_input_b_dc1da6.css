@@ -1,4 +1,4 @@
-/* ~project/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css [test] (css, layer(layer) print supports(not(display: inline-grid)) supports(font-format(woff2))) */
+/* /[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css [test] (css, layer(layer) print supports(not(display: inline-grid)) supports(font-format(woff2))) */
 @layer layer {
 @media print {
 @supports not(display: inline-grid) and font-format(woff2) {

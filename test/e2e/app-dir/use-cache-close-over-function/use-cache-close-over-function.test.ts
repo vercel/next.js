@@ -113,7 +113,7 @@ describe('use-cache-close-over-function', () => {
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/server/page.tsx:6:2)' +
               // TODO(veil): Should be source-mapped.
-              '\n    at ~project'
+              '\n    at /[project]'
           : '' +
               'Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
               '\n  [function fn]' +

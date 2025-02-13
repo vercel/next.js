@@ -1,4 +1,4 @@
-/* ~project/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css [test] (css, layer(layer) print supports(not(display: inline-grid))) */
+/* /[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css [test] (css, layer(layer) print supports(not(display: inline-grid))) */
 @layer layer {
 @media print {
 @supports not(display: inline-grid) {

@@ -69,7 +69,7 @@ describe('prerender native module', () => {
         {
           page: '/_app',
           tests: [
-            /(webpack-runtime\.js|~turbopack_runtime\.js)/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             isReact18
@@ -81,7 +81,7 @@ describe('prerender native module', () => {
         {
           page: '/blog/[slug]',
           tests: [
-            /(webpack-runtime\.js|~turbopack_runtime\.js)/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             isReact18
