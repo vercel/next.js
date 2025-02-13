@@ -30,18 +30,34 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
   }
 }
 
-export function useErrorHook({
-  state,
-  isAppDir,
-}: {
+type Props = {
+  children: (params: {
+    readyErrors: ReadyRuntimeError[]
+    totalErrorCount: number
+  }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
-}) {
-  const { errors, rootLayoutMissingTags, buildError } = state
+}
+
+export const RenderError = (props: Props) => {
+  const { state } = props
+  const isBuildError =
+    !!state.rootLayoutMissingTags?.length || !!state.buildError
+
+  if (isBuildError) {
+    return <RenderBuildError {...props} />
+  } else {
+    return <RenderRuntimeError {...props} />
+  }
+}
+
+const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
+  const { errors } = state
 
   const [lookups, setLookups] = useState<{
     [eventId: string]: ReadyRuntimeError
   }>({})
+
   const [readyErrors, nextError] = useMemo<
     [ReadyRuntimeError[], SupportedErrorEvent | null]
   >(() => {
@@ -93,16 +109,14 @@ export function useErrorHook({
     }
   }, [nextError, isAppDir])
 
-  return {
-    readyErrors,
-    // Total number of errors are based on the priority that
-    // will be displayed. Since build error and root layout
-    // missing tags won't be dismissed until resolved, the
-    // total number of errors may be fixed to their length.
-    totalErrorCount: rootLayoutMissingTags?.length
-      ? 1
-      : !!buildError
-        ? 1
-        : readyErrors.length,
-  }
+  return children({ readyErrors, totalErrorCount: readyErrors.length })
+}
+
+const RenderBuildError = ({ children }: Props) => {
+  return children({
+    readyErrors: [],
+    // Build errors and missing root layout tags persist until fixed,
+    // so we can set a fixed error count of 1
+    totalErrorCount: 1,
+  })
 }

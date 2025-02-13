@@ -509,7 +509,13 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
 function NextMark({ isLoading }: { isLoading?: boolean }) {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      data-next-mark-loading={isLoading}
+    >
       <g transform="translate(8.5, 13)">
         <path
           className={isLoading ? 'path0' : 'paused'}
