@@ -23,7 +23,11 @@ import {
   waitForSegmentCacheEntry,
   type RouteTree,
 } from './cache'
-import { createCacheKey } from './cache-key'
+import { createCacheKey, type RouteCacheKey } from './cache-key'
+import {
+  addSearchParamsIfPageSegment,
+  PAGE_SEGMENT_KEY,
+} from '../../../shared/lib/segment'
 import { NavigationResultTag } from '../segment-cache'
 
 type MPANavigationResult = {
@@ -112,7 +116,7 @@ export function navigate(
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
-    const snapshot = readRenderSnapshotFromCache(now, route.tree)
+    const snapshot = readRenderSnapshotFromCache(now, cacheKey, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
     const prefetchSeedData = snapshot.seedData
     const prefetchHead = route.head
@@ -244,6 +248,7 @@ function navigationTaskToResult(
 
 function readRenderSnapshotFromCache(
   now: number,
+  routeCacheKey: RouteCacheKey,
   tree: RouteTree
 ): { flightRouterState: FlightRouterState; seedData: CacheNodeSeedData } {
   let childRouterStates: { [parallelRouteKey: string]: FlightRouterState } = {}
@@ -254,7 +259,11 @@ function readRenderSnapshotFromCache(
   if (slots !== null) {
     for (const parallelRouteKey in slots) {
       const childTree = slots[parallelRouteKey]
-      const childResult = readRenderSnapshotFromCache(now, childTree)
+      const childResult = readRenderSnapshotFromCache(
+        now,
+        routeCacheKey,
+        childTree
+      )
       childRouterStates[parallelRouteKey] = childResult.flightRouterState
       childSeedDatas[parallelRouteKey] = childResult.seedData
     }
@@ -264,7 +273,7 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, tree.key)
+  const segmentEntry = readSegmentCacheEntry(now, routeCacheKey, tree.key)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -299,15 +308,33 @@ function readRenderSnapshotFromCache(
     }
   }
 
+  const segment =
+    tree.segment === PAGE_SEGMENT_KEY && routeCacheKey.search
+      ? // The navigation implementation expects the search params to be
+        // included in the segment. However, the Segment Cache tracks search
+        // params separately from the rest of the segment key. So we need to
+        // add them back here.
+        //
+        // See corresponding comment in convertFlightRouterStateToTree.
+        //
+        // TODO: What we should do instead is update the navigation diffing
+        // logic to compare search params explicitly. This is a temporary
+        // solution until more of the Segment Cache implementation has settled.
+        addSearchParamsIfPageSegment(
+          tree.segment,
+          Object.fromEntries(new URLSearchParams(routeCacheKey.search))
+        )
+      : tree.segment
+
   return {
     flightRouterState: [
-      tree.segment,
+      segment,
       childRouterStates,
       null,
       null,
       tree.isRootLayout,
     ],
-    seedData: [tree.segment, rsc, childSeedDatas, loading, isPartial],
+    seedData: [segment, rsc, childSeedDatas, loading, isPartial],
   }
 }
 

@@ -36,6 +36,7 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import type {
   NormalizedHref,
   NormalizedNextUrl,
+  NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
@@ -53,6 +54,7 @@ import type {
 import { normalizeFlightData } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
 import { pingVisibleLinks } from '../links'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -157,9 +159,9 @@ type SegmentCacheEntryShared = {
   revalidating: SegmentCacheEntry | null
 
   // LRU-related fields
-  key: null | string
-  next: null | RouteCacheEntry
-  prev: null | RouteCacheEntry
+  keypath: null | Prefix<SegmentCacheKeypath>
+  next: null | SegmentCacheEntry
+  prev: null | SegmentCacheEntry
   size: number
 }
 
@@ -230,9 +232,9 @@ let routeCacheLru = createLRU<RouteCacheEntry>(
   onRouteLRUEviction
 )
 
-// TODO: We may eventually store segment entries in a tuple map, too, to
-// account for search params.
-let segmentCacheMap = new Map<string, SegmentCacheEntry>()
+type SegmentCacheKeypath = [string, NormalizedSearch]
+let segmentCacheMap: TupleMap<SegmentCacheKeypath, SegmentCacheEntry> =
+  createTupleMap()
 // NOTE: Segments and Route entries are managed by separate LRUs. We could
 // combine them into a single LRU, but because they are separate types, we'd
 // need to wrap each one in an extra LRU node (to maintain monomorphism, at the
@@ -269,7 +271,7 @@ export function revalidateEntireCache(
   // correctly: background revalidations. See note in `upsertSegmentEntry`.
   routeCacheMap = createTupleMap()
   routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
-  segmentCacheMap = new Map()
+  segmentCacheMap = createTupleMap()
   segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
 
   // Prefetch all the currently visible links again, to re-fill the cache.
@@ -316,12 +318,61 @@ export function readRouteCacheEntry(
   return readExactRouteCacheEntry(now, key.href, key.nextUrl)
 }
 
+export function getSegmentKeypathForTask(
+  task: PrefetchTask,
+  route: FulfilledRouteCacheEntry,
+  path: string
+): Prefix<SegmentCacheKeypath> {
+  // When a prefetch includes dynamic data, the search params are included
+  // in the result, so we must include the search string in the segment
+  // cache key. (Note that this is true even if the search string is empty.)
+  //
+  // If we're fetching using PPR, we do not need to include the search params in
+  // the cache key, because the search params are treated as dynamic data. The
+  // cache entry is valid for all possible search param values.
+  const isDynamicTask = task.includeDynamicData || !route.isPPREnabled
+  return isDynamicTask && path.endsWith('/' + PAGE_SEGMENT_KEY)
+    ? [path, task.key.search]
+    : [path]
+}
+
 export function readSegmentCacheEntry(
   now: number,
+  routeCacheKey: RouteCacheKey,
   path: string
 ): SegmentCacheEntry | null {
-  const existingEntry = segmentCacheMap.get(path)
-  if (existingEntry !== undefined) {
+  if (!path.endsWith('/' + PAGE_SEGMENT_KEY)) {
+    // Fast path. Search params only exist on page segments.
+    return readExactSegmentCacheEntry(now, [path])
+  }
+
+  // Page segments may or may not contain search params. If they were prefetched
+  // using a dynamic request, then we will have an entry with search params.
+  // Check for that case first.
+  const entryWithSearchParams = readExactSegmentCacheEntry(now, [
+    path,
+    routeCacheKey.search,
+  ])
+  if (entryWithSearchParams !== null) {
+    return entryWithSearchParams
+  }
+
+  // If we did not find an entry with the given search params, check for a
+  // "fallback" entry, where the search params are treated as dynamic data. This
+  // is the common case because PPR/static prerenders always treat search params
+  // as dynamic.
+  //
+  // See corresponding logic in `getSegmentKeypathForTask`.
+  const entryWithoutSearchParams = readExactSegmentCacheEntry(now, [path])
+  return entryWithoutSearchParams
+}
+
+function readExactSegmentCacheEntry(
+  now: number,
+  keypath: Prefix<SegmentCacheKeypath>
+): SegmentCacheEntry | null {
+  const existingEntry = segmentCacheMap.get(keypath)
+  if (existingEntry !== null) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
       // Reuse the existing entry.
@@ -335,14 +386,18 @@ export function readSegmentCacheEntry(
       const revalidatingEntry = existingEntry.revalidating
       if (revalidatingEntry !== null) {
         // There's a revalidation in progress. Upsert it.
-        const upsertedEntry = upsertSegmentEntry(now, path, revalidatingEntry)
+        const upsertedEntry = upsertSegmentEntry(
+          now,
+          keypath,
+          revalidatingEntry
+        )
         if (upsertedEntry !== null && upsertedEntry.staleAt > now) {
           // We can use the upserted revalidation entry.
           return upsertedEntry
         }
       } else {
         // Evict the stale entry from the cache.
-        deleteSegmentFromCache(existingEntry, path)
+        deleteSegmentFromCache(existingEntry, keypath)
       }
     }
   }
@@ -435,20 +490,21 @@ export function readOrCreateRouteCacheEntry(
  */
 export function readOrCreateSegmentCacheEntry(
   now: number,
-  // TODO: Don't need to pass the whole route. Just `staleAt`.
+  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   path: string
 ): SegmentCacheEntry {
-  const existingEntry = readSegmentCacheEntry(now, path)
+  const keypath = getSegmentKeypathForTask(task, route, path)
+  const existingEntry = readExactSegmentCacheEntry(now, keypath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache.
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
-  segmentCacheMap.set(path, pendingEntry)
+  segmentCacheMap.set(keypath, pendingEntry)
   // Stash the keypath on the entry so we know how to remove it from the map
   // if it gets evicted from the LRU.
-  pendingEntry.key = path
+  pendingEntry.keypath = keypath
   segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -480,7 +536,7 @@ export function readOrCreateRevalidatingSegmentEntry(
 
 export function upsertSegmentEntry(
   now: number,
-  segmentKeyPath: string,
+  keypath: Prefix<SegmentCacheKeypath>,
   candidateEntry: SegmentCacheEntry
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
@@ -489,7 +545,7 @@ export function upsertSegmentEntry(
   // TODO: We should not upsert an entry if its key was invalidated in the time
   // since the request was made. We can do that by passing the "owner" entry to
   // this function and confirming it's the same as `existingEntry`.
-  const existingEntry = readSegmentCacheEntry(now, segmentKeyPath)
+  const existingEntry = readExactSegmentCacheEntry(now, keypath)
   if (existingEntry !== null) {
     if (candidateEntry.isPartial && !existingEntry.isPartial) {
       // Don't replace a full segment with a partial one. A case where this
@@ -508,12 +564,12 @@ export function upsertSegmentEntry(
       return null
     }
     // Evict the existing entry from the cache.
-    deleteSegmentFromCache(existingEntry, segmentKeyPath)
+    deleteSegmentFromCache(existingEntry, keypath)
   }
-  segmentCacheMap.set(segmentKeyPath, candidateEntry)
+  segmentCacheMap.set(keypath, candidateEntry)
   // Stash the keypath on the entry so we know how to remove it from the map
   // if it gets evicted from the LRU.
-  candidateEntry.key = segmentKeyPath
+  candidateEntry.keypath = keypath
   segmentCacheLru.put(candidateEntry)
   return candidateEntry
 }
@@ -534,7 +590,7 @@ export function createDetachedSegmentCacheEntry(
     promise: null,
 
     // LRU-related fields
-    key: null,
+    keypath: null,
     next: null,
     prev: null,
     size: 0,
@@ -561,9 +617,12 @@ function deleteRouteFromCache(
   routeCacheLru.delete(entry)
 }
 
-function deleteSegmentFromCache(entry: SegmentCacheEntry, key: string): void {
+function deleteSegmentFromCache(
+  entry: SegmentCacheEntry,
+  keypath: Prefix<SegmentCacheKeypath>
+): void {
   cancelEntryListeners(entry)
-  segmentCacheMap.delete(key)
+  segmentCacheMap.delete(keypath)
   segmentCacheLru.delete(entry)
   clearRevalidatingSegmentFromOwner(entry)
 }
@@ -601,11 +660,11 @@ function onRouteLRUEviction(entry: RouteCacheEntry): void {
 
 function onSegmentLRUEviction(entry: SegmentCacheEntry): void {
   // The LRU evicted this entry. Remove it from the map.
-  const key = entry.key
-  if (key !== null) {
-    entry.key = null
+  const keypath = entry.keypath
+  if (keypath !== null) {
+    entry.keypath = null
     cancelEntryListeners(entry)
-    segmentCacheMap.delete(key)
+    segmentCacheMap.delete(keypath)
   }
 }
 
@@ -785,9 +844,25 @@ function convertFlightRouterStateToRouteTree(
     }
   }
 
+  // The navigation implementation expects the search params to be included
+  // in the segment. However, in the case of a static response, the search
+  // params are omitted. So the client needs to add them back in when reading
+  // from the Segment Cache.
+  //
+  // For consistency, we'll do this for dynamic responses, too.
+  //
+  // TODO: We should move search params out of FlightRouterState and handle them
+  // entirely on the client, similar to our plan for dynamic params.
+  const originalSegment = flightRouterState[0]
+  const segmentWithoutSearchParams =
+    typeof originalSegment === 'string' &&
+    originalSegment.startsWith(PAGE_SEGMENT_KEY)
+      ? PAGE_SEGMENT_KEY
+      : originalSegment
+
   return {
     key,
-    segment: flightRouterState[0],
+    segment: segmentWithoutSearchParams,
     slots,
     isRootLayout: flightRouterState[4] === true,
   }
@@ -1174,6 +1249,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // in the LRU as more data comes in.
     fulfilledEntries = writeDynamicRenderResponseIntoCache(
       Date.now(),
+      task,
       response,
       serverData,
       route,
@@ -1262,6 +1338,7 @@ function rejectSegmentEntriesIfStillPending(
 
 function writeDynamicRenderResponseIntoCache(
   now: number,
+  task: PrefetchTask,
   response: Response,
   serverData: NavigationFlightResponse,
   route: FulfilledRouteCacheEntry,
@@ -1312,6 +1389,7 @@ function writeDynamicRenderResponseIntoCache(
           : STATIC_STALETIME_MS
       writeSeedDataIntoCache(
         now,
+        task,
         route,
         now + staleTimeMs,
         seedData,
@@ -1337,6 +1415,7 @@ function writeDynamicRenderResponseIntoCache(
 
 function writeSeedDataIntoCache(
   now: number,
+  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   staleAt: number,
   seedData: CacheNodeSeedData,
@@ -1360,7 +1439,12 @@ function writeSeedDataIntoCache(
     fulfillSegmentCacheEntry(ownedEntry, rsc, loading, staleAt, isPartial)
   } else {
     // There's no matching entry. Attempt to create a new one.
-    const possiblyNewEntry = readOrCreateSegmentCacheEntry(now, route, key)
+    const possiblyNewEntry = readOrCreateSegmentCacheEntry(
+      now,
+      task,
+      route,
+      key
+    )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
       const newEntry = possiblyNewEntry
@@ -1375,7 +1459,11 @@ function writeSeedDataIntoCache(
         staleAt,
         isPartial
       )
-      upsertSegmentEntry(now, key, newEntry)
+      upsertSegmentEntry(
+        now,
+        getSegmentKeypathForTask(task, route, key),
+        newEntry
+      )
     }
   }
   // Recursively write the child data into the cache.
@@ -1387,6 +1475,7 @@ function writeSeedDataIntoCache(
         const childSegment = childSeedData[0]
         writeSeedDataIntoCache(
           now,
+          task,
           route,
           staleAt,
           childSeedData,
