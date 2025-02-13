@@ -27,6 +27,7 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{min, Ordering},
+    collections::HashMap,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
     future::Future,
@@ -266,22 +267,14 @@ impl DiskFileSystemInner {
     ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let invalidators = invalidator_map.entry(path_to_key(path)).or_default();
-        let old_invalidators = invalidators
-            .extract_if(|i, old_write_content| {
-                i == &invalidator
-                    || old_write_content
-                        .as_ref()
-                        .is_none_or(|old| old != &write_content)
-            })
-            .filter(|(i, _)| i != &invalidator)
-            .collect::<Vec<_>>();
+        let old_invalidators = take(invalidators);
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
         }
-        Ok(old_invalidators)
+        Ok(old_invalidators.into_iter().collect())
     }
 
     /// registers the path as an invalidator for the current task,
