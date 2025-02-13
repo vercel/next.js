@@ -258,6 +258,7 @@
     "wait-port": "0.2.2",
     "webpack": "5.98.0",
     "webpack-bundle-analyzer": "4.7.0",
+    "webpack-dev-server": "5.2.0",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3",
     "yargs": "16.2.0"
