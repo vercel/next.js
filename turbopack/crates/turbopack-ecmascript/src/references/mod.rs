@@ -656,20 +656,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let span = tracing::info_span!("exports");
     let (webpack_runtime, webpack_entry, webpack_chunks) = async {
-        let (webpack_runtime, webpack_entry, webpack_chunks, esm_exports, esm_star_exports) =
+        let (webpack_runtime, webpack_entry, webpack_chunks, esm_exports) =
             set_handler_and_globals(&handler, globals, || {
                 // TODO migrate to effects
                 let mut visitor =
                     ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
 
-                let mut esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = vec![];
-
                 for (i, reexport) in eval_context.imports.reexports() {
                     let import_ref = import_references[i];
                     match reexport {
-                        Reexport::Star => {
-                            esm_star_exports.push(ResolvedVc::upcast(import_ref));
-                        }
+                        Reexport::Star => {}
                         Reexport::Namespace { exported: n } => {
                             visitor.esm_exports.insert(
                                 n.as_str().into(),
@@ -699,7 +695,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     visitor.webpack_entry,
                     visitor.webpack_chunks,
                     visitor.esm_exports,
-                    esm_star_exports,
                 )
             });
 
@@ -717,9 +712,15 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 EsmExport::Error => {}
             }
         }
-        for reference in &esm_star_exports {
-            analysis.add_reexport_reference(*reference);
-            analysis.add_non_local_reference(*reference);
+
+        let mut esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = vec![];
+        for (i, reexport) in eval_context.imports.reexports() {
+            let reference = import_references[i];
+            if let Reexport::Star = reexport {
+                esm_star_exports.push(ResolvedVc::upcast(reference));
+                analysis.add_reexport_reference(reference);
+                analysis.add_non_local_reference(reference);
+            }
         }
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
             if specified_type == SpecifiedModuleType::CommonJs {
