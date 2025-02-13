@@ -28,5 +28,5 @@ error[E0307]: invalid `self` parameter type: `OperationVc<Foobar>`
 13 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
    |                                  ^^^^^^^^^^^^^^^^^
    |
-   = note: type of `self` must be `Self` or a type that dereferences to it
-   = help: consider changing to `self`, `&self`, `&mut self`, `self: Box<Self>`, `self: Rc<Self>`, `self: Arc<Self>`, or `self: Pin<P>` (where P is one of the previous types except `Self`)
+   = note: type of `self` must be `Self` or some type implementing `Receiver`
+   = help: consider changing to `self`, `&self`, `&mut self`, or a type implementing `Receiver` such as `self: Box<Self>`, `self: Rc<Self>`, or `self: Arc<Self>`
