@@ -36,7 +36,12 @@ describe('error-ignored-frames', () => {
        at resolveErrorDev ()
        at processFullStringRow ()
        at processFullBinaryRow ()
-       at progress ()"
+       at progress ()
+       at InnerLayoutRouter ()
+       at OuterLayoutRouter ()
+       at Router ()
+       at AppRouter ()
+       at ServerRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
@@ -44,7 +49,12 @@ describe('error-ignored-frames', () => {
        at resolveErrorDev ()
        at processFullStringRow ()
        at processFullBinaryRow ()
-       at progress ()"
+       at progress ()
+       at InnerLayoutRouter (../src/client/components/layout-router.tsx (408:6))
+       at OuterLayoutRouter (../src/client/components/layout-router.tsx (607:20))
+       at Router (../src/client/components/app-router.tsx (633:8))
+       at AppRouter (../src/client/components/app-router.tsx (679:8))
+       at ServerRoot (../src/client/app-index.tsx (200:6))"
       `)
     }
   })
@@ -64,32 +74,18 @@ describe('error-ignored-frames', () => {
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at Page (app/client/page.tsx (4:9))
-       at react-stack-bottom-frame ()
-       at renderWithHooks ()
-       at updateFunctionComponent ()
-       at beginWork ()
-       at runWithFiberInDEV ()
-       at performUnitOfWork ()
-       at workLoopSync ()
-       at renderRootSync ()
-       at performWorkOnRoot ()
-       at performWorkOnRootViaSchedulerTask ()
-       at MessagePort.performWorkUntilDeadline ()"
+       at ClientPageRoot ()
+       at Router ()
+       at AppRouter ()
+       at ServerRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at Page (app/client/page.tsx (4:9))
-       at react-stack-bottom-frame ()
-       at renderWithHooks ()
-       at updateFunctionComponent ()
-       at beginWork ()
-       at runWithFiberInDEV ()
-       at performUnitOfWork ()
-       at workLoopSync ()
-       at renderRootSync ()
-       at performWorkOnRoot ()
-       at performWorkOnRootViaSchedulerTask ()
-       at MessagePort.performWorkUntilDeadline ()"
+       at ClientPageRoot (../src/client/components/client-page.tsx (60:13))
+       at Router (../src/client/components/app-router.tsx (633:8))
+       at AppRouter (../src/client/components/app-router.tsx (679:8))
+       at ServerRoot (../src/client/app-index.tsx (200:6))"
       `)
     }
   })
@@ -119,34 +115,20 @@ describe('error-ignored-frames', () => {
        "at <unknown> (app/interleaved/page.tsx (7:11))
        at invokeCallback ()
        at Page (app/interleaved/page.tsx (6:35))
-       at react-stack-bottom-frame ()
-       at renderWithHooks ()
-       at updateFunctionComponent ()
-       at beginWork ()
-       at runWithFiberInDEV ()
-       at performUnitOfWork ()
-       at workLoopSync ()
-       at renderRootSync ()
-       at performWorkOnRoot ()
-       at performWorkOnRootViaSchedulerTask ()
-       at MessagePort.performWorkUntilDeadline ()"
+       at ClientPageRoot ()
+       at Router ()
+       at AppRouter ()
+       at ServerRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at eval (app/interleaved/page.tsx (7:11))
        at invokeCallback (node_modules/interleave/index.js (2:1))
        at Page (app/interleaved/page.tsx (6:37))
-       at react-stack-bottom-frame ()
-       at renderWithHooks ()
-       at updateFunctionComponent ()
-       at beginWork ()
-       at runWithFiberInDEV ()
-       at performUnitOfWork ()
-       at workLoopSync ()
-       at renderRootSync ()
-       at performWorkOnRoot ()
-       at performWorkOnRootViaSchedulerTask ()
-       at MessagePort.performWorkUntilDeadline ()"
+       at ClientPageRoot (../src/client/components/client-page.tsx (60:13))
+       at Router (../src/client/components/app-router.tsx (633:8))
+       at AppRouter (../src/client/components/app-router.tsx (679:8))
+       at ServerRoot (../src/client/app-index.tsx (200:6))"
       `)
     }
   })

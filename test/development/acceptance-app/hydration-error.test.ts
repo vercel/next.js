@@ -5,12 +5,6 @@ import path from 'path'
 import { outdent } from 'outdent'
 import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 
-// https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
-
-const enableOwnerStacks =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
-  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 describe('Error overlay for hydration errors in App router', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -800,10 +794,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await session.openRedbox()
 
     await retry(async () => {
-      expect(await getRedboxTotalErrorCount(browser)).toBe(
-        // With owner stacks, we also get an error for the parent context
-        enableOwnerStacks ? 3 : 2
-      )
+      expect(await getRedboxTotalErrorCount(browser)).toBe(3)
     })
 
     const description = await session.getRedboxDescription()
@@ -874,10 +865,7 @@ describe('Error overlay for hydration errors in App router', () => {
     await retry(async () => {
       expect(await getRedboxTotalErrorCount(browser)).toBe(
         // One error for "Cannot render a sync or defer <script>"
-        enableOwnerStacks
-          ? // With owner stacks, we also get an error for the parent context.
-            3
-          : 2
+        3
       )
     })
 

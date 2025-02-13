@@ -293,8 +293,6 @@ export function getDefineEnv({
       : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
       config.experimental.newDevOverlay || false,
-    'process.env.__NEXT_REACT_OWNER_STACK':
-      config.experimental.reactOwnerStack ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}
