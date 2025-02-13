@@ -106,7 +106,7 @@ const isTestMode = !!(
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /**
- * Replaces turbopack://~project with the specified project in the `source` field.
+ * Replaces turbopack:///project with the specified project in the `source` field.
  */
 function rewriteTurbopackSources(
   projectRoot: string,
@@ -121,7 +121,7 @@ function rewriteTurbopackSources(
       sourceMap.sources[i] = pathToFileURL(
         join(
           projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/~project/, '')
+          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
         )
       ).toString()
     }
@@ -767,7 +767,7 @@ export async function createHotReloaderTurbopack(
                 typeof dependencyChain[0] === 'string'
               ) {
                 const cleanedModulePath = dependencyChain[0]
-                  .replace(/^~project/, '.')
+                  .replace(/^\/\[project\]/, '.')
                   .replace(/ \[.*\] \(.*\)$/, '')
                 Log.warn(
                   `Fast Refresh had to perform a full reload when ${cleanedModulePath} changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
