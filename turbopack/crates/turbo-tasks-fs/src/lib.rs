@@ -266,7 +266,8 @@ impl DiskFileSystemInner {
     ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
         let invalidators = invalidator_map.entry(path_to_key(path)).or_default();
-        let old_invalidators = take(invalidators);
+        let mut old_invalidators = take(invalidators);
+        old_invalidators.remove(&invalidator);
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
