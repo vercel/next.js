@@ -190,15 +190,16 @@ impl AsyncModule {
             has_top_level_await: self.has_top_level_await,
         }))
     }
+}
 
-    #[turbo_tasks::function]
+impl AsyncModule {
     pub async fn code_generation(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
                 .get_async_idents(
@@ -245,10 +246,10 @@ impl AsyncModule {
                                 type_ann: None,
                             }.into(),
                         )),
-                ].to_vec()).cell());
+                ].to_vec()));
             }
         }
 
-        Ok(CodeGeneration::empty().cell())
+        Ok(CodeGeneration::empty())
     }
 }

@@ -76,20 +76,25 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                     .push(code_gen.code_generation(*self.module_graph, *chunking_context));
             }
         }
-        code_gens_cells.push(self.module.async_module().code_generation(
-            async_module_info,
-            references,
-            *self.module_graph,
-            *chunking_context,
-        ));
-        let exports_codegen = exports
-            .code_generation(*self.module_graph, *chunking_context)
-            .await?;
+        let additional_code_gens = [
+            self.module
+                .async_module()
+                .code_generation(
+                    async_module_info,
+                    references,
+                    *self.module_graph,
+                    *chunking_context,
+                )
+                .await?,
+            exports
+                .code_generation(*self.module_graph, *chunking_context)
+                .await?,
+        ];
         let code_gen_cells = code_gens_cells.into_iter().try_join().await?;
         let code_gens = code_gen_cells
             .iter()
             .map(|cg| &**cg)
-            .chain(std::iter::once(&exports_codegen));
+            .chain(additional_code_gens.iter());
 
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
         process_content_with_code_gens(&mut program, &Globals::new(), None, code_gens);

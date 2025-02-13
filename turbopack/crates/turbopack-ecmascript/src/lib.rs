@@ -775,23 +775,32 @@ impl EcmascriptModuleContent {
                 code_gen_cells.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
-        if let Some(async_module) = *async_module.await? {
-            code_gen_cells.push(async_module.code_generation(
-                async_module_info,
-                references,
-                module_graph,
-                chunking_context,
-            ));
-        }
-        let exports_codegen = if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            Some(
-                exports
-                    .code_generation(module_graph, chunking_context)
-                    .await?,
-            )
-        } else {
-            None
-        };
+
+        let additional_code_gens = [
+            if let Some(async_module) = &*async_module.await? {
+                Some(
+                    async_module
+                        .code_generation(
+                            async_module_info,
+                            references,
+                            module_graph,
+                            chunking_context,
+                        )
+                        .await?,
+                )
+            } else {
+                None
+            },
+            if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                Some(
+                    exports
+                        .code_generation(module_graph, chunking_context)
+                        .await?,
+                )
+            } else {
+                None
+            },
+        ];
 
         let code_gens = code_generation
             .await?
@@ -804,7 +813,7 @@ impl EcmascriptModuleContent {
         let code_gens = code_gen_cells
             .iter()
             .map(|c| &**c)
-            .chain(exports_codegen.iter())
+            .chain(additional_code_gens.iter().flatten())
             .chain(code_gens.iter());
         gen_content_with_code_gens(
             parsed,
