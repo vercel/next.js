@@ -731,7 +731,7 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = this.getMiddleware()
+      const middleware = await this.getMiddleware()
       const params = matchNextDataPathname(parsedUrl.pathname)
 
       // ignore for non-next data URLs
@@ -3754,7 +3754,7 @@ export default abstract class Server<
     )
   }
 
-  protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
+  protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
   ): Promise<LoadComponentsReturnType | null>
@@ -3871,8 +3871,9 @@ export default abstract class Server<
       return response
     }
 
+    const middleware = await this.getMiddleware()
     if (
-      this.getMiddleware() &&
+      middleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

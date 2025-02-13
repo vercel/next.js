@@ -615,7 +615,7 @@ export default class DevServer extends Server {
     return rewrites ?? []
   }
 
-  protected getMiddleware() {
+  protected async getMiddleware() {
     // We need to populate the match
     // field as it isn't serializable
     if (this.middleware?.match === null) {
