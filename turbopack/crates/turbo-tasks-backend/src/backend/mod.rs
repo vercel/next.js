@@ -756,12 +756,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // Already scheduled
                 }
             }
-        } else {
-            if task.add(CachedDataItem::new_scheduled(
-                self.get_task_desc_fn(task_id),
-            )) {
-                turbo_tasks.schedule(task_id);
-            }
+        } else if task.add(CachedDataItem::new_scheduled(
+            self.get_task_desc_fn(task_id),
+        )) {
+            turbo_tasks.schedule(task_id);
         }
 
         Ok(Err(listener))
