@@ -174,7 +174,17 @@ export function CopyButton({
 
   // Assign default icon
   const renderedIcon =
-    copyState.state === 'success' ? <CopySuccessIcon /> : icon || <CopyIcon />
+    copyState.state === 'success' ? (
+      <CopySuccessIcon />
+    ) : (
+      icon || (
+        <CopyIcon
+          width={14}
+          height={14}
+          className="error-overlay-toolbar-button-icon"
+        />
+      )
+    )
 
   return (
     <button
@@ -202,20 +212,19 @@ export function CopyButton({
   )
 }
 
-function CopyIcon() {
+function CopyIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
+      width="14"
+      height="14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="error-overlay-toolbar-button-icon"
+      {...props}
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M2.75 0.5C1.7835 0.5 1 1.2835 1 2.25V9.75C1 10.7165 1.7835 11.5 2.75 11.5H3.75H4.5V10H3.75H2.75C2.61193 10 2.5 9.88807 2.5 9.75V2.25C2.5 2.11193 2.61193 2 2.75 2H8.25C8.38807 2 8.5 2.11193 8.5 2.25V3H10V2.25C10 1.2835 9.2165 0.5 8.25 0.5H2.75ZM7.75 4.5C6.7835 4.5 6 5.2835 6 6.25V13.75C6 14.7165 6.7835 15.5 7.75 15.5H13.25C14.2165 15.5 15 14.7165 15 13.75V6.25C15 5.2835 14.2165 4.5 13.25 4.5H7.75ZM7.5 6.25C7.5 6.11193 7.61193 6 7.75 6H13.25C13.3881 6 13.5 6.11193 13.5 6.25V13.75C13.5 13.8881 13.3881 14 13.25 14H7.75C7.61193 14 7.5 13.8881 7.5 13.75V6.25Z"
+        d="M2.406.438c-.845 0-1.531.685-1.531 1.53v6.563c0 .846.686 1.531 1.531 1.531H3.937V8.75H2.406a.219.219 0 0 1-.219-.219V1.97c0-.121.098-.219.22-.219h4.812c.12 0 .218.098.218.219v.656H8.75v-.656c0-.846-.686-1.532-1.531-1.532H2.406zm4.375 3.5c-.845 0-1.531.685-1.531 1.53v6.563c0 .846.686 1.531 1.531 1.531h4.813c.845 0 1.531-.685 1.531-1.53V5.468c0-.846-.686-1.532-1.531-1.532H6.78zm-.218 1.53c0-.12.097-.218.218-.218h4.813c.12 0 .219.098.219.219v6.562c0 .121-.098.219-.22.219H6.782a.219.219 0 0 1-.218-.219V5.47z"
         fill="currentColor"
       />
     </svg>
