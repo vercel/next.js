@@ -20,7 +20,7 @@ import EventsImplementation from 'node:events'
 import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
-import { IntervalsManager, TimeoutsManager } from './resource-managers'
+import { createWebTimers, type TimersManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
 import {
   patchErrorInspectEdgeLite,
@@ -31,8 +31,7 @@ interface ModuleContext {
   runtime: EdgeRuntime
   paths: Map<string, string>
   warnedEvals: Set<string>
-  intervalsManager: IntervalsManager
-  timeoutsManager: TimeoutsManager
+  timersManager: TimersManager
 }
 
 let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
@@ -272,8 +271,7 @@ async function createModuleContext(
   const warnedWasmCodegens = new Set<string>()
   const { edgeFunctionEntry } = options
   const wasm = await loadWasm(edgeFunctionEntry.wasm ?? [])
-  const timeoutsManager = new TimeoutsManager()
-  const intervalsManager = new IntervalsManager()
+
   const runtime = new EdgeRuntime({
     codeGeneration:
       process.env.NODE_ENV !== 'production'
@@ -458,22 +456,6 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       context.AsyncLocalStorage = AsyncLocalStorage
 
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setInterval = (...args: Parameters<typeof setInterval>) =>
-        intervalsManager.add(args)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearInterval = (interval: number) =>
-        intervalsManager.remove(interval)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
-        timeoutsManager.add(args)
-
-      // @ts-ignore the timeouts have weird types in the edge runtime
-      context.clearTimeout = (timeout: number) =>
-        timeoutsManager.remove(timeout)
-
       // Duplicated from packages/next/src/server/after/builtin-request-context.ts
       // because we need to use the sandboxed `Symbol.for`, not the one from the outside
       const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
@@ -487,6 +469,23 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       return context
     },
   })
+
+  const timersManager = createWebTimers(
+    // unintuitively, when passing it to a function from inside the VM,
+    // `runtime.context` is not referentially equal to `runtime.evaluate('globalThis')`.
+    // this is probably some cross-realm thing, but idk
+    runtime.evaluate('globalThis'),
+    {
+      setInterval,
+      clearInterval,
+      setTimeout,
+      clearTimeout,
+    }
+  )
+  runtime.context.setInterval = timersManager.timers.setInterval
+  runtime.context.clearInterval = timersManager.timers.clearInterval
+  runtime.context.setTimeout = timersManager.timers.setTimeout
+  runtime.context.clearTimeout = timersManager.timers.clearTimeout
 
   const decorateUnhandledError = getDecorateUnhandledError(runtime)
   runtime.context.addEventListener('error', decorateUnhandledError)
@@ -505,8 +504,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     runtime,
     paths: new Map<string, string>(),
     warnedEvals: new Set<string>(),
-    intervalsManager,
-    timeoutsManager,
+    timersManager,
   }
 }
 
@@ -520,8 +518,7 @@ interface ModuleContextOptions {
 }
 
 function destroyModuleContext(context: ModuleContext) {
-  context.intervalsManager.removeAll()
-  context.timeoutsManager.removeAll()
+  context.timersManager.destroy()
 }
 
 function getModuleContextShared(options: ModuleContextOptions) {
