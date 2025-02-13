@@ -28,7 +28,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
     atoms::JsWord,
@@ -154,12 +154,14 @@ use crate::{
 };
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
 pub struct AnalyzeEcmascriptModuleResult {
-    pub references: ResolvedVc<ModuleReferences>,
-    pub local_references: ResolvedVc<ModuleReferences>,
-    pub reexport_references: ResolvedVc<ModuleReferences>,
-    pub evaluation_references: ResolvedVc<ModuleReferences>,
+    references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+
+    esm_references: Vec<ResolvedVc<EsmAssetReference>>,
+    esm_local_references: Vec<ResolvedVc<EsmAssetReference>>,
+    pub esm_reexport_references: Vec<ResolvedVc<EsmAssetReference>>,
+    pub esm_evaluation_references: Vec<ResolvedVc<EsmAssetReference>>,
+
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
@@ -168,16 +170,29 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
 }
 
+#[turbo_tasks::value_impl]
+impl AnalyzeEcmascriptModuleResult {
+    #[turbo_tasks::function]
+    pub fn references(&self) -> Vc<ModuleReferences> {
+        Vc::cell(
+            self.esm_local_references
+                .iter()
+                .map(|r| ResolvedVc::upcast(*r))
+                .chain(self.references.iter().copied())
+                .collect(),
+        )
+    }
+}
+
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
     references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    local_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
 
-    esm_references: Vec<usize>,
-    esm_local_references: Vec<usize>,
-    esm_reexport_references: Vec<usize>,
-    esm_evaluation_references: Vec<usize>,
+    esm_references: FxHashSet<usize>,
+    esm_local_references: FxHashSet<usize>,
+    esm_reexport_references: FxHashSet<usize>,
+    esm_evaluation_references: FxHashSet<usize>,
 
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
@@ -190,7 +205,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn new() -> Self {
         Self {
             references: Default::default(),
-            local_references: Default::default(),
             esm_references: Default::default(),
             esm_local_references: Default::default(),
             esm_reexport_references: Default::default(),
@@ -207,7 +221,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn add_reference(&mut self, reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>) {
         let r = ResolvedVc::upcast(reference);
         self.references.insert(r);
-        self.local_references.insert(r);
     }
 
     /// Adds an asset reference with codegen to the analysis result.
@@ -219,22 +232,22 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
     /// Adds an ESM asset reference to the analysis result.
     pub fn add_esm_reference(&mut self, idx: usize) {
-        self.esm_references.push(idx);
-        self.esm_local_references.push(idx);
+        self.esm_references.insert(idx);
+        self.esm_local_references.insert(idx);
     }
 
     /// Adds an reexport ESM reference to the analysis result.
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_esm_reexport_reference(&mut self, idx: usize) {
-        self.esm_references.push(idx);
-        self.esm_reexport_references.push(idx);
+        self.esm_references.insert(idx);
+        self.esm_reexport_references.insert(idx);
     }
 
     /// Adds an evaluation ESM reference to the analysis result.
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_esm_evaluation_reference(&mut self, idx: usize) {
-        self.esm_references.push(idx);
-        self.esm_evaluation_references.push(idx);
+        self.esm_references.insert(idx);
+        self.esm_evaluation_references.insert(idx);
     }
 
     /// Adds a codegen to the analysis result.
@@ -271,41 +284,42 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         import_references: Vec<ResolvedVc<EsmAssetReference>>,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        self.esm_references.sort();
-        let esm_references = self
-            .esm_references
+        let mut esm_references: Vec<_> = self.esm_references.into_iter().collect();
+        esm_references.sort();
+        let esm_references = esm_references
             .into_iter()
-            .map(|i| ResolvedVc::upcast(import_references[i]));
+            .map(|i| import_references[i])
+            .collect();
         let (esm_local_references, esm_reexport_references, esm_evaluation_references) =
             if track_reexport_references {
-                self.esm_local_references.sort();
-                self.esm_reexport_references.sort();
-                self.esm_evaluation_references.sort();
+                let mut esm_local_references: Vec<_> =
+                    self.esm_local_references.into_iter().collect();
+                let mut esm_reexport_references: Vec<_> =
+                    self.esm_reexport_references.into_iter().collect();
+                let mut esm_evaluation_references: Vec<_> =
+                    self.esm_evaluation_references.into_iter().collect();
+                esm_local_references.sort();
+                esm_reexport_references.sort();
+                esm_evaluation_references.sort();
                 (
-                    Some(
-                        self.esm_local_references
-                            .into_iter()
-                            .map(|i| ResolvedVc::upcast(import_references[i])),
-                    ),
-                    self.esm_reexport_references
+                    esm_local_references
                         .into_iter()
-                        .map(|i| ResolvedVc::upcast(import_references[i]))
+                        .map(|i| import_references[i])
                         .collect(),
-                    self.esm_evaluation_references
+                    esm_reexport_references
                         .into_iter()
-                        .map(|i| ResolvedVc::upcast(import_references[i]))
+                        .map(|i| import_references[i])
+                        .collect(),
+                    esm_evaluation_references
+                        .into_iter()
+                        .map(|i| import_references[i])
                         .collect(),
                 )
             } else {
-                (None, vec![], vec![])
+                (vec![], vec![], vec![])
             };
 
-        let references: Vec<_> = esm_references.chain(self.references.into_iter()).collect();
-        let local_references: Vec<_> = esm_local_references
-            .into_iter()
-            .flatten()
-            .chain(self.local_references.into_iter())
-            .collect();
+        let references: Vec<_> = self.references.into_iter().collect();
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -316,10 +330,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
-                references: ResolvedVc::cell(references),
-                local_references: ResolvedVc::cell(local_references),
-                reexport_references: ResolvedVc::cell(esm_reexport_references),
-                evaluation_references: ResolvedVc::cell(esm_evaluation_references),
+                references: (references),
+                esm_references: (esm_references),
+                esm_local_references: (esm_local_references),
+                esm_reexport_references: (esm_reexport_references),
+                esm_evaluation_references: (esm_evaluation_references),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
@@ -1235,13 +1250,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span: _,
                     in_try: _,
                 } => {
-                    let Some(r) = import_references.get(esm_reference_index).copied() else {
+                    let Some(r) = import_references.get(esm_reference_index) else {
                         continue;
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference_code_gen(
-                            EsmModuleIdAssetReference::new(r),
+                            EsmModuleIdAssetReference::new(*r),
                             ast_path.into(),
                         )
                     } else {
@@ -1277,7 +1292,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(r, export, ast_path.into()));
+                        analysis.add_code_gen(EsmBinding::new(*r, export, ast_path.into()));
                     }
                 }
                 Effect::TypeOf {

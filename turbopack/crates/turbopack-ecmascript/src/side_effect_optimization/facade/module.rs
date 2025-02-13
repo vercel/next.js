@@ -81,14 +81,16 @@ impl Module for EcmascriptModuleFacadeModule {
                     );
                 };
                 let result = module.analyze().await?;
-                let references = result.evaluation_references;
-                let mut references = references.owned().await?;
-                references.push(ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
-                        .to_resolved()
-                        .await?,
-                ));
-                references
+                result
+                    .esm_evaluation_references
+                    .iter()
+                    .map(|r| ResolvedVc::upcast(*r))
+                    .chain(std::iter::once(ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                            .to_resolved()
+                            .await?,
+                    )))
+                    .collect()
             }
             ModulePart::Exports => {
                 let Some(module) =
@@ -96,18 +98,20 @@ impl Module for EcmascriptModuleFacadeModule {
                 else {
                     bail!(
                         "Expected EcmascriptModuleAsset for a EcmascriptModuleFacadeModule with \
-                         ModulePart::Evaluation"
+                         ModulePart::Exports"
                     );
                 };
                 let result = module.analyze().await?;
-                let references = result.reexport_references;
-                let mut references = references.owned().await?;
-                references.push(ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
-                        .to_resolved()
-                        .await?,
-                ));
-                references
+                result
+                    .esm_reexport_references
+                    .iter()
+                    .map(|r| ResolvedVc::upcast(*r))
+                    .chain(std::iter::once(ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                            .to_resolved()
+                            .await?,
+                    )))
+                    .collect()
             }
             ModulePart::Facade => {
                 vec![

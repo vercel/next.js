@@ -33,7 +33,7 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::CodeGeneration,
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
@@ -109,6 +109,9 @@ impl ReferencedAsset {
         Ok(ReferencedAsset::None.cell())
     }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct EsmAssetReferences(Vec<ResolvedVc<EsmAssetReference>>);
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -252,14 +255,12 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl EsmAssetReference {
+    pub async fn code_generation(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
         // only chunked references can be imported
@@ -392,9 +393,9 @@ impl CodeGenerateable for EsmAssetReference {
         };
 
         if let Some((key, stmt)) = result {
-            Ok(CodeGeneration::hoisted_stmt(key, stmt).cell())
+            Ok(CodeGeneration::hoisted_stmt(key, stmt))
         } else {
-            Ok(CodeGeneration::empty().cell())
+            Ok(CodeGeneration::empty())
         }
     }
 }

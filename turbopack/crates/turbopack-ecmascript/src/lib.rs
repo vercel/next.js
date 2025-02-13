@@ -417,7 +417,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let parsed = self.parse().to_resolved().await?;
 
-        let analyze = self.analyze().await?;
+        let analyze = self.analyze();
+        let analyze_ref = analyze.await?;
 
         let module_type_result = *self.determine_module_type().await?;
         let generate_source_map = chunking_context.reference_module_source_maps(Vc::upcast(self));
@@ -428,12 +429,12 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             module_type_result.module_type,
             module_graph,
             chunking_context,
-            *analyze.references,
-            *analyze.code_generation,
-            *analyze.async_module,
+            analyze.references(),
+            *analyze_ref.code_generation,
+            *analyze_ref.async_module,
             generate_source_map,
-            *analyze.source_map,
-            *analyze.exports,
+            *analyze_ref.source_map,
+            *analyze_ref.exports,
             async_module_info,
         ))
     }
@@ -590,15 +591,13 @@ impl Module for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let analyze = self.analyze().await?;
-        let references = analyze.references.await?.iter().copied().collect();
-        Ok(Vc::cell(references))
+        Ok(self.analyze().references())
     }
 
     #[turbo_tasks::function]
     async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
         if let Some(async_module) = *self.get_async_module().await? {
-            Ok(async_module.is_self_async(*self.analyze().await?.references))
+            Ok(async_module.is_self_async(self.references()))
         } else {
             Ok(Vc::cell(false))
         }

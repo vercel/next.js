@@ -51,8 +51,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let split_data = split_module(*module.full_module);
         let parsed = part_of_module(split_data, module.part.clone());
 
-        let analyze = self.module.analyze().await?;
-        let async_module_options = analyze.async_module.module_options(async_module_info);
+        let analyze = self.module.analyze();
+        let analyze_ref = analyze.await?;
+        let async_module_options = analyze_ref.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
         let generate_source_map = self
@@ -65,12 +66,12 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             module_type_result.module_type,
             *self.module_graph,
             *self.chunking_context,
-            *analyze.references,
-            *analyze.code_generation,
-            *analyze.async_module,
+            analyze.references(),
+            *analyze_ref.code_generation,
+            *analyze_ref.async_module,
             generate_source_map,
-            *analyze.source_map,
-            *analyze.exports,
+            *analyze_ref.source_map,
+            *analyze_ref.exports,
             async_module_info,
         );
 

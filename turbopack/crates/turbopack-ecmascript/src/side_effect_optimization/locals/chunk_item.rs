@@ -43,7 +43,8 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         let original_module = module.module;
         let parsed = original_module.parse().resolve().await?;
 
-        let analyze_result = original_module.analyze().await?;
+        let analyze = original_module.analyze();
+        let analyze_result = analyze.await?;
         let async_module_options = analyze_result
             .async_module
             .module_options(async_module_info);
@@ -58,7 +59,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             module_type_result.module_type,
             *module_graph,
             *chunking_context,
-            *analyze_result.local_references,
+            analyze.references(),
             *analyze_result.code_generation,
             *analyze_result.async_module,
             generate_source_map,
