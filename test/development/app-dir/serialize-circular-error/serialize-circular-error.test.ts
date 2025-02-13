@@ -17,7 +17,7 @@ describe('serialize-circular-error', () => {
     const description = await getRedboxDescription(browser)
     // React cannot serialize thrown objects with circular references
     expect(description).toBe(
-      '[ Server ] Error: An error occurred but serializing the error message failed.'
+      `${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: An error occurred but serializing the error message failed.`
     )
 
     const output = next.cliOutput

@@ -7,6 +7,7 @@ const consoleTypeSym = Symbol.for('next.console.error.type')
 type UnhandledError = Error & {
   [digestSym]: 'NEXT_UNHANDLED_ERROR'
   [consoleTypeSym]: 'string' | 'error'
+  environmentName: string
 }
 
 export function createUnhandledError(message: string | Error): UnhandledError {

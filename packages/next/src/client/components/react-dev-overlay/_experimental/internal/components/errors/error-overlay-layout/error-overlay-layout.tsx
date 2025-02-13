@@ -33,13 +33,14 @@ import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
+import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 
 interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
   errorCode?: string
-  error: Error
+  error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
@@ -51,6 +52,7 @@ interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
+// TODO: Clean up and improve composition.
 export function ErrorOverlayLayout({
   errorMessage,
   errorType,
@@ -97,7 +99,14 @@ export function ErrorOverlayLayout({
                 // allow assertion in tests before error rating is implemented
                 data-nextjs-error-code={errorCode}
               >
-                <ErrorTypeLabel errorType={errorType} />
+                <span data-nextjs-error-label-group>
+                  <ErrorTypeLabel errorType={errorType} />
+                  {error.environmentName && (
+                    <EnvironmentNameLabel
+                      environmentName={error.environmentName}
+                    />
+                  )}
+                </span>
                 <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
               </div>
               <ErrorMessage errorMessage={errorMessage} />
@@ -141,4 +150,10 @@ export const styles = css`
   ${errorMessageStyles}
   ${toolbarStyles}
   ${CALL_STACK_STYLES}
+
+  [data-nextjs-error-label-group] {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2);
+  }
 `

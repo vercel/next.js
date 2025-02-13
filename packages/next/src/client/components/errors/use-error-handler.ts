@@ -2,9 +2,12 @@ import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
-import { formatConsoleArgs } from '../../lib/console'
+import { formatConsoleArgs, parseEnvironmentName } from '../../lib/console'
 import isError from '../../../lib/is-error'
-import { createUnhandledError } from './console-error'
+import {
+  createUnhandledError,
+  isUnhandledConsoleOrRejection,
+} from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from '../errors/stitched-error'
 
@@ -34,6 +37,15 @@ export function handleClientError(
       : originError
   }
   error = getReactStitchedError(error)
+
+  if (isUnhandledConsoleOrRejection(error)) {
+    if (!error.environmentName) {
+      const environmentName = parseEnvironmentName(consoleErrorArgs)
+      if (environmentName) {
+        error.environmentName = environmentName
+      }
+    }
+  }
 
   storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
   attachHydrationErrorState(error)

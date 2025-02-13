@@ -31,7 +31,7 @@ describe('app dir - global error', () => {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: server page error"`
+        `"${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: server page error"`
       )
     }
     // Show original error message in dev mode, but hide with the react fallback RSC error message in production mode
@@ -75,7 +75,7 @@ describe('app dir - global error', () => {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: Metadata error"`
+        `"${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: Metadata error"`
       )
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')

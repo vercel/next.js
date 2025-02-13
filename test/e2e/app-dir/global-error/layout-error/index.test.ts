@@ -18,7 +18,7 @@ describe('app dir - global error - layout error', () => {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
       expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: layout error"`
+        `"${process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ? '' : '[ Server ] '}Error: layout error"`
       )
     }
 

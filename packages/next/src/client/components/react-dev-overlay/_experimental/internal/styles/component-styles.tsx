@@ -16,13 +16,14 @@ import { CALL_STACK_FRAME_STYLES } from '../components/call-stack-frame/call-sta
 import { styles as devToolsIndicator } from '../components/errors/dev-tools-indicator/styles'
 import { noop as css } from '../helpers/noop-template'
 import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
-
+import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
 export function ComponentStyles() {
   return (
     <style>
       {css`
         ${COPY_BUTTON_STYLES}
         ${CALL_STACK_FRAME_STYLES}
+        ${ENVIRONMENT_NAME_LABEL_STYLES}
         ${overlay}
         ${toast}
         ${dialog}
