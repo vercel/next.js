@@ -22,8 +22,13 @@ describe('app-dir - metadata-streaming-config', () => {
     const { routes } = prerenderManifest
 
     const bypassConfigs = Object.keys(routes)
-      // Pick the 3rd bypass config for each route
-      .map((route) => [route, routes[route].experimentalBypassFor?.[2]])
+      // Pick the user-agent bypass config of each route
+      .map((route) => [
+        route,
+        routes[route].experimentalBypassFor?.find(
+          (bypassConfig) => bypassConfig.key === 'user-agent'
+        ),
+      ])
       .filter(([, bypassConfig]) => Boolean(bypassConfig))
       .reduce((acc, [route, bypassConfig]) => {
         acc[route] = bypassConfig
