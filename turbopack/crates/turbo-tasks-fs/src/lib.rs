@@ -273,7 +273,9 @@ impl DiskFileSystemInner {
                         .as_ref()
                         .is_none_or(|old| old != &write_content)
             })
+            .filter(|(i, _)| i != &invalidator)
             .collect::<Vec<_>>();
+        invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
