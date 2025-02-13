@@ -12,18 +12,18 @@ export function RootLayoutMissingTagsError({
   ...props
 }: RootLayoutMissingTagsErrorProps) {
   const noop = useCallback(() => {}, [])
+  const error = new Error(
+    `The following tags are missing in the Root Layout: ${missingTags
+      .map((tagName) => `<${tagName}>`)
+      .join(
+        ', '
+      )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`
+  )
   return (
     <ErrorOverlayLayout
       errorType="Missing Required HTML Tag"
-      errorMessage={
-        <HotlinkedText
-          text={`The following tags are missing in the Root Layout: ${missingTags
-            .map((tagName) => `<${tagName}>`)
-            .join(
-              ', '
-            )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`}
-        />
-      }
+      error={error}
+      errorMessage={<HotlinkedText text={error.message} />}
       onClose={noop}
       {...props}
     />

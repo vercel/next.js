@@ -597,29 +597,32 @@ impl ModuleGraph {
     }
 }
 
-// fn get_node(graph: T, node: T) -> SingleModuleGraphModuleNode {
+// fn get_node<T>(
+//     graphs: Vec<ReadRef<SingleModuleGraph>>,
+//     node: GraphNodeIndex,
+// ) -> Result<&'static SingleModuleGraphModuleNode> {
 macro_rules! get_node {
     ($graphs:expr, $node:expr) => {{
         let node_idx = $node;
         match $graphs[node_idx.graph_idx]
             .graph
             .node_weight(node_idx.node_idx)
-            .unwrap()
         {
-            SingleModuleGraphNode::Module(node) => node,
-            SingleModuleGraphNode::VisitedModule { idx } => {
-                let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
-                    .graph
-                    .node_weight(idx.node_idx)
-                    .unwrap()
-                else {
-                    panic!("expected Module node");
-                };
-                node
+            Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok(node),
+            Some(SingleModuleGraphNode::VisitedModule { idx }) => {
+                match $graphs[idx.graph_idx].graph.node_weight(idx.node_idx) {
+                    Some(SingleModuleGraphNode::Module(node)) => anyhow::Ok(node),
+                    Some(SingleModuleGraphNode::VisitedModule { .. }) => Err(::anyhow::anyhow!(
+                        "Expected visited target node to be module"
+                    )),
+                    None => Err(::anyhow::anyhow!("Expected visited target node")),
+                }
             }
+            None => Err(::anyhow::anyhow!("Expected graph node")),
         }
     }};
 }
+pub(crate) use get_node;
 
 impl ModuleGraph {
     async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
@@ -677,11 +680,11 @@ impl ModuleGraph {
         }
         let mut visited = HashSet::new();
         for entry_node in &queue {
-            visitor(None, get_node!(graphs, entry_node));
+            visitor(None, get_node!(graphs, entry_node)?);
         }
         while let Some(node) = queue.pop_front() {
             let graph = &graphs[node.graph_idx].graph;
-            let node_weight = get_node!(graphs, node);
+            let node_weight = get_node!(graphs, node)?;
             if visited.insert(node) {
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
@@ -690,7 +693,7 @@ impl ModuleGraph {
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ);
+                    let succ_weight = get_node!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(Some((node_weight, edge_weight)), succ_weight);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
@@ -730,11 +733,11 @@ impl ModuleGraph {
         }
         let mut visited = HashSet::new();
         for entry_node in &stack {
-            visitor(None, get_node!(graphs, entry_node));
+            visitor(None, get_node!(graphs, entry_node)?);
         }
         while let Some(node) = stack.pop() {
             let graph = &graphs[node.graph_idx].graph;
-            let node_weight = get_node!(graphs, node);
+            let node_weight = get_node!(graphs, node)?;
             if visited.insert(node) {
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
@@ -743,7 +746,7 @@ impl ModuleGraph {
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ);
+                    let succ_weight = get_node!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(Some((node_weight, edge_weight)), succ_weight);
                     if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
@@ -782,7 +785,7 @@ impl ModuleGraph {
                 };
                 let target = match graph.node_weight(edge.target()).unwrap() {
                     SingleModuleGraphNode::Module(node) => node,
-                    SingleModuleGraphNode::VisitedModule { idx } => get_node!(graphs, idx),
+                    SingleModuleGraphNode::VisitedModule { idx } => get_node!(graphs, idx)?,
                 };
                 visitor((source, edge.weight()), target)?;
             }
@@ -847,12 +850,17 @@ impl ModuleGraph {
         }
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
-            let parent_arg = parent.map(|(parent_node, parent_edge)| {
-                let edge_weight = graphs[parent_node.graph_idx].graph.edge_weight(parent_edge);
-
-                (get_node!(graphs, parent_node), edge_weight.unwrap())
-            });
-            let current_node = get_node!(graphs, current);
+            let parent_arg = match parent {
+                Some((parent_node, parent_edge)) => Some((
+                    get_node!(graphs, parent_node)?,
+                    graphs[parent_node.graph_idx]
+                        .graph
+                        .edge_weight(parent_edge)
+                        .unwrap(),
+                )),
+                None => None,
+            };
+            let current_node = get_node!(graphs, current)?;
             match pass {
                 ReverseTopologicalPass::Visit => {
                     visit_postorder(parent_arg, current_node, state);

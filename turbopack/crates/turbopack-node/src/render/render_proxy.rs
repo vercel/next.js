@@ -117,8 +117,8 @@ async fn proxy_error(
         "An error occurred while proxying the request to Node.js".into(),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
-    .await?
-    .clone_value();
+    .owned()
+    .await?;
 
     RenderingIssue {
         file_path: path,

@@ -82,7 +82,7 @@ impl Module for EcmascriptModuleFacadeModule {
                 };
                 let result = module.analyze().await?;
                 let references = result.evaluation_references;
-                let mut references = references.await?.clone_value();
+                let mut references = references.owned().await?;
                 references.push(ResolvedVc::upcast(
                     EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
                         .to_resolved()
@@ -101,7 +101,7 @@ impl Module for EcmascriptModuleFacadeModule {
                 };
                 let result = module.analyze().await?;
                 let references = result.reexport_references;
-                let mut references = references.await?.clone_value();
+                let mut references = references.owned().await?;
                 references.push(ResolvedVc::upcast(
                     EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
                         .to_resolved()

@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use anyhow::{Context, Result};
 use next_core::{
     all_assets_from_entries,
@@ -195,10 +193,11 @@ impl AppProject {
             self.project().project_path(),
             self.project().execution_context(),
             self.project().client_compile_time_info().environment(),
-            Value::new(self.client_ty().await?.clone_value()),
+            Value::new(self.client_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -206,7 +205,7 @@ impl AppProject {
     async fn client_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_client_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.client_ty().await?.clone_value()),
+            Value::new(self.client_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -229,7 +228,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty().await?.clone_value()),
+            Value::new(self.rsc_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -242,7 +241,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.rsc_ty().await?.clone_value()),
+            Value::new(self.rsc_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -255,7 +254,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty().await?.clone_value()),
+            Value::new(self.route_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -268,7 +267,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.route_ty().await?.clone_value()),
+            Value::new(self.route_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -280,7 +279,7 @@ impl AppProject {
     async fn rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty().await?.clone_value()),
+            Value::new(self.rsc_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -291,7 +290,7 @@ impl AppProject {
     async fn edge_rsc_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.rsc_ty().await?.clone_value()),
+            Value::new(self.rsc_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -302,7 +301,7 @@ impl AppProject {
     async fn route_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty().await?.clone_value()),
+            Value::new(self.route_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -315,7 +314,7 @@ impl AppProject {
     ) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.route_ty().await?.clone_value()),
+            Value::new(self.route_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -576,7 +575,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty().await?.clone_value()),
+            Value::new(self.ssr_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
@@ -589,7 +588,7 @@ impl AppProject {
         Ok(get_server_module_options_context(
             self.project().project_path(),
             self.project().execution_context(),
-            Value::new(self.ssr_ty().await?.clone_value()),
+            Value::new(self.ssr_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
@@ -601,7 +600,7 @@ impl AppProject {
     async fn ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_server_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty().await?.clone_value()),
+            Value::new(self.ssr_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -612,7 +611,7 @@ impl AppProject {
     async fn edge_ssr_resolve_options_context(self: Vc<Self>) -> Result<Vc<ResolveOptionsContext>> {
         Ok(get_edge_resolve_options_context(
             self.project().project_path(),
-            Value::new(self.ssr_ty().await?.clone_value()),
+            Value::new(self.ssr_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -724,7 +723,7 @@ impl AppProject {
     #[turbo_tasks::function]
     async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
         Ok(get_server_runtime_entries(
-            Value::new(self.rsc_ty().await?.clone_value()),
+            Value::new(self.rsc_ty().owned().await?),
             self.project().next_mode(),
         ))
     }
@@ -753,7 +752,7 @@ impl AppProject {
     async fn client_runtime_entries(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
         Ok(get_client_runtime_entries(
             self.project().project_path(),
-            Value::new(self.client_ty().await?.clone_value()),
+            Value::new(self.client_ty().owned().await?),
             self.project().next_mode(),
             self.project().next_config(),
             self.project().execution_context(),
@@ -772,8 +771,8 @@ impl AppProject {
                     Ok((
                         pathname.to_string().into(),
                         app_entry_point_to_route(self, app_entrypoint.clone())
-                            .await?
-                            .clone_value(),
+                            .owned()
+                            .await?,
                     ))
                 })
                 .try_join()
@@ -1478,7 +1477,7 @@ impl AppEndpoint {
                             .clone()
                             .map(Regions::Multiple),
                         matchers: vec![matchers],
-                        env: project.edge_env().await?.clone_value(),
+                        env: project.edge_env().owned().await?,
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -1629,11 +1628,8 @@ impl AppEndpoint {
 
         Ok(match runtime {
             NextRuntime::Edge => {
-                let mut evaluatable_assets = this
-                    .app_project
-                    .edge_rsc_runtime_entries()
-                    .await?
-                    .clone_value();
+                let mut evaluatable_assets =
+                    this.app_project.edge_rsc_runtime_entries().owned().await?;
                 let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
                     .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
@@ -1656,8 +1652,7 @@ impl AppEndpoint {
                 }
             }
             NextRuntime::NodeJs => {
-                let mut evaluatable_assets =
-                    this.app_project.rsc_runtime_entries().await?.clone_value();
+                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
 
                 evaluatable_assets.push(server_action_manifest_loader);
 
@@ -1829,16 +1824,13 @@ impl Endpoint for AppEndpoint {
                 .is_development()
             {
                 let node_root = this.app_project.project().node_root();
-                let server_paths = all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value();
+                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 let client_relative_root = this.app_project.project().client_relative_path();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                    .into_future()
+                    .owned()
                     .instrument(tracing::info_span!("client_paths"))
-                    .await?
-                    .clone_value();
+                    .await?;
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])

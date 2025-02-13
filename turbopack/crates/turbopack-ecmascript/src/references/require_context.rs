@@ -298,7 +298,7 @@ impl CodeGenerateable for RequireContextAssetReference {
         let chunk_item = self
             .inner
             .as_chunk_item(module_graph, Vc::upcast(chunking_context));
-        let module_id = chunk_item.id().await?.clone_value();
+        let module_id = chunk_item.id().owned().await?;
 
         let mut visitors = Vec::new();
 

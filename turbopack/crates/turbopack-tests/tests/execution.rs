@@ -179,10 +179,10 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
     tt.run_once(async move {
         let emit_op =
             run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-        let result = emit_op.read_strongly_consistent().await?;
+        let result = emit_op.read_strongly_consistent().owned().await?;
         apply_effects(emit_op).await?;
 
-        Ok(result.clone_value())
+        Ok(result)
     })
     .await
 }

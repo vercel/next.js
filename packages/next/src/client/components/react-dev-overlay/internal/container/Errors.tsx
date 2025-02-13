@@ -309,7 +309,10 @@ export function Errors({
               close={isServerError ? undefined : minimize}
             >
               <small>
-                <span>{activeIdx + 1}</span> of{' '}
+                <span data-nextjs-dialog-error-index={activeIdx}>
+                  {activeIdx + 1}
+                </span>{' '}
+                of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
                 </span>
@@ -381,10 +384,11 @@ export function Errors({
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+                reactOutputComponentDiff={
+                  errorDetails.reactOutputComponentDiff || ''
+                }
               />
             ) : null}
             {isServerError ? (

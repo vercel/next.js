@@ -118,6 +118,7 @@ export function ErrorOverlayPagination({
         disabled={activeIdx === 0}
         aria-disabled={activeIdx === 0}
         onClick={handlePrevious}
+        data-nextjs-dialog-error-previous
         className="error-overlay-pagination-button"
       >
         <LeftArrow
@@ -126,7 +127,7 @@ export function ErrorOverlayPagination({
         />
       </button>
       <div className="error-overlay-pagination-count">
-        <span>{activeIdx + 1}/</span>
+        <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
         <span data-nextjs-dialog-header-total-count>
           {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
           {readyErrors.length || 1}
@@ -139,6 +140,7 @@ export function ErrorOverlayPagination({
         disabled={activeIdx >= readyErrors.length - 1}
         aria-disabled={activeIdx >= readyErrors.length - 1}
         onClick={handleNext}
+        data-nextjs-dialog-error-next
         className="error-overlay-pagination-button"
       >
         <RightArrow

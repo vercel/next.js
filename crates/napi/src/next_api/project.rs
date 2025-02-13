@@ -39,7 +39,7 @@ use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
-    source_map::{SourceMap, Token},
+    source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     SOURCE_MAP_PREFIX,
 };
@@ -144,6 +144,11 @@ pub struct NapiProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: String,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -190,6 +195,11 @@ pub struct NapiPartialProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<String>,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: Option<bool>,
 }
 
 #[napi(object)]
@@ -241,6 +251,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query.into(),
+            no_mangling: val.no_mangling,
         }
     }
 }
@@ -1113,10 +1124,10 @@ pub struct StackFrame {
     pub method_name: Option<String>,
 }
 
-pub async fn get_source_map(
+pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
     file_path: String,
-) -> Result<Option<ResolvedVc<SourceMap>>> {
+) -> Result<Option<Vc<OptionStringifiedSourceMap>>> {
     let (file, module) = match Url::parse(&file_path) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1153,20 +1164,31 @@ pub async fn get_source_map(
         .client_relative_path()
         .join(chunk_base.into());
 
-    let mut map = container
-        .get_source_map(server_path, module.clone())
-        .await?;
+    let mut map = container.get_source_map(server_path, module.clone());
 
-    if map.is_none() {
+    if map.await?.is_none() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
-        map = container.get_source_map(client_path, module).await?;
+        map = container.get_source_map(client_path, module);
     }
 
-    let map = map.context("chunk/module is missing a sourcemap")?;
+    if map.await?.is_none() {
+        bail!("chunk/module is missing a sourcemap");
+    }
 
+    Ok(Some(map))
+}
+
+pub async fn get_source_map(
+    container: Vc<ProjectContainer>,
+    file_path: String,
+) -> Result<Option<ReadRef<OptionSourceMap>>> {
+    let Some(map) = get_source_map_rope(container, file_path).await? else {
+        return Ok(None);
+    };
+    let map = SourceMap::new_from_rope_cached(map).await?;
     Ok(Some(map))
 }
 
@@ -1183,6 +1205,9 @@ pub async fn project_trace_source(
             let Some(map) = get_source_map(container, frame.file).await? else {
                 return Ok(None);
             };
+            let Some(map) = &*map else {
+                return Ok(None);
+            };
 
             let Some(line) = frame.line else {
                 return Ok(None);
@@ -1190,17 +1215,17 @@ pub async fn project_trace_source(
 
             let token = map
                 .lookup_token(
-                    (line as usize).saturating_sub(1),
-                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                    line.saturating_sub(1),
+                    frame.column.unwrap_or(1).saturating_sub(1),
                 )
                 .await?;
 
-            let (original_file, line, column, name) = match &*token {
+            let (original_file, line, column, name) = match token {
                 Token::Original(token) => (
                     urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
-                    Some(token.original_line as u32 + 1),
-                    Some(token.original_column as u32 + 1),
+                    Some(token.original_line + 1),
+                    Some(token.original_column + 1),
                     token.name.clone(),
                 ),
                 Token::Synthetic(token) => {
@@ -1307,11 +1332,13 @@ pub async fn project_get_source_map(
 
     let source_map = turbo_tasks
         .run_once(async move {
-            let Some(map) = get_source_map(container, file_path).await? else {
+            let Some(map) = get_source_map_rope(container, file_path).await? else {
                 return Ok(None);
             };
-
-            Ok(Some(map.to_rope().await?.to_str()?.into_owned()))
+            let Some(map) = &*map.await? else {
+                return Ok(None);
+            };
+            Ok(Some(map.to_str()?.to_string()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;

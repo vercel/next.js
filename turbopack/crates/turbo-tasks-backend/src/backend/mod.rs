@@ -31,8 +31,8 @@ use turbo_tasks::{
     registry,
     task_statistics::TaskStatisticsApi,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, FxDashMap, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
-    TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
+    CellId, FunctionId, FxDashMap, RawVc, ReadCellOptions, ReadConsistency, SessionId, TaskId,
+    TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -608,6 +608,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         reader: Option<TaskId>,
         cell: CellId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         fn add_cell_dependency<B: BackingStorage>(
@@ -650,8 +651,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
+        let content = if options.final_read_hint {
+            remove!(task, CellData { cell })
+        } else if let Some(content) = get!(task, CellData { cell }) {
             let content = content.clone();
+            Some(content)
+        } else {
+            None
+        };
+        if let Some(content) = content {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
@@ -1373,6 +1381,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if !queue.is_empty() || !old_edges.is_empty() {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
@@ -1435,6 +1444,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if has_children {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(&mut ctx);
         }
@@ -1627,6 +1637,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
+        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
@@ -1792,6 +1803,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            // Without dependency tracking we don't need session dependent tasks
+            return;
+        }
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {
@@ -2058,29 +2073,33 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         task_id: TaskId,
         cell: CellId,
         reader: TaskId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.0
-            .try_read_task_cell(task_id, Some(reader), cell, turbo_tasks)
+            .try_read_task_cell(task_id, Some(reader), cell, options, turbo_tasks)
     }
 
     fn try_read_task_cell_untracked(
         &self,
         task_id: TaskId,
         cell: CellId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.0.try_read_task_cell(task_id, None, cell, turbo_tasks)
+        self.0
+            .try_read_task_cell(task_id, None, cell, options, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(
         &self,
         task_id: TaskId,
         cell: CellId,
+        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
         self.0
-            .try_read_own_task_cell_untracked(task_id, cell, turbo_tasks)
+            .try_read_own_task_cell_untracked(task_id, cell, options, turbo_tasks)
     }
 
     fn read_task_collectibles(

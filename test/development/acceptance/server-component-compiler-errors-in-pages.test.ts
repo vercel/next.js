@@ -200,6 +200,57 @@ describe('Error Overlay for server components compiler errors in pages', () => {
       `)
     }
   })
+
+  describe("importing 'next/cache' APIs in pages", () => {
+    test.each([
+      'revalidatePath',
+      'revalidateTag',
+      'unstable_cacheLife',
+      'unstable_cacheTag',
+      'unstable_expirePath',
+      'unstable_expireTag',
+    ])('%s is not allowed', async (api) => {
+      await using sandbox = await createSandbox(next, initialFiles)
+      const { session } = sandbox
+
+      await next.patchFile(
+        'components/Comp.js',
+        outdent`
+          import { ${api} } from 'next/cache'
+
+          export default function Page() {
+            return 'hello world'
+          }
+        `
+      )
+
+      await session.assertHasRedbox()
+      await expect(session.getRedboxSource()).resolves.toMatch(
+        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+      )
+    })
+
+    test.each([
+      'unstable_cache', // useless in client, but doesn't technically error
+      'unstable_noStore', // no-op in client, but allowed for legacy reasons
+    ])('%s is allowed', async (api) => {
+      await using sandbox = await createSandbox(next, initialFiles)
+      const { session } = sandbox
+
+      await next.patchFile(
+        'components/Comp.js',
+        outdent`
+          import { ${api} } from 'next/cache'
+  
+          export default function Page() {
+            return 'hello world'
+          }
+        `
+      )
+
+      await session.assertNoRedbox()
+    })
+  })
 })
 
 const takeUpToString = (text: string, str: string): string =>

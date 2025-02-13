@@ -20,13 +20,8 @@ interface ReactDevOverlayProps {
 }
 
 export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
-  const {
-    isMounted,
-    state,
-    onComponentError,
-    hasRuntimeErrors,
-    hasBuildError,
-  } = usePagesReactDevOverlay()
+  const { state, onComponentError, hasRuntimeErrors, hasBuildError } =
+    usePagesReactDevOverlay()
 
   const { readyErrors, totalErrorCount } = useErrorHook({
     state,
@@ -37,33 +32,31 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
 
   return (
     <>
-      <DevOverlayErrorBoundary isMounted={isMounted} onError={onComponentError}>
+      <DevOverlayErrorBoundary onError={onComponentError}>
         {children ?? null}
       </DevOverlayErrorBoundary>
 
-      {isMounted && (
-        <ShadowPortal>
-          <CssReset />
-          <Base />
-          <Colors />
-          <ComponentStyles />
+      <ShadowPortal>
+        <CssReset />
+        <Base />
+        <Colors />
+        <ComponentStyles />
 
-          <DevToolsIndicator
+        <DevToolsIndicator
+          state={state}
+          errorCount={totalErrorCount}
+          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+        />
+
+        {(hasRuntimeErrors || hasBuildError) && (
+          <ErrorOverlay
             state={state}
-            errorCount={totalErrorCount}
+            readyErrors={readyErrors}
+            isErrorOverlayOpen={isErrorOverlayOpen}
             setIsErrorOverlayOpen={setIsErrorOverlayOpen}
           />
-
-          {(hasRuntimeErrors || hasBuildError) && (
-            <ErrorOverlay
-              state={state}
-              readyErrors={readyErrors}
-              isErrorOverlayOpen={isErrorOverlayOpen}
-              setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-            />
-          )}
-        </ShadowPortal>
-      )}
+        )}
+      </ShadowPortal>
     </>
   )
 }

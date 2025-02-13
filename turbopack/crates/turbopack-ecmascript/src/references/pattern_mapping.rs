@@ -371,15 +371,11 @@ async fn to_single_pattern_mapping(
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
                 let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
-                return Ok(SinglePatternMapping::ModuleLoader(
-                    loader_id.await?.clone_value(),
-                ));
+                return Ok(SinglePatternMapping::ModuleLoader(loader_id.owned().await?));
             }
             ResolveType::ChunkItem => {
                 let chunk_item = chunkable.as_chunk_item(module_graph, chunking_context);
-                return Ok(SinglePatternMapping::Module(
-                    chunk_item.id().await?.clone_value(),
-                ));
+                return Ok(SinglePatternMapping::Module(chunk_item.id().owned().await?));
             }
         }
     }

@@ -402,8 +402,8 @@ pub struct NapiSourcePos {
 impl From<SourcePos> for NapiSourcePos {
     fn from(pos: SourcePos) -> Self {
         Self {
-            line: pos.line as u32,
-            column: pos.column as u32,
+            line: pos.line,
+            column: pos.column,
         }
     }
 }

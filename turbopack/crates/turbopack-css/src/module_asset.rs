@@ -6,7 +6,7 @@ use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
@@ -19,16 +19,16 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
-    source_map::OptionSourceMap,
+    source_map::OptionStringifiedSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    parse::generate_js_source_map,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
-    ParseResultSourceMap,
 };
 
 use crate::{
@@ -410,13 +410,13 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: if source_map {
-                Some(ResolvedVc::upcast(
+                Some(
                     generate_minimal_source_map(
                         self.module.ident().to_string().await?.to_string(),
                         code,
                     )
                     .await?,
-                ))
+                )
             } else {
                 None
             },
@@ -426,10 +426,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-async fn generate_minimal_source_map(
-    filename: String,
-    source: String,
-) -> Result<ResolvedVc<ParseResultSourceMap>> {
+async fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -445,8 +442,13 @@ async fn generate_minimal_source_map(
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none().to_resolved().await?);
-    Ok(map.resolved_cell())
+    let map = generate_js_source_map(
+        sm,
+        mappings,
+        OptionStringifiedSourceMap::none().to_resolved().await?,
+    )
+    .await?;
+    Ok(map)
 }
 
 #[turbo_tasks::value(shared)]

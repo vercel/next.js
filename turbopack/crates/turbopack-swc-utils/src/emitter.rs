@@ -114,7 +114,7 @@ impl Emitter for IssueEmitter {
         }
 
         let source = db.span.primary_span().map(|span| {
-            IssueSource::from_swc_offsets(self.source, span.lo.to_usize(), span.hi.to_usize())
+            IssueSource::from_swc_offsets(self.source, span.lo.to_u32(), span.hi.to_u32())
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
