@@ -487,6 +487,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let mut import_references = Vec::new();
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
+    // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     let mut import_references_namespace_rewritten = FxIndexMap::default();
 
     let pos = program.span().lo;
@@ -1235,43 +1236,42 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span: _,
                     in_try: _,
                 } => {
-                    if let Some(r) = import_references.get(esm_reference_index) {
-                        if let Some("__turbopack_module_id__") = export.as_deref() {
-                            analysis.add_reference_code_gen(
-                                EsmModuleIdAssetReference::new(*r),
-                                ast_path.into(),
-                            )
-                        } else {
-                            let r = match options.tree_shaking_mode {
-                                Some(TreeShakingMode::ReexportsOnly) => {
-                                    let r_ref = r.await?;
-                                    if r_ref.export_name.is_none() && export.is_some() {
-                                        let export = export.clone().unwrap();
+                    let Some(mut r) = import_references.get(esm_reference_index).copied() else {
+                        continue;
+                    };
 
-                                        let r = *import_references_namespace_rewritten
-                                            .entry((esm_reference_index, export.clone()))
-                                            .or_insert_with(|| {
-                                                EsmAssetReference::new(
-                                                    r_ref.origin,
-                                                    r_ref.request,
-                                                    r_ref.issue_source.clone(),
-                                                    Value::new(r_ref.annotations.clone()),
-                                                    Some(ModulePart::export(export)),
-                                                    r_ref.import_externals,
-                                                )
-                                                .resolved_cell()
-                                            });
-                                        r
-                                    } else {
-                                        *r
-                                    }
+                    if let Some("__turbopack_module_id__") = export.as_deref() {
+                        analysis.add_reference_code_gen(
+                            EsmModuleIdAssetReference::new(r),
+                            ast_path.into(),
+                        )
+                    } else {
+                        if matches!(
+                            options.tree_shaking_mode,
+                            Some(TreeShakingMode::ReexportsOnly)
+                        ) {
+                            let r_ref = r.await?;
+                            if r_ref.export_name.is_none() && export.is_some() {
+                                if let Some(export) = &export {
+                                    r = *import_references_namespace_rewritten
+                                        .entry((esm_reference_index, export.clone()))
+                                        .or_insert_with(|| {
+                                            EsmAssetReference::new(
+                                                r_ref.origin,
+                                                r_ref.request,
+                                                r_ref.issue_source.clone(),
+                                                Value::new(r_ref.annotations.clone()),
+                                                Some(ModulePart::export(export.clone())),
+                                                r_ref.import_externals,
+                                            )
+                                            .resolved_cell()
+                                        });
                                 }
-                                _ => *r,
-                            };
-
-                            analysis.add_reference(r);
-                            analysis.add_code_gen(EsmBinding::new(r, export, ast_path.into()));
+                            }
                         }
+
+                        analysis.add_reference(r);
+                        analysis.add_code_gen(EsmBinding::new(r, export, ast_path.into()));
                     }
                 }
                 Effect::TypeOf {
