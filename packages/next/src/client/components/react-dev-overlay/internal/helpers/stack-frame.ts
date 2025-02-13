@@ -91,7 +91,7 @@ export async function getOriginalStackFrames(
   // When fails to fetch the original stack frames, we reject here to be
   // caught at `_getOriginalStackFrame()` and return the stack frames so
   // that the error overlay can render.
-  if (res && res.ok) {
+  if (res && res.ok && res.status !== 204) {
     const data = await res.json()
     return Promise.all(
       frames.map((frame, index) => getOriginalStackFrame(frame, data[index]))
