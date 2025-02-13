@@ -211,30 +211,23 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.add_code_gen(code_gen);
     }
 
-    /// Adds a reference belonging to ESM imports to the analysis result.
-    /// If you're unsure about which function to use, use `add_reference()`
-    pub fn add_non_local_reference(
-        &mut self,
-        reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>,
-    ) {
-        self.references.insert(ResolvedVc::upcast(reference));
-    }
-
     /// Adds an reexport reference to the analysis result.
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_reexport_reference(
         &mut self,
         reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>,
     ) {
-        self.reexport_references
-            .insert(ResolvedVc::upcast(reference));
+        let reference = ResolvedVc::upcast(reference);
+        self.references.insert(reference);
+        self.reexport_references.insert(reference);
     }
 
     /// Adds an evaluation reference to the analysis result.
     /// If you're unsure about which function to use, use `add_reference()`
     pub fn add_evaluation_reference(&mut self, reference: ResolvedVc<EsmAssetReference>) {
-        self.evaluation_references
-            .insert(ResolvedVc::upcast(reference));
+        let reference = ResolvedVc::upcast(reference);
+        self.references.insert(reference);
+        self.evaluation_references.insert(reference);
     }
 
     /// Adds a codegen to the analysis result.
@@ -646,7 +639,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             import_references.push(reference);
             if should_add_evaluation {
                 analysis.add_evaluation_reference(reference);
-                analysis.add_non_local_reference(reference);
             }
         }
         anyhow::Ok(())
@@ -703,11 +695,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 EsmExport::LocalBinding(..) => {}
                 EsmExport::ImportedNamespace(reference) => {
                     analysis.add_reexport_reference(reference);
-                    analysis.add_non_local_reference(reference);
                 }
                 EsmExport::ImportedBinding(reference, ..) => {
                     analysis.add_reexport_reference(reference);
-                    analysis.add_non_local_reference(reference);
                 }
                 EsmExport::Error => {}
             }
@@ -719,7 +709,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             if let Reexport::Star = reexport {
                 esm_star_exports.push(ResolvedVc::upcast(reference));
                 analysis.add_reexport_reference(reference);
-                analysis.add_non_local_reference(reference);
             }
         }
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
