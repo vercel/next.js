@@ -363,9 +363,6 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
-};
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
@@ -546,4 +543,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-canary-cbbe8666-20250213";
+exports.version = "19.1.0-canary-32b0cad8-20250213";
