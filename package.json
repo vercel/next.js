@@ -284,7 +284,8 @@
     },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
-      "@storybook/react@8.5.2": "patches/@storybook__react@8.5.2.patch"
+      "@storybook/react@8.5.2": "patches/@storybook__react@8.5.2.patch",
+      "@types/mdx@2.0.13": "patches/@types__mdx@2.0.13.patch"
     }
   }
 }

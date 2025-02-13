@@ -1,0 +1,26 @@
+diff --git a/package.json b/package.json
+index e434d963c042cdd9ef380076d97f94e7609acc48..25b476c41ea02890c58ff13417cea96abcc2efdd 100644
+--- a/package.json
++++ b/package.json
+@@ -29,7 +29,9 @@
+         "directory": "types/mdx"
+     },
+     "scripts": {},
+-    "dependencies": {},
++    "dependencies": {
++        "@types/react": "^19.0.0"
++    },
+     "typesPublisherContentHash": "e9930b09508f8573e534a6a2fb0c41a3f791f073d8596be495dc6e47b788c530",
+     "typeScriptVersion": "4.7"
+ }
+\ No newline at end of file
+diff --git a/types.d.ts b/types.d.ts
+index 498bb694de2e6a62f14d3fe998dc538aff920fc6..30cf411ed18088ec246a288b39b3edf17756825d 100644
+--- a/types.d.ts
++++ b/types.d.ts
+@@ -1,3 +1,5 @@
++// We only use React so this is fine.
++import type {JSX} from "react"
+ // Internal helper types
+ 
+ /**

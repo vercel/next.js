@@ -59,3 +59,4 @@ test-timings.json
 
 # Storybook
 *storybook.log
+/packages/next/storybook-static

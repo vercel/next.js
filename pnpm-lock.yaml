@@ -25,6 +25,9 @@ patchedDependencies:
   '@storybook/react@8.5.2':
     hash: 3vtnbaj5dhujyrhznezprlo624
     path: patches/@storybook__react@8.5.2.patch
+  '@types/mdx@2.0.13':
+    hash: emgkplkbffqke2jnwgjlydjgaa
+    path: patches/@types__mdx@2.0.13.patch
   webpack-sources@3.2.3:
     hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
@@ -5878,8 +5881,8 @@ packages:
   '@types/mdast@4.0.4':
     resolution: {integrity: sha512-kGaNbPh1k7AFzgpud/gMdvIm5xuECykRR+JnWKQno9TAXVa6WIVCGTPvYGekIDL4uwCZQSYbUxNBSb1aUo79oA==}
 
-  '@types/mdx@2.0.3':
-    resolution: {integrity: sha512-IgHxcT3RC8LzFLhKwP3gbMPeaK7BM9eBH46OdapPA7yvuIUJ8H6zHZV53J8hGZcTSnt95jANt+rTBNUUc22ACQ==}
+  '@types/mdx@2.0.13':
+    resolution: {integrity: sha512-+OWZQfAYyio6YkJb3HLxDrvnx6SWWDbC0zVPfBRzUk0/nqoDyf6dNxQi3eArPe8rJ473nobTMQ/8Zk+LxJ+Yuw==}
 
   '@types/mime@2.0.1':
     resolution: {integrity: sha512-FwI9gX75FgVBJ7ywgnq/P7tw+/o1GUbtP0KzbtusLigAOgIgNISRK0ZPl4qertvXSIE8YbsVJueQ90cDt9YYyw==}
@@ -13885,6 +13888,7 @@ packages:
     engines: {node: '>=0.6.0', teleport: '>=0.2.0'}
     deprecated: |-
       You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+
       (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
 
   qs@6.11.0:
@@ -20465,7 +20469,7 @@ snapshots:
   '@mdx-js/mdx@2.2.1':
     dependencies:
       '@types/estree-jsx': 1.0.0
-      '@types/mdx': 2.0.3
+      '@types/mdx': 2.0.13(patch_hash=emgkplkbffqke2jnwgjlydjgaa)
       estree-util-build-jsx: 2.2.2
       estree-util-is-identifier-name: 2.1.0
       estree-util-to-js: 1.1.1
@@ -20486,19 +20490,19 @@ snapshots:
 
   '@mdx-js/react@2.2.1(react@19.1.0-canary-f83903bf-20250212)':
     dependencies:
-      '@types/mdx': 2.0.3
+      '@types/mdx': 2.0.13(patch_hash=emgkplkbffqke2jnwgjlydjgaa)
       '@types/react': 19.0.8
       react: 19.1.0-canary-f83903bf-20250212
 
   '@mdx-js/react@2.2.1(react@19.1.0-canary-ff628334-20250205)':
     dependencies:
-      '@types/mdx': 2.0.3
+      '@types/mdx': 2.0.13(patch_hash=emgkplkbffqke2jnwgjlydjgaa)
       '@types/react': 19.0.8
       react: 19.1.0-canary-ff628334-20250205
 
   '@mdx-js/react@3.1.0(@types/react@19.0.8)(react@19.1.0-canary-f83903bf-20250212)':
     dependencies:
-      '@types/mdx': 2.0.3
+      '@types/mdx': 2.0.13(patch_hash=emgkplkbffqke2jnwgjlydjgaa)
       '@types/react': 19.0.8
       react: 19.1.0-canary-f83903bf-20250212
 
@@ -21961,7 +21965,7 @@ snapshots:
     dependencies:
       '@types/unist': 2.0.3
 
-  '@types/mdx@2.0.3': {}
+  '@types/mdx@2.0.13(patch_hash=emgkplkbffqke2jnwgjlydjgaa)': {}
 
   '@types/mime@2.0.1': {}
 
