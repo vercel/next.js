@@ -41,7 +41,11 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        if (isNewDevOverlay) {
+          expect(errorDescription).toBe(expectedErrorMessage)
+        } else {
+          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        }
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -100,7 +104,11 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        if (isNewDevOverlay) {
+          expect(errorDescription).toBe(expectedErrorMessage)
+        } else {
+          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        }
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -146,7 +154,11 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        if (isNewDevOverlay) {
+          expect(errorDescription).toBe(expectedErrorMessage)
+        } else {
+          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        }
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -216,7 +228,11 @@ describe('use-cache-hanging-inputs', () => {
     at Page [Server] (<anonymous>)`
           )
         } else {
-          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+          if (isNewDevOverlay) {
+            expect(errorDescription).toBe(expectedErrorMessage)
+          } else {
+            expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+          }
 
           if (isTurbopack) {
             // TODO(veil): For Turbopack, a fix in the React Flight Client, where
@@ -260,7 +276,9 @@ describe('use-cache-hanging-inputs', () => {
         expect({ count, title, description }).toEqual({
           count: 1,
           title: 'Unhandled Runtime Error',
-          description: '[ Cache ] Error: kaputt!',
+          description: isNewDevOverlay
+            ? 'Error: kaputt!'
+            : '[ Cache ] Error: kaputt!',
         })
       })
     })

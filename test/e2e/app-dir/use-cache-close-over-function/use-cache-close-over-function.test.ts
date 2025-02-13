@@ -39,7 +39,7 @@ describe('use-cache-close-over-function', () => {
       `)
       } else {
         expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Server ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
@@ -105,7 +105,7 @@ describe('use-cache-close-over-function', () => {
       `)
       } else {
         expect(errorDescription).toMatchInlineSnapshot(`
-        "[ Server ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+        "[ Prerender ] Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
           [function fn]
            ^^^^^^^^^^^"
       `)
