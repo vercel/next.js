@@ -401,8 +401,8 @@ async fn process_content(
 
                 // We need to collect here because we need to avoid holding the lock while calling
                 // `.await` in the loop.
-                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
-                for err in warngins.iter() {
+                let warnings = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
+                for err in warnings.iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
@@ -419,8 +419,26 @@ async fn process_content(
                                 None => None,
                             };
 
+                            let mut file = fs_path_vc;
+
+                            for (pattern, removal, remove_count) in [
+                                (".module.scss", ".module.css", 2),
+                                (".module.sass", ".module.css", 2),
+                                (".scss", ".css", 1),
+                                (".sass", ".css", 1),
+                            ] {
+                                let path = fs_path_vc.await?.path.clone();
+                                if path.contains(pattern) && path.ends_with(removal) {
+                                    // FIXME: To remove ".css" and ".module" multiple times
+                                    for _ in 0..remove_count {
+                                        file = file.with_extension("".into()).to_resolved().await?;
+                                    }
+                                    break;
+                                }
+                            }
+
                             ParsingIssue {
-                                file: fs_path_vc,
+                                file,
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }

@@ -26,7 +26,7 @@ describe('app dir - css', () => {
 
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
-            "./app/global.scss.css:45:1
+            "./app/global.scss:45:1
             Parsing css source code failed
               43 | }
               44 |
