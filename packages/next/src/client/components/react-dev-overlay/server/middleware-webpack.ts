@@ -14,6 +14,7 @@ import {
   internalServerError,
   json,
   noContent,
+  notFound,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
@@ -568,10 +569,10 @@ export function getOverlayMiddleware(options: {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return notFound(res)
 
       try {
-        await launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
+        launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
         return internalServerError(res)
