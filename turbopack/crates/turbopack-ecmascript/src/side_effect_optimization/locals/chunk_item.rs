@@ -59,7 +59,10 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             module_type_result.module_type,
             *module_graph,
             *chunking_context,
-            analyze.references(),
+            (
+                analyze.local_references(),
+                *analyze_result.esm_local_references,
+            ),
             *analyze_result.code_generation,
             *analyze_result.async_module,
             generate_source_map,

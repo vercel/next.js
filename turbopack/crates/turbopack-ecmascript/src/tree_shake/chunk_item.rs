@@ -66,7 +66,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             module_type_result.module_type,
             *self.module_graph,
             *self.chunking_context,
-            analyze.references(),
+            (analyze.references(), *analyze_ref.esm_references),
             *analyze_ref.code_generation,
             *analyze_ref.async_module,
             generate_source_map,

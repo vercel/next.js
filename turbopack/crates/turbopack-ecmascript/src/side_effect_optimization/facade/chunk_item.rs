@@ -8,7 +8,7 @@ use swc_core::{
         codegen::{text_writer::JsWriter, Emitter},
     },
 };
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
@@ -23,7 +23,6 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    code_gen::CodeGenerateable,
     process_content_with_code_gens,
 };
 
@@ -67,21 +66,16 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let mut code = RopeBuilder::default();
 
-        let references = self.module.references();
-        let references_ref = references.await?;
-        let mut code_gens_cells = Vec::with_capacity(references_ref.len() + 2);
-        for r in &references_ref {
-            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
-                code_gens_cells
-                    .push(code_gen.code_generation(*self.module_graph, *chunking_context));
-            }
-        }
+        let esm_code_gens = self
+            .module
+            .code_generation(*self.module_graph, *chunking_context)
+            .await?;
         let additional_code_gens = [
             self.module
                 .async_module()
                 .code_generation(
                     async_module_info,
-                    references,
+                    self.module.references(),
                     *self.module_graph,
                     *chunking_context,
                 )
@@ -90,11 +84,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 .code_generation(*self.module_graph, *chunking_context)
                 .await?,
         ];
-        let code_gen_cells = code_gens_cells.into_iter().try_join().await?;
-        let code_gens = code_gen_cells
-            .iter()
-            .map(|cg| &**cg)
-            .chain(additional_code_gens.iter());
+        let code_gens = esm_code_gens.iter().chain(additional_code_gens.iter());
 
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
         process_content_with_code_gens(&mut program, &Globals::new(), None, code_gens);

@@ -17,10 +17,8 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable,
-    code_gen::{CodeGenerateable, CodeGeneration},
-    references::esm::base::ReferencedAsset,
-    runtime_functions::TURBOPACK_IMPORT,
+    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
+    references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
 
@@ -111,14 +109,12 @@ impl ChunkableModuleReference for EcmascriptModulePartReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EcmascriptModulePartReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl EcmascriptModulePartReference {
+    pub async fn code_generation(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
@@ -142,7 +138,6 @@ impl CodeGenerateable for EcmascriptModulePartReference {
                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),
-        )
-        .cell())
+        ))
     }
 }

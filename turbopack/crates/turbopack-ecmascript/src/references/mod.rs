@@ -136,7 +136,10 @@ use crate::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
         dynamic_expression::DynamicExpression,
-        esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
+        esm::{
+            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference, EsmBinding,
+            UrlRewriteBehavior,
+        },
         ident::IdentReplacement,
         member::MemberReplacement,
         node::PackageJsonReference,
@@ -157,10 +160,10 @@ use crate::{
 pub struct AnalyzeEcmascriptModuleResult {
     references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 
-    esm_references: Vec<ResolvedVc<EsmAssetReference>>,
-    esm_local_references: Vec<ResolvedVc<EsmAssetReference>>,
-    pub esm_reexport_references: Vec<ResolvedVc<EsmAssetReference>>,
-    pub esm_evaluation_references: Vec<ResolvedVc<EsmAssetReference>>,
+    pub esm_references: ResolvedVc<EsmAssetReferences>,
+    pub esm_local_references: ResolvedVc<EsmAssetReferences>,
+    pub esm_reexport_references: ResolvedVc<EsmAssetReferences>,
+    pub esm_evaluation_references: ResolvedVc<EsmAssetReferences>,
 
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
@@ -173,14 +176,27 @@ pub struct AnalyzeEcmascriptModuleResult {
 #[turbo_tasks::value_impl]
 impl AnalyzeEcmascriptModuleResult {
     #[turbo_tasks::function]
-    pub fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(
-            self.esm_local_references
+    pub async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(
+            self.esm_references
+                .await?
                 .iter()
                 .map(|r| ResolvedVc::upcast(*r))
                 .chain(self.references.iter().copied())
                 .collect(),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn local_references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(
+            self.esm_local_references
+                .await?
+                .iter()
+                .map(|r| ResolvedVc::upcast(*r))
+                .chain(self.references.iter().copied())
+                .collect(),
+        ))
     }
 }
 
@@ -331,10 +347,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
                 references: (references),
-                esm_references: (esm_references),
-                esm_local_references: (esm_local_references),
-                esm_reexport_references: (esm_reexport_references),
-                esm_evaluation_references: (esm_evaluation_references),
+                esm_references: ResolvedVc::cell(esm_references),
+                esm_local_references: ResolvedVc::cell(esm_local_references),
+                esm_reexport_references: ResolvedVc::cell(esm_reexport_references),
+                esm_evaluation_references: ResolvedVc::cell(esm_evaluation_references),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
