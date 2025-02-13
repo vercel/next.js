@@ -16,10 +16,10 @@ export function ErrorOverlayToolbar({
   return (
     <span className="error-overlay-toolbar">
       <CopyStackTraceButton error={error} />
+      <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
-      <DocsLinkButton errorMessage={error.message} />
     </span>
   )
 }
@@ -37,8 +37,8 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-alpha-400);
