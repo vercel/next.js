@@ -192,6 +192,10 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+    // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
+    // variable to the client.
+    'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
       ? {}
