@@ -10,7 +10,7 @@ import { CssReset } from '../internal/styles/css-reset'
 import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
-import { useErrorHook } from '../internal/container/runtime-error/use-error-hook'
+import { RenderError } from '../internal/container/runtime-error/render-error'
 
 export default function ReactDevOverlay({
   state,
@@ -21,15 +21,7 @@ export default function ReactDevOverlay({
   globalError: [GlobalErrorComponent, React.ReactNode]
   children: React.ReactNode
 }) {
-  const [_isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
-  const { readyErrors, totalErrorCount } = useErrorHook({
-    state,
-    isAppDir: true,
-  })
-
-  // Build errors cannot be dismissed. If one is triggered, we ignore the
-  // user's preference and open the error overlay.
-  const isErrorOverlayOpen = Boolean(state.buildError) || _isErrorOverlayOpen
+  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
 
   const devOverlay = (
     <ShadowPortal>
@@ -38,18 +30,26 @@ export default function ReactDevOverlay({
       <Colors />
       <ComponentStyles />
 
-      <DevToolsIndicator
-        state={state}
-        errorCount={totalErrorCount}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+      <RenderError state={state} isAppDir={true}>
+        {({ readyErrors, totalErrorCount }) => {
+          return (
+            <>
+              <DevToolsIndicator
+                state={state}
+                errorCount={totalErrorCount}
+                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+              />
 
-      <ErrorOverlay
-        state={state}
-        readyErrors={readyErrors}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+              <ErrorOverlay
+                state={state}
+                readyErrors={readyErrors}
+                isErrorOverlayOpen={isErrorOverlayOpen}
+                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+              />
+            </>
+          )
+        }}
+      </RenderError>
     </ShadowPortal>
   )
 
