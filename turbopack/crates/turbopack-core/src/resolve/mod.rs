@@ -105,7 +105,7 @@ impl ModuleResolveResultItem {
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
-    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+    pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
 impl ModuleResolveResult {
@@ -122,7 +122,7 @@ impl ModuleResolveResult {
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: FxIndexMap::default(),
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
@@ -174,7 +174,7 @@ impl ModuleResolveResult {
                 .into_iter()
                 .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
                 .collect(),
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
@@ -195,16 +195,33 @@ impl ModuleResolveResult {
         self.affecting_sources.iter().copied()
     }
 
-    fn clone_with_affecting_sources(
-        &self,
-        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ModuleResolveResult {
+    pub fn is_unresolvable_ref(&self) -> bool {
+        self.primary.is_empty()
+    }
+}
+
+pub struct ModuleResolveResultBuilder {
+    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
+    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+}
+
+impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
+    fn from(v: ModuleResolveResultBuilder) -> Self {
         ModuleResolveResult {
-            primary: self.primary.clone(),
-            affecting_sources,
+            primary: v.primary,
+            affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
-
+}
+impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
+    fn from(v: ModuleResolveResult) -> Self {
+        ModuleResolveResultBuilder {
+            primary: v.primary,
+            affecting_sources: v.affecting_sources.into_vec(),
+        }
+    }
+}
+impl ModuleResolveResultBuilder {
     pub fn merge_alternatives(&mut self, other: &ModuleResolveResult) {
         for (k, v) in other.primary.iter() {
             if !self.primary.contains_key(k) {
@@ -224,10 +241,6 @@ impl ModuleResolveResult {
                 .copied(),
         );
     }
-
-    pub fn is_unresolvable_ref(&self) -> bool {
-        self.primary.is_empty()
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -241,7 +254,7 @@ impl ModuleResolveResult {
         affecting_sources.push(source);
         Ok(Self {
             primary: self.primary.clone(),
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .cell())
     }
@@ -255,7 +268,7 @@ impl ModuleResolveResult {
         affecting_sources.extend(sources);
         Ok(Self {
             primary: self.primary.clone(),
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .cell())
     }
@@ -272,9 +285,11 @@ impl ModuleResolveResult {
         for result in results {
             let result_ref = result.await?;
             if !result_ref.is_unresolvable_ref() {
-                return Ok(result_ref
-                    .clone_with_affecting_sources(affecting_sources)
-                    .cell());
+                return Ok(Self {
+                    primary: result_ref.primary.clone(),
+                    affecting_sources: affecting_sources.into_boxed_slice(),
+                }
+                .cell());
             }
         }
         Ok(*ModuleResolveResult::unresolvable_with_affecting_sources(
@@ -289,13 +304,13 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = ReadRef::into_owned(current);
+            let mut current: ModuleResolveResultBuilder = ReadRef::into_owned(current).into();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
                 current.merge_alternatives(other);
             }
-            Ok(Self::cell(current))
+            Ok(Self::cell(current.into()))
         } else {
             Ok(*ModuleResolveResult::unresolvable())
         }
@@ -318,14 +333,14 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = ReadRef::into_owned(current);
+            let mut current: ModuleResolveResultBuilder = ReadRef::into_owned(current).into();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
                 current.merge_alternatives(other);
             }
             current.affecting_sources.extend(affecting_sources);
-            Ok(Self::cell(current))
+            Ok(Self::cell(current.into()))
         } else {
             Ok(*ModuleResolveResult::unresolvable_with_affecting_sources(
                 affecting_sources,
@@ -744,7 +759,7 @@ impl ResolveResult {
                 .await?
                 .into_iter()
                 .collect(),
-            affecting_sources: self.affecting_sources.clone(),
+            affecting_sources: self.affecting_sources.clone().into_boxed_slice(),
         })
     }
 
@@ -767,7 +782,7 @@ impl ResolveResult {
                 .await?
                 .into_iter()
                 .collect(),
-            affecting_sources: self.affecting_sources.clone(),
+            affecting_sources: self.affecting_sources.clone().into_boxed_slice(),
         })
     }
 
