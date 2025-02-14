@@ -16,8 +16,8 @@ pub fn add_default_ignore_list(map: &mut sourcemap::SourceMap) {
     let mut ignored_ids = HashSet::new();
 
     for (source_id, source) in map.sources().enumerate() {
-        if source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "[next]"))
-            || source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "[turbopack]"))
+        if source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "/[next]"))
+            || source.starts_with(concatcp!(SOURCE_MAP_PREFIX, "/[turbopack]"))
             || source.contains("/node_modules/")
         {
             ignored_ids.insert(source_id);
@@ -84,7 +84,7 @@ pub async fn resolve_source_map_sources(
             .await?
         {
             let path_str = path.to_string().await?;
-            let source = format!("{SOURCE_MAP_PREFIX}{}", path_str);
+            let source = format!("{SOURCE_MAP_PREFIX}/{}", path_str);
             *original_source = source;
 
             if original_content.is_none() {
@@ -102,7 +102,7 @@ pub async fn resolve_source_map_sources(
             let source = INVALID_REGEX.replace_all(original_source, |s: &regex::Captures<'_>| {
                 s[0].replace('.', "_")
             });
-            *original_source = format!("{SOURCE_MAP_PREFIX}{}/{}", origin_str, source);
+            *original_source = format!("{SOURCE_MAP_PREFIX}/{}/{}", origin_str, source);
             if original_content.is_none() {
                 *original_content = Some(format!(
                     "unable to access {original_source} in {origin_str} (it's leaving the \
@@ -148,7 +148,7 @@ pub async fn resolve_source_map_sources(
     Ok(Some(map))
 }
 
-/// Turns `turbopack://[project]` references in sourcemap sources into absolute `file://` uris. This
+/// Turns `turbopack:///[project]` references in sourcemap sources into absolute `file://` uris. This
 /// is useful for debugging environments.
 pub async fn fileify_source_map(
     map: Option<&Rope>,
@@ -163,7 +163,7 @@ pub async fn fileify_source_map(
         .await?
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
-    let prefix = format!("{}[{}]/", SOURCE_MAP_PREFIX, context_fs.name());
+    let prefix = format!("{}/[{}]/", SOURCE_MAP_PREFIX, context_fs.name());
 
     // TODO this could be made (much) more efficient by not even de- and serializing other fields
     // (apart from `sources`) and just keep storing them as strings.
