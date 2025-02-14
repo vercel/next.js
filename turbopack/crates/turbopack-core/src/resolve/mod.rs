@@ -13,7 +13,7 @@ use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc, VecMap,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -104,7 +104,7 @@ impl ModuleResolveResultItem {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: Box<[(RequestKey, ModuleResolveResultItem)]>,
+    pub primary: VecMap<RequestKey, ModuleResolveResultItem>,
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
