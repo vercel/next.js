@@ -649,5 +649,9 @@
   "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
   "649": "Cache handlers not initialized",
   "650": "experimental.nodeMiddleware",
-  "651": "Unexpected module type %s"
+  "651": "Unexpected module type %s",
+  "652": "Specified nextUrlServerPrefix is not a string, found type \"%s\" https://nextjs.org/docs/messages/invalid-next-url-server-prefix",
+  "653": "Specified nextUrlServerPrefix has to start with a /, found \"%s\" https://nextjs.org/docs/messages/invalid-next-url-server-prefix",
+  "654": "Specified nextUrlServerPrefix should not end with /, found \"%s\" https://nextjs.org/docs/messages/invalid-next-url-server-prefix",
+  "655": "Specified nextUrlServerPrefix /. nextUrlServerPrefix has to be either an empty string or a path prefix\" https://nextjs.org/docs/messages/invalid-next-url-server-prefix"
 }

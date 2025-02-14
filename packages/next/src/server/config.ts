@@ -292,6 +292,32 @@ function assignDefaults(
     )
   }
 
+  if (typeof result.experimental?.nextUrlServerPrefix !== 'string') {
+    throw new Error(
+      `Specified nextUrlServerPrefix is not a string, found type "${typeof result.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
+    )
+  }
+
+  if (result.experimental?.nextUrlServerPrefix !== '') {
+    if (result.experimental?.nextUrlServerPrefix === '/') {
+      throw new Error(
+        `Specified nextUrlServerPrefix /. nextUrlServerPrefix has to be either an empty string or a path prefix" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
+      )
+    }
+
+    if (!result.experimental?.nextUrlServerPrefix.startsWith('/')) {
+      throw new Error(
+        `Specified nextUrlServerPrefix has to start with a /, found "${result.experimental?.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
+      )
+    }
+
+    if (result.experimental?.nextUrlServerPrefix.endsWith('/')) {
+      throw new Error(
+        `Specified nextUrlServerPrefix should not end with /, found "${result.experimental?.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
+      )
+    }
+  }
+
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`

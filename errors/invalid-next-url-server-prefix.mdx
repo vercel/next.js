@@ -1,0 +1,21 @@
+---
+title: 'Invalid `nextUrlServerPrefix`'
+---
+
+## Why This Error Occurred
+
+The value of `nextUrlServerPrefix` in `next.config.js` is invalid.
+
+The value must be a `string`. It must start with a `/` and not end with a `/`.
+
+## Possible Ways to Fix It
+
+Ensure that `nextUrlServerPrefix` is a `string`, and that it starts with a `/` and does not end with a `/`.
+
+Example:
+
+```js filename="next.config.js"
+module.exports = {
+  nextUrlServerPrefix: '/my-custom-prefix',
+}
+```

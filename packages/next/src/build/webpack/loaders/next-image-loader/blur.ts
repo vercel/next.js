@@ -11,6 +11,7 @@ export async function getBlurImage(
   imageSize: { width: number; height: number },
   {
     basePath,
+    nextUrlServerPrefix,
     outputPath,
     isDev,
     tracing = () => ({
@@ -25,6 +26,7 @@ export async function getBlurImage(
     }),
   }: {
     basePath: string
+    nextUrlServerPrefix: string
     outputPath: string
     isDev: boolean
     tracing: (name?: string) => {
@@ -58,7 +60,10 @@ export async function getBlurImage(
       // because it can delay starting the dev server. Instead, we inline a
       // special url to lazily generate the blur placeholder at request time.
       const prefix = 'http://localhost'
-      const url = new URL(`${basePath || ''}/_next/image`, prefix)
+      const url = new URL(
+        `${basePath || ''}${nextUrlServerPrefix || ''}/_next/image`,
+        prefix
+      )
       url.searchParams.set('url', outputPath)
       url.searchParams.set('w', String(blurWidth))
       url.searchParams.set('q', String(BLUR_QUALITY))
