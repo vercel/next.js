@@ -21,7 +21,12 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
 
   if (!docsURL) {
     return (
-      <button className="docs-link-button" disabled>
+      <button
+        title="No related Next.js docs found"
+        aria-label="No related Next.js docs found"
+        className="docs-link-button"
+        disabled
+      >
         <DocsIcon
           className="error-overlay-toolbar-button-icon"
           width={14}
@@ -33,8 +38,8 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
 
   return (
     <a
-      title="Related Next.js Docs"
-      aria-label="Related Next.js Docs"
+      title="Go to related Next.js docs"
+      aria-label="Go to related Next.js docs"
       className="docs-link-button"
       href={docsURL}
       target="_blank"
