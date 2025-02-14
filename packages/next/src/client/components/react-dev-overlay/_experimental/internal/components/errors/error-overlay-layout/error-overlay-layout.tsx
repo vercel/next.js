@@ -52,7 +52,6 @@ interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
-// TODO: Clean up and improve composition.
 export function ErrorOverlayLayout({
   errorMessage,
   errorType,
