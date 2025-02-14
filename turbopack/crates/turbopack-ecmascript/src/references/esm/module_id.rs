@@ -66,12 +66,11 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self { inner, .. } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen {
-                inner,
+                reference,
                 path,
             }),
         )
@@ -81,7 +80,7 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct EsmModuleIdAssetReferenceCodeGen {
     path: AstPath,
-    inner: ResolvedVc<EsmAssetReference>,
+    reference: ResolvedVc<EsmModuleIdAssetReference>,
 }
 
 impl EsmModuleIdAssetReferenceCodeGen {
@@ -92,7 +91,9 @@ impl EsmModuleIdAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
+        if let ReferencedAsset::Some(asset) =
+            &*self.reference.await?.inner.get_referenced_asset().await?
+        {
             let id = asset
                 .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                 .id()

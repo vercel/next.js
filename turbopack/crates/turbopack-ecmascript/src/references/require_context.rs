@@ -291,13 +291,11 @@ impl IntoCodeGenReference for RequireContextAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self { inner, .. } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen {
-                inner,
-
+                reference,
                 path,
             }),
         )
@@ -307,7 +305,7 @@ impl IntoCodeGenReference for RequireContextAssetReference {
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct RequireContextAssetReferenceCodeGen {
     path: AstPath,
-    inner: ResolvedVc<RequireContextAsset>,
+    reference: ResolvedVc<RequireContextAssetReference>,
 }
 
 impl RequireContextAssetReferenceCodeGen {
@@ -317,6 +315,8 @@ impl RequireContextAssetReferenceCodeGen {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let chunk_item = self
+            .reference
+            .await?
             .inner
             .as_chunk_item(module_graph, Vc::upcast(chunking_context));
         let module_id = chunk_item.id().owned().await?;

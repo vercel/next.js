@@ -136,20 +136,10 @@ impl IntoCodeGenReference for UrlAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self {
-            rendering,
-            url_rewrite_behavior,
-            ..
-        } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
-            CodeGen::UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen {
-                reference,
-                path,
-                url_rewrite_behavior,
-                rendering,
-            }),
+            CodeGen::UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen { reference, path }),
         )
     }
 }
@@ -158,8 +148,6 @@ impl IntoCodeGenReference for UrlAssetReference {
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
     path: AstPath,
-    url_rewrite_behavior: UrlRewriteBehavior,
-    rendering: Rendering,
 }
 
 impl UrlAssetReferenceCodeGen {
@@ -187,7 +175,9 @@ impl UrlAssetReferenceCodeGen {
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
-        match self.url_rewrite_behavior {
+        let reference = self.reference.await?;
+
+        match reference.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
                 let referenced_asset = self.reference.get_referenced_asset().await?;
 
@@ -260,7 +250,7 @@ impl UrlAssetReferenceCodeGen {
                 //
                 // By default for the remaining environments, turbopack's runtime have overriden
                 // `import.meta.url`.
-                let rewrite_url_base = match self.rendering {
+                let rewrite_url_base = match reference.rendering {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),
                     Rendering::None | Rendering::Server => None,
                 };

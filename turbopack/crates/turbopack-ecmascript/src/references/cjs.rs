@@ -137,16 +137,11 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self {
-            request, origin, ..
-        } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen {
                 reference,
-                request,
-                origin,
                 path,
             }),
         )
@@ -157,8 +152,6 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
     path: AstPath,
-    request: ResolvedVc<Request>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 impl CjsRequireAssetReferenceCodeGen {
@@ -167,9 +160,11 @@ impl CjsRequireAssetReferenceCodeGen {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
         let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
+            *reference.request,
+            *reference.origin,
             module_graph,
             Vc::upcast(chunking_context),
             self.reference.resolve_reference(),
@@ -262,19 +257,11 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self {
-            request, origin, ..
-        } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::CjsRequireResolveAssetReferenceCodeGen(
-                CjsRequireResolveAssetReferenceCodeGen {
-                    reference,
-                    request,
-                    origin,
-                    path,
-                },
+                CjsRequireResolveAssetReferenceCodeGen { reference, path },
             ),
         )
     }
@@ -284,8 +271,6 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
     path: AstPath,
-    request: ResolvedVc<Request>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 impl CjsRequireResolveAssetReferenceCodeGen {
@@ -294,9 +279,11 @@ impl CjsRequireResolveAssetReferenceCodeGen {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
         let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
+            *reference.request,
+            *reference.origin,
             module_graph,
             Vc::upcast(chunking_context),
             self.reference.resolve_reference(),

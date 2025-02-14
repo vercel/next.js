@@ -112,21 +112,12 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
         self,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
-        let Self {
-            request,
-            origin,
-            import_externals,
-            ..
-        } = self;
         let reference = self.resolved_cell();
         (
             ResolvedVc::upcast(reference),
             CodeGen::EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen {
                 reference,
-                request,
-                origin,
                 path,
-                import_externals,
             }),
         )
     }
@@ -135,10 +126,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct EsmAsyncAssetReferenceCodeGen {
     path: AstPath,
-    request: ResolvedVc<Request>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     reference: ResolvedVc<EsmAsyncAssetReference>,
-    import_externals: bool,
 }
 
 impl EsmAsyncAssetReferenceCodeGen {
@@ -147,9 +135,11 @@ impl EsmAsyncAssetReferenceCodeGen {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
         let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
+            *reference.request,
+            *reference.origin,
             module_graph,
             Vc::upcast(chunking_context),
             self.reference.resolve_reference(),
@@ -164,7 +154,7 @@ impl EsmAsyncAssetReferenceCodeGen {
         )
         .await?;
 
-        let import_externals = self.import_externals;
+        let import_externals = reference.import_externals;
 
         let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let old_expr = expr.take();
