@@ -9,6 +9,7 @@ edition = "2021"
 bench = false
 
 [features]
+default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 
