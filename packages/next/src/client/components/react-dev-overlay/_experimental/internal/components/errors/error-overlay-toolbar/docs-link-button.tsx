@@ -20,7 +20,7 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
   const docsURL = getDocsURLFromErrorMessage(errorMessage)
   const commonProps = {
     title: 'Related Next.js Docs',
-    ariaLabel: 'Related Next.js Docs',
+    'aria-label': 'Related Next.js Docs',
     className: 'docs-link-button',
   }
 
