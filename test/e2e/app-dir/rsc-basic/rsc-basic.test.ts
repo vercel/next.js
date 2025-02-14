@@ -427,8 +427,7 @@ describe('app dir - rsc basics', () => {
   // TODO: (PPR) remove once PPR is stable
   // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ? '-experimental-'
       : '-canary-'
 

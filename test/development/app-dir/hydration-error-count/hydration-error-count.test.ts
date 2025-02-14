@@ -17,7 +17,6 @@ describe('hydration-error-count', () => {
     files: __dirname,
   })
 
-  // These error count should be consistent between normal mode and when reactOwnerStack is enabled (PPR testing)
   it('should have correct hydration error count for bad nesting', async () => {
     const browser = await next.browser('/bad-nesting')
 
