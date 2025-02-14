@@ -191,10 +191,6 @@ impl ModuleResolveResult {
         })
     }
 
-    pub fn add_affecting_source_ref(&mut self, source: ResolvedVc<Box<dyn Source>>) {
-        self.affecting_sources.push(source);
-    }
-
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
     }
@@ -238,24 +234,30 @@ impl ModuleResolveResult {
 impl ModuleResolveResult {
     #[turbo_tasks::function]
     pub async fn with_affecting_source(
-        self: Vc<Self>,
+        &self,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.owned().await?;
-        this.add_affecting_source_ref(source);
-        Ok(this.into())
+        let mut affecting_sources = self.affecting_sources.to_vec();
+        affecting_sources.push(source);
+        Ok(Self {
+            primary: self.primary.clone(),
+            affecting_sources,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_affecting_sources(
-        self: Vc<Self>,
+        &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.owned().await?;
-        for source in sources {
-            this.add_affecting_source_ref(source);
+        let mut affecting_sources = self.affecting_sources.to_vec();
+        affecting_sources.extend(sources);
+        Ok(Self {
+            primary: self.primary.clone(),
+            affecting_sources,
         }
-        Ok(this.into())
+        .cell())
     }
 
     /// Returns the first [ModuleResolveResult] that is not
