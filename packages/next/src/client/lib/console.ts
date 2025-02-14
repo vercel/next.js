@@ -112,7 +112,6 @@ export function formatConsoleArgs(args: unknown[]): string {
   return result
 }
 
-// TODO: Infer type for `environmentName` if available.
 export function parseConsoleArgs(args: unknown[]): {
   environmentName: string | null
   error: Error | null
