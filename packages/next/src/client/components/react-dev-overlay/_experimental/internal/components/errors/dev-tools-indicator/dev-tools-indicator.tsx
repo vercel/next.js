@@ -3,11 +3,9 @@ import type { OverlayState } from '../../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import { NextLogo } from './internal/next-logo'
+import { Cross, NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
-import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 
 // TODO: add E2E tests to cover different scenarios
@@ -22,15 +20,6 @@ export function DevToolsIndicator({
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
-  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
-  useKeyboardShortcut({
-    key: '.',
-    modifiers: [MODIFIERS.CTRL_CMD],
-    callback: () => {
-      setIsDevToolsIndicatorOpen(!isDevToolsIndicatorOpen)
-      setIsErrorOverlayOpen(!isDevToolsIndicatorOpen)
-    },
-  })
 
   return (
     isDevToolsIndicatorOpen && (
@@ -264,7 +253,7 @@ function DevToolsPopover({
               <MenuItem
                 data-hide-dev-tools
                 label="Hide Dev Tools"
-                value={<HideShortcut />}
+                value={<Cross />}
                 onClick={hide}
                 index={isTurbopack ? 1 : 2}
               />
@@ -343,7 +332,7 @@ function IssueCount({ children }: { children: number }) {
   )
 }
 
-function HideShortcut() {
+function _HideShortcut() {
   const isMac =
     // Feature detect for `navigator.userAgentData` which is experimental:
     // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
