@@ -129,7 +129,7 @@ pub use vc::{
     VcValueTypeCast,
 };
 
-pub type VecMap<K, V> = Box<[(K, V)]>;
+pub type SliceMap<K, V> = Box<[(K, V)]>;
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
