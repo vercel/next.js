@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
-    TaskInput, TryJoinIterExt, Value, ValueToString, Vc, VecMap,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc, VecMap,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -102,7 +102,7 @@ impl ModuleResolveResultItem {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ModuleResolveResult {
     pub primary: VecMap<RequestKey, ModuleResolveResultItem>,
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
@@ -396,8 +396,19 @@ impl ModuleResolveResult {
     }
 }
 
-#[derive(Copy, Clone)]
-#[turbo_tasks::value(shared)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    TaskInput,
+    Hash,
+    NonLocalValue,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+)]
 pub enum ExternalTraced {
     Untraced,
     Traced,
@@ -442,7 +453,7 @@ impl Display for ExternalType {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
     External {
@@ -503,7 +514,7 @@ impl RequestKey {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
-    pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
+    pub primary: VecMap<RequestKey, ResolveResultItem>,
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
@@ -565,7 +576,7 @@ impl ValueToString for ResolveResult {
 impl ResolveResult {
     pub fn unresolvable() -> ResolvedVc<Self> {
         ResolveResult {
-            primary: FxIndexMap::default(),
+            primary: Default::default(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -575,7 +586,7 @@ impl ResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
         ResolveResult {
-            primary: FxIndexMap::default(),
+            primary: Default::default(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -590,7 +601,7 @@ impl ResolveResult {
         result: ResolveResultItem,
     ) -> ResolvedVc<Self> {
         ResolveResult {
-            primary: fxindexmap! { request_key => result },
+            primary: vec![(request_key, result)].into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -601,10 +612,8 @@ impl ResolveResult {
         result: ResolveResultItem,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
-        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
-        primary.insert(request_key, result);
         ResolveResult {
-            primary,
+            primary: vec![(request_key, result)].into_boxed_slice(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -618,10 +627,8 @@ impl ResolveResult {
         request_key: RequestKey,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> ResolvedVc<Self> {
-        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
-        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary,
+            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -632,10 +639,8 @@ impl ResolveResult {
         source: ResolvedVc<Box<dyn Source>>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
-        let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
-        primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
-            primary,
+            primary: vec![(request_key, ResolveResultItem::Source(source))].into_boxed_slice(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -782,15 +787,18 @@ impl ResolveResult {
     }
 
     pub fn add_conditions<'a>(&mut self, conditions: impl IntoIterator<Item = (&'a str, bool)>) {
-        let mut primary = self.primary.drain(..).collect::<Vec<_>>();
+        let mut primary = std::mem::take(&mut self.primary);
         for (k, v) in conditions {
             for (key, _) in primary.iter_mut() {
                 key.conditions.insert(k.to_string(), v);
             }
         }
-        for (k, v) in primary {
-            self.primary.insert(k, v);
-        }
+        // Deduplicate
+        self.primary = IntoIterator::into_iter(primary)
+            .collect::<FxIndexMap<_, _>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
     }
 }
 
@@ -802,7 +810,7 @@ pub struct ResolveResultBuilder {
 impl From<ResolveResultBuilder> for ResolveResult {
     fn from(v: ResolveResultBuilder) -> Self {
         ResolveResult {
-            primary: v.primary,
+            primary: v.primary.into_iter().collect::<Vec<_>>().into_boxed_slice(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -1704,9 +1712,8 @@ async fn handle_after_resolve_plugins(
                 new_primary.extend(
                     new_result
                         .primary
-                        .values()
-                        .cloned()
-                        .map(|item| (key.clone(), item)),
+                        .iter()
+                        .map(|(_, item)| (key.clone(), item.clone())),
                 );
                 new_affecting_sources.extend(new_result.affecting_sources.iter().copied());
             } else {
@@ -1725,7 +1732,7 @@ async fn handle_after_resolve_plugins(
     affecting_sources.append(&mut new_affecting_sources);
 
     Ok(ResolveResult {
-        primary: new_primary,
+        primary: new_primary.into_iter().collect(),
         affecting_sources: affecting_sources.into_boxed_slice(),
     }
     .cell())
