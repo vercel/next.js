@@ -454,7 +454,7 @@ export const NextLogo = forwardRef(function NextLogo(
                   triggerRef.current?.focus()
                 }}
               >
-                <Cross />
+                <Cross data-cross />
               </button>
             </div>
           )}
@@ -569,15 +569,15 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
   )
 }
 
-function Cross() {
+export function Cross(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      data-cross
       width="12"
       height="12"
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      {...props}
     >
       <path
         fillRule="evenodd"
