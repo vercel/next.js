@@ -332,34 +332,6 @@ function IssueCount({ children }: { children: number }) {
   )
 }
 
-function _HideShortcut() {
-  const isMac =
-    // Feature detect for `navigator.userAgentData` which is experimental:
-    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
-    'userAgentData' in navigator
-      ? (navigator.userAgentData as any).platform === 'macOS'
-      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
-        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-        navigator.platform.indexOf('Mac') === 0 ||
-        navigator.platform === 'iPhone'
-
-  return (
-    <span className="shortcut">
-      {isMac ? (
-        <kbd aria-label="Command">⌘</kbd>
-      ) : (
-        <kbd
-          aria-label="Control"
-          style={{ width: 'fit-content', padding: '0 4px' }}
-        >
-          Ctrl
-        </kbd>
-      )}
-      <kbd>.</kbd>
-    </span>
-  )
-}
-
 //////////////////////////////////////////////////////////////////////////////////////
 
 function useFocusTrap(
