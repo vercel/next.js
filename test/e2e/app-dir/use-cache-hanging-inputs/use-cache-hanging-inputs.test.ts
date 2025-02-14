@@ -11,6 +11,8 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR
+const isNewDevOverlay =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
 const expectedErrorMessage =
   'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
