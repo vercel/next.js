@@ -102,6 +102,34 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
+export function warnOptionHasBeenRenamed(
+  config: NextConfig,
+  oldKey: string,
+  newKey: string,
+  configFileName: string,
+  silent: boolean
+) {
+  if (config[oldKey]) {
+    if (!silent) {
+      Log.warn(
+        `\`${oldKey}\` has been renamed to \`${newKey}\`. ` +
+          `Please update your ${configFileName} file accordingly.`
+      )
+    }
+
+    let current = config
+    const newKeys = newKey.split('.')
+    while (newKeys.length > 1) {
+      const key = newKeys.shift()!
+      current[key] = current[key] || {}
+      current = current[key]
+    }
+    current[newKeys.shift()!] = config[oldKey]
+  }
+
+  return config
+}
+
 function warnCustomizedOption(
   config: NextConfig,
   key: string,
@@ -477,6 +505,24 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenRenamed(
+    result,
+    'devIndicators.buildActivityPosition',
+    'devIndicators.position',
+    configFileName,
+    silent
+  )
+
+  if (result.devIndicators?.buildActivityPosition) {
+    if (result.devIndicators.position) {
+      Log.warn(
+        `\`devIndicators.buildActivityPosition\` is conflicting with \`devIndicators.position\`. \`devIndicators.position\` will take precedence.`
+      )
+    } else {
+      result.devIndicators.position = result.devIndicators.buildActivityPosition
+    }
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -815,8 +861,8 @@ function assignDefaults(
     }
   }
 
-  if (result.devIndicators?.buildActivityPosition) {
-    const { buildActivityPosition } = result.devIndicators
+  if (result.devIndicators?.position) {
+    const { position } = result.devIndicators
     const allowedValues = [
       'top-left',
       'top-right',
@@ -824,11 +870,11 @@ function assignDefaults(
       'bottom-right',
     ]
 
-    if (!allowedValues.includes(buildActivityPosition)) {
+    if (!allowedValues.includes(position)) {
       throw new Error(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+        `Invalid "devIndicator.position" provided, expected one of ${allowedValues.join(
           ', '
-        )}, received ${buildActivityPosition}`
+        )}, received ${position}`
       )
     }
   }

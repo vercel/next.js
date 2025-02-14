@@ -240,7 +240,7 @@ export function getDefineEnv({
     'process.env.__NEXT_BUILD_INDICATOR':
       config.devIndicators.buildActivity ?? true,
     'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition ?? 'bottom-right',
+      config.devIndicators.position ?? 'bottom-right',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':

@@ -842,12 +842,18 @@ export interface NextConfig extends Record<string, any> {
      * @deprecated The dev tools indicator has it enabled by default.
      */
     buildActivity?: boolean
-    /** Position of "building..." indicator in browser */
+    /**
+     * Position of "building..." indicator in browser
+     * @deprecated Renamed as `position`.
+     */
     buildActivityPosition?:
       | 'bottom-right'
       | 'bottom-left'
       | 'top-right'
       | 'top-left'
+
+    /** Position of "building..." indicator in browser */
+    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
 
     /**
      * @deprecated The dev tools indicator has it enabled by default.
@@ -1099,6 +1105,7 @@ export const defaultConfig: NextConfig = {
   images: imageConfigDefault,
   devIndicators: {
     buildActivityPosition: 'bottom-right',
+    position: 'bottom-right',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
