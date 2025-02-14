@@ -10,12 +10,20 @@ type UnhandledError = Error & {
   environmentName: string
 }
 
-export function createUnhandledError(message: string | Error): UnhandledError {
+export function createUnhandledError(
+  message: string | Error,
+  environmentName?: string | null
+): UnhandledError {
   const error = (
     typeof message === 'string' ? new Error(message) : message
   ) as UnhandledError
   error[digestSym] = 'NEXT_UNHANDLED_ERROR'
   error[consoleTypeSym] = typeof message === 'string' ? 'string' : 'error'
+
+  if (environmentName && !error.environmentName) {
+    error.environmentName = environmentName
+  }
+
   return error
 }
 
