@@ -8,9 +8,6 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
 )
 
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  if (!process.env.__NEXT_REACT_OWNER_STACK) {
-    return err
-  }
   const isErrorInstance = isError(err)
   const originStack = isErrorInstance ? err.stack || '' : ''
   const originMessage = isErrorInstance ? err.message : ''

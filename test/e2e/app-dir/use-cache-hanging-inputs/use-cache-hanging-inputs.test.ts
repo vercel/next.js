@@ -10,12 +10,7 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
-const needsExperimentalReact =
-  process.env.__NEXT_EXPERIMENTAL_PPR || isNewDevOverlay
+const isExperimentalReact = process.env.__NEXT_EXPERIMENTAL_PPR
 
 const expectedErrorMessage =
   'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
@@ -199,7 +194,7 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        if (needsExperimentalReact) {
+        if (isExperimentalReact) {
           // TODO(react-time-info): Remove this branch for experimental React when the issue is
           // resolved where the inclusion of server timings in the RSC payload
           // makes the serialized bound args not suitable to be used as a cache

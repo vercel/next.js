@@ -370,16 +370,10 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
-};
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
   };
-};
-exports.captureOwnerStack = function () {
-  return null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -579,4 +573,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-cbbe8666-20250213";
+exports.version = "19.1.0-experimental-32b0cad8-20250213";

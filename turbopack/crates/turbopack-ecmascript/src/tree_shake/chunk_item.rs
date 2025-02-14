@@ -61,7 +61,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
         let content = EcmascriptModuleContent::new(
             parsed,
-            module.full_module.ident(),
+            self.module.ident(),
             module_type_result.module_type,
             *self.module_graph,
             *self.chunking_context,

@@ -9,8 +9,7 @@ import {
 
 const isNewDevOverlay =
   process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-const isReactExperimental =
-  process.env.__NEXT_EXPERIMENTAL_PPR === 'true' || isNewDevOverlay
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 

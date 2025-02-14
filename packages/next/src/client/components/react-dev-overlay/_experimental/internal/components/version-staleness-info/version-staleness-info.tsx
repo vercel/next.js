@@ -78,7 +78,9 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
       break
     }
     case 'unknown':
-      text = 'No version data'
+      text = `${versionLabel} (unknown)`
+      title = 'No Next.js version data was found.'
+      indicatorClass = 'unknown'
       break
     default:
       break
@@ -132,6 +134,10 @@ export const styles = css`
   .version-staleness-indicator.outdated {
     fill: var(--color-red-800);
     stroke: var(--color-red-300);
+  }
+  .version-staleness-indicator.unknown {
+    fill: var(--color-gray-800);
+    stroke: var(--color-gray-300);
   }
 
   .nextjs-container-build-error-version-status > .turbopack-text {

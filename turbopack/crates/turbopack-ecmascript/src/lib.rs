@@ -34,11 +34,16 @@ pub mod utils;
 pub mod webpack;
 pub mod worker_chunk;
 
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    mem::take,
+    sync::Arc,
+};
 
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
+use either::Either;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
@@ -46,7 +51,7 @@ pub use references::{AnalyzeEcmascriptModuleResult, TURBOPACK_HELPER};
 use serde::{Deserialize, Serialize};
 pub use static_code::StaticEcmascriptCode;
 use swc_core::{
-    common::{Globals, Mark, GLOBALS},
+    common::{comments::Comments, util::take::Take, Globals, Mark, GLOBALS},
     ecma::{
         ast::{self, ModuleItem, Program, Script},
         codegen::{text_writer::JsWriter, Emitter},
@@ -775,17 +780,32 @@ impl EcmascriptModuleContent {
                 code_gen_cells.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
-        if let Some(async_module) = *async_module.await? {
-            code_gen_cells.push(async_module.code_generation(
-                async_module_info,
-                references,
-                module_graph,
-                chunking_context,
-            ));
-        }
-        if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gen_cells.push(exports.code_generation(module_graph, chunking_context));
-        }
+
+        let additional_code_gens = [
+            if let Some(async_module) = &*async_module.await? {
+                Some(
+                    async_module
+                        .code_generation(
+                            async_module_info,
+                            references,
+                            module_graph,
+                            chunking_context,
+                        )
+                        .await?,
+                )
+            } else {
+                None
+            },
+            if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                Some(
+                    exports
+                        .code_generation(module_graph, chunking_context)
+                        .await?,
+                )
+            } else {
+                None
+            },
+        ];
 
         let code_gens = code_generation
             .await?
@@ -795,7 +815,11 @@ impl EcmascriptModuleContent {
             .await?;
         let code_gen_cells = code_gen_cells.into_iter().try_join().await?;
 
-        let code_gens = code_gen_cells.iter().map(|c| &**c).chain(code_gens.iter());
+        let code_gens = code_gen_cells
+            .iter()
+            .map(|c| &**c)
+            .chain(additional_code_gens.iter().flatten())
+            .chain(code_gens.iter());
         gen_content_with_code_gens(
             parsed,
             ident,
@@ -835,18 +859,51 @@ async fn gen_content_with_code_gens(
     generate_source_map: Vc<bool>,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
-    let parsed = parsed.await?;
+    let parsed = parsed.final_read_hint().await?;
 
     match &*parsed {
-        ParseResult::Ok {
-            program,
-            source_map,
-            globals,
-            eval_context,
-            comments,
-            ..
-        } => {
-            let mut program = program.clone();
+        ParseResult::Ok { .. } => {
+            // We need a mutable version of the AST. We try to avoid cloning it by unwrapping the
+            // ReadRef.
+            let mut parsed = ReadRef::try_unwrap(parsed);
+            let (mut program, source_map, globals, eval_context, comments) = match &mut parsed {
+                Ok(ParseResult::Ok {
+                    program,
+                    source_map,
+                    globals,
+                    eval_context,
+                    comments,
+                }) => (
+                    program.take(),
+                    &*source_map,
+                    &*globals,
+                    &*eval_context,
+                    match Arc::try_unwrap(take(comments)) {
+                        Ok(comments) => Either::Left(comments),
+                        Err(comments) => Either::Right(comments),
+                    },
+                ),
+                Err(parsed) => {
+                    let ParseResult::Ok {
+                        program,
+                        source_map,
+                        globals,
+                        eval_context,
+                        comments,
+                    } = &**parsed
+                    else {
+                        unreachable!();
+                    };
+                    (
+                        program.clone(),
+                        source_map,
+                        globals,
+                        eval_context,
+                        Either::Right(comments.clone()),
+                    )
+                }
+                _ => unreachable!(),
+            };
 
             process_content_with_code_gens(
                 &mut program,
@@ -864,7 +921,15 @@ async fn gen_content_with_code_gens(
             let generate_source_map = *generate_source_map.await?;
 
             {
-                let comments = comments.consumable();
+                let comments = match comments {
+                    Either::Left(comments) => Either::Left(comments.into_consumable()),
+                    Either::Right(ref comments) => Either::Right(comments.consumable()),
+                };
+                let comments: &dyn Comments = match &comments {
+                    Either::Left(comments) => comments,
+                    Either::Right(comments) => comments,
+                };
+
                 let mut emitter = Emitter {
                     cfg: swc_core::ecma::codegen::Config::default(),
                     cm: source_map.clone(),
@@ -876,6 +941,7 @@ async fn gen_content_with_code_gens(
                         generate_source_map.then_some(&mut mappings),
                     ),
                 };
+
                 emitter.emit_program(&program)?;
             }
 

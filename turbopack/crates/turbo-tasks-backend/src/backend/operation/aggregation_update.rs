@@ -614,7 +614,7 @@ impl AggregationUpdateQueue {
     /// Creates a new empty queue.
     pub fn new() -> Self {
         Self {
-            jobs: VecDeque::with_capacity(8),
+            jobs: VecDeque::with_capacity(0),
             number_updates: FxIndexMap::default(),
             done_number_updates: FxHashMap::default(),
             find_and_schedule: DequeSet::default(),
@@ -1114,7 +1114,7 @@ impl AggregationUpdateQueue {
                         if ctx.should_track_activeness() {
                             // update active count
                             let has_active_count =
-                                get!(task, Activeness).is_some_and(|a| a.active_counter > 0);
+                                get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
                             if has_active_count {
                                 self.push(AggregationUpdateJob::IncreaseActiveCount {
                                     task: task_id,
