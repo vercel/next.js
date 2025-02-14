@@ -43,7 +43,18 @@ struct CustomRoutes {
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
 pub struct CacheKinds(FxHashSet<RcStr>);
+
+impl CacheKinds {
+    pub fn new() -> Self {
+        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
+    }
+
+    pub fn extend<I: IntoIterator<Item = RcStr>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
+}
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
@@ -1421,13 +1432,13 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
-        Vc::cell(
-            self.experimental
-                .cache_handlers
-                .as_ref()
-                .map(|handlers| handlers.keys().cloned().collect())
-                .unwrap_or_default(),
-        )
+        let mut cache_kinds = CacheKinds::new();
+
+        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+            cache_kinds.extend(handlers.keys().cloned());
+        }
+
+        cache_kinds.cell()
     }
 
     #[turbo_tasks::function]

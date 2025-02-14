@@ -400,6 +400,14 @@ export default class NextNodeServer extends BaseServer<
           cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
           DefaultCacheHandler
       }
+
+      if (
+        !cacheHandlers.remote &&
+        cacheHandlerGlobal[cacheHandlersSymbol]?.RemoteCache
+      ) {
+        cacheHandlerGlobal.__nextCacheHandlers.remote =
+          cacheHandlerGlobal[cacheHandlersSymbol].RemoteCache
+      }
     }
   }
 
