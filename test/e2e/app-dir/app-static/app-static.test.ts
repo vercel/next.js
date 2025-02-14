@@ -1035,10 +1035,10 @@ describe('app-dir static/dynamic handling', () => {
          "static-to-dynamic-error-forced/[id]/page_client-reference-manifest.js",
          "static-to-dynamic-error/[id]/page.js",
          "static-to-dynamic-error/[id]/page_client-reference-manifest.js",
-         "strip-header-traceparent.html",
-         "strip-header-traceparent.rsc",
-         "strip-header-traceparent/page.js",
-         "strip-header-traceparent/page_client-reference-manifest.js",
+         "strip-w3c-trace-context-headers.html",
+         "strip-w3c-trace-context-headers.rsc",
+         "strip-w3c-trace-context-headers/page.js",
+         "strip-w3c-trace-context-headers/page_client-reference-manifest.js",
          "too-many-cache-tags/page.js",
          "too-many-cache-tags/page_client-reference-manifest.js",
          "unstable-cache/dynamic-undefined/page.js",
@@ -2197,7 +2197,7 @@ describe('app-dir static/dynamic handling', () => {
            "initialRevalidateSeconds": false,
            "srcRoute": "/ssg-draft-mode/[[...route]]",
          },
-         "/strip-header-traceparent": {
+         "/strip-w3c-trace-context-headers": {
            "allowHeader": [
              "host",
              "x-matched-path",
@@ -2206,7 +2206,7 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidated-tags",
              "x-next-revalidate-tag-token",
            ],
-           "dataRoute": "/strip-header-traceparent.rsc",
+           "dataRoute": "/strip-w3c-trace-context-headers.rsc",
            "experimentalBypassFor": [
              {
                "key": "Next-Action",
@@ -2219,7 +2219,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": 50,
-           "srcRoute": "/strip-header-traceparent",
+           "srcRoute": "/strip-w3c-trace-context-headers",
          },
          "/unstable-cache/fetch/no-cache": {
            "allowHeader": [
