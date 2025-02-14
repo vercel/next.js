@@ -256,7 +256,8 @@ impl ModuleResolveResult {
         &self,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut affecting_sources = self.affecting_sources.to_vec();
+        let mut affecting_sources = Vec::with_capacity(self.affecting_sources.len() + 1);
+        affecting_sources.extend(self.affecting_sources.iter().copied());
         affecting_sources.push(source);
         Ok(Self {
             primary: self.primary.clone(),
@@ -270,7 +271,9 @@ impl ModuleResolveResult {
         &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut affecting_sources = self.affecting_sources.to_vec();
+        let mut affecting_sources =
+            Vec::with_capacity(self.affecting_sources.len() + sources.len());
+        affecting_sources.extend(self.affecting_sources.iter().copied());
         affecting_sources.extend(sources);
         Ok(Self {
             primary: self.primary.clone(),
@@ -864,7 +867,8 @@ impl ResolveResult {
         &self,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut affecting_sources = self.affecting_sources.to_vec();
+        let mut affecting_sources = Vec::with_capacity(self.affecting_sources.len() + 1);
+        affecting_sources.extend(self.affecting_sources.iter().copied());
         affecting_sources.push(source);
         Ok(Self {
             primary: self.primary.clone(),
@@ -878,7 +882,9 @@ impl ResolveResult {
         &self,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut affecting_sources = self.affecting_sources.to_vec();
+        let mut affecting_sources =
+            Vec::with_capacity(self.affecting_sources.len() + sources.len());
+        affecting_sources.extend(self.affecting_sources.iter().copied());
         affecting_sources.extend(sources);
         Ok(Self {
             primary: self.primary.clone(),
