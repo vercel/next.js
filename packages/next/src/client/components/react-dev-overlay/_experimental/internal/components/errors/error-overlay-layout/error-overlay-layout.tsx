@@ -39,7 +39,7 @@ interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorType: ErrorType
   children?: React.ReactNode
   errorCode?: string
-  error?: Error
+  error: Error
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void

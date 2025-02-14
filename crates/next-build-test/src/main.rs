@@ -165,6 +165,7 @@ fn main() {
                 browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
                                      Safari versions, last 1 Edge versions"
                     .into(),
+                no_mangling: false,
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

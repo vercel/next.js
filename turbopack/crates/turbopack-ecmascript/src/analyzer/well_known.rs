@@ -515,13 +515,13 @@ pub fn path_to_file_url(args: Vec<JsValue>) -> JsValue {
 
 pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) -> (JsValue, bool) {
     let new_value = match (kind, prop.as_str()) {
-        (WellKnownFunctionKind::Require { .. }, Some("resolve")) => {
+        (WellKnownFunctionKind::Require, Some("resolve")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("cache")) => {
+        (WellKnownFunctionKind::Require, Some("cache")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::RequireCache)
         }
-        (WellKnownFunctionKind::Require { .. }, Some("context")) => {
+        (WellKnownFunctionKind::Require, Some("context")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
         }
         (WellKnownFunctionKind::RequireContextRequire(val), Some("resolve")) => {
@@ -536,7 +536,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
         (WellKnownFunctionKind::NodeResolveFrom, Some("silent")) => {
             JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
         }
-        (WellKnownFunctionKind::Import { .. }, Some("meta")) => {
+        (WellKnownFunctionKind::Import, Some("meta")) => {
             JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
         }
         #[allow(unreachable_patterns)]

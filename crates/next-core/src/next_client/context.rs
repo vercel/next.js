@@ -222,6 +222,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -382,7 +383,9 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify
+                MinifyType::Minify {
+                    mangle: !*no_mangling.await?,
+                }
             } else {
                 MinifyType::NoMinify
             },
@@ -417,6 +420,7 @@ pub async fn get_client_chunking_context(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     minify: Vc<bool>,
     source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -434,7 +438,9 @@ pub async fn get_client_chunking_context(
     )
     .chunk_base_path(asset_prefix)
     .minify_type(if *minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })

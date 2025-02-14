@@ -19,20 +19,21 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
 #[turbo_tasks::function]
 pub async fn minify(
     path: Vc<FileSystemPath>,
     code: Vc<Code>,
     source_maps: Vc<bool>,
+    mangle: bool,
 ) -> Result<Vc<Code>> {
     let path = path.await?;
     let source_maps = source_maps.await?.then(|| code.generate_source_map());
@@ -91,10 +92,14 @@ pub async fn minify(
                                 passes: 2,
                                 ..Default::default()
                             }),
-                            mangle: Some(MangleOptions {
-                                reserved: vec!["AbortSignal".into()],
-                                ..Default::default()
-                            }),
+                            mangle: if mangle {
+                                Some(MangleOptions {
+                                    reserved: vec!["AbortSignal".into()],
+                                    ..Default::default()
+                                })
+                            } else {
+                                None
+                            },
                             ..Default::default()
                         },
                         &ExtraOptions {
@@ -119,10 +124,7 @@ pub async fn minify(
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(ResolvedVc::upcast(
-                ParseResultSourceMap::new(cm, src_map_buf, original_map.to_resolved().await?)
-                    .resolved_cell(),
-            )),
+            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
         );
 
         write!(

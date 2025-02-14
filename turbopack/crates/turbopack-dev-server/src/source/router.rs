@@ -84,9 +84,13 @@ impl ContentSource for PrefixedRouterContentSource {
             debug_assert!(prefix.is_empty() || prefix.ends_with('/'));
             debug_assert!(!prefix.starts_with('/'));
         }
-        let prefix = (!prefix.is_empty())
-            .then(|| BaseSegment::from_static_pathname(prefix.as_str()).collect())
-            .unwrap_or(Vec::new());
+
+        let prefix = if prefix.is_empty() {
+            Vec::new()
+        } else {
+            BaseSegment::from_static_pathname(prefix.as_str()).collect()
+        };
+
         let inner_trees = self.routes.iter().map(|(path, source)| {
             let prepended_base = prefix
                 .iter()

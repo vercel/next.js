@@ -27,6 +27,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { BrowserInterface } from './browsers/base'
+import { Playwright } from './browsers/playwright'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -821,65 +822,40 @@ export async function retry<T>(
   }
 }
 
-async function ensureNoSuspendedComponentsInRedBox(browser: BrowserInterface) {
-  await retry(async () => {
-    const suspended = await browser.eval(() => {
-      return Boolean(
-        [].slice
-          .call(document.querySelectorAll('nextjs-portal'))
-          .find((p) =>
-            p.shadowRoot.querySelector('[data-nextjs-error-suspended]')
-          )
-      )
-    })
-    expect(suspended).toBe(false)
-  }, 10000)
-}
-
 export async function assertHasRedbox(browser: BrowserInterface) {
-  try {
-    await retry(
-      async () => {
-        const hasRedbox = await browser.eval(() => {
-          return Boolean(
-            [].slice
-              .call(document.querySelectorAll('nextjs-portal'))
-              .find((p) =>
-                p.shadowRoot.querySelector(
-                  '#nextjs__container_errors_label, #nextjs__container_errors_label'
-                )
-              )
-          )
-        })
-        expect(hasRedbox).toBe(true)
-      },
-      5000,
-      200
-    )
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
 
-    await ensureNoSuspendedComponentsInRedBox(browser)
+  const redbox = playwright.locateRedbox()
+  try {
+    await redbox.waitFor({ timeout: 5000 })
   } catch (errorCause) {
-    const error = new Error('Expected Redbox but found none')
+    const error = new Error('Expected Redbox but found no visible one.')
+    Error.captureStackTrace(error, assertHasRedbox)
+    throw error
+  }
+
+  try {
+    await redbox
+      .locator('[data-nextjs-error-suspended]')
+      .waitFor({ state: 'detached', timeout: 10000 })
+  } catch (cause) {
+    const error = new Error('Redbox still had suspended content after 10s', {
+      cause,
+    })
     Error.captureStackTrace(error, assertHasRedbox)
     throw error
   }
 }
 
 export async function assertNoRedbox(browser: BrowserInterface) {
-  await waitFor(5000)
-  const hasRedbox = await browser.eval(() => {
-    return Boolean(
-      [].slice
-        .call(document.querySelectorAll('nextjs-portal'))
-        .find((p) =>
-          p.shadowRoot.querySelector(
-            '#nextjs__container_errors_label, #nextjs__container_errors_label'
-          )
-        )
-    )
-  })
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
 
-  if (hasRedbox) {
+  await waitFor(5000)
+  const redbox = playwright.locateRedbox()
+
+  if (await redbox.isVisible()) {
     const [redboxHeader, redboxDescription, redboxSource] = await Promise.all([
       getRedboxHeader(browser).catch(() => '<missing>'),
       getRedboxDescription(browser).catch(() => '<missing>'),
@@ -887,7 +863,7 @@ export async function assertNoRedbox(browser: BrowserInterface) {
     ])
 
     const error = new Error(
-      'Expected no Redbox but found one\n' +
+      'Expected no visible Redbox but found one\n' +
         `header: ${redboxHeader}\n` +
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
@@ -934,10 +910,21 @@ export async function getToastErrorCount(
  * Success implies {@link assertHasRedbox}.
  */
 export async function openRedbox(browser: BrowserInterface): Promise<void> {
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
+  const redbox = playwright.locateRedbox()
+  if (await redbox.isVisible()) {
+    const error = new Error(
+      'Redbox is already open. Use `assertHasRedbox` instead.'
+    )
+    Error.captureStackTrace(error, openRedbox)
+    throw error
+  }
+
   try {
     await browser.waitForElementByCss('[data-issues]').click()
   } catch (cause) {
-    const error = new Error('No Redbox to open.', { cause })
+    const error = new Error('Redbox did not open.')
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
@@ -1036,8 +1023,6 @@ export async function getRedboxTotalErrorCount(
 }
 
 export async function getRedboxSource(browser: BrowserInterface) {
-  await ensureNoSuspendedComponentsInRedBox(browser)
-
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1344,7 +1329,6 @@ export async function getRedboxComponentStack(
 }
 
 export async function hasRedboxCallStack(browser: BrowserInterface) {
-  await ensureNoSuspendedComponentsInRedBox(browser)
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1358,7 +1342,6 @@ export async function hasRedboxCallStack(browser: BrowserInterface) {
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string | null> {
-  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -1372,7 +1355,6 @@ export async function getRedboxCallStack(
 export async function getRedboxCallStackCollapsed(
   browser: BrowserInterface
 ): Promise<string> {
-  await ensureNoSuspendedComponentsInRedBox(browser)
   const callStackFrameElements = await browser.elementsByCss(
     '.nextjs-container-errors-body > [data-nextjs-codeframe] > :first-child, ' +
       '.nextjs-container-errors-body > [data-nextjs-call-stack-frame], ' +
@@ -1594,7 +1576,6 @@ export const checkLink = (
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
 export async function getStackFramesContent(browser) {
-  await ensureNoSuspendedComponentsInRedBox(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -1602,7 +1583,7 @@ export async function getStackFramesContent(browser) {
     await Promise.all(
       stackFrameElements.map(async (frame) => {
         const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
-        const sourceEl = await frame.$('[data-has-source]')
+        const sourceEl = await frame.$('[data-has-source="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()
           : ''
@@ -1669,4 +1650,18 @@ export async function assertNoConsoleErrors(browser: BrowserInterface) {
   })
 
   expect(warningsAndErrors).toEqual([])
+}
+
+export async function getHighlightedDiffLines(
+  browser: BrowserInterface
+): Promise<[string, string][]> {
+  const lines = await browser.elementsByCss(
+    '[data-nextjs-container-errors-pseudo-html--diff]'
+  )
+  return Promise.all(
+    lines.map(async (line) => [
+      await line.getAttribute('data-nextjs-container-errors-pseudo-html--diff'),
+      (await line.innerText())[0],
+    ])
+  )
 }

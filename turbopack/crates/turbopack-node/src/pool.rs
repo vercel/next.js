@@ -13,6 +13,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use futures::join;
+use once_cell::sync::Lazy;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -705,6 +706,12 @@ enum AcquiredPermits {
     },
 }
 
+type IdleProcessesList = Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>;
+
+/// All non-empty `IdleProcessesList`s of the whole application.
+/// This is used to scale down processes globally.
+static ACTIVE_POOLS: Lazy<Mutex<Vec<IdleProcessesList>>> = Lazy::new(Default::default);
+
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
 ///
@@ -793,7 +800,14 @@ impl NodeJsPool {
                 let idle_process_permit = idle_process_permit.context("acquiring idle process permit")?;
                 let process = {
                     let mut processes = self.processes.lock();
-                    processes.pop().unwrap()
+                    let process = processes.pop().unwrap();
+                    if processes.is_empty() {
+                        let mut pools = ACTIVE_POOLS.lock();
+                        if let Some(idx) = pools.iter().position(|p| Arc::ptr_eq(p, &self.processes)) {
+                            pools.swap_remove(idx);
+                        }
+                    }
+                    process
                 };
                 idle_process_permit.forget();
                 Ok((process, AcquiredPermits::Idle { concurrency_permit }))
@@ -848,6 +862,26 @@ impl NodeJsPool {
             stats: self.stats.clone(),
             allow_process_reuse: true,
         })
+    }
+
+    pub fn scale_down() {
+        let pools = ACTIVE_POOLS.lock().clone();
+        for pool in pools {
+            let mut pool = pool.lock();
+            let best = pool.pop().unwrap();
+            pool.clear();
+            pool.push(best);
+            pool.shrink_to_fit();
+        }
+    }
+
+    pub fn scale_zero() {
+        let pools = take(&mut *ACTIVE_POOLS.lock());
+        for pool in pools {
+            let mut pool = pool.lock();
+            pool.clear();
+            pool.shrink_to_fit();
+        }
     }
 }
 
@@ -971,7 +1005,13 @@ impl Drop for NodeJsOperation {
             }
             if self.allow_process_reuse {
                 process.cpu_time_invested += elapsed;
-                self.processes.lock().push(process);
+                {
+                    let mut processes = self.processes.lock();
+                    if processes.is_empty() {
+                        ACTIVE_POOLS.lock().push(self.processes.clone());
+                    }
+                    processes.push(process);
+                }
                 self.idle_process_semaphore.add_permits(1);
             }
         }

@@ -231,16 +231,12 @@ export class ClientReferenceManifestPlugin {
           // asset hash via extract mini css plugin.
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createAsset(assets, compilation, compiler.context)
+        () => this.createAsset(compilation, compiler.context)
       )
     })
   }
 
-  createAsset(
-    assets: webpack.Compilation['assets'],
-    compilation: webpack.Compilation,
-    context: string
-  ) {
+  createAsset(compilation: webpack.Compilation, context: string) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
@@ -305,7 +301,7 @@ export class ClientReferenceManifestPlugin {
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
         .map((file) => {
-          const source = compilation.assets[file].source()
+          const source = compilation.getAsset(file)!.source.source()
           if (
             this.experimentalInlineCss &&
             // Inline CSS currently does not work properly with HMR, so we only
@@ -599,13 +595,14 @@ export class ClientReferenceManifestPlugin {
 
       const pagePath = pageName.replace(/%5F/g, '_')
       const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
-      assets[
-        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
-      ] = new sources.RawSource(
-        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-          pagePath.slice('app'.length)
-        )}]=${json}`
-      ) as unknown as webpack.sources.RawSource
+      compilation.emitAsset(
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
+        new sources.RawSource(
+          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+            pagePath.slice('app'.length)
+          )}]=${json}`
+        ) as unknown as webpack.sources.RawSource
+      )
     }
   }
 }

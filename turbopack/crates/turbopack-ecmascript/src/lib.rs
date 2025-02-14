@@ -1,6 +1,5 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
-#![feature(async_closure)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
@@ -40,7 +39,6 @@ use std::fmt::{Display, Formatter};
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
 use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
-pub use parse::ParseResultSourceMap;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
 use references::esm::UrlRewriteBehavior;
@@ -82,7 +80,7 @@ use turbopack_core::{
         FindContextFileResult,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::OptionStringifiedSourceMap,
 };
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
@@ -91,6 +89,7 @@ use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExp
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGens,
+    parse::generate_js_source_map,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
@@ -747,7 +746,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<Rope>,
     pub is_esm: bool,
     // pub refresh: bool,
 }
@@ -766,7 +765,7 @@ impl EcmascriptModuleContent {
         code_generation: Vc<CodeGens>,
         async_module: Vc<OptionAsyncModule>,
         generate_source_map: Vc<bool>,
-        original_source_map: ResolvedVc<OptionSourceMap>,
+        original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
@@ -822,7 +821,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             &[],
             generate_source_map,
-            OptionSourceMap::none().to_resolved().await?,
+            OptionStringifiedSourceMap::none().to_resolved().await?,
         )
         .await
     }
@@ -834,7 +833,7 @@ async fn gen_content_with_code_gens(
     specified_module_type: SpecifiedModuleType,
     code_gens: impl IntoIterator<Item = &CodeGeneration>,
     generate_source_map: Vc<bool>,
-    original_source_map: ResolvedVc<OptionSourceMap>,
+    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
@@ -862,29 +861,29 @@ async fn gen_content_with_code_gens(
 
             let mut mappings = vec![];
 
-            let comments = comments.consumable();
-
             let generate_source_map = *generate_source_map.await?;
 
-            let mut emitter = Emitter {
-                cfg: swc_core::ecma::codegen::Config::default(),
-                cm: source_map.clone(),
-                comments: Some(&comments),
-                wr: JsWriter::new(
-                    source_map.clone(),
-                    "\n",
-                    &mut bytes,
-                    generate_source_map.then_some(&mut mappings),
-                ),
-            };
-
-            emitter.emit_program(&program)?;
+            {
+                let comments = comments.consumable();
+                let mut emitter = Emitter {
+                    cfg: swc_core::ecma::codegen::Config::default(),
+                    cm: source_map.clone(),
+                    comments: Some(&comments),
+                    wr: JsWriter::new(
+                        source_map.clone(),
+                        "\n",
+                        &mut bytes,
+                        generate_source_map.then_some(&mut mappings),
+                    ),
+                };
+                emitter.emit_program(&program)?;
+            }
 
             let source_map = if generate_source_map {
-                let srcmap =
-                    ParseResultSourceMap::new(source_map.clone(), mappings, original_source_map)
-                        .resolved_cell();
-                Some(ResolvedVc::upcast(srcmap))
+                Some(
+                    generate_js_source_map(source_map.clone(), mappings, original_source_map)
+                        .await?,
+                )
             } else {
                 None
             };

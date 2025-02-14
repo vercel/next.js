@@ -233,6 +233,7 @@ export async function createHotReloaderTurbopack(
       encryptionKey,
       previewProps: opts.fsChecker.prerenderManifest.preview,
       browserslistQuery: supportedBrowsers.join(', '),
+      noMangling: false,
     },
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),

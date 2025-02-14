@@ -5,8 +5,10 @@ import {
   hasRedboxCallStack,
 } from 'next-test-utils'
 
-// TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+// TODO(new-dev-overlay): When owner stack is enabled by default, remove the condition and only keep one test
+const isExperimentalReact =
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
 async function getStackFramesContent(browser) {
   await hasRedboxCallStack(browser)
@@ -37,7 +39,7 @@ async function getStackFramesContent(browser) {
 }
 
 // Without owner stack, the source is not available
-;(isOwnerStackEnabled ? describe.skip : describe)(
+;(isExperimentalReact ? describe.skip : describe)(
   'app-dir - react-missing-key-prop',
   () => {
     const { next } = nextTestSetup({

@@ -295,6 +295,7 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     appDir,
     middlewareMatchers,
+    noMangling,
     jsConfig,
     jsConfigPath,
     resolvedBaseUrl,
@@ -1105,7 +1106,7 @@ export default async function getBaseWebpackConfig(
               // @ts-ignore No typings yet
               const { MinifyPlugin } =
                 require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-              new MinifyPlugin().apply(compiler)
+              new MinifyPlugin({ noMangling }).apply(compiler)
             },
             // Minify CSS
             (compiler: webpack.Compiler) => {

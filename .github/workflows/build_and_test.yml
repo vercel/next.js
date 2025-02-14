@@ -16,7 +16,7 @@ env:
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -581,7 +581,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
 
@@ -596,7 +596,7 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
       stepName: 'test-ppr-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -611,7 +611,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 

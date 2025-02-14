@@ -1253,7 +1253,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: false,
+    newDevOverlay: true,
     streamingMetadata: false,
     htmlLimitedBots: undefined,
     useCache: undefined,

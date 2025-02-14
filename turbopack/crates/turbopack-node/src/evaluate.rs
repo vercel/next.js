@@ -652,6 +652,14 @@ impl EvaluateContext for BasicEvaluateContext {
     }
 }
 
+pub fn scale_zero() {
+    NodeJsPool::scale_zero();
+}
+
+pub fn scale_down() {
+    NodeJsPool::scale_down();
+}
+
 async fn print_error(
     error: StructuredError,
     pool: &NodeJsPool,

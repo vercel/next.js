@@ -11,9 +11,8 @@ describe('error-ignored-frames', () => {
   })
 
   if (
-    // TODO: remove this when reactOwnerStack is enabled by default
-    // Since PPR mode is just going to add owner stack, skip this test for now
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
+    // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
+    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
     // Skip react 18 test as the call stacks are different
     process.env.NEXT_TEST_REACT_VERSION === '18.3.1'
   ) {

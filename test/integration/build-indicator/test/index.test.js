@@ -11,9 +11,25 @@ const nextConfig = join(appDir, 'next.config.js')
 let appPort
 let app
 
+// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
+const isNewDevOverlay =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
 const installCheckVisible = (browser) => {
-  return browser.eval(`(function() {
-    window.checkInterval = setInterval(function() {
+  if (isNewDevOverlay) {
+    return browser.eval(`(function() {
+      window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot;
+      const indicator = root.querySelector('[data-next-mark]')
+      window.showedBuilder = window.showedBuilder || (
+        indicator.getAttribute('data-next-mark-loading') === 'true'
+      )
+      if (window.showedBuilder) clearInterval(window.checkInterval)
+    }, 5)
+  })()`)
+  } else {
+    return browser.eval(`(function() {
+      window.checkInterval = setInterval(function() {
       let watcherDiv = document.querySelector('#__next-build-indicator')
       watcherDiv = watcherDiv.shadowRoot || watcherDiv
       window.showedBuilder = window.showedBuilder || (
@@ -22,6 +38,7 @@ const installCheckVisible = (browser) => {
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 5)
   })()`)
+  }
 }
 
 describe('Build Activity Indicator', () => {
@@ -67,15 +84,20 @@ describe('Build Activity Indicator', () => {
     })
     afterAll(() => killApp(app))
 
-    it('Adds the build indicator container', async () => {
-      const browser = await webdriver(
-        appPort,
-        pagesOrApp === 'pages' ? '/' : '/app'
-      )
-      const html = await browser.eval('document.body.innerHTML')
-      expect(html).toMatch(/__next-build-indicator/)
-      await browser.close()
-    })
+    // The indicator has no special container in the new dev overlay -
+    // it's rendered as part of the indicator logo
+    if (!isNewDevOverlay) {
+      it('Adds the build indicator container', async () => {
+        const browser = await webdriver(
+          appPort,
+          pagesOrApp === 'pages' ? '/' : '/app'
+        )
+        const html = await browser.eval('document.body.innerHTML')
+        expect(html).toMatch(/__next-build-indicator/)
+        await browser.close()
+      })
+    }
+
     ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
       it('Shows the build indicator when a page is built during navigation', async () => {
         const browser = await webdriver(

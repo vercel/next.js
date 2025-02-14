@@ -5,10 +5,12 @@ import {
   getStackFramesContent,
 } from 'next-test-utils'
 
-// TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+// TODO(new-dev-overlay): When owner stack is enabled by default, remove the condition and only keep one test
+const isExperimentalReact =
+  process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
 
-;(isOwnerStackEnabled ? describe : describe.skip)(
+;(isExperimentalReact ? describe : describe.skip)(
   'app-dir - owner-stack-react-missing-key-prop',
   () => {
     const { next } = nextTestSetup({
@@ -24,13 +26,13 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-          "at span (<anonymous> (0:0))
-          at <anonymous> (app/rsc/page.tsx (7:10))
-          at Page (app/rsc/page.tsx (6:13))"
-          `)
+         "at span ()
+         at <anonymous> (app/rsc/page.tsx (7:10))
+         at Page (app/rsc/page.tsx (6:13))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-            "app/rsc/page.tsx (7:10) @ <anonymous>
-            
+         "app/rsc/page.tsx (7:10) @ <anonymous>
+
             5 |     <div>
             6 |       {list.map((item, index) => (
          >  7 |         <span>{item}</span>
@@ -38,10 +40,10 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
             8 |       ))}
             9 |     </div>
            10 |   )"
-              `)
+        `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at span (<anonymous> (0:0))
+         "at span ()
          at eval (app/rsc/page.tsx (7:10))
          at Page (app/rsc/page.tsx (6:13))"
         `)
@@ -67,9 +69,9 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at p (<anonymous> (0:0))
+         "at p ()
          at <unknown> (app/ssr/page.tsx (9:9))
-         at Array.map (<anonymous> (0:0))
+         at Array.map ()
          at Page (app/ssr/page.tsx (8:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
@@ -85,9 +87,9 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-         "at p (<anonymous> (0:0))
+         "at p ()
          at eval (app/ssr/page.tsx (9:10))
-         at Array.map (<anonymous> (0:0))
+         at Array.map ()
          at Page (app/ssr/page.tsx (8:13))"
         `)
         expect(source).toMatchInlineSnapshot(`

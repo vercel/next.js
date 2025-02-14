@@ -154,9 +154,11 @@ async function createNextInstall({
       )
 
       if (beforeInstall !== undefined) {
-        rootSpan.traceChild('beforeInstall').traceAsyncFn(async (span) => {
-          await beforeInstall(span, installDir)
-        })
+        await rootSpan
+          .traceChild('beforeInstall')
+          .traceAsyncFn(async (span) => {
+            await beforeInstall(span, installDir)
+          })
       }
 
       if (installCommand) {

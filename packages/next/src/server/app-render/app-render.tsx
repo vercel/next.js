@@ -434,6 +434,17 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   return null
 }
 
+function getServeStreamingMetadata(ctx: AppRenderContext) {
+  const isRoutePPREnabled = !!ctx.renderOpts.experimental.isRoutePPREnabled
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
+  // If the route is in PPR and the special env is not set, disable the streaming metadata.
+  // TODO: enable streaming metadata in PPR mode by default once it's ready.
+  if (isRoutePPREnabled && process.env.__NEXT_EXPERIMENTAL_PPR !== 'true') {
+    return false
+  }
+  return serveStreamingMetadata
+}
+
 /**
  * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
  * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
@@ -473,6 +484,8 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
+  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
@@ -492,7 +505,7 @@ async function generateDynamicRSCPayload(
         workStore,
         MetadataBoundary,
         ViewportBoundary,
-        serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
+        serveStreamingMetadata,
       })
 
     const { StreamingMetadata, StaticMetadata } =
@@ -501,7 +514,7 @@ async function generateDynamicRSCPayload(
           // Adding requestId as react key to make metadata remount for each render
           <MetadataTree key={requestId} />
         )
-      }, !!ctx.renderOpts.serveStreamingMetadata)
+      }, serveStreamingMetadata)
 
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -779,6 +792,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
+  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
@@ -797,7 +811,7 @@ async function getRSCPayload(
       workStore,
       MetadataBoundary,
       ViewportBoundary,
-      serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
+      serveStreamingMetadata: serveStreamingMetadata,
     })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -808,7 +822,7 @@ async function getRSCPayload(
         // Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed
         <MetadataTree />
       )
-    }, !!ctx.renderOpts.serveStreamingMetadata)
+    }, serveStreamingMetadata)
 
   const seedData = await createComponentTree({
     ctx,
@@ -910,6 +924,7 @@ async function getErrorRSCPayload(
     workStore,
   } = ctx
 
+  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
@@ -924,7 +939,7 @@ async function getErrorRSCPayload(
     workStore,
     MetadataBoundary,
     ViewportBoundary,
-    serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
+    serveStreamingMetadata: serveStreamingMetadata,
   })
 
   const { StreamingMetadata, StaticMetadata } =
@@ -935,7 +950,7 @@ async function getErrorRSCPayload(
           <MetadataTree key={requestId} />
         </React.Fragment>
       ),
-      !!ctx.renderOpts.serveStreamingMetadata
+      serveStreamingMetadata
     )
 
   const initialHead = (
@@ -1932,11 +1947,7 @@ async function renderToStream(
           })
         },
         maxHeadersLength: renderOpts.reactMaxHeadersLength,
-        // When debugging the static shell, client-side rendering should be
-        // disabled to prevent blanking out the page.
-        bootstrapScripts: renderOpts.isDebugStaticShell
-          ? []
-          : [bootstrapScript],
+        bootstrapScripts: [bootstrapScript],
         formState,
       }
     )
@@ -2825,11 +2836,7 @@ async function prerenderToStream(
                       )
                     }
                   },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
+                  bootstrapScripts: [bootstrapScript],
                 }
               ),
             () => {
@@ -2992,11 +2999,7 @@ async function prerenderToStream(
                   })
                 },
                 maxHeadersLength: renderOpts.reactMaxHeadersLength,
-                // When debugging the static shell, client-side rendering should be
-                // disabled to prevent blanking out the page.
-                bootstrapScripts: renderOpts.isDebugStaticShell
-                  ? []
-                  : [bootstrapScript],
+                bootstrapScripts: [bootstrapScript],
               }
             ),
           () => {
@@ -3299,11 +3302,7 @@ async function prerenderToStream(
                   )
                 }
               },
-              // When debugging the static shell, client-side rendering should be
-              // disabled to prevent blanking out the page.
-              bootstrapScripts: renderOpts.isDebugStaticShell
-                ? []
-                : [bootstrapScript],
+              bootstrapScripts: [bootstrapScript],
             }
           )
           pendingInitialClientResult.catch((err: unknown) => {
@@ -3457,11 +3456,7 @@ async function prerenderToStream(
 
                     return htmlRendererErrorHandler(err, errorInfo)
                   },
-                  // When debugging the static shell, client-side rendering should be
-                  // disabled to prevent blanking out the page.
-                  bootstrapScripts: renderOpts.isDebugStaticShell
-                    ? []
-                    : [bootstrapScript],
+                  bootstrapScripts: [bootstrapScript],
                 }
               ),
             () => {
@@ -3620,11 +3615,7 @@ async function prerenderToStream(
             })
           },
           maxHeadersLength: renderOpts.reactMaxHeadersLength,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
+          bootstrapScripts: [bootstrapScript],
         }
       )
       const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3829,11 +3820,7 @@ async function prerenderToStream(
         {
           onError: htmlRendererErrorHandler,
           nonce: ctx.nonce,
-          // When debugging the static shell, client-side rendering should be
-          // disabled to prevent blanking out the page.
-          bootstrapScripts: renderOpts.isDebugStaticShell
-            ? []
-            : [bootstrapScript],
+          bootstrapScripts: [bootstrapScript],
         }
       )
 

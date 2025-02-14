@@ -1,4 +1,5 @@
 import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
+import { cx } from '../../helpers/cx'
 import { noop as css } from '../../helpers/noop-template'
 
 export function VersionStalenessInfo({
@@ -11,23 +12,36 @@ export function VersionStalenessInfo({
   const { staleness } = versionInfo
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
+  const shouldBeLink = staleness.startsWith('stale')
+  if (shouldBeLink) {
+    return (
+      <a
+        className={cx(
+          'nextjs-container-build-error-version-status',
+          'dialog-exclude-closing-from-outside-click',
+          isTurbopack && 'turbopack-border'
+        )}
+        target="_blank"
+        rel="noopener noreferrer"
+        href="https://nextjs.org/docs/messages/version-staleness"
+      >
+        <Eclipse
+          className={cx('version-staleness-indicator', indicatorClass)}
+        />
+        <span data-nextjs-version-checker title={title}>
+          {text}
+        </span>
+        {isTurbopack && <span className="turbopack-text">Turbopack</span>}
+      </a>
+    )
+  }
+
   return (
     <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
-      <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
+      <Eclipse className={cx('version-staleness-indicator', indicatorClass)} />
       <span data-nextjs-version-checker title={title}>
         {text}
-      </span>{' '}
-      {staleness === 'fresh' ||
-      staleness === 'newer-than-npm' ||
-      staleness === 'unknown' ? null : (
-        <a
-          target="_blank"
-          rel="noopener noreferrer"
-          href="https://nextjs.org/docs/messages/version-staleness"
-        >
-          (learn more)
-        </a>
-      )}
+      </span>
       {isTurbopack && <span className="turbopack-text">Turbopack</span>}
     </span>
   )
@@ -92,6 +106,19 @@ export const styles = css`
     font-size: 12px;
     font-weight: 500;
     line-height: var(--size-4);
+  }
+
+  a.nextjs-container-build-error-version-status {
+    text-decoration: none;
+    color: var(--color-gray-900);
+
+    &:hover {
+      background: var(--color-gray-100);
+    }
+
+    &:focus {
+      outline: var(--focus-ring);
+    }
   }
 
   .version-staleness-indicator.fresh {

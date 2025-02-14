@@ -512,17 +512,21 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support and still fallback to WebP with the following configuration.
+You can enable AVIF support, which will fallback to the original format of the src image if the browser [does not support AVIF](https://caniuse.com/avif):
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/avif'],
   },
 }
 ```
 
-> **Good to know**: AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Good to know**:
+>
+> - We still recommend using WebP for most use cases.
+> - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
 

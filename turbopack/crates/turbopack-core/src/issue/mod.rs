@@ -25,7 +25,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -475,7 +475,7 @@ impl IssueSource {
         }
     }
 
-    pub async fn resolve_source_map(&self, origin: Vc<FileSystemPath>) -> Result<Cow<'_, Self>> {
+    pub async fn resolve_source_map(&self) -> Result<Cow<'_, Self>> {
         if let Some(range) = &self.range {
             let (start, end) = match range {
                 SourceRange::LineColumn(start, end) => (*start, *end),
@@ -491,7 +491,7 @@ impl IssueSource {
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(self.source, origin, start, end).await?;
+            let mapped = source_pos(self.source, start, end).await?;
 
             if let Some((source, start, end)) = mapped {
                 return Ok(Cow::Owned(IssueSource {
@@ -579,7 +579,6 @@ impl IssueSource {
 
 async fn source_pos(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<FileSystemPath>,
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {
@@ -588,26 +587,25 @@ async fn source_pos(
     };
 
     let srcmap = generator.generate_source_map();
-
-    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+    let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
 
-    let find = |line: u32, col: u32| async move {
+    let find = async |line: u32, col: u32| {
         let TokenWithSource {
             token,
             source_content,
-        } = &*srcmap.lookup_token_and_source(line, col).await?;
+        } = &srcmap.lookup_token_and_source(line, col).await?;
 
-        match &*token.await? {
-            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
+        match token {
+            crate::source_map::Token::Synthetic(t) => anyhow::Ok((
                 SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
                 },
                 *source_content,
             )),
-            crate::source_map::Token::Original(t) => Ok((
+            crate::source_map::Token::Original(t) => anyhow::Ok((
                 SourcePos {
                     line: t.original_line as _,
                     column: t.original_column as _,

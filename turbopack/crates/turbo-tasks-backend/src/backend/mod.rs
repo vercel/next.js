@@ -1381,6 +1381,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if !queue.is_empty() || !old_edges.is_empty() {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
@@ -1443,6 +1444,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if has_children {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(&mut ctx);
         }
@@ -1801,6 +1803,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            // Without dependency tracking we don't need session dependent tasks
+            return;
+        }
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {

@@ -109,16 +109,16 @@ export const CODE_FRAME_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
-    margin: var(--next-dialog-row-padding);
-
-    &:has(~ [data-nextjs-call-stack]) {
-      margin-bottom: 0;
-    }
+    margin: var(--size-2) 0;
   }
 
   .code-frame-link,
   .code-frame-pre {
     padding: 12px;
+  }
+
+  .code-frame-pre {
+    white-space: pre-wrap;
   }
 
   .code-frame-header {
