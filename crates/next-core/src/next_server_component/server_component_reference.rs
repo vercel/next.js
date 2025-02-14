@@ -37,7 +37,7 @@ impl ValueToString for NextServerComponentModuleReference {
 impl ModuleReference for NextServerComponentModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.asset).cell()
+        *ModuleResolveResult::module(self.asset)
     }
 }
 

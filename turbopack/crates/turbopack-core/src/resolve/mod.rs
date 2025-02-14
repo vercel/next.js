@@ -108,69 +108,67 @@ pub struct ModuleResolveResult {
     pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
-impl Default for ModuleResolveResult {
-    fn default() -> Self {
-        ModuleResolveResult::unresolvable()
-    }
-}
-
 impl ModuleResolveResult {
-    pub fn unresolvable() -> Self {
+    pub fn unresolvable() -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: FxIndexMap::default(),
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn unresolvable_with_affecting_sources(
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ModuleResolveResult {
+    ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: FxIndexMap::default(),
             affecting_sources,
         }
+        .resolved_cell()
     }
 
-    pub fn module(module: ResolvedVc<Box<dyn Module>>) -> ModuleResolveResult {
+    pub fn module(module: ResolvedVc<Box<dyn Module>>) -> ResolvedVc<Self> {
         Self::module_with_key(RequestKey::default(), module)
     }
 
     pub fn module_with_key(
         request_key: RequestKey,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> ModuleResolveResult {
+    ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn output_asset(
         request_key: RequestKey,
         output_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> ModuleResolveResult {
+    ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
-            affecting_sources: Vec::new(),
-        }
+            affecting_sources: Default::default(),
+        } .resolved_cell()
     }
 
     pub fn modules(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
-    ) -> ModuleResolveResult {
+    ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: modules
                 .into_iter()
                 .map(|(k, v)| (k, ModuleResolveResultItem::Module(v)))
                 .collect(),
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn modules_with_affecting_sources(
         modules: impl IntoIterator<Item = (RequestKey, ResolvedVc<Box<dyn Module>>)>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ModuleResolveResult {
+    ) -> ResolvedVc<Self> {
         ModuleResolveResult {
             primary: modules
                 .into_iter()
@@ -178,8 +176,11 @@ impl ModuleResolveResult {
                 .collect(),
             affecting_sources,
         }
+        .resolved_cell()
     }
+}
 
+impl ModuleResolveResult {
     /// Returns all module results (but ignoring any errors).
     pub fn primary_modules_raw_iter(
         &self,
@@ -274,7 +275,9 @@ impl ModuleResolveResult {
                     .cell());
             }
         }
-        Ok(ModuleResolveResult::unresolvable_with_affecting_sources(affecting_sources).into())
+        Ok(*ModuleResolveResult::unresolvable_with_affecting_sources(
+            affecting_sources,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -292,7 +295,7 @@ impl ModuleResolveResult {
             }
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ModuleResolveResult::unresolvable()))
+            Ok(*ModuleResolveResult::unresolvable())
         }
     }
 
@@ -322,8 +325,8 @@ impl ModuleResolveResult {
             current.affecting_sources.extend(affecting_sources);
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(
-                ModuleResolveResult::unresolvable_with_affecting_sources(affecting_sources),
+            Ok(*ModuleResolveResult::unresolvable_with_affecting_sources(
+                affecting_sources,
             ))
         }
     }
@@ -481,12 +484,6 @@ pub struct ResolveResult {
     pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
 }
 
-impl Default for ResolveResult {
-    fn default() -> Self {
-        ResolveResult::unresolvable()
-    }
-}
-
 #[turbo_tasks::value_impl]
 impl ValueToString for ResolveResult {
     #[turbo_tasks::function]
@@ -543,75 +540,86 @@ impl ValueToString for ResolveResult {
 }
 
 impl ResolveResult {
-    pub fn unresolvable() -> Self {
+    pub fn unresolvable() -> ResolvedVc<Self> {
         ResolveResult {
             primary: FxIndexMap::default(),
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn unresolvable_with_affecting_sources(
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ResolveResult {
+    ) -> ResolvedVc<Self> {
         ResolveResult {
             primary: FxIndexMap::default(),
             affecting_sources,
         }
+        .resolved_cell()
     }
 
-    pub fn primary(result: ResolveResultItem) -> ResolveResult {
+    pub fn primary(result: ResolveResultItem) -> ResolvedVc<Self> {
         Self::primary_with_key(RequestKey::default(), result)
     }
 
-    pub fn primary_with_key(request_key: RequestKey, result: ResolveResultItem) -> ResolveResult {
+    pub fn primary_with_key(
+        request_key: RequestKey,
+        result: ResolveResultItem,
+    ) -> ResolvedVc<Self> {
         ResolveResult {
             primary: fxindexmap! { request_key => result },
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn primary_with_affecting_sources(
         request_key: RequestKey,
         result: ResolveResultItem,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ResolveResult {
+    ) -> ResolvedVc<Self> {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, result);
         ResolveResult {
             primary,
             affecting_sources,
         }
+        .resolved_cell()
     }
 
-    pub fn source(source: ResolvedVc<Box<dyn Source>>) -> ResolveResult {
+    pub fn source(source: ResolvedVc<Box<dyn Source>>) -> ResolvedVc<Self> {
         Self::source_with_key(RequestKey::default(), source)
     }
 
     pub fn source_with_key(
         request_key: RequestKey,
         source: ResolvedVc<Box<dyn Source>>,
-    ) -> ResolveResult {
+    ) -> ResolvedVc<Self> {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
             primary,
-            affecting_sources: Vec::new(),
+            affecting_sources: Default::default(),
         }
+        .resolved_cell()
     }
 
     pub fn source_with_affecting_sources(
         request_key: RequestKey,
         source: ResolvedVc<Box<dyn Source>>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ResolveResult {
+    ) -> ResolvedVc<Self> {
         let mut primary = FxIndexMap::with_capacity_and_hasher(1, Default::default());
         primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
             primary,
             affecting_sources,
         }
+        .resolved_cell()
     }
+}
 
+impl ResolveResult {
     pub fn add_affecting_source_ref(&mut self, reference: ResolvedVc<Box<dyn Source>>) {
         self.affecting_sources.push(reference);
     }
@@ -849,7 +857,9 @@ impl ResolveResult {
                     .cell());
             }
         }
-        Ok(ResolveResult::unresolvable_with_affecting_sources(affecting_sources).into())
+        Ok(*ResolveResult::unresolvable_with_affecting_sources(
+            affecting_sources,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -867,7 +877,7 @@ impl ResolveResult {
             }
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(ResolveResult::unresolvable()))
+            Ok(*ResolveResult::unresolvable())
         }
     }
 
@@ -897,8 +907,8 @@ impl ResolveResult {
             current.affecting_sources.extend(affecting_sources);
             Ok(Self::cell(current))
         } else {
-            Ok(Self::cell(
-                ResolveResult::unresolvable_with_affecting_sources(affecting_sources),
+            Ok(*ResolveResult::unresolvable_with_affecting_sources(
+                affecting_sources,
             ))
         }
     }
@@ -1384,7 +1394,7 @@ async fn find_package(
 
 fn merge_results(results: Vec<Vc<ResolveResult>>) -> Vc<ResolveResult> {
     match results.len() {
-        0 => ResolveResult::unresolvable().into(),
+        0 => *ResolveResult::unresolvable(),
         1 => results.into_iter().next().unwrap(),
         _ => ResolveResult::alternatives(results),
     }
@@ -1398,7 +1408,7 @@ fn merge_results_with_affecting_sources(
         return merge_results(results);
     }
     match results.len() {
-        0 => ResolveResult::unresolvable_with_affecting_sources(affecting_sources).cell(),
+        0 => *ResolveResult::unresolvable_with_affecting_sources(affecting_sources),
         1 => results
             .into_iter()
             .next()
@@ -1422,7 +1432,7 @@ pub async fn resolve_raw(
         path: ResolvedVc<FileSystemPath>,
     ) -> Result<Vc<ResolveResult>> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
-        Ok(ResolveResult::source_with_affecting_sources(
+        Ok(*ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
             ResolvedVc::upcast(FileSource::new(**path).to_resolved().await?),
             symlinks
@@ -1434,8 +1444,7 @@ pub async fn resolve_raw(
                 })
                 .try_join()
                 .await?,
-        )
-        .cell())
+        ))
     }
 
     let mut results = Vec::new();
@@ -1744,7 +1753,7 @@ async fn resolve_internal_inline(
         }
 
         let result = match &*request_value {
-            Request::Dynamic => ResolveResult::unresolvable().into(),
+            Request::Dynamic => *ResolveResult::unresolvable(),
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
@@ -1903,9 +1912,9 @@ async fn resolve_internal_inline(
                     .emit();
                 }
 
-                ResolveResult::unresolvable().into()
+                *ResolveResult::unresolvable()
             }
-            Request::Empty => ResolveResult::unresolvable().into(),
+            Request::Empty => *ResolveResult::unresolvable(),
             Request::PackageInternal { path } => {
                 let options_value = options.await?;
                 let (conditions, unspecified_conditions) = options_value
@@ -1936,7 +1945,7 @@ async fn resolve_internal_inline(
                 fragment: _,
             } => {
                 let uri: RcStr = format!("{}{}", protocol, remainder).into();
-                ResolveResult::primary_with_key(
+                *ResolveResult::primary_with_key(
                     RequestKey::new(uri.clone()),
                     ResolveResultItem::External {
                         name: uri,
@@ -1944,7 +1953,6 @@ async fn resolve_internal_inline(
                         traced: ExternalTraced::Untraced,
                     },
                 )
-                .into()
             }
             Request::Unknown { path } => {
                 if !has_alias {
@@ -1960,7 +1968,7 @@ async fn resolve_internal_inline(
                     .resolved_cell()
                     .emit();
                 }
-                ResolveResult::unresolvable().into()
+                *ResolveResult::unresolvable()
             }
         };
 
@@ -2041,12 +2049,12 @@ async fn resolve_into_folder(
     }
 
     if options_value.fully_specified {
-        return Ok(ResolveResult::unresolvable().cell());
+        return Ok(*ResolveResult::unresolvable());
     }
 
     // fall back to dir/index.[js,ts,...]
     let pattern = match &options_value.default_files[..] {
-        [] => return Ok(ResolveResult::unresolvable().cell()),
+        [] => return Ok(*ResolveResult::unresolvable()),
         [file] => Pattern::Constant(format!("./{file}").into()),
         files => Pattern::Alternatives(
             files
@@ -2326,14 +2334,11 @@ async fn apply_in_package(
         let request_key = RequestKey::new(request.clone());
 
         if value.as_bool() == Some(false) {
-            return Ok(Some(
-                ResolveResult::primary_with_affecting_sources(
-                    request_key,
-                    ResolveResultItem::Ignore,
-                    refs,
-                )
-                .cell(),
-            ));
+            return Ok(Some(*ResolveResult::primary_with_affecting_sources(
+                request_key,
+                ResolveResultItem::Ignore,
+                refs,
+            )));
         }
 
         if let Some(value) = value.as_str() {
@@ -2368,9 +2373,9 @@ async fn apply_in_package(
         .resolved_cell()
         .emit();
 
-        return Ok(Some(
-            ResolveResult::unresolvable_with_affecting_sources(refs).cell(),
-        ));
+        return Ok(Some(*ResolveResult::unresolvable_with_affecting_sources(
+            refs,
+        )));
     }
     Ok(None)
 }
@@ -2464,10 +2469,9 @@ async fn resolve_module_request(
     .await?;
 
     if result.packages.is_empty() {
-        return Ok(ResolveResult::unresolvable_with_affecting_sources(
+        return Ok(*ResolveResult::unresolvable_with_affecting_sources(
             result.affecting_sources.clone(),
-        )
-        .into());
+        ));
     }
 
     let mut results = vec![];
@@ -2642,14 +2646,13 @@ async fn resolve_import_map_result(
                 ))
             }
         }
-        ImportMapResult::External(name, ty, traced) => Some(
-            ResolveResult::primary(ResolveResultItem::External {
+        ImportMapResult::External(name, ty, traced) => {
+            Some(*ResolveResult::primary(ResolveResultItem::External {
                 name: name.clone(),
                 ty: *ty,
                 traced: *traced,
-            })
-            .cell(),
-        ),
+            }))
+        }
         ImportMapResult::AliasExternal {
             name,
             ty,
@@ -2681,14 +2684,11 @@ async fn resolve_import_map_result(
                 .await?
                 .is_unresolvable_ref();
                 if is_external_resolvable {
-                    Some(
-                        ResolveResult::primary(ResolveResultItem::External {
-                            name: name.clone(),
-                            ty: *ty,
-                            traced: *traced,
-                        })
-                        .cell(),
-                    )
+                    Some(*ResolveResult::primary(ResolveResultItem::External {
+                        name: name.clone(),
+                        ty: *ty,
+                        traced: *traced,
+                    }))
                 } else {
                     None
                 }
@@ -2764,7 +2764,7 @@ async fn resolved(
         }
     }
 
-    Ok(ResolveResult::source_with_affecting_sources(
+    Ok(*ResolveResult::source_with_affecting_sources(
         request_key,
         ResolvedVc::upcast(
             FileSource::new_with_query(**path, query)
@@ -2780,8 +2780,7 @@ async fn resolved(
             })
             .try_join()
             .await?,
-    )
-    .cell())
+    ))
 }
 
 async fn handle_exports_imports_field(
@@ -2875,13 +2874,13 @@ async fn resolve_package_internal_with_imports_field(
         }
         .resolved_cell()
         .emit();
-        return Ok(ResolveResult::unresolvable().into());
+        return Ok(*ResolveResult::unresolvable());
     }
 
     let imports_result = imports_field(file_path).await?;
     let (imports, package_json_path) = match &*imports_result {
         ImportsFieldResult::Some(i, p) => (i, *p),
-        ImportsFieldResult::None => return Ok(ResolveResult::unresolvable().cell()),
+        ImportsFieldResult::None => return Ok(*ResolveResult::unresolvable()),
     };
 
     handle_exports_imports_field(
@@ -2936,7 +2935,7 @@ pub async fn handle_resolve_error(
                 source,
             )
             .await?;
-            ModuleResolveResult::unresolvable().cell()
+            *ModuleResolveResult::unresolvable()
         }
     })
 }
@@ -2980,7 +2979,7 @@ pub async fn handle_resolve_source_error(
                 source,
             )
             .await?;
-            ResolveResult::unresolvable().cell()
+            *ResolveResult::unresolvable()
         }
     })
 }

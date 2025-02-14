@@ -162,7 +162,7 @@ impl ValueToString for IncludedModuleReference {
 impl ModuleReference for IncludedModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 
