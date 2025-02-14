@@ -298,42 +298,58 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub async fn build(
         mut self,
         import_references: Vec<ResolvedVc<EsmAssetReference>>,
+        import_references_namespace_rewritten: FxHashMap<
+            usize,
+            FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
+        >,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let mut esm_references: Vec<_> = self.esm_references.into_iter().collect();
-        esm_references.sort();
-        let esm_references = esm_references
-            .into_iter()
-            .map(|i| import_references[i])
-            .collect();
-        let (esm_local_references, esm_reexport_references, esm_evaluation_references) =
-            if track_reexport_references {
-                let mut esm_local_references: Vec<_> =
-                    self.esm_local_references.into_iter().collect();
-                let mut esm_reexport_references: Vec<_> =
-                    self.esm_reexport_references.into_iter().collect();
-                let mut esm_evaluation_references: Vec<_> =
-                    self.esm_evaluation_references.into_iter().collect();
-                esm_local_references.sort();
-                esm_reexport_references.sort();
-                esm_evaluation_references.sort();
-                (
-                    esm_local_references
-                        .into_iter()
-                        .map(|i| import_references[i])
-                        .collect(),
-                    esm_reexport_references
-                        .into_iter()
-                        .map(|i| import_references[i])
-                        .collect(),
-                    esm_evaluation_references
-                        .into_iter()
-                        .map(|i| import_references[i])
-                        .collect(),
-                )
-            } else {
-                (vec![], vec![], vec![])
-            };
+        // import_references_namespace_rewritten needs to be spliced in at the correct index into
+        // esm_references and esm_local_references
+        let mut esm_references = Vec::with_capacity(
+            self.esm_references.len() + import_references_namespace_rewritten.len(),
+        );
+        let mut esm_local_references = track_reexport_references.then(|| {
+            Vec::with_capacity(
+                self.esm_local_references.len() + import_references_namespace_rewritten.len(),
+            )
+        });
+        let mut esm_reexport_references = track_reexport_references
+            .then(|| Vec::with_capacity(self.esm_reexport_references.len()));
+        let mut esm_evaluation_references = track_reexport_references
+            .then(|| Vec::with_capacity(self.esm_evaluation_references.len()));
+        for (i, reference) in import_references.iter().enumerate() {
+            if self.esm_references.contains(&i) {
+                esm_references.push(*reference);
+            }
+            esm_references.extend(
+                import_references_namespace_rewritten
+                    .get(&i)
+                    .iter()
+                    .flat_map(|m| m.values().copied()),
+            );
+            if let Some(esm_local_references) = &mut esm_local_references {
+                if self.esm_local_references.contains(&i) {
+                    esm_local_references.push(*reference);
+                }
+                esm_local_references.extend(
+                    import_references_namespace_rewritten
+                        .get(&i)
+                        .iter()
+                        .flat_map(|m| m.values().copied()),
+                );
+            }
+            if let Some(esm_evaluation_references) = &mut esm_evaluation_references {
+                if self.esm_evaluation_references.contains(&i) {
+                    esm_evaluation_references.push(*reference);
+                }
+            }
+            if let Some(esm_reexport_references) = &mut esm_reexport_references {
+                if self.esm_reexport_references.contains(&i) {
+                    esm_reexport_references.push(*reference);
+                }
+            }
+        }
 
         let references: Vec<_> = self.references.into_iter().collect();
 
@@ -346,11 +362,15 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
-                references: (references),
+                references,
                 esm_references: ResolvedVc::cell(esm_references),
-                esm_local_references: ResolvedVc::cell(esm_local_references),
-                esm_reexport_references: ResolvedVc::cell(esm_reexport_references),
-                esm_evaluation_references: ResolvedVc::cell(esm_evaluation_references),
+                esm_local_references: ResolvedVc::cell(esm_local_references.unwrap_or_default()),
+                esm_reexport_references: ResolvedVc::cell(
+                    esm_reexport_references.unwrap_or_default(),
+                ),
+                esm_evaluation_references: ResolvedVc::cell(
+                    esm_evaluation_references.unwrap_or_default(),
+                ),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
@@ -526,7 +546,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         ..
     } = &*parsed
     else {
-        return analysis.build(vec![], false).await;
+        return analysis
+            .build(Default::default(), Default::default(), false)
+            .await;
     };
 
     let compile_time_info = compile_time_info_for_module_type(
@@ -644,7 +666,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
-    let mut import_references_namespace_rewritten = FxIndexMap::default();
+    let mut import_references_namespace_rewritten: FxHashMap<usize, FxIndexMap<_, _>> =
+        FxHashMap::default();
 
     let span = tracing::info_span!("esm import references");
     let import_references = async {
@@ -1284,7 +1307,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             if r_ref.export_name.is_none() && export.is_some() {
                                 if let Some(export) = export {
                                     let r = *import_references_namespace_rewritten
-                                        .entry((esm_reference_index, export.clone()))
+                                        .entry(esm_reference_index)
+                                        .or_default()
+                                        .entry(export.clone())
                                         .or_insert_with(|| {
                                             EsmAssetReference::new(
                                                 r_ref.origin,
@@ -1296,7 +1321,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                             )
                                             .resolved_cell()
                                         });
-                                    analysis.add_reference(r);
+                                    // No need to add a reference,
+                                    // import_references_namespace_rewritten are all added later on
                                     analysis.add_code_gen(EsmBinding::new(
                                         r,
                                         Some(export),
@@ -1349,6 +1375,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     analysis
         .build(
             import_references,
+            import_references_namespace_rewritten,
             matches!(
                 options.tree_shaking_mode,
                 Some(TreeShakingMode::ReexportsOnly)
