@@ -972,6 +972,8 @@ function assignDefaults(
       '@material-ui/icons',
       '@tabler/icons-react',
       'mui-core',
+      'radix-ui',
+      'radix-ui/internal',
       // We don't support wildcard imports for these configs, e.g. `react-icons/*`
       // so we need to add them manually.
       // In the future, we should consider automatically detecting packages that
