@@ -68,6 +68,10 @@ export function Base() {
           --color-ansi-bright-magenta: #cebbff;
           --color-ansi-bright-red: #ff8888;
           --color-ansi-bright-yellow: #ffd966;
+
+          @media print {
+            display: none;
+          }
         }
 
         @media (prefers-color-scheme: dark) {
@@ -86,12 +90,6 @@ export function Base() {
             --color-accents-3: rgb(118, 118, 118);
 
             --color-text-background-red-1: #2a1e1e;
-          }
-        }
-
-        @media print {
-          :host {
-            display: none;
           }
         }
 
