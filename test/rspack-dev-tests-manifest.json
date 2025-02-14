@@ -1,19 +1,14 @@
 {
-  "test/integration/404-page-custom-error/test/index.test.js": {
-    "passed": [
-      "Default 404 Page with custom _error development mode should render index page normal",
-      "Default 404 Page with custom _error development mode should respond to 404 correctly",
-      "Default 404 Page with custom _error production mode should build successfully",
-      "Default 404 Page with custom _error production mode should have output 404.html",
-      "Default 404 Page with custom _error production mode should render error correctly",
-      "Default 404 Page with custom _error production mode should render index page normal",
-      "Default 404 Page with custom _error production mode should respond to 404 correctly",
-      "Default 404 Page with custom _error production mode should set pages404 in routes-manifest correctly"
-    ],
+  "test/integration/amp-export-validation/test/index.test.js": {
+    "passed": [],
     "failed": [
-      "Default 404 Page with custom _error development mode should render error correctly"
+      "AMP Validation on Export production mode should have shown errors during build"
     ],
-    "pending": [],
+    "pending": [
+      "AMP Validation on Export production mode shows AMP warning without throwing error",
+      "AMP Validation on Export production mode shows warning and error when throwing error",
+      "AMP Validation on Export production mode throws error on AMP error"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -35,58 +30,53 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/create-next-app/package-manager/bun.test.ts": {
+  "test/integration/critical-css/test/index.test.js": {
     "passed": [],
     "failed": [
-      "create-next-app with package manager bun should use bun for --use-bun flag",
-      "create-next-app with package manager bun should use bun for --use-bun flag with example",
-      "create-next-app with package manager bun should use bun when user-agent is bun",
-      "create-next-app with package manager bun should use bun when user-agent is bun with example"
+      "CSS optimization for SSR apps production mode should have all CSS files in manifest",
+      "CSS optimization for SSR apps production mode should inline critical CSS",
+      "CSS optimization for SSR apps production mode should inline critical CSS (dynamic)",
+      "CSS optimization for SSR apps production mode should not inline non-critical css"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/css/test/valid-invalid-css.test.js": {
+  "test/integration/custom-routes-i18n-index-redirect/test/index.test.js": {
     "passed": [
-      "Valid Global CSS from npm production mode should've emitted a single CSS file"
+      "Custom routes i18n with index redirect development mode should respond to default locale redirects correctly for index redirect"
     ],
     "failed": [
-      "Invalid CSS in _document production mode should fail to build",
-      "Invalid Global CSS production mode should fail to build",
-      "Invalid Global CSS with Custom App production mode should fail to build",
-      "Valid and Invalid Global CSS with Custom App production mode should fail to build"
+      "Custom routes i18n with index redirect production mode should respond to default locale redirects correctly for index redirect"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/edge-runtime-dynamic-code/test/index.test.js": {
-    "passed": [
-      "Edge route usage of dynamic code evaluation development mode does not show a warning when running WebAssembly.instantiate with a module parameter",
-      "Edge route usage of dynamic code evaluation development mode does not show warning when no code uses eval",
-      "Middleware usage of dynamic code evaluation development mode does not show a warning when running WebAssembly.instantiate with a module parameter",
-      "Middleware usage of dynamic code evaluation development mode does not show warning when no code uses eval",
-      "Page using eval in development mode does issue dynamic code evaluation warnings"
-    ],
-    "failed": [
-      "Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile",
-      "Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
-      "Edge route usage of dynamic code evaluation development mode shows a warning when running code with eval",
-      "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
-      "Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile",
-      "Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
-      "Middleware usage of dynamic code evaluation development mode shows a warning when running code with eval",
-      "Middleware usage of dynamic code evaluation production mode should have middleware warning during build"
-    ],
+  "test/integration/edge-runtime-streaming-error/test/index.test.ts": {
+    "passed": ["development mode logs the error correctly"],
+    "failed": ["production mode logs the error correctly"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/externals-pages-bundle/test/externals.test.js": {
+  "test/integration/externals-esm-loose/test/index.test.js": {
     "passed": [],
     "failed": [
-      "default should use externals for unvendored node_modules reachable from the project"
+      "Handle ESM externals with esmExternals: 'loose' production mode should render the ssg page",
+      "Handle ESM externals with esmExternals: 'loose' production mode should render the ssr page",
+      "Handle ESM externals with esmExternals: 'loose' production mode should render the static page"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/gsp-extension/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "GS(S)P with file extension production mode should contain extension in name of json files in _next/data",
+      "GS(S)P with file extension production mode should render properly for routes with extension",
+      "GS(S)P with file extension production mode should support slug with different extensions"
     ],
     "pending": [],
     "flakey": [],
@@ -102,75 +92,61 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/next-dynamic/test/index.test.js": {
-    "passed": [
-      "next/dynamic development mode should render dynamic server rendered values on client mount",
-      "next/dynamic development mode should render server value",
-      "next/dynamic production mode should render server value"
-    ],
-    "failed": [
-      "next/dynamic production mode should render dynamic server rendered values on client mount"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/next-image-legacy/typescript/test/index.test.ts": {
-    "passed": [
-      "TypeScript Image Component development mode 2 should remove global image types when disabled (dev)",
-      "TypeScript Image Component development mode should have image types when enabled",
-      "TypeScript Image Component development mode should render the valid Image usage and not print error",
-      "TypeScript Image Component production mode should fail to build invalid usage of the Image component",
-      "TypeScript Image Component production mode should remove global image types when disabled"
-    ],
-    "failed": [
-      "TypeScript Image Component development mode should print error when invalid Image usage"
-    ],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/no-override-next-props/test/index.test.js": {
+  "test/integration/middleware-prefetch/tests/index.test.js": {
     "passed": [],
     "failed": [
-      "Dynamic require should show error when a Next prop is returned in _app.getInitialProps"
+      "Middleware Production Prefetch production mode does not prefetch provided path if it will be rewritten",
+      "Middleware Production Prefetch production mode prefetch correctly for unexistent routes"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/prerender/test/index.test.js": {
+  "test/integration/next-image-legacy/trailing-slash/test/index.test.ts": {
     "passed": [],
     "failed": [
-      "SSG Prerender development mode getStaticPaths should not cache getStaticPaths errors",
-      "SSG Prerender development mode getStaticPaths should work with firebase import and getStaticPaths"
+      "Image Component Trailing Slash Tests development mode should include trailing slash when trailingSlash is set on config file during next dev",
+      "Image Component Trailing Slash Tests production mode should include trailing slash when trailingSlash is set on config file during next start"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/server-side-dev-errors/test/index.test.js": {
+  "test/integration/next-image-new/react-virtualized/test/index.test.ts": {
     "passed": [],
     "failed": [
-      "server-side dev errors should show server-side error for api route correctly",
-      "server-side dev errors should show server-side error for dynamic api route correctly",
-      "server-side dev errors should show server-side error for dynamic gssp page correctly",
-      "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
-      "server-side dev errors should show server-side error for uncaught empty exception correctly",
-      "server-side dev errors should show server-side error for uncaught empty rejection correctly",
-      "server-side dev errors should show server-side error for uncaught exception correctly",
-      "server-side dev errors should show server-side error for uncaught rejection correctly"
+      "react-virtualized wrapping next/image production mode should not cancel requests for images"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": true
+  },
+  "test/integration/prerender-no-revalidate/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "SSG Prerender No Revalidate production mode [/] should not revalidate /_next/data when set to false",
+      "SSG Prerender No Revalidate production mode [/] should not revalidate when set to false",
+      "SSG Prerender No Revalidate production mode [/named] should not revalidate /_next/data when set to false",
+      "SSG Prerender No Revalidate production mode [/named] should not revalidate when set to false",
+      "SSG Prerender No Revalidate production mode [/nested/named] should not revalidate /_next/data when set to false",
+      "SSG Prerender No Revalidate production mode [/nested/named] should not revalidate when set to false",
+      "SSG Prerender No Revalidate production mode [/nested] should not revalidate /_next/data when set to false",
+      "SSG Prerender No Revalidate production mode [/nested] should not revalidate when set to false"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
+  "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.js": {
     "passed": [],
-    "failed": [
-      "build trace with extra entries production mode should build and trace correctly"
-    ],
+    "failed": ["Top Level Error production mode should render error page"],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/sharp-api/test/sharp-api.test.ts": {
+    "passed": [],
+    "failed": ["sharp api should handle custom sharp usage"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
