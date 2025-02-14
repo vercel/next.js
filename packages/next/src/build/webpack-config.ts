@@ -93,6 +93,8 @@ import {
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
 import { getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
+
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
   [key: string]: string | string[]
@@ -1912,7 +1914,9 @@ export default async function getBaseWebpackConfig(
           appDirEnabled: hasAppDir,
           clientRouterFilters,
         }),
-      !isRspack && new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
+      isRspack
+        ? new RspackProfilingPlugin({ runWebpackSpan })
+        : new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
