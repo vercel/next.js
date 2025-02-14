@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
 import { isNextRouterError } from '../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
-import { parseConsoleArgs } from '../../lib/console'
+import { formatConsoleArgs, parseConsoleArgs } from '../../lib/console'
 import isError from '../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
@@ -25,9 +25,10 @@ export function handleClientError(
 ) {
   let error: Error
   if (!originError || !isError(originError)) {
-    const { formattedMessage, environmentName } =
-      parseConsoleArgs(consoleErrorArgs)
-    error = createUnhandledError(formattedMessage, environmentName)
+    // If it's not an error, format the args into an error
+    const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
+    const { environmentName } = parseConsoleArgs(consoleErrorArgs)
+    error = createUnhandledError(formattedErrorMessage, environmentName)
   } else {
     error = capturedFromConsole
       ? createUnhandledError(originError)

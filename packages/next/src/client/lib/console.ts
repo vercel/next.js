@@ -115,7 +115,6 @@ export function formatConsoleArgs(args: unknown[]): string {
 export function parseConsoleArgs(args: unknown[]): {
   environmentName: string | null
   error: Error | null
-  formattedMessage: string
 } {
   // See
   // https://github.com/facebook/react/blob/65a56d0e99261481c721334a3ec4561d173594cd/packages/react-devtools-shared/src/backend/flight/renderer.js#L88-L93
@@ -141,18 +140,14 @@ export function parseConsoleArgs(args: unknown[]): {
     const environmentName = args[2]
     const maybeError = args[4]
 
-    const formattedMessage = formatConsoleArgs(args)
-
     return {
       environmentName: environmentName.trim(),
       error: isError(maybeError) ? maybeError : null,
-      formattedMessage,
     }
   }
 
   return {
     environmentName: null,
     error: null,
-    formattedMessage: '',
   }
 }
