@@ -241,7 +241,7 @@ function NodeJsDisabledIcon(props: any) {
 }
 
 const label =
-  'Learn more about enabling Node.js inspector for server code with Chrome DevTools'
+  'Learn more about enabling Node.js inspector for server code with Browser DevTools'
 
 export function NodejsInspectorButton({
   devtoolsFrontendUrl,
@@ -272,7 +272,7 @@ export function NodejsInspectorButton({
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
       className="nodejs-inspector-button"
-      actionLabel={'Copy Chrome DevTools URL'}
+      actionLabel={'Copy Browser DevTools URL'}
       successLabel="Copied"
       content={content}
       icon={
