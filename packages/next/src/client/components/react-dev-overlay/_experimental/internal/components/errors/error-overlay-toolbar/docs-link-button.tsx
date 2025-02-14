@@ -18,15 +18,15 @@ function getDocsURLFromErrorMessage(text: string): string | null {
 
 export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
   const docsURL = getDocsURLFromErrorMessage(errorMessage)
-  const commonProps = {
-    title: 'Related Next.js Docs',
-    'aria-label': 'Related Next.js Docs',
-    className: 'docs-link-button',
-  }
 
   if (!docsURL) {
     return (
-      <button {...commonProps} disabled>
+      <button
+        title="No related Next.js docs found"
+        aria-label="No related Next.js docs found"
+        className="docs-link-button"
+        disabled
+      >
         <DocsIcon
           className="error-overlay-toolbar-button-icon"
           width={14}
@@ -38,7 +38,9 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
 
   return (
     <a
-      {...commonProps}
+      title="Go to related Next.js docs"
+      aria-label="Go to related Next.js docs"
+      className="docs-link-button"
       href={docsURL}
       target="_blank"
       rel="noopener noreferrer"
