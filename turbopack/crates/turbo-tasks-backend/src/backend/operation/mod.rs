@@ -108,6 +108,8 @@ where
     turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     _operation_guard: Option<OperationGuard<'e, B>>,
     transaction: TransactionState<'e, 'tx, B>,
+    #[cfg(feature = "verify_task_lock")]
+    task_sema: std::sync::Arc<std::sync::atomic::AtomicU32>,
 }
 
 impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
@@ -124,6 +126,8 @@ where
             _operation_guard: Some(backend.start_operation()),
             parent: None,
             transaction: TransactionState::None,
+            #[cfg(feature = "verify_task_lock")]
+            task_sema: Default::default(),
         }
     }
 
@@ -138,6 +142,8 @@ where
             _operation_guard: Some(backend.start_operation()),
             parent: None,
             transaction: TransactionState::Borrowed(transaction),
+            #[cfg(feature = "verify_task_lock")]
+            task_sema: Default::default(),
         }
     }
 
@@ -183,6 +189,10 @@ where
     }
 
     fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e {
+        #[cfg(feature = "verify_task_lock")]
+        if self.task_sema.swap(1, std::sync::atomic::Ordering::Acquire) != 0 {
+            panic!("Locking multiple tasks within the same context");
+        }
         let mut task = self.backend.storage.access_mut(task_id);
         if !task.persistance_state().is_restored(category) {
             if task_id.is_transient() {
@@ -210,6 +220,8 @@ where
             task,
             task_id,
             backend: self.backend,
+            #[cfg(feature = "verify_task_lock")]
+            task_sema: self.task_sema.clone(),
             #[cfg(debug_assertions)]
             category,
         }
@@ -232,6 +244,10 @@ where
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e) {
+        #[cfg(feature = "verify_task_lock")]
+        if self.task_sema.swap(2, std::sync::atomic::Ordering::Acquire) != 0 {
+            panic!("Locking multiple tasks within the same context");
+        }
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.persistance_state().is_restored(category);
         let is_restored2 = task2.persistance_state().is_restored(category);
@@ -266,6 +282,8 @@ where
                 task: task1,
                 task_id: task_id1,
                 backend: self.backend,
+                #[cfg(feature = "verify_task_lock")]
+                task_sema: self.task_sema.clone(),
                 #[cfg(debug_assertions)]
                 category,
             },
@@ -273,6 +291,8 @@ where
                 task: task2,
                 task_id: task_id2,
                 backend: self.backend,
+                #[cfg(feature = "verify_task_lock")]
+                task_sema: self.task_sema.clone(),
                 #[cfg(debug_assertions)]
                 category,
             },
@@ -319,6 +339,9 @@ where
             turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
             parent: ParentRef<'a>,
             transaction: TransactionState<'a, '_, B>,
+            #[cfg(feature = "verify_task_lock")] task_sema: std::sync::Arc<
+                std::sync::atomic::AtomicU32,
+            >,
             run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
         ) {
             let mut inner_ctx: ExecuteContextImpl<'_, '_, B> = ExecuteContextImpl {
@@ -327,6 +350,8 @@ where
                 _operation_guard: None,
                 parent: Some(parent),
                 transaction,
+                #[cfg(feature = "verify_task_lock")]
+                task_sema,
             };
             run(&mut inner_ctx);
         }
@@ -338,6 +363,8 @@ where
                 parent: &this.parent,
             },
             self.transaction.borrow(),
+            #[cfg(feature = "verify_task_lock")]
+            self.task_sema.clone(),
             run,
         );
         *parent_op_ref = parent_op.try_into().unwrap();
@@ -405,6 +432,16 @@ struct TaskGuardImpl<'a, B: BackingStorage> {
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
+    #[cfg(feature = "verify_task_lock")]
+    task_sema: Arc<AtomicU32>,
+}
+
+#[cfg(feature = "verify_task_lock")]
+impl<B: BackingStorage> Drop for TaskGuardImpl<'_, B> {
+    fn drop(&mut self) {
+        self.task_sema
+            .fetch_sub(1, std::sync::atomic::Ordering::Release);
+    }
 }
 
 impl<B: BackingStorage> TaskGuardImpl<'_, B> {
@@ -532,6 +569,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             task,
             task_id,
             backend,
+            #[cfg(feature = "verify_task_lock")]
+                task_sema: _,
             #[cfg(debug_assertions)]
                 category: _,
         } = self;

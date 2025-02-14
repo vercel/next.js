@@ -15,6 +15,7 @@ workspace = true
 [features]
 default = []
 verify_serialization = []
+verify_task_lock = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 trace_task_completion = []
