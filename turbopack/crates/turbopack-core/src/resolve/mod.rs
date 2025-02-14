@@ -104,14 +104,14 @@ impl ModuleResolveResultItem {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
-    pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
+    pub primary: Box<[(RequestKey, ModuleResolveResultItem)]>,
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
 impl ModuleResolveResult {
     pub fn unresolvable() -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: FxIndexMap::default(),
+            primary: Default::default(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -121,7 +121,7 @@ impl ModuleResolveResult {
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: FxIndexMap::default(),
+            primary: Default::default(),
             affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
@@ -136,7 +136,8 @@ impl ModuleResolveResult {
         module: ResolvedVc<Box<dyn Module>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: fxindexmap! { request_key => ModuleResolveResultItem::Module(module) },
+            primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
+                .into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -147,9 +148,14 @@ impl ModuleResolveResult {
         output_asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> ResolvedVc<Self> {
         ModuleResolveResult {
-            primary: fxindexmap! { request_key => ModuleResolveResultItem::OutputAsset(output_asset) },
+            primary: vec![(
+                request_key,
+                ModuleResolveResultItem::OutputAsset(output_asset),
+            )]
+            .into_boxed_slice(),
             affecting_sources: Default::default(),
-        } .resolved_cell()
+        }
+        .resolved_cell()
     }
 
     pub fn modules(
@@ -208,7 +214,7 @@ pub struct ModuleResolveResultBuilder {
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
         ModuleResolveResult {
-            primary: v.primary,
+            primary: v.primary.into_iter().collect::<Vec<_>>().into_boxed_slice(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -216,7 +222,7 @@ impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
 impl From<ModuleResolveResult> for ModuleResolveResultBuilder {
     fn from(v: ModuleResolveResult) -> Self {
         ModuleResolveResultBuilder {
-            primary: v.primary,
+            primary: IntoIterator::into_iter(v.primary).collect(),
             affecting_sources: v.affecting_sources.into_vec(),
         }
     }
