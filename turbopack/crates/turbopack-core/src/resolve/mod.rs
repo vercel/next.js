@@ -504,7 +504,7 @@ impl RequestKey {
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
-    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+    pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
 #[turbo_tasks::value_impl]
@@ -576,7 +576,7 @@ impl ResolveResult {
     ) -> ResolvedVc<Self> {
         ResolveResult {
             primary: FxIndexMap::default(),
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
@@ -605,7 +605,7 @@ impl ResolveResult {
         primary.insert(request_key, result);
         ResolveResult {
             primary,
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
@@ -636,49 +636,15 @@ impl ResolveResult {
         primary.insert(request_key, ResolveResultItem::Source(source));
         ResolveResult {
             primary,
-            affecting_sources,
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
         .resolved_cell()
     }
 }
 
 impl ResolveResult {
-    pub fn add_affecting_source_ref(&mut self, reference: ResolvedVc<Box<dyn Source>>) {
-        self.affecting_sources.push(reference);
-    }
-
     pub fn get_affecting_sources(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
         self.affecting_sources.iter().copied()
-    }
-
-    fn clone_with_affecting_sources(
-        &self,
-        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
-    ) -> ResolveResult {
-        ResolveResult {
-            primary: self.primary.clone(),
-            affecting_sources,
-        }
-    }
-
-    pub fn merge_alternatives(&mut self, other: &ResolveResult) {
-        for (k, v) in other.primary.iter() {
-            if !self.primary.contains_key(k) {
-                self.primary.insert(k.clone(), v.clone());
-            }
-        }
-        let set = self
-            .affecting_sources
-            .iter()
-            .copied()
-            .collect::<FxHashSet<_>>();
-        self.affecting_sources.extend(
-            other
-                .affecting_sources
-                .iter()
-                .filter(|source| !set.contains(source))
-                .copied(),
-        );
     }
 
     pub fn is_unresolvable_ref(&self) -> bool {
@@ -718,7 +684,8 @@ impl ResolveResult {
                 .copied()
                 .map(affecting_source_fn)
                 .try_join()
-                .await?,
+                .await?
+                .into_boxed_slice(),
         })
     }
 
@@ -765,7 +732,7 @@ impl ResolveResult {
                 .await?
                 .into_iter()
                 .collect(),
-            affecting_sources: self.affecting_sources.clone().into_boxed_slice(),
+            affecting_sources: self.affecting_sources.clone(),
         })
     }
 
@@ -788,7 +755,7 @@ impl ResolveResult {
                 .await?
                 .into_iter()
                 .collect(),
-            affecting_sources: self.affecting_sources.clone().into_boxed_slice(),
+            affecting_sources: self.affecting_sources.clone(),
         })
     }
 
@@ -827,6 +794,49 @@ impl ResolveResult {
     }
 }
 
+pub struct ResolveResultBuilder {
+    pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
+    pub affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+}
+
+impl From<ResolveResultBuilder> for ResolveResult {
+    fn from(v: ResolveResultBuilder) -> Self {
+        ResolveResult {
+            primary: v.primary,
+            affecting_sources: v.affecting_sources.into_boxed_slice(),
+        }
+    }
+}
+impl From<ResolveResult> for ResolveResultBuilder {
+    fn from(v: ResolveResult) -> Self {
+        ResolveResultBuilder {
+            primary: IntoIterator::into_iter(v.primary).collect(),
+            affecting_sources: v.affecting_sources.into_vec(),
+        }
+    }
+}
+impl ResolveResultBuilder {
+    pub fn merge_alternatives(&mut self, other: &ResolveResult) {
+        for (k, v) in other.primary.iter() {
+            if !self.primary.contains_key(k) {
+                self.primary.insert(k.clone(), v.clone());
+            }
+        }
+        let set = self
+            .affecting_sources
+            .iter()
+            .copied()
+            .collect::<FxHashSet<_>>();
+        self.affecting_sources.extend(
+            other
+                .affecting_sources
+                .iter()
+                .filter(|source| !set.contains(source))
+                .copied(),
+        );
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl ResolveResult {
     #[turbo_tasks::function]
@@ -843,24 +853,30 @@ impl ResolveResult {
 
     #[turbo_tasks::function]
     pub async fn with_affecting_source(
-        self: Vc<Self>,
-        affecting_source: ResolvedVc<Box<dyn Source>>,
+        &self,
+        source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.owned().await?;
-        this.add_affecting_source_ref(affecting_source);
-        Ok(this.into())
+        let mut affecting_sources = self.affecting_sources.to_vec();
+        affecting_sources.push(source);
+        Ok(Self {
+            primary: self.primary.clone(),
+            affecting_sources: affecting_sources.into_boxed_slice(),
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_affecting_sources(
-        self: Vc<Self>,
-        affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
+        &self,
+        sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.owned().await?;
-        for affecting_source in affecting_sources {
-            this.add_affecting_source_ref(affecting_source);
+        let mut affecting_sources = self.affecting_sources.to_vec();
+        affecting_sources.extend(sources);
+        Ok(Self {
+            primary: self.primary.clone(),
+            affecting_sources: affecting_sources.into_boxed_slice(),
         }
-        Ok(this.into())
+        .cell())
     }
 
     /// Returns the first [ResolveResult] that is not
@@ -875,9 +891,11 @@ impl ResolveResult {
         for result in results {
             let result_ref = result.await?;
             if !result_ref.is_unresolvable_ref() {
-                return Ok(result_ref
-                    .clone_with_affecting_sources(affecting_sources)
-                    .cell());
+                return Ok(Self {
+                    primary: result_ref.primary.clone(),
+                    affecting_sources: affecting_sources.into_boxed_slice(),
+                }
+                .cell());
             }
         }
         Ok(*ResolveResult::unresolvable_with_affecting_sources(
@@ -892,13 +910,13 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = ReadRef::into_owned(current);
+            let mut current: ResolveResultBuilder = ReadRef::into_owned(current).into();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
                 current.merge_alternatives(other);
             }
-            Ok(Self::cell(current))
+            Ok(Self::cell(current.into()))
         } else {
             Ok(*ResolveResult::unresolvable())
         }
@@ -921,14 +939,14 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = ReadRef::into_owned(current);
+            let mut current: ResolveResultBuilder = ReadRef::into_owned(current).into();
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
                 current.merge_alternatives(other);
             }
             current.affecting_sources.extend(affecting_sources);
-            Ok(Self::cell(current))
+            Ok(Self::cell(current.into()))
         } else {
             Ok(*ResolveResult::unresolvable_with_affecting_sources(
                 affecting_sources,
@@ -1703,12 +1721,12 @@ async fn handle_after_resolve_plugins(
         return Ok(result);
     }
 
-    let mut affecting_sources = result_value.affecting_sources.clone();
+    let mut affecting_sources = result_value.affecting_sources.to_vec();
     affecting_sources.append(&mut new_affecting_sources);
 
     Ok(ResolveResult {
         primary: new_primary,
-        affecting_sources,
+        affecting_sources: affecting_sources.into_boxed_slice(),
     }
     .cell())
 }
@@ -2058,11 +2076,12 @@ async fn resolve_into_folder(
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
                         if !result.is_unresolvable_ref() {
-                            let mut result = result.with_request_ref(".".into());
-                            result.add_affecting_source_ref(ResolvedVc::upcast(
+                            let mut result: ResolveResultBuilder =
+                                result.with_request_ref(".".into()).into();
+                            result.affecting_sources.push(ResolvedVc::upcast(
                                 FileSource::new(package_json_path).to_resolved().await?,
                             ));
-                            return Ok(result.cell());
+                            return Ok(ResolveResult::from(result).cell());
                         }
                     }
                 };
