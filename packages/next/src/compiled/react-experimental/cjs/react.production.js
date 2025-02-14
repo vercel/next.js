@@ -370,16 +370,10 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
-};
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
   };
-};
-exports.captureOwnerStack = function () {
-  return null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -516,6 +510,9 @@ exports.unstable_postpone = function (reason) {
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
 };
+exports.unstable_useSwipeTransition = function (previous, current, next) {
+  return ReactSharedInternals.H.useSwipeTransition(previous, current, next);
+};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -579,4 +576,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-cbbe8666-20250213";
+exports.version = "19.1.0-experimental-e670e72f-20250214";

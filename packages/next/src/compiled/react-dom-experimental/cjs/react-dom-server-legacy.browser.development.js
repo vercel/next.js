@@ -4088,6 +4088,9 @@
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
     }
+    function unsupportedStartGesture() {
+      throw Error("startGesture cannot be called during server rendering.");
+    }
     function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
@@ -9511,6 +9514,10 @@
         },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
+        },
+        useSwipeTransition: function (previous, current) {
+          resolveCurrentlyRenderingComponent();
+          return [current, unsupportedStartGesture];
         }
       },
       currentResumableState = null,
@@ -9591,5 +9598,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-experimental-cbbe8666-20250213";
+    exports.version = "19.1.0-experimental-e670e72f-20250214";
   })();
