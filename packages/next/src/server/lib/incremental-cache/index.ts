@@ -352,9 +352,23 @@ export class IncrementalCache implements IncrementalCacheType {
     const headers =
       typeof (init.headers || {}).keys === 'function'
         ? Object.fromEntries(init.headers as Headers)
-        : Object.assign({}, init.headers)
+        : (Object.assign({}, init.headers) as Record<string, string>)
 
-    if ('traceparent' in headers) delete headers['traceparent']
+    const disableHeaders = (init as any)?.next?.disableHeaders
+    if (
+      disableHeaders ||
+      (Array.isArray(disableHeaders) && disableHeaders.length > 0)
+    ) {
+      if (Array.isArray(disableHeaders)) {
+        Object.keys(headers).forEach((key) => {
+          if (disableHeaders.includes(key)) delete headers[key]
+        })
+      } else {
+        Object.keys(headers).forEach((key) => {
+          delete headers[key]
+        })
+      }
+    }
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
