@@ -74,7 +74,9 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
    If you already have an account, you can skip this step.
 
-   Go to the [Flotiq registration page](https://editor.flotiq.com/register) and fill out the form. You will receive an email with an activation link. Activate your account and log in to your dashboard.
+   If you want to register with an auth provider (supported: **Github**, **Miscrosoft**, **Google**, ), go to the [Flotiq login page](https://editor.flotiq.com/login) and click one of the buttons next to the login form.
+
+   If you want to register with an email, go to the [Flotiq registration page](https://editor.flotiq.com/register) and fill out the form. You will receive an email with an activation link. Activate your account and log in to your dashboard.
 
 2. Import example data from starter to Flotiq
 
@@ -94,18 +96,16 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 
 3. Add env variables
 
-   Project requires the following variables to start:
+   Flotiq provides a tool named [flotiq-setup](https://github.com/flotiq/flotiq-setup) for automatically populating `.env` files with your Flotiq API keys.
 
-   | Name                     | Description                                                 |
-   | ------------------------ | ----------------------------------------------------------- |
-   | `FLOTIQ_CLIENT_AUTH_KEY` | The key used to [revalidate cache](#nextjs-data-cache)      |
-   | `FLOTIQ_API_KEY`         | Flotiq Read API key with access to blogpost content objects |
+   ```bash
+      npx flotiq-setup --nextjs
+   ```
 
-   You can use any value for `FLOTIQ_CLIENT_AUTH_KEY`. Make sure to use different values for production and non production variables.
+   After executing this command, a browser window will open with the Flotiq. Upon successful authentication,
+   the command will automatically generate appropriately filled `.env` files for you.
 
-   You can find the read-only API key on the API keys page in the [Flotiq panel](https://editor.flotiq.com/)
-
-   <img src=".docs/ro-api-key.png" alt="Read only API key" width="1000px" />
+   Go to the newly generated file and add `FLOTIQ_CLIENT_AUTH_KEY` variable, read more about [env variables](#env-variables)
 
 4. Install dependencies
 
