@@ -627,7 +627,6 @@ impl ModuleOptions {
             }
         }
 
-        // Avoid cloning module_rules by
         rules.extend(module_rules.iter().cloned());
 
         Ok(ModuleOptions::cell(ModuleOptions { rules }))
