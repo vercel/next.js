@@ -252,21 +252,6 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 }
 
-// impl EsmAssetReference {
-//     pub fn into_code_gen_reference(self) -> (ResolvedVc<EsmAssetReference>, CodeGen) {
-//         let reference = self.resolved_cell();
-//         (
-//             reference,
-//             CodeGen::EsmAssetReferenceCodeGen(EsmAssetReferenceCodeGen { reference }),
-//         )
-//     }
-// }
-
-// #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
-// pub struct EsmAssetReferenceCodeGen {
-//     reference: ResolvedVc<EsmAssetReference>,
-// }
-
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
