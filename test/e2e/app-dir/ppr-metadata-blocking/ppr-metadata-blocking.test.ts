@@ -99,7 +99,6 @@ describe('ppr-metadata-blocking', () => {
     })
   })
 
-  // Disable deployment until we support it on infra
   if (isNextStart) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
@@ -123,7 +122,7 @@ describe('ppr-metadata-blocking', () => {
         expect(headers.get('x-nextjs-postponed')).toBe('1')
       })
 
-      it('should not serve partial static shell when html limited bots requests the page', async () => {
+      it('should render the partial static shell when html limited bots requests the page', async () => {
         const htmlLimitedBotUA = 'Discordbot'
         const res1 = await next.fetch('/dynamic-page/partial', {
           headers: {
@@ -132,6 +131,38 @@ describe('ppr-metadata-blocking', () => {
         })
 
         const res2 = await next.fetch('/dynamic-page/partial', {
+          headers: {
+            'User-Agent': htmlLimitedBotUA,
+          },
+        })
+
+        // Dynamic render should not have postponed header
+        const headers = res1.headers
+        // In blocking mode of metadata, it's still postponed if metadata or page is dynamic.
+        // It won't behave differently when the bot is visiting.
+
+        expect(headers.get('x-nextjs-postponed')).toBe(null)
+
+        const $1 = cheerio.load(await res1.text())
+        const $2 = cheerio.load(await res2.text())
+
+        const attribute1 = parseInt($1('[data-date]').attr('data-date'))
+        const attribute2 = parseInt($2('[data-date]').attr('data-date'))
+
+        // Two requests are dynamic and should not have the same data-date attribute
+        expect(attribute2).not.toEqual(attribute1)
+        expect(attribute1).toBeTruthy()
+      })
+
+      it('should render the full page when html limited bots requests the partial dynamic page with dynamic metadata', async () => {
+        const htmlLimitedBotUA = 'Discordbot'
+        const res1 = await next.fetch('/dynamic-metadata/partial', {
+          headers: {
+            'User-Agent': htmlLimitedBotUA,
+          },
+        })
+
+        const res2 = await next.fetch('/dynamic-metadata/partial', {
           headers: {
             'User-Agent': htmlLimitedBotUA,
           },
