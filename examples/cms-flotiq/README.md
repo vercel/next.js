@@ -2,6 +2,8 @@
 
 This example showcases Next.js's [Server Side Generation](https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering) with Next.js [Data Cache](https://nextjs.org/docs/app/building-your-application/caching#data-cache) feature using [Flotiq](https://www.flotiq.com/) as the data source.
 
+Live demo: [https://flotiq-nextjs-blog-starter.vercel.app](https://flotiq-nextjs-blog-starter.vercel.app)
+
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example)
