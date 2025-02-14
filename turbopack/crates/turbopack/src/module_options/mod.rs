@@ -145,7 +145,6 @@ impl ModuleOptions {
             preset_env_versions,
             ref module_rules,
             execution_context,
-            ref rules,
             tree_shaking_mode,
             keep_last_successful_parse,
             ..
