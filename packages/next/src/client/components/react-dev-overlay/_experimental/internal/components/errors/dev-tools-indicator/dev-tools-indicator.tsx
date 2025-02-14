@@ -253,7 +253,7 @@ function DevToolsPopover({
               <MenuItem
                 data-hide-dev-tools
                 label="Hide Dev Tools"
-                value={<Cross />}
+                value={<Cross color="var(--color-gray-900)" />}
                 onClick={hide}
                 index={isTurbopack ? 1 : 2}
               />
