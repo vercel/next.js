@@ -23,6 +23,7 @@ use std::{borrow::Cow, collections::BTreeMap, future::Future, mem::take, ops::De
 use anyhow::{bail, Result};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
+use indexmap::map::Entry;
 use lazy_static::lazy_static;
 use num_traits::Zero;
 use once_cell::sync::Lazy;
@@ -210,6 +211,11 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     esm_reexport_references: FxHashSet<usize>,
     esm_evaluation_references: FxHashSet<usize>,
 
+    esm_references_free_var: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
+    // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
+    // This caches repeated access because EsmAssetReference::new is not a turbo task function.
+    esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
+
     code_gens: Vec<CodeGen>,
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
@@ -225,6 +231,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_local_references: Default::default(),
             esm_reexport_references: Default::default(),
             esm_evaluation_references: Default::default(),
+            esm_references_rewritten: Default::default(),
+            esm_references_free_var: Default::default(),
             code_gens: Default::default(),
             exports: EcmascriptExports::None,
             async_module: ResolvedVc::cell(None),
@@ -294,25 +302,54 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
+    pub fn add_esm_reference_namespace_resolved(
+        &mut self,
+        esm_reference_idx: usize,
+        export: RcStr,
+        on_insert: impl FnOnce() -> ResolvedVc<EsmAssetReference>,
+    ) -> ResolvedVc<EsmAssetReference> {
+        *self
+            .esm_references_rewritten
+            .entry(esm_reference_idx)
+            .or_default()
+            .entry(export)
+            .or_insert_with(on_insert)
+    }
+
+    pub async fn add_esm_reference_free_var(
+        &mut self,
+        request: RcStr,
+        on_insert: impl AsyncFnOnce() -> Result<ResolvedVc<EsmAssetReference>>,
+    ) -> Result<ResolvedVc<EsmAssetReference>> {
+        Ok(match self.esm_references_free_var.entry(request) {
+            Entry::Occupied(e) => *e.get(),
+            Entry::Vacant(e) => *e.insert(on_insert().await?),
+        })
+    }
+
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
         mut self,
         import_references: Vec<ResolvedVc<EsmAssetReference>>,
-        import_references_namespace_rewritten: FxHashMap<
-            usize,
-            FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
-        >,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        // import_references_namespace_rewritten needs to be spliced in at the correct index into
-        // esm_references and esm_local_references
+        // esm_references_rewritten (and esm_references_free_var) needs to be spliced in at the
+        // correct index into esm_references and esm_local_references
         let mut esm_references = Vec::with_capacity(
-            self.esm_references.len() + import_references_namespace_rewritten.len(),
+            self.esm_references.len()
+                + self.esm_references_free_var.len()
+                + self.esm_references_rewritten.len(),
         );
+        esm_references.extend(self.esm_references_free_var.values());
+
         let mut esm_local_references = track_reexport_references.then(|| {
-            Vec::with_capacity(
-                self.esm_local_references.len() + import_references_namespace_rewritten.len(),
-            )
+            let mut esm_local_references = Vec::with_capacity(
+                self.esm_local_references.len()
+                    + self.esm_references_free_var.len()
+                    + self.esm_references_rewritten.len(),
+            );
+            esm_local_references.extend(self.esm_references_free_var.values());
+            esm_local_references
         });
         let mut esm_reexport_references = track_reexport_references
             .then(|| Vec::with_capacity(self.esm_reexport_references.len()));
@@ -323,7 +360,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 esm_references.push(*reference);
             }
             esm_references.extend(
-                import_references_namespace_rewritten
+                self.esm_references_rewritten
                     .get(&i)
                     .iter()
                     .flat_map(|m| m.values().copied()),
@@ -333,7 +370,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                     esm_local_references.push(*reference);
                 }
                 esm_local_references.extend(
-                    import_references_namespace_rewritten
+                    self.esm_references_rewritten
                         .get(&i)
                         .iter()
                         .flat_map(|m| m.values().copied()),
@@ -546,9 +583,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         ..
     } = &*parsed
     else {
-        return analysis
-            .build(Default::default(), Default::default(), false)
-            .await;
+        return analysis.build(Default::default(), false).await;
     };
 
     let compile_time_info = compile_time_info_for_module_type(
@@ -663,11 +698,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let _span = tracing::info_span!("analyze variable values");
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context))
     };
-
-    // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
-    // This caches repeated access because EsmAssetReference::new is not a turbo task function.
-    let mut import_references_namespace_rewritten: FxHashMap<usize, FxIndexMap<_, _>> =
-        FxHashMap::default();
 
     let span = tracing::info_span!("esm import references");
     let import_references = async {
@@ -1306,11 +1336,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                             let r_ref = r.await?;
                             if r_ref.export_name.is_none() && export.is_some() {
                                 if let Some(export) = export {
-                                    let r = *import_references_namespace_rewritten
-                                        .entry(esm_reference_index)
-                                        .or_default()
-                                        .entry(export.clone())
-                                        .or_insert_with(|| {
+                                    let r = analysis.add_esm_reference_namespace_resolved(
+                                        esm_reference_index,
+                                        export.clone(),
+                                        || {
                                             EsmAssetReference::new(
                                                 r_ref.origin,
                                                 r_ref.request,
@@ -1320,9 +1349,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                                 r_ref.import_externals,
                                             )
                                             .resolved_cell()
-                                        });
-                                    // No need to add a reference,
-                                    // import_references_namespace_rewritten are all added later on
+                                        },
+                                    );
                                     analysis.add_code_gen(EsmBinding::new(
                                         r,
                                         Some(export),
@@ -1375,7 +1403,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     analysis
         .build(
             import_references,
-            import_references_namespace_rewritten,
             matches!(
                 options.tree_shaking_mode,
                 Some(TreeShakingMode::ReexportsOnly)
@@ -2477,33 +2504,43 @@ async fn handle_free_var_reference(
             lookup_path,
             export,
         } => {
-            let esm_reference = EsmAssetReference::new(
-                if let Some(lookup_path) = lookup_path {
-                    ResolvedVc::upcast(
-                        PlainResolveOrigin::new(state.origin.asset_context(), **lookup_path)
+            let esm_reference = analysis
+                .add_esm_reference_free_var(request.clone(), async || {
+                    Ok(EsmAssetReference::new(
+                        if let Some(lookup_path) = lookup_path {
+                            ResolvedVc::upcast(
+                                PlainResolveOrigin::new(
+                                    state.origin.asset_context(),
+                                    **lookup_path,
+                                )
+                                .to_resolved()
+                                .await?,
+                            )
+                        } else {
+                            state.origin
+                        },
+                        Request::parse(Value::new(request.clone().into()))
                             .to_resolved()
                             .await?,
+                        IssueSource::from_swc_offsets(
+                            state.source,
+                            span.lo.to_u32(),
+                            span.hi.to_u32(),
+                        ),
+                        Default::default(),
+                        match state.tree_shaking_mode {
+                            Some(TreeShakingMode::ModuleFragments)
+                            | Some(TreeShakingMode::ReexportsOnly) => {
+                                export.clone().map(ModulePart::export)
+                            }
+                            None => None,
+                        },
+                        state.import_externals,
                     )
-                } else {
-                    state.origin
-                },
-                Request::parse(Value::new(request.clone().into()))
-                    .to_resolved()
-                    .await?,
-                IssueSource::from_swc_offsets(state.source, span.lo.to_u32(), span.hi.to_u32()),
-                Default::default(),
-                match state.tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments)
-                    | Some(TreeShakingMode::ReexportsOnly) => {
-                        export.clone().map(ModulePart::export)
-                    }
-                    None => None,
-                },
-                state.import_externals,
-            )
-            .resolved_cell();
+                    .resolved_cell())
+                })
+                .await?;
 
-            analysis.add_reference(esm_reference);
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
                 export.clone(),
