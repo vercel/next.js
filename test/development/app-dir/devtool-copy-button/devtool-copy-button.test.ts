@@ -15,10 +15,6 @@ describe('app-dir - devtool-copy-button', () => {
       await browser
         .elementByCss('[data-nextjs-data-runtime-error-copy-devtools-url]')
         .getAttribute('aria-label')
-    ).toBe(
-      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-        ? 'Copy Browser DevTools URL'
-        : 'Copy Chrome DevTools URL'
-    )
+    ).toBe('Copy Browser DevTools URL')
   })
 })
