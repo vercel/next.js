@@ -84,7 +84,10 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),
