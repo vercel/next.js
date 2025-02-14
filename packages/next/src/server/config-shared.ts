@@ -1097,8 +1097,8 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: true,
-    buildActivity: true,
+    appIsrStatus: false,
+    buildActivity: false,
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
