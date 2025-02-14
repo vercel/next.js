@@ -214,7 +214,7 @@ pub struct ModuleResolveResultBuilder {
 impl From<ModuleResolveResultBuilder> for ModuleResolveResult {
     fn from(v: ModuleResolveResultBuilder) -> Self {
         ModuleResolveResult {
-            primary: v.primary.into_iter().collect::<Vec<_>>().into_boxed_slice(),
+            primary: v.primary.into_iter().collect(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
@@ -813,7 +813,7 @@ pub struct ResolveResultBuilder {
 impl From<ResolveResultBuilder> for ResolveResult {
     fn from(v: ResolveResultBuilder) -> Self {
         ResolveResult {
-            primary: v.primary.into_iter().collect::<Vec<_>>().into_boxed_slice(),
+            primary: v.primary.into_iter().collect(),
             affecting_sources: v.affecting_sources.into_boxed_slice(),
         }
     }
