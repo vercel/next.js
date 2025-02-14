@@ -1114,7 +1114,7 @@ impl AggregationUpdateQueue {
                         if ctx.should_track_activeness() {
                             // update active count
                             let has_active_count =
-                                get!(task, Activeness).is_some_and(|a| a.active_counter > 0);
+                                get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
                             if has_active_count {
                                 self.push(AggregationUpdateJob::IncreaseActiveCount {
                                     task: task_id,
