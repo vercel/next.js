@@ -1098,8 +1098,9 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: false,
-    buildActivity: false,
+    // TODO(jiwon): Change to false once we remove the old overlay and this flag.
+    appIsrStatus: process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY !== 'true',
+    buildActivity: process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY !== 'true',
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
