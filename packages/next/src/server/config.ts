@@ -463,6 +463,20 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.appIsrStatus',
+    `\`devIndicators.appIsrStatus\` is no longer needed, because the new dev tools indicator has it enabled by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivity',
+    `\`devIndicators.buildActivity\` is no longer needed, because the new dev tools indicator has it enabled by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
