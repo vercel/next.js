@@ -27,7 +27,6 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{min, Ordering},
-    collections::HashMap,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
     future::Future,
