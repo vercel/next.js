@@ -31,19 +31,9 @@ use crate::references::{
     AstPath,
 };
 
-/// impl of code generation inferred from a ModuleReference.
-/// This is rust only and can't be implemented by non-rust plugins.
-#[turbo_tasks::value(
-    shared,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
-    #[turbo_tasks(debug_ignore, trace_ignore)]
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -90,11 +80,9 @@ impl CodeGeneration {
     }
 }
 
-#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct CodeGenerationHoistedStmt {
     pub key: RcStr,
-    #[turbo_tasks(trace_ignore)]
     pub stmt: Stmt,
 }
 
@@ -106,15 +94,6 @@ impl CodeGenerationHoistedStmt {
 
 pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
-}
-
-#[turbo_tasks::value_trait]
-pub trait CodeGenerateable {
-    fn code_generation(
-        self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Vc<CodeGeneration>;
 }
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
