@@ -22,6 +22,7 @@ use turbo_tasks::{spawn_thread, Invalidator};
 use crate::{
     format_absolute_fs_path,
     invalidation::{WatchChange, WatchStart},
+    invalidator_map::WriteContent,
     path_to_key, DiskFileSystemInner,
 };
 
@@ -192,7 +193,7 @@ impl DiskWatcher {
                         .into_par_iter()
                         .map(move |i| (reason.clone(), i))
                 })
-                .for_each(|(reason, invalidator)| {
+                .for_each(|(reason, (invalidator, _))| {
                     let _span = span.clone().entered();
                     let _guard = handle.enter();
                     invalidator.invalidate_with_reason(reason)
@@ -202,7 +203,7 @@ impl DiskWatcher {
                     let _span = span.clone().entered();
                     invalidators.into_par_iter().map(move |i| i)
                 })
-                .for_each(|invalidator| {
+                .for_each(|(invalidator, _)| {
                     let _span = span.clone().entered();
                     let _guard = handle.enter();
                     invalidator.invalidate()
@@ -459,7 +460,7 @@ fn invalidate(
 fn invalidate_path(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<String, FxHashSet<Invalidator>>,
+    invalidator_map: &mut FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
@@ -467,7 +468,7 @@ fn invalidate_path(
         if let Some(invalidators) = invalidator_map.remove(&key) {
             invalidators
                 .into_iter()
-                .for_each(|i| invalidate(inner, report_invalidation_reason, &path, i));
+                .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
         }
     }
 }
@@ -475,7 +476,7 @@ fn invalidate_path(
 fn invalidate_path_and_children_execute(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut FxHashMap<String, FxHashSet<Invalidator>>,
+    invalidator_map: &mut FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
@@ -483,7 +484,7 @@ fn invalidate_path_and_children_execute(
         for (_, invalidators) in invalidator_map.extract_if(|key, _| key.starts_with(&path_key)) {
             invalidators
                 .into_iter()
-                .for_each(|i| invalidate(inner, report_invalidation_reason, &path, i));
+                .for_each(|(i, _)| invalidate(inner, report_invalidation_reason, &path, i));
         }
     }
 }
