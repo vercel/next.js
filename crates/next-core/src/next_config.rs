@@ -47,12 +47,14 @@ pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 pub struct CacheKinds(FxHashSet<RcStr>);
 
 impl CacheKinds {
-    pub fn new() -> Self {
-        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
-    }
-
     pub fn extend<I: IntoIterator<Item = RcStr>>(&mut self, iter: I) {
         self.0.extend(iter);
+    }
+}
+
+impl Default for CacheKinds {
+    fn default() -> Self {
+        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
     }
 }
 
@@ -1432,7 +1434,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
-        let mut cache_kinds = CacheKinds::new();
+        let mut cache_kinds = CacheKinds::default();
 
         if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
             cache_kinds.extend(handlers.keys().cloned());
