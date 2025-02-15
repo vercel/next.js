@@ -25,6 +25,9 @@ patchedDependencies:
   '@storybook/react@8.5.2':
     hash: 3vtnbaj5dhujyrhznezprlo624
     path: patches/@storybook__react@8.5.2.patch
+  stacktrace-parser@0.1.10:
+    hash: misknddihoqkqinipod62zbcj4
+    path: patches/stacktrace-parser@0.1.10.patch
   webpack-sources@3.2.3:
     hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
@@ -1445,7 +1448,7 @@ importers:
         version: source-map@0.8.0-beta.0
       stacktrace-parser:
         specifier: 0.1.10
-        version: 0.1.10
+        version: 0.1.10(patch_hash=misknddihoqkqinipod62zbcj4)
       storybook:
         specifier: 8.5.2
         version: 8.5.2(prettier@3.3.3)
@@ -33548,7 +33551,7 @@ snapshots:
 
   stackback@0.0.2: {}
 
-  stacktrace-parser@0.1.10:
+  stacktrace-parser@0.1.10(patch_hash=misknddihoqkqinipod62zbcj4):
     dependencies:
       type-fest: 0.7.1
 

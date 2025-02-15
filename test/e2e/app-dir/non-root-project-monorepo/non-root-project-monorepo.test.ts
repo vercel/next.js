@@ -98,15 +98,11 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/source-maps-rsc/page.tsx (13:28) @ innerArrowFunction
+           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript)
 
-             11 | }
-             12 |
-           > 13 | const innerArrowFunction = () => {
-                |                            ^
-             14 |   require('../separate-file')
-             15 | }
-             16 |"
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
           `)
           // TODO stacktrace-parser breaks in some cases with the rsc:// protocol
           expect(
@@ -115,8 +111,8 @@ describe('non-root-project-monorepo', () => {
               '/apps_web_XXXXXX._.js '
             )
           ).toMatchInlineSnapshot(`
-           "<unknown>
-           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_XXXXXX._.js (7:7)
+           "[project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript)
+           app/separate-file.ts (1:7)
            innerArrowFunction
            app/source-maps-rsc/page.tsx (13:28)
            innerFunction
@@ -140,9 +136,9 @@ describe('non-root-project-monorepo', () => {
            "eval
            app/separate-file.ts (1:11)
            <unknown>
-           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js
+           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js?3 (149:1)
            __webpack_require__
-           file://<full-path>/apps/web/.next/server/webpack-runtime.js
+           rsc:/Server/file://<full-path>/apps/web/.next/server/webpack-runtime.js (33:42)
            innerArrowFunction
            app/source-maps-rsc/page.tsx (14:3)
            innerFunction
