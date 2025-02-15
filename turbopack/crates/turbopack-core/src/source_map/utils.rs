@@ -84,7 +84,7 @@ pub async fn resolve_source_map_sources(
             .await?
         {
             let path_str = path.to_string().await?;
-            let source = format!("{SOURCE_URL_PROTOCOL}{}", path_str);
+            let source = format!("{SOURCE_URL_PROTOCOL}///{}", path_str);
             *original_source = source;
 
             if original_content.is_none() {

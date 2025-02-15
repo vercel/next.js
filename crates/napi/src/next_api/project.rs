@@ -64,6 +64,7 @@ use crate::{register, util::DhatProfilerGuard};
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{}///", SOURCE_URL_PROTOCOL));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
     Lazy::new(|| format!("{}///[{}]/", SOURCE_URL_PROTOCOL, PROJECT_FILESYSTEM_NAME));
 
@@ -1266,8 +1267,9 @@ pub async fn project_trace_source(
                     Some(source_file.to_string()),
                     false,
                 )
-            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_URL_PROTOCOL) {
+            } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
                 // All other code like turbopack:///[turbopack] is internal code
+                // TODO(veil): Should the protocol be preserved?
                 (source_file.to_string(), None, true)
             } else {
                 bail!(
