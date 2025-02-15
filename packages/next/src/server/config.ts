@@ -492,7 +492,7 @@ function assignDefaults(
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
     Log.warnOnce(
-      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` for backward compatibility.`
+      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
     )
     result.devIndicators.position = result.devIndicators.buildActivityPosition
   }
