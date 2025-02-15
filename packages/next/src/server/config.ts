@@ -494,6 +494,7 @@ function assignDefaults(
     Log.warnOnce(
       `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` for backwards compatibility.`
     )
+    result.devIndicators.position = result.devIndicators.buildActivityPosition
   }
 
   warnOptionHasBeenMovedOutOfExperimental(

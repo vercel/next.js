@@ -843,7 +843,7 @@ export interface NextConfig extends Record<string, any> {
     appIsrStatus?: boolean
 
     /**
-     * Show "building..."" indicator in development
+     * Show "building..." indicator in development
      * @deprecated The dev tools indicator has it enabled by default.
      */
     buildActivity?: boolean

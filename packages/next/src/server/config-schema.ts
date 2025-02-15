@@ -231,6 +231,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .object({
         appIsrStatus: z.boolean().optional(),
         buildActivity: z.boolean().optional(),
+        buildActivityPosition: z
+          .union([
+            z.literal('bottom-left'),
+            z.literal('bottom-right'),
+            z.literal('top-left'),
+            z.literal('top-right'),
+          ])
+          .optional(),
         position: z
           .union([
             z.literal('bottom-left'),
