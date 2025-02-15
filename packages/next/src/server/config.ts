@@ -965,6 +965,19 @@ function assignDefaults(
       appIsrStatus: result.devIndicators?.appIsrStatus ?? true,
       buildActivity: result.devIndicators?.buildActivity ?? true,
     }
+
+    // If the user didn't explicitly set `position` or `buildActivityPosition` option,
+    // the default is going to be "bottom-left". However, the default position for the
+    // old build activity indicator was "bottom-right" which becomes a breaking change.
+    // Therefore, set to "bottom-right" if the user didn't explicitly set the option.
+    if (!hasWarnedBuildActivityPosition) {
+      result.devIndicators = {
+        ...result.devIndicators,
+        position: userConfig.devIndicators?.position
+          ? result.devIndicators.position
+          : 'bottom-right',
+      }
+    }
   }
 
   result.experimental.optimizePackageImports = [
