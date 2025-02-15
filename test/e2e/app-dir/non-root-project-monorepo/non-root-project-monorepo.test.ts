@@ -134,6 +134,7 @@ describe('non-root-project-monorepo', () => {
              2 |"
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
+          // TODO(veil): https://linear.app/vercel/issue/NDX-677
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
            "eval
