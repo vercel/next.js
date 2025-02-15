@@ -41,7 +41,7 @@ use turbopack_core::{
     issue::PlainIssue,
     source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
-    SOURCE_MAP_PREFIX,
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -65,7 +65,7 @@ use crate::{register, util::DhatProfilerGuard};
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
+    Lazy::new(|| format!("{}///[{}]/", SOURCE_URL_PROTOCOL, PROJECT_FILESYSTEM_NAME));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -1253,7 +1253,7 @@ pub async fn project_trace_source(
             } else if let Some(source_file) =
                 original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
             {
-                // Server code uses turbopack://[project]
+                // Server code uses turbopack:///[project]
                 // TODO should this also be file://?
                 (
                     get_relative_path_to(
@@ -1266,8 +1266,8 @@ pub async fn project_trace_source(
                     Some(source_file.to_string()),
                     false,
                 )
-            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
-                // All other code like turbopack://[turbopack] is internal code
+            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_URL_PROTOCOL) {
+                // All other code like turbopack:///[turbopack] is internal code
                 (source_file.to_string(), None, true)
             } else {
                 bail!(
