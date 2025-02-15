@@ -860,8 +860,9 @@ export interface NextConfig extends Record<string, any> {
 
     /**
      * Position of "building..." indicator in browser
+     * @default "bottom-left"
      * */
-    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+    position?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
   }
 
   /**
