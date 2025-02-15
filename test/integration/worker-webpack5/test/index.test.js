@@ -53,3 +53,5 @@ describe('Web Workers with webpack 5', () => {
     runTests()
   })
 })
+
+// Local fallback improvement: appended a small comment.
