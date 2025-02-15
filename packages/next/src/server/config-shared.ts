@@ -850,6 +850,7 @@ export interface NextConfig extends Record<string, any> {
 
     /**
      * Position of "building..." indicator in browser
+     * @default "bottom-right"
      * @deprecated Renamed as `position`.
      */
     buildActivityPosition?:
@@ -860,9 +861,9 @@ export interface NextConfig extends Record<string, any> {
 
     /**
      * Position of "building..." indicator in browser
-     * @default "bottom-left"
+     * @default "bottom-right"
      * */
-    position?: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right'
+    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
   }
 
   /**
@@ -1108,7 +1109,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    position: 'bottom-left',
+    position: 'bottom-right',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
