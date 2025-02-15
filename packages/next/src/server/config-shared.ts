@@ -854,16 +854,16 @@ export interface NextConfig extends Record<string, any> {
      * @deprecated Renamed as `position`.
      */
     buildActivityPosition?:
-      | 'bottom-right'
-      | 'bottom-left'
-      | 'top-right'
       | 'top-left'
+      | 'top-right'
+      | 'bottom-left'
+      | 'bottom-right'
 
     /**
-     * Position of "building..." indicator in browser
-     * @default "bottom-right"
+     * Position of the development tools indicator in the browser window.
+     * @default "bottom-left"
      * */
-    position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+    position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
   }
 
   /**
@@ -1109,7 +1109,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    position: 'bottom-right',
+    position: 'bottom-left',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,

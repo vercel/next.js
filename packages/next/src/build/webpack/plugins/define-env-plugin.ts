@@ -239,7 +239,7 @@ export function getDefineEnv({
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_BUILD_INDICATOR':
       config.devIndicators.buildActivity ?? true,
-    'process.env.__NEXT_BUILD_INDICATOR_POSITION':
+    'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators.position ?? 'bottom-right',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,

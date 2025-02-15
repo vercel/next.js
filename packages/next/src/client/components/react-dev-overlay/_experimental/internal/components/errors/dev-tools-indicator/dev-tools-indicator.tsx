@@ -11,15 +11,12 @@ import { noop as css } from '../../../helpers/noop-template'
 
 // TODO: add E2E tests to cover different scenarios
 
-export type DevToolsIndicatorPosition =
-  | 'top-left'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-right'
-
 const INDICATOR_POSITION =
-  (process.env.__NEXT_BUILD_INDICATOR_POSITION as DevToolsIndicatorPosition) ||
+  (process.env
+    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
   'bottom-left'
+
+type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
