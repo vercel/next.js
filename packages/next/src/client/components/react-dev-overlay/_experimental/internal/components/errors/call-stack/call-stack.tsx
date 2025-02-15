@@ -122,10 +122,7 @@ function ChevronUpDown() {
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
     position: relative;
-    padding: var(--size-4) var(--size-3);
-    /* To optically align last item */
-    padding-bottom: 8px;
-    position: relative;
+    margin-top: var(--size-2);
   }
 
   .error-overlay-call-stack-header {
@@ -133,8 +130,7 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    margin-bottom: var(--size-3);
-    padding: 0 var(--size-2);
+    padding: var(--size-2) var(--size-2) var(--size-3) var(--size-1);
     width: 100%;
   }
 

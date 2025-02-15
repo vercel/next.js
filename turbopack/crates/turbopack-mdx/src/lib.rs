@@ -272,7 +272,7 @@ impl Issue for MdxIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(match &self.loc {
-            Some(loc) => Some(loc.resolve_source_map(*self.path).await?.into_owned()),
+            Some(loc) => Some(loc.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }

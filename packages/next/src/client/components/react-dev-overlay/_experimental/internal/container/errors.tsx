@@ -264,10 +264,10 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--size-3);
+    margin-bottom: var(--size-3_5);
   }
   .error-overlay-notes-container {
-    padding: 0 var(--size-4);
+    margin: var(--size-2) var(--size-0_5);
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;

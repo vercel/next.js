@@ -11,7 +11,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkPlaceable, utils::StringifyJs};
 
@@ -217,7 +217,7 @@ impl Asset for EcmascriptBuildNodeEntryChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

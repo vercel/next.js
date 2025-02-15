@@ -333,7 +333,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .readonly()
           .optional(),
         taint: z.boolean().optional(),
-        reactOwnerStack: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         scrollRestoration: z.boolean().optional(),

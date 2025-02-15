@@ -197,6 +197,7 @@ impl AppProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().no_mangling(),
         ))
     }
 

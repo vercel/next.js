@@ -291,11 +291,11 @@ impl ImportMap {
         None
     }
 
-    pub fn references(&self) -> impl Iterator<Item = &ImportMapReference> {
+    pub fn references(&self) -> impl ExactSizeIterator<Item = &ImportMapReference> {
         self.references.iter()
     }
 
-    pub fn reexports(&self) -> impl Iterator<Item = (usize, &Reexport)> {
+    pub fn reexports(&self) -> impl ExactSizeIterator<Item = (usize, &Reexport)> {
         self.reexports.iter().map(|(i, r)| (*i, r))
     }
 

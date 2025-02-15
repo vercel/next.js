@@ -77,8 +77,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   const open = useOpenInEditor({
     file: file?.fileName,
-    lineNumber: file?.location?.line,
-    column: file?.location?.column,
+    lineNumber: file?.location?.line ?? 1,
+    column: file?.location?.column ?? 0,
   })
 
   const stackFrame = {
@@ -96,6 +96,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
       <button
         aria-label="Open in editor"
         className="code-frame-header"
+        data-with-open-in-editor-link-source-file
         onClick={open}
       >
         <div className="code-frame-link">
@@ -114,7 +115,10 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),
@@ -136,11 +140,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 }
 
 export const TERMINAL_STYLES = css`
-  .terminal-source {
-    display: flex;
-    align-items: center;
-  }
-
   [data-nextjs-terminal]::selection,
   [data-nextjs-terminal] *::selection {
     background-color: var(--color-ansi-selection);

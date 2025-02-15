@@ -2546,7 +2546,6 @@ export default abstract class Server<
         renderOpts.supportsDynamicResponse = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
-        renderOpts.isDebugStaticShell = isDebugStaticShell
         renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 

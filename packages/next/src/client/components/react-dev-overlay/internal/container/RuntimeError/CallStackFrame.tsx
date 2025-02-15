@@ -41,8 +41,7 @@ export const CallStackFrame: React.FC<{
         <HotlinkedText text={formattedMethod} />
       </h3>
       <div
-        data-has-source={hasSource ? 'true' : undefined}
-        data-no-source={hasSource ? undefined : 'true'}
+        data-has-source={hasSource}
         tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}

@@ -29,7 +29,7 @@ export const styles = css`
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     color: var(--color-ansi-red);
   }
-  [data-nextjs-container-errors-pseudo-html-line--error] {
+  [data-nextjs-container-errors-pseudo-html--diff='error'] {
     color: var(--color-ansi-yellow);
     font-weight: bold;
   }
@@ -56,7 +56,7 @@ export const styles = css`
     overflow-y: hidden;
   }
   [data-nextjs-container-errors-pseudo-html--diff],
-  [data-nextjs-container-errors-pseudo-html-line--error] {
+  [data-nextjs-container-errors-pseudo-html--diff='error'] {
     scroll-snap-align: center;
   }
 `

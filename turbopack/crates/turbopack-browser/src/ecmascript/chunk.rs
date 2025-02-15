@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{Chunk, ChunkingContext, OutputChunk, OutputChunkRuntimeInfo},
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
     version::VersionedContent,
 };
 use turbopack_ecmascript::chunk::EcmascriptChunk;
@@ -132,12 +132,12 @@ impl Asset for EcmascriptDevChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.own_content().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionSourceMap> {
+    fn by_section(self: Vc<Self>, section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         self.own_content().by_section(section)
     }
 }

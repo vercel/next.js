@@ -3,7 +3,6 @@ import * as React from 'react'
 type ErrorBoundaryProps = {
   children?: React.ReactNode
   onError: (error: Error, componentStack: string | null) => void
-  isMounted?: boolean
 }
 type ErrorBoundaryState = { error: Error | null }
 

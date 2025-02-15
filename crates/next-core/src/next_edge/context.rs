@@ -212,6 +212,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -230,7 +231,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
     )
     .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })
@@ -261,6 +264,7 @@ pub async fn get_edge_chunking_context(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -280,7 +284,9 @@ pub async fn get_edge_chunking_context(
     // asset from the output directory.
     .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })

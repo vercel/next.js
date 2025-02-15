@@ -16,17 +16,13 @@ export default function ReactDevOverlay({
 }: {
   children?: React.ReactNode
 }) {
-  const {
-    isMounted,
-    hasBuildError,
-    hasRuntimeErrors,
-    state,
-    onComponentError,
-  } = usePagesReactDevOverlay()
+  const { hasBuildError, hasRuntimeErrors, state, onComponentError } =
+    usePagesReactDevOverlay()
+  const isMounted = hasBuildError || hasRuntimeErrors
 
   return (
     <>
-      <ErrorBoundary isMounted={isMounted} onError={onComponentError}>
+      <ErrorBoundary onError={onComponentError}>
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (

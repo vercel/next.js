@@ -3,11 +3,9 @@ import type { OverlayState } from '../../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import { NextLogo } from './internal/next-logo'
+import { Cross, NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
-import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 
 // TODO: add E2E tests to cover different scenarios
@@ -22,15 +20,6 @@ export function DevToolsIndicator({
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
-  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
-  useKeyboardShortcut({
-    key: '.',
-    modifiers: [MODIFIERS.CTRL_CMD],
-    callback: () => {
-      setIsDevToolsIndicatorOpen(!isDevToolsIndicatorOpen)
-      setIsErrorOverlayOpen(!isDevToolsIndicatorOpen)
-    },
-  })
 
   return (
     isDevToolsIndicatorOpen && (
@@ -92,7 +81,16 @@ function DevToolsPopover({
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
-  function select(index: number | 'last') {
+  function select(index: number | 'first' | 'last') {
+    if (index === 'first') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const firstIndex = all[0].getAttribute('data-index')
+        select(Number(firstIndex))
+      }
+      return
+    }
+
     if (index === 'last') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
       if (all) {
@@ -124,7 +122,7 @@ function DevToolsPopover({
         select(prev)
         break
       case 'Home':
-        select(0)
+        select('first')
         break
       case 'End':
         select('last')
@@ -144,7 +142,7 @@ function DevToolsPopover({
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
-        select(0)
+        select('first')
       })
     }
 
@@ -186,7 +184,6 @@ function DevToolsPopover({
     >
       <NextLogo
         ref={triggerRef}
-        key={issueCount}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen}
         aria-controls="nextjs-dev-tools-menu"
@@ -227,12 +224,14 @@ function DevToolsPopover({
             }}
           >
             <div className="inner">
-              <MenuItem
-                index={0}
-                label="Issues"
-                value={<IssueCount>{issueCount}</IssueCount>}
-                onClick={openErrorOverlay}
-              />
+              {issueCount > 0 && (
+                <MenuItem
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
+                />
+              )}
               <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
@@ -252,8 +251,9 @@ function DevToolsPopover({
 
             <div className="footer">
               <MenuItem
+                data-hide-dev-tools
                 label="Hide Dev Tools"
-                value={<HideShortcut />}
+                value={<Cross color="var(--color-gray-900)" />}
                 onClick={hide}
                 index={isTurbopack ? 1 : 2}
               />
@@ -328,34 +328,6 @@ function IssueCount({ children }: { children: number }) {
     <span className="issueCount" data-has-issues={children > 0}>
       <span className="indicator" />
       {children}
-    </span>
-  )
-}
-
-function HideShortcut() {
-  const isMac =
-    // Feature detect for `navigator.userAgentData` which is experimental:
-    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
-    'userAgentData' in navigator
-      ? (navigator.userAgentData as any).platform === 'macOS'
-      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
-        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-        navigator.platform.indexOf('Mac') === 0 ||
-        navigator.platform === 'iPhone'
-
-  return (
-    <span className="shortcut">
-      {isMac ? (
-        <kbd aria-label="Command">⌘</kbd>
-      ) : (
-        <kbd
-          aria-label="Control"
-          style={{ width: 'fit-content', padding: '0 4px' }}
-        >
-          Ctrl
-        </kbd>
-      )}
-      <kbd>.</kbd>
     </span>
   )
 }

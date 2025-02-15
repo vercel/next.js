@@ -4,8 +4,7 @@ export { PseudoHtmlDiff } from '../../../../hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html] {
-    padding: var(--size-3) 0;
-    margin: var(--size-2) var(--size-4) var(--size-4);
+    margin: var(--size-2) 0;
     border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
@@ -20,7 +19,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     padding-left: var(--size-10);
     line-height: calc(5 / 3);
   }
-  [data-nextjs-container-errors-pseudo-html-line--error] {
+  [data-nextjs-container-errors-pseudo-html--diff='error'] {
     background: var(--color-amber-100);
     font-weight: bold;
   }
@@ -51,7 +50,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     margin-left: calc(var(--size-6) * -1);
     margin-right: var(--size-6);
   }
-  [data-nextjs-container-errors-pseudo-html-line--error]
+  [data-nextjs-container-errors-pseudo-html--diff='error']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
     color: var(--color-amber-900);
   }
@@ -81,7 +80,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     overflow-y: hidden;
   }
   [data-nextjs-container-errors-pseudo-html--diff],
-  [data-nextjs-container-errors-pseudo-html-line--error] {
+  [data-nextjs-container-errors-pseudo-html--diff='error'] {
     scroll-snap-align: center;
   }
   .error-overlay-hydration-error-diff-plus-icon {

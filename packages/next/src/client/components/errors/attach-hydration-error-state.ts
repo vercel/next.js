@@ -1,5 +1,6 @@
 import {
   getDefaultHydrationErrorMessage,
+  isHydrationError,
   testReactHydrationWarning,
 } from '../is-hydration-error'
 import {
@@ -13,24 +14,42 @@ export function attachHydrationErrorState(error: Error) {
   )
   let parsedHydrationErrorState: typeof hydrationErrorState = {}
   const isHydrationWarning = testReactHydrationWarning(error.message)
+  const isHydrationRuntimeError = isHydrationError(error)
   // If the reactHydrationDiffSegments exists
   // and the diff (reactHydrationDiffSegments[1]) exists
   // e.g. the hydration diff log error.
-  if (reactHydrationDiffSegments && reactHydrationDiffSegments[1]) {
+  if (reactHydrationDiffSegments) {
+    const diff = reactHydrationDiffSegments[1]
     parsedHydrationErrorState = {
       ...(error as any).details,
       ...hydrationErrorState,
-      warning: hydrationErrorState.warning || [
-        getDefaultHydrationErrorMessage(),
-      ],
+      // If diff is present in error, we don't need to pick up the console logged warning.
+      // - if hydration error has diff, and is not hydration diff log, then it's a normal hydration error.
+      // - if hydration error no diff, then leverage the one from the hydration diff log.
+
+      warning: (diff && !isHydrationWarning
+        ? null
+        : hydrationErrorState.warning) || [getDefaultHydrationErrorMessage()],
+      // When it's hydration diff log, do not show notes section.
+      // This condition is only for the 1st squashed error.
       notes: isHydrationWarning ? '' : reactHydrationDiffSegments[0],
-      reactOutputComponentDiff: reactHydrationDiffSegments[1],
+      reactOutputComponentDiff: diff,
     }
     // Cache the `reactOutputComponentDiff` into hydrationErrorState.
     // This is only required for now when we still squashed the hydration diff log into hydration error.
     // Once the all error is logged to dev overlay in order, this will go away.
-    hydrationErrorState.reactOutputComponentDiff =
-      parsedHydrationErrorState.reactOutputComponentDiff
+    if (!hydrationErrorState.reactOutputComponentDiff && diff) {
+      hydrationErrorState.reactOutputComponentDiff = diff
+    }
+    // If it's hydration runtime error that doesn't contain the diff, combine the diff from the cached hydration diff.
+    if (
+      !diff &&
+      isHydrationRuntimeError &&
+      hydrationErrorState.reactOutputComponentDiff
+    ) {
+      parsedHydrationErrorState.reactOutputComponentDiff =
+        hydrationErrorState.reactOutputComponentDiff
+    }
   } else {
     // Normal runtime error, where it doesn't contain the hydration diff.
 

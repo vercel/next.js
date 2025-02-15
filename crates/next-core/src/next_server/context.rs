@@ -990,6 +990,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1013,7 +1014,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     )
     .asset_prefix(asset_prefix)
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })
@@ -1049,6 +1052,7 @@ pub async fn get_server_chunking_context(
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
     turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1065,7 +1069,9 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
     })

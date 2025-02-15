@@ -71,7 +71,7 @@ describe('app-dir - owner-stack', () => {
       return log.message.includes('Error: browser error')
     }).message
 
-    // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+    // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
     if (isNewDevOverlay) {
       if (process.env.TURBOPACK) {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
@@ -115,22 +115,22 @@ describe('app-dir - owner-stack', () => {
     } else {
       if (process.env.TURBOPACK) {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-          "%o
-          %s Error: browser error
-          at useThrowError 
-          at useErrorHook 
-          at Page 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at performWorkOnRoot 
-          at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+         "%o
+         %s Error: browser error
+         at useThrowError 
+         at useErrorHook 
+         at Page 
+         at react-stack-bottom-frame 
+         at renderWithHooks 
+         at updateFunctionComponent 
+         at beginWork 
+         at runWithFiberInDEV 
+         at performUnitOfWork 
+         at workLoopSync 
+         at renderRootSync 
+         at performWorkOnRoot 
+         at performWorkOnRootViaSchedulerTask 
+         at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
         `)
       } else {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
@@ -260,7 +260,7 @@ describe('app-dir - owner-stack', () => {
        at performWorkOnRoot 
        at performWorkOnRootViaSchedulerTask 
        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
-    `)
+      `)
     }
   })
 
