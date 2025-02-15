@@ -239,6 +239,7 @@ export function getDefineEnv({
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_BUILD_INDICATOR':
       config.devIndicators.buildActivity ?? true,
+    'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators.position ?? 'bottom-left',
     'process.env.__NEXT_STRICT_MODE':

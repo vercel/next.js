@@ -258,6 +258,36 @@ export interface LoggingConfig {
   incomingRequests?: boolean | IncomingRequestLoggingConfig
 }
 
+export interface DevIndicatorsConfig {
+  /**
+   * @deprecated The dev tools indicator has it enabled by default.
+   * */
+  appIsrStatus?: boolean
+
+  /**
+   * Show "building..." indicator in development
+   * @deprecated The dev tools indicator has it enabled by default.
+   */
+  buildActivity?: boolean
+
+  /**
+   * Position of "building..." indicator in browser
+   * @default "bottom-right"
+   * @deprecated Renamed as `position`.
+   */
+  buildActivityPosition?:
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
+
+  /**
+   * Position of the development tools indicator in the browser window.
+   * @default "bottom-left"
+   * */
+  position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+}
+
 export interface ExperimentalConfig {
   nodeMiddleware?: boolean
   cacheHandlers?: {
@@ -836,35 +866,8 @@ export interface NextConfig extends Record<string, any> {
   images?: ImageConfig
 
   /** Configure indicators in development environment */
-  devIndicators?: {
-    /**
-     * @deprecated The dev tools indicator has it enabled by default.
-     * */
-    appIsrStatus?: boolean
-
-    /**
-     * Show "building..." indicator in development
-     * @deprecated The dev tools indicator has it enabled by default.
-     */
-    buildActivity?: boolean
-
-    /**
-     * Position of "building..." indicator in browser
-     * @default "bottom-right"
-     * @deprecated Renamed as `position`.
-     */
-    buildActivityPosition?:
-      | 'top-left'
-      | 'top-right'
-      | 'bottom-left'
-      | 'bottom-right'
-
-    /**
-     * Position of the development tools indicator in the browser window.
-     * @default "bottom-left"
-     * */
-    position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
-  }
+  // Quite a large discriminant union, but is to skip boolean type check.
+  devIndicators?: DevIndicatorsConfig | (DevIndicatorsConfig & false)
 
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
