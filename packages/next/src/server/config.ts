@@ -938,9 +938,10 @@ function assignDefaults(
   if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'false') {
     result.experimental.newDevOverlay = false
   }
+  // Preserve the default indicator options for old overlay.
   if (result.experimental.newDevOverlay !== true) {
-    // Preserve the default indicator options for old overlay.
     result.devIndicators = {
+      ...result.devIndicators,
       appIsrStatus: result.devIndicators?.appIsrStatus ?? true,
       buildActivity: result.devIndicators?.buildActivity ?? true,
     }
