@@ -55,7 +55,8 @@ export function warnOptionHasBeenDeprecated(
   nestedPropertyKey: string,
   reason: string,
   silent: boolean
-) {
+): boolean {
+  let hasWarned = false
   if (!silent) {
     let current = config
     let found = true
@@ -69,9 +70,11 @@ export function warnOptionHasBeenDeprecated(
       }
     }
     if (found) {
-      Log.warn(reason)
+      Log.warnOnce(reason)
+      hasWarned = true
     }
   }
+  return hasWarned
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -111,7 +114,7 @@ export function warnOptionHasBeenRenamed(
 ) {
   if (config[oldKey]) {
     if (!silent) {
-      Log.warn(
+      Log.warnOnce(
         `\`${oldKey}\` has been renamed to \`${newKey}\`. ` +
           `Please update your ${configFileName} file accordingly.`
       )
@@ -505,22 +508,20 @@ function assignDefaults(
     silent
   )
 
-  warnOptionHasBeenRenamed(
+  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
     result,
     'devIndicators.buildActivityPosition',
-    'devIndicators.position',
-    configFileName,
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
     silent
   )
-
-  if (result.devIndicators?.buildActivityPosition) {
-    if (result.devIndicators.position) {
-      Log.warn(
-        `\`devIndicators.buildActivityPosition\` is conflicting with \`devIndicators.position\`. \`devIndicators.position\` will take precedence.`
-      )
-    } else {
-      result.devIndicators.position = result.devIndicators.buildActivityPosition
-    }
+  if (
+    hasWarnedBuildActivityPosition &&
+    result.devIndicators?.buildActivityPosition &&
+    result.devIndicators.buildActivityPosition !== result.devIndicators.position
+  ) {
+    Log.warnOnce(
+      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` for backwardscompatibility.`
+    )
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
