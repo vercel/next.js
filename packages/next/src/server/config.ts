@@ -105,34 +105,6 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   return config
 }
 
-export function warnOptionHasBeenRenamed(
-  config: NextConfig,
-  oldKey: string,
-  newKey: string,
-  configFileName: string,
-  silent: boolean
-) {
-  if (config[oldKey]) {
-    if (!silent) {
-      Log.warnOnce(
-        `\`${oldKey}\` has been renamed to \`${newKey}\`. ` +
-          `Please update your ${configFileName} file accordingly.`
-      )
-    }
-
-    let current = config
-    const newKeys = newKey.split('.')
-    while (newKeys.length > 1) {
-      const key = newKeys.shift()!
-      current[key] = current[key] || {}
-      current = current[key]
-    }
-    current[newKeys.shift()!] = config[oldKey]
-  }
-
-  return config
-}
-
 function warnCustomizedOption(
   config: NextConfig,
   key: string,
