@@ -2166,8 +2166,7 @@ export default abstract class Server<
     const couldSupportPPR: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      !isHtmlBot
+      isAppPageRouteModule(routeModule)
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
     // enable debugging of the static shell.
@@ -3228,8 +3227,7 @@ export default abstract class Server<
 
     const didPostpone =
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      typeof cacheEntry.value.postponed === 'string' &&
-      !isHtmlBot
+      typeof cacheEntry.value.postponed === 'string'
 
     if (
       isSSG &&
