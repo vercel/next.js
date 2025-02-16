@@ -1014,6 +1014,12 @@ function shouldForceRevalidate(
     }
   }
 
+  // If it's an on-demand revalidation and not a stale revalidation request
+  // then we should force revalidation to mimic the behavior of unstable_cache.
+  if (workStore.isOnDemandRevalidate && !workStore.isStaleRevalidationRequest) {
+    return true
+  }
+
   return false
 }
 
