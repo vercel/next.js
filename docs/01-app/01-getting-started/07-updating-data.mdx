@@ -167,25 +167,26 @@ export async function createPost(formData) {
 
 ### Event Handlers
 
-You can invoke a Server Function in a Client Component by using event handlers such as `onClick`.
+You can invoke a Server Function in a Client Component by using event handlers such as `onClick`. You can use React's [`useTransition`](https://react.dev/reference/react/useTransition) hook to show a loading indicator, show optimistic state updates, and handle errors. 
 
 ```tsx filename="app/like-button.tsx" switcher
 'use client'
 
 import { incrementLike } from './actions'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 
 export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [isPending, startTransition] = useTransition()
   const [likes, setLikes] = useState(initialLikes)
-
   return (
     <>
       <p>Total Likes: {likes}</p>
       <button
-        onClick={async () => {
+        onClick={() => startTransition(async () => {
           const updatedLikes = await incrementLike()
           setLikes(updatedLikes)
-        }}
+        })}
+        disabled={isPending}
       >
         Like
       </button>
@@ -198,19 +199,21 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
 'use client'
 
 import { incrementLike } from './actions'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 
 export default function LikeButton({ initialLikes }) {
+  const [isPending, startTransition] = useTransition()
   const [likes, setLikes] = useState(initialLikes)
 
   return (
     <>
       <p>Total Likes: {likes}</p>
       <button
-        onClick={async () => {
+        onClick={() => startTransition(async () => {
           const updatedLikes = await incrementLike()
           setLikes(updatedLikes)
-        }}
+        })}
+        disabled={isPending}
       >
         Like
       </button>
