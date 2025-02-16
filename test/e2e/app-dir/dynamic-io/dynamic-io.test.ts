@@ -245,6 +245,36 @@ describe('dynamic-io', () => {
     }
   })
 
+  it('should revalidate cached data that only use cached ("use cache") IO', async () => {
+    if (!isNextDev) {
+      const json = await next.readJSON('.next/prerender-manifest.json')
+      const previewModeId = json.preview.previewModeId
+
+      const revalidate = async () => {
+        return next.fetch('/cases/use_cache_ssg', {
+          method: 'HEAD',
+          headers: {
+            'x-prerender-revalidate': previewModeId,
+          },
+        })
+      }
+
+      // Because dynamicIO cache are not persisted between build and prod, we have to prepopulate it to reproduce the issue
+      // We run revalidate once, which will bypass the incremental cache and populate the dynamicIO cache
+      await revalidate()
+      const $ = await next.render$('/cases/use_cache_ssg', {})
+      const initialValue = $('#value').text()
+
+      const response = await revalidate()
+      expect(response.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
+
+      const revalidated = await next.render$('/cases/use_cache_ssg', {})
+
+      expect(revalidated('#layout').text()).toBe('at runtime')
+      expect(revalidated('#value').text()).not.toBe(initialValue)
+    }
+  })
+
   itSkipTurbopack(
     'should prerender pages that cached the whole page',
     async () => {

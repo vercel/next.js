@@ -919,6 +919,10 @@ function shouldForceRevalidate(
       return workUnitStore.forceRevalidate
     }
   }
+  // When an on-demand revalidation is ongoing, we should force revalidate every entry like it is for unstable_cache.
+  if (workStore.isOnDemandRevalidate) {
+    return true
+  }
 
   return false
 }
