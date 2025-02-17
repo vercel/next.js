@@ -138,7 +138,6 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
-  PRERENDER_REVALIDATE_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
@@ -2079,11 +2078,7 @@ export default abstract class Server<
       staticPaths?.includes(resolvedUrlPathname) ||
       // this signals revalidation in deploy environments
       // TODO: make this more generic
-      req.headers['x-now-route-matches'] ||
-      // In dev mode, we don't know for sure whether a route could be
-      // prerendered. But if the prerender revalidate header is set because the
-      // user triggered an on-demand revalidation, we can assume so.
-      (this.renderOpts.dev && req.headers[PRERENDER_REVALIDATE_HEADER])
+      req.headers['x-now-route-matches']
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {

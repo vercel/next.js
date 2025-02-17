@@ -302,6 +302,7 @@ async function revalidate(
 
       if (
         cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        res.status !== 200 &&
         !(res.status === 404 && opts.unstable_onlyGenerated)
       ) {
         throw new Error(`Invalid response ${res.status}`)
