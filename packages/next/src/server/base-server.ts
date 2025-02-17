@@ -180,6 +180,7 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1433,23 +1434,18 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const _globalThis: typeof globalThis & {
-        __nextCacheHandlers?: Record<
-          string,
-          import('./lib/cache-handlers/types').CacheHandler
-        >
-      } = globalThis
-
-      if (_globalThis.__nextCacheHandlers) {
-        const expiredTags: string[] =
-          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-            ','
-          ) || []
-
-        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler?.receiveExpiredTags === 'function') {
-            await handler.receiveExpiredTags(...expiredTags)
+      // If the header is present, receive the expired tags from all the
+      // cache handlers.
+      const handlers = getCacheHandlers()
+      if (handlers) {
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
+        if (typeof header === 'string') {
+          const expiredTags = header.split(',')
+          const promises: Promise<void>[] = []
+          for (const handler of handlers) {
+            promises.push(handler.receiveExpiredTags(...expiredTags))
           }
+          await Promise.all(promises)
         }
       }
 
