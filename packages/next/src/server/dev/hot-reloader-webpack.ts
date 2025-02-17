@@ -524,9 +524,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 if (file) {
                   // `file` is filepath in `pages/` but it can be a webpack url.
                   // If it's a webpack loader URL, it will include the app-pages layer
-                  if (
-                    file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
-                  ) {
+                  if (file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/`)) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
