@@ -33,7 +33,7 @@ export function DevToolsInfo({
             className="dev-tools-info-learn-more-button"
             href={learnMoreLink}
             target="_blank"
-            rel="noreferrer"
+            rel="noreferrer noopener"
           >
             Learn More
           </a>
