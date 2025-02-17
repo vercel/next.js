@@ -91,21 +91,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "13.1.0", features = [
+swc_core = { version = "14.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "6.0.0" }
+testing = { version = "7.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.3"
-modularize_imports = { version = "0.75.0" }
-styled_components = { version = "0.103.0" }
-styled_jsx = { version = "0.79.0" }
-swc_emotion = { version = "0.79.0" }
-swc_relay = { version = "0.49.0" }
+modularize_imports = { version = "0.76.0" }
+styled_components = { version = "0.104.0" }
+styled_jsx = { version = "0.80.0" }
+swc_emotion = { version = "0.80.0" }
+swc_relay = { version = "0.50.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -226,3 +226,137 @@ wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
+
+
+ast_node                         = { path = '/Users/kdy1/projects/s/chores/crates/ast_node' }
+better_scoped_tls                = { path = '/Users/kdy1/projects/s/chores/crates/better_scoped_tls' }
+binding_macros                   = { path = '/Users/kdy1/projects/s/chores/crates/binding_macros' }
+dbg-swc                          = { path = '/Users/kdy1/projects/s/chores/crates/dbg-swc' }
+from_variant                     = { path = '/Users/kdy1/projects/s/chores/crates/from_variant' }
+generate-code                    = { path = '/Users/kdy1/projects/s/chores/tools/generate-code' }
+hstr                             = { path = '/Users/kdy1/projects/s/chores/crates/hstr' }
+jsdoc                            = { path = '/Users/kdy1/projects/s/chores/crates/jsdoc' }
+preset_env_base                  = { path = '/Users/kdy1/projects/s/chores/crates/preset_env_base' }
+string_enum                      = { path = '/Users/kdy1/projects/s/chores/crates/string_enum' }
+swc                              = { path = '/Users/kdy1/projects/s/chores/crates/swc' }
+swc-releaser                     = { path = '/Users/kdy1/projects/s/chores/tools/swc-releaser' }
+swc_allocator                    = { path = '/Users/kdy1/projects/s/chores/crates/swc_allocator' }
+swc_atoms                        = { path = '/Users/kdy1/projects/s/chores/crates/swc_atoms' }
+swc_bundler                      = { path = '/Users/kdy1/projects/s/chores/crates/swc_bundler' }
+swc_cached                       = { path = '/Users/kdy1/projects/s/chores/crates/swc_cached' }
+swc_cli_impl                     = { path = '/Users/kdy1/projects/s/chores/crates/swc_cli_impl' }
+swc_common                       = { path = '/Users/kdy1/projects/s/chores/crates/swc_common' }
+swc_compiler_base                = { path = '/Users/kdy1/projects/s/chores/crates/swc_compiler_base' }
+swc_config                       = { path = '/Users/kdy1/projects/s/chores/crates/swc_config' }
+swc_config_macro                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_config_macro' }
+swc_core                         = { path = '/Users/kdy1/projects/s/chores/crates/swc_core' }
+swc_css                          = { path = '/Users/kdy1/projects/s/chores/crates/swc_css' }
+swc_css_ast                      = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_ast' }
+swc_css_codegen                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_codegen' }
+swc_css_codegen_macros           = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_codegen_macros' }
+swc_css_compat                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_compat' }
+swc_css_lints                    = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_lints' }
+swc_css_minifier                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_minifier' }
+swc_css_modules                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_modules' }
+swc_css_parser                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_parser' }
+swc_css_prefixer                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_prefixer' }
+swc_css_utils                    = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_utils' }
+swc_css_visit                    = { path = '/Users/kdy1/projects/s/chores/crates/swc_css_visit' }
+swc_ecma_ast                     = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_ast' }
+swc_ecma_codegen                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_codegen' }
+swc_ecma_codegen_macros          = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_codegen_macros' }
+swc_ecma_compat_bugfixes         = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_bugfixes' }
+swc_ecma_compat_common           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_common' }
+swc_ecma_compat_es2015           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2015' }
+swc_ecma_compat_es2016           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2016' }
+swc_ecma_compat_es2017           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2017' }
+swc_ecma_compat_es2018           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2018' }
+swc_ecma_compat_es2019           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2019' }
+swc_ecma_compat_es2020           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2020' }
+swc_ecma_compat_es2021           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2021' }
+swc_ecma_compat_es2022           = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es2022' }
+swc_ecma_compat_es3              = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_compat_es3' }
+swc_ecma_ext_transforms          = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_ext_transforms' }
+swc_ecma_lints                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_lints' }
+swc_ecma_loader                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_loader' }
+swc_ecma_minifier                = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_minifier' }
+swc_ecma_parser                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_parser' }
+swc_ecma_preset_env              = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_preset_env' }
+swc_ecma_quote                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_quote' }
+swc_ecma_quote_macros            = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_quote_macros' }
+swc_ecma_testing                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_testing' }
+swc_ecma_transforms              = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms' }
+swc_ecma_transforms_base         = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_base' }
+swc_ecma_transforms_classes      = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_classes' }
+swc_ecma_transforms_compat       = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_compat' }
+swc_ecma_transforms_macros       = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_macros' }
+swc_ecma_transforms_module       = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_module' }
+swc_ecma_transforms_optimization = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_optimization' }
+swc_ecma_transforms_proposal     = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_proposal' }
+swc_ecma_transforms_react        = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_react' }
+swc_ecma_transforms_testing      = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_testing' }
+swc_ecma_transforms_typescript   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_transforms_typescript' }
+swc_ecma_usage_analyzer          = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_usage_analyzer' }
+swc_ecma_utils                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_utils' }
+swc_ecma_visit                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecma_visit' }
+swc_ecmascript                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_ecmascript' }
+swc_eq_ignore_macros             = { path = '/Users/kdy1/projects/s/chores/crates/swc_eq_ignore_macros' }
+swc_error_reporters              = { path = '/Users/kdy1/projects/s/chores/crates/swc_error_reporters' }
+swc_estree_ast                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_estree_ast' }
+swc_estree_compat                = { path = '/Users/kdy1/projects/s/chores/crates/swc_estree_compat' }
+swc_fast_graph                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_fast_graph' }
+swc_fast_ts_strip                = { path = '/Users/kdy1/projects/s/chores/crates/swc_fast_ts_strip' }
+swc_graph_analyzer               = { path = '/Users/kdy1/projects/s/chores/crates/swc_graph_analyzer' }
+swc_html                         = { path = '/Users/kdy1/projects/s/chores/crates/swc_html' }
+swc_html_ast                     = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_ast' }
+swc_html_codegen                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_codegen' }
+swc_html_codegen_macros          = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_codegen_macros' }
+swc_html_minifier                = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_minifier' }
+swc_html_parser                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_parser' }
+swc_html_utils                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_utils' }
+swc_html_visit                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_html_visit' }
+swc_interop_babel                = { path = '/Users/kdy1/projects/s/chores/crates/swc_interop_babel' }
+swc_interop_nodejs               = { path = '/Users/kdy1/projects/s/chores/crates/swc_interop_nodejs' }
+swc_macros_common                = { path = '/Users/kdy1/projects/s/chores/crates/swc_macros_common' }
+swc_malloc                       = { path = '/Users/kdy1/projects/s/chores/crates/swc_malloc' }
+swc_node_bundler                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_node_bundler' }
+swc_node_comments                = { path = '/Users/kdy1/projects/s/chores/crates/swc_node_comments' }
+swc_nodejs_common                = { path = '/Users/kdy1/projects/s/chores/crates/swc_nodejs_common' }
+swc_parallel                     = { path = '/Users/kdy1/projects/s/chores/crates/swc_parallel' }
+swc_plugin                       = { path = '/Users/kdy1/projects/s/chores/crates/swc_plugin' }
+swc_plugin_macro                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_plugin_macro' }
+swc_plugin_proxy                 = { path = '/Users/kdy1/projects/s/chores/crates/swc_plugin_proxy' }
+swc_plugin_runner                = { path = '/Users/kdy1/projects/s/chores/crates/swc_plugin_runner' }
+swc_plugin_testing               = { path = '/Users/kdy1/projects/s/chores/crates/swc_plugin_testing' }
+swc_timer                        = { path = '/Users/kdy1/projects/s/chores/crates/swc_timer' }
+swc_trace_macro                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_trace_macro' }
+swc_transform_common             = { path = '/Users/kdy1/projects/s/chores/crates/swc_transform_common' }
+swc_typescript                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_typescript' }
+swc_visit                        = { path = '/Users/kdy1/projects/s/chores/crates/swc_visit' }
+swc_x_optimizer                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_x_optimizer' }
+swc_xml                          = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml' }
+swc_xml_ast                      = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml_ast' }
+swc_xml_codegen                  = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml_codegen' }
+swc_xml_codegen_macros           = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml_codegen_macros' }
+swc_xml_parser                   = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml_parser' }
+swc_xml_visit                    = { path = '/Users/kdy1/projects/s/chores/crates/swc_xml_visit' }
+testing                          = { path = '/Users/kdy1/projects/s/chores/crates/testing' }
+testing_macros                   = { path = '/Users/kdy1/projects/s/chores/crates/testing_macros' }
+
+
+modularize_imports = { path = '/Users/kdy1/projects/s/plugins/packages/transform-imports/transform' }
+react_remove_properties = { path = '/Users/kdy1/projects/s/plugins/packages/react-remove-properties/transform' }
+remove_console = { path = '/Users/kdy1/projects/s/plugins/packages/remove-console/transform' }
+styled_components = { path = '/Users/kdy1/projects/s/plugins/packages/styled-components/transform' }
+styled_jsx = { path = '/Users/kdy1/projects/s/plugins/packages/styled-jsx/transform' }
+swc_confidential = { path = '/Users/kdy1/projects/s/plugins/packages/swc-confidential/transform' }
+swc_emotion = { path = '/Users/kdy1/projects/s/plugins/packages/emotion/transform' }
+swc_experimental_babel = { path = '/Users/kdy1/projects/s/plugins/crates/swc_experimental_babel' }
+swc_formatjs_transform = { path = '/Users/kdy1/projects/s/plugins/packages/formatjs/transform' }
+swc_icu_messageformat_parser = { path = '/Users/kdy1/projects/s/plugins/crates/swc_icu_messageformat_parser' }
+swc_magic = { path = '/Users/kdy1/projects/s/plugins/packages/swc-magic/transform' }
+swc_prefresh = { path = '/Users/kdy1/projects/s/plugins/packages/prefresh/transform' }
+swc_relay = { path = '/Users/kdy1/projects/s/plugins/packages/relay/transform' }
+swc_sdk = { path = '/Users/kdy1/projects/s/plugins/packages/swc-sdk/transform' }
+
+mdxjs = { path = "/Users/kdy1/projects/mdxjs-rs" }
