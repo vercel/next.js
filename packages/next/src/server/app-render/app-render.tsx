@@ -994,6 +994,7 @@ async function getErrorRSCPayload(
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
             data-next-error-message={err.message}
+            data-next-error-digest={'digest' in err ? err.digest : ''}
             data-next-error-stack={err.stack}
           />
         ) : null}
