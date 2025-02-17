@@ -140,7 +140,7 @@ describe('use-cache-close-over-function', () => {
               '\n    at createCachedFn (app/server/page.tsx:6:2)' +
               '\n    at eval (app/server/page.tsx:12:23)' +
               // TODO(veil): Should be source-mapped.
-              '\n    at (rsc)'
+              '\n    at <unknown> (rsc)'
       )
       expect(cliOutput).toContain(
         '' +
