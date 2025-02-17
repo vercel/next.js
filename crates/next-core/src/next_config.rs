@@ -212,10 +212,19 @@ pub enum BuildActivityPositions {
     OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct DevIndicatorsConfig {
+pub struct DevIndicatorsOptions {
     pub build_activity: Option<bool>,
     pub build_activity_position: Option<BuildActivityPositions>,
     pub position: Option<BuildActivityPositions>,
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(untagged)]
+pub enum DevIndicatorsConfig {
+    WithOptions(DevIndicatorsOptions),
+    Boolean(bool),
 }
 
 #[derive(

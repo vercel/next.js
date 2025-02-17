@@ -488,6 +488,7 @@ function assignDefaults(
   )
   if (
     hasWarnedBuildActivityPosition &&
+    result.devIndicators !== false &&
     result.devIndicators?.buildActivityPosition &&
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
@@ -835,7 +836,7 @@ function assignDefaults(
     }
   }
 
-  if (result.devIndicators?.position) {
+  if (result.devIndicators !== false && result.devIndicators?.position) {
     const { position } = result.devIndicators
     const allowedValues = [
       'top-left',
@@ -962,8 +963,14 @@ function assignDefaults(
   if (result.experimental.newDevOverlay !== true) {
     result.devIndicators = {
       ...result.devIndicators,
-      appIsrStatus: result.devIndicators?.appIsrStatus ?? true,
-      buildActivity: result.devIndicators?.buildActivity ?? true,
+      appIsrStatus:
+        result.devIndicators === false
+          ? false
+          : result.devIndicators?.appIsrStatus ?? true,
+      buildActivity:
+        result.devIndicators === false
+          ? false
+          : result.devIndicators?.buildActivity ?? true,
     }
 
     // If the user didn't explicitly set `position` or `buildActivityPosition` option,
