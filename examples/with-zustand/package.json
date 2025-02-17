@@ -9,7 +9,7 @@
   "dependencies": {
     "@types/node": "18.14.6",
     "@types/react": "18.2.8",
-    "@types/react-dom": "18.0.11",
+    "@types/react-dom": "19.0.3",
     "next": "latest",
     "react": "18.2.0",
     "react-dom": "18.2.0",
