@@ -24,7 +24,7 @@ describe('app-dir - async-client-component', () => {
       componentStack,
     }
 
-    // TODO(error): display component stack when react owner stack is available
+    // TODO(error): display component stack
     expect(result).toMatchInlineSnapshot(`
      {
        "componentStack": "",

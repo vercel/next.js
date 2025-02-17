@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use anyhow::{bail, Context, Result};
 use futures::future::BoxFuture;
 use next_core::{
@@ -333,6 +331,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -959,7 +958,7 @@ impl PageEndpoint {
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
+                let mut evaluatable_assets = edge_runtime_entries.owned().await?;
                 let evaluatable = ResolvedVc::try_sidecast(ssr_module)
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
@@ -1107,7 +1106,7 @@ impl PageEndpoint {
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(self.pathname.await?.clone_value(), asset_path.into())]
+            pages: [(self.pathname.owned().await?, asset_path.into())]
                 .into_iter()
                 .collect(),
         };
@@ -1146,7 +1145,7 @@ impl PageEndpoint {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
         let build_manifest = BuildManifest {
-            pages: fxindexmap!(self.pathname.await?.clone_value() => client_chunks),
+            pages: fxindexmap!(self.pathname.owned().await? => client_chunks),
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
@@ -1185,7 +1184,7 @@ impl PageEndpoint {
         };
         let emit_manifests = !matches!(this.ty, PageEndpointType::Data);
 
-        let pathname = this.pathname.await?;
+        let pathname = this.pathname.owned().await?;
         let original_name = &*this.original_name.await?;
 
         let client_assets = OutputAssets::new(client_assets).to_resolved().await?;
@@ -1301,23 +1300,23 @@ impl PageEndpoint {
                     let named_regex = get_named_middleware_regex(&pathname).into();
                     let matchers = MiddlewareMatcher {
                         regexp: Some(named_regex),
-                        original_source: pathname.clone_value(),
+                        original_source: pathname.clone(),
                         ..Default::default()
                     };
-                    let original_name = this.original_name.await?;
+                    let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root),
                         assets: paths_to_bindings(all_assets),
-                        name: pathname.clone_value(),
-                        page: original_name.clone_value(),
+                        name: pathname.clone(),
+                        page: original_name.clone(),
                         regions: None,
                         matchers: vec![matchers],
-                        env: this.pages_project.project().edge_env().await?.clone_value(),
+                        env: this.pages_project.project().edge_env().owned().await?,
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                        sorted_middleware: vec![pathname.clone_value()],
-                        functions: [(pathname.clone_value(), edge_function_definition)]
+                        sorted_middleware: vec![pathname.clone()],
+                        functions: [(pathname.clone(), edge_function_definition)]
                             .into_iter()
                             .collect(),
                         ..Default::default()
@@ -1405,16 +1404,13 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .is_development()
             {
-                let server_paths = all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value();
+                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 let client_relative_root = this.pages_project.project().client_relative_path();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                    .into_future()
+                    .owned()
                     .instrument(tracing::info_span!("client_paths"))
-                    .await?
-                    .clone_value();
+                    .await?;
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])

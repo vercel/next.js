@@ -5,9 +5,10 @@ const styles = css`
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-footer-height: 48px;
     --next-dialog-max-width: 960px;
+    --next-dialog-row-padding: 16px;
 
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     width: 100%;
     max-height: calc(100% - 56px);
     max-width: var(--next-dialog-max-width);
@@ -48,21 +49,23 @@ const styles = css`
   }
 
   [data-nextjs-dialog-content] {
+    overflow-y: auto;
     border: none;
     margin: 0;
     display: flex;
     flex-direction: column;
     position: relative;
+    padding: var(--size-4) var(--size-3);
   }
 
   /* Account for the footer height, when present */
-  [data-nextjs-dialog-body]:has(~ [data-nextjs-dialog-footer]) {
-    margin-bottom: calc(var(--next-dialog-footer-height) + 2px);
+  [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
+    margin-bottom: var(--next-dialog-footer-height);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    padding: var(--size-4);
+    margin-bottom: var(--size-2);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
@@ -71,16 +74,21 @@ const styles = css`
   }
 
   [data-nextjs-dialog-footer] {
-    width: 100%;
-    /* We make this element absolute to fix it to the bottom during the height transition */
-    position: absolute;
-    bottom: 0;
+    /* Subtract border width */
+    width: calc(100% - 2px);
+    /* 
+      We make this element fixed to anchor it to the bottom during the height transition.
+      If you make this relative it will jump during the transition and not collapse or expand smoothly.
+      If you make this absolute it will remain stuck at its initial position when scrolling the dialog.
+    */
+    position: fixed;
+    bottom: 1px;
     min-height: var(--next-dialog-footer-height);
     border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
     overflow: hidden;
 
     > * {
-      height: 100%;
+      min-height: var(--next-dialog-footer-height);
     }
   }
 

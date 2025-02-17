@@ -48,6 +48,7 @@ bench/nested-deps/components/**/*
 **/.tina/__generated__/**
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
+test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/e2e/async-modules/amp-validator-wasm.js

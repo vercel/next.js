@@ -20,19 +20,19 @@ const mockErrors = [
     id: 1,
     runtime: true as const,
     error: new Error('First error'),
-    frames: [],
+    frames: () => Promise.resolve([]),
   },
   {
     id: 2,
     runtime: true as const,
     error: new Error('Second error'),
-    frames: [],
+    frames: () => Promise.resolve([]),
   },
   {
     id: 3,
     runtime: true as const,
     error: new Error('Third error'),
-    frames: [],
+    frames: () => Promise.resolve([]),
   },
 ]
 

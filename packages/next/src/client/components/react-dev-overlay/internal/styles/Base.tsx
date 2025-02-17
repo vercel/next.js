@@ -68,6 +68,10 @@ export function Base() {
           --color-ansi-bright-magenta: #cebbff;
           --color-ansi-bright-red: #ff8888;
           --color-ansi-bright-yellow: #ffd966;
+
+          @media print {
+            display: none;
+          }
         }
 
         @media (prefers-color-scheme: dark) {

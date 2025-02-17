@@ -29,11 +29,15 @@ describe('client-dev-overlay', () => {
   const selectors = {
     fullScreenDialog: '[data-nextjs-dialog]',
     toast: '[data-nextjs-toast]',
-    minimizeButton: '[data-nextjs-errors-dialog-left-right-close-button]',
-    hideButton: '[data-nextjs-toast-errors-hide-button]',
+    popover: '[data-nextjs-dev-tools-button]',
+    minimizeButton: 'body',
+    hideButton: '[data-hide-dev-tools]',
   }
   function getToast() {
     return browser.elementByCss(selectors.toast)
+  }
+  function getPopover() {
+    return browser.elementByCss(selectors.popover)
   }
   function getMinimizeButton() {
     return browser.elementByCss(selectors.minimizeButton)
@@ -64,10 +68,11 @@ describe('client-dev-overlay', () => {
 
   it('should be able to hide the minimized overlay', async () => {
     await getMinimizeButton().click()
+    await getPopover().click()
     await getHideButton().click()
 
     await check(async () => {
-      const exists = await elementExistsInNextJSPortalShadowDOM('div')
+      const exists = await elementExistsInNextJSPortalShadowDOM(selectors.toast)
       return exists ? 'found' : 'success'
     }, 'success')
   })

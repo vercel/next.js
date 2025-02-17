@@ -1,20 +1,18 @@
 import type webpack from 'webpack'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
+import { getModuleBuildInfo } from './get-module-build-info'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
 
 // Determine if the whole module is client action, 'use server' in nested closure in the client module
-function isActionClientLayerModule(mod: { resource: string; buildInfo?: any }) {
-  const rscInfo = mod.buildInfo.rsc
-  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.client)
+function isActionClientLayerModule(mod: webpack.NormalModule) {
+  const rscInfo = getModuleBuildInfo(mod).rsc
+  return !!(rscInfo?.actionIds && rscInfo?.type === RSC_MODULE_TYPES.client)
 }
 
-export function isClientComponentEntryModule(mod: {
-  resource: string
-  buildInfo?: any
-}) {
-  const rscInfo = mod.buildInfo.rsc
+export function isClientComponentEntryModule(mod: webpack.NormalModule) {
+  const rscInfo = getModuleBuildInfo(mod).rsc
   const hasClientDirective = rscInfo?.isClientRef
   const isActionLayerEntry = isActionClientLayerModule(mod)
   return (
@@ -41,14 +39,6 @@ export function isCSSMod(mod: {
         loader.includes('@vanilla-extract/webpack-plugin/loader/')
     )
   )
-}
-
-// Gives { id: name } record of actions from the build info.
-export function getActionsFromBuildInfo(mod: {
-  resource: string
-  buildInfo?: any
-}): undefined | Record<string, string> {
-  return mod.buildInfo?.rsc?.actionIds
 }
 
 export function encodeToBase64<T extends object>(obj: T): string {

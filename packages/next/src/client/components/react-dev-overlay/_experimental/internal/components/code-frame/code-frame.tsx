@@ -84,7 +84,10 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),
@@ -104,12 +107,12 @@ export const CODE_FRAME_STYLES = css`
     overflow: hidden;
     color: var(--color-gray-1000);
     text-overflow: ellipsis;
+    border: 1px solid var(--color-gray-400);
+    border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
-    margin: var(--size-4) var(--size-4) var(--size-2);
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--size-2);
+    margin: var(--size-2) 0;
   }
 
   .code-frame-link,
@@ -124,8 +127,9 @@ export const CODE_FRAME_STYLES = css`
   .code-frame-header {
     width: 100%;
     cursor: pointer;
-    border-bottom: 1px solid var(--color-gray-400);
     transition: background 100ms ease-out;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid var(--color-gray-400);
 
     &:focus-visible {
       outline: var(--focus-ring);

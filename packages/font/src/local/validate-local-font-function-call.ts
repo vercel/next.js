@@ -29,7 +29,7 @@ type FontOptions = {
 }
 
 /**
- * Validate the data recieved from next-swc next-transform-font on next/font/local calls
+ * Validate the data received from next-swc next-transform-font on next/font/local calls
  */
 export function validateLocalFontFunctionCall(
   functionName: string,

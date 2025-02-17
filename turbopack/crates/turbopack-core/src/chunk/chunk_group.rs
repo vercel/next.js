@@ -229,12 +229,11 @@ pub async fn make_chunk_group(
     let chunks = make_chunks(
         module_graph,
         *chunking_context,
-        Vc::cell(chunk_items),
+        chunk_items,
         "".into(),
         Vc::cell(referenced_output_assets),
     )
-    .await?
-    .clone_value();
+    .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,

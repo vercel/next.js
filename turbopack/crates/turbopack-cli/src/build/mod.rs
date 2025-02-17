@@ -86,7 +86,7 @@ impl TurbopackBuildBuilder {
             show_all: false,
             log_detail: false,
             source_maps_type: SourceMapsType::Full,
-            minify_type: MinifyType::Minify,
+            minify_type: MinifyType::Minify { mangle: true },
             target: Target::Node,
         }
     }
@@ -482,7 +482,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
         } else {
-            MinifyType::Minify
+            MinifyType::Minify { mangle: true }
         })
         .target(args.common.target.unwrap_or(Target::Node))
         .show_all(args.common.show_all);

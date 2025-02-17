@@ -3,34 +3,34 @@ import type { OverlayState } from '../../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import { NextLogo } from './internal/next-logo'
+import { Cross, NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
-import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
+import { noop as css } from '../../../helpers/noop-template'
 
 // TODO: add E2E tests to cover different scenarios
+
+const INDICATOR_POSITION =
+  (process.env
+    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
+  'bottom-left'
+
+type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
   errorCount,
   setIsErrorOverlayOpen,
+  position = INDICATOR_POSITION,
 }: {
   state: OverlayState
   errorCount: number
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
+  // Technically this prop isn't needed, but useful for testing.
+  position?: DevToolsIndicatorPosition
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
-  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
-  useKeyboardShortcut({
-    key: '.',
-    modifiers: [MODIFIERS.CTRL_CMD],
-    callback: () => {
-      setIsDevToolsIndicatorOpen(!isDevToolsIndicatorOpen)
-      setIsErrorOverlayOpen(!isDevToolsIndicatorOpen)
-    },
-  })
 
   return (
     isDevToolsIndicatorOpen && (
@@ -43,6 +43,7 @@ export function DevToolsIndicator({
         }}
         setIsErrorOverlayOpen={setIsErrorOverlayOpen}
         isTurbopack={!!process.env.TURBOPACK}
+        position={position}
       />
     )
   )
@@ -65,6 +66,7 @@ function DevToolsPopover({
   issueCount,
   isStaticRoute,
   isTurbopack,
+  position,
   hide,
   setIsErrorOverlayOpen,
 }: {
@@ -72,6 +74,7 @@ function DevToolsPopover({
   isStaticRoute: boolean
   semver: string | undefined
   isTurbopack: boolean
+  position: DevToolsIndicatorPosition
   hide: () => void
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
@@ -92,7 +95,16 @@ function DevToolsPopover({
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
-  function select(index: number | 'last') {
+  function select(index: number | 'first' | 'last') {
+    if (index === 'first') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const firstIndex = all[0].getAttribute('data-index')
+        select(Number(firstIndex))
+      }
+      return
+    }
+
     if (index === 'last') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
       if (all) {
@@ -124,7 +136,7 @@ function DevToolsPopover({
         select(prev)
         break
       case 'Home':
-        select(0)
+        select('first')
         break
       case 'End':
         select('last')
@@ -144,7 +156,7 @@ function DevToolsPopover({
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
-        select(0)
+        select('first')
       })
     }
 
@@ -176,17 +188,23 @@ function DevToolsPopover({
     }, ANIMATE_OUT_DURATION_MS)
   }
 
+  const [vertical, horizontal] = position.split('-', 2)
+
   return (
     <Toast
       data-nextjs-toast
       style={{
         boxShadow: 'none',
         zIndex: 2147483647,
+        // Reset the toast component's default positions.
+        bottom: 'initial',
+        left: 'initial',
+        [vertical]: 'var(--size-2_5)',
+        [horizontal]: 'var(--size-5)',
       }}
     >
       <NextLogo
         ref={triggerRef}
-        key={issueCount}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen}
         aria-controls="nextjs-dev-tools-menu"
@@ -209,13 +227,15 @@ function DevToolsPopover({
           aria-orientation="vertical"
           aria-label="Next.js Dev Tools Items"
           tabIndex={-1}
-          className="menu"
+          className="dev-tools-indicator-menu"
           onKeyDown={onMenuKeydown}
           data-rendered={rendered}
           style={
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
               '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
+              [vertical]: 'calc(100% + var(--size-gap))',
+              [horizontal]: 0,
             } as React.CSSProperties
           }
         >
@@ -226,13 +246,15 @@ function DevToolsPopover({
               setSelectedIndex,
             }}
           >
-            <div className="inner">
-              <MenuItem
-                index={0}
-                label="Issues"
-                value={<IssueCount>{issueCount}</IssueCount>}
-                onClick={openErrorOverlay}
-              />
+            <div className="dev-tools-indicator-inner">
+              {issueCount > 0 && (
+                <MenuItem
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
+                />
+              )}
               <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
@@ -250,10 +272,11 @@ function DevToolsPopover({
               )}
             </div>
 
-            <div className="footer">
+            <div className="dev-tools-indicator-footer">
               <MenuItem
+                data-hide-dev-tools
                 label="Hide Dev Tools"
-                value={<HideShortcut />}
+                value={<Cross color="var(--color-gray-900)" />}
                 onClick={hide}
                 index={isTurbopack ? 1 : 2}
               />
@@ -296,7 +319,7 @@ function MenuItem({
 
   return (
     <div
-      className="item"
+      className="dev-tools-indicator-item"
       data-index={index}
       data-selected={selected}
       onClick={click}
@@ -317,45 +340,20 @@ function MenuItem({
       tabIndex={selected ? 0 : -1}
       {...props}
     >
-      <span className="label">{label}</span>
-      <span className="value">{value}</span>
+      <span className="dev-tools-indicator-label">{label}</span>
+      <span className="dev-tools-indicator-value">{value}</span>
     </div>
   )
 }
 
 function IssueCount({ children }: { children: number }) {
   return (
-    <span className="issueCount" data-has-issues={children > 0}>
-      <span className="indicator" />
+    <span
+      className="dev-tools-indicator-issue-count"
+      data-has-issues={children > 0}
+    >
+      <span className="dev-tools-indicator-issue-count-indicator" />
       {children}
-    </span>
-  )
-}
-
-function HideShortcut() {
-  const isMac =
-    // Feature detect for `navigator.userAgentData` which is experimental:
-    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
-    'userAgentData' in navigator
-      ? (navigator.userAgentData as any).platform === 'macOS'
-      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
-        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-        navigator.platform.indexOf('Mac') === 0 ||
-        navigator.platform === 'iPhone'
-
-  return (
-    <span className="shortcut">
-      {isMac ? (
-        <kbd aria-label="Command">⌘</kbd>
-      ) : (
-        <kbd
-          aria-label="Control"
-          style={{ width: 'fit-content', padding: '0 4px' }}
-        >
-          Ctrl
-        </kbd>
-      )}
-      <kbd>.</kbd>
     </span>
   )
 }
@@ -459,3 +457,131 @@ function ExternalIcon() {
     </svg>
   )
 }
+
+export const DEV_TOOLS_INDICATOR_STYLES = css`
+  .dev-tools-indicator-menu {
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-menu);
+    border-radius: var(--rounded-xl);
+    position: absolute;
+    font-family: var(--font-stack-sans);
+    z-index: 1000;
+    overflow: hidden;
+    opacity: 0;
+    outline: 0;
+    min-width: 248px;
+    transition: opacity var(--animate-out-duration-ms)
+      var(--animate-out-timing-function);
+
+    &[data-rendered='true'] {
+      opacity: 1;
+      scale: 1;
+    }
+  }
+
+  .dev-tools-indicator-inner {
+    padding: 6px;
+    width: 100%;
+  }
+
+  .dev-tools-indicator-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 6px;
+    height: 36px;
+    border-radius: 6px;
+    text-decoration: none !important;
+    user-select: none;
+
+    &:focus-visible {
+      outline: 0;
+    }
+  }
+
+  .dev-tools-indicator-footer {
+    background: var(--color-background-200);
+    padding: 6px;
+    border-top: 1px solid var(--color-gray-400);
+    width: 100%;
+  }
+
+  .dev-tools-indicator-item[data-selected='true'] {
+    cursor: pointer;
+    background-color: var(--color-gray-200);
+  }
+
+  .dev-tools-indicator-label {
+    font-size: var(--size-font-small);
+    line-height: var(--size-5);
+    color: var(--color-gray-1000);
+  }
+
+  .dev-tools-indicator-value {
+    font-size: var(--size-font-small);
+    line-height: var(--size-5);
+    color: var(--color-gray-900);
+    margin-left: auto;
+  }
+
+  .dev-tools-indicator-issue-count {
+    --color-primary: var(--color-gray-800);
+    --color-secondary: var(--color-gray-100);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 41px;
+    height: 24px;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-small);
+    padding: 2px;
+    color: var(--color-gray-1000);
+    border-radius: 128px;
+    font-weight: 500;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+
+    &[data-has-issues='true'] {
+      --color-primary: var(--color-red-800);
+      --color-secondary: var(--color-red-100);
+    }
+
+    .dev-tools-indicator-issue-count-indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-secondary);
+      border-radius: 50%;
+    }
+  }
+
+  .dev-tools-indicator-shortcut {
+    display: flex;
+    gap: var(--size-1);
+
+    kbd {
+      width: var(--size-5);
+      height: var(--size-5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: var(--rounded-md);
+      border: 1px solid var(--color-gray-400);
+      font-family: var(--font-stack-sans);
+      background: var(--color-background-100);
+      color: var(--color-gray-1000);
+      text-align: center;
+      font-size: var(--size-font-smaller);
+      line-height: var(--size-4);
+    }
+  }
+`

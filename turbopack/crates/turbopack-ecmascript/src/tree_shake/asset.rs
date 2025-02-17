@@ -292,11 +292,11 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(*self.full_module).await?;
 
-        let analyze = analyze(*self.full_module, self.part.clone()).await?;
+        let analyze = analyze(*self.full_module, self.part.clone());
 
         let deps = match &*split_data {
             SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(*analyze.references),
+            SplitResult::Failed { .. } => return Ok(analyze.references()),
         };
 
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
@@ -306,7 +306,7 @@ impl Module for EcmascriptModulePartAsset {
             ))
         };
 
-        let mut references = analyze.references.await?.to_vec();
+        let mut references = analyze.references().owned().await?;
 
         // Facade depends on evaluation and re-exports
         if self.part == ModulePart::Facade {

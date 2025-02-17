@@ -73,7 +73,7 @@ describe('app-dir - metadata-streaming', () => {
     })
   })
 
-  it('should not insert metadata twice or inject into body', async () => {
+  it('should only insert metadata once into head or body', async () => {
     const browser = await next.browser('/slow')
 
     // each metadata should be inserted only once

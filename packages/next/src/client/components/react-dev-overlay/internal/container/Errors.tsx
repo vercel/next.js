@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
@@ -84,9 +84,10 @@ function ErrorDescription({
   const environmentName =
     'environmentName' in error ? error['environmentName'] : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
+  const isMsgMissingEnvPrefix = !error.message.startsWith(envPrefix)
   return (
     <>
-      {envPrefix}
+      {isMsgMissingEnvPrefix && envPrefix}
       {title}
       <HotlinkedText
         text={hydrationWarning || error.message}
@@ -162,21 +163,16 @@ export function Errors({
     if (nextError == null) {
       return
     }
-    let mounted = true
 
-    getErrorByType(nextError, isAppDir).then(
-      (resolved) => {
+    let mounted = true
+    getErrorByType(nextError, isAppDir).then((resolved) => {
+      if (mounted) {
         // We don't care if the desired error changed while we were resolving,
         // thus we're not tracking it using a ref. Once the work has been done,
         // we'll store it.
-        if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-        }
-      },
-      () => {
-        // TODO: handle this, though an edge case
+        setLookups((m) => ({ ...m, [resolved.id]: resolved }))
       }
-    )
+    })
 
     return () => {
       mounted = false
@@ -314,7 +310,10 @@ export function Errors({
               close={isServerError ? undefined : minimize}
             >
               <small>
-                <span>{activeIdx + 1}</span> of{' '}
+                <span data-nextjs-dialog-error-index={activeIdx}>
+                  {activeIdx + 1}
+                </span>{' '}
+                of{' '}
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
                 </span>
@@ -386,10 +385,11 @@ export function Errors({
               <PseudoHtmlDiff
                 className="nextjs__container_errors__component-stack"
                 hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
                 firstContent={serverContent}
                 secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+                reactOutputComponentDiff={
+                  errorDetails.reactOutputComponentDiff || ''
+                }
               />
             ) : null}
             {isServerError ? (
@@ -401,9 +401,14 @@ export function Errors({
               </div>
             ) : undefined}
           </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError key={activeError.id.toString()} error={activeError} />
-          </DialogBody>
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <DialogBody className="nextjs-container-errors-body">
+              <RuntimeError
+                key={activeError.id.toString()}
+                error={activeError}
+              />
+            </DialogBody>
+          </Suspense>
         </DialogContent>
       </Dialog>
     </Overlay>

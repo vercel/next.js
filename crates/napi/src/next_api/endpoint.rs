@@ -173,7 +173,7 @@ pub async fn endpoint_write_to_disk(
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
     Ok(TurbopackResult {
-        result: NapiWrittenEndpoint::from(written.map(|v| v.clone_value())),
+        result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),
         issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
         diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
     })

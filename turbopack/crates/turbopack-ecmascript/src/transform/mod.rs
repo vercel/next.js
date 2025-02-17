@@ -102,8 +102,8 @@ impl EcmascriptInputTransforms {
 
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
-        let mut transforms = self.await?.clone_value();
-        transforms.extend(other.await?.clone_value());
+        let mut transforms = self.owned().await?;
+        transforms.extend(other.owned().await?);
         Ok(Vc::cell(transforms))
     }
 }

@@ -82,12 +82,7 @@ impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
         Ok(Vc::cell(match &self.source {
-            Some(source) => Some(
-                source
-                    .resolve_source_map(self.source_ident.path())
-                    .await?
-                    .into_owned(),
-            ),
+            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }

@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -119,11 +119,9 @@ impl EcmascriptDevChunkContent {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code, source_maps));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)
@@ -157,12 +155,12 @@ impl MergeableVersionedContent for EcmascriptDevChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(&self, section: RcStr) -> Result<Vc<OptionSourceMap>> {
+    async fn by_section(&self, section: RcStr) -> Result<Vc<OptionStringifiedSourceMap>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {

@@ -192,6 +192,10 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+    // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
+    // variable to the client.
+    'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
       ? {}
@@ -235,8 +239,8 @@ export function getDefineEnv({
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
     'process.env.__NEXT_BUILD_INDICATOR':
       config.devIndicators.buildActivity ?? true,
-    'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition ?? 'bottom-right',
+    'process.env.__NEXT_DEV_INDICATOR_POSITION':
+      config.devIndicators.position ?? 'bottom-left',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -289,8 +293,6 @@ export function getDefineEnv({
       : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
       config.experimental.newDevOverlay || false,
-    'process.env.__NEXT_REACT_OWNER_STACK':
-      config.experimental.reactOwnerStack ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

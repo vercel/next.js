@@ -56,7 +56,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
-    source_map::OptionSourceMap,
+    source_map::OptionStringifiedSourceMap,
     version::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
@@ -174,6 +174,11 @@ pub struct ProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: bool,
 }
 
 #[derive(
@@ -421,6 +426,7 @@ impl ProjectContainer {
         let build_id;
         let preview_props;
         let browserslist_query;
+        let no_mangling;
         {
             let options = self.options_state.get();
             let options = options
@@ -443,6 +449,7 @@ impl ProjectContainer {
             build_id = options.build_id.clone();
             preview_props = options.preview_props.clone();
             browserslist_query = options.browserslist_query.clone();
+            no_mangling = options.no_mangling
         }
 
         let dist_dir = next_config
@@ -470,6 +477,7 @@ impl ProjectContainer {
             build_id,
             encryption_key,
             preview_props,
+            no_mangling,
         }
         .cell())
     }
@@ -493,11 +501,11 @@ impl ProjectContainer {
         &self,
         file_path: Vc<FileSystemPath>,
         section: Option<RcStr>,
-    ) -> Vc<OptionSourceMap> {
+    ) -> Vc<OptionStringifiedSourceMap> {
         if let Some(map) = self.versioned_content_map {
             map.get_source_map(file_path, section)
         } else {
-            OptionSourceMap::none()
+            OptionStringifiedSourceMap::none()
         }
     }
 }
@@ -542,6 +550,11 @@ pub struct Project {
     encryption_key: RcStr,
 
     preview_props: DraftModeOptions,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    no_mangling: bool,
 }
 
 #[turbo_tasks::value]
@@ -730,6 +743,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) fn no_mangling(&self) -> Vc<bool> {
+        Vc::cell(self.no_mangling)
+    }
+
+    #[turbo_tasks::function]
     pub(super) async fn should_create_webpack_stats(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(
             self.env.read("TURBOPACK_STATS".into()).await?.is_some(),
@@ -900,6 +918,15 @@ impl Project {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.connect().resolve().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
+
+            // At this point all modules have been computed and we can get rid of the node.js
+            // process pools
+            if self.await?.watch.enable {
+                turbopack_node::evaluate::scale_down();
+            } else {
+                turbopack_node::evaluate::scale_zero();
+            }
+
             Ok(module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
@@ -950,6 +977,7 @@ impl Project {
             self.module_id_strategy(),
             self.next_config().turbo_minify(self.next_mode()),
             self.next_config().turbo_source_maps(),
+            self.no_mangling(),
         )
     }
 
@@ -970,6 +998,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         } else {
             get_server_chunking_context(
@@ -981,6 +1010,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         }
     }
@@ -1002,6 +1032,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         } else {
             get_edge_chunking_context(
@@ -1013,6 +1044,7 @@ impl Project {
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
                 self.next_config().turbo_source_maps(),
+                self.no_mangling(),
             )
         }
     }
@@ -1511,7 +1543,9 @@ impl Project {
         // first seen version of the session.
         let state = VersionState::new(
             version
-                .into_trait_ref_strongly_consistent_untracked()
+                .into_trait_ref()
+                .strongly_consistent()
+                .untracked()
                 .await?,
         )
         .await?;
@@ -1674,7 +1708,7 @@ async fn any_output_changed(
 async fn get_referenced_output_assets(
     parent: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().await?.clone_value().into_iter())
+    Ok(parent.references().owned().await?.into_iter())
 }
 
 #[turbo_tasks::function(operation)]

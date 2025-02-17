@@ -239,6 +239,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             z.literal('top-right'),
           ])
           .optional(),
+        position: z
+          .union([
+            z.literal('bottom-left'),
+            z.literal('bottom-right'),
+            z.literal('top-left'),
+            z.literal('top-right'),
+          ])
+          .optional(),
       })
       .optional(),
     distDir: z.string().min(1).optional(),
@@ -333,7 +341,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .readonly()
           .optional(),
         taint: z.boolean().optional(),
-        reactOwnerStack: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         scrollRestoration: z.boolean().optional(),

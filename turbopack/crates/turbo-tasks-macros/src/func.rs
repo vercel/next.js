@@ -105,7 +105,7 @@ impl TurboFn<'_> {
                     // other forms of self.
 
                     let definition_context = match &definition_context {
-                        DefinitionContext::NakedFn { .. } => return None,
+                        DefinitionContext::NakedFn => return None,
                         _ => &definition_context,
                     };
 
@@ -182,7 +182,7 @@ impl TurboFn<'_> {
 
                     if let Pat::Ident(ident) = &*typed.pat {
                         if ident.ident == "self" {
-                            if let DefinitionContext::NakedFn { .. } = definition_context {
+                            if let DefinitionContext::NakedFn = definition_context {
                                 // The function is not associated. The compiler will emit an error
                                 // on its own.
                                 return None;
@@ -201,10 +201,10 @@ impl TurboFn<'_> {
                             });
                         } else {
                             match definition_context {
-                                DefinitionContext::NakedFn { .. }
-                                | DefinitionContext::ValueInherentImpl { .. } => {}
-                                DefinitionContext::ValueTraitImpl { .. }
-                                | DefinitionContext::ValueTrait { .. } => {
+                                DefinitionContext::NakedFn
+                                | DefinitionContext::ValueInherentImpl => {}
+                                DefinitionContext::ValueTraitImpl
+                                | DefinitionContext::ValueTrait => {
                                     typed
                                         .span()
                                         .unwrap()

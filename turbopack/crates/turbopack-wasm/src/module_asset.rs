@@ -20,8 +20,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
     references::async_module::OptionAsyncModule,
 };
@@ -265,17 +265,13 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             .await?
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        let chunk_item_content = ecmascript_item
+        let mut chunk_item_content = ecmascript_item
             .content_with_async_module_info(async_module_info)
+            .owned()
             .await?;
 
-        Ok(EcmascriptChunkItemContent {
-            options: EcmascriptChunkItemOptions {
-                wasm: true,
-                ..chunk_item_content.options.clone()
-            },
-            ..chunk_item_content.clone_value()
-        }
-        .into())
+        chunk_item_content.options.wasm = true;
+
+        Ok(chunk_item_content.cell())
     }
 }

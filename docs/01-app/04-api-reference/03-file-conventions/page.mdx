@@ -91,7 +91,7 @@ export default async function Page({ searchParams }) {
 
 - Since the `searchParams` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
   - In version 14 and earlier, `searchParams` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
-- `searchParams` is a **[Dynamic API](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis)** whose values cannot be known ahead of time. Using it will opt the page into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
+- `searchParams` is a **[Dynamic API](/docs/app/building-your-application/rendering/server-components#dynamic-apis)** whose values cannot be known ahead of time. Using it will opt the page into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
 - `searchParams` is a plain JavaScript object, not a `URLSearchParams` instance.
 
 ## Examples

@@ -106,6 +106,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
           <button
             ref={buttonLeft}
             type="button"
+            data-nextjs-dialog-error-previous
             disabled={previous == null ? true : undefined}
             aria-disabled={previous == null ? true : undefined}
             onClick={previous ?? undefined}
@@ -128,6 +129,7 @@ const LeftRightDialogHeader: React.FC<LeftRightDialogHeaderProps> =
           <button
             ref={buttonRight}
             type="button"
+            data-nextjs-dialog-error-next
             disabled={next == null ? true : undefined}
             aria-disabled={next == null ? true : undefined}
             onClick={next ?? undefined}

@@ -9695,6 +9695,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "criterion",
+ "data-encoding",
  "either",
  "indexmap 2.7.1",
  "indoc",
@@ -9983,6 +9984,8 @@ dependencies = [
  "serde_json",
  "testing",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
@@ -10001,6 +10004,7 @@ dependencies = [
  "turbopack-nodejs",
  "turbopack-resolve",
  "turbopack-test-utils",
+ "turbopack-trace-utils",
 ]
 
 [[package]]

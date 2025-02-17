@@ -6,6 +6,7 @@ import {
   json,
   jsonString,
   noContent,
+  notFound,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
@@ -89,7 +90,7 @@ export async function batchedTraceSource(
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack://[turbopack]
+    // isInternal means resource starts with turbopack:///[turbopack]
     !!sourceFrame.isInternal
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
@@ -415,7 +416,7 @@ export function getOverlayMiddleware(project: Project) {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return notFound(res)
 
       try {
         launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
@@ -424,7 +425,7 @@ export function getOverlayMiddleware(project: Project) {
         return internalServerError(res)
       }
 
-      noContent(res)
+      return noContent(res)
     }
 
     return next()

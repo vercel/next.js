@@ -238,8 +238,8 @@ impl NextFontGoogleCssModuleReplacer {
                     scoped_font_family,
                     font_fallback.has_size_adjust(),
                 )
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
             ),
             None => {
                 println!(
@@ -303,7 +303,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.await?.clone_value()))
+        Ok(self.import_map_result(query_vc.owned().await?))
     }
 }
 

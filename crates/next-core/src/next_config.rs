@@ -202,6 +202,7 @@ pub enum BuildActivityPositions {
 pub struct DevIndicatorsConfig {
     pub build_activity: Option<bool>,
     pub build_activity_position: Option<BuildActivityPositions>,
+    pub position: Option<BuildActivityPositions>,
 }
 
 #[derive(
@@ -1499,9 +1500,9 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
-        let minify = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+        let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
 
-        Ok(Vc::cell(minify.unwrap_or(true)))
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
     }
 }
 

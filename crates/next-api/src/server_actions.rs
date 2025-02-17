@@ -225,10 +225,7 @@ pub fn parse_server_actions(
         comments.iter().find_map(|c| {
             c.text
                 .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| match serde_json::from_str(actions) {
-                    Ok(v) => Some(v),
-                    Err(_) => None,
-                })
+                .and_then(|(_, actions)| serde_json::from_str(actions).ok())
         })
     })
 }
