@@ -53,15 +53,18 @@ describe('ssr-only-error', () => {
     const text = await browser.elementByCss('body').text()
     expect(text).toBe('404\nThis page could not be found.')
 
-    // Assert if there's no console.error related to the notFound error
-    // Since there's already one error log containing "404" from browser:
-    // "Failed to load resource: the server responded with a status of 404 (Not Found)"
-    // We assert there's no error text in the error log
-    expect(await browser.log()).not.toContainEqual(
+    // Assert there's only one console.error from browser itself
+    const errorLogs = (await browser.log()).filter(
+      (log) => log.source === 'error'
+    )
+
+    expect(errorLogs).toEqual([
       expect.objectContaining({
         source: 'error',
-        message: expect.stringContaining('NEXT_HTTP_ERROR_FALLBACK;404'),
-      })
-    )
+        message: expect.stringContaining(
+          'the server responded with a status of 404'
+        ),
+      }),
+    ])
   })
 })
