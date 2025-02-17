@@ -8,6 +8,7 @@ import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/i
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'
+import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -83,20 +84,38 @@ function DevToolsPopover({
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const turbopackRef = useRef<HTMLElement>(null)
+  const triggerTurbopackRef = useRef<HTMLButtonElement | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isTurbopackInfoOpen, setIsTurbopackInfoOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
   // This hook lets us do an exit animation before unmounting the component
-  const { mounted, rendered } = useDelayedRender(isMenuOpen, {
-    // Intentionally no fade in, makes the UI feel more immediate
-    enterDelay: 0,
-    // Graceful fade out to confirm that the UI did not break
-    exitDelay: ANIMATE_OUT_DURATION_MS,
-  })
+  const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
+    isMenuOpen,
+    {
+      // Intentionally no fade in, makes the UI feel more immediate
+      enterDelay: 0,
+      // Graceful fade out to confirm that the UI did not break
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    }
+  )
+  const { mounted: turbopackInfoMounted, rendered: turbopackInfoRendered } =
+    useDelayedRender(isTurbopackInfoOpen, {
+      enterDelay: 0,
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    })
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+  useFocusTrap(turbopackRef, triggerTurbopackRef, isTurbopackInfoOpen)
+  useClickOutside(
+    turbopackRef,
+    triggerTurbopackRef,
+    isTurbopackInfoOpen,
+    closeTurbopackInfo
+  )
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -191,6 +210,10 @@ function DevToolsPopover({
     }, ANIMATE_OUT_DURATION_MS)
   }
 
+  function closeTurbopackInfo() {
+    setIsTurbopackInfoOpen(false)
+  }
+
   const [vertical, horizontal] = position.split('-', 2)
 
   return (
@@ -222,7 +245,21 @@ function DevToolsPopover({
         isDevRendering={useIsDevRendering()}
       />
 
-      {mounted && (
+      {turbopackInfoMounted && (
+        <TurbopackInfo
+          ref={turbopackRef}
+          isOpen={isTurbopackInfoOpen}
+          setIsOpen={setIsTurbopackInfoOpen}
+          setPreviousOpen={setIsMenuOpen}
+          style={{
+            [vertical]: 'calc(100% + var(--size-gap))',
+            [horizontal]: 0,
+          }}
+          data-rendered={turbopackInfoRendered}
+        />
+      )}
+
+      {menuMounted && (
         <div
           ref={menuRef}
           id="nextjs-dev-tools-menu"
@@ -233,7 +270,7 @@ function DevToolsPopover({
           tabIndex={-1}
           className="dev-tools-indicator-menu"
           onKeyDown={onMenuKeydown}
-          data-rendered={rendered}
+          data-rendered={menuRendered}
           style={
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
@@ -271,7 +308,7 @@ function DevToolsPopover({
                   index={1}
                   label="Try Turbopack"
                   value={<ExternalIcon />}
-                  href="https://nextjs.org/docs/app/api-reference/turbopack"
+                  onClick={() => setIsTurbopackInfoOpen(true)}
                 />
               )}
             </div>
@@ -365,7 +402,7 @@ function IssueCount({ children }: { children: number }) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 function useFocusTrap(
-  menuRef: React.RefObject<HTMLDivElement | null>,
+  menuRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   isMenuOpen: boolean
 ) {
@@ -391,7 +428,7 @@ function useFocusTrap(
 //////////////////////////////////////////////////////////////////////////////////////
 
 function useClickOutside(
-  menuRef: React.RefObject<HTMLDivElement | null>,
+  menuRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   isMenuOpen: boolean,
   closeMenu: () => void
