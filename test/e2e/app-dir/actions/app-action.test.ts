@@ -9,6 +9,7 @@ import {
 } from 'next-test-utils'
 import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
+import nodeFs from 'fs'
 import { join } from 'path'
 
 const GENERIC_RSC_ERROR =
@@ -919,19 +920,24 @@ describe('app-dir action handling', () => {
 
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
-      const sourcemap = (
-        await fs.readdir(
-          join(next.testDir, '.next', 'static', 'chunks', 'app', 'client')
+      // We check all sourcemaps in the `static` folder for sensitive information given that chuniing
+      const sourcemaps = nodeFs
+        .readdirSync(join(next.testDir, '.next', 'static'), {
+          recursive: true,
+          encoding: 'utf8',
+        })
+        .filter((f) => f.endsWith('.js.map'))
+        .map((f) =>
+          nodeFs.readFileSync(join(next.testDir, '.next', 'static', f), {
+            encoding: 'utf8',
+          })
         )
-      ).find((f) => f.endsWith('.js.map'))
 
-      expect(sourcemap).toBeDefined()
+      expect(sourcemaps).not.toBeEmpty()
 
-      expect(
-        await next.readFile(
-          join('.next', 'static', 'chunks', 'app', 'client', sourcemap)
-        )
-      ).not.toContain('this_is_sensitive_info')
+      for (const sourcemap of sourcemaps) {
+        expect(sourcemap).not.toContain('this_is_sensitive_info')
+      }
     })
   }
 
