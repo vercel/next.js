@@ -107,7 +107,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
    After executing this command, a browser window will open with the Flotiq. Upon successful authentication,
    the command will automatically generate appropriately filled `.env` files for you.
 
-   Go to the newly generated file and add `FLOTIQ_CLIENT_AUTH_KEY` variable, read more about [env variables](#env-variables)
+   Go to the newly generated file and add the `FLOTIQ_CLIENT_AUTH_KEY` variable. You can set it to any string (read more about [env variables](#env-variables)), it will be needed later.
 
 4. Install dependencies
 
