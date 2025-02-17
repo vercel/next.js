@@ -1,12 +1,9 @@
 use std::collections::HashSet;
 
-use anyhow::{Context, Result};
-use auto_hash_map::AutoSet;
+use anyhow::Result;
 use futures::future::Either;
 use rustc_hash::FxHashMap;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, available_modules::AvailableModulesInfo,
@@ -46,9 +43,6 @@ pub async fn make_chunk_group(
         async_modules,
         traced_modules,
         passthrough_modules,
-        forward_edges_inherit_async,
-        local_back_edges_inherit_async,
-        available_async_modules_back_edges_inherit_async,
     } = chunk_group_content(
         &*module_graph.await?,
         chunk_group_entries,
@@ -58,79 +52,30 @@ pub async fn make_chunk_group(
     )
     .await?;
 
-    // Find all local chunk items that are self async
-    let self_async_children = chunkable_modules
-        .iter()
-        .copied()
-        .map(|m| async move {
-            let is_self_async = *m.is_self_async().await?;
-            Ok(is_self_async.then_some(m))
-        })
-        .try_flat_join()
-        .await?;
-
-    // Get all available async modules and concatenate with local async modules
-    let mut all_async_modules = available_async_modules_back_edges_inherit_async
-        .keys()
-        .copied()
-        .chain(self_async_children.into_iter())
-        .map(|m| (m, AutoSet::<ResolvedVc<Box<dyn ChunkableModule>>>::new()))
-        .collect::<FxIndexMap<_, _>>();
-
-    // Propagate async inheritance
-    let mut i = 0;
-    loop {
-        let Some((&async_module, _)) = all_async_modules.get_index(i) else {
-            break;
-        };
-        // The first few entries are from
-        // available_async_modules_back_edges_inherit_async and need to use that map,
-        // all other entries are local
-        let map = if i < available_async_modules_back_edges_inherit_async.len() {
-            &available_async_modules_back_edges_inherit_async
-        } else {
-            &local_back_edges_inherit_async
-        };
-        if let Some(parents) = map.get(&async_module) {
-            for &parent in parents.iter() {
-                // Add item, it will be iterated by this loop too
-                all_async_modules
-                    .entry(parent)
-                    .or_default()
-                    .insert(async_module);
-            }
-        }
-        i += 1;
-    }
+    let async_modules_info = module_graph.async_module_info().await?;
 
     // Create map for chunk items with empty [Option<Vc<AsyncModuleInfo>>]
-    let mut all_modules = chunkable_modules
+    let all_modules = chunkable_modules
         .into_iter()
-        .map(|m| (m, None))
-        .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
-
-    // Insert AsyncModuleInfo for every async module
-    for (async_item, referenced_async_modules) in all_async_modules {
-        let referenced_async_modules =
-            if let Some(references) = forward_edges_inherit_async.get(&async_item) {
-                references
-                    .iter()
-                    .copied()
-                    .filter(|item| referenced_async_modules.contains(item))
-                    .map(|item| *item)
-                    .collect()
+        .map(async |m| {
+            if async_modules_info.contains(&ResolvedVc::upcast(m)) {
+                anyhow::Ok((
+                    m,
+                    Some(
+                        module_graph
+                            .referenced_async_modules(*ResolvedVc::upcast(m))
+                            .to_resolved()
+                            .await?,
+                    ),
+                ))
             } else {
-                Default::default()
-            };
-        all_modules.insert(
-            async_item,
-            Some(
-                AsyncModuleInfo::new(referenced_async_modules)
-                    .to_resolved()
-                    .await?,
-            ),
-        );
-    }
+                anyhow::Ok((m, None))
+            }
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
 
     // Compute new [AvailabilityInfo]
     let availability_info = {
@@ -282,9 +227,6 @@ pub async fn chunk_group_content(
             async_modules: FxIndexSet::default(),
             traced_modules: FxIndexSet::default(),
             passthrough_modules: FxIndexSet::default(),
-            forward_edges_inherit_async: FxIndexMap::default(),
-            local_back_edges_inherit_async: FxIndexMap::default(),
-            available_async_modules_back_edges_inherit_async: FxIndexMap::default(),
         },
     };
 
@@ -320,7 +262,7 @@ pub async fn chunk_group_content(
                     .as_ref()
                     .and_then(|available_modules| available_modules.get(chunkable_module));
 
-                let Some((parent_node, edge)) = parent_info else {
+                let Some((_, edge)) = parent_info else {
                     return Ok(if available_info.is_some() {
                         GraphTraversalAction::Skip
                     } else {
@@ -329,44 +271,15 @@ pub async fn chunk_group_content(
                     });
                 };
 
-                let parent_module =
-                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(parent_node.module)
-                        .context("Expected parent module to be chunkable")?;
-
                 Ok(match edge {
                     ChunkingType::Passthrough => {
                         result.passthrough_modules.insert(chunkable_module);
                         GraphTraversalAction::Continue
                     }
-                    ChunkingType::Parallel => {
+                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
                         if available_info.is_some() {
                             GraphTraversalAction::Skip
                         } else {
-                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
-                            GraphTraversalAction::Continue
-                        }
-                    }
-                    ChunkingType::ParallelInheritAsync => {
-                        result
-                            .forward_edges_inherit_async
-                            .entry(parent_module)
-                            .or_default()
-                            .push(chunkable_module);
-                        if let Some(info) = available_info {
-                            if info.is_async {
-                                result
-                                    .available_async_modules_back_edges_inherit_async
-                                    .entry(chunkable_module)
-                                    .or_default()
-                                    .push(parent_module);
-                            }
-                            GraphTraversalAction::Skip
-                        } else {
-                            result
-                                .local_back_edges_inherit_async
-                                .entry(chunkable_module)
-                                .or_default()
-                                .push(parent_module);
                             unsorted_chunkable_modules.insert(node.module, chunkable_module);
                             GraphTraversalAction::Continue
                         }

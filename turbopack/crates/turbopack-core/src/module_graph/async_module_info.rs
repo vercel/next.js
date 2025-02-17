@@ -16,9 +16,9 @@ pub struct AsyncModulesInfo(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 pub async fn compute_async_module_info(graph: &ModuleGraph) -> Result<Vc<AsyncModulesInfo>> {
     let entries = &graph.graphs.last().unwrap().await?.entries;
 
-    let self_async_modules = graph
-        .iter_nodes()
-        .await?
+    let graphs = graph.get_graphs().await?;
+    let all_graph_nodes = graphs.iter().flat_map(|g| g.iter_nodes());
+    let self_async_modules = all_graph_nodes
         .map(async |node| Ok((node.module, *node.module.is_self_async().await?)))
         .try_join()
         .await?

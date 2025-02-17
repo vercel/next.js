@@ -21,7 +21,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{AsyncModuleInfo, ChunkingType},
     issue::Issue,
     module::{Module, Modules},
     module_graph::{
@@ -606,6 +606,38 @@ impl ModuleGraph {
             .instrument(tracing::info_span!("compute_async_module_info"))
             .await
     }
+
+    #[turbo_tasks::function]
+    pub async fn referenced_async_modules(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<AsyncModuleInfo>> {
+        let this = self.await?;
+        let graphs = this.get_graphs().await?;
+        let async_modules_info = self.async_module_info().await?;
+
+        let entry = ModuleGraph::get_entry(&graphs, module).await?;
+        let referenced_modules = iter_neighbors(&graphs[entry.graph_idx].graph, entry.node_idx)
+            .map(|(_, child_idx)| {
+                anyhow::Ok(
+                    get_node!(
+                        graphs,
+                        GraphNodeIndex {
+                            graph_idx: entry.graph_idx,
+                            node_idx: child_idx
+                        }
+                    )?
+                    .module,
+                )
+            })
+            .collect::<Result<Vec<_>>>()?
+            .into_iter()
+            .filter(|m| async_modules_info.contains(m))
+            .map(|m| *m)
+            .collect();
+
+        Ok(AsyncModuleInfo::new(referenced_modules))
+    }
 }
 
 // fn get_node<T>(
@@ -635,20 +667,18 @@ macro_rules! get_node {
 }
 pub(crate) use get_node;
 
-pub struct AllNodesIterator {
-    inner: Vec<ReadRef<SingleModuleGraph>>,
-}
-
-impl<'a> Iterator for &'a AllNodesIterator {
-    type Item = &'a SingleModuleGraphModuleNode;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.inner.iter().flat_map(|g| g.iter_nodes()).next()
-    }
-}
+// pub struct AllNodesIterator {
+//     inner: Vec<ReadRef<SingleModuleGraph>>,
+// }
+// impl<'a> Iterator for &'a AllNodesIterator {
+//     type Item = &'a SingleModuleGraphModuleNode;
+//     fn next(&mut self) -> Option<Self::Item> {
+//         self.inner.iter().flat_map(|g| g.iter_nodes()).next()
+//     }
+// }
 
 impl ModuleGraph {
-    async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
+    pub async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
         self.graphs.iter().try_join().await
     }
 
@@ -676,11 +706,11 @@ impl ModuleGraph {
         Ok(idx)
     }
 
-    /// Iterate over all nodes in the graph
-    pub async fn iter_nodes(&self) -> Result<AllNodesIterator> {
-        let graphs = self.get_graphs().await?;
-        Ok(AllNodesIterator { inner: graphs })
-    }
+    // Iterate over all nodes in the graph
+    // pub async fn iter_nodes(&self) -> Result<AllNodesIterator> {
+    // let graphs = self.get_graphs().await?;
+    // Ok(AllNodesIterator { inner: graphs })
+    // }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
