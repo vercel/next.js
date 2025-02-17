@@ -68,7 +68,7 @@ async function getSourceFrame(
           ignoredSources: getIgnoredSources(sourceMap),
           compilation,
           moduleId,
-          modulePath: fileName,
+          moduleURL: fileName,
         },
         rootDirectory: compilation.options.context!,
         frame: {

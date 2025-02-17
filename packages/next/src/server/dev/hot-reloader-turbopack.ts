@@ -106,7 +106,7 @@ const isTestMode = !!(
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /**
- * Replaces turbopack://[project] with the specified project in the `source` field.
+ * Replaces turbopack:///[project] with the specified project in the `source` field.
  */
 function rewriteTurbopackSources(
   projectRoot: string,
@@ -121,7 +121,7 @@ function rewriteTurbopackSources(
       sourceMap.sources[i] = pathToFileURL(
         join(
           projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\[project\]/, '')
+          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
         )
       ).toString()
     }

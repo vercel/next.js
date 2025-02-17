@@ -3653,9 +3653,8 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
   snapshotChanged &&
     ((hook.memoizedState = getServerSnapshot), (didReceiveUpdate = !0));
   hook = hook.queue;
-  updateEffect(subscribeToStore.bind(null, fiber, hook, subscribe), [
-    subscribe
-  ]);
+  var create = subscribeToStore.bind(null, fiber, hook, subscribe);
+  updateEffectImpl(2048, 8, create, [subscribe]);
   if (
     hook.getSnapshot !== getSnapshot ||
     snapshotChanged ||
@@ -4003,8 +4002,8 @@ function rerenderActionState(action) {
   currentStateHook.memoizedState = action;
   return [stateHook, dispatch, !1];
 }
-function pushSimpleEffect(tag, inst, create, deps) {
-  tag = { tag: tag, create: create, deps: deps, inst: inst, next: null };
+function pushSimpleEffect(tag, inst, create, createDeps) {
+  tag = { tag: tag, create: create, deps: createDeps, inst: inst, next: null };
   inst = currentlyRenderingFiber.updateQueue;
   null === inst &&
     ((inst = createFunctionComponentUpdateQueue()),
@@ -4012,9 +4011,9 @@ function pushSimpleEffect(tag, inst, create, deps) {
   create = inst.lastEffect;
   null === create
     ? (inst.lastEffect = tag.next = tag)
-    : ((deps = create.next),
+    : ((createDeps = create.next),
       (create.next = tag),
-      (tag.next = deps),
+      (tag.next = createDeps),
       (inst.lastEffect = tag));
   return tag;
 }
@@ -4024,15 +4023,15 @@ function createEffectInstance() {
 function updateRef() {
   return updateWorkInProgressHook().memoizedState;
 }
-function mountEffectImpl(fiberFlags, hookFlags, create, deps) {
+function mountEffectImpl(fiberFlags, hookFlags, create, createDeps) {
   var hook = mountWorkInProgressHook();
-  deps = void 0 === deps ? null : deps;
+  createDeps = void 0 === createDeps ? null : createDeps;
   currentlyRenderingFiber.flags |= fiberFlags;
   hook.memoizedState = pushSimpleEffect(
     1 | hookFlags,
     createEffectInstance(),
     create,
-    deps
+    createDeps
   );
 }
 function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
@@ -4051,11 +4050,11 @@ function updateEffectImpl(fiberFlags, hookFlags, create, deps) {
         deps
       )));
 }
-function mountEffect(create, deps) {
-  mountEffectImpl(8390656, 8, create, deps);
+function mountEffect(create, createDeps) {
+  mountEffectImpl(8390656, 8, create, createDeps);
 }
-function updateEffect(create, deps) {
-  updateEffectImpl(2048, 8, create, deps);
+function updateEffect(create, createDeps) {
+  updateEffectImpl(2048, 8, create, createDeps);
 }
 function useEffectEventImpl(payload) {
   currentlyRenderingFiber.flags |= 4;
@@ -7560,9 +7559,10 @@ function commitHookEffectListUnmount(
           if (void 0 !== destroy) {
             inst.destroy = void 0;
             lastEffect = finishedWork;
-            var nearestMountedAncestor = nearestMountedAncestor$jscomp$0;
+            var nearestMountedAncestor = nearestMountedAncestor$jscomp$0,
+              destroy_ = destroy;
             try {
-              destroy();
+              destroy_();
             } catch (error) {
               captureCommitPhaseError(
                 lastEffect,
@@ -13039,20 +13039,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1593 = 0;
-  i$jscomp$inline_1593 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1593++
+  var i$jscomp$inline_1601 = 0;
+  i$jscomp$inline_1601 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1601++
 ) {
-  var eventName$jscomp$inline_1594 =
-      simpleEventPluginEvents[i$jscomp$inline_1593],
-    domEventName$jscomp$inline_1595 =
-      eventName$jscomp$inline_1594.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1596 =
-      eventName$jscomp$inline_1594[0].toUpperCase() +
-      eventName$jscomp$inline_1594.slice(1);
+  var eventName$jscomp$inline_1602 =
+      simpleEventPluginEvents[i$jscomp$inline_1601],
+    domEventName$jscomp$inline_1603 =
+      eventName$jscomp$inline_1602.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1604 =
+      eventName$jscomp$inline_1602[0].toUpperCase() +
+      eventName$jscomp$inline_1602.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1595,
-    "on" + capitalizedEvent$jscomp$inline_1596
+    domEventName$jscomp$inline_1603,
+    "on" + capitalizedEvent$jscomp$inline_1604
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16762,16 +16762,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1845 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1853 = React.version;
 if (
-  "19.1.0-experimental-cd90a4d8-20250210" !==
-  isomorphicReactPackageVersion$jscomp$inline_1845
+  "19.1.0-experimental-32b0cad8-20250213" !==
+  isomorphicReactPackageVersion$jscomp$inline_1853
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1845,
-      "19.1.0-experimental-cd90a4d8-20250210"
+      isomorphicReactPackageVersion$jscomp$inline_1853,
+      "19.1.0-experimental-32b0cad8-20250213"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16791,24 +16791,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2385 = {
+var internals$jscomp$inline_2393 = {
   bundleType: 0,
-  version: "19.1.0-experimental-cd90a4d8-20250210",
+  version: "19.1.0-experimental-32b0cad8-20250213",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-cd90a4d8-20250210"
+  reconcilerVersion: "19.1.0-experimental-32b0cad8-20250213"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2386 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2394 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2386.isDisabled &&
-    hook$jscomp$inline_2386.supportsFiber
+    !hook$jscomp$inline_2394.isDisabled &&
+    hook$jscomp$inline_2394.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2386.inject(
-        internals$jscomp$inline_2385
+      (rendererID = hook$jscomp$inline_2394.inject(
+        internals$jscomp$inline_2393
       )),
-        (injectedHook = hook$jscomp$inline_2386);
+        (injectedHook = hook$jscomp$inline_2394);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -17051,4 +17051,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.1.0-experimental-cd90a4d8-20250210";
+exports.version = "19.1.0-experimental-32b0cad8-20250213";

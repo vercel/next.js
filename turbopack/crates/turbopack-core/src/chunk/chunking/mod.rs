@@ -9,8 +9,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo,
-    ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
+    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo, ChunkType,
+    ChunkingContext,
 };
 use crate::{
     chunk::{
@@ -47,17 +47,15 @@ async fn chunk_item_info(
 
 /// Creates chunks based on heuristics for the passed `chunk_items`. Also
 /// attaches `referenced_output_assets` to the first chunk.
-#[turbo_tasks::function]
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
+    chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
-) -> Result<Vc<Chunks>> {
+) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
 
-    let chunk_items = chunk_items.await?;
     let chunk_items = chunk_items
         .iter()
         .map(|c| async move {
@@ -154,7 +152,7 @@ pub async fn make_chunks(
         .try_join()
         .await?;
 
-    Ok(Vc::cell(resolved_chunks))
+    Ok(resolved_chunks)
 }
 
 struct ChunkItemWithInfo {

@@ -13,30 +13,36 @@ const meta: Meta<typeof Terminal> = {
 export default meta
 type Story = StoryObj<typeof Terminal>
 
-export const SimpleTerminal: Story = {
+export const Default: Story = {
   args: {
-    content:
-      './app/page.tsx:10:5\n\u001b[31mError:\u001b[39m Something went wrong\n  at Home (./app/page.tsx:10:5)',
+    content: `./app/page.tsx:1:1
+\x1B[31m\x1B[1mModule not found\x1B[22m\x1B[39m: Can't resolve '\x1B[32mnot-existing-module\x1B[39m'
+\x1B[0m\x1B[31m\x1B[1m>\x1B[22m\x1B[39m\x1B[90m 1 |\x1B[39m \x1B[36mimport\x1B[39m \x1B[32m'not-existing-module'\x1B[39m\x1B[0m
+\x1B[0m \x1B[90m   |\x1B[39m \x1B[31m\x1B[1m^\x1B[22m\x1B[39m\x1B[0m
+\x1B[0m \x1B[90m 2 |\x1B[39m\x1B[0m
+\x1B[0m \x1B[90m 3 |\x1B[39m \x1B[36mexport\x1B[39m \x1B[36mdefault\x1B[39m \x1B[36mfunction\x1B[39m \x1B[33mPage\x1B[39m() {\x1B[0m
+\x1B[0m \x1B[90m 4 |\x1B[39m   \x1B[36mreturn\x1B[39m \x1B[33m<\x1B[39m\x1B[33mp\x1B[39m\x1B[33m>\x1B[39mhello world\x1B[33m<\x1B[39m\x1B[33m/\x1B[39m\x1B[33mp\x1B[39m\x1B[33m>\x1B[39m\x1B[0m
+
+https://nextjs.org/docs/messages/module-not-found`,
   },
 }
 
 export const WithImportTrace: Story = {
   args: {
-    content: `./components/Button.tsx:15:3
-ReactServerComponentsError: Failed to load component
-Import trace for requested module:
-./pages/index.tsx
-./components/Layout.tsx
-./components/Button.tsx`,
-  },
-}
+    content: `./app/page.tsx
+Error:   \x1B[31m×\x1B[0m Expected ';', '}' or <eof>
+   ╭─[\x1B[36;1;4m/hello-world/app/page.tsx\x1B[0m:2:1]
+ \x1B[2m1\x1B[0m │ export default function Page() {
+ \x1B[2m2\x1B[0m │   ret urn <p>hello world</p>
+   · \x1B[35;1m  ─┬─\x1B[0m\x1B[33;1m ───\x1B[0m
+   ·    \x1B[35;1m╰── \x1B[35;1mThis is the expression part of an expression statement\x1B[0m\x1B[0m
+ \x1B[2m3\x1B[0m │ }
+   ╰────
 
-export const WithAnsiColors: Story = {
-  args: {
-    content: `./app/error.tsx:5:10
-\u001b[31m\u001b[1mError:\u001b[22m\u001b[39m Failed to compile
-\u001b[36m  console\u001b[39m.\u001b[33mlog\u001b[39m('Debug message')
-\u001b[32m✓\u001b[39m Success message
-\u001b[31m✕\u001b[39m Error message`,
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./app/page.tsx`,
   },
 }

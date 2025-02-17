@@ -7,6 +7,8 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
   hasRedboxCallStack,
+  assertNoRedbox,
+  assertNoConsoleErrors,
 } from 'next-test-utils'
 
 async function getRedboxResult(browser: any) {
@@ -246,5 +248,13 @@ describe('app-dir - capture-console-error-owner-stack', () => {
        }
       `)
     }
+  })
+
+  it('should display the error message in error event when event.error is not present', async () => {
+    const browser = await next.browser('/browser/error-event')
+    await browser.elementByCss('button').click()
+
+    await assertNoRedbox(browser)
+    await assertNoConsoleErrors(browser)
   })
 })

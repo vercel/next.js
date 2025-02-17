@@ -724,7 +724,39 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         });
 
         // Schedule the task, if not already scheduled
-        if task.add(CachedDataItem::new_scheduled(
+        if let Some(existing) = get!(task, InProgress) {
+            match existing {
+                InProgressState::InProgress(box InProgressStateInner { stale, .. }) => {
+                    if !*stale {
+                        let idx = get!(
+                            task,
+                            CellTypeMaxIndex {
+                                cell_type: cell.type_id
+                            }
+                        )
+                        .copied()
+                        .unwrap_or_default();
+                        if cell.index <= idx {
+                            // The current execution is past the cell, so we need to reexecute.
+                            let Some(InProgressState::InProgress(box InProgressStateInner {
+                                stale,
+                                ..
+                            })) = get_mut!(task, InProgress)
+                            else {
+                                unreachable!();
+                            };
+                            *stale = true;
+                        } else {
+                            // The cell will still be written in the current execution, so we can
+                            // just continue here.
+                        }
+                    }
+                }
+                InProgressState::Scheduled { .. } => {
+                    // Already scheduled
+                }
+            }
+        } else if task.add(CachedDataItem::new_scheduled(
             self.get_task_desc_fn(task_id),
         )) {
             turbo_tasks.schedule(task_id);
@@ -1381,6 +1413,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if !queue.is_empty() || !old_edges.is_empty() {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
@@ -1413,6 +1446,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::Scheduled { done_event },
             });
+            drop(task);
 
             // All `new_children` are currently hold active with an active count and we need to undo
             // that. (We already filtered out the old children from that list)
@@ -1443,6 +1477,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if has_children {
+            #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(&mut ctx);
         }
@@ -1801,6 +1836,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            // Without dependency tracking we don't need session dependent tasks
+            return;
+        }
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
         if let Some(InProgressState::InProgress(box InProgressStateInner {

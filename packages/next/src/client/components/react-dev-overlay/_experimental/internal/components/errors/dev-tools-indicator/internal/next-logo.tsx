@@ -415,6 +415,7 @@ export const NextLogo = forwardRef(function NextLogo(
           <button
             ref={mergeRefs(triggerRef, propRef)}
             data-next-mark
+            data-next-mark-loading={isLoading}
             onClick={onTriggerClick}
             {...props}
           >
@@ -453,7 +454,7 @@ export const NextLogo = forwardRef(function NextLogo(
                   triggerRef.current?.focus()
                 }}
               >
-                <Cross />
+                <Cross data-cross />
               </button>
             </div>
           )}
@@ -508,7 +509,13 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
 function NextMark({ isLoading }: { isLoading?: boolean }) {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      data-next-mark-loading={isLoading}
+    >
       <g transform="translate(8.5, 13)">
         <path
           className={isLoading ? 'path0' : 'paused'}
@@ -562,15 +569,15 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
   )
 }
 
-function Cross() {
+export function Cross(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      data-cross
       width="12"
       height="12"
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      {...props}
     >
       <path
         fillRule="evenodd"

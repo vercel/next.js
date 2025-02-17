@@ -93,6 +93,11 @@ export function badRequest(res: ServerResponse) {
   res.end('Bad Request')
 }
 
+export function notFound(res: ServerResponse) {
+  res.statusCode = 404
+  res.end('Not Found')
+}
+
 export function internalServerError(res: ServerResponse, error?: unknown) {
   res.statusCode = 500
   res.setHeader('Content-Type', 'text/plain')

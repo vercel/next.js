@@ -234,12 +234,6 @@ export interface RenderOptsPartial {
   devRenderResumeDataCache?: RenderResumeDataCache
 
   /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
-   */
-  isDebugStaticShell?: boolean
-
-  /**
    * When true, the page will be rendered using the static rendering to detect
    * any dynamic API's that would have stopped the page from being fully
    * statically generated.

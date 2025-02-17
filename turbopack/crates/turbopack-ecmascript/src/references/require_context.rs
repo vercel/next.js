@@ -1,6 +1,7 @@
 use std::{borrow::Cow, collections::VecDeque, sync::Arc};
 
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -13,7 +14,10 @@ use swc_core::{
     quote, quote_expr,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{primitives::Regex, FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, primitives::Regex, trace::TraceRawVcs, FxIndexMap, NonLocalValue,
+    ResolvedVc, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -35,7 +39,7 @@ use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
     },
-    code_gen::CodeGeneration,
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
         pattern_mapping::{PatternMapping, ResolveType},
@@ -43,7 +47,7 @@ use crate::{
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
-    CodeGenerateable, EcmascriptChunkPlaceable,
+    EcmascriptChunkPlaceable,
 };
 
 #[turbo_tasks::value]
@@ -212,24 +216,20 @@ pub struct RequireContextAssetReference {
     pub dir: RcStr,
     pub include_subdirs: bool,
 
-    pub path: AstPath,
     pub issue_source: Option<IssueSource>,
     pub in_try: bool,
 }
 
-#[turbo_tasks::value_impl]
 impl RequireContextAssetReference {
-    #[turbo_tasks::function]
     pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         dir: RcStr,
         include_subdirs: bool,
         filter: Vc<Regex>,
-        path: AstPath,
         issue_source: Option<IssueSource>,
         in_try: bool,
-    ) -> Result<Vc<Self>> {
+    ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
             origin.origin_path().parent().join(dir.clone()),
@@ -250,14 +250,13 @@ impl RequireContextAssetReference {
         }
         .resolved_cell();
 
-        Ok(Self::cell(RequireContextAssetReference {
+        Ok(RequireContextAssetReference {
             inner,
             dir,
             include_subdirs,
-            path,
             issue_source,
             in_try,
-        }))
+        })
     }
 }
 
@@ -287,15 +286,37 @@ impl ValueToString for RequireContextAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for RequireContextAssetReference {}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for RequireContextAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for RequireContextAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen {
+                reference,
+                path,
+            }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct RequireContextAssetReferenceCodeGen {
+    path: AstPath,
+    reference: ResolvedVc<RequireContextAssetReference>,
+}
+
+impl RequireContextAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let chunk_item = self
+            .reference
+            .await?
             .inner
             .as_chunk_item(module_graph, Vc::upcast(chunking_context));
         let module_id = chunk_item.id().owned().await?;
@@ -313,7 +334,7 @@ impl CodeGenerateable for RequireContextAssetReference {
             }
         }));
 
-        Ok(CodeGeneration::visitors(visitors).cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

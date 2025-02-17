@@ -29,7 +29,7 @@ use turbopack_core::{
 use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
 };
@@ -489,14 +489,12 @@ impl EsmExports {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmExports {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl EsmExports {
+    pub async fn code_generation(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
@@ -639,7 +637,6 @@ impl CodeGenerateable for EsmExports {
                     getters: Expr = getters.clone()
                 ),
             )],
-        )
-        .cell())
+        ))
     }
 }

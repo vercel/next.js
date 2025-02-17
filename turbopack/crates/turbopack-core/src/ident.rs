@@ -331,7 +331,7 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(name[..i].as_bytes()));
+            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
             let truncated_hash = &hash[..5];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }

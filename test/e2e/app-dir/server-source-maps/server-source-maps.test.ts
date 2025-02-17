@@ -34,15 +34,15 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '\nError: Boom' +
-          '\n    at logError (app/rsc-error-log/page.js:4:16)' +
-          '\n    at Page (app/rsc-error-log/page.js:11:2)' +
-          '\n  2 |' +
-          '\n  3 | function logError() {' +
-          "\n> 4 |   const error = new Error('Boom')" +
+          '\n    at logError (app/rsc-error-log/page.js:5:16)' +
+          '\n    at Page (app/rsc-error-log/page.js:12:2)' +
+          '\n  3 |' +
+          '\n  4 | function logError() {' +
+          "\n> 5 |   const error = new Error('Boom')" +
           '\n    |                ^' +
-          '\n  5 |   console.error(error)' +
-          '\n  6 | }' +
-          '\n  7 |' +
+          '\n  6 |   console.error(error)' +
+          '\n  7 | }' +
+          '\n  8 |' +
           '\n'
       )
     } else {

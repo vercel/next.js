@@ -84,6 +84,10 @@ export const CALL_STACK_FRAME_STYLES = css`
     border-radius: var(--rounded-lg);
   }
 
+  [data-nextjs-call-stack-frame-ignored]:last-child {
+    margin-bottom: 0;
+  }
+
   [data-nextjs-call-stack-frame] {
     user-select: text;
     display: block;

@@ -110,7 +110,7 @@ impl ReferencedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
@@ -139,15 +139,15 @@ impl EsmAssetReference {
         annotations: Value<ImportAnnotations>,
         export_name: Option<ModulePart>,
         import_externals: bool,
-    ) -> Vc<Self> {
-        Self::cell(EsmAssetReference {
+    ) -> Self {
+        EsmAssetReference {
             origin,
             request,
             issue_source,
             annotations: annotations.into_value(),
             export_name,
             import_externals,
-        })
+        }
     }
 }
 
@@ -394,7 +394,7 @@ impl CodeGenerateable for EsmAssetReference {
         if let Some((key, stmt)) = result {
             Ok(CodeGeneration::hoisted_stmt(key, stmt).cell())
         } else {
-            Ok(CodeGeneration::empty())
+            Ok(CodeGeneration::empty().cell())
         }
     }
 }

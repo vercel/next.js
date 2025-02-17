@@ -612,7 +612,9 @@ async fn apply_webpack_resolve_options(
     if let Some(alias_fields) = webpack_resolve_options.alias_fields {
         let mut old = resolve_options
             .in_package
-            .extract_if(|field| matches!(field, ResolveInPackage::AliasField(..)))
+            .extract_if(0.., |field| {
+                matches!(field, ResolveInPackage::AliasField(..))
+            })
             .collect::<Vec<_>>();
         for field in alias_fields {
             if &*field == "..." {
@@ -653,7 +655,9 @@ async fn apply_webpack_resolve_options(
     if let Some(main_fields) = webpack_resolve_options.main_fields {
         let mut old = resolve_options
             .into_package
-            .extract_if(|field| matches!(field, ResolveIntoPackage::MainField { .. }))
+            .extract_if(0.., |field| {
+                matches!(field, ResolveIntoPackage::MainField { .. })
+            })
             .collect::<Vec<_>>();
         for field in main_fields {
             if &*field == "..." {

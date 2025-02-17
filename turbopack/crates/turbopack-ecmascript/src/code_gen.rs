@@ -5,19 +5,30 @@ use swc_core::ecma::{
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbopack_core::{
+    chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
+};
 
 use crate::references::{
     amd::AmdDefineWithDependenciesCodeGen,
-    cjs::CjsRequireCacheAccess,
+    cjs::{
+        CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
+        CjsRequireResolveAssetReferenceCodeGen,
+    },
     constant_condition::ConstantConditionCodeGen,
     constant_value::ConstantValueCodeGen,
     dynamic_expression::DynamicExpression,
-    esm::{EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef},
+    esm::{
+        dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
+        url::UrlAssetReferenceCodeGen, EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef,
+    },
     ident::IdentReplacement,
     member::MemberReplacement,
+    require_context::RequireContextAssetReferenceCodeGen,
     unreachable::Unreachable,
+    worker::WorkerAssetReferenceCodeGen,
+    AstPath,
 };
 
 /// impl of code generation inferred from a ModuleReference.
@@ -39,11 +50,10 @@ pub struct CodeGeneration {
 }
 
 impl CodeGeneration {
-    pub fn empty() -> Vc<Self> {
+    pub fn empty() -> Self {
         CodeGeneration {
             ..Default::default()
         }
-        .cell()
     }
 
     pub fn new(
@@ -109,7 +119,7 @@ pub trait CodeGenerateable {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
-    // AMD occurs very rarely and makes the enum more than 2x bigger
+    // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
     CjsRequireCacheAccess(CjsRequireCacheAccess),
     ConstantConditionCodeGen(ConstantConditionCodeGen),
@@ -122,6 +132,13 @@ pub enum CodeGen {
     ImportMetaRef(ImportMetaRef),
     MemberReplacement(MemberReplacement),
     Unreachable(Unreachable),
+    CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen),
+    CjsRequireResolveAssetReferenceCodeGen(CjsRequireResolveAssetReferenceCodeGen),
+    EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen),
+    EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen),
+    RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
+    UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
+    WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
 }
 
 impl CodeGen {
@@ -143,12 +160,26 @@ impl CodeGen {
             Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
             Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
             Self::Unreachable(v) => v.code_generation(g, ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
         }
     }
 }
 
 #[turbo_tasks::value(transparent)]
 pub struct CodeGens(Vec<CodeGen>);
+
+pub trait IntoCodeGenReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen);
+}
 
 pub fn path_to(
     path: &[AstParentKind],

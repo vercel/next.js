@@ -175,7 +175,7 @@ describe('Error overlay - RSC build errors', () => {
       // TODO: fix the issue ordering.
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-       "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+       "./app/server-with-errors/client-only-in-server/client-only-lib.js (1:1)
        Ecmascript file had an error
        > 1 | import 'client-only'
            | ^^^^^^^^^^^^^^^^^^^^
@@ -273,6 +273,41 @@ describe('Error overlay - RSC build errors', () => {
     )
   })
 
+  describe("importing 'next/cache' APIs in a client component", () => {
+    test.each([
+      'revalidatePath',
+      'revalidateTag',
+      'unstable_cacheLife',
+      'unstable_cacheTag',
+      'unstable_expirePath',
+      'unstable_expireTag',
+    ])('%s is not allowed', async (api) => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
+      )
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      expect(await session.getRedboxSource()).toInclude(
+        `You're importing a component that needs "${api}". That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component.`
+      )
+    })
+
+    test.each([
+      'unstable_cache', // useless in client, but doesn't technically error
+      'unstable_noStore', // no-op in client, but allowed for legacy reasons
+    ])('%s is allowed', async (api) => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        `/server-with-errors/next-cache-in-client/${api.toLowerCase()}`
+      )
+      const { session } = sandbox
+      await session.assertNoRedbox()
+    })
+  })
+
   it('should error for invalid undefined module retuning from next dynamic', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -313,13 +348,13 @@ describe('Error overlay - RSC build errors', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./app/server-with-errors/error-file/error.js:1:1
-        Ecmascript file had an error
-        > 1 | export default function Error() {}
-            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       "./app/server-with-errors/error-file/error.js (1:1)
+       Ecmascript file had an error
+       > 1 | export default function Error() {}
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-        app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
-        Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
+       app/server-with-errors/error-file/error.js must be a Client Component. Add the "use client" directive the top of the file to resolve this issue.
+       Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client"
       `)
     } else {
       await expect(session.getRedboxSource()).resolves.toMatch(
