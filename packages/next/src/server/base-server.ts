@@ -138,6 +138,7 @@ import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
+  PRERENDER_REVALIDATE_HEADER,
 } from '../lib/constants'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import {
@@ -2078,7 +2079,8 @@ export default abstract class Server<
       staticPaths?.includes(resolvedUrlPathname) ||
       // this signals revalidation in deploy environments
       // TODO: make this more generic
-      req.headers['x-now-route-matches']
+      req.headers['x-now-route-matches'] ||
+      req.headers[PRERENDER_REVALIDATE_HEADER]
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
