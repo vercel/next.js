@@ -123,8 +123,8 @@ describe('error-ignored-frames', () => {
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at eval (app/interleaved/page.tsx (7:11))
-       at Page (app/interleaved/page.tsx (6:37))
        at invokeCallback (node_modules/interleave/index.js (2:1))
+       at Page (app/interleaved/page.tsx (6:37))
        at ClientPageRoot (../src/client/components/client-page.tsx (60:13))
        at Router (../src/client/components/app-router.tsx (633:8))
        at AppRouter (../src/client/components/app-router.tsx (679:8))
