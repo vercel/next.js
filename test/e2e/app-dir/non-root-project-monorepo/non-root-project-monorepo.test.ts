@@ -136,7 +136,7 @@ describe('non-root-project-monorepo', () => {
            "eval
            app/separate-file.ts (1:11)
            <unknown>
-           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js?3 (149:1)
+           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js?3 (63:1)
            __webpack_require__
            rsc:/Server/file://<full-path>/apps/web/.next/server/webpack-runtime.js (33:42)
            innerArrowFunction
