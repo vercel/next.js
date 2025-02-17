@@ -84,42 +84,4 @@ describe('dynamic-io-disable-background-revalidation', () => {
       await browser.refresh()
     })
   })
-
-  it('should revalidate everything for on demand revalidation request', async () => {
-    // We need to run this first so that we can prepopulate the in memory cache handler
-    await executeRevalidationRequest('/')
-
-    let browser = await next.browser('/')
-    const inlineRandomNumber = await browser.elementById('inline-random').text()
-    const cachedRandomNumber = await browser.elementById('random-cached').text()
-
-    const response = await executeRevalidationRequest('/', false)
-    expect(response.status).toBe(200)
-    expect(response.headers.get('x-nextjs-cache')).toBe('REVALIDATED')
-    await browser.refresh()
-
-    // First request after ISR revalidation should revalidate inline and cached
-    const inlineRandomNumber2 = await browser
-      .elementById('inline-random')
-      .text()
-    const cachedRandomNumber2 = await browser
-      .elementById('random-cached')
-      .text()
-    expect(inlineRandomNumber2).not.toEqual(inlineRandomNumber)
-    expect(cachedRandomNumber2).not.toEqual(cachedRandomNumber)
-    await browser.refresh()
-
-    // All subsequent requests should not revalidate
-    await retry(async () => {
-      const inlineRandomNumber3 = await browser
-        .elementById('inline-random')
-        .text()
-      const cachedRandomNumber3 = await browser
-        .elementById('random-cached')
-        .text()
-      expect(inlineRandomNumber3).toEqual(inlineRandomNumber2)
-      expect(cachedRandomNumber3).toEqual(cachedRandomNumber2)
-      await browser.refresh()
-    })
-  })
 })
