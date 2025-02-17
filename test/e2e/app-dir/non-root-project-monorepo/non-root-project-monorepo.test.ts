@@ -192,7 +192,7 @@ describe('non-root-project-monorepo', () => {
            "eval
            app/separate-file.ts (1:7)
            ./app/separate-file.ts
-           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-ssr/page.js (27:1)
+           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-ssr/page.js (49:1)
            options.factory
            file://<full-path>/apps/web/.next/static/chunks/webpack.js (700:31)
            __webpack_require__
@@ -249,7 +249,7 @@ describe('non-root-project-monorepo', () => {
            "eval
            app/separate-file.ts (1:7)
            ./app/separate-file.ts
-           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-client/page.js (27:1)
+           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-client/page.js (49:1)
            options.factory
            file://<full-path>/apps/web/.next/static/chunks/webpack.js (712:31)
            __webpack_require__
