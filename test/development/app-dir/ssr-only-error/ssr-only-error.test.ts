@@ -43,12 +43,20 @@ describe('ssr-only-error', () => {
   })
 
   it('should not handle internal nextjs errors that will be handled by error boundaries', async () => {
-    const browser = await next.browser('/notfound')
+    const browser = await next.browser('/notfound', {
+      pushErrorAsConsoleLog: true,
+    })
 
     await assertNoRedbox(browser)
     expect(await hasErrorToast(browser)).toBe(false)
 
     const text = await browser.elementByCss('body').text()
     expect(text).toBe('404\nThis page could not be found.')
+
+    expect(await browser.log()).not.toContainEqual(
+      expect.objectContaining({
+        source: 'error',
+      })
+    )
   })
 })
