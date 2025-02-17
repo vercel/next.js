@@ -10,15 +10,14 @@ use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
+        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        ModuleChunkItemIdExt,
     },
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -52,12 +51,11 @@ pub enum ReferencedAsset {
 impl ReferencedAsset {
     pub async fn get_ident(
         &self,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                Some(Self::get_ident_from_placeable(asset, module_graph, chunking_context).await?)
+                Some(Self::get_ident_from_placeable(asset, chunking_context).await?)
             }
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
@@ -68,13 +66,9 @@ impl ReferencedAsset {
 
     pub(crate) async fn get_ident_from_placeable(
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let id = asset
-            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-            .id()
-            .await?;
+        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
         Ok(magic_identifier::mangle(&format!("imported module {}", id)))
     }
 }
@@ -258,7 +252,6 @@ impl ChunkableModuleReference for EsmAssetReference {
 impl EsmAssetReference {
     pub async fn code_generation(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
@@ -276,10 +269,7 @@ impl EsmAssetReference {
                     span: DUMMY_SP,
                 });
                 Some((format!("throw {request}").into(), stmt))
-            } else if let Some(ident) = referenced_asset
-                .get_ident(module_graph, chunking_context)
-                .await?
-            {
+            } else if let Some(ident) = referenced_asset.get_ident(chunking_context).await? {
                 let span = this
                     .issue_source
                     .to_swc_offsets()
@@ -292,10 +282,7 @@ impl EsmAssetReference {
                         unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {
-                        let id = asset
-                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                            .id()
-                            .await?;
+                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
                         let name = ident;
                         Some((
                             id.to_string().into(),

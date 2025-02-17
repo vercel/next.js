@@ -43,17 +43,14 @@ impl EsmBinding {
 
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
         let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset();
-        let imported_module = imported_module
-            .await?
-            .get_ident(module_graph, chunking_context)
-            .await?;
+        let imported_module = imported_module.await?.get_ident(chunking_context).await?;
 
         let mut ast_path = self.ast_path.0.clone();
         loop {

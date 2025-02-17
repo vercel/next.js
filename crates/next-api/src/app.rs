@@ -1365,7 +1365,6 @@ impl AppEndpoint {
                     client_references_chunks,
                     rsc_app_entry_chunks: **app_entry_chunks,
                     rsc_app_entry_chunks_availability: Value::new(*app_entry_chunks_availability),
-                    module_graph: *module_graphs.full,
                     client_chunking_context,
                     ssr_chunking_context,
                     next_config: project.next_config(),

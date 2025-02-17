@@ -492,19 +492,16 @@ impl EsmExports {
 impl EsmExports {
     pub async fn code_generation(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         for dynamic_export_asset in &expanded.dynamic_exports {
-            let ident = ReferencedAsset::get_ident_from_placeable(
-                dynamic_export_asset,
-                module_graph,
-                chunking_context,
-            )
-            .await?;
+            let ident =
+                ReferencedAsset::get_ident_from_placeable(dynamic_export_asset, chunking_context)
+                    .await?;
 
             dynamic_exports.push(quote_expr!(
                 "$turbopack_dynamic($arg)",
@@ -546,7 +543,6 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset.get_ident(
-                        module_graph,
                         chunking_context
                     ).await?.map(|ident| {
                         let expr = MemberExpr {
@@ -588,7 +584,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(module_graph, chunking_context)
+                        .get_ident(chunking_context)
                         .await?
                         .map(|ident| {
                             quote!(

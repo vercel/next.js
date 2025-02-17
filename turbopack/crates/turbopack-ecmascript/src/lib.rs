@@ -711,11 +711,6 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("content() should not be called");
     }
@@ -804,12 +799,7 @@ impl EcmascriptModuleContent {
                 if let Some(async_module) = &*async_module.await? {
                     Some(
                         async_module
-                            .code_generation(
-                                async_module_info,
-                                references,
-                                *module_graph,
-                                *chunking_context,
-                            )
+                            .code_generation(async_module_info, references, *chunking_context)
                             .await?,
                     )
                 } else {
@@ -829,7 +819,7 @@ impl EcmascriptModuleContent {
             let esm_code_gens = esm_references
                 .await?
                 .iter()
-                .map(|r| r.code_generation(*module_graph, *chunking_context))
+                .map(|r| r.code_generation(*chunking_context))
                 .try_join()
                 .await?;
             let code_gens = code_generation

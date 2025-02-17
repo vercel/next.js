@@ -2,9 +2,7 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
-    },
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -84,11 +82,6 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *module.full_module.await?.options,
             async_module_options,
         ))
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }
 
@@ -175,12 +168,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 format!(
                     "{}{TURBOPACK_IMPORT}({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyModuleId(
-                        &*side_effect
-                            .as_chunk_item(*self.module_graph, *self.chunking_context)
-                            .id()
-                            .await?
-                    )
+                    StringifyModuleId(&*side_effect.chunk_item_id(*self.chunking_context).await?)
                 )
                 .as_bytes(),
             );
@@ -192,8 +180,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 StringifyModuleId(
                     &*module
                         .resolved_as
-                        .as_chunk_item(*self.module_graph, *self.chunking_context)
-                        .id()
+                        .chunk_item_id(*self.chunking_context)
                         .await?
                 )
             )
@@ -221,10 +208,5 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
             placeholder_for_future_extensions: (),
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }
