@@ -542,9 +542,12 @@ impl SingleModuleGraph {
                 ReverseTopologicalPass::ExpandAndVisit => {
                     match graph.node_weight(current).unwrap() {
                         current_node @ SingleModuleGraphNode::Module(_) => {
-                            let action = visit_preorder(parent_arg, current_node, state);
+                            let action = visit_preorder(parent_arg, current_node, state)?;
+                            if action == GraphTraversalAction::Exclude {
+                                continue;
+                            }
                             stack.push((ReverseTopologicalPass::Visit, parent, current));
-                            if action? == GraphTraversalAction::Continue && expanded.insert(current)
+                            if action == GraphTraversalAction::Continue && expanded.insert(current)
                             {
                                 stack.extend(iter_neighbors(graph, current).map(
                                     |(edge, child)| {
@@ -603,9 +606,7 @@ impl ModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(self)
-            .instrument(tracing::info_span!("compute_chunk_group_info"))
-            .await
+        compute_chunk_group_info(self).await
     }
 
     #[turbo_tasks::function]
@@ -618,7 +619,7 @@ impl ModuleGraph {
             let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }
-        .instrument(tracing::info_span!("compute_async_module_info"))
+        .instrument(tracing::info_span!("compute async module info"))
         .await
     }
 
@@ -940,9 +941,12 @@ impl ModuleGraph {
                     visit_postorder(parent_arg, current_node, state);
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
-                    let action = visit_preorder(parent_arg, current_node, state);
+                    let action = visit_preorder(parent_arg, current_node, state)?;
+                    if action == GraphTraversalAction::Exclude {
+                        continue;
+                    }
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
-                    if action? == GraphTraversalAction::Continue && expanded.insert(current) {
+                    if action == GraphTraversalAction::Continue && expanded.insert(current) {
                         let graph = &graphs[current.graph_idx].graph;
                         let (neighbors, current) =
                             match graph.node_weight(current.node_idx).unwrap() {
@@ -1031,8 +1035,10 @@ impl SingleModuleGraphNode {
 pub enum GraphTraversalAction {
     /// Continue visiting children
     Continue,
-    /// Skip the immediate children
+    /// Skip the immediate children, but visit the node in postorder
     Skip,
+    /// Skip the immediate children and the node in postorder
+    Exclude,
 }
 
 // These nodes are created while walking the Turbopack modules references, and are used to then
