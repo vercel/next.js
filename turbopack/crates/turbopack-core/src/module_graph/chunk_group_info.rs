@@ -14,8 +14,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
+    TaskInput, TryJoinIterExt, Vc,
 };
 
 use crate::{
@@ -103,11 +103,21 @@ pub enum ChunkGroup {
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
-        #[turbo_tasks(trace_ignore)]
-        parent: ChunkGroupId,
+        parent: usize,
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
+}
+
+impl ChunkGroup {
+    pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        match self {
+            ChunkGroup::Entry(e) | ChunkGroup::Async(e) | ChunkGroup::Isolated(e) => {
+                Either::Left(std::iter::once(*e))
+            }
+            ChunkGroup::IsolatedMerged { entries, .. } => Either::Right(entries.iter().copied()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -182,7 +192,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     async move {
         let mut chunk_groups_map: FxIndexMap<
             ChunkGroupKey,
-            (ChunkGroupId, Vec<ResolvedVc<Box<dyn Module>>>),
+            (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
         > = FxIndexMap::default();
 
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
@@ -276,13 +286,17 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 Entry::Occupied(mut e) => {
                                     let (id, isolated_merged_entries) = e.get_mut();
                                     if is_isolated_merged {
-                                        isolated_merged_entries.push(node.module);
+                                        isolated_merged_entries.insert(node.module);
                                     }
                                     **id
                                 }
                                 Entry::Vacant(e) => {
                                     let chunk_group_id = len as u32;
-                                    e.insert((ChunkGroupId(chunk_group_id), vec![node.module]));
+                                    let mut set = FxIndexSet::default();
+                                    if is_isolated_merged {
+                                        set.insert(node.module);
+                                    }
+                                    e.insert((ChunkGroupId(chunk_group_id), set));
                                     chunk_group_id
                                 }
                             }
@@ -402,9 +416,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
                     ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
                         ChunkGroup::IsolatedMerged {
-                            parent,
+                            parent: parent.0 as usize,
                             merge_tag,
-                            entries: isolated_merged_entries,
+                            entries: isolated_merged_entries.into_iter().collect(),
                         }
                     }
                 })
