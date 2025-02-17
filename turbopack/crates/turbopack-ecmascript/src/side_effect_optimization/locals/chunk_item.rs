@@ -13,7 +13,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType,
     },
-    EcmascriptModuleContent,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// The chunk item for [EcmascriptModuleLocalsModule].
@@ -41,7 +41,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         let module_graph = self.module_graph;
         let exports = self.module.get_exports();
         let original_module = module.module;
-        let parsed = original_module.parse().resolve().await?;
+        let parsed = original_module.parse().to_resolved().await?;
 
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;
@@ -53,23 +53,21 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
         let generate_source_map =
             chunking_context.reference_module_source_maps(*ResolvedVc::upcast(self.module));
 
-        let content = EcmascriptModuleContent::new(
+        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
             parsed,
-            self.module.ident(),
-            module_type_result.module_type,
-            *module_graph,
-            *chunking_context,
-            (
-                analyze.local_references(),
-                *analyze_result.esm_local_references,
-            ),
-            *analyze_result.code_generation,
-            *analyze_result.async_module,
+            ident: self.module.ident(),
+            specified_module_type: module_type_result.module_type,
+            module_graph: *module_graph,
+            chunking_context: *chunking_context,
+            references: analyze.local_references(),
+            esm_references: *analyze_result.esm_local_references,
+            code_generation: *analyze_result.code_generation,
+            async_module: *analyze_result.async_module,
             generate_source_map,
-            *analyze_result.source_map,
+            original_source_map: analyze_result.source_map,
             exports,
             async_module_info,
-        );
+        });
 
         Ok(EcmascriptChunkItemContent::new(
             content,

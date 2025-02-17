@@ -426,18 +426,21 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let generate_source_map = chunking_context.reference_module_source_maps(Vc::upcast(self));
 
         Ok(EcmascriptModuleContent::new(
-            *parsed,
-            self.ident(),
-            module_type_result.module_type,
-            module_graph,
-            chunking_context,
-            (analyze.references(), *analyze_ref.esm_references),
-            *analyze_ref.code_generation,
-            *analyze_ref.async_module,
-            generate_source_map,
-            *analyze_ref.source_map,
-            *analyze_ref.exports,
-            async_module_info,
+            EcmascriptModuleContentOptions {
+                parsed,
+                ident: self.ident(),
+                specified_module_type: module_type_result.module_type,
+                module_graph,
+                chunking_context,
+                references: analyze.references(),
+                esm_references: *analyze_ref.esm_references,
+                code_generation: *analyze_ref.code_generation,
+                async_module: *analyze_ref.async_module,
+                generate_source_map,
+                original_source_map: analyze_ref.source_map,
+                exports: *analyze_ref.exports,
+                async_module_info,
+            },
         ))
     }
 }
@@ -757,24 +760,44 @@ pub struct EcmascriptModuleContent {
     // pub refresh: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput)]
+pub struct EcmascriptModuleContentOptions {
+    parsed: ResolvedVc<ParseResult>,
+    ident: Vc<AssetIdent>,
+    specified_module_type: SpecifiedModuleType,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    references: Vc<ModuleReferences>,
+    esm_references: Vc<EsmAssetReferences>,
+    code_generation: Vc<CodeGens>,
+    async_module: Vc<OptionAsyncModule>,
+    generate_source_map: Vc<bool>,
+    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    exports: Vc<EcmascriptExports>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
-    pub async fn new(
-        parsed: ResolvedVc<ParseResult>,
-        ident: ResolvedVc<AssetIdent>,
-        specified_module_type: SpecifiedModuleType,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        (references, esm_references): (Vc<ModuleReferences>, Vc<EsmAssetReferences>),
-        code_generation: Vc<CodeGens>,
-        async_module: Vc<OptionAsyncModule>,
-        generate_source_map: Vc<bool>,
-        original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
-        exports: Vc<EcmascriptExports>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<Self>> {
+    pub async fn new(input: EcmascriptModuleContentOptions) -> Result<Vc<Self>> {
+        let EcmascriptModuleContentOptions {
+            parsed,
+            ident,
+            specified_module_type,
+            module_graph,
+            chunking_context,
+            references,
+            esm_references,
+            code_generation,
+            async_module,
+            generate_source_map,
+            original_source_map,
+            exports,
+            async_module_info,
+        } = input;
+
         let additional_code_gens = [
             if let Some(async_module) = &*async_module.await? {
                 Some(
@@ -839,7 +862,7 @@ impl EcmascriptModuleContent {
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
-            ident.to_resolved().await?,
+            ident,
             specified_module_type,
             &[],
             generate_source_map,
@@ -851,7 +874,7 @@ impl EcmascriptModuleContent {
 
 async fn gen_content_with_code_gens(
     parsed: ResolvedVc<ParseResult>,
-    ident: ResolvedVc<AssetIdent>,
+    ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: impl IntoIterator<Item = &CodeGeneration>,
     generate_source_map: Vc<bool>,

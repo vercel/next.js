@@ -20,7 +20,7 @@ use crate::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
-    EcmascriptModuleContent,
+    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// This is an implementation of [ChunkItem] for
@@ -49,7 +49,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let module = self.module.await?;
 
         let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, module.part.clone());
+        let parsed = part_of_module(split_data, module.part.clone())
+            .to_resolved()
+            .await?;
 
         let analyze = self.module.analyze();
         let analyze_ref = analyze.await?;
@@ -60,20 +62,21 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             .chunking_context
             .reference_module_source_maps(*ResolvedVc::upcast(self.module));
 
-        let content = EcmascriptModuleContent::new(
+        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
             parsed,
-            self.module.ident(),
-            module_type_result.module_type,
-            *self.module_graph,
-            *self.chunking_context,
-            (analyze.references(), *analyze_ref.esm_references),
-            *analyze_ref.code_generation,
-            *analyze_ref.async_module,
+            ident: self.module.ident(),
+            specified_module_type: module_type_result.module_type,
+            module_graph: *self.module_graph,
+            chunking_context: *self.chunking_context,
+            references: analyze.references(),
+            esm_references: *analyze_ref.esm_references,
+            code_generation: *analyze_ref.code_generation,
+            async_module: *analyze_ref.async_module,
             generate_source_map,
-            *analyze_ref.source_map,
-            *analyze_ref.exports,
+            original_source_map: analyze_ref.source_map,
+            exports: *analyze_ref.exports,
             async_module_info,
-        );
+        });
 
         Ok(EcmascriptChunkItemContent::new(
             content,
