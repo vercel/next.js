@@ -541,7 +541,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     }
                   } else if (
                     // Handle known webpack layers
-                    file.startsWith(`(${WEBPACK_LAYERS.pagesDirBrowser})/./`)
+                    file.startsWith(`(${WEBPACK_LAYERS.pagesDirBrowser})/`)
                   ) {
                     const cleanedFilePath = file.slice(
                       `(${WEBPACK_LAYERS.pagesDirBrowser})/`.length
