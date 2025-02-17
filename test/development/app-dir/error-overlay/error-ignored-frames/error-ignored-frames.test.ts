@@ -54,7 +54,7 @@ describe('error-ignored-frames', () => {
        at OuterLayoutRouter (../src/client/components/layout-router.tsx (607:20))
        at Router (../src/client/components/app-router.tsx (633:8))
        at AppRouter (../src/client/components/app-router.tsx (679:8))
-       at ServerRoot (../src/client/app-index.tsx (200:6))"
+       at ServerRoot (../src/client/app-index.tsx (201:6))"
       `)
     }
   })
@@ -85,7 +85,7 @@ describe('error-ignored-frames', () => {
        at ClientPageRoot (../src/client/components/client-page.tsx (60:13))
        at Router (../src/client/components/app-router.tsx (633:8))
        at AppRouter (../src/client/components/app-router.tsx (679:8))
-       at ServerRoot (../src/client/app-index.tsx (200:6))"
+       at ServerRoot (../src/client/app-index.tsx (201:6))"
       `)
     }
   })
@@ -123,12 +123,12 @@ describe('error-ignored-frames', () => {
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at eval (app/interleaved/page.tsx (7:11))
-       at invokeCallback (node_modules/interleave/index.js (2:1))
        at Page (app/interleaved/page.tsx (6:37))
+       at invokeCallback (node_modules/interleave/index.js (2:1))
        at ClientPageRoot (../src/client/components/client-page.tsx (60:13))
        at Router (../src/client/components/app-router.tsx (633:8))
        at AppRouter (../src/client/components/app-router.tsx (679:8))
-       at ServerRoot (../src/client/app-index.tsx (200:6))"
+       at ServerRoot (../src/client/app-index.tsx (201:6))"
       `)
     }
   })
