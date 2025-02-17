@@ -22,6 +22,7 @@ swc_ecma_transform_plugin = [
 workspace = true
 
 [dependencies]
+smallvec = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 indexmap = { workspace = true }

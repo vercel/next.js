@@ -31,6 +31,7 @@ sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
 lazy_static = { workspace = true }
+smallvec = { workspace = true }
 dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [

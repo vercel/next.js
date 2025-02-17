@@ -13,6 +13,7 @@ bench = false
 workspace = true
 
 [dependencies]
+smallvec = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 data-encoding = "2.3.3"
