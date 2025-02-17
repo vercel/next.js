@@ -196,8 +196,16 @@ export function createMetadataComponents({
   async function getMetadataReady(): Promise<void> {
     // Only warm up metadata() call when it's blocking metadata,
     // otherwise it will be fully managed by AsyncMetadata component.
-    if (!serveStreamingMetadata) {
+    let error
+    try {
       await metadata()
+    } catch (err) {
+      error = err
+    }
+    if (serveStreamingMetadata) {
+      if (error) {
+        throw error
+      }
     }
     return undefined
   }
