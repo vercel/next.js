@@ -55,7 +55,8 @@ export function warnOptionHasBeenDeprecated(
   nestedPropertyKey: string,
   reason: string,
   silent: boolean
-) {
+): boolean {
+  let hasWarned = false
   if (!silent) {
     let current = config
     let found = true
@@ -69,9 +70,11 @@ export function warnOptionHasBeenDeprecated(
       }
     }
     if (found) {
-      Log.warn(reason)
+      Log.warnOnce(reason)
+      hasWarned = true
     }
   }
+  return hasWarned
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -477,6 +480,23 @@ function assignDefaults(
     silent
   )
 
+  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivityPosition',
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
+    silent
+  )
+  if (
+    hasWarnedBuildActivityPosition &&
+    result.devIndicators?.buildActivityPosition &&
+    result.devIndicators.buildActivityPosition !== result.devIndicators.position
+  ) {
+    Log.warnOnce(
+      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
+    )
+    result.devIndicators.position = result.devIndicators.buildActivityPosition
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -815,8 +835,8 @@ function assignDefaults(
     }
   }
 
-  if (result.devIndicators?.buildActivityPosition) {
-    const { buildActivityPosition } = result.devIndicators
+  if (result.devIndicators?.position) {
+    const { position } = result.devIndicators
     const allowedValues = [
       'top-left',
       'top-right',
@@ -824,11 +844,11 @@ function assignDefaults(
       'bottom-right',
     ]
 
-    if (!allowedValues.includes(buildActivityPosition)) {
+    if (!allowedValues.includes(position)) {
       throw new Error(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+        `Invalid "devIndicator.position" provided, expected one of ${allowedValues.join(
           ', '
-        )}, received ${buildActivityPosition}`
+        )}, received ${position}`
       )
     }
   }

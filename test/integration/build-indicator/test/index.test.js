@@ -67,7 +67,7 @@ describe('Build Activity Indicator', () => {
     await check(
       () => stripAnsi(stderr),
       new RegExp(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
       )
     )
 

@@ -640,5 +640,6 @@
   "639": "unstable_rootParams() can only be used within App Router.",
   "640": "Route %s used \"unstable_rootParams\" inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
   "641": "Route %s used \\`unstable_rootParams()\\` in Pages Router. This API is only available within App Router.",
-  "642": "Route %s used \\`unstable_rootParams()\\` inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js."
+  "642": "Route %s used \\`unstable_rootParams()\\` inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "643": "Invalid \"devIndicator.position\" provided, expected one of %s, received %s"
 }
