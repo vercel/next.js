@@ -837,7 +837,10 @@ export interface NextConfig extends Record<string, any> {
 
   /** Configure indicators in development environment */
   devIndicators?: {
-    /** Show "building..."" indicator in development */
+    /**
+     * Show "building..."" indicator in development
+     * @deprecated The dev tools indicator has it enabled by default.
+     */
     buildActivity?: boolean
     /** Position of "building..." indicator in browser */
     buildActivityPosition?:
@@ -846,6 +849,9 @@ export interface NextConfig extends Record<string, any> {
       | 'top-right'
       | 'top-left'
 
+    /**
+     * @deprecated The dev tools indicator has it enabled by default.
+     * */
     appIsrStatus?: boolean
   }
 
@@ -1092,8 +1098,6 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: true,
-    buildActivity: true,
     buildActivityPosition: 'bottom-right',
   },
   onDemandEntries: {
