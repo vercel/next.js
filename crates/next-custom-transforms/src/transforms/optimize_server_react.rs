@@ -3,6 +3,7 @@
 // - Refactors `useState` calls (under the `optimize_use_state` flag)
 
 use serde::Deserialize;
+use smallvec::smallvec;
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -191,7 +192,7 @@ impl Fold for OptimizeServerReact {
                                             definite: false,
                                             name: decl.name.clone(),
                                             init: Some(Box::new(Expr::Array(ArrayLit {
-                                                elems: vec![
+                                                elems: smallvec![
                                                     Some(call.args[0].expr.clone().into()),
                                                     Some(
                                                         Expr::Arrow(ArrowExpr {

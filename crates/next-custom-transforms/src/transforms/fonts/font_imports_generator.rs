@@ -1,6 +1,6 @@
 use serde_json::Value;
 use swc_core::{
-    common::{errors::HANDLER, Spanned, DUMMY_SP},
+    common::{errors::HANDLER, BytePos, Span, Spanned, DUMMY_SP},
     ecma::{
         ast::*,
         atoms::JsWord,
@@ -30,10 +30,13 @@ impl FontImportsGenerator<'_> {
                         .args
                         .iter()
                         .map(|expr_or_spread| {
-                            if let Some(span) = expr_or_spread.spread {
+                            if let Some(pos) = expr_or_spread.spread {
                                 HANDLER.with(|handler| {
                                     handler
-                                        .struct_span_err(span, "Font loaders don't accept spreads")
+                                        .struct_span_err(
+                                            Span::new(pos, pos + BytePos(3)),
+                                            "Font loaders don't accept spreads",
+                                        )
                                         .emit()
                                 });
                             }
@@ -212,7 +215,10 @@ fn object_lit_to_json(object_lit: &ObjectLit) -> Value {
             },
             PropOrSpread::Spread(spread_span) => HANDLER.with(|handler| {
                 handler
-                    .struct_span_err(spread_span.dot3_token, "Unexpected spread")
+                    .struct_span_err(
+                        Span::new(spread_span.dot3_token, spread_span.dot3_token + BytePos(3)),
+                        "Unexpected spread",
+                    )
                     .emit();
             }),
         }
@@ -241,7 +247,10 @@ fn expr_to_json(expr: &Expr) -> Result<Value, ()> {
                         match expr.spread {
                             Some(spread_span) => HANDLER.with(|handler| {
                                 handler
-                                    .struct_span_err(spread_span, "Unexpected spread")
+                                    .struct_span_err(
+                                        Span::new(spread_span, spread_span + BytePos(3)),
+                                        "Unexpected spread",
+                                    )
                                     .emit();
                                 Err(())
                             }),

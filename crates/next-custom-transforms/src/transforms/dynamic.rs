@@ -4,6 +4,7 @@ use std::{
 };
 
 use pathdiff::diff_paths;
+use smallvec::smallvec;
 use swc_core::{
     atoms::Atom,
     common::{errors::HANDLER, FileName, Span, DUMMY_SP},
@@ -332,7 +333,7 @@ impl Fold for NextDynamicPatcher {
                                 let require_resolve_weak_expr = Expr::Call(CallExpr {
                                     span: DUMMY_SP,
                                     callee: quote_ident!("require.resolveWeak").as_callee(),
-                                    args: vec![ExprOrSpread {
+                                    args: smallvec![ExprOrSpread {
                                         spread: None,
                                         expr: Box::new(Expr::Lit(Lit::Str(Str {
                                             span: DUMMY_SP,
@@ -431,7 +432,7 @@ fn module_id_options(module_id: Expr) -> Vec<PropOrSpread> {
     vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
         key: PropName::Ident(IdentName::new("modules".into(), DUMMY_SP)),
         value: Box::new(Expr::Array(ArrayLit {
-            elems: vec![Some(ExprOrSpread {
+            elems: smallvec![Some(ExprOrSpread {
                 expr: Box::new(module_id),
                 spread: None,
             })],
@@ -446,7 +447,7 @@ fn webpack_options(module_id: Expr) -> Vec<PropOrSpread> {
         value: Box::new(Expr::Arrow(ArrowExpr {
             params: vec![],
             body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Array(ArrayLit {
-                elems: vec![Some(ExprOrSpread {
+                elems: smallvec![Some(ExprOrSpread {
                     expr: Box::new(module_id),
                     spread: None,
                 })],

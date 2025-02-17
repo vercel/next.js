@@ -11,6 +11,7 @@ use indoc::formatdoc;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
+use smallvec::smallvec;
 use swc_core::{
     atoms::Atom,
     common::{
@@ -474,7 +475,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
+                            args: smallvec![
                                 action_id.as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
@@ -614,7 +615,7 @@ impl<C: Comments> ServerActions<C> {
                         arg: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("decryptActionBoundArgs").as_callee(),
-                            args: vec![
+                            args: smallvec![
                                 action_id.as_arg(),
                                 quote_ident!("$$ACTION_CLOSURE_BOUND").as_arg(),
                             ],
@@ -1862,7 +1863,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
-                                    args: vec![
+                                    args: smallvec![
                                         ref_id.clone().as_arg(),
                                         call_server_ident.clone().as_arg(),
                                         Expr::undefined(DUMMY_SP).as_arg(),
@@ -1894,7 +1895,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
-                                            args: vec![
+                                            args: smallvec![
                                                 ref_id.clone().as_arg(),
                                                 call_server_ident.clone().as_arg(),
                                                 Expr::undefined(DUMMY_SP).as_arg(),
@@ -1958,7 +1959,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         expr: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: Callee::Expr(Box::new(Expr::Ident(ensure_ident))),
-                            args: vec![ExprOrSpread {
+                            args: smallvec![ExprOrSpread {
                                 spread: None,
                                 expr: Box::new(Expr::Array(ArrayLit {
                                     span: DUMMY_SP,
@@ -2239,7 +2240,7 @@ fn wrap_cache_expr(expr: Box<Expr>, name: &str, id: &str, bound_args_len: usize)
     Box::new(Expr::Call(CallExpr {
         span: DUMMY_SP,
         callee: quote_ident!("$$cache__").as_callee(),
-        args: vec![
+        args: smallvec![
             ExprOrSpread {
                 spread: None,
                 expr: Box::new(name.into()),
@@ -2285,7 +2286,7 @@ fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleI
                 ))),
                 prop: MemberProp::Ident(IdentName::new("defineProperty".into(), DUMMY_SP)),
             }))),
-            args: vec![
+            args: smallvec![
                 ExprOrSpread {
                     spread: None,
                     expr: Box::new(Expr::Ident(ident.clone())),
@@ -2354,7 +2355,7 @@ fn annotate_ident_as_server_reference(
     Expr::Call(CallExpr {
         span: original_span,
         callee: quote_ident!("registerServerReference").as_callee(),
-        args: vec![
+        args: smallvec![
             ExprOrSpread {
                 spread: None,
                 expr: Box::new(Expr::Ident(ident)),
@@ -2385,7 +2386,7 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
                 prop: MemberProp::Ident(quote_ident!("bind")),
             })
             .as_callee(),
-            args: vec![
+            args: smallvec![
                 ExprOrSpread {
                     spread: None,
                     expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),

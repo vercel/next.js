@@ -10,6 +10,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
+use smallvec::smallvec;
 use swc_core::{
     atoms::{atom, Atom},
     common::{
@@ -199,7 +200,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         init: Some(Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("require").as_callee(),
-                            args: vec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
+                            args: smallvec![quote_str!("private-next-rsc-mod-ref-proxy").as_arg()],
                             ..Default::default()
                         }))),
                         definite: false,
@@ -220,7 +221,7 @@ impl<C: Comments> ReactServerComponents<C> {
                         right: Box::new(Expr::Call(CallExpr {
                             span: DUMMY_SP,
                             callee: quote_ident!("createProxy").as_callee(),
-                            args: vec![filepath.as_arg()],
+                            args: smallvec![filepath.as_arg()],
                             ..Default::default()
                         })),
                     })),

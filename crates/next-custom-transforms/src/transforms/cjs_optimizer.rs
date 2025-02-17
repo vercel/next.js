@@ -1,5 +1,6 @@
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
+use smallvec::smallvec;
 use swc_core::{
     common::{util::take::Take, SyntaxContext, DUMMY_SP},
     ecma::{
@@ -118,7 +119,7 @@ impl VisitMut for CjsOptimizer {
                                                     self.unresolved_ctxt,
                                                 )
                                                 .as_callee(),
-                                                args: vec![Expr::Lit(Lit::Str(
+                                                args: smallvec![Expr::Lit(Lit::Str(
                                                     renamed.clone().into(),
                                                 ))
                                                 .as_arg()],
