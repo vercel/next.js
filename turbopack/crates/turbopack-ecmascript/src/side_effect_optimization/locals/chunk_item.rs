@@ -76,11 +76,6 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             async_module_options,
         ))
     }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
 }
 
 #[turbo_tasks::value_impl]

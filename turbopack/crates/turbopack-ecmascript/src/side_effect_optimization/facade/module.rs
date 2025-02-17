@@ -82,7 +82,7 @@ impl EcmascriptModuleFacadeModule {
                     .esm_evaluation_references
                     .await?
                     .iter()
-                    .map(|r| r.code_generation(module_graph, chunking_context))
+                    .map(|r| r.code_generation(chunking_context))
                     .try_join()
                     .await?;
                 code_gens.push(
@@ -106,7 +106,7 @@ impl EcmascriptModuleFacadeModule {
                     .esm_reexport_references
                     .await?
                     .iter()
-                    .map(|r| r.code_generation(module_graph, chunking_context))
+                    .map(|r| r.code_generation(chunking_context))
                     .try_join()
                     .await?;
                 code_gens.push(

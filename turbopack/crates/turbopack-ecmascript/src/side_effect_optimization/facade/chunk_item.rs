@@ -76,7 +76,6 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 .code_generation(
                     async_module_info,
                     self.module.references(),
-                    *self.module_graph,
                     *chunking_context,
                 )
                 .await?,
@@ -116,11 +115,6 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             ..Default::default()
         }
         .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
     }
 }
 
