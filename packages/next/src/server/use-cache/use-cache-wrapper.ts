@@ -910,6 +910,10 @@ function shouldForceRevalidate(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore | undefined
 ): boolean {
+  if (workStore.isOnDemandRevalidate) {
+    return true
+  }
+
   if (workStore.dev && workUnitStore) {
     if (workUnitStore.type === 'request') {
       return workUnitStore.headers.get('cache-control') === 'no-cache'
@@ -918,10 +922,6 @@ function shouldForceRevalidate(
     if (workUnitStore.type === 'cache') {
       return workUnitStore.forceRevalidate
     }
-  }
-  // When an on-demand revalidation is ongoing, we should force revalidate every entry like it is for unstable_cache.
-  if (workStore.isOnDemandRevalidate) {
-    return true
   }
 
   return false
