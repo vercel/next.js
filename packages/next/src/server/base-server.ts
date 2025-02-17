@@ -2080,7 +2080,10 @@ export default abstract class Server<
       // this signals revalidation in deploy environments
       // TODO: make this more generic
       req.headers['x-now-route-matches'] ||
-      req.headers[PRERENDER_REVALIDATE_HEADER]
+      // In dev mode, we don't know for sure whether a route could be
+      // prerendered. But if the prerender revalidate header is set because the
+      // user triggered an on-demand revalidation, we can assume so.
+      (this.renderOpts.dev && req.headers[PRERENDER_REVALIDATE_HEADER])
     ) {
       isSSG = true
     } else if (!this.renderOpts.dev) {
