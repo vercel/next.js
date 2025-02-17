@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 use swc_core::{
     common::{util::take::Take, DUMMY_SP},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
@@ -181,7 +182,7 @@ impl EsmAsyncAssetReferenceCodeGen {
             );
             *expr = Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                args: vec![ExprOrSpread {
+                args: smallvec![ExprOrSpread {
                     spread: None,
                     expr: error,
                 }],

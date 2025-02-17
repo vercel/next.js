@@ -3,6 +3,7 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::Result;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -497,7 +498,7 @@ impl EsmExports {
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
 
-        let mut dynamic_exports = Vec::<Box<Expr>>::new();
+        let mut dynamic_exports = smallvec![];
         for dynamic_export_asset in &expanded.dynamic_exports {
             let ident = ReferencedAsset::get_ident_from_placeable(
                 dynamic_export_asset,

@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -154,7 +155,7 @@ impl SinglePatternMapping {
                 );
                 Expr::Call(CallExpr {
                     callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                    args: vec![ExprOrSpread {
+                    args: smallvec![ExprOrSpread {
                         spread: None,
                         expr: error,
                     }],
@@ -167,7 +168,7 @@ impl SinglePatternMapping {
                 if import_externals {
                     Expr::Call(CallExpr {
                         callee: Callee::Expr(Box::new(TURBOPACK_EXTERNAL_IMPORT.into())),
-                        args: vec![ExprOrSpread {
+                        args: smallvec![ExprOrSpread {
                             spread: None,
                             expr: Box::new(key_expr.into_owned()),
                         }],
@@ -177,7 +178,7 @@ impl SinglePatternMapping {
                 } else {
                     Expr::Call(CallExpr {
                         callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                        args: vec![ExprOrSpread {
+                        args: smallvec![ExprOrSpread {
                             spread: None,
                             expr: quote_expr!(
                                 "() => $turbopack_external_require($arg, () => require($arg), true)",
@@ -192,7 +193,7 @@ impl SinglePatternMapping {
             }
             Self::External(_, ExternalType::CommonJs | ExternalType::Url) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                args: vec![ExprOrSpread {
+                args: smallvec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
                         "() => $turbopack_external_require($arg, () => require($arg), true)",
@@ -223,7 +224,7 @@ impl SinglePatternMapping {
             }
             Self::Module(_) => Expr::Call(CallExpr {
                 callee: Callee::Expr(quote_expr!("Promise.resolve().then")),
-                args: vec![ExprOrSpread {
+                args: smallvec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
                         "() => $turbopack_import($arg)",

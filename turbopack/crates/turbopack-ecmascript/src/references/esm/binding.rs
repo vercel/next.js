@@ -1,5 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use smallvec::smallvec;
 use swc_core::{
     common::Span,
     ecma::{
@@ -163,7 +164,7 @@ fn make_expr(imported_module: &str, export: Option<&str>, span: Span, in_call: b
         });
         if in_call {
             expr = Expr::Seq(SeqExpr {
-                exprs: vec![
+                exprs: smallvec![
                     Box::new(Expr::Lit(Lit::Num(Number {
                         span,
                         value: 0.0,
