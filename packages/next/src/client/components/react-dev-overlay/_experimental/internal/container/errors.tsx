@@ -53,16 +53,22 @@ function ErrorDescription({
       ? ''
       : error.name + ': '
 
-  // If it's replayed error, display the environment name
   const environmentName =
-    'environmentName' in error ? error['environmentName'] : ''
+    'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
+
+  // The environment name will be displayed as a label, so remove it
+  // from the message (e.g. "[ Server ] hello world" -> "hello world").
+  let message = error.message
+  if (message.startsWith(envPrefix)) {
+    message = message.slice(envPrefix.length)
+  }
+
   return (
     <>
-      {envPrefix}
       {title}
       <HotlinkedText
-        text={hydrationWarning || error.message}
+        text={hydrationWarning || message}
         matcher={isNextjsLink}
       />
     </>

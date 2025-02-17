@@ -12,7 +12,7 @@ import React from 'react'
 export type ReadyRuntimeError = {
   id: number
   runtime: true
-  error: Error
+  error: Error & { environmentName?: string }
   frames: OriginalStackFrame[] | (() => Promise<OriginalStackFrame[]>)
   componentStackFrames?: ComponentStackFrame[]
 }

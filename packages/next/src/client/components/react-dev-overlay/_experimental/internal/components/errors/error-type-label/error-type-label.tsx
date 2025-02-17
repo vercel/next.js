@@ -28,7 +28,7 @@ export const styles = css`
     margin: 0;
     /* used --size instead of --rounded because --rounded is missing 6px */
     border-radius: var(--size-1_5);
-    background: var(--color-red-100);
+    background: var(--color-red-300);
     font-weight: 600;
     font-size: var(--size-font-11);
     color: var(--color-red-900);
