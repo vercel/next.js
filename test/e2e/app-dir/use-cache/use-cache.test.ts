@@ -318,7 +318,7 @@ describe('use-cache', () => {
     const value = await browser.elementById('value').text()
 
     await browser.elementById('revalidate-api-route').click()
-    await browser.waitForIdleNetwork()
+    await browser.waitForElementByCss('#revalidate-api-route:enabled')
 
     await retry(async () => {
       await browser.refresh()
