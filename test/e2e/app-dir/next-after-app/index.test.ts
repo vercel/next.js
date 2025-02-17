@@ -8,7 +8,7 @@ import * as Log from './utils/log'
 const runtimes = ['nodejs', 'edge']
 
 describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
-  const { next, isNextDeploy, skipped, isTurbopack } = nextTestSetup({
+  const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
     skipDeployment: true,
@@ -100,21 +100,18 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
     // This is currently broken with Turbopack.
     // https://github.com/vercel/next.js/pull/75989
 
-    ;(isTurbopack ? it.skip : it)(
-      'runs callbacks if redirect() was called',
-      async () => {
-        await next.browser(pathPrefix + '/interrupted/calls-redirect')
+    it('runs callbacks if redirect() was called', async () => {
+      await next.browser(pathPrefix + '/interrupted/calls-redirect')
 
-        await retry(() => {
-          expect(getLogs()).toContainEqual({
-            source: '[page] /interrupted/calls-redirect',
-          })
-          expect(getLogs()).toContainEqual({
-            source: '[page] /interrupted/redirect-target',
-          })
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/calls-redirect',
         })
-      }
-    )
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/redirect-target',
+        })
+      })
+    })
 
     it('runs callbacks if notFound() was called', async () => {
       await next.browser(pathPrefix + '/interrupted/calls-not-found')
