@@ -103,7 +103,7 @@ async fn compute_async_module_info_single(
         },
     )?;
 
-    petgraph::algo::TarjanScc::new().run(&graph.graph.0, |scc| {
+    petgraph::algo::TarjanScc::new().run(&*graph.graph, |scc| {
         // Only SCCs with more than one node are cycles
         if scc.len() > 1
             && scc

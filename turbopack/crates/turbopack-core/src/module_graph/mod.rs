@@ -1,7 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
     future::Future,
-    ops::Deref,
 };
 
 use anyhow::{bail, Context, Result};
@@ -14,9 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::{TraceRawVcs, TraceRawVcsContext},
+    trace::TraceRawVcs,
     CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     ValueToString, Vc,
 };
@@ -28,12 +26,14 @@ use crate::{
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        traced_di_graph::TracedDiGraph,
     },
     reference::primary_chunkable_referenced_modules,
 };
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+mod traced_di_graph;
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
@@ -305,7 +305,7 @@ impl SingleModuleGraph {
         graph.shrink_to_fit();
 
         Ok(SingleModuleGraph {
-            graph: TracedDiGraph(graph),
+            graph: TracedDiGraph::new(graph),
             number_of_modules,
             modules,
             entries: entries.clone(),
@@ -1025,43 +1025,6 @@ impl SingleModuleGraphNode {
     //         SingleModuleGraphNode::VisitedModule { .. } => todo!(),
     //     }
     // }
-}
-
-#[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-struct TracedDiGraph<N, E>(DiGraph<N, E>);
-impl<N, E> Default for TracedDiGraph<N, E> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<N, E> TraceRawVcs for TracedDiGraph<N, E>
-where
-    N: TraceRawVcs,
-    E: TraceRawVcs,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        for node in self.0.node_weights() {
-            node.trace_raw_vcs(trace_context);
-        }
-        for edge in self.0.edge_weights() {
-            edge.trace_raw_vcs(trace_context);
-        }
-    }
-}
-
-impl<N, E> Deref for TracedDiGraph<N, E> {
-    type Target = DiGraph<N, E>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-unsafe impl<N, E> NonLocalValue for TracedDiGraph<N, E>
-where
-    N: NonLocalValue,
-    E: NonLocalValue,
-{
 }
 
 #[derive(PartialEq, Eq, Debug)]
