@@ -58,6 +58,7 @@ use swc_core::{
         visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
+use tracing::Instrument;
 pub use transform::{
     CustomTransformer, EcmascriptInputTransform, EcmascriptInputTransforms, TransformContext,
     TransformPlugin, UnsupportedServerActionIssue,
@@ -430,8 +431,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
                 parsed,
                 ident: self.ident(),
                 specified_module_type: module_type_result.module_type,
-                module_graph,
-                chunking_context,
+                module_graph: module_graph.to_resolved().await?,
+                chunking_context: chunking_context.to_resolved().await?,
                 references: analyze.references(),
                 esm_references: *analyze_ref.esm_references,
                 code_generation: *analyze_ref.code_generation,
@@ -765,8 +766,8 @@ pub struct EcmascriptModuleContentOptions {
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    module_graph: Vc<ModuleGraph>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: Vc<ModuleReferences>,
     esm_references: Vc<EsmAssetReferences>,
     code_generation: Vc<CodeGens>,
@@ -798,49 +799,56 @@ impl EcmascriptModuleContent {
             async_module_info,
         } = input;
 
-        let additional_code_gens = [
-            if let Some(async_module) = &*async_module.await? {
-                Some(
-                    async_module
-                        .code_generation(
-                            async_module_info,
-                            references,
-                            module_graph,
-                            chunking_context,
-                        )
-                        .await?,
-                )
-            } else {
-                None
-            },
-            if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-                Some(
-                    exports
-                        .code_generation(module_graph, chunking_context)
-                        .await?,
-                )
-            } else {
-                None
-            },
-        ];
+        let (esm_code_gens, additional_code_gens, code_gens) = async {
+            let additional_code_gens = [
+                if let Some(async_module) = &*async_module.await? {
+                    Some(
+                        async_module
+                            .code_generation(
+                                async_module_info,
+                                references,
+                                *module_graph,
+                                *chunking_context,
+                            )
+                            .await?,
+                    )
+                } else {
+                    None
+                },
+                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                    Some(
+                        exports
+                            .code_generation(*module_graph, *chunking_context)
+                            .await?,
+                    )
+                } else {
+                    None
+                },
+            ];
 
-        let esm_code_gens = esm_references
-            .await?
-            .iter()
-            .map(|r| r.code_generation(module_graph, chunking_context))
-            .try_join()
-            .await?;
-        let code_gens = code_generation
-            .await?
-            .iter()
-            .map(|c| c.code_generation(module_graph, chunking_context))
-            .try_join()
-            .await?;
+            let esm_code_gens = esm_references
+                .await?
+                .iter()
+                .map(|r| r.code_generation(*module_graph, *chunking_context))
+                .try_join()
+                .await?;
+            let code_gens = code_generation
+                .await?
+                .iter()
+                .map(|c| c.code_generation(*module_graph, *chunking_context))
+                .try_join()
+                .await?;
+
+            anyhow::Ok((esm_code_gens, additional_code_gens, code_gens))
+        }
+        .instrument(tracing::info_span!("precompute code generation"))
+        .await?;
 
         let code_gens = esm_code_gens
             .iter()
             .chain(additional_code_gens.iter().flatten())
             .chain(code_gens.iter());
+
         gen_content_with_code_gens(
             parsed,
             ident,
@@ -849,6 +857,7 @@ impl EcmascriptModuleContent {
             generate_source_map,
             original_source_map,
         )
+        .instrument(tracing::info_span!("gen content with code gens"))
         .await
     }
 
