@@ -202,6 +202,7 @@ pub enum BuildActivityPositions {
 pub struct DevIndicatorsConfig {
     pub build_activity: Option<bool>,
     pub build_activity_position: Option<BuildActivityPositions>,
+    pub position: Option<BuildActivityPositions>,
 }
 
 #[derive(
