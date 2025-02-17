@@ -1,11 +1,12 @@
 use std::{
-    collections::{hash_map::Entry, BinaryHeap},
+    collections::BinaryHeap,
     hash::Hash,
     ops::{Deref, DerefMut},
 };
 
 use anyhow::Result;
 use either::Either;
+use indexmap::map::Entry;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -13,7 +14,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    TryJoinIterExt, Vc,
 };
 
 use crate::{
@@ -76,11 +78,17 @@ impl Hash for RoaringBitmapWrapper {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ChunkGroupInfo(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+#[turbo_tasks::value]
+pub struct ChunkGroupInfo {
+    pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+    #[turbo_tasks(trace_ignore)]
+    pub chunk_groups: Vec<ChunkGroup>,
+}
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-enum ChunkGroup {
+#[derive(
+    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
+)]
+pub enum ChunkGroup {
     /// e.g. a page
     Entry(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming async edge
@@ -89,13 +97,14 @@ enum ChunkGroup {
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
+        #[turbo_tasks(trace_ignore)]
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct ChunkGroupId(u32);
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct ChunkGroupId(u32);
 
 fn iter_neighbors<N, E>(
     graph: &DiGraph<N, E>,
@@ -142,9 +151,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let span = span_outer.clone();
     async move {
-        let mut next_chunk_group_id = 0u32;
-        let mut chunk_groups_to_id: FxHashMap<ChunkGroup, ChunkGroupId> = FxHashMap::default();
-        let mut chunk_groups_from_id: FxHashMap<ChunkGroupId, ChunkGroup> = FxHashMap::default();
+        let mut chunk_groups_map: FxIndexMap<ChunkGroup, ChunkGroupId> = FxIndexMap::default();
 
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
@@ -230,13 +237,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
-                            match chunk_groups_to_id.entry(chunk_group) {
+                            let len = chunk_groups_map.len();
+                            match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(e) => e.get().0,
                                 Entry::Vacant(e) => {
-                                    let chunk_group_id = next_chunk_group_id;
-                                    next_chunk_group_id += 1;
-                                    chunk_groups_from_id
-                                        .insert(ChunkGroupId(chunk_group_id), e.key().clone());
+                                    let chunk_group_id = len as u32;
                                     e.insert(ChunkGroupId(chunk_group_id));
                                     chunk_group_id
                                 }
@@ -345,9 +350,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         }
 
         span.record("visit_count", visit_count);
-        span.record("chunk_group_count", next_chunk_group_id);
+        span.record("chunk_group_count", chunk_groups_map.len());
 
-        Ok(Vc::cell(module_chunk_groups))
+        Ok(ChunkGroupInfo {
+            module_chunk_groups,
+            chunk_groups: chunk_groups_map.into_iter().map(|(k, _)| k).collect(),
+        }
+        .cell())
     }
     .instrument(span_outer)
     .await
