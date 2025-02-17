@@ -42,7 +42,7 @@ use std::{
 
 use anyhow::Result;
 use chunk::EcmascriptChunkItem;
-use code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt};
+use code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 use either::Either;
 use parse::{parse, ParseResult};
 use path_visitor::ApplyVisitors;
@@ -95,7 +95,9 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::CodeGens,
     parse::generate_js_source_map,
-    references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
+    references::{
+        analyse_ecmascript_module, async_module::OptionAsyncModule, esm::base::EsmAssetReferences,
+    },
     transform::remove_shebang,
 };
 
@@ -417,24 +419,28 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let parsed = self.parse().to_resolved().await?;
 
-        let analyze = self.analyze().await?;
+        let analyze = self.analyze();
+        let analyze_ref = analyze.await?;
 
         let module_type_result = *self.determine_module_type().await?;
         let generate_source_map = chunking_context.reference_module_source_maps(Vc::upcast(self));
 
         Ok(EcmascriptModuleContent::new(
-            *parsed,
-            self.ident(),
-            module_type_result.module_type,
-            module_graph,
-            chunking_context,
-            *analyze.references,
-            *analyze.code_generation,
-            *analyze.async_module,
-            generate_source_map,
-            *analyze.source_map,
-            *analyze.exports,
-            async_module_info,
+            EcmascriptModuleContentOptions {
+                parsed,
+                ident: self.ident(),
+                specified_module_type: module_type_result.module_type,
+                module_graph,
+                chunking_context,
+                references: analyze.references(),
+                esm_references: *analyze_ref.esm_references,
+                code_generation: *analyze_ref.code_generation,
+                async_module: *analyze_ref.async_module,
+                generate_source_map,
+                original_source_map: analyze_ref.source_map,
+                exports: *analyze_ref.exports,
+                async_module_info,
+            },
         ))
     }
 }
@@ -590,15 +596,13 @@ impl Module for EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let analyze = self.analyze().await?;
-        let references = analyze.references.await?.iter().copied().collect();
-        Ok(Vc::cell(references))
+        Ok(self.analyze().references())
     }
 
     #[turbo_tasks::function]
     async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
         if let Some(async_module) = *self.get_async_module().await? {
-            Ok(async_module.is_self_async(*self.analyze().await?.references))
+            Ok(async_module.is_self_async(self.references()))
         } else {
             Ok(Vc::cell(false))
         }
@@ -756,30 +760,43 @@ pub struct EcmascriptModuleContent {
     // pub refresh: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TaskInput)]
+pub struct EcmascriptModuleContentOptions {
+    parsed: ResolvedVc<ParseResult>,
+    ident: Vc<AssetIdent>,
+    specified_module_type: SpecifiedModuleType,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    references: Vc<ModuleReferences>,
+    esm_references: Vc<EsmAssetReferences>,
+    code_generation: Vc<CodeGens>,
+    async_module: Vc<OptionAsyncModule>,
+    generate_source_map: Vc<bool>,
+    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    exports: Vc<EcmascriptExports>,
+    async_module_info: Option<Vc<AsyncModuleInfo>>,
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
-    pub async fn new(
-        parsed: ResolvedVc<ParseResult>,
-        ident: ResolvedVc<AssetIdent>,
-        specified_module_type: SpecifiedModuleType,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        references: Vc<ModuleReferences>,
-        code_generation: Vc<CodeGens>,
-        async_module: Vc<OptionAsyncModule>,
-        generate_source_map: Vc<bool>,
-        original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
-        exports: Vc<EcmascriptExports>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<Self>> {
-        let mut code_gen_cells = Vec::new();
-        for r in references.await?.iter() {
-            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
-                code_gen_cells.push(code_gen.code_generation(module_graph, chunking_context));
-            }
-        }
+    pub async fn new(input: EcmascriptModuleContentOptions) -> Result<Vc<Self>> {
+        let EcmascriptModuleContentOptions {
+            parsed,
+            ident,
+            specified_module_type,
+            module_graph,
+            chunking_context,
+            references,
+            esm_references,
+            code_generation,
+            async_module,
+            generate_source_map,
+            original_source_map,
+            exports,
+            async_module_info,
+        } = input;
 
         let additional_code_gens = [
             if let Some(async_module) = &*async_module.await? {
@@ -807,17 +824,21 @@ impl EcmascriptModuleContent {
             },
         ];
 
+        let esm_code_gens = esm_references
+            .await?
+            .iter()
+            .map(|r| r.code_generation(module_graph, chunking_context))
+            .try_join()
+            .await?;
         let code_gens = code_generation
             .await?
             .iter()
             .map(|c| c.code_generation(module_graph, chunking_context))
             .try_join()
             .await?;
-        let code_gen_cells = code_gen_cells.into_iter().try_join().await?;
 
-        let code_gens = code_gen_cells
+        let code_gens = esm_code_gens
             .iter()
-            .map(|c| &**c)
             .chain(additional_code_gens.iter().flatten())
             .chain(code_gens.iter());
         gen_content_with_code_gens(
@@ -841,7 +862,7 @@ impl EcmascriptModuleContent {
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
-            ident.to_resolved().await?,
+            ident,
             specified_module_type,
             &[],
             generate_source_map,
@@ -853,7 +874,7 @@ impl EcmascriptModuleContent {
 
 async fn gen_content_with_code_gens(
     parsed: ResolvedVc<ParseResult>,
-    ident: ResolvedVc<AssetIdent>,
+    ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: impl IntoIterator<Item = &CodeGeneration>,
     generate_source_map: Vc<bool>,
