@@ -16,6 +16,7 @@ export default async function handler(
     await Promise.all(paths.map((path) => res.revalidate(path)))
     return res.json({ revalidated: true })
   } catch (err) {
+    console.error(err)
     return res.status(500).send(`Error revalidating ${paths}`)
   }
 }
