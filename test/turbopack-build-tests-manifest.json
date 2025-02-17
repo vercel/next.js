@@ -991,11 +991,10 @@
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
         "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
-        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
-      ],
-      "failed": [
+        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
+      "failed": [],
       "pending": [
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
