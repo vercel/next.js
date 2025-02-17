@@ -431,8 +431,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
                 parsed,
                 ident: self.ident(),
                 specified_module_type: module_type_result.module_type,
-                module_graph: module_graph.to_resolved().await?,
-                chunking_context: chunking_context.to_resolved().await?,
+                module_graph,
+                chunking_context,
                 references: analyze.references(),
                 esm_references: *analyze_ref.esm_references,
                 code_generation: *analyze_ref.code_generation,
@@ -761,8 +761,8 @@ pub struct EcmascriptModuleContentOptions {
     parsed: ResolvedVc<ParseResult>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    module_graph: ResolvedVc<ModuleGraph>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
     references: Vc<ModuleReferences>,
     esm_references: Vc<EsmAssetReferences>,
     code_generation: Vc<CodeGens>,
@@ -799,7 +799,7 @@ impl EcmascriptModuleContent {
                 if let Some(async_module) = &*async_module.await? {
                     Some(
                         async_module
-                            .code_generation(async_module_info, references, *chunking_context)
+                            .code_generation(async_module_info, references, chunking_context)
                             .await?,
                     )
                 } else {
@@ -808,7 +808,7 @@ impl EcmascriptModuleContent {
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     Some(
                         exports
-                            .code_generation(*module_graph, *chunking_context)
+                            .code_generation(module_graph, chunking_context)
                             .await?,
                     )
                 } else {
@@ -819,13 +819,13 @@ impl EcmascriptModuleContent {
             let esm_code_gens = esm_references
                 .await?
                 .iter()
-                .map(|r| r.code_generation(*chunking_context))
+                .map(|r| r.code_generation(chunking_context))
                 .try_join()
                 .await?;
             let code_gens = code_generation
                 .await?
                 .iter()
-                .map(|c| c.code_generation(*module_graph, *chunking_context))
+                .map(|c| c.code_generation(module_graph, chunking_context))
                 .try_join()
                 .await?;
 
