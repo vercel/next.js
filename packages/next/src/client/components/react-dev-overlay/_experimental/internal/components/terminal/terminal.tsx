@@ -102,10 +102,14 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
         <div className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
-            {getFrameSource(stackFrame)}
-            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
           </span>
-          <ExternalIcon width={16} height={16} />
+          <span data-text>
+            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
+            {getFrameSource(stackFrame)}
+          </span>
+          <span className="code-frame-icon" data-icon="right">
+            <ExternalIcon width={16} height={16} />
+          </span>
         </div>
       </button>
       <pre className="code-frame-pre">
