@@ -56,7 +56,7 @@ interface RedboxSnapshot {
   count: number
 }
 
-async function createRedboxSnaspshot(
+async function createRedboxSnapshot(
   browser: BrowserInterface
 ): Promise<RedboxSnapshot> {
   const [label, environmentLabel, description, source, stack, count] =
@@ -152,7 +152,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnaspshot(browser)
+    const redbox = await createRedboxSnapshot(browser)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -198,7 +198,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnaspshot(browser)
+    const redbox = await createRedboxSnapshot(browser)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
