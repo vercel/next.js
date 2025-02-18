@@ -159,8 +159,7 @@ export function normalizeNextQueryParam(key: string): null | string {
   const prefixes = [NEXT_QUERY_PARAM_PREFIX, NEXT_INTERCEPTION_MARKER_PREFIX]
   for (const prefix of prefixes) {
     if (key !== prefix && key.startsWith(prefix)) {
-      const normalizedKey = key.substring(prefix.length)
-      return normalizedKey
+      return key.substring(prefix.length)
     }
   }
   return null

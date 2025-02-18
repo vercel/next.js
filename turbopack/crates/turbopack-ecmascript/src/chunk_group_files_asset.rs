@@ -14,6 +14,7 @@ use turbopack_core::{
         IntrospectableChildren,
     },
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference::{ModuleReference, ModuleReferences, SingleModuleReference},
 };
@@ -23,6 +24,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -103,11 +105,13 @@ impl ChunkableModule for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
         Ok(Vc::upcast(
             ChunkGroupFilesChunkItem {
+                module_graph,
                 chunking_context,
                 client_root: this.client_root,
                 inner: self,
@@ -128,6 +132,7 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
 #[turbo_tasks::value]
 struct ChunkGroupFilesChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     client_root: ResolvedVc<FileSystemPath>,
     inner: ResolvedVc<ChunkGroupFilesAsset>,
 }
@@ -138,7 +143,7 @@ impl ChunkGroupFilesChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module)
         {
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
@@ -148,12 +153,13 @@ impl ChunkGroupFilesChunkItem {
                     .copied()
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(*ecma),
+                *self.module_graph,
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
             inner
                 .chunking_context
-                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module))
+                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module), *self.module_graph)
         };
         Ok(chunks)
     }
@@ -161,11 +167,6 @@ impl ChunkGroupFilesChunkItem {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks = self.chunks();
@@ -175,7 +176,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         let chunks_paths = chunks
             .await?
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|chunk| chunk.path())
             .try_join()
             .await?;
         let chunks_paths: Vec<_> = chunks_paths
@@ -184,7 +185,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             .collect();
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({:#});\n",
+                "{TURBOPACK_EXPORT_VALUE}({:#});\n",
                 StringifyJs(&chunks_paths)
             )
             .into(),
@@ -247,12 +248,14 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> Vc<IntrospectableChildren> {
+    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         children.insert((
             ResolvedVc::cell("inner asset".into()),
-            IntrospectableModule::new(*ResolvedVc::upcast(self.module)),
+            IntrospectableModule::new(*ResolvedVc::upcast(self.module))
+                .to_resolved()
+                .await?,
         ));
-        Vc::cell(children)
+        Ok(Vc::cell(children))
     }
 }

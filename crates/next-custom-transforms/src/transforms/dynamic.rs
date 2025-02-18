@@ -76,8 +76,8 @@ pub enum NextDynamicMode {
     /// * the ident of the client module (via `dynamic_client_transition_name`) is added to the
     ///   metadata
     Turbopack {
-        dynamic_client_transition_name: String,
-        dynamic_transition_name: String,
+        dynamic_client_transition_name: Atom,
+        dynamic_transition_name: Atom,
     },
 }
 
@@ -102,8 +102,8 @@ enum NextDynamicPatcherState {
     /// the given transition under a particular ident.
     #[allow(unused)]
     Turbopack {
-        dynamic_client_transition_name: String,
-        dynamic_transition_name: String,
+        dynamic_client_transition_name: Atom,
+        dynamic_transition_name: Atom,
         imports: Vec<TurbopackImport>,
     },
 }

@@ -2,24 +2,21 @@ import type { ParamValue, Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
 import type { StaticPathsResult } from './types'
-import type { CacheHandler } from '../../server/lib/incremental-cache'
 
 import path from 'path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
-import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import {
   getRouteRegex,
   type RouteRegex,
 } from '../../shared/lib/router/utils/route-regex'
-import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { interopDefault } from '../../lib/interop-default'
-import { nodeFs } from '../../server/lib/node-fs-methods'
+import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import { normalizePathname, encodeParam } from './utils'
-import * as ciEnvironment from '../../server/ci-info'
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
+import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
+import type { NextConfigComplete } from '../../server/config-shared'
 
 /**
  * Compares two parameters to see if they're equal.
@@ -263,6 +260,7 @@ export async function buildAppStaticPaths({
   cacheHandler,
   cacheLifeProfiles,
   requestHeaders,
+  cacheHandlers,
   maxMemoryCacheSize,
   fetchCacheKeyPrefix,
   nextConfigOutput,
@@ -280,6 +278,7 @@ export async function buildAppStaticPaths({
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
   cacheHandler?: string
+  cacheHandlers?: NextConfigComplete['experimental']['cacheHandlers']
   cacheLifeProfiles?: {
     [profile: string]: import('../../server/use-cache/cache-life').CacheLife
   }
@@ -302,33 +301,15 @@ export async function buildAppStaticPaths({
 
   ComponentMod.patchFetch()
 
-  let CurCacheHandler: typeof CacheHandler | undefined
-  if (cacheHandler) {
-    CurCacheHandler = interopDefault(
-      await import(formatDynamicImportPath(dir, cacheHandler)).then(
-        (mod) => mod.default || mod
-      )
-    )
-  }
-
-  const incrementalCache = new IncrementalCache({
-    fs: nodeFs,
-    dev: true,
-    dynamicIO,
-    flushToDisk: isrFlushToDisk,
-    serverDistDir: path.join(distDir, 'server'),
-    fetchCacheKeyPrefix,
-    maxMemoryCacheSize,
-    getPrerenderManifest: () => ({
-      version: -1 as any, // letting us know this doesn't conform to spec
-      routes: {},
-      dynamicRoutes: {},
-      notFoundRoutes: [],
-      preview: null as any, // `preview` is special case read in next-dev-server
-    }),
-    CurCacheHandler,
+  const incrementalCache = await createIncrementalCache({
+    dir,
+    distDir,
+    cacheHandler,
+    cacheHandlers,
     requestHeaders,
-    minimalMode: ciEnvironment.hasNextSupport,
+    fetchCacheKeyPrefix,
+    flushToDisk: isrFlushToDisk,
+    cacheMaxMemorySize: maxMemoryCacheSize,
   })
 
   const regex = getRouteRegex(page)

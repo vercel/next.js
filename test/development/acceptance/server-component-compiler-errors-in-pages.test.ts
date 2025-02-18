@@ -52,15 +52,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./components/Comp.js:1:1
-        Ecmascript file had an error
-        > 1 | import { cookies } from 'next/headers'
-            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-          2 |
-          3 | export default function Page() {
-          4 |   return <p>hello world</p>
+       "./components/Comp.js (1:1)
+       Ecmascript file had an error
+       > 1 | import { cookies } from 'next/headers'
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return <p>hello world</p>
 
-        You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "next/headers". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
       `)
     } else {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
@@ -108,15 +108,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./components/Comp.js:1:1
-        Ecmascript file had an error
-        > 1 | import 'server-only'
-            | ^^^^^^^^^^^^^^^^^^^^
-          2 |
-          3 | export default function Page() {
-          4 |   return 'hello world'
+       "./components/Comp.js (1:1)
+       Ecmascript file had an error
+       > 1 | import 'server-only'
+           | ^^^^^^^^^^^^^^^^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return 'hello world'
 
-        You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "server-only". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
       `)
     } else {
       expect(
@@ -166,15 +166,15 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     if (process.env.TURBOPACK) {
       expect(next.normalizeTestDirContent(await session.getRedboxSource()))
         .toMatchInlineSnapshot(`
-        "./components/Comp.js:1:10
-        Ecmascript file had an error
-        > 1 | import { after } from 'next/server'
-            |          ^^^^^
-          2 |
-          3 | export default function Page() {
-          4 |   return 'hello world'
+       "./components/Comp.js (1:10)
+       Ecmascript file had an error
+       > 1 | import { after } from 'next/server'
+           |          ^^^^^
+         2 |
+         3 | export default function Page() {
+         4 |   return 'hello world'
 
-        You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+       You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
       `)
     } else {
       expect(
@@ -199,6 +199,57 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         Import trace for requested module:"
       `)
     }
+  })
+
+  describe("importing 'next/cache' APIs in pages", () => {
+    test.each([
+      'revalidatePath',
+      'revalidateTag',
+      'unstable_cacheLife',
+      'unstable_cacheTag',
+      'unstable_expirePath',
+      'unstable_expireTag',
+    ])('%s is not allowed', async (api) => {
+      await using sandbox = await createSandbox(next, initialFiles)
+      const { session } = sandbox
+
+      await next.patchFile(
+        'components/Comp.js',
+        outdent`
+          import { ${api} } from 'next/cache'
+
+          export default function Page() {
+            return 'hello world'
+          }
+        `
+      )
+
+      await session.assertHasRedbox()
+      await expect(session.getRedboxSource()).resolves.toMatch(
+        `You're importing a component that needs "${api}". That only works in a Server Component which is not supported in the pages/ directory.`
+      )
+    })
+
+    test.each([
+      'unstable_cache', // useless in client, but doesn't technically error
+      'unstable_noStore', // no-op in client, but allowed for legacy reasons
+    ])('%s is allowed', async (api) => {
+      await using sandbox = await createSandbox(next, initialFiles)
+      const { session } = sandbox
+
+      await next.patchFile(
+        'components/Comp.js',
+        outdent`
+          import { ${api} } from 'next/cache'
+  
+          export default function Page() {
+            return 'hello world'
+          }
+        `
+      )
+
+      await session.assertNoRedbox()
+    })
   })
 })
 

@@ -6,7 +6,10 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ExpireTime } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { __ApiPreviewProps } from '../api-utils'
 
@@ -131,7 +134,7 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
+  /* head: viewport */ HeadData,
   /* isHeadPartial */ boolean,
 ]
 
@@ -174,7 +177,8 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
-  isBot?: boolean
+  botType?: 'dom' | 'html' | undefined
+  serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
@@ -212,20 +216,22 @@ export interface RenderOptsPartial {
     clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
+    streamingMetadata: boolean
+    htmlLimitedBots: string | undefined
   }
   postponed?: string
+
+  /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
 
   /**
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */
   devRenderResumeDataCache?: RenderResumeDataCache
-
-  /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
-   */
-  isDebugStaticShell?: boolean
 
   /**
    * When true, the page will be rendered using the static rendering to detect

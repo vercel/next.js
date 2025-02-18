@@ -3,14 +3,11 @@
 
 mod util;
 
-use std::{
-    collections::{HashSet, VecDeque},
-    fs,
-    path::PathBuf,
-};
+use std::{collections::VecDeque, fs, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
@@ -18,12 +15,12 @@ use turbo_tasks::{
     apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
     ValueToString, Vc,
 };
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
     FileSystemPath,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
@@ -48,6 +45,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -155,11 +153,17 @@ fn test(resource: PathBuf) {
 async fn run(resource: PathBuf) -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
     let task = tt.spawn_once_task(async move {
-        let emit = run_inner(resource.to_str().unwrap().into());
-        emit.strongly_consistent().await?;
-        apply_effects(emit).await?;
+        let emit_op = run_inner_operation(resource.to_str().unwrap().into());
+        emit_op.read_strongly_consistent().await?;
+        apply_effects(emit_op).await?;
 
         Ok(Vc::<()>::default())
     });
@@ -169,11 +173,11 @@ async fn run(resource: PathBuf) -> Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::function]
-async fn run_inner(resource: RcStr) -> Result<()> {
-    let out = run_test(resource);
-    let _ = out.resolve_strongly_consistent().await?;
-    let captured_issues = out.peek_issues_with_path().await?;
+#[turbo_tasks::function(operation)]
+async fn run_inner_operation(resource: RcStr) -> Result<()> {
+    let out_op = run_test_operation(resource);
+    let out_vc = out_op.resolve_strongly_consistent().await?;
+    let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()
@@ -181,15 +185,15 @@ async fn run_inner(resource: RcStr) -> Result<()> {
         .try_join()
         .await?;
 
-    snapshot_issues(plain_issues, out.join("issues".into()), &REPO_ROOT)
+    snapshot_issues(plain_issues, out_vc.join("issues".into()), &REPO_ROOT)
         .await
         .context("Unable to handle issues")?;
 
     Ok(())
 }
 
-#[turbo_tasks::function]
-async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
+#[turbo_tasks::function(operation)]
+async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let test_path = canonicalize(&resource)?;
     assert!(test_path.exists(), "{} does not exist", resource);
     assert!(
@@ -384,13 +388,24 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunks = if let Some(ecmascript) =
         Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
     {
+        let evaluatable_assets = runtime_entries
+            .unwrap_or_else(EvaluatableAssets::empty)
+            .with_entry(Vc::upcast(ecmascript));
+        let all_modules = Vc::cell(
+            evaluatable_assets
+                .await?
+                .iter()
+                .copied()
+                .map(ResolvedVc::upcast)
+                .collect(),
+        );
+        let module_graph = ModuleGraph::from_modules(all_modules);
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
                 entry_module.ident(),
-                runtime_entries
-                    .unwrap_or_else(EvaluatableAssets::empty)
-                    .with_entry(Vc::upcast(ecmascript)),
+                evaluatable_assets,
+                module_graph,
                 Value::new(AvailabilityInfo::Root),
             ),
             Runtime::NodeJs => {
@@ -413,9 +428,8 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                 )
                                 .with_extension("entry.js".into()),
                             entry_module,
-                            runtime_entries
-                                .unwrap_or_else(EvaluatableAssets::empty)
-                                .with_entry(Vc::upcast(ecmascript)),
+                            evaluatable_assets,
+                            module_graph,
                             OutputAssets::empty(),
                             Value::new(AvailabilityInfo::Root),
                         )
@@ -427,13 +441,14 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     } else if let Some(chunkable) =
         Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry_module).await?
     {
-        chunking_context.root_chunk_group_assets(chunkable)
+        let module_graph = ModuleGraph::from_module(Vc::upcast(chunkable));
+        chunking_context.root_chunk_group_assets(chunkable, module_graph)
     } else {
         // TODO convert into a serve-able asset
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
 
     let output_path = project_path.await?;
@@ -442,11 +457,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .await
             .context(format!(
                 "Failed to walk asset {}",
-                asset
-                    .ident()
-                    .to_string()
-                    .await
-                    .context("to_string failed")?
+                asset.path().to_string().await.context("to_string failed")?
             ))?;
     }
 
@@ -460,10 +471,10 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 async fn walk_asset(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     output_path: &ReadRef<FileSystemPath>,
-    seen: &mut HashSet<Vc<FileSystemPath>>,
+    seen: &mut FxHashSet<Vc<FileSystemPath>>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.ident().path().resolve().await?;
+    let path = asset.path().resolve().await?;
 
     if !seen.insert(path) {
         return Ok(());
@@ -480,9 +491,7 @@ async fn walk_asset(
             .await?
             .iter()
             .copied()
-            .map(|asset| async move {
-                Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset).await?)
-            })
+            .map(|asset| async move { Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset)) })
             .try_join()
             .await?
             .into_iter()

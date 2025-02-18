@@ -21,6 +21,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  // override NextConfigComplete.experimental.htmlLimitedBots to string
+  // because it's not defined in NextConfigComplete.experimental
+  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
+    htmlLimitedBots: string | undefined
+  }
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -177,6 +182,11 @@ export interface ExperimentalTurboOptions {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   minify?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -223,6 +233,14 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface IncomingRequestLoggingConfig {
+  /**
+   * A regular expression array to match incoming requests that should not be logged.
+   * You can specify multiple patterns to match incoming requests that should not be logged.
+   */
+  ignore?: RegExp[]
+}
+
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
@@ -232,9 +250,16 @@ export interface LoggingConfig {
      */
     hmrRefreshes?: boolean
   }
+
+  /**
+   * If set to false, incoming request logging is disabled.
+   * You can specify a pattern to match incoming requests that should not be logged.
+   */
+  incomingRequests?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
+  nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -447,12 +472,6 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Enables leveraging experimental captureOwnerStack API in React,
-   * to create a better stack trace for React errors.
-   */
-  reactOwnerStack?: boolean
-
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -494,6 +513,11 @@ export interface ExperimentalConfig {
    * Enables early import feature for app router modules
    */
   useEarlyImport?: boolean
+
+  /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
 
   /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
@@ -567,6 +591,34 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * When enabled will cause async metadata calls to stream rather than block the render.
+   */
+  streamingMetadata?: boolean
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   */
+  htmlLimitedBots?: RegExp
+
+  /**
+   * Enables the use of the `"use cache"` directive.
+   */
+  useCache?: boolean
+
+  /**
+   * Enables detection and reporting of slow modules during development builds.
+   * Enabling this may impact build performance to ensure accurate measurements.
+   */
+  slowModuleDetection?: {
+    /**
+     * The time threshold in milliseconds for identifying slow modules.
+     * Modules taking longer than this build time threshold will be reported.
+     */
+    buildTimeThresholdMs: number
+  }
 }
 
 export type ExportPathMap = {
@@ -784,18 +836,37 @@ export interface NextConfig extends Record<string, any> {
   images?: ImageConfig
 
   /** Configure indicators in development environment */
-  devIndicators?: {
-    /** Show "building..."" indicator in development */
-    buildActivity?: boolean
-    /** Position of "building..." indicator in browser */
-    buildActivityPosition?:
-      | 'bottom-right'
-      | 'bottom-left'
-      | 'top-right'
-      | 'top-left'
+  devIndicators?:
+    | false
+    | {
+        /**
+         * @deprecated The dev tools indicator has it enabled by default.
+         * */
+        appIsrStatus?: boolean
 
-    appIsrStatus?: boolean
-  }
+        /**
+         * Show "building..." indicator in development
+         * @deprecated The dev tools indicator has it enabled by default.
+         */
+        buildActivity?: boolean
+
+        /**
+         * Position of "building..." indicator in browser
+         * @default "bottom-right"
+         * @deprecated Renamed as `position`.
+         */
+        buildActivityPosition?:
+          | 'top-left'
+          | 'top-right'
+          | 'bottom-left'
+          | 'bottom-right'
+
+        /**
+         * Position of the development tools indicator in the browser window.
+         * @default "bottom-left"
+         * */
+        position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+      }
 
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
@@ -965,6 +1036,9 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
+  /**
+   * Logging configuration. Set to `false` to disable logging.
+   */
   logging?: LoggingConfig | false
 
   /**
@@ -1037,9 +1111,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: true,
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
+    position: 'bottom-left',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
@@ -1069,6 +1141,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    nodeMiddleware: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
@@ -1173,11 +1246,11 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     authInterrupts: false,
-    reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1190,7 +1263,11 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: false,
+    newDevOverlay: true,
+    streamingMetadata: false,
+    htmlLimitedBots: undefined,
+    useCache: undefined,
+    slowModuleDetection: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

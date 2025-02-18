@@ -13,14 +13,24 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
+import {
+  cacheHandlerGlobal,
+  cacheHandlersSymbol,
+} from '../../server/use-cache/constants'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
 
 const cacheHandlers = {}
 
-if (!(globalThis as any).__nextCacheHandlers) {
-  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
+if (!cacheHandlerGlobal.__nextCacheHandlers) {
+  cacheHandlerGlobal.__nextCacheHandlers = cacheHandlers
+
+  if (!cacheHandlerGlobal.__nextCacheHandlers.default) {
+    cacheHandlerGlobal.__nextCacheHandlers.default =
+      cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
+      cacheHandlerGlobal.__nextCacheHandlers.__nextDefault
+  }
 }
 
 const Document: DocumentType = null!

@@ -367,7 +367,7 @@ impl ImportMap {
     /// Extends the underlying [ImportMap] with another [ImportMap].
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: ResolvedVc<ImportMap>) -> Result<Vc<Self>> {
-        let mut import_map = self.await?.clone_value();
+        let mut import_map = self.owned().await?;
         import_map.extend_ref(&*other.await?);
         Ok(import_map.cell())
     }
@@ -452,10 +452,9 @@ async fn import_mapping_to_result(
                 .try_join()
                 .await?,
         ),
-        ReplacedImportMapping::Dynamic(replacement) => replacement
-            .result(lookup_path, request)
-            .await?
-            .clone_value(),
+        ReplacedImportMapping::Dynamic(replacement) => {
+            replacement.result(lookup_path, request).owned().await?
+        }
     })
 }
 
@@ -616,7 +615,7 @@ impl ResolveOptions {
         self: Vc<Self>,
         import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
+        let mut resolve_options = self.owned().await?;
         resolve_options.import_map = Some(
             resolve_options
                 .import_map
@@ -635,7 +634,7 @@ impl ResolveOptions {
         self: Vc<Self>,
         extended_import_map: ResolvedVc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
+        let mut resolve_options = self.owned().await?;
         resolve_options.fallback_import_map =
             if let Some(current_fallback) = resolve_options.fallback_import_map {
                 Some(
@@ -653,7 +652,7 @@ impl ResolveOptions {
     /// Overrides the extensions used for resolving
     #[turbo_tasks::function]
     pub async fn with_extensions(self: Vc<Self>, extensions: Vec<RcStr>) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
+        let mut resolve_options = self.owned().await?;
         resolve_options.extensions = extensions;
         Ok(resolve_options.into())
     }
@@ -661,11 +660,10 @@ impl ResolveOptions {
     /// Overrides the fully_specified flag for resolving
     #[turbo_tasks::function]
     pub async fn with_fully_specified(self: Vc<Self>, fully_specified: bool) -> Result<Vc<Self>> {
-        let resolve_options = self.await?;
+        let mut resolve_options = self.owned().await?;
         if resolve_options.fully_specified == fully_specified {
             return Ok(self);
         }
-        let mut resolve_options = resolve_options.clone_value();
         resolve_options.fully_specified = fully_specified;
         Ok(resolve_options.cell())
     }

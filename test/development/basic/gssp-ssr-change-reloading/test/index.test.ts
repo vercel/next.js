@@ -11,10 +11,26 @@ import {
 } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
+// TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
+const isNewDevOverlay =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
 const installCheckVisible = (browser) => {
-  return browser.eval(`(function() {
-    window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
+  if (isNewDevOverlay) {
+    return browser.eval(`(function() {
+      window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot;
+      const indicator = root.querySelector('[data-next-mark]')
+      window.showedBuilder = window.showedBuilder || (
+        indicator.getAttribute('data-next-mark-loading') === 'true'
+      )
+      if (window.showedBuilder) clearInterval(window.checkInterval)
+    }, 50)
+  })()`)
+  } else {
+    return browser.eval(`(function() {
+      window.checkInterval = setInterval(function() {
+      let watcherDiv = document.querySelector('#__next-build-indicator')
       watcherDiv = watcherDiv.shadowRoot || watcherDiv
       window.showedBuilder = window.showedBuilder || (
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
@@ -22,6 +38,7 @@ const installCheckVisible = (browser) => {
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 50)
   })()`)
+  }
 }
 
 describe('GS(S)P Server-Side Change Reloading', () => {

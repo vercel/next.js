@@ -23,41 +23,36 @@ const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
 export async function unstable_rootParams(): Promise<Params> {
   const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
   if (!workStore) {
     throw new InvariantError('Missing workStore in unstable_rootParams')
   }
 
-  const underlyingParams = workStore.rootParams
+  const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'cache': {
-        // TODO: We need to be able to express this case with PPR+DynamicIO.
-        // We don't want rootParams to leak into the fallback shell, and we don't
-        // currently have a way to express `dynamicParams = false`.
-        if (workStore.fallbackRouteParams && process.env.__NEXT_PPR) {
-          throw new Error(
-            `Route ${workStore.route} used "unstable_rootParams" inside "use cache". This is not currently supported.`
-          )
-        }
-
-        return makeUntrackedRootParams(underlyingParams)
-      }
-      case 'prerender':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-        return createPrerenderRootParams(
-          underlyingParams,
-          workStore,
-          workUnitStore
-        )
-      default:
-      // fallthrough
-    }
+  if (!workUnitStore) {
+    throw new Error(
+      `Route ${workStore.route} used \`unstable_rootParams()\` in Pages Router. This API is only available within App Router.`
+    )
   }
-  return makeUntrackedRootParams(underlyingParams)
+
+  switch (workUnitStore.type) {
+    case 'unstable-cache':
+    case 'cache': {
+      throw new Error(
+        `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
+      )
+    }
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+      return createPrerenderRootParams(
+        workUnitStore.rootParams,
+        workStore,
+        workUnitStore
+      )
+    default:
+      return Promise.resolve(workUnitStore.rootParams)
+  }
 }
 
 function createPrerenderRootParams(
@@ -106,7 +101,7 @@ function createPrerenderRootParams(
   }
 
   // We don't have any fallback params so we have an entirely static safe params object
-  return makeUntrackedRootParams(underlyingParams)
+  return Promise.resolve(underlyingParams)
 }
 
 function makeErroringRootParams(
@@ -167,30 +162,6 @@ function makeErroringRootParams(
       } else {
         ;(promise as any)[prop] = underlyingParams[prop]
       }
-    }
-  })
-
-  return promise
-}
-
-function makeUntrackedRootParams(underlyingParams: Params): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 

@@ -1,4 +1,6 @@
 import * as React from 'react'
+import { noop as css } from '../../helpers/noop-template'
+import { cx } from '../../helpers/cx'
 
 function useCopyLegacy(content: string) {
   type CopyState =
@@ -172,7 +174,17 @@ export function CopyButton({
 
   // Assign default icon
   const renderedIcon =
-    copyState.state === 'success' ? <CopySuccessIcon /> : icon || <CopyIcon />
+    copyState.state === 'success' ? (
+      <CopySuccessIcon />
+    ) : (
+      icon || (
+        <CopyIcon
+          width={14}
+          height={14}
+          className="error-overlay-toolbar-button-icon"
+        />
+      )
+    )
 
   return (
     <button
@@ -181,8 +193,13 @@ export function CopyButton({
       title={label}
       aria-label={label}
       aria-disabled={isDisabled}
+      disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button
-      className={`nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
+      className={cx(
+        props.className,
+        'nextjs-data-runtime-error-copy-button',
+        `nextjs-data-runtime-error-copy-button--${copyState.state}`
+      )}
       onClick={() => {
         if (!isDisabled) {
           copy()
@@ -195,20 +212,21 @@ export function CopyButton({
   )
 }
 
-function CopyIcon() {
+function CopyIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="transparent"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      width="14"
+      height="14"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      {...props}
     >
-      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2.406.438c-.845 0-1.531.685-1.531 1.53v6.563c0 .846.686 1.531 1.531 1.531H3.937V8.75H2.406a.219.219 0 0 1-.219-.219V1.97c0-.121.098-.219.22-.219h4.812c.12 0 .218.098.218.219v.656H8.75v-.656c0-.846-.686-1.532-1.531-1.532H2.406zm4.375 3.5c-.845 0-1.531.685-1.531 1.53v6.563c0 .846.686 1.531 1.531 1.531h4.813c.845 0 1.531-.685 1.531-1.53V5.468c0-.846-.686-1.532-1.531-1.532H6.78zm-.218 1.53c0-.12.097-.218.218-.218h4.813c.12 0 .219.098.219.219v6.562c0 .121-.098.219-.22.219H6.782a.219.219 0 0 1-.218-.219V5.47z"
+        fill="currentColor"
+      />
     </svg>
   )
 }
@@ -227,3 +245,30 @@ function CopySuccessIcon() {
     </svg>
   )
 }
+
+export const COPY_BUTTON_STYLES = css`
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-button--success {
+    color: var(--color-ansi-green);
+  }
+`

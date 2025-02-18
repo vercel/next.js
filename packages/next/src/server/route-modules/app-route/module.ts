@@ -364,6 +364,9 @@ export class AppRouteRouteModule extends RouteModule<
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
+              // This replicates prior behavior where rootParams is empty in routes
+              // TODO we need to make this have the proper rootParams for this route
+              rootParams: {},
               implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -450,6 +453,7 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
+            rootParams: {},
             implicitTags: implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -529,6 +533,7 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
+            rootParams: {},
             implicitTags: implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,

@@ -1,18 +1,19 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::once,
 };
 
 use anyhow::{bail, Result};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -64,7 +65,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -76,7 +77,7 @@ pub enum ModuleResolveResultItem {
         traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -88,7 +89,7 @@ impl ModuleResolveResultItem {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
             ModuleResolveResultItem::Unknown(source) => {
-                emit_unknown_module_type_error(source).await?;
+                emit_unknown_module_type_error(*source).await?;
                 None
             }
             ModuleResolveResultItem::Error(_err) => {
@@ -100,7 +101,7 @@ impl ModuleResolveResultItem {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
@@ -217,7 +218,7 @@ impl ModuleResolveResult {
             .affecting_sources
             .iter()
             .copied()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
         self.affecting_sources.extend(
             other
                 .affecting_sources
@@ -239,7 +240,7 @@ impl ModuleResolveResult {
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         this.add_affecting_source_ref(source);
         Ok(this.into())
     }
@@ -249,7 +250,7 @@ impl ModuleResolveResult {
         self: Vc<Self>,
         sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         for source in sources {
             this.add_affecting_source_ref(source);
         }
@@ -283,7 +284,7 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -312,7 +313,7 @@ impl ModuleResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -414,7 +415,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
@@ -425,7 +426,7 @@ pub enum ResolveResultItem {
         traced: ExternalTraced,
     },
     Ignore,
-    Error(Vc<RcStr>),
+    Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
 }
@@ -473,7 +474,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
@@ -639,7 +640,7 @@ impl ResolveResult {
             .affecting_sources
             .iter()
             .copied()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
         self.affecting_sources.extend(
             other
                 .affecting_sources
@@ -721,9 +722,7 @@ impl ResolveResult {
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => {
-                                    ModuleResolveResultItem::Error(e.to_resolved().await?)
-                                }
+                                ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
                                 ResolveResultItem::Custom(u8) => {
                                     ModuleResolveResultItem::Custom(u8)
                                 }
@@ -816,7 +815,7 @@ impl ResolveResult {
         self: Vc<Self>,
         affecting_source: ResolvedVc<Box<dyn Source>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         this.add_affecting_source_ref(affecting_source);
         Ok(this.into())
     }
@@ -826,7 +825,7 @@ impl ResolveResult {
         self: Vc<Self>,
         affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         for affecting_source in affecting_sources {
             this.add_affecting_source_ref(affecting_source);
         }
@@ -860,7 +859,7 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -889,7 +888,7 @@ impl ResolveResult {
         }
         let mut iter = results.into_iter().try_join().await?.into_iter();
         if let Some(current) = iter.next() {
-            let mut current = current.clone_value();
+            let mut current = ReadRef::into_owned(current);
             for result in iter {
                 // For clippy -- This explicit deref is necessary
                 let other = &*result;
@@ -1418,7 +1417,10 @@ pub async fn resolve_raw(
     path: Vc<Pattern>,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
-    async fn to_result(request: &str, path: Vc<FileSystemPath>) -> Result<Vc<ResolveResult>> {
+    async fn to_result(
+        request: &str,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Result<Vc<ResolveResult>> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
@@ -1538,7 +1540,7 @@ pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
-    issue_source: Option<ResolvedVc<IssueSource>>,
+    issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
@@ -1582,6 +1584,7 @@ pub async fn url_resolve(
     .await
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 async fn handle_before_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
@@ -1590,7 +1593,7 @@ async fn handle_before_resolve_plugins(
 ) -> Result<Option<Vc<ResolveResult>>> {
     for plugin in &options.await?.before_resolve_plugins {
         let condition = plugin.before_resolve_condition().resolve().await?;
-        if !condition.await?.matches(request).await? {
+        if !*condition.matches(request).await? {
             continue;
         }
 
@@ -1604,6 +1607,7 @@ async fn handle_before_resolve_plugins(
     Ok(None)
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 async fn handle_after_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
@@ -1771,7 +1775,7 @@ async fn resolve_internal_inline(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.clone()),
-                                    *path,
+                                    **path,
                                     lookup_path,
                                     request,
                                     options_value,
@@ -1784,7 +1788,7 @@ async fn resolve_internal_inline(
                         }
                         PatternMatch::Directory(matched_pattern, path) => {
                             results.push(
-                                resolve_into_folder(*path, options)
+                                resolve_into_folder(**path, options)
                                     .with_request(matched_pattern.clone()),
                             );
                         }
@@ -2186,7 +2190,7 @@ async fn resolve_relative_request(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.into()),
-                                    *path,
+                                    **path,
                                     lookup_path,
                                     request,
                                     options_value,
@@ -2203,7 +2207,7 @@ async fn resolve_relative_request(
                         results.push(
                             resolved(
                                 RequestKey::new(matched_pattern.into()),
-                                *path,
+                                **path,
                                 lookup_path,
                                 request,
                                 options_value,
@@ -2226,7 +2230,7 @@ async fn resolve_relative_request(
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
-                            *path,
+                            **path,
                             lookup_path,
                             request,
                             options_value,
@@ -2244,7 +2248,7 @@ async fn resolve_relative_request(
                 results.push(
                     resolved(
                         RequestKey::new(matched_pattern.clone()),
-                        *path,
+                        **path,
                         lookup_path,
                         request,
                         options_value,
@@ -2260,7 +2264,8 @@ async fn resolve_relative_request(
     // Directory matches must be resolved AFTER file matches
     for m in matches.iter() {
         if let PatternMatch::Directory(matched_pattern, path) = m {
-            results.push(resolve_into_folder(*path, options).with_request(matched_pattern.clone()));
+            results
+                .push(resolve_into_folder(**path, options).with_request(matched_pattern.clone()));
         }
     }
 
@@ -2277,7 +2282,6 @@ async fn apply_in_package(
     fragment: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
-    // ast-grep-ignore: to-resolved-in-loop
     for in_package in options_value.in_package.iter() {
         // resolve_module_request is called when importing a node
         // module, not a PackageInternal one, so the imports field
@@ -2791,7 +2795,7 @@ async fn handle_exports_imports_field(
     query: Vc<RcStr>,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
-    let mut conditions_state = HashMap::new();
+    let mut conditions_state = FxHashMap::default();
 
     let query_str = query.await?;
     let req = Pattern::Constant(format!("{}{}", path, query_str).into());
@@ -2900,7 +2904,7 @@ pub async fn handle_resolve_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2944,7 +2948,7 @@ pub async fn handle_resolve_source_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<IssueSource>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2988,7 +2992,7 @@ async fn emit_resolve_error_issue(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
@@ -3015,7 +3019,7 @@ async fn emit_unresolvable_issue(
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<IssueSource>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
@@ -3048,20 +3052,22 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedV
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
-#[turbo_tasks::value]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.
     Evaluation,
     /// Represents an export of a module.
-    Export(ResolvedVc<RcStr>),
+    Export(RcStr),
     /// Represents a renamed export of a module.
     RenamedExport {
-        original_export: ResolvedVc<RcStr>,
-        export: ResolvedVc<RcStr>,
+        original_export: RcStr,
+        export: RcStr,
     },
     /// Represents a namespace object of a module exported as named export.
-    RenamedNamespace { export: ResolvedVc<RcStr> },
+    RenamedNamespace { export: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
     /// A pointer to a specific part, but with evaluation.
@@ -3075,76 +3081,64 @@ pub enum ModulePart {
     Facade,
 }
 
-#[turbo_tasks::value_impl]
 impl ModulePart {
-    #[turbo_tasks::function]
-    pub fn evaluation() -> Vc<Self> {
-        ModulePart::Evaluation.cell()
+    pub fn evaluation() -> Self {
+        ModulePart::Evaluation
     }
-    #[turbo_tasks::function]
-    pub fn export(export: RcStr) -> Vc<Self> {
-        ModulePart::Export(ResolvedVc::cell(export)).cell()
+
+    pub fn export(export: RcStr) -> Self {
+        ModulePart::Export(export)
     }
-    #[turbo_tasks::function]
-    pub fn renamed_export(original_export: RcStr, export: RcStr) -> Vc<Self> {
+
+    pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
-            original_export: ResolvedVc::cell(original_export),
-            export: ResolvedVc::cell(export),
+            original_export,
+            export,
         }
-        .cell()
     }
-    #[turbo_tasks::function]
-    pub fn renamed_namespace(export: RcStr) -> Vc<Self> {
-        ModulePart::RenamedNamespace {
-            export: ResolvedVc::cell(export),
-        }
-        .cell()
+
+    pub fn renamed_namespace(export: RcStr) -> Self {
+        ModulePart::RenamedNamespace { export }
     }
-    #[turbo_tasks::function]
-    pub fn internal(id: u32) -> Vc<Self> {
-        ModulePart::Internal(id).cell()
+
+    pub fn internal(id: u32) -> Self {
+        ModulePart::Internal(id)
     }
-    #[turbo_tasks::function]
-    pub fn internal_evaluation(id: u32) -> Vc<Self> {
-        ModulePart::InternalEvaluation(id).cell()
+
+    pub fn internal_evaluation(id: u32) -> Self {
+        ModulePart::InternalEvaluation(id)
     }
-    #[turbo_tasks::function]
-    pub fn locals() -> Vc<Self> {
-        ModulePart::Locals.cell()
+
+    pub fn locals() -> Self {
+        ModulePart::Locals
     }
-    #[turbo_tasks::function]
-    pub fn exports() -> Vc<Self> {
-        ModulePart::Exports.cell()
+
+    pub fn exports() -> Self {
+        ModulePart::Exports
     }
-    #[turbo_tasks::function]
-    pub fn facade() -> Vc<Self> {
-        ModulePart::Facade.cell()
+
+    pub fn facade() -> Self {
+        ModulePart::Facade
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ModulePart {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(match self {
-            ModulePart::Evaluation => "module evaluation".into(),
-            ModulePart::Export(export) => format!("export {}", export.await?).into(),
+impl Display for ModulePart {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModulePart::Evaluation => f.write_str("module evaluation"),
+            ModulePart::Export(export) => write!(f, "export {}", export),
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => {
-                let original_export = original_export.await?;
-                let export = export.await?;
-                format!("export {} as {}", original_export, export).into()
-            }
+            } => write!(f, "export {} as {}", original_export, export),
             ModulePart::RenamedNamespace { export } => {
-                format!("export * as {}", export.await?).into()
+                write!(f, "export * as {}", export)
             }
-            ModulePart::Internal(id) => format!("internal part {}", id).into(),
-            ModulePart::InternalEvaluation(id) => format!("internal part {}", id).into(),
-            ModulePart::Locals => "locals".into(),
-            ModulePart::Exports => "exports".into(),
-            ModulePart::Facade => "facade".into(),
-        }))
+            ModulePart::Internal(id) => write!(f, "internal part {}", id),
+            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
+            ModulePart::Locals => f.write_str("locals"),
+            ModulePart::Exports => f.write_str("exports"),
+            ModulePart::Facade => f.write_str("facade"),
+        }
     }
 }

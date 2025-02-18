@@ -1,0 +1,192 @@
+{
+  "test/integration/404-page-custom-error/test/index.test.js": {
+    "passed": [
+      "Default 404 Page with custom _error development mode should render index page normal",
+      "Default 404 Page with custom _error development mode should respond to 404 correctly",
+      "Default 404 Page with custom _error production mode should build successfully",
+      "Default 404 Page with custom _error production mode should have output 404.html",
+      "Default 404 Page with custom _error production mode should render error correctly",
+      "Default 404 Page with custom _error production mode should render index page normal",
+      "Default 404 Page with custom _error production mode should respond to 404 correctly",
+      "Default 404 Page with custom _error production mode should set pages404 in routes-manifest correctly"
+    ],
+    "failed": [
+      "Default 404 Page with custom _error development mode should render error correctly"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/app-document-style-fragment/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "Custom Document Fragment Styles production mode correctly adds styles from fragment styles key"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "build trace with extra entries production mode should build and trace correctly"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/package-manager/bun.test.ts": {
+    "passed": [],
+    "failed": [
+      "create-next-app with package manager bun should use bun for --use-bun flag",
+      "create-next-app with package manager bun should use bun for --use-bun flag with example",
+      "create-next-app with package manager bun should use bun when user-agent is bun",
+      "create-next-app with package manager bun should use bun when user-agent is bun with example"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/css/test/valid-invalid-css.test.js": {
+    "passed": [
+      "Valid Global CSS from npm production mode should've emitted a single CSS file"
+    ],
+    "failed": [
+      "Invalid CSS in _document production mode should fail to build",
+      "Invalid Global CSS production mode should fail to build",
+      "Invalid Global CSS with Custom App production mode should fail to build",
+      "Valid and Invalid Global CSS with Custom App production mode should fail to build"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/edge-runtime-dynamic-code/test/index.test.js": {
+    "passed": [
+      "Edge route usage of dynamic code evaluation development mode does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Edge route usage of dynamic code evaluation development mode does not show warning when no code uses eval",
+      "Middleware usage of dynamic code evaluation development mode does not show a warning when running WebAssembly.instantiate with a module parameter",
+      "Middleware usage of dynamic code evaluation development mode does not show warning when no code uses eval",
+      "Page using eval in development mode does issue dynamic code evaluation warnings"
+    ],
+    "failed": [
+      "Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile",
+      "Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
+      "Edge route usage of dynamic code evaluation development mode shows a warning when running code with eval",
+      "Edge route usage of dynamic code evaluation production mode should have middleware warning during build",
+      "Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile",
+      "Middleware usage of dynamic code evaluation development mode shows a warning when running WebAssembly.instantiate with a buffer parameter",
+      "Middleware usage of dynamic code evaluation development mode shows a warning when running code with eval",
+      "Middleware usage of dynamic code evaluation production mode should have middleware warning during build"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/externals-pages-bundle/test/externals.test.js": {
+    "passed": [],
+    "failed": [
+      "default should use externals for unvendored node_modules reachable from the project"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/invalid-document-image-import/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "Invalid static image import in _document production mode Should fail to build when disableStaticImages in next.config.js",
+      "Invalid static image import in _document production mode Should fail to build when no next.config.js"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/next-dynamic/test/index.test.js": {
+    "passed": [
+      "next/dynamic development mode should render dynamic server rendered values on client mount",
+      "next/dynamic development mode should render server value",
+      "next/dynamic production mode should render server value"
+    ],
+    "failed": [
+      "next/dynamic production mode should render dynamic server rendered values on client mount"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/next-image-legacy/typescript/test/index.test.ts": {
+    "passed": [
+      "TypeScript Image Component development mode 2 should remove global image types when disabled (dev)",
+      "TypeScript Image Component development mode should have image types when enabled",
+      "TypeScript Image Component development mode should render the valid Image usage and not print error",
+      "TypeScript Image Component production mode should fail to build invalid usage of the Image component",
+      "TypeScript Image Component production mode should remove global image types when disabled"
+    ],
+    "failed": [
+      "TypeScript Image Component development mode should print error when invalid Image usage"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/no-override-next-props/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "Dynamic require should show error when a Next prop is returned in _app.getInitialProps"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/prerender/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "SSG Prerender development mode getStaticPaths should not cache getStaticPaths errors",
+      "SSG Prerender development mode getStaticPaths should work with firebase import and getStaticPaths"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/server-side-dev-errors/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for api route correctly",
+      "server-side dev errors should show server-side error for dynamic api route correctly",
+      "server-side dev errors should show server-side error for dynamic gssp page correctly",
+      "server-side dev errors should show server-side error for gsp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly",
+      "server-side dev errors should show server-side error for uncaught empty exception correctly",
+      "server-side dev errors should show server-side error for uncaught empty rejection correctly",
+      "server-side dev errors should show server-side error for uncaught exception correctly",
+      "server-side dev errors should show server-side error for uncaught rejection correctly"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
+    "passed": [],
+    "failed": [
+      "build trace with extra entries production mode should build and trace correctly"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.js": {
+    "passed": [
+      "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should resolve a single matching alias",
+      "TypeScript Features default behavior should resolve the first item in the array first",
+      "TypeScript Features default behavior should resolve the second item in as a fallback"
+    ],
+    "failed": [
+      "TypeScript Features default behavior should not resolve to .d.ts files"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  }
+}

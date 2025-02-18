@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use lazy_static::lazy_static;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
@@ -24,7 +23,7 @@ use crate::{next_server::ServerContextType, next_telemetry::ModuleFeatureTelemet
 
 lazy_static! {
     // Set of the features we want to track, following existing references in webpack/plugins/telemetry-plugin.
-    static ref FEATURE_MODULES: HashMap<&'static str, Vec<&'static str>> = HashMap::from([
+    static ref FEATURE_MODULES: FxHashMap<&'static str, Vec<&'static str>> = FxHashMap::from_iter([
         (
             "next",
             vec![
@@ -146,7 +145,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         .emit();
 
         ResolveResultOption::some(
-            ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
                 self.message.join("\n").into(),
             )))
             .cell(),

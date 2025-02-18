@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
@@ -120,6 +121,7 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_react_owner_stack().await?
+                || *next_config.enable_view_transition().await?
             {
                 "-experimental"
             } else {
@@ -719,7 +721,8 @@ async fn rsc_aliases(
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let react_owner_stack = *next_config.enable_react_owner_stack().await?;
-    let react_channel = if ppr || taint || react_owner_stack {
+    let view_transition = *next_config.enable_view_transition().await?;
+    let react_channel = if ppr || taint || react_owner_stack || view_transition {
         "-experimental"
     } else {
         ""
@@ -1049,7 +1052,7 @@ fn export_value_to_import_mapping(
     value.add_results(
         conditions,
         &ConditionValue::Unset,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
         &mut result,
     );
     if result.is_empty() {

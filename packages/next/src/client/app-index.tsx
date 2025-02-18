@@ -26,10 +26,11 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
+import { handleClientError } from './components/errors/use-error-handler'
 
 /// <reference types="react-dom/experimental" />
 
-const appElement: HTMLElement | Document | null = document
+const appElement: HTMLElement | Document = document
 
 const encoder = new TextEncoder()
 
@@ -41,13 +42,24 @@ let initialServerDataFlushed = false
 
 let initialFormStateData: null | any = null
 
-function nextServerDataCallback(
-  seg:
-    | [isBootStrap: 0]
-    | [isNotBootstrap: 1, responsePartial: string]
-    | [isFormState: 2, formState: any]
-    | [isBinary: 3, responseBase64Partial: string]
-): void {
+type FlightSegment =
+  | [isBootStrap: 0]
+  | [isNotBootstrap: 1, responsePartial: string]
+  | [isFormState: 2, formState: any]
+  | [isBinary: 3, responseBase64Partial: string]
+
+type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
+  push: (seg: FlightSegment) => void
+}
+
+declare global {
+  // If you're working in a browser environment
+  interface Window {
+    __next_f: NextFlight
+  }
+}
+
+function nextServerDataCallback(seg: FlightSegment): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else if (seg[0] === 1) {
@@ -134,8 +146,7 @@ if (document.readyState === 'loading') {
   setTimeout(DOMContentLoaded)
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_f =
-  (self as any).__next_f || [])
+const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -219,6 +230,16 @@ function Root({ children }: React.PropsWithChildren<{}>) {
     }, [])
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    const ssrError = devQueueSsrError()
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      if (ssrError) {
+        handleClientError(ssrError, [])
+      }
+    }, [ssrError])
+  }
+
   return children
 }
 
@@ -256,16 +277,14 @@ export function hydrate() {
       element = createRootLevelDevOverlayElement(element)
     }
 
-    ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-      element
-    )
+    ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
   } else {
-    React.startTransition(() =>
-      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+    React.startTransition(() => {
+      ReactDOMClient.hydrateRoot(appElement, reactEl, {
         ...reactRootOptions,
         formState: initialFormStateData,
       })
-    )
+    })
   }
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.
@@ -273,5 +292,20 @@ export function hydrate() {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()
+  }
+}
+
+function devQueueSsrError(): Error | undefined {
+  const ssrErrorTemplateTag = document.querySelector(
+    'template[data-next-error-message]'
+  )
+  if (ssrErrorTemplateTag) {
+    const message: string = ssrErrorTemplateTag.getAttribute(
+      'data-next-error-message'
+    )!
+    const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
+    const error = new Error(message)
+    error.stack = stack || ''
+    return error
   }
 }
