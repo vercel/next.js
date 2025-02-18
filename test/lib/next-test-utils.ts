@@ -31,6 +31,9 @@ import { Playwright } from './browsers/playwright'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
+// TODO: Create dedicated Jest environment that sets up these matchers
+// Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
+import './add-redbox-matchers'
 
 export { shouldRunTurboDevTest }
 
@@ -1022,7 +1025,9 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export async function getRedboxSource(browser: BrowserInterface) {
+export function getRedboxSource(
+  browser: BrowserInterface
+): Promise<string | undefined> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1037,7 +1042,9 @@ export async function getRedboxSource(browser: BrowserInterface) {
   })
 }
 
-export function getRedboxTitle(browser: BrowserInterface) {
+export function getRedboxTitle(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1049,7 +1056,38 @@ export function getRedboxTitle(browser: BrowserInterface) {
   })
 }
 
-export function getRedboxDescription(browser: BrowserInterface) {
+export function getRedboxLabel(
+  browser: BrowserInterface
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors_label')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxEnvironmentLabel(
+  browser: BrowserInterface
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('[data-nextjs-environment-name-label]')?.innerText ??
+      null
+    )
+  })
+}
+
+export function getRedboxDescription(
+  browser: BrowserInterface
+): Promise<string> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1341,15 +1379,46 @@ export async function hasRedboxCallStack(browser: BrowserInterface) {
 
 export async function getRedboxCallStack(
   browser: BrowserInterface
-): Promise<string | null> {
-  const callStackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const callStackFrameTexts = await Promise.all(
-    callStackFrameElements.map((f) => f.innerText())
-  )
+): Promise<string[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-call-stack-frame]'))
+    const root = portal?.shadowRoot
+    const frameElements = root?.querySelectorAll(
+      '[data-nextjs-call-stack-frame]'
+    )
 
-  return callStackFrameTexts.join('\n').trim()
+    const stack: string[] = []
+    if (frameElements !== undefined) {
+      let foundInternalFrame = false
+      for (const frameElement of frameElements) {
+        // `innerText` will be "${methodName}\n${location}".
+        // Ideally `innerText` would be "${methodName} ${location}"
+        // so that c&p automatically does the right thing.
+        const frame = frameElement.innerText.replace('\n', ' ')
+
+        // Feel free to adjust this heuristic if it accidentally hides too much.
+        const isInternalFrame =
+          // likely https://linear.app/vercel/issue/NDX-464
+          // location starts with `./dist` e.g. "NotFoundBoundary ./dist/esm/[...]"
+          / .\/dist\//.test(frame)
+
+        if (isInternalFrame) {
+          // We only add one of these frames.
+          // If we'd add all of them, the stack would change during refactorings which is annoying.
+          if (!foundInternalFrame) {
+            stack.push('<FIXME-internal-frame>')
+          }
+          foundInternalFrame = true
+        } else {
+          stack.push(frame)
+        }
+      }
+    }
+
+    return stack
+  })
 }
 
 export async function getRedboxCallStackCollapsed(
