@@ -245,24 +245,21 @@ jobs:
 
       - name: Upload test report to datadog
         if: ${{ inputs.afterBuild && always() }}
-        env:
-          # Only available information in test execution that helps identify the job this was ran in.
-          DD_TEST_SESSION_NAME: ${{ inputs.stepName }}
         run: |
-          echo "DD_TEST_SESSION_NAME= '$DD_TEST_SESSION_NAME'"
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
+          # Add a `nextjs.test_session.name` tag to help identify the job
           if [ -d ./test/test-junit-report ]; then
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:nextjs \
-              --tags nexts.test_session_name:"$DD_TEST_SESSION_NAME" \
+              --tags nextjs.test_session.name:"${{ inputs.stepName }}" \
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:turbopack \
-              --tags nexts.test_session_name:"$DD_TEST_SESSION_NAME" \
+              --tags nextsj.test_session.name:"${{ inputs.stepName }}" \
               ./test/turbopack-test-junit-report
           fi
 
