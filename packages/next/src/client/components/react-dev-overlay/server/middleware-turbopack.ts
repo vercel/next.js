@@ -90,7 +90,7 @@ export async function batchedTraceSource(
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack://[turbopack]
+    // isInternal means resource starts with turbopack:///[turbopack]
     !!sourceFrame.isInternal
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)

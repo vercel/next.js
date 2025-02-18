@@ -910,6 +910,10 @@ function shouldForceRevalidate(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore | undefined
 ): boolean {
+  if (workStore.isOnDemandRevalidate) {
+    return true
+  }
+
   if (workStore.dev && workUnitStore) {
     if (workUnitStore.type === 'request') {
       return workUnitStore.headers.get('cache-control') === 'no-cache'

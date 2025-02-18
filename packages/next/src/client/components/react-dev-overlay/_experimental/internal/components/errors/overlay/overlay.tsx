@@ -7,6 +7,7 @@ export function ErrorOverlayOverlay({ children, ...props }: OverlayProps) {
 
 export const OVERLAY_STYLES = css`
   [data-nextjs-dialog-overlay] {
-    top: var(--size-8_5);
+    padding: initial;
+    top: 10vh;
   }
 `

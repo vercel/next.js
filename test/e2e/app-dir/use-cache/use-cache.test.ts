@@ -303,6 +303,29 @@ describe('use-cache', () => {
     })
   }
 
+  it('should revalidate caches during on-demand revalidation', async () => {
+    const browser = await next.browser('/on-demand-revalidate')
+    const initial = await browser.elementById('value').text()
+
+    // Bust the ISR cache first to populate the "use cache" in-memory cache for
+    // the subsequent on-demand revalidation.
+    await browser.elementById('revalidate-path').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('value').text()).not.toBe(initial)
+    })
+
+    const value = await browser.elementById('value').text()
+
+    await browser.elementById('revalidate-api-route').click()
+    await browser.waitForElementByCss('#revalidate-api-route:enabled')
+
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('value').text()).not.toBe(value)
+    })
+  })
+
   if (isNextStart) {
     it('should prerender fully cacheable pages as static HTML', async () => {
       const prerenderManifest = JSON.parse(
@@ -336,6 +359,7 @@ describe('use-cache', () => {
         '/logs',
         '/method-props',
         '/not-found',
+        '/on-demand-revalidate',
         '/passed-to-client',
         '/react-cache',
         '/referential-equality',

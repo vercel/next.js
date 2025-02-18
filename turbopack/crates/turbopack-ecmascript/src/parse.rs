@@ -31,7 +31,7 @@ use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
     source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
-    SOURCE_MAP_PREFIX,
+    SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -111,7 +111,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_MAP_PREFIX}{s}")
+                format!("{SOURCE_URL_PROTOCOL}///{s}")
             }
             _ => f.to_string(),
         }

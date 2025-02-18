@@ -1,5 +1,5 @@
 module.exports = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }

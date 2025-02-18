@@ -18,7 +18,7 @@ use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
-    PROJECT_FILESYSTEM_NAME, SOURCE_MAP_PREFIX,
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
@@ -233,8 +233,8 @@ async fn resolve_source_mapping(
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
             if let Some(project_path) = frame.file.strip_prefix(concatcp!(
-                SOURCE_MAP_PREFIX,
-                "[",
+                SOURCE_URL_PROTOCOL,
+                "///[",
                 PROJECT_FILESYSTEM_NAME,
                 "]/"
             )) {

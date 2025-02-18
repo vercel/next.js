@@ -132,7 +132,7 @@ pub struct EsmAsyncAssetReferenceCodeGen {
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -140,7 +140,6 @@ impl EsmAsyncAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            module_graph,
             Vc::upcast(chunking_context),
             self.reference.resolve_reference(),
             if matches!(

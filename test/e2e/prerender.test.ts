@@ -1877,7 +1877,6 @@ describe('Prerender', () => {
         })
 
         expect(res.status).toBe(200)
-        expect(await res.json()).toEqual({ revalidated: false })
         expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
       })
 

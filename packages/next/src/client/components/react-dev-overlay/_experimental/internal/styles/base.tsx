@@ -115,6 +115,10 @@ export function Base() {
           --size-11: 2.75rem; /* 44px */
           --size-11_5: 2.875rem; /* 46px */
           --size-12: 3rem; /* 48px */
+
+          @media print {
+            display: none;
+          }
         }
 
         @media (prefers-color-scheme: dark) {

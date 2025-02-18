@@ -30,7 +30,7 @@ use turbopack_core::{
     source::Source,
     source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
+    SOURCE_URL_PROTOCOL,
 };
 
 use crate::{
@@ -581,7 +581,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
     let mut builder = SourceMapBuilder::new(None);
 
     for src in source_map.get_sources() {
-        builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
+        builder.add_source(&format!("{SOURCE_URL_PROTOCOL}///{src}"));
     }
 
     for (idx, content) in source_map.get_sources_content().iter().enumerate() {

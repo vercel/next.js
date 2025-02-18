@@ -157,7 +157,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -174,7 +174,6 @@ impl AmdDefineWithDependenciesCodeGen {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
                             *self.origin,
-                            module_graph,
                             Vc::upcast(chunking_context),
                             cjs_resolve(
                                 *self.origin,

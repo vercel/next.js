@@ -55,7 +55,8 @@ export function warnOptionHasBeenDeprecated(
   nestedPropertyKey: string,
   reason: string,
   silent: boolean
-) {
+): boolean {
+  let hasWarned = false
   if (!silent) {
     let current = config
     let found = true
@@ -69,9 +70,11 @@ export function warnOptionHasBeenDeprecated(
       }
     }
     if (found) {
-      Log.warn(reason)
+      Log.warnOnce(reason)
+      hasWarned = true
     }
   }
+  return hasWarned
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -463,6 +466,38 @@ function assignDefaults(
     silent
   )
 
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.appIsrStatus',
+    `\`devIndicators.appIsrStatus\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivity',
+    `\`devIndicators.buildActivity\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivityPosition',
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
+    silent
+  )
+  if (
+    hasWarnedBuildActivityPosition &&
+    result.devIndicators !== false &&
+    result.devIndicators?.buildActivityPosition &&
+    result.devIndicators.buildActivityPosition !== result.devIndicators.position
+  ) {
+    Log.warnOnce(
+      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
+    )
+    result.devIndicators.position = result.devIndicators.buildActivityPosition
+  }
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -801,8 +836,8 @@ function assignDefaults(
     }
   }
 
-  if (result.devIndicators?.buildActivityPosition) {
-    const { buildActivityPosition } = result.devIndicators
+  if (result.devIndicators !== false && result.devIndicators?.position) {
+    const { position } = result.devIndicators
     const allowedValues = [
       'top-left',
       'top-right',
@@ -810,11 +845,11 @@ function assignDefaults(
       'bottom-right',
     ]
 
-    if (!allowedValues.includes(buildActivityPosition)) {
+    if (!allowedValues.includes(position)) {
       throw new Error(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+        `Invalid "devIndicator.position" provided, expected one of ${allowedValues.join(
           ', '
-        )}, received ${buildActivityPosition}`
+        )}, received ${position}`
       )
     }
   }
@@ -923,6 +958,33 @@ function assignDefaults(
   // TODO(jiwon): remove once we've made new UI default
   if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'false') {
     result.experimental.newDevOverlay = false
+  }
+  // Preserve the default indicator options for old overlay.
+  if (result.experimental.newDevOverlay !== true) {
+    result.devIndicators = {
+      ...result.devIndicators,
+      appIsrStatus:
+        result.devIndicators === false
+          ? false
+          : result.devIndicators?.appIsrStatus ?? true,
+      buildActivity:
+        result.devIndicators === false
+          ? false
+          : result.devIndicators?.buildActivity ?? true,
+    }
+
+    // If the user didn't explicitly set `position` or `buildActivityPosition` option,
+    // the default is going to be "bottom-left". However, the default position for the
+    // old build activity indicator was "bottom-right" which becomes a breaking change.
+    // Therefore, set to "bottom-right" if the user didn't explicitly set the option.
+    if (!hasWarnedBuildActivityPosition) {
+      result.devIndicators = {
+        ...result.devIndicators,
+        position: userConfig.devIndicators?.position
+          ? result.devIndicators.position
+          : 'bottom-right',
+      }
+    }
   }
 
   result.experimental.optimizePackageImports = [

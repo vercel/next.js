@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import { lorem } from '../../../internal/utils/lorem'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
@@ -169,9 +170,15 @@ export const Turbopack: Story = {
   },
 }
 
-export const Minimized: Story = {
+export const VeryLongErrorMessage: Story = {
   args: {
     ...Default.args,
+    readyErrors: [
+      {
+        ...readyErrors[0],
+        error: Object.assign(new Error(lorem)),
+      },
+    ],
   },
 }
 

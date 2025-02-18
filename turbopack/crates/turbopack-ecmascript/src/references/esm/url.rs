@@ -11,8 +11,8 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
+        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        ModuleChunkItemIdExt,
     },
     environment::Rendering,
     issue::IssueSource,
@@ -170,7 +170,7 @@ impl UrlAssetReferenceCodeGen {
     */
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
@@ -191,10 +191,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
-                        let id = asset
-                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                            .id()
-                            .await?;
+                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
 
                         visitors.push(create_visitor!(self.path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -259,10 +256,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
-                        let id = asset
-                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                            .id()
-                            .await?;
+                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
 
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path

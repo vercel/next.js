@@ -6,5 +6,5 @@ export const initializeDevBuildIndicatorForAppRouter = () => {
     return
   }
 
-  devBuildIndicator.initialize(process.env.__NEXT_BUILD_INDICATOR_POSITION)
+  devBuildIndicator.initialize(process.env.__NEXT_DEV_INDICATOR_POSITION)
 }
