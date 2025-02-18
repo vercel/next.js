@@ -1367,6 +1367,7 @@ impl AppEndpoint {
                     rsc_app_entry_chunks_availability: Value::new(*app_entry_chunks_availability),
                     client_chunking_context,
                     ssr_chunking_context,
+                    async_module_info: module_graphs.full.async_module_info(),
                     next_config: project.next_config(),
                     runtime,
                     mode: project.next_mode(),

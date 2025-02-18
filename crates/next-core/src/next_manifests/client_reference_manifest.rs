@@ -12,9 +12,10 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext,
-        ModuleChunkItemIdExt, ModuleId as TurbopackModuleId,
+        availability_info::AvailabilityInfo, ChunkingContext, ModuleChunkItemIdExt,
+        ModuleId as TurbopackModuleId,
     },
+    module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
 };
@@ -40,6 +41,7 @@ pub struct ClientReferenceManifestOptions {
     pub rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
     pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
+    pub async_module_info: Vc<AsyncModulesInfo>,
     pub next_config: Vc<NextConfig>,
     pub runtime: NextRuntime,
     pub mode: Vc<NextMode>,
@@ -58,9 +60,10 @@ impl ClientReferenceManifest {
             client_references,
             client_references_chunks,
             rsc_app_entry_chunks,
-            rsc_app_entry_chunks_availability,
+            rsc_app_entry_chunks_availability: _,
             client_chunking_context,
             ssr_chunking_context,
+            async_module_info,
             next_config,
             runtime,
             mode,
@@ -92,6 +95,8 @@ impl ClientReferenceManifest {
             let client_relative_path = &*client_relative_path.await?;
             let node_root_ref = &*node_root.await?;
             let rsc_app_entry_chunks = &*rsc_app_entry_chunks.await?;
+
+            let async_module_info = async_module_info.await?;
 
             async fn cached_chunk_paths(
                 cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, ReadRef<FileSystemPath>>,
@@ -151,7 +156,7 @@ impl ClientReferenceManifest {
                         .await?;
 
                     let (client_chunks_paths, client_is_async) =
-                        if let Some((client_chunks, client_availability_info)) =
+                        if let Some((client_chunks, _client_availability_info)) =
                             client_component_client_chunks.get(&app_client_reference_ty)
                         {
                             let client_chunks = client_chunks.await?;
@@ -174,11 +179,8 @@ impl ClientReferenceManifest {
                                 .map(RcStr::from)
                                 .collect::<Vec<_>>();
 
-                            let is_async = is_item_async(
-                                client_availability_info,
-                                ResolvedVc::upcast(client_module),
-                            )
-                            .await?;
+                            let is_async =
+                                async_module_info.contains(&ResolvedVc::upcast(client_module));
 
                             (chunk_paths, is_async)
                         } else {
@@ -201,7 +203,7 @@ impl ClientReferenceManifest {
                             // edge runtime doesn't support dynamically
                             // loading chunks.
                             (Vec::new(), false)
-                        } else if let Some((ssr_chunks, ssr_availability_info)) =
+                        } else if let Some((ssr_chunks, _ssr_availability_info)) =
                             client_component_ssr_chunks.get(&app_client_reference_ty)
                         {
                             let ssr_chunks = ssr_chunks.await?;
@@ -221,11 +223,8 @@ impl ClientReferenceManifest {
                                 .map(RcStr::from)
                                 .collect::<Vec<_>>();
 
-                            let is_async = is_item_async(
-                                ssr_availability_info,
-                                ResolvedVc::upcast(ssr_module),
-                            )
-                            .await?;
+                            let is_async =
+                                async_module_info.contains(&ResolvedVc::upcast(ssr_module));
 
                             (chunk_paths, is_async)
                         } else {
@@ -254,11 +253,8 @@ impl ClientReferenceManifest {
                                 .map(RcStr::from)
                                 .collect::<Vec<_>>();
 
-                            let is_async = is_item_async(
-                                &rsc_app_entry_chunks_availability,
-                                ResolvedVc::upcast(client_reference_module),
-                            )
-                            .await?;
+                            let is_async = async_module_info
+                                .contains(&ResolvedVc::upcast(client_reference_module));
 
                             (chunk_paths, is_async)
                         };
@@ -432,17 +428,4 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
     } else {
         format!("{}#{}", server_path, export_name).into()
     }
-}
-
-async fn is_item_async(
-    availability_info: &AvailabilityInfo,
-    module: ResolvedVc<Box<dyn ChunkableModule>>,
-) -> Result<bool> {
-    let Some(available_modules) = availability_info.available_modules() else {
-        return Ok(false);
-    };
-
-    let available_modules = available_modules.snapshot().await?;
-
-    Ok(available_modules.get(module).is_some_and(|i| i.is_async))
 }
