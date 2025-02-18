@@ -1,8 +1,10 @@
 use anyhow::Result;
+use either::Either;
 use petgraph::graph::DiGraph;
 use rustc_hash::FxHashMap;
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
@@ -13,9 +15,15 @@ use crate::{
     },
 };
 
+#[derive(Debug, Copy, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum ModuleBatchesGraphNode {
+    Module(ResolvedVc<Box<dyn Module>>),
+    Batch(ResolvedVc<ModuleBatch>),
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 pub struct ModuleBatchesGraph {
-    graph: TracedDiGraph<ResolvedVc<ModuleBatch>, ChunkingType>,
+    graph: TracedDiGraph<ModuleBatchesGraphNode, ChunkingType>,
 }
 
 struct ModuleBatchBuilder {
@@ -75,8 +83,7 @@ pub async fn compute_module_batches(
     let outer_span = tracing::info_span!(
         "compute module batches",
         batches = tracing::field::Empty,
-        batches_with_len_1 = tracing::field::Empty,
-        batches_with_len_2 = tracing::field::Empty,
+        modules = tracing::field::Empty,
         edges = tracing::field::Empty
     );
     let span = outer_span.clone();
@@ -232,36 +239,44 @@ pub async fn compute_module_batches(
             )
             .await?;
 
-        let mut batches_with_len_1 = 0;
-        let mut batches_with_len_2 = 0;
-        for batch in &state.batches {
-            if batch.modules.len() == 1 {
-                batches_with_len_1 += 1;
-            } else if batch.modules.len() == 2 {
-                batches_with_len_2 += 1;
-            }
-        }
-
-        span.record("batches", &state.batches.len());
-        span.record("batches_with_len_1", &batches_with_len_1);
-        span.record("batches_with_len_2", &batches_with_len_2);
-        span.record("edges", &state.edges.len());
+        let batches_len = state.batches.len();
+        let mut result_modules = 0;
 
         // Create a petgraph from the collected data
-        let mut graph: DiGraph<ResolvedVc<ModuleBatch>, ChunkingType, u32> =
+        let mut graph: DiGraph<ModuleBatchesGraphNode, ChunkingType, u32> =
             petgraph::graph::DiGraph::with_capacity(state.batches.len(), state.edges.len());
 
         // Add nodes and store node index
         let batch_indicies = state
             .batches
             .into_iter()
-            .map(ModuleBatchBuilder::build)
-            .map(Vc::to_resolved)
+            .map(|batch| {
+                if batch.modules.len() == 1 {
+                    result_modules += 1;
+                    Either::Left(batch.modules.into_iter().next().unwrap())
+                } else {
+                    Either::Right(batch.build())
+                }
+            })
+            .map(|either| async move {
+                Ok(match either {
+                    Either::Left(module) => {
+                        ModuleBatchesGraphNode::Module(module.to_resolved().await?)
+                    }
+                    Either::Right(batch) => {
+                        ModuleBatchesGraphNode::Batch(batch.to_resolved().await?)
+                    }
+                })
+            })
             .try_join()
             .await?
             .into_iter()
             .map(|batch| graph.add_node(batch))
             .collect::<Vec<_>>();
+
+        span.record("batches", batches_len - result_modules);
+        span.record("modules", &result_modules);
+        span.record("edges", &state.edges.len());
 
         // Add edges
         for (from, to, ty) in state.edges {
