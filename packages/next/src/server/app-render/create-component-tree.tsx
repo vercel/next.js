@@ -401,7 +401,6 @@ async function createComponentTreeInternal({
     actualSegment !== DEFAULT_SEGMENT_KEY && StreamingMetadata ? (
       <StreamingMetadata />
     ) : undefined
-  const metadataOutlet = <StreamingMetadataOutlet />
 
   const notFoundElement = NotFound ? (
     <>
@@ -711,7 +710,7 @@ async function createComponentTreeInternal({
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
           <MetadataOutlet ready={getMetadataReady} />
-          {metadataOutlet}
+          <StreamingMetadataOutlet />
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
@@ -802,7 +801,6 @@ async function createComponentTreeInternal({
             >
               {layerAssets}
               {clientSegment}
-              {metadataOutlet}
             </HTTPAccessFallbackBoundary>
           )
         } else {
