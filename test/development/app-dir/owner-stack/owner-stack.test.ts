@@ -47,7 +47,7 @@ async function getStackFramesContent(browser) {
 }
 
 describe('app-dir - owner-stack', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -168,23 +168,14 @@ describe('app-dir - owner-stack', () => {
     await openRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
-    if (isTurbopack) {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at useThrowError (app/browser/caught/page.js (34:11))
-       at useErrorHook (app/browser/caught/page.js (39:3))
-       at Thrower (app/browser/caught/page.js (29:3))
-       at Inner (app/browser/caught/page.js (23:7))
-       at Page (app/browser/caught/page.js (43:10))"
-      `)
-    } else {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at useThrowError (app/browser/caught/page.js (34:11))
-       at useErrorHook (app/browser/caught/page.js (39:3))
-       at Thrower (app/browser/caught/page.js (29:3))
-       at Inner (app/browser/caught/page.js (23:8))
-       at Page (app/browser/caught/page.js (43:11))"
-      `)
-    }
+
+    expect(stackFramesContent).toMatchInlineSnapshot(`
+     "at useThrowError (app/browser/caught/page.js (34:11))
+     at useErrorHook (app/browser/caught/page.js (39:3))
+     at Thrower (app/browser/caught/page.js (29:3))
+     at Inner (app/browser/caught/page.js (23:7))
+     at Page (app/browser/caught/page.js (43:10))"
+    `)
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
       "%o
