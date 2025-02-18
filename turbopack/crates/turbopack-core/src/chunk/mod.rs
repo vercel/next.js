@@ -286,31 +286,10 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Copy,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-)]
-pub enum ChunkItemTy {
-    /// The ChunkItem should be included as content in the chunk.
-    Included,
-    /// The ChunkItem should be used to trace references but should not included in the chunk.
-    Passthrough,
-}
-
-#[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
 // #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
-    pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
