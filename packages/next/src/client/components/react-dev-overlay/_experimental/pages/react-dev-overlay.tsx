@@ -12,6 +12,7 @@ import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from '../internal/container/runtime-error/render-error'
+import { FontStyles } from '../font/font-styles'
 
 export type ErrorType = 'runtime' | 'build'
 
@@ -31,6 +32,8 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
         {children ?? null}
       </DevOverlayErrorBoundary>
 
+      {/* Fonts can only be loaded outside the Shadow DOM. */}
+      <FontStyles />
       <ShadowPortal>
         <CssReset />
         <Base />
