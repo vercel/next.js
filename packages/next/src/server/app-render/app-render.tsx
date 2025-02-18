@@ -397,7 +397,13 @@ function makeGetDynamicParamFromSegment(
             const param = parseParameter(pathSegment)
             // if the segment matches a param, return the param value
             // otherwise, it's a static segment, so just return that
-            return params[param.key] ?? param.key
+            const currentValue = params[param.key]
+            if (Array.isArray(currentValue)) {
+              return currentValue.map((i) => encodeURIComponent(i))
+            } else if (typeof currentValue === 'string') {
+              return encodeURIComponent(currentValue)
+            }
+            return encodeURIComponent(param.key)
           })
 
         return {
