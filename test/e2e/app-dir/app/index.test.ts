@@ -163,27 +163,32 @@ describe('app dir - basic', () => {
     })
   }
 
-  it('should encode chunk path correctly', async () => {
-    await next.fetch('/dynamic-client/first/second')
-    const browser = await next.browser('/')
-    const requests = []
-    browser.on('request', (req) => {
-      requests.push(req.url())
-    })
+  // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
+  if (!process.env.TURBOPACK) {
+    it('should encode chunk path correctly', async () => {
+      await next.fetch('/dynamic-client/first/second')
+      const browser = await next.browser('/')
+      const requests = []
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
 
-    await browser.eval('window.location.href = "/dynamic-client/first/second"')
-
-    await browser.waitForElementByCss('#id-page-params')
-
-    expect(
-      requests.some(
-        (req) =>
-          req.includes(
-            encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-          ) && req.includes('.js')
+      await browser.eval(
+        'window.location.href = "/dynamic-client/first/second"'
       )
-    ).toBe(true)
-  })
+
+      await browser.waitForElementByCss('#id-page-params')
+
+      expect(
+        requests.some(
+          (req) =>
+            req.includes(
+              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
+            ) && req.includes('.js')
+        )
+      ).toBe(true)
+    })
+  }
 
   it.each([
     { pathname: '/redirect-1' },
