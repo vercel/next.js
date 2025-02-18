@@ -6,9 +6,9 @@ use rustc_hash::FxHashMap;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
-    availability_info::AvailabilityInfo, available_modules::AvailableModulesInfo,
-    chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkGroupContent, ChunkItem, ChunkItemTy,
-    ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
+    availability_info::AvailabilityInfo, chunking::make_chunks, AsyncModuleInfo, Chunk,
+    ChunkGroupContent, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo, ChunkableModule,
+    ChunkingContext,
 };
 use crate::{
     chunk::ChunkingType,
@@ -56,7 +56,8 @@ pub async fn make_chunk_group(
 
     // Create map for chunk items with empty [Option<Vc<AsyncModuleInfo>>]
     let all_modules = chunkable_modules
-        .into_iter()
+        .iter()
+        .copied()
         .map(async |m| {
             if async_modules_info.contains(&ResolvedVc::upcast(m)) {
                 anyhow::Ok((
@@ -78,24 +79,9 @@ pub async fn make_chunk_group(
         .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
 
     // Compute new [AvailabilityInfo]
-    let availability_info = {
-        let map = all_modules
-            .iter()
-            .map(|(&module, async_info)| async move {
-                Ok((
-                    module,
-                    AvailableModulesInfo {
-                        is_async: async_info.is_some(),
-                    },
-                ))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect();
-        let map = Vc::cell(map);
-        availability_info.with_modules(map).await?
-    };
+    let availability_info = availability_info
+        .with_modules(Vc::cell(chunkable_modules))
+        .await?;
 
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
@@ -258,12 +244,12 @@ pub async fn chunk_group_content(
                     return Ok(GraphTraversalAction::Skip);
                 };
 
-                let available_info = available_modules
+                let is_available = available_modules
                     .as_ref()
-                    .and_then(|available_modules| available_modules.get(chunkable_module));
+                    .is_some_and(|available_modules| available_modules.get(chunkable_module));
 
                 let Some((_, edge)) = parent_info else {
-                    return Ok(if available_info.is_some() {
+                    return Ok(if is_available {
                         GraphTraversalAction::Skip
                     } else {
                         unsorted_chunkable_modules.insert(node.module, chunkable_module);
@@ -277,7 +263,7 @@ pub async fn chunk_group_content(
                         GraphTraversalAction::Continue
                     }
                     ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
-                        if available_info.is_some() {
+                        if is_available {
                             GraphTraversalAction::Skip
                         } else {
                             unsorted_chunkable_modules.insert(node.module, chunkable_module);
@@ -288,7 +274,7 @@ pub async fn chunk_group_content(
                         if can_split_async {
                             result.async_modules.insert(chunkable_module);
                             GraphTraversalAction::Skip
-                        } else if available_info.is_some() {
+                        } else if is_available {
                             GraphTraversalAction::Skip
                         } else {
                             unsorted_chunkable_modules.insert(node.module, chunkable_module);
