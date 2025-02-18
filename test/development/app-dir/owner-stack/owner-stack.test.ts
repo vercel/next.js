@@ -48,53 +48,18 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    const logs = await browser.log()
-    const errorLog = logs.find((log) => {
-      return log.message.includes('Error: browser error')
-    }).message
-
-    expect(errorStack).toEqual(undefined)
-    if (process.env.TURBOPACK) {
-      expect(normalizeBrowserConsoleStackTrace(errorLog))
-        .toMatchInlineSnapshot(`
-          "%o
-          %s Error: browser error
-          at useThrowError 
-          at useErrorHook 
-          at Page 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at performWorkOnRoot 
-          at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
-        `)
-    } else {
-      expect(normalizeBrowserConsoleStackTrace(errorLog))
-        .toMatchInlineSnapshot(`
-          "%o
-          %s Error: browser error
-          at useThrowError 
-          at useErrorHook 
-          at Page 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at performWorkOnRoot 
-          at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
-      `)
-    }
+    expect(normalizeBrowserConsoleStackTrace(errorStack))
+      .toMatchInlineSnapshot(`
+     "Error: browser error
+     at useThrowError 
+     at useErrorHook 
+     at Page 
+     at AppDevOverlay 
+     at HotReload 
+     at Router 
+     at AppRouter 
+     at ServerRoot"
+    `)
   })
 
   it('should log stitched error for browser caught errors', async () => {
@@ -174,30 +139,18 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-    const logs = await browser.log()
-    const errorLog = logs.find((log) => {
-      return log.message.includes('Error: ssr error')
-    }).message
-
-    expect(errorStack).toEqual(undefined)
-    expect(normalizeBrowserConsoleStackTrace(errorLog)).toMatchInlineSnapshot(`
-       "%o
-       %s Error: ssr error
-       at useThrowError 
-       at useErrorHook 
-       at Page 
-       at react-stack-bottom-frame 
-       at renderWithHooks 
-       at updateFunctionComponent 
-       at beginWork 
-       at runWithFiberInDEV 
-       at performUnitOfWork 
-       at workLoopSync 
-       at renderRootSync 
-       at performWorkOnRoot 
-       at performWorkOnRootViaSchedulerTask 
-       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
-      `)
+    expect(normalizeBrowserConsoleStackTrace(errorStack))
+      .toMatchInlineSnapshot(`
+     "Error: ssr error
+     at useThrowError 
+     at useErrorHook 
+     at Page 
+     at AppDevOverlay 
+     at HotReload 
+     at Router 
+     at AppRouter 
+     at ServerRoot"
+    `)
   })
 
   it('should capture unhandled promise rejections', async () => {

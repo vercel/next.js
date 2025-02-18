@@ -196,8 +196,11 @@ describe('app-dir - errors', () => {
         )
       }
 
-      // FIXME(veil): Should contain thrown error.
-      expect(pageErrors).toEqual([])
+      expect(pageErrors).toEqual([
+        expect.objectContaining({
+          message: 'this is a test',
+        }),
+      ])
     })
 
     it('should display error digest for error in server component with default error boundary', async () => {
@@ -236,8 +239,15 @@ describe('app-dir - errors', () => {
         ).toMatch(/Digest: \w+/)
       }
 
-      // FIXME(veil): Should contain thrown error.
-      expect(pageErrors).toEqual([])
+      expect(pageErrors).toEqual([
+        expect.objectContaining({
+          message: isNextDev
+            ? 'custom server error'
+            : 'An error occurred in the Server Components render. ' +
+              'The specific message is omitted in production builds to avoid leaking sensitive details. ' +
+              'A digest property is included on this error instance which may provide additional details about the nature of the error.',
+        }),
+      ])
     })
 
     // production tests

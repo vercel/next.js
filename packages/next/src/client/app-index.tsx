@@ -28,6 +28,8 @@ import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
 import { handleClientError } from './components/errors/use-error-handler'
 import { isNextRouterError } from './components/is-next-router-error'
+import { AppDevOverlayErrorBoundary } from './components/react-dev-overlay/app/app-dev-overlay-error-boundary'
+import { ErrorBoundaryHandler } from './components/error-boundary'
 
 /// <reference types="react-dom/experimental" />
 
@@ -244,11 +246,21 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-const reactRootOptions = {
+const reactRootOptions: ReactDOMClient.RootOptions = {
   onRecoverableError,
-  onCaughtError,
+  onCaughtError: (error, errorInfo) => {
+    const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
+    const isImplicitErrorBoundary =
+      (process.env.NODE_ENV !== 'production' &&
+        errorBoundaryComponent === AppDevOverlayErrorBoundary) ||
+      errorBoundaryComponent === ErrorBoundaryHandler
+    // Built-in error boundaries decide whether an error is caught or not.
+    if (!isImplicitErrorBoundary) {
+      onCaughtError(error, errorInfo)
+    }
+  },
   onUncaughtError,
-} satisfies ReactDOMClient.RootOptions
+}
 
 export function hydrate() {
   const reactEl = (
