@@ -88,6 +88,7 @@ function DevToolsPopover({
   const turbopackRef = useRef<HTMLElement>(null)
   const triggerTurbopackRef = useRef<HTMLButtonElement | null>(null)
   const routeInfoRef = useRef<HTMLElement>(null)
+  const triggerRouteInfoRef = useRef<HTMLButtonElement | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isTurbopackInfoOpen, setIsTurbopackInfoOpen] = useState(false)
   const [isRouteInfoOpen, setIsRouteInfoOpen] = useState(false)
@@ -124,8 +125,13 @@ function DevToolsPopover({
     isTurbopackInfoOpen,
     closeTurbopackInfo
   )
-  useFocusTrap(routeInfoRef, triggerRef, isRouteInfoOpen)
-  useClickOutside(routeInfoRef, triggerRef, isRouteInfoOpen, closeRouteInfo)
+  useFocusTrap(routeInfoRef, triggerRouteInfoRef, isRouteInfoOpen)
+  useClickOutside(
+    routeInfoRef,
+    triggerRouteInfoRef,
+    isRouteInfoOpen,
+    closeRouteInfo
+  )
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {

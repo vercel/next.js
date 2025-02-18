@@ -63,7 +63,7 @@ const state: OverlayState = {
   debugInfo: { devtoolsFrontendUrl: undefined },
 }
 
-export const NoErrors: Story = {
+export const StaticRoute: Story = {
   args: {
     errorCount: 0,
     state,
