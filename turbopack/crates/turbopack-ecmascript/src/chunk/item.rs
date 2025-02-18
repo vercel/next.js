@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemTy, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -202,7 +202,6 @@ pub trait EcmascriptChunkItem: ChunkItem {
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
-    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
 
     /// Specifies which availablility information the chunk item needs for code
     /// generation
@@ -240,7 +239,11 @@ async fn module_factory_with_code_generation_issue(
         {
             Ok(factory) => factory,
             Err(error) => {
-                let id = chunk_item.id().to_string().await;
+                let id = chunk_item
+                    .chunking_context()
+                    .chunk_item_id(Vc::upcast(chunk_item))
+                    .to_string()
+                    .await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
                 let error = error.context(format!(
                     "An error occurred while generating the chunk item {}",

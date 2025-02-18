@@ -347,6 +347,25 @@ where
     }
 }
 
+pub trait ModuleChunkItemIdExt {
+    /// Returns the chunk item id of this module.
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId>;
+}
+impl<T> ModuleChunkItemIdExt for T
+where
+    T: Upcast<Box<dyn Module>>,
+{
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId> {
+        chunking_context.chunk_item_id_from_module(Vc::upcast(self))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -127,11 +127,6 @@ impl ChunkItem for IncludeModulesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     fn content(&self) -> Vc<EcmascriptChunkItemContent> {
         EcmascriptChunkItemContent {
             ..Default::default()

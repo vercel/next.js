@@ -22,8 +22,8 @@ use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkableModuleReference,
-        ChunkingContext,
+        ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -311,15 +311,15 @@ pub struct RequireContextAssetReferenceCodeGen {
 impl RequireContextAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let chunk_item = self
+        let module_id = self
             .reference
             .await?
             .inner
-            .as_chunk_item(module_graph, Vc::upcast(chunking_context));
-        let module_id = chunk_item.id().owned().await?;
+            .chunk_item_id(Vc::upcast(chunking_context))
+            .await?;
 
         let mut visitors = Vec::new();
 
@@ -458,11 +458,6 @@ pub struct RequireContextChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let map = &*self.map.await?;
 
@@ -475,7 +470,6 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *self.module_graph,
                 *ResolvedVc::upcast(self.chunking_context),
                 *entry.result,
                 ResolveType::ChunkItem,

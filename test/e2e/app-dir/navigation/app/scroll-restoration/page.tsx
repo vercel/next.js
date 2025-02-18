@@ -7,8 +7,7 @@ export default function Page() {
   const { items, loadMoreItems } = useContext(ItemsContext)
 
   return (
-    // Dev Indicator blocking the click.
-    <div style={{ paddingBottom: 60 }}>
+    <div>
       <h1>Page</h1>
       <ul>
         {items.map((item) => (
