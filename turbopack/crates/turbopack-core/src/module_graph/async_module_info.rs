@@ -13,10 +13,13 @@ use crate::{
 #[turbo_tasks::value(transparent)]
 pub struct AsyncModulesInfo(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
-pub async fn compute_async_module_info(graph: &ModuleGraph) -> Result<Vc<AsyncModulesInfo>> {
+#[turbo_tasks::function(operation)]
+pub async fn compute_async_module_info(
+    graph: ResolvedVc<ModuleGraph>,
+) -> Result<Vc<AsyncModulesInfo>> {
     // Layout segment optimization, we can individually compute the async modules for each graph.
     let mut result: Vc<AsyncModulesInfo> = Vc::cell(Default::default());
-    for g in &graph.graphs {
+    for g in &graph.await?.graphs {
         result = compute_async_module_info_single(**g, result);
     }
     Ok(result)

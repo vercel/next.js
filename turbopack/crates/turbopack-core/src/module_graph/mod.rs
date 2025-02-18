@@ -17,7 +17,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
+    ValueToString, Vc,
 };
 
 use crate::{
@@ -608,10 +609,17 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn async_module_info(&self) -> Result<Vc<AsyncModulesInfo>> {
-        compute_async_module_info(self)
-            .instrument(tracing::info_span!("compute_async_module_info"))
-            .await
+    pub async fn async_module_info(self: Vc<Self>) -> Result<Vc<AsyncModulesInfo>> {
+        // `compute_async_module_info` calls `module.is_self_async()`, so we need to again ignore
+        // all issues such that they aren't emitted multiple times.
+        async move {
+            let result_op = compute_async_module_info(self.to_resolved().await?);
+            let result_vc = result_op.resolve_strongly_consistent().await?;
+            let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
+            anyhow::Ok(*result_vc)
+        }
+        .instrument(tracing::info_span!("compute_async_module_info"))
+        .await
     }
 
     #[turbo_tasks::function]
