@@ -57,7 +57,7 @@ if (!process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
 }
 
 const timings = []
-const DEFAULT_NUM_RETRIES = 0
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
