@@ -106,6 +106,9 @@ jobs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
+      - name: Debug Turborepo
+        run: |
+          echo "TURBO_API: '$TURBO_API'"
       - name: Check if fnm is installed
         id: check-fnm
         run: |
