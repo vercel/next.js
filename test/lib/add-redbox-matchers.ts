@@ -30,6 +30,7 @@ declare global {
        * Unintented content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -48,6 +49,7 @@ declare global {
        * Unintented content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
