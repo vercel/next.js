@@ -243,19 +243,27 @@ jobs:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
-      - name: Upload test report artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload test report to datadog
         if: ${{ inputs.afterBuild && always() }}
-        with:
-          name: test-reports-${{ steps.var.outputs.input_step_key }}
-          path: |
-            test/test-junit-report
-            test/turbopack-test-junit-report
-            test/rspack-test-junit-report
-          if-no-files-found: ignore
+        env:
+          # Only available information in test execution that helps identify the job this was ran in.
+          DD_TEST_SESSION_NAME: ${{ inputs.stepName }}
+        run: |
+          # Add a `test.type` tag to distinguish between turbopack and next.js runs
+          if [ -d ./test/test-junit-report ]; then
+            npx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:nextjs \
+              ./test/test-junit-report
+          fi
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            npx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:turbopack \
+              ./test/turbopack-test-junit-report
+          fi
 
-      # upload playwright snapshots from failed tests
-      - name: Upload test report artifacts
+      - name: Upload Playwright Snapshots
         uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild && always() }}
         with:

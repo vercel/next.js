@@ -615,47 +615,6 @@ jobs:
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
-  report-test-results-to-datadog:
-    needs:
-      [
-        'changes',
-        'test-unit',
-        'test-dev',
-        'test-prod',
-        'test-integration',
-        'test-ppr-dev',
-        'test-ppr-prod',
-        'test-ppr-integration',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
-        'test-turbopack-production',
-        'test-turbopack-production-integration',
-      ]
-    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
-
-    runs-on: ubuntu-latest
-    name: report test results to datadog
-    steps:
-      - name: Download test report artifacts
-        id: download-test-reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-reports-*
-          path: test
-          merge-multiple: true
-
-      - name: Upload test report to datadog
-        run: |
-          if [ -d ./test/test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
-          fi
-
-          if [ -d ./test/turbopack-test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
-          fi
-
   tests-pass:
     needs:
       [
