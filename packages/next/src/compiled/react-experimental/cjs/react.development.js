@@ -1188,6 +1188,9 @@
     exports.unstable_useCacheRefresh = function () {
       return resolveDispatcher().useCacheRefresh();
     };
+    exports.unstable_useSwipeTransition = function (previous, current, next) {
+      return resolveDispatcher().useSwipeTransition(previous, current, next);
+    };
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
     };
@@ -1274,7 +1277,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-32b0cad8-20250213";
+    exports.version = "19.1.0-experimental-8a7b487e-20250218";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
