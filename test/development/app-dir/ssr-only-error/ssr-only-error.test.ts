@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
+  assertNoRedbox,
   getRedboxDescription,
   getRedboxSource,
   hasErrorToast,
@@ -39,5 +40,31 @@ describe('ssr-only-error', () => {
        8 | }",
      }
     `)
+  })
+
+  it('should not handle internal nextjs errors that will be handled by error boundaries', async () => {
+    const browser = await next.browser('/notfound', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    await assertNoRedbox(browser)
+    expect(await hasErrorToast(browser)).toBe(false)
+
+    const text = await browser.elementByCss('body').text()
+    expect(text).toBe('404\nThis page could not be found.')
+
+    // Assert there's only one console.error from browser itself
+    const errorLogs = (await browser.log()).filter(
+      (log) => log.source === 'error'
+    )
+
+    expect(errorLogs).toEqual([
+      expect.objectContaining({
+        source: 'error',
+        message: expect.stringContaining(
+          'the server responded with a status of 404'
+        ),
+      }),
+    ])
   })
 })
