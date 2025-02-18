@@ -8,6 +8,7 @@ import {
   retry,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { createSandbox } from 'development-sandbox'
 
 const nextConfigWithCacheHandler: NextConfig = {
   experimental: {
@@ -88,12 +89,14 @@ describe('use-cache-unknown-cache-kind', () => {
     })
   } else {
     it('should not show an error for default cache kinds', async () => {
-      const browser = await next.browser('/remote')
+      await using sandbox = await createSandbox(next, undefined, '/remote')
+      const { browser } = sandbox
       await assertNoRedbox(browser)
     })
 
     it('should show a build error', async () => {
-      const browser = await next.browser('/')
+      await using sandbox = await createSandbox(next, undefined, '/')
+      const { browser } = sandbox
 
       await assertHasRedbox(browser)
 
@@ -161,22 +164,23 @@ describe('use-cache-unknown-cache-kind', () => {
     })
 
     it('should recover from the build error if the cache handler is defined', async () => {
-      const browser = await next.browser('/')
+      await using sandbox = await createSandbox(next, undefined, '/')
+      const { browser, session } = sandbox
 
       await assertHasRedbox(browser)
 
-      await next.patchFile(
+      await session.patch(
         'next.config.js',
-        `module.exports = ${JSON.stringify(nextConfigWithCacheHandler)}`,
-        () =>
-          retry(async () => {
-            console.count('retry check for hello world')
-            const text = await browser.elementByCss('p').text()
-            console.log('text is', JSON.stringify(text))
-            expect(text).toBe('hello world')
-            await assertNoRedbox(browser)
-          })
+        `module.exports = ${JSON.stringify(nextConfigWithCacheHandler)}`
       )
+
+      await retry(async () => {
+        console.count('retry check for hello world')
+        const text = await browser.elementByCss('p').text()
+        console.log('text is', JSON.stringify(text))
+        expect(text).toBe('hello world')
+        await assertNoRedbox(browser)
+      })
 
       console.log('test end')
     })
