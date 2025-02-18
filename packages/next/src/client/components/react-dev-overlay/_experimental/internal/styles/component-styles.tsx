@@ -19,6 +19,7 @@ import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
 import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
 import { DEV_TOOLS_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-info'
 import { DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
+import { DEV_TOOLS_INFO_ROUTE_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 
 export function ComponentStyles() {
   return (
@@ -44,6 +45,7 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INDICATOR_STYLES}
         ${DEV_TOOLS_INFO_STYLES}
         ${DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES}
+        ${DEV_TOOLS_INFO_ROUTE_INFO_STYLES}
       `}
     </style>
   )

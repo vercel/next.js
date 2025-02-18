@@ -9,6 +9,7 @@ import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'
 import { TurbopackInfo } from './dev-tools-info/turbopack-info'
+import { RouteInfo } from './dev-tools-info/route-info'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -86,8 +87,10 @@ function DevToolsPopover({
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const turbopackRef = useRef<HTMLElement>(null)
   const triggerTurbopackRef = useRef<HTMLButtonElement | null>(null)
+  const routeInfoRef = useRef<HTMLElement>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isTurbopackInfoOpen, setIsTurbopackInfoOpen] = useState(false)
+  const [isRouteInfoOpen, setIsRouteInfoOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
   // This hook lets us do an exit animation before unmounting the component
@@ -105,6 +108,11 @@ function DevToolsPopover({
       enterDelay: 0,
       exitDelay: ANIMATE_OUT_DURATION_MS,
     })
+  const { mounted: routeInfoMounted, rendered: routeInfoRendered } =
+    useDelayedRender(isRouteInfoOpen, {
+      enterDelay: 0,
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    })
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
@@ -116,6 +124,8 @@ function DevToolsPopover({
     isTurbopackInfoOpen,
     closeTurbopackInfo
   )
+  useFocusTrap(routeInfoRef, triggerRef, isRouteInfoOpen)
+  useClickOutside(routeInfoRef, triggerRef, isRouteInfoOpen, closeRouteInfo)
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -214,6 +224,10 @@ function DevToolsPopover({
     setIsTurbopackInfoOpen(false)
   }
 
+  function closeRouteInfo() {
+    setIsRouteInfoOpen(false)
+  }
+
   const [vertical, horizontal] = position.split('-', 2)
 
   return (
@@ -244,6 +258,21 @@ function DevToolsPopover({
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
       />
+
+      {routeInfoMounted && (
+        <RouteInfo
+          ref={routeInfoRef}
+          routeType={isStaticRoute ? 'Static' : 'Dynamic'}
+          isOpen={isRouteInfoOpen}
+          setIsOpen={setIsRouteInfoOpen}
+          setPreviousOpen={setIsMenuOpen}
+          style={{
+            [vertical]: 'calc(100% + var(--size-gap))',
+            [horizontal]: 0,
+          }}
+          data-rendered={routeInfoRendered}
+        />
+      )}
 
       {turbopackInfoMounted && (
         <TurbopackInfo
@@ -298,14 +327,16 @@ function DevToolsPopover({
               )}
               <MenuItem
                 label="Route"
+                index={1}
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
+                onClick={() => setIsRouteInfoOpen(true)}
                 data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
               />
               {isTurbopack ? (
                 <MenuItem label="Turbopack" value="Enabled" />
               ) : (
                 <MenuItem
-                  index={1}
+                  index={2}
                   label="Try Turbopack"
                   value={<ChevronRight />}
                   onClick={() => setIsTurbopackInfoOpen(true)}
@@ -319,7 +350,7 @@ function DevToolsPopover({
                 label="Hide Dev Tools"
                 value={<Cross color="var(--color-gray-900)" />}
                 onClick={hide}
-                index={isTurbopack ? 1 : 2}
+                index={isTurbopack ? 2 : 3}
               />
             </div>
           </Context.Provider>

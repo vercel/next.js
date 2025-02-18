@@ -60,7 +60,7 @@ export const DEV_TOOLS_INFO_STYLES = css`
     overflow: hidden;
     opacity: 0;
     outline: 0;
-    min-width: 248px;
+    min-width: 300px;
     transition: opacity var(--animate-out-duration-ms)
       var(--animate-out-timing-function);
 
