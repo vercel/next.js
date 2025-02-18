@@ -73,8 +73,8 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             <FileIcon lang={fileExtension} />
           </span>
           <span data-text>
-            <HotlinkedText text={stackFrame.methodName} />
             {getFrameSource(stackFrame)} @{' '}
+            <HotlinkedText text={stackFrame.methodName} />
           </span>
           <span className="code-frame-icon" data-icon="right">
             <ExternalIcon width={16} height={16} />
