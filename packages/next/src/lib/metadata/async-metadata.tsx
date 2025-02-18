@@ -1,6 +1,6 @@
 'use client'
 
-import { use } from 'react'
+import { Suspense, use } from 'react'
 import { useServerInsertedMetadata } from '../../server/app-render/metadata-insertion/use-server-inserted-metadata'
 
 export type StreamingMetadataResolvedState = {
@@ -47,7 +47,7 @@ export function AsyncMetadata({
   )
 }
 
-export function AsyncMetadataOutlet({
+function MetadataOutlet({
   promise,
 }: {
   promise: Promise<StreamingMetadataResolvedState>
@@ -62,4 +62,16 @@ export function AsyncMetadataOutlet({
     throw error
   }
   return null
+}
+
+export function AsyncMetadataOutlet({
+  promise,
+}: {
+  promise: Promise<StreamingMetadataResolvedState>
+}) {
+  return (
+    <Suspense fallback={null}>
+      <MetadataOutlet promise={promise} />
+    </Suspense>
+  )
 }

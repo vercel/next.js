@@ -207,11 +207,8 @@ export function createMetadataComponents({
         </Suspense>
       )
     }
-    const { metadata: resolvedMetadata, error } = await promise
-    if (error) {
-      throw error
-    }
-    return resolvedMetadata
+    const metadataState = await promise
+    return metadataState.metadata
   }
 
   Metadata.displayName = METADATA_BOUNDARY_NAME
@@ -219,7 +216,6 @@ export function createMetadataComponents({
   async function getMetadataReady(): Promise<void> {
     // Only warm up metadata() call when it's blocking metadata,
     // otherwise it will be fully managed by AsyncMetadata component.
-
     if (!serveStreamingMetadata) {
       await metadata()
     }
@@ -232,7 +228,10 @@ export function createMetadataComponents({
   }
 
   function StreamingMetadataOutlet() {
-    return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
+    if (serveStreamingMetadata) {
+      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
+    }
+    return null
   }
 
   return {

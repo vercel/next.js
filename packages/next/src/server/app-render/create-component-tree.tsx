@@ -802,6 +802,7 @@ async function createComponentTreeInternal({
             >
               {layerAssets}
               {clientSegment}
+              {metadataOutlet}
             </HTTPAccessFallbackBoundary>
           )
         } else {
