@@ -216,41 +216,22 @@ describe('app-dir - server source maps', () => {
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
 
-      if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "count": 2,
-           "description": "Error: Boom",
-           "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
-           "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
-         > 4 |   throw new Error('Boom')
-             |         ^",
-           "stack": [
-             "throwError app/ssr-throw/Thrower.js (4:9)",
-             "Thrower app/ssr-throw/Thrower.js (8:3)",
-             "Page app/ssr-throw/page.js (6:11)",
-           ],
-         }
-        `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "count": 2,
-           "description": "Error: Boom",
-           "environmentLabel": null,
-           "label": "Unhandled Runtime Error",
-           "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
-         > 4 |   throw new Error('Boom')
-             |         ^",
-           "stack": [
-             "throwError app/ssr-throw/Thrower.js (4:9)",
-             "Thrower app/ssr-throw/Thrower.js (8:3)",
-             "Page app/ssr-throw/page.js (6:11)",
-           ],
-         }
-        `)
-      }
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 2,
+         "description": "Error: Boom",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
+       > 4 |   throw new Error('Boom')
+           |         ^",
+         "stack": [
+           "throwError app/ssr-throw/Thrower.js (4:9)",
+           "Thrower app/ssr-throw/Thrower.js (8:3)",
+           "Page app/ssr-throw/page.js (6:10)",
+         ],
+       }
+      `)
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
     }

@@ -31,6 +31,9 @@ import { Playwright } from './browsers/playwright'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
+// TODO: Create dedicated Jest environment that sets up these matchers
+// Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
+import './add-redbox-matchers'
 
 export { shouldRunTurboDevTest }
 
