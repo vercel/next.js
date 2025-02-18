@@ -26,6 +26,15 @@ pub async fn compute_async_module_info(graph: &ModuleGraph) -> Result<Vc<AsyncMo
         .flat_map(|(k, v)| v.then_some(k))
         .collect::<FxHashSet<_>>();
 
+    // To determine which modules are async, we need to propagate the self-async flag to all
+    // importers, which is done using a postorder traversal of the graph.
+    //
+    // This however doesn't cover cycles of async modules, which are handled by determining all
+    // strongly-connected components using Tarjan's algorithm in the same traversal, and then
+    // marking all the whole SCC as async if one of the modules in the SCC is async.
+
+    // let mut edges = vec![];
+
     let mut async_modules = self_async_modules;
     graph
         .traverse_edges_from_entries_topological(
