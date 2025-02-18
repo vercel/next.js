@@ -14,7 +14,10 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -200,7 +203,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             module_options_context.clone().resolved_cell(),
@@ -219,6 +222,7 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -315,13 +319,27 @@ pub async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
+        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };
 
@@ -365,7 +383,9 @@ pub async fn get_client_module_options_context(
         enable_mdx_rs,
         css: CssOptionsContext {
             minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify
+                MinifyType::Minify {
+                    mangle: !*no_mangling.await?,
+                }
             } else {
                 MinifyType::NoMinify
             },
@@ -398,7 +418,9 @@ pub async fn get_client_chunking_context(
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
+    minify: Vc<bool>,
+    source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -415,16 +437,30 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+    .minify_type(if *minify.await? {
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .asset_base_path(asset_prefix)
     .module_id_strategy(module_id_strategy);
 
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
+    } else {
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {
+            min_chunk_size: 50_000,
+            max_chunk_count_per_group: 40,
+            max_merge_chunk_size: 200_000,
+            ..Default::default()
+        })
     }
 
     Ok(Vc::upcast(builder.build()))

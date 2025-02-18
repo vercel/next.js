@@ -21,7 +21,6 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
-    context::AssetContext,
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
@@ -34,6 +33,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -48,20 +48,13 @@ fn modifier() -> Vc<RcStr> {
 #[derive(Clone)]
 pub struct StaticModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
-    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(
-        source: ResolvedVc<Box<dyn Source>>,
-        asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(StaticModuleAsset {
-            source,
-            asset_context,
-        })
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
+        Self::cell(StaticModuleAsset { source })
     }
 
     #[turbo_tasks::function]
@@ -77,10 +70,7 @@ impl StaticModuleAsset {
 impl Module for StaticModuleAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source
-            .ident()
-            .with_modifier(modifier())
-            .with_layer(self.asset_context.layer())
+        self.source.ident().with_modifier(modifier())
     }
 }
 
@@ -159,19 +149,14 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({path});",
+                "{TURBOPACK_EXPORT_VALUE}({path});",
                 path = StringifyJs(
                     &self
                         .chunking_context
-                        .asset_url(self.static_asset.ident())
+                        .asset_url(self.static_asset.path())
                         .await?
                 )
             )

@@ -1,35 +1,31 @@
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { useCallback } from 'react'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-type RootLayoutMissingTagsErrorProps = {
+interface RootLayoutMissingTagsErrorProps extends ErrorBaseProps {
   missingTags: string[]
-  isTurbopack: boolean
-  versionInfo?: VersionInfo
 }
 
 export function RootLayoutMissingTagsError({
   missingTags,
-  isTurbopack,
-  versionInfo,
+  ...props
 }: RootLayoutMissingTagsErrorProps) {
   const noop = useCallback(() => {}, [])
+  const error = new Error(
+    `The following tags are missing in the Root Layout: ${missingTags
+      .map((tagName) => `<${tagName}>`)
+      .join(
+        ', '
+      )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`
+  )
   return (
     <ErrorOverlayLayout
       errorType="Missing Required HTML Tag"
-      errorMessage={
-        <HotlinkedText
-          text={`The following tags are missing in the Root Layout: ${missingTags
-            .map((tagName) => `<${tagName}>`)
-            .join(
-              ', '
-            )}.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags`}
-        />
-      }
+      error={error}
+      errorMessage={<HotlinkedText text={error.message} />}
       onClose={noop}
-      versionInfo={versionInfo}
-      isTurbopack={isTurbopack}
+      {...props}
     />
   )
 }

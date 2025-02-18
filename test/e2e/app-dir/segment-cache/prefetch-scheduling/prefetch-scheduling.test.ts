@@ -52,6 +52,48 @@ describe('segment cache prefetch scheduling', () => {
     )
   })
 
+  it('prioritizes prefetching the route trees before the segments', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/cancellation', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    const checkbox = await browser.elementByCss('input[type="checkbox"]')
+
+    await act(async () => {
+      // Reveal the links to start prefetching
+      await checkbox.click()
+    }, [
+      // Assert on the order that the prefetches requests are
+      // initiated. We don't need to assert on every single prefetch response;
+      // this will only check the order of the ones that we've listed.
+      //
+      // To detect when the route tree is prefetched, we check for a string
+      // that is known to be present in the target page's viewport config
+      // (which is included in the route tree response). In this test app, the
+      // page number is used in the media query of the theme color. E.g. for
+      // page 1, the viewport includes:
+      //
+      // <meta name="theme-color" media="(min-width: 1px)" content="light"/>
+
+      // First we should prefetch all the route trees:
+      { includes: '(min-width: 7px)' },
+      { includes: '(min-width: 6px)' },
+      { includes: '(min-width: 5px)' },
+      { includes: '(min-width: 4px)' },
+      { includes: '(min-width: 3px)' },
+
+      // Then we should prefetch the segments:
+      { includes: 'Content of page 7' },
+      { includes: 'Content of page 6' },
+      { includes: 'Content of page 5' },
+      { includes: 'Content of page 4' },
+      { includes: 'Content of page 3' },
+    ])
+  })
+
   it(
     'even on mouseexit, any link that was previously hovered is prioritized ' +
       'over links that were never hovered at all',

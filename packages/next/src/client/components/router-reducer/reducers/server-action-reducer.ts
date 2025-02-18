@@ -55,7 +55,7 @@ import { hasBasePath } from '../../../has-base-path'
 import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
-} from './server-reference-info'
+} from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache/cache'
 
 type FetchServerActionResult = {

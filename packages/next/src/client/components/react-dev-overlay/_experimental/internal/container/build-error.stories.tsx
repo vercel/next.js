@@ -16,7 +16,7 @@ type Story = StoryObj<typeof BuildError>
 export const Default: Story = {
   args: {
     message: `./src/app/page.tsx:3:3
-Parsing ecmascript source code failed
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
   1 | export default function Home() {
   2 |   const
 > 3 |   return <div>Hello World</div>

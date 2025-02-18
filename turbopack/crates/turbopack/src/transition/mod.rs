@@ -1,11 +1,10 @@
 pub(crate) mod context_transition;
 pub(crate) mod full_context_transition;
 
-use std::collections::HashMap;
-
 use anyhow::Result;
 pub use context_transition::ContextTransition;
 pub use full_context_transition::FullContextTransition;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueDefault, Vc};
 use turbopack_core::{
@@ -28,6 +27,7 @@ pub trait Transition {
     fn process_source(self: Vc<Self>, asset: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
         asset
     }
+
     /// Apply modifications to the compile-time information
     fn process_compile_time_info(
         self: Vc<Self>,
@@ -35,10 +35,12 @@ pub trait Transition {
     ) -> Vc<CompileTimeInfo> {
         compile_time_info
     }
+
     /// Apply modifications to the layer
     fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
+
     /// Apply modifications/wrapping to the module options context
     fn process_module_options_context(
         self: Vc<Self>,
@@ -46,6 +48,7 @@ pub trait Transition {
     ) -> Vc<ModuleOptionsContext> {
         module_options_context
     }
+
     /// Apply modifications/wrapping to the resolve options context
     fn process_resolve_options_context(
         self: Vc<Self>,
@@ -53,6 +56,7 @@ pub trait Transition {
     ) -> Vc<ResolveOptionsContext> {
         resolve_options_context
     }
+
     /// Apply modifications/wrapping to the final asset
     fn process_module(
         self: Vc<Self>,
@@ -61,6 +65,7 @@ pub trait Transition {
     ) -> Vc<Box<dyn Module>> {
         module
     }
+
     /// Apply modifications to the context
     async fn process_context(
         self: Vc<Self>,
@@ -83,6 +88,7 @@ pub trait Transition {
         );
         Ok(module_asset_context)
     }
+
     /// Apply modification on the processing of the asset
     async fn process(
         self: Vc<Self>,
@@ -92,9 +98,11 @@ pub trait Transition {
     ) -> Result<Vc<ProcessResult>> {
         let asset = self.process_source(asset);
         let module_asset_context = self.process_context(module_asset_context);
+        let asset = asset.to_resolved().await?;
 
         Ok(match &*module_asset_context
             .process_default(asset, reference_type)
+            .await?
             .await?
         {
             ProcessResult::Module(m) => ProcessResult::Module(
@@ -112,7 +120,7 @@ pub trait Transition {
 #[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct TransitionOptions {
-    pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
+    pub named_transitions: FxHashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
     pub transition_rules: Vec<TransitionRule>,
     pub placeholder_for_future_extensions: (),
 }

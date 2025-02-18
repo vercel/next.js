@@ -215,7 +215,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         for reference in references.iter() {
             if let Some(import_ref) =
-                ResolvedVc::try_downcast_type::<ImportAssetReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<ImportAssetReference>(*reference)
             {
                 for &module in import_ref
                     .resolve_reference()
@@ -226,7 +226,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
                         if let Some(css_item) =
@@ -240,7 +240,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     }
                 }
             } else if let Some(compose_ref) =
-                ResolvedVc::try_downcast_type::<CssModuleComposeReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<CssModuleComposeReference>(*reference)
             {
                 for &module in compose_ref
                     .resolve_reference()
@@ -251,7 +251,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .iter()
                 {
                     if let Some(placeable) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkPlaceable>>(module)
                     {
                         let item = placeable.as_chunk_item(*self.module_graph, *chunking_context);
                         if let Some(css_item) =
@@ -266,9 +266,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         let mut code_gens = Vec::new();
         for r in references.iter() {
-            if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r).await?
-            {
+            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
                 code_gens.push(code_gen.code_generation(*chunking_context));
             }
         }
@@ -301,7 +299,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: Some(*source_map),
+                source_map: source_map.owned().await?,
             }
             .into())
         } else {

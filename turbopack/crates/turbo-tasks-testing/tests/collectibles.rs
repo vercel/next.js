@@ -2,10 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use std::{collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
+use rustc_hash::FxHashSet;
 use tokio::time::sleep;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -20,7 +21,7 @@ async fn transitive_emitting() {
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
-        let mut expected = ["123", "42"].into_iter().collect::<HashSet<_>>();
+        let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
         for collectible in list {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
@@ -38,7 +39,7 @@ async fn transitive_emitting_indirect() {
         let collectibles_op = my_transitive_emitting_function_collectibles("".into(), "".into());
         let list = collectibles_op.connect().strongly_consistent().await?;
         assert_eq!(list.len(), 2);
-        let mut expected = ["123", "42"].into_iter().collect::<HashSet<_>>();
+        let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
         for collectible in list.iter() {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
@@ -56,7 +57,7 @@ async fn multi_emitting() {
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.peek_collectibles::<Box<dyn ValueToString>>();
         assert_eq!(list.len(), 2);
-        let mut expected = ["123", "42"].into_iter().collect::<HashSet<_>>();
+        let mut expected = ["123", "42"].into_iter().collect::<FxHashSet<_>>();
         for collectible in list {
             assert!(expected.remove(collectible.to_string().await?.as_str()))
         }
@@ -192,7 +193,8 @@ async fn my_multi_emitting_function() -> Result<Vc<Thing>> {
 }
 
 #[turbo_tasks::function(operation)]
-async fn my_transitive_emitting_function(key: RcStr, _key2: RcStr) -> Result<Vc<Thing>> {
+async fn my_transitive_emitting_function(key: RcStr, key2: RcStr) -> Result<Vc<Thing>> {
+    let _ = key2;
     my_emitting_function(key).await?;
     Ok(Thing::cell(Thing(0)))
 }
@@ -219,8 +221,9 @@ async fn my_transitive_emitting_function_collectibles(
 async fn my_transitive_emitting_function_with_child_scope(
     key: RcStr,
     key2: RcStr,
-    _key3: RcStr,
+    key3: RcStr,
 ) -> Result<Vc<Thing>> {
+    let _ = key3;
     let thing_op = my_transitive_emitting_function(key, key2);
     let thing_vc = thing_op.connect();
     thing_vc.await?;
@@ -230,7 +233,8 @@ async fn my_transitive_emitting_function_with_child_scope(
 }
 
 #[turbo_tasks::function]
-async fn my_emitting_function(_key: RcStr) -> Result<()> {
+async fn my_emitting_function(key: RcStr) -> Result<()> {
+    let _ = key;
     sleep(Duration::from_millis(100)).await;
     emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(Thing::new(
         123,

@@ -130,6 +130,20 @@ const bundleTypes = {
 module.exports = ({ dev, turbo, bundleType, experimental }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
+      if (
+        request.match(
+          /next[/\\]dist[/\\]compiled[/\\](babel|webpack|source-map|semver|jest-worker|stacktrace-parser|@ampproject\/toolbox-optimizer)/
+        )
+      ) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
+      if (request.match(/(server\/image-optimizer|experimental\/testmode)/)) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
       if (request.endsWith('.external')) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
@@ -156,7 +170,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: 'production',
+    mode: dev ? 'development' : 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${

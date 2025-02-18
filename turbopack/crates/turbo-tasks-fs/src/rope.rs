@@ -118,8 +118,22 @@ impl Rope {
     }
 }
 
+impl From<Vec<u8>> for Rope {
+    fn from(mut bytes: Vec<u8>) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
+impl From<String> for Rope {
+    fn from(mut bytes: String) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
 impl<T: Into<Bytes>> From<T> for Rope {
-    fn from(bytes: T) -> Self {
+    default fn from(bytes: T) -> Self {
         let bytes = bytes.into();
         // We can't have an InnerRope which contains an empty Local section.
         if bytes.is_empty() {
@@ -185,10 +199,11 @@ impl RopeBuilder {
         self.committed.push(Shared(other.data.clone()));
     }
 
-    /// Writes any pending bytes into our committed queue.
+    /// Writes any pending bytes into our committed queue. This is called automatically by other
+    /// `RopeBuilder` methods.
     ///
     /// This may be called multiple times without issue.
-    pub fn finish(&mut self) {
+    fn finish(&mut self) {
         if let Some(b) = self.uncommitted.finish() {
             debug_assert!(!b.is_empty(), "must not have empty uncommitted bytes");
             self.length += b.len();
@@ -308,7 +323,10 @@ impl Uncommitted {
         match mem::take(self) {
             Self::None => None,
             Self::Static(s) => Some(s.into()),
-            Self::Owned(v) => Some(v.into()),
+            Self::Owned(mut v) => {
+                v.shrink_to_fit();
+                Some(v.into())
+            }
         }
     }
 }
@@ -538,7 +556,7 @@ impl DeterministicHash for InnerRope {
 }
 
 impl From<Vec<RopeElem>> for InnerRope {
-    fn from(els: Vec<RopeElem>) -> Self {
+    fn from(mut els: Vec<RopeElem>) -> Self {
         if cfg!(debug_assertions) {
             // It's important that an InnerRope never contain an empty Bytes section.
             for el in els.iter() {
@@ -554,6 +572,7 @@ impl From<Vec<RopeElem>> for InnerRope {
                 }
             }
         }
+        els.shrink_to_fit();
         InnerRope(Arc::from(els))
     }
 }

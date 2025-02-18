@@ -6,7 +6,10 @@ import {
   json,
   jsonString,
   noContent,
+  notFound,
   type OriginalStackFrameResponse,
+  type OriginalStackFramesRequest,
+  type OriginalStackFramesResponse,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
@@ -14,11 +17,16 @@ import path from 'path'
 import url from 'url'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import {
+  SourceMapConsumer,
+  type BasicSourceMapConsumer,
+  type NullableMappedPosition,
+} from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -82,7 +90,7 @@ export async function batchedTraceSource(
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack://[turbopack]
+    // isInternal means resource starts with turbopack:///[turbopack]
     !!sourceFrame.isInternal
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
@@ -118,18 +126,47 @@ export async function batchedTraceSource(
     source,
   }
 }
-
-function createStackFrame(searchParams: URLSearchParams) {
-  const fileParam = searchParams.get('file')
-
+function parseFile(fileParam: string | null): string | undefined {
   if (!fileParam) {
     return undefined
   }
 
   // rsc://React/Server/file://<filename>?42 => file://<filename>
-  const file = fileParam
-    .replace(/^rsc:\/\/React\/[^/]+\//, '')
-    .replace(/\?\d+$/, '')
+  return fileParam.replace(/^rsc:\/\/React\/[^/]+\//, '').replace(/\?\d+$/, '')
+}
+
+function createStackFrames(
+  body: OriginalStackFramesRequest
+): TurbopackStackFrame[] {
+  const { frames, isServer } = body
+
+  return frames
+    .map((frame): TurbopackStackFrame | undefined => {
+      const file = parseFile(frame.file)
+
+      if (!file) {
+        return undefined
+      }
+
+      return {
+        file,
+        methodName: frame.methodName ?? '<unknown>',
+        line: frame.lineNumber ?? 0,
+        column: frame.column ?? 0,
+        isServer,
+      } satisfies TurbopackStackFrame
+    })
+    .filter((f): f is TurbopackStackFrame => f !== undefined)
+}
+
+function createStackFrame(
+  searchParams: URLSearchParams
+): TurbopackStackFrame | undefined {
+  const file = parseFile(searchParams.get('file'))
+
+  if (!file) {
+    return undefined
+  }
 
   return {
     file,
@@ -198,39 +235,58 @@ function findApplicableSourceMapPayload(
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceMap = findSourceMap(
-    // TODO(veil): Why are the frames sent encoded?
+  const sourceURL = // TODO(veil): Why are the frames sent encoded?
     decodeURIComponent(frame.file)
-  )
-  if (sourceMap !== undefined) {
-    const traced = await SourceMapConsumer.with(
-      sourceMap.payload,
-      null,
-      async (consumer) => {
-        const originalPosition = consumer.originalPositionFor({
-          line: frame.line ?? 1,
-          column: frame.column ?? 1,
-        })
+  let sourceMapPayload: ModernSourceMapPayload | undefined
+  try {
+    sourceMapPayload = findSourceMap(sourceURL)?.payload
+  } catch (cause) {
+    throw new Error(
+      `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
+  }
 
-        if (originalPosition.source === null) {
-          return null
-        }
+  if (sourceMapPayload !== undefined) {
+    let consumer: BasicSourceMapConsumer
+    try {
+      consumer = await new SourceMapConsumer(sourceMapPayload)
+    } catch (cause) {
+      throw new Error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+        { cause }
+      )
+    }
+    let traced: {
+      originalPosition: NullableMappedPosition
+      sourceContent: string | null
+    } | null
+    try {
+      const originalPosition = consumer.originalPositionFor({
+        line: frame.line ?? 1,
+        column: frame.column ?? 1,
+      })
 
+      if (originalPosition.source === null) {
+        traced = null
+      } else {
         const sourceContent: string | null =
           consumer.sourceContentFor(
             originalPosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
 
-        return { originalPosition, sourceContent }
+        traced = { originalPosition, sourceContent }
       }
-    )
+    } finally {
+      consumer.destroy()
+    }
 
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
         frame,
-        sourceMap.payload
+        sourceMapPayload
       )
 
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
@@ -314,25 +370,43 @@ export function getOverlayMiddleware(project: Project) {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
-    if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = createStackFrame(searchParams)
-
-      if (!frame) return badRequest(res)
-
-      let originalStackFrame: OriginalStackFrameResponse | null
-      try {
-        originalStackFrame = await createOriginalStackFrame(project, frame)
-      } catch (e: any) {
-        return internalServerError(res, e.stack)
+    if (pathname === '/__nextjs_original-stack-frames') {
+      if (req.method !== 'POST') {
+        return badRequest(res)
       }
 
-      if (!originalStackFrame) {
-        res.statusCode = 404
-        res.end('Unable to resolve sourcemap')
-        return
-      }
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk) => {
+          data += chunk
+        })
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
 
-      return json(res, originalStackFrame)
+      const request = JSON.parse(body) as OriginalStackFramesRequest
+      const stackFrames = createStackFrames(request)
+      const result: OriginalStackFramesResponse = await Promise.all(
+        stackFrames.map(async (frame) => {
+          try {
+            const stackFrame = await createOriginalStackFrame(project, frame)
+            if (stackFrame === null) {
+              return {
+                status: 'rejected',
+                reason: 'Failed to create original stack frame',
+              }
+            }
+            return { status: 'fulfilled', value: stackFrame }
+          } catch (error) {
+            return {
+              status: 'rejected',
+              reason: inspect(error, { colors: false }),
+            }
+          }
+        })
+      )
+
+      return json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = createStackFrame(searchParams)
 
@@ -342,7 +416,7 @@ export function getOverlayMiddleware(project: Project) {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return notFound(res)
 
       try {
         launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
@@ -351,7 +425,7 @@ export function getOverlayMiddleware(project: Project) {
         return internalServerError(res)
       }
 
-      noContent(res)
+      return noContent(res)
     }
 
     return next()

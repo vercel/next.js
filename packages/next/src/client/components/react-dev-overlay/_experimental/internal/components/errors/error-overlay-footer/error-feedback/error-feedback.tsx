@@ -2,11 +2,13 @@ import { useState, useCallback } from 'react'
 import { ThumbsUp } from '../../../../icons/thumbs/thumbs-up'
 import { ThumbsDown } from '../../../../icons/thumbs/thumbs-down'
 import { noop as css } from '../../../../helpers/noop-template'
+import { cx } from '../../../../helpers/cx'
 
 interface ErrorFeedbackProps {
   errorCode: string
+  className?: string
 }
-export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
+export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
   const voted = votedMap[errorCode]
   const hasVoted = voted !== undefined
@@ -41,7 +43,11 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
   )
 
   return (
-    <div className="error-feedback" role="region" aria-label="Error feedback">
+    <div
+      className={cx('error-feedback', className)}
+      role="region"
+      aria-label="Error feedback"
+    >
       {hasVoted ? (
         <p className="error-feedback-thanks" role="status" aria-live="polite">
           Thanks for your feedback!
@@ -52,7 +58,7 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as helpful"
             onClick={() => handleFeedback(true)}
-            className={`feedback-button ${voted === true ? 'voted' : ''}`}
+            className={cx('feedback-button', voted === true && 'voted')}
             type="button"
           >
             <ThumbsUp aria-hidden="true" />
@@ -60,10 +66,16 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as not helpful"
             onClick={() => handleFeedback(false)}
-            className={`feedback-button ${voted === false ? 'voted' : ''}`}
+            className={cx('feedback-button', voted === false && 'voted')}
             type="button"
           >
-            <ThumbsDown aria-hidden="true" />
+            <ThumbsDown
+              aria-hidden="true"
+              // Optical alignment
+              style={{
+                translate: '1px 1px',
+              }}
+            />
           </button>
         </>
       )}
@@ -74,12 +86,14 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
 export const styles = css`
   .error-feedback {
     display: flex;
+    align-items: center;
     gap: var(--size-gap);
     white-space: nowrap;
+    color: var(--color-gray-900);
   }
 
   .error-feedback-thanks {
-    height: 1.5rem; /* 24px */
+    height: 24px;
     display: flex;
     align-items: center;
     padding-right: 4px; /* To match the 4px inner padding of the thumbs up and down icons */
@@ -89,15 +103,15 @@ export const styles = css`
     background: none;
     border: none;
     border-radius: var(--rounded-md);
-    padding: var(--size-gap-half);
-    width: 1.5rem; /* 24px */
-    height: 1.5rem; /* 24px */
+    width: 24px;
+    height: 24px;
     display: flex;
     align-items: center;
+    justify-content: center;
     cursor: pointer;
 
     &:focus {
-      outline: none;
+      outline: var(--focus-ring);
     }
 
     &:hover {

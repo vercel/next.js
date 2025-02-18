@@ -7,7 +7,6 @@ description: API Reference for the revalidateTag function.
 
 > **Good to know**:
 >
-> - `revalidateTag` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `revalidateTag` only invalidates the cache when the path is next visited. This means calling `revalidateTag` with a dynamic route segment will not immediately trigger many revalidations at once. The invalidation only happens when the path is next visited.
 
 ## Parameters

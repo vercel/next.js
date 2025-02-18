@@ -430,11 +430,10 @@
         "app-dir edge SSR should handle /index routes correctly",
         "app-dir edge SSR should handle edge only routes",
         "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
-        "app-dir edge SSR should treat process as object without polyfill in edge runtime"
-      ],
-      "failed": [
+        "app-dir edge SSR should treat process as object without polyfill in edge runtime",
         "app-dir edge SSR should generate matchers correctly in middleware manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -991,11 +990,10 @@
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
         "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
-        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
-      ],
-      "failed": [
+        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
+      "failed": [],
       "pending": [
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -14483,6 +14481,9 @@
         "Required Server Files production mode should render dynamic SSR page correctly",
         "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
         "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
         "Required Server Files production mode should render fallback page correctly",
         "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
         "Required Server Files production mode should return data correctly with x-matched-path",
@@ -16646,6 +16647,7 @@
         "required server files should have correct cache-control for notFound with revalidate",
         "required server files should have correct cache-control for redirect no revalidate",
         "required server files should have correct cache-control for redirect with revalidate",
+        "required server files should handle data routes with optional catch-all params",
         "required server files should have correct resolvedUrl from dynamic route",
         "required server files should have correct resolvedUrl from rewrite",
         "required server files should have correct resolvedUrl from rewrite with added query",

@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -59,17 +59,22 @@ impl AvailableModules {
         self: ResolvedVc<Self>,
         modules: ResolvedVc<AvailableModuleInfoMap>,
     ) -> Result<Vc<Self>> {
+        let self_snapshot = self.snapshot().await?;
+
         let modules = modules
             .await?
             .into_iter()
-            .map(|(&module, &info)| async move {
-                Ok(self.get(*module).await?.is_none().then_some((module, info)))
+            .flat_map(|(&module, &info)| {
+                self_snapshot
+                    .get(module)
+                    .is_none()
+                    .then_some((module, info))
             })
-            .try_flat_join()
-            .await?;
+            .collect();
+
         Ok(AvailableModules {
             parent: Some(self),
-            modules: ResolvedVc::cell(modules.into_iter().collect()),
+            modules: ResolvedVc::cell(modules),
         }
         .cell())
     }

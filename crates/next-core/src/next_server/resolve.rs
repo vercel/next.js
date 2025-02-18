@@ -230,7 +230,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 *node_resolved_from_original_location.first_source().await?
             else {
                 if is_esm
-                    && package_subpath != ""
+                    && !package_subpath.is_empty()
                     && package_subpath != "/"
                     && !request_str.ends_with(".js")
                 {
@@ -275,8 +275,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ]);
         };
 
-        let result = result.resolve().await?;
-        let result_from_original_location = result_from_original_location.resolve().await?;
         if result_from_original_location != result {
             let package_json_file = find_context_file(
                 result.ident().path().parent().resolve().await?,

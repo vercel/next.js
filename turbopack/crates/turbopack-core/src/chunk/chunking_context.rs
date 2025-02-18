@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
@@ -7,13 +8,38 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
-    chunk::{ChunkItem, ChunkableModules, ModuleId},
+    chunk::{ChunkItem, ChunkType, ChunkableModules, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
 };
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum MinifyType {
+    Minify { mangle: bool },
+    NoMinify,
+}
+
+impl Default for MinifyType {
+    fn default() -> Self {
+        Self::Minify { mangle: true }
+    }
+}
 
 #[derive(
     Debug,
@@ -30,10 +56,12 @@ use crate::{
     DeterministicHash,
     NonLocalValue,
 )]
-pub enum MinifyType {
+pub enum SourceMapsType {
+    /// Extracts source maps from input files and writes source maps for output files.
     #[default]
-    Minify,
-    NoMinify,
+    Full,
+    /// Ignores the existance of source maps and does not write source maps for output files.
+    None,
 }
 
 #[derive(
@@ -67,6 +95,29 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
+pub struct ChunkingConfig {
+    /// Try to avoid creating more than 1 chunk smaller than this size.
+    /// It merges multiple small chunks into bigger ones to avoid that.
+    pub min_chunk_size: usize,
+
+    /// Try to avoid creating more than this number of chunks per group.
+    /// It merges multiple chunks into bigger ones to avoid that.
+    pub max_chunk_count_per_group: usize,
+
+    /// Never merges chunks bigger than this size with other chunks.
+    /// This makes sure that code in big chunks is not duplicated in multiple chunks.
+    pub max_merge_chunk_size: usize,
+
+    #[allow(dead_code)]
+    pub placeholder_for_future_extensions: (),
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -90,13 +141,15 @@ pub trait ChunkingContext {
     // dependency first.
     fn chunk_path(self: Vc<Self>, ident: Vc<AssetIdent>, extension: RcStr) -> Vc<FileSystemPath>;
 
-    // TODO(alexkirsz) Remove this from the chunking context.
     /// Reference Source Map Assets for chunks
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
 
+    /// Include Source Maps for modules
+    fn reference_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool>;
+
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
-    fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>>;
+    fn asset_url(self: Vc<Self>, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>>;
 
     fn asset_path(
         self: Vc<Self>,
@@ -105,6 +158,14 @@ pub trait ChunkingContext {
     ) -> Vc<FileSystemPath>;
 
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
+        Vc::cell(Default::default())
+    }
+
+    fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 
@@ -163,8 +224,11 @@ pub trait ChunkingContext {
         ident: Vc<AssetIdent>,
     ) -> Result<Vc<ModuleId>>;
 
-    fn chunk_item_id(self: Vc<Self>, chunk_item: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(chunk_item.asset_ident())
+    fn chunk_item_id(self: Vc<Self>, module: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(module.asset_ident())
+    }
+    fn chunk_item_id_from_module(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(module.ident())
     }
 }
 

@@ -15,7 +15,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
@@ -106,7 +106,7 @@ impl ConditionalKind {
 #[derive(Debug, Clone)]
 pub enum EffectArg {
     Value(JsValue),
-    Closure(JsValue, EffectsBlock),
+    Closure(JsValue, Box<EffectsBlock>),
     Spread,
 }
 
@@ -306,7 +306,7 @@ impl EvalContext {
         unresolved_mark: Mark,
         top_level_mark: Mark,
         comments: Option<&dyn Comments>,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
@@ -1108,10 +1108,10 @@ impl Analyzer<'_> {
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
-                            EffectsBlock {
+                            Box::new(EffectsBlock {
                                 effects,
                                 range: AstPathRange::Exact(path),
-                            },
+                            }),
                         )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);

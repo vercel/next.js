@@ -5,7 +5,7 @@ import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
 
 type ErrorOverlayToolbarProps = {
-  error: Error | undefined
+  error: Error
   debugInfo: DebugInfo | undefined
 }
 
@@ -16,10 +16,10 @@ export function ErrorOverlayToolbar({
   return (
     <span className="error-overlay-toolbar">
       <CopyStackTraceButton error={error} />
+      <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
-      <DocsLinkButton errorMessage={error?.message || ''} />
     </span>
   )
 }
@@ -37,17 +37,16 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    margin: 0;
-    width: var(--size-8);
-    padding: var(--size-1_5);
+    width: 28px;
+    height: 28px;
     background: var(--color-background-100);
-    box-shadow: var(--shadow-sm);
-
+    background-clip: padding-box;
+    border: 1px solid var(--color-gray-alpha-400);
+    box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
-    border: 1px solid var(--color-gray-400);
 
     &:focus {
-      outline: none;
+      outline: var(--focus-ring);
     }
 
     &:not(:disabled):hover {
@@ -59,7 +58,6 @@ export const styles = css`
     }
 
     &:disabled {
-      opacity: 0.7;
       cursor: not-allowed;
     }
   }

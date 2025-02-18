@@ -1,15 +1,16 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrame } from '../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../../../internal/helpers/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
-import { getFrameSource } from '../../helpers/stack-frame'
+import { getFrameSource } from '../../../../internal/helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
-}> = function CallStackFrame({ frame }) {
+  index: number
+}> = function CallStackFrame({ frame, index }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
@@ -32,19 +33,31 @@ export const CallStackFrame: React.FC<{
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
   // we'll skip rendering the frame in this case.
   const fileSource = getFrameSource(f)
+
   if (!fileSource) {
     return null
+  }
+
+  const props = {
+    ...(hasSource && {
+      role: 'button',
+      tabIndex: 0,
+      'aria-label': 'Click to open in your editor',
+      title: 'Click to open in your editor',
+      onClick: open,
+    }),
   }
 
   return (
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
-      onClick={hasSource ? open : undefined}
-      role="button"
-      tabIndex={0}
-      aria-label={hasSource ? 'Click to open in your editor' : undefined}
-      title={hasSource ? 'Click to open in your editor' : undefined}
+      {...props}
+      style={
+        {
+          '--index': index,
+        } as React.CSSProperties
+      }
     >
       <span
         data-nextjs-frame-expanded={!frame.ignored}
@@ -71,33 +84,36 @@ export const CALL_STACK_FRAME_STYLES = css`
     border-radius: var(--rounded-lg);
   }
 
+  [data-nextjs-call-stack-frame-ignored]:last-child {
+    margin-bottom: 0;
+  }
+
   [data-nextjs-call-stack-frame] {
     user-select: text;
     display: block;
     box-sizing: border-box;
-    width: 100%;
 
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
 
-    padding: var(--size-1_5) var(--size-2);
-    margin-bottom: var(--size-1);
+    padding: 6px 8px;
 
     border-radius: var(--rounded-lg);
+    transition: background 100ms ease-out;
 
-    &:not(:disabled):hover {
+    &:not(:disabled)[role='button']:hover {
       background: var(--color-gray-alpha-100);
       cursor: pointer;
     }
 
-    &:not(:disabled):active {
+    &:not(:disabled)[role='button']:active {
       background: var(--color-gray-alpha-200);
     }
 
-    &:focus {
-      outline: none;
+    &:focus-visible {
+      outline: var(--focus-ring);
     }
   }
 
@@ -107,6 +123,7 @@ export const CALL_STACK_FRAME_STYLES = css`
     gap: var(--size-1);
 
     margin-bottom: var(--size-1);
+    font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
     font-size: var(--size-font-small);

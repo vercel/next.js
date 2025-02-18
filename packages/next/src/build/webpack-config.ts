@@ -52,7 +52,7 @@ import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
   SWC_TARGET_TRIPLE,
-} from './webpack/plugins/telemetry-plugin'
+} from './webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { Span } from '../trace'
 import type { MiddlewareMatcher } from './analysis/get-page-static-info'
 import loadJsConfig, {
@@ -249,13 +249,18 @@ export async function loadProjectInfo({
   dev: boolean
 }): Promise<{
   jsConfig: JsConfig
+  jsConfigPath?: string
   resolvedBaseUrl: ResolvedBaseUrl
   supportedBrowsers: string[] | undefined
 }> {
-  const { jsConfig, resolvedBaseUrl } = await loadJsConfig(dir, config)
+  const { jsConfig, jsConfigPath, resolvedBaseUrl } = await loadJsConfig(
+    dir,
+    config
+  )
   const supportedBrowsers = await getSupportedBrowsers(dir, dev)
   return {
     jsConfig,
+    jsConfigPath,
     resolvedBaseUrl,
     supportedBrowsers,
   }
@@ -290,7 +295,9 @@ export default async function getBaseWebpackConfig(
     runWebpackSpan,
     appDir,
     middlewareMatchers,
+    noMangling,
     jsConfig,
+    jsConfigPath,
     resolvedBaseUrl,
     supportedBrowsers,
     clientRouterFilters,
@@ -304,16 +311,17 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     isDevFallback?: boolean
-    pagesDir?: string
+    pagesDir: string | undefined
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
-    appDir?: string
+    appDir: string | undefined
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
     jsConfig: any
+    jsConfigPath?: string
     resolvedBaseUrl: ResolvedBaseUrl
     supportedBrowsers: string[] | undefined
     edgePreviewProps?: Record<string, string>
@@ -331,6 +339,8 @@ export default async function getBaseWebpackConfig(
   const isClient = compilerType === COMPILER_NAMES.client
   const isEdgeServer = compilerType === COMPILER_NAMES.edgeServer
   const isNodeServer = compilerType === COMPILER_NAMES.server
+
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   // If the current compilation is aimed at server-side code instead of client-side code.
   const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
@@ -706,6 +716,13 @@ export default async function getBaseWebpackConfig(
     plugins: [
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
+    ...((isRspack && jsConfigPath
+      ? {
+          tsConfig: {
+            configFile: jsConfigPath,
+          },
+        }
+      : {}) as any),
   }
 
   // Packages which will be split into the 'framework' chunk.
@@ -811,8 +828,24 @@ export default async function getBaseWebpackConfig(
 
   const builtinModules = require('module').builtinModules
 
+  const shouldEnableSlowModuleDetection =
+    !!config.experimental.slowModuleDetection && dev
+
+  const getParallelism = () => {
+    const override = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    if (shouldEnableSlowModuleDetection) {
+      if (override) {
+        console.warn(
+          'NEXT_WEBPACK_PARALLELISM is specified but will be ignored due to experimental.slowModuleDetection being enabled.'
+        )
+      }
+      return 1
+    }
+    return override || undefined
+  }
+
   let webpackConfig: webpack.Configuration = {
-    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    parallelism: getParallelism(),
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
@@ -983,7 +1016,8 @@ export default async function getBaseWebpackConfig(
           }): boolean {
             return (
               !module.type?.startsWith('css') &&
-              module.size() > 160000 &&
+              // rspack doesn't support module.size
+              (isRspack || module.size() > 160000) &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
@@ -997,12 +1031,15 @@ export default async function getBaseWebpackConfig(
             if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
-              if (!module.libIdent) {
-                throw new Error(
-                  `Encountered unknown module type: ${module.type}. Please open an issue.`
-                )
+              // rspack doesn't support this
+              if (!isRspack) {
+                if (!module.libIdent) {
+                  throw new Error(
+                    `Encountered unknown module type: ${module.type}. Please open an issue.`
+                  )
+                }
+                hash.update(module.libIdent({ context: dir }))
               }
-              hash.update(module.libIdent({ context: dir }))
             }
 
             // Ensures the name of the chunk is not the same between two modules in different layers
@@ -1025,12 +1062,20 @@ export default async function getBaseWebpackConfig(
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
-          chunks: (chunk: any) =>
-            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
-          cacheGroups: {
-            framework: frameworkCacheGroup,
-            lib: libCacheGroup,
-          },
+          chunks: isRspack
+            ? // using a function here causes noticable slowdown
+              // in rspack
+              /(?!polyfills|main|pages\/_app)/
+            : (chunk: any) =>
+                !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+
+          // TODO: investigate these cache groups with rspack
+          cacheGroups: isRspack
+            ? {}
+            : {
+                framework: frameworkCacheGroup,
+                lib: libCacheGroup,
+              },
           maxInitialRequests: 25,
           minSize: 20000,
         }
@@ -1044,33 +1089,44 @@ export default async function getBaseWebpackConfig(
         (isClient ||
           isEdgeServer ||
           (isNodeServer && config.experimental.serverMinification)),
-      minimizer: [
-        // Minify JavaScript
-        (compiler: webpack.Compiler) => {
-          // @ts-ignore No typings yet
-          const { MinifyPlugin } =
-            require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
-          new MinifyPlugin().apply(compiler)
-        },
-        // Minify CSS
-        (compiler: webpack.Compiler) => {
-          const {
-            CssMinimizerPlugin,
-          } = require('./webpack/plugins/css-minimizer-plugin')
-          new CssMinimizerPlugin({
-            postcssOptions: {
-              map: {
-                // `inline: false` generates the source map in a separate file.
-                // Otherwise, the CSS file is needlessly large.
-                inline: false,
-                // `annotation: false` skips appending the `sourceMappingURL`
-                // to the end of the CSS file. Webpack already handles this.
-                annotation: false,
-              },
+      minimizer: isRspack
+        ? [
+            // @ts-expect-error
+            new webpack.SwcJsMinimizerRspackPlugin({
+              // JS minimizer configuration
+            }),
+            // @ts-expect-error
+            new webpack.LightningCssMinimizerRspackPlugin({
+              // CSS minimizer configuration
+            }),
+          ]
+        : [
+            // Minify JavaScript
+            (compiler: webpack.Compiler) => {
+              // @ts-ignore No typings yet
+              const { MinifyPlugin } =
+                require('./webpack/plugins/minify-webpack-plugin/src/index.js') as typeof import('./webpack/plugins/minify-webpack-plugin/src')
+              new MinifyPlugin({ noMangling }).apply(compiler)
             },
-          }).apply(compiler)
-        },
-      ],
+            // Minify CSS
+            (compiler: webpack.Compiler) => {
+              const {
+                CssMinimizerPlugin,
+              } = require('./webpack/plugins/css-minimizer-plugin')
+              new CssMinimizerPlugin({
+                postcssOptions: {
+                  map: {
+                    // `inline: false` generates the source map in a separate file.
+                    // Otherwise, the CSS file is needlessly large.
+                    inline: false,
+                    // `annotation: false` skips appending the `sourceMappingURL`
+                    // to the end of the CSS file. Webpack already handles this.
+                    annotation: false,
+                  },
+                },
+              }).apply(compiler)
+            },
+          ],
     },
     context: dir,
     // Kept as function to be backwards compatible
@@ -1742,7 +1798,12 @@ export default async function getBaseWebpackConfig(
           }
         ),
       dev && new MemoryWithGcCachePlugin({ maxGenerations: 5 }),
-      dev && isClient && new ReactRefreshWebpackPlugin(webpack),
+      dev &&
+        isClient &&
+        (isRspack
+          ? // eslint-disable-next-line
+            new (require('@rspack/plugin-react-refresh') as any)()
+          : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
         new webpack.ProvidePlugin({
@@ -1772,7 +1833,8 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
-      (isClient || isEdgeServer) && new DropClientPage(),
+      // rspack doesn't support the parser hooks used here
+      !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
       isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
@@ -1850,7 +1912,7 @@ export default async function getBaseWebpackConfig(
           appDirEnabled: hasAppDir,
           clientRouterFilters,
         }),
-      new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
+      !isRspack && new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
@@ -1901,13 +1963,17 @@ export default async function getBaseWebpackConfig(
         new NextFontManifestPlugin({
           appDir,
         }),
-      !dev &&
+      !isRspack &&
+        !dev &&
         isClient &&
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
-      !dev &&
+      !isRspack &&
+        !dev &&
         isClient &&
-        new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
+        new (
+          require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
+        ).TelemetryPlugin(
           new Map(
             [
               ['swcLoader', useSWCLoader],
@@ -1937,6 +2003,19 @@ export default async function getBaseWebpackConfig(
             ].filter<[Feature, boolean]>(Boolean as any)
           )
         ),
+      !isRspack &&
+        !dev &&
+        isNodeServer &&
+        new (
+          require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
+        ).TelemetryPlugin(new Map()),
+      shouldEnableSlowModuleDetection &&
+        new (
+          require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
+        ).default({
+          compilerType,
+          ...config.experimental.slowModuleDetection!,
+        }),
     ].filter(Boolean as any as ExcludesFalse),
   }
 
@@ -2051,8 +2130,14 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivity: config.devIndicators.buildActivity,
-    buildActivityPosition: config.devIndicators.buildActivityPosition,
+    buildActivity:
+      config.devIndicators === false
+        ? false
+        : config.devIndicators.buildActivity,
+    buildActivityPosition:
+      config.devIndicators === false
+        ? undefined
+        : config.devIndicators.position,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     reactStrictMode: config.reactStrictMode,
     optimizeCss: config.experimental.optimizeCss,

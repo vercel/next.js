@@ -41,6 +41,7 @@ import {
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -110,6 +111,7 @@ import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import DefaultCacheHandler from './lib/cache-handlers/default'
 import { cacheHandlerGlobal, cacheHandlersSymbol } from './use-cache/constants'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export * from './base-server'
 
@@ -398,6 +400,14 @@ export default class NextNodeServer extends BaseServer<
           cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
           DefaultCacheHandler
       }
+
+      if (
+        !cacheHandlers.remote &&
+        cacheHandlerGlobal[cacheHandlersSymbol]?.RemoteCache
+      ) {
+        cacheHandlerGlobal.__nextCacheHandlers.remote =
+          cacheHandlerGlobal[cacheHandlersSymbol].RemoteCache
+      }
     }
   }
 
@@ -430,7 +440,6 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -887,6 +896,10 @@ export default class NextNodeServer extends BaseServer<
     if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
       return false
     }
+    // Ignore if its a middleware request
+    if (getRequestMeta(req, 'middlewareInvoke')) {
+      return false
+    }
 
     if (
       this.minimalMode ||
@@ -1211,6 +1224,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
@@ -1331,9 +1345,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-    return manifest
+    if (this.minimalMode) {
+      return null
+    } else {
+      const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+      return manifest
+    }
   }
 
   /** Returns the middleware routing item if there is one. */
@@ -1341,6 +1358,19 @@ export default class NextNodeServer extends BaseServer<
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
     if (!middleware) {
+      const middlewareModule = this.loadNodeMiddleware()
+
+      if (middlewareModule) {
+        return {
+          match: getMiddlewareRouteMatcher(
+            middlewareModule.config?.matchers || [
+              { regexp: '.*', originalSource: '/:path*' },
+            ]
+          ),
+          page: '/',
+        }
+      }
+
       return
     }
 
@@ -1418,6 +1448,30 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  private loadNodeMiddleware() {
+    if (!this.nextConfig.experimental.nodeMiddleware) {
+      return
+    }
+
+    try {
+      const functionsConfig = this.renderOpts.dev
+        ? {}
+        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
+        return require(join(this.distDir, 'server', 'middleware.js'))
+      }
+    } catch (err) {
+      if (
+        isError(err) &&
+        err.code !== 'ENOENT' &&
+        err.code !== 'MODULE_NOT_FOUND'
+      ) {
+        throw err
+      }
+    }
+  }
+
   /**
    * Checks if a middleware exists. This method is useful for the development
    * server where we need to check the filesystem. Here we just check the
@@ -1425,6 +1479,10 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+
+    if (!info && this.loadNodeMiddleware()) {
+      return true
+    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1510,36 +1568,63 @@ export default class NextNodeServer extends BaseServer<
       middleware: true,
     })
 
-    if (!middlewareInfo) {
-      throw new MiddlewareNotFoundError()
-    }
-
     const method = (params.request.method || 'GET').toUpperCase()
-    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
-
-    const result = await run({
-      distDir: this.distDir,
-      name: middlewareInfo.name,
-      paths: middlewareInfo.paths,
-      edgeFunctionEntry: middlewareInfo,
-      request: {
-        headers: params.request.headers,
-        method,
-        nextConfig: {
-          basePath: this.nextConfig.basePath,
-          i18n: this.nextConfig.i18n,
-          trailingSlash: this.nextConfig.trailingSlash,
-          experimental: this.nextConfig.experimental,
-        },
-        url: url,
-        page,
-        body: getRequestMeta(params.request, 'clonableBody'),
-        signal: signalFromNodeResponse(params.response.originalResponse),
-        waitUntil: this.getWaitUntil(),
+    const requestData = {
+      headers: params.request.headers,
+      method,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+        experimental: this.nextConfig.experimental,
       },
-      useCache: true,
-      onWarning: params.onWarning,
-    })
+      url: url,
+      page,
+      body:
+        method !== 'GET' && method !== 'HEAD'
+          ? (getRequestMeta(params.request, 'clonableBody') as any)
+          : undefined,
+
+      signal: signalFromNodeResponse(params.response.originalResponse),
+      waitUntil: this.getWaitUntil(),
+    }
+    let result:
+      | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
+      | undefined
+
+    // if no middleware info check for Node.js middleware
+    // this is not in the middleware-manifest as that historically
+    // has only included edge-functions, we need to do a breaking
+    // version bump for that manifest to write this info there if
+    // we decide we want to
+    if (!middlewareInfo) {
+      let middlewareModule
+      middlewareModule = this.loadNodeMiddleware()
+
+      if (!middlewareModule) {
+        throw new MiddlewareNotFoundError()
+      }
+      const adapterFn: typeof import('./web/adapter').adapter =
+        middlewareModule.default || middlewareModule
+
+      result = await adapterFn({
+        handler: middlewareModule.middleware || middlewareModule,
+        request: requestData,
+        page: 'middleware',
+      })
+    } else {
+      const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+
+      result = await run({
+        distDir: this.distDir,
+        name: middlewareInfo.name,
+        paths: middlewareInfo.paths,
+        edgeFunctionEntry: middlewareInfo,
+        request: requestData,
+        useCache: true,
+        onWarning: params.onWarning,
+      })
+    }
 
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {

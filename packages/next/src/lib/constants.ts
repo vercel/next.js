@@ -137,6 +137,18 @@ const WEBPACK_LAYERS_NAMES = {
    * The browser client bundle layer for App directory.
    */
   appPagesBrowser: 'app-pages-browser',
+  /**
+   * The browser client bundle layer for Pages directory.
+   */
+  pagesDirBrowser: 'pages-dir-browser',
+  /**
+   * The Edge Lite bundle layer for Pages directory.
+   */
+  pagesDirEdge: 'pages-dir-edge',
+  /**
+   * The Node.js bundle layer for Pages directory.
+   */
+  pagesDirNode: 'pages-dir-node',
 } as const
 
 export type WebpackLayerName =

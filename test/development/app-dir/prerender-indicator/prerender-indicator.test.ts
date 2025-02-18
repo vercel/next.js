@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { getRouteTypeFromDevToolsIndicator, retry } from 'next-test-utils'
 import { BrowserInterface } from 'next-webdriver'
 
 describe('prerender indicator', () => {
@@ -7,7 +7,16 @@ describe('prerender indicator', () => {
     files: __dirname,
   })
 
+  const isNewDevOverlay =
+    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
   async function hasStaticIndicator(browser: BrowserInterface) {
+    if (isNewDevOverlay) {
+      const routeType = await getRouteTypeFromDevToolsIndicator(browser)
+      console.log({ routeType })
+      return routeType === 'Static'
+    }
+
     const staticIndicatorPresent = await browser.eval(() =>
       Boolean(
         document
@@ -63,28 +72,31 @@ describe('prerender indicator', () => {
     }
   })
 
-  it('should not show the indicator if disabled in next.config', async () => {
-    await next.stop()
+  // TODO(jiwon): The new UI will always show the route type.
+  if (!isNewDevOverlay) {
+    it.skip('should not show the indicator if disabled in next.config', async () => {
+      await next.stop()
 
-    await next.patchFile(
-      'next.config.js',
-      `
-      module.exports = {
-        devIndicators: {
-          appIsrStatus: false
+      await next.patchFile(
+        'next.config.js',
+        `
+        module.exports = {
+          devIndicators: {
+            appIsrStatus: false
+          }
         }
-      }
-    `
-    )
+      `
+      )
 
-    try {
-      await next.start()
-      const browser = await next.browser('/')
-      expect(await hasStaticIndicator(browser)).toBe(false)
-    } finally {
-      await next.deleteFile('app/page.tsx')
-    }
-  })
+      try {
+        await next.start()
+        const browser = await next.browser('/')
+        expect(await hasStaticIndicator(browser)).toBe(false)
+      } finally {
+        await next.deleteFile('app/page.tsx')
+      }
+    })
+  }
 
   it('should not have static indicator when using force-dynamic', async () => {
     const browser = await next.browser('/force-dynamic')

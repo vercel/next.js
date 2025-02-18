@@ -6,18 +6,16 @@ pub(crate) mod placeable;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule,
-        utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
+        module::IntrospectableModule, utils::children_from_output_assets, Introspectable,
+        IntrospectableChildren,
     },
     output::{OutputAsset, OutputAssets},
     server_fs::ServerFileSystem,
@@ -182,14 +180,6 @@ impl EcmascriptChunk {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptChunk {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        bail!("EcmascriptChunk::content() is not implemented")
-    }
-}
-
 #[turbo_tasks::function]
 fn introspectable_type() -> Vc<RcStr> {
     Vc::cell("ecmascript chunk".into())
@@ -209,28 +199,25 @@ impl Introspectable for EcmascriptChunk {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.path().to_string()
+        self.ident().to_string()
     }
 
     #[turbo_tasks::function]
     async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let content = content_to_details(self.content());
         let mut details = String::new();
         let this = self.await?;
         details += "Chunk items:\n\n";
         for chunk_item in this.content.included_chunk_items().await? {
             writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
         }
-        details += "\nContent:\n\n";
-        write!(details, "{}", content.await?)?;
         Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let mut children = children_from_output_assets(self.references())
-            .await?
-            .clone_value();
+            .owned()
+            .await?;
         let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((

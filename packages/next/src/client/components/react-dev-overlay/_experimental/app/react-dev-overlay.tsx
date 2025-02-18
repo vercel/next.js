@@ -1,89 +1,65 @@
 import type { OverlayState } from '../../shared'
-import type { Dispatcher } from '../../app/hot-reloader-client'
+import type { GlobalErrorComponent } from '../../../error-boundary'
 
-import React from 'react'
-
+import { useState } from 'react'
+import { DevOverlayErrorBoundary } from './error-boundary'
 import { ShadowPortal } from '../internal/components/shadow-portal'
-import { BuildError } from '../internal/container/build-error'
-import { Errors } from '../internal/container/errors'
 import { Base } from '../internal/styles/base'
 import { ComponentStyles } from '../internal/styles/component-styles'
 import { CssReset } from '../internal/styles/css-reset'
-import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
-import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 import { Colors } from '../internal/styles/colors'
+import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
+import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
+import { RenderError } from '../internal/container/runtime-error/render-error'
 
-interface ReactDevOverlayState {
-  isReactError: boolean
-}
-export default class ReactDevOverlay extends React.PureComponent<
-  {
-    state: OverlayState
-    dispatcher?: Dispatcher
-    children: React.ReactNode
-  },
-  ReactDevOverlayState
-> {
-  state = { isReactError: false }
+export default function ReactDevOverlay({
+  state,
+  globalError,
+  children,
+}: {
+  state: OverlayState
+  globalError: [GlobalErrorComponent, React.ReactNode]
+  children: React.ReactNode
+}) {
+  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
 
-  static getDerivedStateFromError(error: Error): ReactDevOverlayState {
-    if (!error.stack) return { isReactError: false }
+  const devOverlay = (
+    <ShadowPortal>
+      <CssReset />
+      <Base />
+      <Colors />
+      <ComponentStyles />
 
-    RuntimeErrorHandler.hadRuntimeError = true
-    return {
-      isReactError: true,
-    }
-  }
+      <RenderError state={state} isAppDir={true}>
+        {({ readyErrors, totalErrorCount }) => {
+          return (
+            <>
+              <DevToolsIndicator
+                state={state}
+                errorCount={totalErrorCount}
+                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+              />
 
-  render() {
-    const { state, children } = this.props
-    const { isReactError } = this.state
+              <ErrorOverlay
+                state={state}
+                readyErrors={readyErrors}
+                isErrorOverlayOpen={isErrorOverlayOpen}
+                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+              />
+            </>
+          )
+        }}
+      </RenderError>
+    </ShadowPortal>
+  )
 
-    const hasBuildError = state.buildError != null
-    const hasStaticIndicator = state.staticIndicator
-    const debugInfo = state.debugInfo
-
-    const isTurbopack = !!process.env.TURBOPACK
-
-    return (
-      <>
-        {isReactError ? (
-          <html>
-            <head></head>
-            <body></body>
-          </html>
-        ) : (
-          children
-        )}
-        <ShadowPortal>
-          <CssReset />
-          <Base />
-          <Colors />
-          <ComponentStyles />
-          {state.rootLayoutMissingTags?.length ? (
-            <RootLayoutMissingTagsError
-              missingTags={state.rootLayoutMissingTags}
-              isTurbopack={isTurbopack}
-            />
-          ) : hasBuildError ? (
-            <BuildError
-              message={state.buildError!}
-              versionInfo={state.versionInfo}
-              isTurbopack={isTurbopack}
-            />
-          ) : (
-            <Errors
-              isTurbopack={isTurbopack}
-              isAppDir={true}
-              initialDisplayState={isReactError ? 'fullscreen' : 'minimized'}
-              errors={state.errors}
-              versionInfo={state.versionInfo}
-              hasStaticIndicator={hasStaticIndicator}
-              debugInfo={debugInfo}
-            />
-          )}
-        </ShadowPortal>
-      </>
-    )
-  }
+  return (
+    <DevOverlayErrorBoundary
+      devOverlay={devOverlay}
+      globalError={globalError}
+      onError={setIsErrorOverlayOpen}
+    >
+      {children}
+    </DevOverlayErrorBoundary>
+  )
 }

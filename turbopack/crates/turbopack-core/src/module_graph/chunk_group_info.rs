@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
+    collections::{hash_map::Entry, BinaryHeap},
     hash::Hash,
     ops::{Deref, DerefMut},
 };
@@ -8,6 +8,7 @@ use anyhow::Result;
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -19,7 +20,7 @@ use crate::{
     chunk::ChunkingType,
     module::Module,
     module_graph::{
-        GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
+        get_node, GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
         SingleModuleGraphNode,
     },
 };
@@ -59,19 +60,34 @@ impl DerefMut for RoaringBitmapWrapper {
         &mut self.0
     }
 }
+impl Hash for RoaringBitmapWrapper {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        struct HasherWriter<'a, H: std::hash::Hasher>(&'a mut H);
+        impl<H: std::hash::Hasher> std::io::Write for HasherWriter<'_, H> {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.write(buf);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        self.0.serialize_into(HasherWriter(state)).unwrap();
+    }
+}
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+pub struct ChunkGroupInfo(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroup {
-    /// e.g. A page
+    /// e.g. a page
     Entry(ResolvedVc<Box<dyn Module>>),
-    /// a module that has an incoming async edge
+    /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with a incoming non-merged isolated edge
+    /// a module with an incoming non-merged isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
-    /// a module with a incoming merging isolated edge
+    /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
@@ -81,28 +97,6 @@ enum ChunkGroup {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 struct ChunkGroupId(u32);
 
-macro_rules! get_node {
-    ($graphs:expr, $node:expr) => {{
-        let node_idx = $node;
-        match $graphs[node_idx.graph_idx]
-            .graph
-            .node_weight(node_idx.node_idx)
-            .unwrap()
-        {
-            SingleModuleGraphNode::Module(node) => node,
-            SingleModuleGraphNode::VisitedModule { idx } => {
-                let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
-                    .graph
-                    .node_weight(idx.node_idx)
-                    .unwrap()
-                else {
-                    panic!("expected Module node");
-                };
-                node
-            }
-        }
-    }};
-}
 fn iter_neighbors<N, E>(
     graph: &DiGraph<N, E>,
     node: NodeIndex,
@@ -149,19 +143,24 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     let span = span_outer.clone();
     async move {
         let mut next_chunk_group_id = 0u32;
-        let mut chunk_groups_to_id: HashMap<ChunkGroup, ChunkGroupId> = HashMap::new();
-        let mut chunk_groups_from_id: HashMap<ChunkGroupId, ChunkGroup> = HashMap::new();
+        let mut chunk_groups_to_id: FxHashMap<ChunkGroup, ChunkGroupId> = FxHashMap::default();
+        let mut chunk_groups_from_id: FxHashMap<ChunkGroupId, ChunkGroup> = FxHashMap::default();
 
-        let mut module_chunk_groups: HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-            HashMap::new();
+        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+            FxHashMap::default();
 
         let graphs = graph.graphs.iter().try_join().await?;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
         span.record("module_count", module_count);
 
         // First, compute the depth for each module in the graph
-        let mut module_depth: HashMap<ResolvedVc<Box<dyn Module>>, usize> = HashMap::new();
-        let entries = &graph.graphs.last().unwrap().await?.entries;
+        let mut module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = FxHashMap::default();
+        // use all entries from all graphs
+        let entries = graphs
+            .iter()
+            .flat_map(|g| g.entries.iter().copied())
+            .collect::<Vec<_>>();
+        let entries = &entries;
         graph
             .traverse_edges_from_entries_bfs(entries, |parent, node| {
                 if let Some((parent, _)) = parent {
@@ -182,7 +181,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut visitor =
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
              node: &'_ SingleModuleGraphModuleNode,
-             module_chunk_groups: &mut HashMap<
+             module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
                 RoaringBitmapWrapper,
             >|
@@ -270,7 +269,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         } else {
                             // Fast path
                             let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
-                                module_chunk_groups.get_many_mut([&parent, &node.module])
+                                module_chunk_groups.get_disjoint_mut([&parent, &node.module])
                             else {
                                 // All modules are inserted in the previous iteration
                                 unreachable!()
@@ -296,7 +295,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut visit_count = 0usize;
 
         {
-            let mut queue_set = HashSet::new();
+            let mut queue_set = FxHashSet::default();
             let mut queue = BinaryHeap::with_capacity(entries.len());
             for e in entries {
                 queue.push(NodeWithPriority {
@@ -308,14 +307,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             for entry_node in &queue {
                 visitor(
                     None,
-                    get_node!(graphs, entry_node.node),
+                    get_node!(graphs, entry_node.node)?,
                     &mut module_chunk_groups,
                 );
             }
             while let Some(NodeWithPriority { node, .. }) = queue.pop() {
                 queue_set.remove(&node);
                 let graph = &graphs[node.graph_idx].graph;
-                let node_weight = get_node!(graphs, node);
+                let node_weight = get_node!(graphs, node)?;
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
                 visit_count += 1;
@@ -325,7 +324,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ);
+                    let succ_weight = get_node!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight, edge_weight)),

@@ -1,246 +1,587 @@
-import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import type { Dispatch, SetStateAction } from 'react'
+import type { OverlayState } from '../../../../../shared'
+
+import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import React, { useState, useEffect, useRef } from 'react'
-import { NextLogo } from './internal/next-logo'
+import { Cross, NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useDelayedRender } from './internal/use-delayed-render'
+import { useDelayedRender } from '../../../hooks/use-delayed-render'
+import { noop as css } from '../../../helpers/noop-template'
 
-// TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
 
+const INDICATOR_POSITION =
+  (process.env
+    .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
+  'bottom-left'
+
+type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
+
 export function DevToolsIndicator({
-  versionInfo,
-  hasStaticIndicator,
-  readyErrors,
-  fullscreen,
-  hide,
-  isTurbopack,
+  state,
+  errorCount,
+  setIsErrorOverlayOpen,
+  position = INDICATOR_POSITION,
 }: {
-  versionInfo: VersionInfo | undefined
-  readyErrors: ReadyRuntimeError[]
-  fullscreen: () => void
-  hide: () => void
-  hasStaticIndicator?: boolean
-  isTurbopack: boolean
+  state: OverlayState
+  errorCount: number
+  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
+  // Technically this prop isn't needed, but useful for testing.
+  position?: DevToolsIndicatorPosition
 }) {
+  const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
+
   return (
-    <DevToolsPopover
-      semver={versionInfo?.installed}
-      onIssuesClick={fullscreen}
-      issueCount={readyErrors.length}
-      isStaticRoute={hasStaticIndicator === true}
-      hide={hide}
-      isTurbopack={isTurbopack}
-    />
+    isDevToolsIndicatorOpen && (
+      <DevToolsPopover
+        semver={state.versionInfo.installed}
+        issueCount={errorCount}
+        isStaticRoute={state.staticIndicator}
+        hide={() => {
+          setIsDevToolsIndicatorOpen(false)
+        }}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+        isTurbopack={!!process.env.TURBOPACK}
+        position={position}
+      />
+    )
   )
 }
+
+//////////////////////////////////////////////////////////////////////////////////////
 
 const ANIMATE_OUT_DURATION_MS = 200
 const ANIMATE_OUT_TIMING_FUNCTION = 'cubic-bezier(0.175, 0.885, 0.32, 1.1)'
 
-const DevToolsPopover = ({
-  onIssuesClick,
+interface C {
+  closeMenu: () => void
+  selectedIndex: number
+  setSelectedIndex: Dispatch<SetStateAction<number>>
+}
+
+const Context = createContext({} as C)
+
+function DevToolsPopover({
   issueCount,
   isStaticRoute,
-  hide,
-  semver,
   isTurbopack,
+  position,
+  hide,
+  setIsErrorOverlayOpen,
 }: {
-  onIssuesClick: () => void
   issueCount: number
   isStaticRoute: boolean
-  hide: () => void
   semver: string | undefined
   isTurbopack: boolean
-}) => {
-  const popoverRef = useRef<HTMLDivElement>(null)
-  const buttonRef = useRef<HTMLDivElement>(null)
-  const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+  position: DevToolsIndicatorPosition
+  hide: () => void
+  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
+}) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [selectedIndex, setSelectedIndex] = useState(-1)
 
-  const { mounted, rendered } = useDelayedRender(isPopoverOpen, {
+  // This hook lets us do an exit animation before unmounting the component
+  const { mounted, rendered } = useDelayedRender(isMenuOpen, {
     // Intentionally no fade in, makes the UI feel more immediate
     enterDelay: 0,
     // Graceful fade out to confirm that the UI did not break
     exitDelay: ANIMATE_OUT_DURATION_MS,
   })
 
-  useEffect(() => {
-    // Close popover when clicking outside of it or its button
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        !(popoverRef.current?.getBoundingClientRect()
-          ? event.clientX >= popoverRef.current.getBoundingClientRect()!.left &&
-            event.clientX <=
-              popoverRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= popoverRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= popoverRef.current.getBoundingClientRect()!.bottom
-          : false) &&
-        !(buttonRef.current?.getBoundingClientRect()
-          ? event.clientX >= buttonRef.current.getBoundingClientRect()!.left &&
-            event.clientX <= buttonRef.current.getBoundingClientRect()!.right &&
-            event.clientY >= buttonRef.current.getBoundingClientRect()!.top &&
-            event.clientY <= buttonRef.current.getBoundingClientRect()!.bottom
-          : false)
-      ) {
-        setIsPopoverOpen(false)
+  // Features to make the menu accessible
+  useFocusTrap(menuRef, triggerRef, isMenuOpen)
+  useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+
+  function select(index: number | 'first' | 'last') {
+    if (index === 'first') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const firstIndex = all[0].getAttribute('data-index')
+        select(Number(firstIndex))
       }
+      return
     }
 
-    // Close popover when pressing escape
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsPopoverOpen(false)
+    if (index === 'last') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const lastIndex = all.length - 1
+        select(lastIndex)
       }
+      return
     }
 
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
+    const el = menuRef.current?.querySelector(
+      `[data-index="${index}"]`
+    ) as HTMLElement
+    if (el) {
+      setSelectedIndex(index)
+      el?.focus()
     }
-  }, [])
+  }
 
-  const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+  function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement>) {
+    e.preventDefault()
+
+    switch (e.key) {
+      case 'ArrowDown':
+        const next = selectedIndex + 1
+        select(next)
+        break
+      case 'ArrowUp':
+        const prev = selectedIndex - 1
+        select(prev)
+        break
+      case 'Home':
+        select('first')
+        break
+      case 'End':
+        select('last')
+        break
+      default:
+        break
+    }
+  }
+
+  function onTriggerKeydown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (isMenuOpen) {
+      return
+    }
+
+    // Open with first item focused
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      setIsMenuOpen(true)
+      // Run on next tick because querying DOM after state change
+      setTimeout(() => {
+        select('first')
+      })
+    }
+
+    // Open with last item focused
+    if (e.key === 'ArrowUp') {
+      setIsMenuOpen(true)
+      // Run on next tick because querying DOM after state change
+      setTimeout(() => {
+        select('last')
+      })
+    }
+  }
+
+  function openErrorOverlay() {
+    if (issueCount > 0) {
+      setIsErrorOverlayOpen(true)
+    }
+  }
+
+  function onTriggerClick() {
+    setIsMenuOpen((prev) => !prev)
+  }
+
+  function closeMenu() {
+    setIsMenuOpen(false)
+    // Avoid flashing selected state
+    setTimeout(() => {
+      setSelectedIndex(-1)
+    }, ANIMATE_OUT_DURATION_MS)
+  }
+
+  const [vertical, horizontal] = position.split('-', 2)
 
   return (
     <Toast
+      data-nextjs-toast
       style={{
         boxShadow: 'none',
         zIndex: 2147483647,
+        // Reset the toast component's default positions.
+        bottom: 'initial',
+        left: 'initial',
+        [vertical]: 'var(--size-2_5)',
+        [horizontal]: 'var(--size-5)',
       }}
     >
-      <div ref={buttonRef}>
-        <NextLogo
-          key={issueCount}
-          issueCount={issueCount}
-          onClick={togglePopover}
-          onIssuesClick={onIssuesClick}
-          isDevBuilding={useIsDevBuilding()}
-          isDevRendering={useIsDevRendering()}
-          aria-haspopup="true"
-          aria-expanded={isPopoverOpen}
-          aria-controls="dev-tools-popover"
-          data-nextjs-dev-tools-button
-        />
-      </div>
+      <NextLogo
+        ref={triggerRef}
+        aria-haspopup="menu"
+        aria-expanded={isMenuOpen}
+        aria-controls="nextjs-dev-tools-menu"
+        aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+        data-nextjs-dev-tools-button
+        issueCount={issueCount}
+        onTriggerClick={onTriggerClick}
+        onKeyDown={onTriggerKeydown}
+        openErrorOverlay={openErrorOverlay}
+        isDevBuilding={useIsDevBuilding()}
+        isDevRendering={useIsDevRendering()}
+      />
 
       {mounted && (
         <div
-          ref={popoverRef}
-          id="dev-tools-popover"
-          role="dialog"
-          aria-labelledby="dev-tools-title"
-          data-nextjs-dev-tools-popover
+          ref={menuRef}
+          id="nextjs-dev-tools-menu"
+          role="menu"
+          dir="ltr"
+          aria-orientation="vertical"
+          aria-label="Next.js Dev Tools Items"
+          tabIndex={-1}
+          className="dev-tools-indicator-menu"
+          onKeyDown={onMenuKeydown}
           data-rendered={rendered}
           style={
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
               '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
+              [vertical]: 'calc(100% + var(--size-gap))',
+              [horizontal]: 0,
             } as React.CSSProperties
           }
-          tabIndex={-1}
         >
-          <div data-nextjs-dev-tools-content>
-            <div data-nextjs-dev-tools-container>
-              <h2 id="dev-tools-title" style={{ display: 'none' }}>
-                Dev Tools Options
-              </h2>
-
-              <IndicatorRow
-                label="Hide Dev Tools"
-                value={<DevToolsShortcutGroup />}
-                onClick={hide}
-              />
-              <IndicatorRow
+          <Context.Provider
+            value={{
+              closeMenu,
+              selectedIndex,
+              setSelectedIndex,
+            }}
+          >
+            <div className="dev-tools-indicator-inner">
+              {issueCount > 0 && (
+                <MenuItem
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
+                />
+              )}
+              <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
+                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
               />
-              <IndicatorRow
-                label="Issues"
-                value={<IssueCount count={issueCount} />}
-                onClick={issueCount > 0 ? onIssuesClick : undefined}
-              />
+              {isTurbopack ? (
+                <MenuItem label="Turbopack" value="Enabled" />
+              ) : (
+                <MenuItem
+                  index={1}
+                  label="Try Turbopack"
+                  value={<ExternalIcon />}
+                  href="https://nextjs.org/docs/app/api-reference/turbopack"
+                />
+              )}
             </div>
-          </div>
-          <div data-nextjs-dev-tools-footer>
-            <div data-nextjs-dev-tools-footer-text>
-              {semver ? (
-                <p data-nextjs-dev-tools-version>Next.js {semver}</p>
-              ) : null}
 
-              <p data-nextjs-dev-tools-version>
-                Turbopack {isTurbopack ? 'enabled' : 'not enabled'}
-              </p>
+            <div className="dev-tools-indicator-footer">
+              <MenuItem
+                data-hide-dev-tools
+                label="Hide Dev Tools"
+                value={<Cross color="var(--color-gray-900)" />}
+                onClick={hide}
+                index={isTurbopack ? 1 : 2}
+              />
             </div>
-          </div>
+          </Context.Provider>
         </div>
       )}
     </Toast>
   )
 }
 
-const IndicatorRow = ({
+function MenuItem({
+  index,
   label,
   value,
   onClick,
+  href,
+  ...props
 }: {
+  index?: number
   label: string
   value: React.ReactNode
+  href?: string
   onClick?: () => void
-}) => {
-  const Wrapper = onClick ? 'button' : 'div'
+}) {
+  const isInteractive =
+    typeof onClick === 'function' || typeof href === 'string'
+  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
+  const selected = selectedIndex === index
+
+  function click() {
+    if (isInteractive) {
+      onClick?.()
+      closeMenu()
+      if (href) {
+        window.open(href, '_blank', 'noopener, noreferrer')
+      }
+    }
+  }
+
   return (
-    <Wrapper data-nextjs-dev-tools-row onClick={onClick}>
-      <span data-nextjs-dev-tools-row-label>{label}</span>
-      <span data-nextjs-dev-tools-row-value>{value}</span>
-    </Wrapper>
+    <div
+      className="dev-tools-indicator-item"
+      data-index={index}
+      data-selected={selected}
+      onClick={click}
+      // Needs `onMouseMove` instead of enter to work together
+      // with keyboard and mouse input
+      onMouseMove={() => {
+        if (isInteractive && index !== undefined && selectedIndex !== index) {
+          setSelectedIndex(index)
+        }
+      }}
+      onMouseLeave={() => setSelectedIndex(-1)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          click()
+        }
+      }}
+      role={isInteractive ? 'menuitem' : undefined}
+      tabIndex={selected ? 0 : -1}
+      {...props}
+    >
+      <span className="dev-tools-indicator-label">{label}</span>
+      <span className="dev-tools-indicator-value">{value}</span>
+    </div>
   )
 }
 
-const IssueCount = ({ count }: { count: number }) => {
+function IssueCount({ children }: { children: number }) {
   return (
-    <span data-nextjs-dev-tools-issue-count data-has-issues={count > 0}>
-      <span data-nextjs-dev-tools-issue-text data-has-issues={count > 0}>
-        {count}
-      </span>
+    <span
+      className="dev-tools-indicator-issue-count"
+      data-has-issues={children > 0}
+    >
+      <span className="dev-tools-indicator-issue-count-indicator" />
+      {children}
     </span>
   )
 }
 
-function DevToolsShortcutGroup() {
-  const isMac =
-    // Feature detect for `navigator.userAgentData` which is experimental:
-    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
-    'userAgentData' in navigator
-      ? (navigator.userAgentData as any).platform === 'macOS'
-      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
-        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
-        navigator.platform.indexOf('Mac') === 0 ||
-        navigator.platform === 'iPhone'
+//////////////////////////////////////////////////////////////////////////////////////
 
+function useFocusTrap(
+  menuRef: React.RefObject<HTMLDivElement | null>,
+  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  isMenuOpen: boolean
+) {
+  useEffect(() => {
+    if (isMenuOpen) {
+      menuRef.current?.focus()
+    } else {
+      const root = triggerRef.current?.getRootNode()
+      const activeElement =
+        root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+
+      // Only restore focus if the focus was previously on the menu.
+      // This avoids us accidentally focusing on mount when the
+      // user could want to interact with their own app instead.
+      if (menuRef.current?.contains(activeElement)) {
+        triggerRef.current?.focus()
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMenuOpen])
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+function useClickOutside(
+  menuRef: React.RefObject<HTMLDivElement | null>,
+  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  isMenuOpen: boolean,
+  closeMenu: () => void
+) {
+  useEffect(() => {
+    if (!isMenuOpen) {
+      return
+    }
+
+    // Close menu when clicking outside of it or its button
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        !(menuRef.current?.getBoundingClientRect()
+          ? event.clientX >= menuRef.current.getBoundingClientRect()!.left &&
+            event.clientX <= menuRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= menuRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= menuRef.current.getBoundingClientRect()!.bottom
+          : false) &&
+        !(triggerRef.current?.getBoundingClientRect()
+          ? event.clientX >= triggerRef.current.getBoundingClientRect()!.left &&
+            event.clientX <=
+              triggerRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= triggerRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
+          : false)
+      ) {
+        closeMenu()
+      }
+    }
+
+    // Close popover when pressing escape
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeMenu()
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMenuOpen])
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
+function ExternalIcon() {
   return (
-    <span data-nextjs-dev-tools-shortcut-group>
-      {isMac ? <CmdIcon /> : <CtrlIcon />}
-      <DotIcon />
-    </span>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      role="img"
+      aria-label="External link"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M13.5 10.25V13.25C13.5 13.3881 13.3881 13.5 13.25 13.5H2.75C2.61193 13.5 2.5 13.3881 2.5 13.25L2.5 2.75C2.5 2.61193 2.61193 2.5 2.75 2.5H5.75H6.5V1H5.75H2.75C1.7835 1 1 1.7835 1 2.75V13.25C1 14.2165 1.7835 15 2.75 15H13.25C14.2165 15 15 14.2165 15 13.25V10.25V9.5H13.5V10.25ZM9 1H9.75H14.2495C14.6637 1 14.9995 1.33579 14.9995 1.75V6.25V7H13.4995V6.25V3.56066L8.53033 8.52978L8 9.06011L6.93934 7.99945L7.46967 7.46912L12.4388 2.5H9.75H9V1Z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }
 
-function CmdIcon() {
-  return <span data-nextjs-dev-tools-icon>⌘</span>
-}
+export const DEV_TOOLS_INDICATOR_STYLES = css`
+  .dev-tools-indicator-menu {
+    -webkit-font-smoothing: antialiased;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-menu);
+    border-radius: var(--rounded-xl);
+    position: absolute;
+    font-family: var(--font-stack-sans);
+    z-index: 1000;
+    overflow: hidden;
+    opacity: 0;
+    outline: 0;
+    min-width: 248px;
+    transition: opacity var(--animate-out-duration-ms)
+      var(--animate-out-timing-function);
 
-function CtrlIcon() {
-  return (
-    <span data-nextjs-dev-tools-icon data-nextjs-dev-tools-ctrl-icon>
-      ctrl
-    </span>
-  )
-}
+    &[data-rendered='true'] {
+      opacity: 1;
+      scale: 1;
+    }
+  }
 
-function DotIcon() {
-  return <span data-nextjs-dev-tools-icon>.</span>
-}
+  .dev-tools-indicator-inner {
+    padding: 6px;
+    width: 100%;
+  }
+
+  .dev-tools-indicator-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 6px;
+    height: 36px;
+    border-radius: 6px;
+    text-decoration: none !important;
+    user-select: none;
+
+    &:focus-visible {
+      outline: 0;
+    }
+  }
+
+  .dev-tools-indicator-footer {
+    background: var(--color-background-200);
+    padding: 6px;
+    border-top: 1px solid var(--color-gray-400);
+    width: 100%;
+  }
+
+  .dev-tools-indicator-item[data-selected='true'] {
+    cursor: pointer;
+    background-color: var(--color-gray-200);
+  }
+
+  .dev-tools-indicator-label {
+    font-size: var(--size-font-small);
+    line-height: var(--size-5);
+    color: var(--color-gray-1000);
+  }
+
+  .dev-tools-indicator-value {
+    font-size: var(--size-font-small);
+    line-height: var(--size-5);
+    color: var(--color-gray-900);
+    margin-left: auto;
+  }
+
+  .dev-tools-indicator-issue-count {
+    --color-primary: var(--color-gray-800);
+    --color-secondary: var(--color-gray-100);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-width: 41px;
+    height: 24px;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-small);
+    padding: 2px;
+    color: var(--color-gray-1000);
+    border-radius: 128px;
+    font-weight: 500;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+
+    &[data-has-issues='true'] {
+      --color-primary: var(--color-red-800);
+      --color-secondary: var(--color-red-100);
+    }
+
+    .dev-tools-indicator-issue-count-indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-secondary);
+      border-radius: 50%;
+    }
+  }
+
+  .dev-tools-indicator-shortcut {
+    display: flex;
+    gap: var(--size-1);
+
+    kbd {
+      width: var(--size-5);
+      height: var(--size-5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-radius: var(--rounded-md);
+      border: 1px solid var(--color-gray-400);
+      font-family: var(--font-stack-sans);
+      background: var(--color-background-100);
+      color: var(--color-gray-1000);
+      text-align: center;
+      font-size: var(--size-font-smaller);
+      line-height: var(--size-4);
+    }
+  }
+`

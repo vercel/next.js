@@ -779,33 +779,8 @@ graph TD
 {
     ModuleEvaluation: 24,
     Export(
-        "unstable_getServerSideProps",
-    ): 33,
-    Export(
-        "unstable_getStaticPaths",
-    ): 35,
-    Export(
-        "reportWebVitals",
-    ): 30,
-    Export(
-        "unstable_getServerProps",
-    ): 32,
-    Export(
-        "routeModule",
-    ): 31,
-    Export(
-        "getStaticProps",
-    ): 29,
-    Export(
         "config",
     ): 26,
-    Export(
-        "unstable_getStaticParams",
-    ): 34,
-    Export(
-        "unstable_getStaticProps",
-    ): 36,
-    Exports: 37,
     Export(
         "default",
     ): 25,
@@ -815,6 +790,31 @@ graph TD
     Export(
         "getStaticPaths",
     ): 28,
+    Export(
+        "getStaticProps",
+    ): 29,
+    Export(
+        "reportWebVitals",
+    ): 30,
+    Export(
+        "routeModule",
+    ): 31,
+    Export(
+        "unstable_getServerProps",
+    ): 32,
+    Export(
+        "unstable_getServerSideProps",
+    ): 33,
+    Export(
+        "unstable_getStaticParams",
+    ): 34,
+    Export(
+        "unstable_getStaticPaths",
+    ): 35,
+    Export(
+        "unstable_getStaticProps",
+    ): 36,
+    Exports: 37,
 }
 ```
 
@@ -1342,33 +1342,8 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 24,
     Export(
-        "unstable_getServerSideProps",
-    ): 33,
-    Export(
-        "unstable_getStaticPaths",
-    ): 35,
-    Export(
-        "reportWebVitals",
-    ): 30,
-    Export(
-        "unstable_getServerProps",
-    ): 32,
-    Export(
-        "routeModule",
-    ): 31,
-    Export(
-        "getStaticProps",
-    ): 29,
-    Export(
         "config",
     ): 26,
-    Export(
-        "unstable_getStaticParams",
-    ): 34,
-    Export(
-        "unstable_getStaticProps",
-    ): 36,
-    Exports: 37,
     Export(
         "default",
     ): 25,
@@ -1378,6 +1353,31 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "getStaticPaths",
     ): 28,
+    Export(
+        "getStaticProps",
+    ): 29,
+    Export(
+        "reportWebVitals",
+    ): 30,
+    Export(
+        "routeModule",
+    ): 31,
+    Export(
+        "unstable_getServerProps",
+    ): 32,
+    Export(
+        "unstable_getServerSideProps",
+    ): 33,
+    Export(
+        "unstable_getStaticParams",
+    ): 34,
+    Export(
+        "unstable_getStaticPaths",
+    ): 35,
+    Export(
+        "unstable_getStaticProps",
+    ): 36,
+    Exports: 37,
 }
 ```
 

@@ -19,28 +19,44 @@ describe('Dynamic IO Dev Errors', () => {
     files: __dirname,
   })
 
+  const isNewOverlay =
+    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')
 
     await openRedbox(browser)
 
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-      `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
-    )
+    if (isNewOverlay) {
+      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+        `"Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+      )
+    } else {
+      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+      )
+    }
   })
 
   it('should show a red box error on client navigations', async () => {
     const browser = await next.browser('/no-error')
 
-    expect(await hasErrorToast(browser)).toBe(false)
+    await retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(false)
+    })
 
     await browser.elementByCss("[href='/error']").click()
 
     await openRedbox(browser)
-
-    expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
-      `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
-    )
+    if (isNewOverlay) {
+      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+        `"Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+      )
+    } else {
+      expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(
+        `"[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random"`
+      )
+    }
   })
 
   it('should not log unhandled rejections for persistently thrown top-level errors', async () => {
@@ -75,16 +91,24 @@ describe('Dynamic IO Dev Errors', () => {
           ? '\n    at main (<anonymous>)' +
             '\n    at body (<anonymous>)' +
             '\n    at html (<anonymous>)' +
-            '\n    at Root [Server] (<anonymous>)'
+            '\n    at Root [Server] (<anonymous>)' +
+            // Just need some string to assert that this is the whole stack
+            '\n GET /no-accessed-data 200'
           : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
             '\n    at InnerLayoutRouter (..')
     )
 
     const description = await getRedboxDescription(browser)
 
-    expect(description).toMatchInlineSnapshot(
-      `"[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense"`
-    )
+    if (isNewOverlay) {
+      expect(description).toMatchInlineSnapshot(
+        `"Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense"`
+      )
+    } else {
+      expect(description).toMatchInlineSnapshot(
+        `"[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense"`
+      )
+    }
 
     // Expand the stack frames, since the first frame `Page [Server] <anonymous>` is treated as ignored.
     // TODO: Remove the filter of anonymous frames when we have a better way to handle them.

@@ -5,6 +5,7 @@ import {
   describeVariants as describe,
   getStackFramesContent,
   toggleCollapseCallStackFrames,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -212,14 +213,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:1
-        Parsing ecmascript source code failed
-          5 |     div
-          6 |   )
-        > 7 | }
-            | ^
+       "./index.js (7:1)
+       Parsing ecmascript source code failed
+         5 |     div
+         6 |   )
+       > 7 | }
+           | ^
 
-        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
@@ -344,8 +345,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     expect(source).toMatch(
       process.env.TURBOPACK
-        ? './index.module.css:1:9'
-        : './index.module.css:1:1'
+        ? './index.module.css (1:9)'
+        : './index.module.css (1:1)'
     )
     if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
@@ -764,6 +765,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    await hasRedboxCallStack(browser)
     const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -793,10 +795,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await session.assertHasRedbox()
 
     const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(`
-     "at Array.map ()
-     at Page (pages/index.js (2:13))"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(stack).toMatchInlineSnapshot(`
+       "at <unknown> (pages/index.js (3:11))
+       at Array.map ()
+       at Page (pages/index.js (2:13))"
+      `)
+    } else {
+      expect(stack).toMatchInlineSnapshot(`
+       "at eval (pages/index.js (3:11))
+       at Array.map ()
+       at Page (pages/index.js (2:13))"
+      `)
+    }
   })
 
   test('should collapse nodejs internal stack frames from stack trace', async () => {
@@ -824,9 +835,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await session.assertHasRedbox()
 
     const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(
-      `"at getServerSideProps (pages/index.js (8:3))"`
-    )
+    expect(stack).toMatchInlineSnapshot(`
+     "at createURL (pages/index.js (4:3))
+     at getServerSideProps (pages/index.js (8:3))"
+    `)
 
     await toggleCollapseCallStackFrames(browser)
     const stackCollapsed = await getStackFramesContent(browser)

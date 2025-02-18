@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO: remove this env once streaming metadata is available for ppr
+process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
+
 describe('app-dir - metadata-streaming-config-customized', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -7,6 +10,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           experimental: {
+            ppr: 'incremental',
             streamingMetadata: true,
             htmlLimitedBots: /MyBot/i,
           }
@@ -15,25 +19,27 @@ describe('app-dir - metadata-streaming-config-customized', () => {
     },
   })
 
-  it('should have the default streaming metadata config output in routes-manifest.json', async () => {
-    const requiredServerFiles = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
+  it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
+    const prerenderManifest = JSON.parse(
+      await next.readFile('.next/prerender-manifest.json')
     )
-    expect(requiredServerFiles.files).toContain(
-      '.next/response-config-manifest.json'
-    )
-    expect(
-      requiredServerFiles.config.experimental.htmlLimitedBots
-    ).toMatchInlineSnapshot(`"MyBot"`)
+    const { routes } = prerenderManifest
 
-    const responseConfigManifest = JSON.parse(
-      await next.readFile('.next/response-config-manifest.json')
-    )
+    const bypassConfigs = Object.keys(routes)
+      .map((route) => [route, routes[route].experimentalBypassFor?.[2]])
+      .filter(([, bypassConfig]) => Boolean(bypassConfig))
+      .reduce((acc, [route, bypassConfig]) => {
+        acc[route] = bypassConfig
+        return acc
+      }, {})
 
-    expect(responseConfigManifest).toMatchInlineSnapshot(`
+    expect(bypassConfigs).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": "MyBot",
-       "version": 0,
+       "/ppr": {
+         "key": "user-agent",
+         "type": "header",
+         "value": "MyBot",
+       },
      }
     `)
   })

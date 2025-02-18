@@ -19,13 +19,12 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
     TaskInput, Upcast, ValueToString, Vc,
 };
-use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, MinifyType,
+        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -75,7 +74,7 @@ impl ModuleId {
 pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,
@@ -107,19 +106,16 @@ impl Chunks {
     }
 }
 
-/// A chunk is one type of asset.
+/// A [Chunk] group chunk items together into something that will become an [OutputAsset].
 /// It usually contains multiple chunk items.
+// TODO This could be simplified to and merged with [OutputChunk]
 #[turbo_tasks::value_trait]
-pub trait Chunk: Asset {
+pub trait Chunk {
     fn ident(self: Vc<Self>) -> Vc<AssetIdent>;
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-    // TODO Once output assets have their own trait, this path() method will move
-    // into that trait and ident() will be removed from that. Assets on the
-    // output-level only have a path and no complex ident.
-    /// The path of the chunk.
-    fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
-        self.ident().path()
-    }
+    // fn path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    //     self.ident().path()
+    // }
 
     /// Other [OutputAsset]s referenced from this [Chunk].
     fn references(self: Vc<Self>) -> Vc<OutputAssets> {
@@ -328,6 +324,7 @@ pub enum ChunkItemTy {
 pub struct ChunkItemWithAsyncModuleInfo {
     pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
@@ -347,6 +344,25 @@ where
     fn id(self: Vc<Self>) -> Vc<ModuleId> {
         let chunk_item = Vc::upcast(self);
         chunk_item.chunking_context().chunk_item_id(chunk_item)
+    }
+}
+
+pub trait ModuleChunkItemIdExt {
+    /// Returns the chunk item id of this module.
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId>;
+}
+impl<T> ModuleChunkItemIdExt for T
+where
+    T: Upcast<Box<dyn Module>>,
+{
+    fn chunk_item_id(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Vc<ModuleId> {
+        chunking_context.chunk_item_id_from_module(Vc::upcast(self))
     }
 }
 

@@ -13,13 +13,15 @@ use crate::{
         storage::{get, get_mut},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,
+        InProgressStateInner,
+    },
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {
-    // TODO DetermineActiveness
     MakeDirty {
         task_ids: SmallVec<[TaskId; 4]>,
         #[cfg(feature = "trace_task_dirty")]
@@ -196,7 +198,9 @@ pub fn make_task_dirty_internal(
     ctx: &impl ExecuteContext,
 ) {
     if make_stale {
-        if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
+        if let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+            get_mut!(task, InProgress)
+        {
             if !*stale {
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
@@ -269,7 +273,7 @@ pub fn make_task_dirty_internal(
                 AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
             ));
         }
-        task.has_key(&CachedDataItemKey::Activeness {})
+        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
     } else {
         true
     };

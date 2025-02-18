@@ -1,59 +1,124 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { noop as css } from '../../../../../../internal/helpers/noop-template'
+import mergeRefs from '../../../../helpers/merge-refs'
+import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
-  onClick: () => void
   isDevBuilding: boolean
   isDevRendering: boolean
-  onIssuesClick: () => void
+  onTriggerClick: () => void
+  openErrorOverlay: () => void
 }
 
 const SIZE = 36
+const SHORT_DURATION_MS = 150
 
-export const NextLogo = ({
-  issueCount,
-  onClick,
-  isDevBuilding,
-  isDevRendering,
-  onIssuesClick,
-  ...props
-}: Props) => {
+/**
+ * A hook that creates an animated state based on changes to a dependency.
+ * When the dependency changes and passes the shouldSkip check, it triggers
+ * an animation state that lasts for the specified duration.
+ *
+ * @param dep The dependency to watch for changes
+ * @param config Configuration object containing:
+ *               - shouldSkip: Function to determine if animation should be skipped
+ *               - animationDuration: Duration of the animation in milliseconds
+ * @returns Boolean indicating if animation is currently active
+ */
+const useAnimated = <T,>(
+  dep: T,
+  config: { shouldSkip: (dep: T) => boolean; animationDuration: number }
+) => {
+  const { shouldSkip: _shouldSkip, animationDuration } = config
+  const shouldSkipRef = useRef(_shouldSkip) // ensure stable reference in case it's not
+
+  const [animatedDep, setAnimatedDep] = useState(false)
+  const isInitialRef = useRef(true)
+
+  useEffect(() => {
+    if (isInitialRef.current) {
+      isInitialRef.current = false
+      return
+    }
+
+    if (shouldSkipRef.current(dep)) {
+      return
+    }
+
+    setAnimatedDep(true)
+    const timeoutId = setTimeout(() => {
+      setAnimatedDep(false)
+    }, animationDuration)
+
+    return () => clearTimeout(timeoutId)
+  }, [dep, animationDuration])
+
+  return animatedDep
+}
+
+export const NextLogo = forwardRef(function NextLogo(
+  {
+    issueCount,
+    isDevBuilding,
+    isDevRendering,
+    onTriggerClick,
+    openErrorOverlay,
+    ...props
+  }: Props,
+  propRef: React.Ref<HTMLButtonElement>
+) {
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const [isLoading, setIsLoading] = useState(false)
+  const newErrorDetected = useAnimated(issueCount, {
+    shouldSkip: (count) => count === 0,
+    animationDuration: SHORT_DURATION_MS,
+  })
 
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const width = useMeasureWidth(ref)
 
-  // Only shows the loading state after a 200ms delay when building or rendering,
-  // to avoid flashing the loading state for quick updates
+  const isLoading = useMinimumLoadingTimeMultiple(
+    isDevBuilding || isDevRendering
+  )
+
   useEffect(() => {
-    if (isDevBuilding || isDevRendering) {
-      const timeout = setTimeout(() => {
-        setIsLoading(true)
-      }, 200)
-      return () => clearTimeout(timeout)
-    } else {
-      setIsLoading(false)
-    }
-  }, [isDevBuilding, isDevRendering])
+    setIsErrorExpanded(hasError)
+  }, [hasError])
 
   return (
-    <>
+    <div
+      data-next-badge-root
+      style={
+        {
+          '--size': `${SIZE}px`,
+          '--duration-short': `${SHORT_DURATION_MS}ms`,
+        } as React.CSSProperties
+      }
+    >
       {/* Styles */}
       <style>
         {css`
-          [data-next-badge] {
-            --timing: cubic-bezier(0.5, 0.36, 0.25, 1.1);
-            --duration: 300ms;
+          [data-next-badge-root] {
+            --timing: cubic-bezier(0.23, 0.88, 0.26, 0.92);
+            --duration-long: 250ms;
             --color-outer-border: #171717;
             --color-inner-border: hsla(0, 0%, 100%, 0.14);
-            --color-hover-alpha: hsla(0, 0%, 100%, 0.14);
-            --color-hover-alpha-2: hsla(0, 0%, 100%, 0.23);
+            --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
+            --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
+            --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
             --padding: 2px;
             --mark-size: calc(var(--size) - var(--padding) * 2);
 
+            --focus-color: var(--color-blue-800);
+            --focus-ring: 2px solid var(--focus-color);
+
+            &:has([data-next-badge][data-error='true']) {
+              --focus-color: #fff;
+            }
+          }
+
+          [data-next-badge] {
             -webkit-font-smoothing: antialiased;
             width: var(--size);
             height: var(--size);
@@ -71,14 +136,24 @@ export const NextLogo = ({
             cursor: pointer;
             scale: 1;
             overflow: hidden;
+            will-change: scale, box-shadow, width, background;
             transition:
-              scale 150ms var(--timing),
-              width 250ms var(--timing),
-              box-shadow 250ms var(--timing),
-              background 150ms ease;
+              scale var(--duration-short) var(--timing),
+              width var(--duration-long) var(--timing),
+              box-shadow var(--duration-long) var(--timing),
+              background var(--duration-short) ease;
 
-            &:active:not([data-error='true']) {
+            &:active[data-error='false'] {
               scale: 0.95;
+            }
+
+            &[data-animate='true']:not(:hover) {
+              scale: 1.02;
+            }
+
+            &[data-error='false']:has([data-next-mark]:focus-visible) {
+              outline: var(--focus-ring);
+              outline-offset: 3px;
             }
 
             &[data-error='true'] {
@@ -86,17 +161,52 @@ export const NextLogo = ({
               --color-inner-border: #e5484d;
 
               [data-next-mark] {
-                background: var(--color-hover-alpha);
+                background: var(--color-hover-alpha-error);
+                outline-offset: 0px;
+
+                &:focus-visible {
+                  outline: var(--focus-ring);
+                  outline-offset: -1px;
+                }
 
                 &:hover {
-                  background: var(--color-hover-alpha-2);
+                  background: var(--color-hover-alpha-error-2);
                 }
               }
+            }
+
+            &[data-error-expanded='false'][data-error='true'] ~ [data-dot] {
+              scale: 1;
             }
 
             > div {
               display: flex;
             }
+          }
+
+          [data-issues-collapse]:focus-visible {
+            outline: var(--focus-ring);
+          }
+
+          [data-issues]:has([data-issues-open]:focus-visible) {
+            outline: var(--focus-ring);
+            outline-offset: -1px;
+          }
+
+          [data-dot] {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: #fff;
+            box-shadow: 0 0 0 1px var(--color-outer-border);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            right: 0px;
+            scale: 0;
+            pointer-events: none;
+            transition: scale 200ms var(--timing);
+            transition-delay: var(--duration-short);
           }
 
           [data-issues] {
@@ -108,14 +218,14 @@ export const NextLogo = ({
             height: 32px;
             margin: 0 var(--padding);
             border-radius: 9999px;
-            transition: background 150ms ease;
+            transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
-              background: var(--color-hover-alpha);
+              background: var(--color-hover-alpha-error);
             }
 
             [data-cross] {
-              translate: 0 -1px;
+              translate: 0px -1px;
             }
           }
 
@@ -125,24 +235,32 @@ export const NextLogo = ({
             width: fit-content;
             height: 100%;
             display: flex;
-            gap: 8px;
+            gap: 2px;
             align-items: center;
             margin: 0;
             line-height: 36px;
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
+
+            &:focus-visible {
+              outline: 0;
+            }
           }
 
-          [data-issues-close] {
+          [data-issues-collapse] {
             width: 24px;
             height: 24px;
             border-radius: 9999px;
-            transition: background 150ms ease;
+            transition: background var(--duration-short) ease;
 
             &:hover {
-              background: var(--color-hover-alpha);
+              background: var(--color-hover-alpha-error);
             }
+          }
+
+          [data-cross] {
+            color: #fff;
           }
 
           [data-next-mark] {
@@ -152,11 +270,49 @@ export const NextLogo = ({
             display: flex;
             align-items: center;
             border-radius: 9999px;
-            transition: background var(--duration) var(--timing);
+            transition: background var(--duration-long) var(--timing);
+
+            &:focus-visible {
+              outline: 0;
+            }
+
+            &:hover {
+              background: var(--color-hover-alpha-subtle);
+            }
 
             svg {
               flex-shrink: 0;
             }
+          }
+
+          [data-issues-count-animation] {
+            display: grid;
+            place-items: center center;
+            font-variant-numeric: tabular-nums;
+
+            &[data-animate='false'] {
+              [data-issues-count-exit],
+              [data-issues-count-enter] {
+                animation-duration: 0ms;
+              }
+            }
+
+            > * {
+              grid-area: 1 / 1;
+            }
+
+            [data-issues-count-exit] {
+              animation: fadeOut 300ms var(--timing) forwards;
+            }
+
+            [data-issues-count-enter] {
+              animation: fadeIn 300ms var(--timing) forwards;
+            }
+          }
+
+          [data-issues-count-plural] {
+            display: inline-block;
+            animation: fadeIn 300ms var(--timing) forwards;
           }
 
           .path0 {
@@ -170,6 +326,32 @@ export const NextLogo = ({
 
           .paused {
             stroke-dashoffset: 0;
+          }
+
+          @keyframes fadeIn {
+            0% {
+              opacity: 0;
+              filter: blur(2px);
+              transform: translateY(8px);
+            }
+            100% {
+              opacity: 1;
+              filter: blur(0px);
+              transform: translateY(0);
+            }
+          }
+
+          @keyframes fadeOut {
+            0% {
+              opacity: 1;
+              filter: blur(0px);
+              transform: translateY(0);
+            }
+            100% {
+              opacity: 0;
+              transform: translateY(-12px);
+              filter: blur(2px);
+            }
           }
 
           @keyframes draw0 {
@@ -209,21 +391,34 @@ export const NextLogo = ({
               stroke-dashoffset: 11.6;
             }
           }
+
+          @media (prefers-reduced-motion) {
+            [data-issues-count-exit],
+            [data-issues-count-enter],
+            [data-issues-count-plural] {
+              animation-duration: 0ms !important;
+            }
+          }
         `}
       </style>
       <div
         data-next-badge
         data-error={hasError}
-        style={
-          {
-            width: hasError && width > SIZE ? width : SIZE,
-            '--size': `${SIZE}px`,
-          } as React.CSSProperties
-        }
+        data-error-expanded={isErrorExpanded}
+        data-animate={newErrorDetected}
+        style={{
+          width: hasError && width > SIZE ? width : SIZE,
+        }}
       >
         <div ref={ref}>
           {/* Children */}
-          <button data-next-mark onClick={onClick} {...props}>
+          <button
+            ref={mergeRefs(triggerRef, propRef)}
+            data-next-mark
+            data-next-mark-loading={isLoading}
+            onClick={onTriggerClick}
+            {...props}
+          >
             <NextMark isLoading={isLoading} />
           </button>
           {isErrorExpanded && (
@@ -231,24 +426,62 @@ export const NextLogo = ({
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={onIssuesClick}
+                onClick={openErrorOverlay}
               >
-                {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
+                <AnimateCount
+                  // Used the key to force a re-render when the count changes.
+                  key={issueCount}
+                  animate={newErrorDetected}
+                  data-issues-count-animation
+                >
+                  {issueCount}
+                </AnimateCount>{' '}
+                <div>
+                  Issue
+                  {issueCount > 1 && (
+                    <span aria-hidden data-issues-count-plural>
+                      s
+                    </span>
+                  )}
+                </div>
               </button>
               <button
-                data-issues-close
-                aria-label="Dismiss"
+                data-issues-collapse
+                aria-label="Collapse issues badge"
                 onClick={() => {
                   setIsErrorExpanded(false)
+                  // Move focus to the trigger to prevent having it stuck on this element
+                  triggerRef.current?.focus()
                 }}
               >
-                <Cross />
+                <Cross data-cross />
               </button>
             </div>
           )}
         </div>
       </div>
-    </>
+      <div aria-hidden data-dot />
+    </div>
+  )
+})
+
+function AnimateCount({
+  children: count,
+  animate = true,
+  ...props
+}: {
+  children: number
+  animate: boolean
+}) {
+  return (
+    <div {...props} data-animate={animate}>
+      <div aria-hidden data-issues-count-exit>
+        {count - 1}
+      </div>
+      <div data-issues-count data-issues-count-enter>
+        {count}
+      </div>
+    </div>
   )
 }
 
@@ -269,15 +502,20 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     observer.observe(el)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [ref])
 
   return width
 }
 
 function NextMark({ isLoading }: { isLoading?: boolean }) {
   return (
-    <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+    <svg
+      width="40"
+      height="40"
+      viewBox="0 0 40 40"
+      fill="none"
+      data-next-mark-loading={isLoading}
+    >
       <g transform="translate(8.5, 13)">
         <path
           className={isLoading ? 'path0' : 'paused'}
@@ -331,21 +569,21 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
   )
 }
 
-function Cross() {
+export function Cross(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      data-cross
-      width="14"
-      height="14"
+      width="12"
+      height="12"
       viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      {...props}
     >
       <path
-        fill-rule="evenodd"
-        clip-rule="evenodd"
+        fillRule="evenodd"
+        clipRule="evenodd"
         d="M3.08889 11.8384L2.62486 12.3024L1.69678 11.3744L2.16082 10.9103L6.07178 6.99937L2.16082 3.08841L1.69678 2.62437L2.62486 1.69629L3.08889 2.16033L6.99986 6.07129L10.9108 2.16033L11.3749 1.69629L12.3029 2.62437L11.8389 3.08841L7.92793 6.99937L11.8389 10.9103L12.3029 11.3744L11.3749 12.3024L10.9108 11.8384L6.99986 7.92744L3.08889 11.8384Z"
-        fill="#EAEAEA"
+        fill="currentColor"
       />
     </svg>
   )

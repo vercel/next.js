@@ -4,7 +4,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
 import { ExternalIcon } from '../../icons/external'
 import { noop as css } from '../../helpers/noop-template'
-import { getFrameSource } from '../../helpers/stack-frame'
+import { getFrameSource } from '../../../../internal/helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
@@ -77,8 +77,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   const open = useOpenInEditor({
     file: file?.fileName,
-    lineNumber: file?.location?.line,
-    column: file?.location?.column,
+    lineNumber: file?.location?.line ?? 1,
+    column: file?.location?.column ?? 0,
   })
 
   const stackFrame = {
@@ -89,31 +89,36 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     column: file?.location?.column ?? null,
   }
 
+  const fileExtension = stackFrame?.file?.split('.').pop()
+
   return (
-    <div data-nextjs-terminal>
-      <div className="terminal-header">
-        <p
-          role="link"
-          onClick={open}
-          tabIndex={1}
-          title="Click to open in your editor"
-        >
-          <span>
-            <FileIcon />
-            {getFrameSource(stackFrame)} @{' '}
-            <HotlinkedText text={stackFrame.methodName} />
+    <div data-nextjs-codeframe>
+      <button
+        aria-label="Open in editor"
+        className="code-frame-header"
+        data-with-open-in-editor-link-source-file
+        onClick={open}
+      >
+        <div className="code-frame-link">
+          <span className="code-frame-icon">
+            <FileIcon lang={fileExtension} />
+            {getFrameSource(stackFrame)}
+            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
           </span>
           <ExternalIcon width={16} height={16} />
-        </p>
-      </div>
-      <pre>
+        </div>
+      </button>
+      <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
             key={`terminal-entry-${index}`}
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),
@@ -135,26 +140,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 }
 
 export const TERMINAL_STYLES = css`
-  [data-nextjs-terminal] {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-    flex: 1 0 0;
-
-    background-color: var(--color-background-200);
-    overflow: hidden;
-    color: var(--color-gray-1000);
-    text-overflow: ellipsis;
-    font-family: var(--font-stack-monospace);
-    font-size: 12px;
-    line-height: 16px;
-  }
-
-  .terminal-header {
-    border-top: 1px solid var(--color-gray-400);
-    border-bottom: 1px solid var(--color-gray-400);
-  }
-
   [data-nextjs-terminal]::selection,
   [data-nextjs-terminal] *::selection {
     background-color: var(--color-ansi-selection);
@@ -164,12 +149,6 @@ export const TERMINAL_STYLES = css`
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);
-  }
-
-  [data-nextjs-terminal] > * {
-    margin: 0;
-    padding: calc(var(--size-gap) + var(--size-gap-half))
-      calc(var(--size-gap-double) + var(--size-gap-half));
   }
 
   [data-nextjs-terminal] > div > p {
@@ -185,10 +164,5 @@ export const TERMINAL_STYLES = css`
   [data-nextjs-terminal] div > pre {
     overflow: hidden;
     display: inline-block;
-  }
-
-  [data-nextjs-terminal] svg {
-    color: var(--color-gray-900);
-    margin-right: 6px;
   }
 `

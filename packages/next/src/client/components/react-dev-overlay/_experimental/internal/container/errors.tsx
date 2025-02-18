@@ -1,17 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import {
-  ACTION_UNHANDLED_ERROR,
-  ACTION_UNHANDLED_REJECTION,
-  type UnhandledErrorAction,
-  type UnhandledRejectionAction,
-} from '../../../shared'
+import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
-import { getErrorByType } from '../helpers/get-error-by-type'
-import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
@@ -24,28 +15,17 @@ import {
   isUnhandledConsoleOrRejection,
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
-import { DevToolsIndicator } from '../components/errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
-import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut'
-import { MODIFIERS } from '../hooks/use-keyboard-shortcut'
+import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-export type SupportedErrorEvent = {
-  id: number
-  event: UnhandledErrorAction | UnhandledRejectionAction
-}
-export type ErrorsProps = {
-  isAppDir: boolean
-  errors: SupportedErrorEvent[]
-  initialDisplayState: DisplayState
-  isTurbopack: boolean
-  versionInfo?: VersionInfo
-  hasStaticIndicator?: boolean
-  debugInfo?: DebugInfo
+export interface ErrorsProps extends ErrorBaseProps {
+  readyErrors: ReadyRuntimeError[]
+  debugInfo: DebugInfo
+  onClose: () => void
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
-
-type DisplayState = 'minimized' | 'fullscreen' | 'hidden'
 
 function isNextjsLink(text: string): boolean {
   return text.startsWith('https://nextjs.org')
@@ -73,112 +53,52 @@ function ErrorDescription({
       ? ''
       : error.name + ': '
 
-  // If it's replayed error, display the environment name
   const environmentName =
-    'environmentName' in error ? error['environmentName'] : ''
+    'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
+
+  // The environment name will be displayed as a label, so remove it
+  // from the message (e.g. "[ Server ] hello world" -> "hello world").
+  let message = error.message
+  if (message.startsWith(envPrefix)) {
+    message = message.slice(envPrefix.length)
+  }
+
   return (
     <>
-      {envPrefix}
       {title}
       <HotlinkedText
-        text={hydrationWarning || error.message}
+        text={hydrationWarning || message}
         matcher={isNextjsLink}
       />
     </>
   )
 }
 
-function getErrorSignature(ev: SupportedErrorEvent): string {
-  const { event } = ev
-  switch (event.type) {
-    case ACTION_UNHANDLED_ERROR:
-    case ACTION_UNHANDLED_REJECTION: {
-      return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`
-    }
-    default: {
-    }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const _: never = event as never
-  return ''
-}
-
 export function Errors({
-  isAppDir,
-  errors,
-  initialDisplayState,
-  hasStaticIndicator,
+  readyErrors,
   debugInfo,
-  versionInfo,
-  isTurbopack,
+  onClose,
+  ...props
 }: ErrorsProps) {
-  const [lookups, setLookups] = useState(
-    {} as { [eventId: string]: ReadyErrorEvent }
-  )
-
-  const [readyErrors, nextError] = useMemo<
-    [ReadyErrorEvent[], SupportedErrorEvent | null]
-  >(() => {
-    let ready: ReadyErrorEvent[] = []
-    let next: SupportedErrorEvent | null = null
-
-    // Ensure errors are displayed in the order they occurred in:
-    for (let idx = 0; idx < errors.length; ++idx) {
-      const e = errors[idx]
-      const { id } = e
-      if (id in lookups) {
-        ready.push(lookups[id])
-        continue
-      }
-
-      // Check for duplicate errors
-      if (idx > 0) {
-        const prev = errors[idx - 1]
-        if (getErrorSignature(prev) === getErrorSignature(e)) {
-          continue
-        }
-      }
-
-      next = e
-      break
-    }
-
-    return [ready, next]
-  }, [errors, lookups])
-
-  const isLoading = useMemo<boolean>(() => {
-    return readyErrors.length < 1 && Boolean(errors.length)
-  }, [errors.length, readyErrors.length])
+  const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    if (nextError == null) {
-      return
-    }
-    let mounted = true
-
-    getErrorByType(nextError, isAppDir).then(
-      (resolved) => {
-        // We don't care if the desired error changed while we were resolving,
-        // thus we're not tracking it using a ref. Once the work has been done,
-        // we'll store it.
-        if (mounted) {
-          setLookups((m) => ({ ...m, [resolved.id]: resolved }))
-        }
-      },
-      () => {
-        // TODO: handle this, though an edge case
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        onClose()
       }
-    )
-
-    return () => {
-      mounted = false
     }
-  }, [nextError, isAppDir])
 
-  const [displayState, setDisplayState] =
-    useState<DisplayState>(initialDisplayState)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  const isLoading = useMemo<boolean>(() => {
+    return readyErrors.length < 1
+  }, [readyErrors.length])
+
   const [activeIdx, setActiveIndex] = useState<number>(0)
 
   const activeError = useMemo<ReadyErrorEvent | null>(
@@ -186,65 +106,13 @@ export function Errors({
     [activeIdx, readyErrors]
   )
 
-  const minimize = useCallback(() => setDisplayState('minimized'), [])
-
-  // Reset component state when there are no errors to be displayed.
-  // Note: We show the dev tools indicator in minimized state even with no errors
-  // as it serves as a persistent development tools access point
-  useEffect(() => {
-    if (errors.length < 1) {
-      setLookups({})
-      minimize()
-      setActiveIndex(0)
-    }
-  }, [errors.length, minimize])
-
-  useEffect(() => {
-    // Close the error overlay when pressing escape
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') {
-        setDisplayState('minimized')
-      }
-    }
-
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [])
-
-  const hide = useCallback(() => setDisplayState('hidden'), [])
-  const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
-
-  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
-  useKeyboardShortcut({
-    key: '.',
-    modifiers: [MODIFIERS.CTRL_CMD],
-    callback: () => {
-      setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
-    },
-  })
-
-  if (displayState === 'hidden') {
-    return null
-  }
-
-  const noIssues = errors.length < 1 || activeError == null
-
-  if (noIssues || displayState === 'minimized') {
-    return (
-      <DevToolsIndicator
-        hasStaticIndicator={hasStaticIndicator}
-        readyErrors={readyErrors}
-        fullscreen={fullscreen}
-        hide={hide}
-        versionInfo={versionInfo}
-        isTurbopack={isTurbopack}
-      />
-    )
-  }
-
   if (isLoading) {
     // TODO: better loading state
     return <Overlay />
+  }
+
+  if (!activeError) {
+    return null
   }
 
   const error = activeError.error
@@ -287,15 +155,15 @@ export function Errors({
       errorMessage={
         <ErrorDescription error={error} hydrationWarning={hydrationWarning} />
       }
-      onClose={isServerError ? undefined : minimize}
+      onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
       readyErrors={readyErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
-      versionInfo={versionInfo}
-      isTurbopack={isTurbopack}
+      dialogResizerRef={dialogResizerRef}
+      {...props}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -324,13 +192,18 @@ export function Errors({
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
           hydrationMismatchType={hydrationErrorType}
-          componentStackFrames={activeError.componentStackFrames || []}
           firstContent={serverContent}
           secondContent={clientContent}
-          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
       ) : null}
-      <RuntimeError key={activeError.id.toString()} error={activeError} />
+      <Suspense fallback={<div data-nextjs-error-suspended />}>
+        <RuntimeError
+          key={activeError.id.toString()}
+          error={activeError}
+          dialogResizerRef={dialogResizerRef}
+        />
+      </Suspense>
     </ErrorOverlayLayout>
   )
 }
@@ -340,14 +213,12 @@ export const styles = css`
     bottom: calc(var(--size-gap-double) * 4.5);
   }
   p.nextjs__container_errors__link {
-    color: var(--color-text-color-red-1);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
@@ -399,9 +270,12 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--size-3);
+    margin-bottom: var(--size-3_5);
   }
   .error-overlay-notes-container {
-    padding: 0 var(--size-4);
+    margin: var(--size-2) var(--size-0_5);
+  }
+  .error-overlay-notes-container p {
+    white-space: pre-wrap;
   }
 `

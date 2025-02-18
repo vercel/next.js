@@ -9,7 +9,7 @@ type EditorLinkProps = {
     column: number
   }
 }
-export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
+export function EditorLink({ file, location }: EditorLinkProps) {
   const open = useOpenInEditor({
     file,
     lineNumber: location?.line ?? 1,
@@ -19,12 +19,7 @@ export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
   return (
     <div
       data-with-open-in-editor-link
-      data-with-open-in-editor-link-source-file={
-        isSourceFile ? true : undefined
-      }
-      data-with-open-in-editor-link-import-trace={
-        isSourceFile ? undefined : true
-      }
+      data-with-open-in-editor-link-import-trace
       tabIndex={10}
       role={'link'}
       onClick={open}
@@ -63,12 +58,5 @@ export const EDITOR_LINK_STYLES = css`
   }
   [data-with-open-in-editor-link-import-trace] {
     margin-left: var(--size-gap-double);
-  }
-  [data-with-open-in-editor-link-source-file] {
-    border-bottom: 1px solid var(--color-ansi-bright-black);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    line-break: anywhere;
   }
 `

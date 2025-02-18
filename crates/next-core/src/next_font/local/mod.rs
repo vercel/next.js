@@ -345,7 +345,7 @@ impl Issue for FontResolvingIssue {
         let this = self.await?;
         Ok(StyledString::Line(vec![
             StyledString::Text("Font file not found: Can't resolve '".into()),
-            StyledString::Code(this.font_path.await?.clone_value()),
+            StyledString::Code(this.font_path.owned().await?),
             StyledString::Text("'".into()),
         ])
         .cell())

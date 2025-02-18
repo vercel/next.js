@@ -20,6 +20,9 @@ use crate::{
         EcmascriptChunkType, EcmascriptExports,
     },
     references::async_module::{AsyncModule, OptionAsyncModule},
+    runtime_functions::{
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
+    },
     utils::StringifyJs,
     EcmascriptModuleContent, EcmascriptOptions,
 };
@@ -87,13 +90,13 @@ impl CachedExternalModule {
         if self.external_type == CachedExternalType::EcmaScriptViaImport {
             writeln!(
                 code,
-                "const mod = await __turbopack_external_import__({});",
+                "const mod = await {TURBOPACK_EXTERNAL_IMPORT}({});",
                 StringifyJs(&self.request)
             )?;
         } else {
             writeln!(
                 code,
-                "const mod = __turbopack_external_require__({}, () => require({}));",
+                "const mod = {TURBOPACK_EXTERNAL_REQUIRE}({}, () => require({}));",
                 StringifyJs(&self.request),
                 StringifyJs(&self.request)
             )?;
@@ -104,7 +107,7 @@ impl CachedExternalModule {
         if self.external_type == CachedExternalType::CommonJs {
             writeln!(code, "module.exports = mod;")?;
         } else {
-            writeln!(code, "__turbopack_export_namespace__(mod);")?;
+            writeln!(code, "{TURBOPACK_EXPORT_NAMESPACE}(mod);")?;
         }
 
         Ok(EcmascriptModuleContent {
@@ -242,11 +245,6 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("content() should not be called");

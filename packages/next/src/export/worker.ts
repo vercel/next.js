@@ -253,6 +253,13 @@ async function exportPageImpl(
     )
   }
 
+  // During the export phase in next build, if it's using PPR we can serve streaming metadata
+  // when it's available. When we're building the PPR rendering result, we don't need to rely
+  // on the user agent. The result can be determined to serve streaming on infrastructure level.
+  const serveStreamingMetadata = Boolean(
+    isRoutePPREnabled && input.streamingMetadata
+  )
+
   const renderOpts: WorkerRenderOpts = {
     ...components,
     ...input.renderOpts,
@@ -262,6 +269,7 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
+    serveStreamingMetadata,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -373,7 +381,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -417,6 +424,7 @@ export async function exportPages(
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+            streamingMetadata: nextConfig.experimental.streamingMetadata,
             buildId: input.buildId,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
@@ -476,7 +484,13 @@ export async function exportPages(
               `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
             )
           }
-          await new Promise((r) => setTimeout(r, Math.random() * 500))
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
         }
       }
 

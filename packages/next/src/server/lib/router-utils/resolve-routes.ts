@@ -33,6 +33,7 @@ import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
+  parseDestination,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
@@ -45,7 +46,6 @@ import {
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
-import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -737,7 +737,11 @@ export function getResolveRoutes(
           // the response headers. We don't want to use the following
           // `parsedDestination` as the query object is mutated.
           const { search: destinationSearch, pathname: destinationPathname } =
-            parseUrl(route.destination)
+            parseDestination({
+              destination: route.destination,
+              params: rewriteParams,
+              query: parsedUrl.query,
+            })
 
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,

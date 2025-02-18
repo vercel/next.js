@@ -64,9 +64,9 @@ pub trait Diagnostic {
 
     async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainDiagnostic>> {
         Ok(PlainDiagnostic {
-            category: self.category().await?.clone_value(),
-            name: self.name().await?.clone_value(),
-            payload: self.payload().await?.clone_value(),
+            category: self.category().owned().await?,
+            name: self.name().owned().await?,
+            payload: self.payload().owned().await?,
         }
         .cell())
     }

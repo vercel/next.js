@@ -2,10 +2,11 @@
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import {
-  check,
   describeVariants as describe,
   getStackFramesContent,
   retry,
+  getRedboxCallStack,
+  getToastErrorCount,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -219,7 +220,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (isTurbopack) {
       expect(source).toEqual(outdent`
-        ./index.js:7:1
+        ./index.js (7:1)
         Parsing ecmascript source code failed
           5 |     div
           6 |   )
@@ -350,7 +351,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     const source = await session.getRedboxSource()
     expect(source).toMatch(
-      isTurbopack ? './index.module.css:1:9' : './index.module.css:1:1'
+      isTurbopack ? './index.module.css (1:9)' : './index.module.css (1:1)'
     )
     if (!isTurbopack) {
       expect(source).toMatch('Syntax error: ')
@@ -435,7 +436,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header2 = await session.getRedboxDescription()
     expect(header2).toMatchSnapshot()
@@ -480,7 +481,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header3 = await session.getRedboxDescription()
     expect(header3).toMatchSnapshot()
@@ -525,7 +526,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     )
 
     await session.evaluate(() => document.querySelector('button').click())
-    await session.openRedbox()
+    await session.assertHasRedbox()
 
     const header4 = await session.getRedboxDescription()
     expect(header4).toEqual(
@@ -734,23 +735,15 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.patch('index.js', file)
 
     // Unhandled error and rejection in setTimeout
-    expect(
-      await browser.waitForElementByCss('.nextjs-toast-errors').text()
-    ).toBe('2 issues')
+    expect(await getToastErrorCount(browser)).toBe(2)
 
     // Unhandled error in event handler
     await browser.elementById('unhandled-error').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /3 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(3)
 
     // Unhandled rejection in event handler
     await browser.elementById('unhandled-rejection').click()
-    await check(
-      () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /4 issues/
-    )
+    expect(await getToastErrorCount(browser)).toBe(4)
     await session.assertNoRedbox()
 
     // Add Component error
@@ -793,13 +786,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(source).toContain('app/page.js')
     expect(source).toContain(`throw new Error('Client error')`)
 
+    await getRedboxCallStack(browser)
+
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
     const stackFrames = (
       await Promise.all(stackFrameElements.map((f) => f.innerText()))
     ).filter(Boolean)
-    expect(stackFrames).toEqual([])
+    expect(stackFrames).toEqual([
+      outdent`
+        Page
+        app/page.js (4:11)
+      `,
+    ])
   })
 
   test('Call stack for server error', async () => {
@@ -825,13 +825,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     expect(source).toContain('app/page.js')
     expect(source).toContain(`throw new Error('Server error')`)
 
+    await getRedboxCallStack(browser)
+
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
     const stackFrames = (
       await Promise.all(stackFrameElements.map((f) => f.innerText()))
     ).filter(Boolean)
-    expect(stackFrames).toEqual([])
+    expect(stackFrames).toEqual([
+      outdent`
+        Page
+        app/page.js (2:9)
+      `,
+    ])
   })
 
   test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
@@ -866,6 +873,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toMatchSnapshot()
     }
 
+    await getRedboxCallStack(browser)
+
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -877,11 +886,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       process.env.TURBOPACK
         ? [
             outdent`
+                <anonymous>
+                app/page.js (4:13)
+              `,
+            outdent`
                 Page
                 app/page.js (5:6)
               `,
           ]
         : [
+            outdent`
+                eval
+                app/page.js (4:13)
+              `,
             outdent`
                 Page
                 app/page.js (5:5)
@@ -916,6 +933,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       expect(source).toMatchSnapshot()
     }
 
+    await getRedboxCallStack(browser)
+
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -923,8 +942,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       stackFrameElements.map((f) => f.innerText())
     )
 
-    // No following rest of displayed stack frames by default
-    expect(stackFrames.length).toBe(0)
+    // No ignore-listed frames to be displayed by default
+    expect(stackFrames.length).toBe(1)
   })
 
   test('Server component errors should open up in fullscreen', async () => {
@@ -1032,7 +1051,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     await session.assertHasRedbox()
     if (isTurbopack) {
       expect(await session.getRedboxSource()).toEqual(outdent`
-          ./app/styles2.css:1:2
+          ./app/styles2.css (1:2)
           Module not found: Can't resolve './boom.css'
           > 1 | @import "./boom.css"
               |  ^
@@ -1211,13 +1230,15 @@ export default function Home() {
 
     if (isTurbopack) {
       // FIXME: display the sourcemapped stack frames
-      expect(stackFrames).toMatchInlineSnapshot(
-        `"at [project]/app/page.js [app-client] (ecmascript) (app/page.js (2:1))"`
-      )
+      expect(stackFrames).toMatchInlineSnapshot(`
+       "at [project]/app/utils.ts [app-client] (ecmascript) (app/utils.ts (1:7))
+       at [project]/app/page.js [app-client] (ecmascript) (app/page.js (2:1))"
+      `)
     } else {
       // FIXME: Webpack stack frames are not source mapped
       expect(stackFrames).toMatchInlineSnapshot(`
-        "at ./app/utils.ts ()
+        "at eval (app/utils.ts (1:7))
+        at ./app/utils.ts ()
         at options.factory ()
         at __webpack_require__ ()
         at fn ()

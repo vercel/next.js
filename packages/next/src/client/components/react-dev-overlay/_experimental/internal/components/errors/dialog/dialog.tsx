@@ -2,15 +2,15 @@ import { Dialog } from '../../dialog/dialog'
 import { noop as css } from '../../../helpers/noop-template'
 
 type ErrorOverlayDialogProps = {
-  isTurbopack?: boolean
   children?: React.ReactNode
   onClose?: () => void
+  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayDialog({
-  isTurbopack,
   children,
   onClose,
+  ...props
 }: ErrorOverlayDialogProps) {
   return (
     <Dialog
@@ -18,7 +18,8 @@ export function ErrorOverlayDialog({
       aria-labelledby="nextjs__container_errors_label"
       aria-describedby="nextjs__container_errors_desc"
       onClose={onClose}
-      className={`error-overlay-dialog ${isTurbopack ? 'nextjs-error-overlay-dialog-turbopack-background' : ''}`}
+      className="error-overlay-dialog"
+      {...props}
     >
       {children}
     </Dialog>
@@ -27,23 +28,30 @@ export function ErrorOverlayDialog({
 
 export const DIALOG_STYLES = css`
   .error-overlay-dialog {
+    overflow-y: auto;
+    -webkit-font-smoothing: antialiased;
     background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--rounded-xl);
-    box-shadow: var(--shadow-md);
-  }
+    background-clip: padding-box;
+    border: 1px solid var(--color-gray-alpha-400);
+    border-radius: var(--next-dialog-radius);
+    box-shadow: var(--shadow-menu);
+    position: relative;
 
-  .nextjs-error-overlay-dialog-turbopack-background {
-    border: 1px solid transparent;
-    background:
-      linear-gradient(var(--color-background-100), var(--color-background-100))
-        padding-box,
-      linear-gradient(
-          to right top,
-          var(--color-gray-400) 75%,
-          var(--color-turbopack-border-blue) 87.5%,
-          var(--color-turbopack-border-red) 100%
-        )
-        border-box;
+    @media (prefers-color-scheme: dark) {
+      border-color: var(--color-gray-400);
+    }
+
+    &:has(
+        ~ [data-nextjs-error-overlay-nav] .error-overlay-notch[data-side='left']
+      ) {
+      border-top-left-radius: 0;
+    }
+
+    &:has(
+        ~ [data-nextjs-error-overlay-nav]
+          .error-overlay-notch[data-side='right']
+      ) {
+      border-top-right-radius: 0;
+    }
   }
 `

@@ -30,7 +30,7 @@ export function encodeSegment(
   return encodedName as EncodedSegment
 }
 
-export const ROOT_SEGMENT_KEY = '/'
+export const ROOT_SEGMENT_KEY = ''
 
 export function encodeChildSegmentKey(
   // TODO: Make segment keys an opaque type, too?
@@ -51,9 +51,7 @@ export function encodeChildSegmentKey(
       ? segment
       : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${segment}`
 
-  return parentSegmentKey === ROOT_SEGMENT_KEY
-    ? '/' + slotKey
-    : parentSegmentKey + '/' + slotKey
+  return parentSegmentKey + '/' + slotKey
 }
 
 // Define a regex pattern to match the most common characters found in a route

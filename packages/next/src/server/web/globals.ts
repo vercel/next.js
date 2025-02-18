@@ -82,6 +82,10 @@ function __import_unsupported(moduleName: string) {
 }
 
 function enhanceGlobals() {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    return
+  }
+
   // The condition is true when the "process" module is provided
   if (process !== global.process) {
     // prefer local process but global.process has correct "env"

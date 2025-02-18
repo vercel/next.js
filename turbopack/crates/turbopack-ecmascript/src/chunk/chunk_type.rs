@@ -52,11 +52,11 @@ impl ChunkType for EcmascriptChunkType {
                     async |ChunkItemWithAsyncModuleInfo {
                                ty,
                                chunk_item,
+                               module: _,
                                async_info,
                            }| {
                         let Some(chunk_item) =
                             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
-                                .await?
                         else {
                             bail!(
                                 "Chunk item is not an ecmascript chunk item but reporting chunk \
@@ -72,7 +72,7 @@ impl ChunkType for EcmascriptChunkType {
                 )
                 .try_join()
                 .await?,
-            referenced_output_assets: referenced_output_assets.await?.clone_value(),
+            referenced_output_assets: referenced_output_assets.owned().await?,
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))

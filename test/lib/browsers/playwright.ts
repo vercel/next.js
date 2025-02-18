@@ -9,14 +9,17 @@ import {
   Page,
   ElementHandle,
   devices,
+  Locator,
 } from 'playwright'
 import path from 'path'
+
+type PageLog = { source: string; message: string; args: unknown[] }
 
 let page: Page
 let browser: Browser
 let context: BrowserContext
 let contextHasJSEnabled: boolean = true
-let pageLogs: Array<{ source: string; message: string }> = []
+let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
@@ -223,7 +226,12 @@ export class Playwright extends BrowserInterface {
 
     page.on('console', (msg) => {
       console.log('browser log:', msg)
-      pageLogs.push({ source: msg.type(), message: msg.text() })
+
+      pageLogs.push(
+        Promise.all(
+          msg.args().map((handle) => handle.jsonValue().catch(() => {}))
+        ).then((args) => ({ source: msg.type(), message: msg.text(), args }))
+      )
     })
     page.on('crash', () => {
       console.error('page crashed')
@@ -232,7 +240,7 @@ export class Playwright extends BrowserInterface {
       console.error('page error', error)
 
       if (opts?.pushErrorAsConsoleLog) {
-        pageLogs.push({ source: 'error', message: error.message })
+        pageLogs.push({ source: 'error', message: error.message, args: [] })
       }
     })
     page.on('request', (req) => {
@@ -474,8 +482,26 @@ export class Playwright extends BrowserInterface {
     return page.evaluate<T>(fn).catch(() => null)
   }
 
-  async log() {
-    return this.chain(() => pageLogs)
+  async log<T extends boolean = false>(options?: {
+    includeArgs?: T
+  }): Promise<
+    T extends true
+      ? { source: string; message: string; args: unknown[] }[]
+      : { source: string; message: string }[]
+  > {
+    return this.chain(
+      () =>
+        options?.includeArgs
+          ? Promise.all(pageLogs)
+          : Promise.all(pageLogs).then((logs) =>
+              logs.map(({ source, message }) => ({ source, message }))
+            )
+      // TODO: Starting with TypeScript 5.8 we might not need this type cast.
+    ) as Promise<
+      T extends true
+        ? { source: string; message: string; args: unknown[] }[]
+        : { source: string; message: string }[]
+    >
   }
 
   async websocketFrames() {
@@ -490,5 +516,11 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => {
       return page.waitForLoadState('networkidle')
     })
+  }
+
+  locateRedbox(): Locator {
+    return page.locator(
+      'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
+    )
   }
 }

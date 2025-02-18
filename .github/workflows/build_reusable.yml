@@ -79,7 +79,7 @@ env:
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
   NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
@@ -91,6 +91,7 @@ env:
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
+  NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
 
 jobs:
   build:
@@ -134,6 +135,10 @@ jobs:
       - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
+      - name: Prepare corepack
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        run: |
+          npm i -g corepack@0.31
       - run: corepack enable
       - run: pwd
 
@@ -246,6 +251,7 @@ jobs:
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
+            test/rspack-test-junit-report
           if-no-files-found: ignore
 
       # upload playwright snapshots from failed tests

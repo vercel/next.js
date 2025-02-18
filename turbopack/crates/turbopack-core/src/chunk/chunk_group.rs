@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
 use futures::future::Either;
-use swc_core::alloc::collections::FxHashMap;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
@@ -19,8 +19,8 @@ use crate::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
     output::OutputAssets,
-    rebase::RebasedAsset,
     reference::ModuleReference,
+    traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
@@ -163,13 +163,13 @@ pub async fn make_chunk_group(
         })
         .try_join()
         .await?;
-    let has_async_loaders = !async_loaders.is_empty();
     let async_loader_chunk_items =
         async_loaders
             .iter()
             .map(|&chunk_item| ChunkItemWithAsyncModuleInfo {
                 ty: ChunkItemTy::Included,
                 chunk_item,
+                module: None,
                 async_info: None,
             });
 
@@ -179,51 +179,41 @@ pub async fn make_chunk_group(
         .map(|&loader| loader.references())
         .try_join()
         .await?;
-    let async_loader_external_module_references = Vc::cell(
-        async_loader_references
-            .iter()
-            .flat_map(|references| references.iter().copied())
-            .collect(),
-    );
 
-    let traced_output_assets = traced_modules
+    let mut referenced_output_assets = traced_modules
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
-                RebasedAsset::new(
-                    *module,
-                    module.ident().path().root(),
-                    module.ident().path().root(),
-                )
-                .to_resolved()
-                .await?,
+                TracedAsset::new(*module).to_resolved().await?,
             ))
         })
         .try_join()
         .await?;
 
-    let chunk_items = all_modules
+    let mut chunk_items = all_modules
         .iter()
-        .map(|(m, async_info)| {
+        .map(|(module, async_info)| {
             Either::Left(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Included,
-                    chunk_item: m
+                    chunk_item: module
                         .as_chunk_item(module_graph, *chunking_context)
                         .to_resolved()
                         .await?,
+                    module: Some(*module),
                     async_info: *async_info,
                 })
             })
         })
-        .chain(passthrough_modules.into_iter().map(|m| {
+        .chain(passthrough_modules.into_iter().map(|module| {
             Either::Right(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Passthrough,
-                    chunk_item: m
+                    chunk_item: module
                         .as_chunk_item(module_graph, *chunking_context)
                         .to_resolved()
                         .await?,
+                    module: Some(module),
                     async_info: None,
                 })
             })
@@ -231,31 +221,19 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
+    chunk_items.extend(async_loader_chunk_items);
+    referenced_output_assets.reserve(async_loader_references.iter().map(|r| r.len()).sum());
+    referenced_output_assets.extend(async_loader_references.into_iter().flatten());
+
     // Pass chunk items to chunking algorithm
-    let mut chunks = make_chunks(
+    let chunks = make_chunks(
+        module_graph,
         *chunking_context,
-        Vc::cell(chunk_items),
+        chunk_items,
         "".into(),
-        Vc::cell(traced_output_assets),
+        Vc::cell(referenced_output_assets),
     )
-    .await?
-    .clone_value();
-
-    if has_async_loaders {
-        // Pass async chunk loaders to chunking algorithm
-        // We want them to be separate since they are specific to this chunk group due
-        // to available chunk items differing
-        let async_loader_chunks = make_chunks(
-            *chunking_context,
-            Vc::cell(async_loader_chunk_items.into_iter().collect()),
-            "async-loader-".into(),
-            async_loader_external_module_references,
-        )
-        .await?;
-
-        // concatenate chunks
-        chunks.extend(async_loader_chunks.iter().copied());
-    }
+    .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,
@@ -333,7 +311,7 @@ pub async fn chunk_group_content(
                 }
 
                 let Some(chunkable_module) =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
                 else {
                     return Ok(GraphTraversalAction::Skip);
                 };
@@ -352,7 +330,7 @@ pub async fn chunk_group_content(
                 };
 
                 let parent_module =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(parent_node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(parent_node.module)
                         .context("Expected parent module to be chunkable")?;
 
                 Ok(match edge {

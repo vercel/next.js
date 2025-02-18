@@ -1,28 +1,13 @@
 'use client'
 
-import { use } from 'react'
-import { useServerInsertedHTML } from '../../client/components/navigation'
+import { use, type JSX } from 'react'
+import { useServerInsertedMetadata } from '../../server/app-render/metadata-insertion/use-server-inserted-metadata'
 
-// This is a SSR-only version that will wait the promise of metadata to resolve
-// and
-function ServerInsertMetadata({ promise }: { promise: Promise<any> }) {
-  let metadataToFlush: React.ReactNode = null
-  // Only inserted once to avoid multi insertion on re-renders
-  let inserted = false
-
-  promise.then((resolvedMetadata) => {
-    metadataToFlush = resolvedMetadata
-  })
-
-  useServerInsertedHTML(() => {
-    if (metadataToFlush && !inserted) {
-      const flushing = metadataToFlush
-      metadataToFlush = null
-      return flushing
-    }
-  })
-
-  inserted = true
+function ServerInsertMetadata({ promise }: { promise: Promise<JSX.Element> }) {
+  // Apply use() to the metadata promise to suspend the rendering in SSR.
+  const metadata = use(promise)
+  // Insert metadata into the HTML stream through the `useServerInsertedMetadata`
+  useServerInsertedMetadata(() => metadata)
 
   return null
 }

@@ -1,9 +1,14 @@
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
-
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { noop as css } from '../../../helpers/noop-template'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 type ErrorPaginationProps = {
   readyErrors: ReadyRuntimeError[]
@@ -18,23 +23,28 @@ export function ErrorOverlayPagination({
 }: ErrorPaginationProps) {
   const handlePrevious = useCallback(
     () =>
-      activeIdx > 0 ? onActiveIndexChange(Math.max(0, activeIdx - 1)) : null,
+      startTransition(() => {
+        if (activeIdx > 0) {
+          onActiveIndexChange(Math.max(0, activeIdx - 1))
+        }
+      }),
     [activeIdx, onActiveIndexChange]
   )
 
   const handleNext = useCallback(
     () =>
-      activeIdx < readyErrors.length - 1
-        ? onActiveIndexChange(
+      startTransition(() => {
+        if (activeIdx < readyErrors.length - 1) {
+          onActiveIndexChange(
             Math.max(0, Math.min(readyErrors.length - 1, activeIdx + 1))
           )
-        : null,
+        }
+      }),
     [activeIdx, readyErrors.length, onActiveIndexChange]
   )
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
   const buttonRight = useRef<HTMLButtonElement | null>(null)
-  const buttonClose = useRef<HTMLButtonElement | null>(null)
 
   const [nav, setNav] = useState<HTMLElement | null>(null)
   const onNav = useCallback((el: HTMLElement) => {
@@ -53,29 +63,11 @@ export function ErrorOverlayPagination({
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonLeft.current) {
-          buttonLeft.current.focus()
-        }
         handlePrevious && handlePrevious()
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonRight.current) {
-          buttonRight.current.focus()
-        }
         handleNext && handleNext()
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (root instanceof ShadowRoot) {
-          const a = root.activeElement
-          if (a && a !== buttonClose.current && a instanceof HTMLElement) {
-            a.blur()
-            return
-          }
-        }
-
-        close?.()
       }
     }
 
@@ -126,6 +118,7 @@ export function ErrorOverlayPagination({
         disabled={activeIdx === 0}
         aria-disabled={activeIdx === 0}
         onClick={handlePrevious}
+        data-nextjs-dialog-error-previous
         className="error-overlay-pagination-button"
       >
         <LeftArrow
@@ -134,7 +127,7 @@ export function ErrorOverlayPagination({
         />
       </button>
       <div className="error-overlay-pagination-count">
-        <span>{activeIdx + 1}/</span>
+        <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
         <span data-nextjs-dialog-header-total-count>
           {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
           {readyErrors.length || 1}
@@ -147,6 +140,7 @@ export function ErrorOverlayPagination({
         disabled={activeIdx >= readyErrors.length - 1}
         aria-disabled={activeIdx >= readyErrors.length - 1}
         onClick={handleNext}
+        data-nextjs-dialog-error-next
         className="error-overlay-pagination-button"
       >
         <RightArrow
@@ -160,17 +154,12 @@ export function ErrorOverlayPagination({
 
 export const styles = css`
   .error-overlay-pagination {
+    -webkit-font-smoothing: antialiased;
     display: flex;
     justify-content: center;
     align-items: center;
-
-    padding: 4px;
     gap: 8px;
-    background: var(--color-background-100);
-    box-shadow: var(--shadow-sm);
-
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--rounded-full);
+    width: fit-content;
   }
 
   .error-overlay-pagination-count {
@@ -179,6 +168,7 @@ export const styles = css`
     font-size: var(--size-font-small);
     font-weight: 500;
     line-height: 16px;
+    font-variant-numeric: tabular-nums;
   }
 
   .error-overlay-pagination-button {
@@ -186,14 +176,16 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    padding: 4px;
+    width: 24px;
+    height: 24px;
     background: var(--color-gray-300);
+    flex-shrink: 0;
 
     border: none;
     border-radius: var(--rounded-full);
 
-    &:focus {
-      outline: none;
+    &:focus-visible {
+      outline: var(--focus-ring);
     }
 
     &:not(:disabled):active {

@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Upcast, Value, Vc};
@@ -8,7 +10,7 @@ use crate::{context::AssetContext, module::OptionModule, reference_type::Referen
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ResolveOrigin {
     /// The origin path where resolving starts. This is pointing to a file,
     /// since that might be needed to infer custom resolving options for that
@@ -39,7 +41,7 @@ pub trait ResolveOriginExt: Send {
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ModuleResolveResult>;
+    ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send;
 
     /// Get the resolve options that apply for this origin.
     fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions>;
@@ -57,7 +59,7 @@ where
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ModuleResolveResult> {
+    ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send {
         resolve_asset(Vc::upcast(self), request, options, reference_type)
     }
 
@@ -77,7 +79,6 @@ where
     }
 }
 
-#[turbo_tasks::function]
 async fn resolve_asset(
     resolve_origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
@@ -93,8 +94,8 @@ async fn resolve_asset(
         .await?
         .resolve_asset(
             resolve_origin.origin_path().resolve().await?,
-            request,
-            options,
+            request.resolve().await?,
+            options.resolve().await?,
             reference_type,
         ))
 }

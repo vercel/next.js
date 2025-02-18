@@ -3,7 +3,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
-import { cache, cloneElement } from 'react'
+import { Suspense, cache, cloneElement } from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -38,6 +38,7 @@ import {
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
 import { AsyncMetadata } from './async-metadata'
+import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -147,8 +148,8 @@ export function createMetadataComponents({
   async function resolveFinalMetadata() {
     try {
       return await metadata()
-    } catch (error) {
-      if (!errorType && isHTTPAccessFallbackError(error)) {
+    } catch (metadataErr) {
+      if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         try {
           return await getNotFoundMetadata(
             tree,
@@ -158,7 +159,18 @@ export function createMetadataComponents({
             createServerParamsForMetadata,
             workStore
           )
-        } catch {}
+        } catch (notFoundMetadataErr) {
+          // In PPR rendering we still need to throw the postpone error.
+          // If metadata is postponed, React needs to be aware of the location of error.
+          if (serveStreamingMetadata && isPostpone(notFoundMetadataErr)) {
+            throw notFoundMetadataErr
+          }
+        }
+      }
+      // In PPR rendering we still need to throw the postpone error.
+      // If metadata is postponed, React needs to be aware of the location of error.
+      if (serveStreamingMetadata && isPostpone(metadataErr)) {
+        throw metadataErr
       }
       // We don't actually want to error in this component. We will
       // also error in the MetadataOutlet which causes the error to
@@ -168,10 +180,15 @@ export function createMetadataComponents({
     }
   }
   async function Metadata() {
+    const promise = resolveFinalMetadata()
     if (serveStreamingMetadata) {
-      return <AsyncMetadata promise={resolveFinalMetadata()} />
+      return (
+        <Suspense fallback={null}>
+          <AsyncMetadata promise={promise} />
+        </Suspense>
+      )
     }
-    return await resolveFinalMetadata()
+    return await promise
   }
 
   Metadata.displayName = METADATA_BOUNDARY_NAME
