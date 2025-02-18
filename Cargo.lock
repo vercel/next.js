@@ -9642,6 +9642,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
+ "smallvec",
  "sourcemap",
  "swc_core 16.0.0",
  "tokio",

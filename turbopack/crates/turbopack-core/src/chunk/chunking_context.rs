@@ -12,7 +12,7 @@ use crate::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{chunk_group_info::ChunkGroup, module_batches::BatchingConfig, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 
@@ -165,8 +165,8 @@ pub trait ChunkingContext {
         Vc::cell(Default::default())
     }
 
-    fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
+    fn batching_config(self: Vc<Self>) -> Vc<BatchingConfig> {
+        BatchingConfig::default().cell()
     }
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {

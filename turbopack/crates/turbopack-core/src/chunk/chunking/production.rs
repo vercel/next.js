@@ -15,8 +15,8 @@ use crate::{
     module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
 };
 
-pub async fn make_production_chunks(
-    chunk_items: Vec<ChunkItemWithInfo>,
+pub async fn make_production_chunks<'l>(
+    chunk_items: Vec<&'l ChunkItemWithInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
@@ -32,14 +32,14 @@ pub async fn make_production_chunks(
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
 
-        let mut grouped_chunk_items = FxIndexMap::<_, Vec<ChunkItemWithInfo>>::default();
+        let mut grouped_chunk_items = FxIndexMap::<_, Vec<_>>::default();
 
         for chunk_item in chunk_items {
             let ChunkItemWithInfo { module, .. } = chunk_item;
             let chunk_groups = if let Some(module) = module {
                 match chunk_group_info
                     .module_chunk_groups
-                    .get(&ResolvedVc::upcast(module))
+                    .get(&ResolvedVc::upcast(*module))
                 {
                     Some(chunk_group) => Some(chunk_group),
                     None => {
@@ -462,7 +462,7 @@ pub async fn make_production_chunks(
 
 struct ChunkCandidate<'l> {
     size: usize,
-    chunk_items: Vec<ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemWithInfo>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 
@@ -488,7 +488,7 @@ impl PartialEq for ChunkCandidate<'_> {
 
 struct MergeCandidate<'l> {
     size: usize,
-    chunk_items: Vec<ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemWithInfo>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 

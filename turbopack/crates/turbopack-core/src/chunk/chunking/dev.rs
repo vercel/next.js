@@ -12,11 +12,11 @@ use crate::chunk::chunking::{make_chunk, ChunkItemWithInfo, SplitContext};
 /// small, they will be pushed into `remaining`, if possible. If the total size
 /// is too large, it will return `false` and the caller should hand of the chunk
 /// items to be further split. Otherwise it creates a chunk.
-async fn handle_split_group(
-    chunk_items: &mut Vec<ChunkItemWithInfo>,
+async fn handle_split_group<'l>(
+    chunk_items: &mut Vec<&'l ChunkItemWithInfo>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
-    remaining: Option<&mut Vec<ChunkItemWithInfo>>,
+    remaining: Option<&mut Vec<&'l ChunkItemWithInfo>>,
 ) -> Result<bool> {
     Ok(match (chunk_size(chunk_items), remaining) {
         (ChunkSize::Large, _) => false,
@@ -34,8 +34,8 @@ async fn handle_split_group(
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-pub async fn app_vendors_split(
-    chunk_items: Vec<ChunkItemWithInfo>,
+pub async fn app_vendors_split<'l>(
+    chunk_items: Vec<&'l ChunkItemWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
@@ -96,12 +96,12 @@ pub async fn app_vendors_split(
 /// Split chunk items by node_modules package name. Continues splitting with
 /// [folder_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-async fn package_name_split(
-    chunk_items: Vec<ChunkItemWithInfo>,
+async fn package_name_split<'l>(
+    chunk_items: Vec<&'l ChunkItemWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = FxIndexMap::<_, Vec<ChunkItemWithInfo>>::default();
+    let mut map = FxIndexMap::<_, Vec<_>>::default();
     for item in chunk_items {
         let ChunkItemWithInfo { asset_ident, .. } = &item;
         let package_name = package_name(asset_ident);
@@ -128,13 +128,13 @@ async fn package_name_split(
 
 /// Split chunk items by folder structure.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name), location))]
-async fn folder_split(
-    mut chunk_items: Vec<ChunkItemWithInfo>,
+async fn folder_split<'l>(
+    mut chunk_items: Vec<&'l ChunkItemWithInfo>,
     mut location: usize,
     name: Cow<'_, str>,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = FxIndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::default();
+    let mut map = FxIndexMap::<_, (_, Vec<_>)>::default();
     loop {
         for item in chunk_items {
             let ChunkItemWithInfo { asset_ident, .. } = &item;
@@ -227,7 +227,7 @@ enum ChunkSize {
 
 /// Determines the total size of the passed chunk items. Returns too small, too
 /// large or perfect fit.
-fn chunk_size(chunk_items: &[ChunkItemWithInfo]) -> ChunkSize {
+fn chunk_size<'l>(chunk_items: &[&'l ChunkItemWithInfo]) -> ChunkSize {
     let mut total_size = 0;
     for ChunkItemWithInfo { size, .. } in chunk_items {
         total_size += size;

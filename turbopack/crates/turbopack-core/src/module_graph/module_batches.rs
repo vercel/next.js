@@ -1,29 +1,31 @@
-use anyhow::Result;
-use either::Either;
-use petgraph::graph::{DiGraph, NodeIndex};
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use anyhow::{bail, Result};
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
-        chunk_group_info::RoaringBitmapWrapper, module_batch::ModuleBatch,
-        traced_di_graph::TracedDiGraph, GraphTraversalAction, ModuleGraph,
+        chunk_group_info::RoaringBitmapWrapper,
+        module_batch::{ModuleBatch, ModuleOrBatch},
+        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
+        GraphTraversalAction, ModuleGraph,
     },
 };
 
-#[derive(Debug, Copy, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub enum ModuleBatchesGraphNode {
-    Module(ResolvedVc<Box<dyn Module>>),
-    Batch(ResolvedVc<ModuleBatch>),
+#[turbo_tasks::value(shared)]
+#[derive(Default)]
+pub struct BatchingConfig {
+    /// Use a heuristic based on the module path to create batches. It aims for batches of a good
+    /// size.
+    pub use_heuristic: bool,
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 pub struct ModuleBatchesGraph {
-    graph: TracedDiGraph<ModuleBatchesGraphNode, ChunkingType>,
+    graph: TracedDiGraph<ModuleOrBatch, ChunkingType>,
 
     // NodeIndex isn't necessarily stable (because of swap_remove), but we never remove nodes.
     //
@@ -35,37 +37,182 @@ pub struct ModuleBatchesGraph {
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
-struct ModuleBatchBuilder {
-    modules: Vec<Vc<Box<dyn Module>>>,
-    chunk_groups: RoaringBitmapWrapper,
+impl ModuleBatchesGraph {
+    pub async fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
+        let Some(entry) = self.entries.get(&entry) else {
+            bail!(
+                "Entry {} is not in graph (possible entries: {:#?})",
+                entry.ident().to_string().await?,
+                self.entries
+                    .keys()
+                    .map(|e| e.ident().to_string())
+                    .try_join()
+                    .await?
+            );
+        };
+        Ok(*entry)
+    }
+
+    pub async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<ModuleOrBatch> {
+        let entry = self.get_entry_index(entry).await?;
+        Ok(*self.graph.node_weight(entry).unwrap())
+    }
+
+    /// Traverses all reachable edges in topological order. The preorder visitor can be used to
+    /// forward state down the graph, and to skip subgraphs
+    ///
+    /// Use this to collect batches/modules in evaluation order.
+    ///
+    /// Target nodes can be revisited (once per incoming edge).
+    /// Edges are traversed in normal order, so should correspond to reference order.
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `state` - The state to be passed to the visitors
+    /// * `visit_preorder` - Called before visiting the children of a node.
+    ///    - Receives: (originating &ModuleBatchesGraphNode, edge &ChunkingType), target
+    ///      &ModuleBatchesGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    /// * `visit_postorder` - Called after visiting the children of a node. Return
+    ///    - Receives: (originating &ModuleBatchesGraphNode, edge &ChunkingType), target
+    ///      &ModuleBatchesGraphNode, state &S
+    pub fn traverse_edges_from_entries_topological<'a, S>(
+        &'a self,
+        entries: impl IntoIterator<
+            Item = NodeIndex,
+            IntoIter = impl Iterator<Item = NodeIndex> + DoubleEndedIterator,
+        >,
+        state: &mut S,
+        mut visit_preorder: impl FnMut(
+            Option<(&'a ModuleOrBatch, &'a ChunkingType)>,
+            &'a ModuleOrBatch,
+            &mut S,
+        ) -> Result<GraphTraversalAction>,
+        mut visit_postorder: impl FnMut(
+            Option<(&'a ModuleOrBatch, &'a ChunkingType)>,
+            &'a ModuleOrBatch,
+            &mut S,
+        ),
+    ) -> Result<()> {
+        let graph = &self.graph;
+
+        enum ReverseTopologicalPass {
+            Visit,
+            ExpandAndVisit,
+        }
+
+        let entries = entries.into_iter();
+        #[allow(clippy::type_complexity)] // This is a temporary internal structure
+        let mut stack: Vec<(
+            ReverseTopologicalPass,
+            Option<(NodeIndex, EdgeIndex)>,
+            NodeIndex,
+        )> = entries
+            .rev()
+            .map(|e| (ReverseTopologicalPass::ExpandAndVisit, None, e))
+            .collect();
+        let mut expanded = FxHashSet::default();
+        while let Some((pass, parent, current)) = stack.pop() {
+            let parent_arg = parent.map(|(node, edge)| {
+                (
+                    graph.node_weight(node).unwrap(),
+                    graph.edge_weight(edge).unwrap(),
+                )
+            });
+            match pass {
+                ReverseTopologicalPass::Visit => {
+                    let current_node = graph.node_weight(current).unwrap();
+                    visit_postorder(parent_arg, current_node, state);
+                }
+                ReverseTopologicalPass::ExpandAndVisit => {
+                    let current_node = graph.node_weight(current).unwrap();
+                    let action = visit_preorder(parent_arg, current_node, state)?;
+                    if action == GraphTraversalAction::Exclude {
+                        continue;
+                    }
+                    stack.push((ReverseTopologicalPass::Visit, parent, current));
+                    if action == GraphTraversalAction::Continue && expanded.insert(current) {
+                        stack.extend(iter_neighbors_rev(graph, current).map(|(edge, child)| {
+                            (
+                                ReverseTopologicalPass::ExpandAndVisit,
+                                Some((current, edge)),
+                                child,
+                            )
+                        }));
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+enum ModuleBatchBuilder {
+    Batch {
+        modules: Vec<Vc<Box<dyn ChunkableModule>>>,
+        chunk_groups: RoaringBitmapWrapper,
+    },
+    Module {
+        module: ResolvedVc<Box<dyn Module>>,
+    },
 }
 
 impl ModuleBatchBuilder {
-    fn new(chunk_groups: RoaringBitmapWrapper) -> Self {
-        Self {
+    fn new_batch(chunk_groups: RoaringBitmapWrapper) -> Self {
+        Self::Batch {
             modules: Vec::new(),
             chunk_groups,
         }
     }
 
-    fn build(self) -> Vc<ModuleBatch> {
-        ModuleBatch::new(self.modules, Some(self.chunk_groups))
+    fn new_module(module: ResolvedVc<Box<dyn Module>>) -> Self {
+        Self::Module { module }
+    }
+
+    async fn build(self) -> Result<ModuleOrBatch> {
+        Ok(match self {
+            Self::Batch {
+                modules,
+                chunk_groups,
+            } => {
+                if modules.len() == 1 {
+                    ModuleOrBatch::Module(ResolvedVc::upcast(
+                        modules.into_iter().next().unwrap().to_resolved().await?,
+                    ))
+                } else {
+                    ModuleOrBatch::Batch(
+                        ModuleBatch::new(modules, Some(chunk_groups))
+                            .to_resolved()
+                            .await?,
+                    )
+                }
+            }
+            Self::Module { module } => ModuleOrBatch::Module(module),
+        })
     }
 }
 
 #[derive(Debug, Clone, Copy)]
 struct BatchAssignment {
     batch_idx: usize,
-    added_to_batch: bool,
+    chunkable_module_for_adding: Option<Vc<Box<dyn ChunkableModule>>>,
     next_child_batch: Option<usize>,
 }
 
 impl BatchAssignment {
-    fn new(batch_idx: usize) -> Self {
+    fn new(batch_idx: usize, chunkable_module: Vc<Box<dyn ChunkableModule>>) -> Self {
         Self {
             batch_idx,
-            added_to_batch: false,
+            chunkable_module_for_adding: Some(chunkable_module),
             next_child_batch: Some(batch_idx),
+        }
+    }
+
+    fn new_already_added(batch_idx: usize) -> Self {
+        Self {
+            batch_idx,
+            chunkable_module_for_adding: None,
+            next_child_batch: None,
         }
     }
 }
@@ -88,6 +235,7 @@ impl TraversalState {
 
 pub async fn compute_module_batches(
     module_graph: Vc<ModuleGraph>,
+    _config: &BatchingConfig,
 ) -> Result<Vc<ModuleBatchesGraph>> {
     let outer_span = tracing::info_span!(
         "compute module batches",
@@ -97,7 +245,7 @@ pub async fn compute_module_batches(
     );
     let span = outer_span.clone();
     async move {
-        let mut state = TraversalState::default();
+        let mut state: TraversalState = TraversalState::default();
         let mut entries = Vec::new();
 
         // Find all chunk group entries and assign them to batches
@@ -110,24 +258,38 @@ pub async fn compute_module_batches(
                     // Already assigned
                     continue;
                 }
-                let chunk_groups = chunk_group_info
+                let Some(chunkable_module) = ResolvedVc::try_downcast(entry) else {
+                    let idx = state.batches.len();
+                    state.batches.push(ModuleBatchBuilder::new_module(entry));
+                    state
+                        .batch_assignments
+                        .insert(entry, BatchAssignment::new_already_added(idx));
+                    continue;
+                };
+                let entry_chunk_groups = chunk_group_info
                     .module_chunk_groups
                     .get(&entry)
                     .expect("all entries need to have chunk group info");
                 let idx = state.batches[start_index..]
                     .iter()
-                    .position(|batch| &batch.chunk_groups == chunk_groups)
+                    .position(|batch| {
+                        if let ModuleBatchBuilder::Batch { chunk_groups, .. } = batch {
+                            chunk_groups == entry_chunk_groups
+                        } else {
+                            false
+                        }
+                    })
                     .map(|idx| start_index + idx)
                     .unwrap_or_else(|| {
                         let idx = state.batches.len();
                         state
                             .batches
-                            .push(ModuleBatchBuilder::new(chunk_groups.clone()));
+                            .push(ModuleBatchBuilder::new_batch(entry_chunk_groups.clone()));
                         idx
                     });
                 state
                     .batch_assignments
-                    .insert(entry, BatchAssignment::new(idx));
+                    .insert(entry, BatchAssignment::new(idx, *chunkable_module));
                 entries.push((entry, idx));
             }
         }
@@ -143,8 +305,12 @@ pub async fn compute_module_batches(
                 |parent_info, node, state| {
                     if let Some((parent_node, ty)) = parent_info {
                         if parent_node.module == node.module {
-                            // Skip self edges
-                            return Ok(GraphTraversalAction::Skip);
+                            let Some(assignment) = state.batch_assignments.get(&node.module) else {
+                                unreachable!();
+                            };
+                            // Add self edge
+                            state.add_edge(assignment.batch_idx, assignment.batch_idx, ty.clone());
+                            return Ok(GraphTraversalAction::Exclude);
                         }
                         // Get batch assignments for parent and current node
                         // Safety: We checked if they are equal above.
@@ -169,16 +335,23 @@ pub async fn compute_module_batches(
                             state.add_edge(batch_idx, idx, ty.clone());
                             return Ok(GraphTraversalAction::Skip);
                         }
-                        if matches!(
-                            ty,
-                            crate::chunk::ChunkingType::Async
-                                | crate::chunk::ChunkingType::Isolated { .. }
-                                | crate::chunk::ChunkingType::Traced
-                        ) {
-                            // These chunking types are not included in batches or they are already
-                            // handled by being entries of chunk groups
-                            return Ok(GraphTraversalAction::Exclude);
-                        }
+                        let mut in_same_batch = match ty {
+                            ChunkingType::Traced => {
+                                // Traced module are alone in a batch
+                                let idx = state.batches.len();
+                                state
+                                    .batches
+                                    .push(ModuleBatchBuilder::new_module(node.module));
+                                state
+                                    .batch_assignments
+                                    .insert(node.module, BatchAssignment::new_already_added(idx));
+                                return Ok(GraphTraversalAction::Skip);
+                            }
+                            ChunkingType::Async
+                            | ChunkingType::Isolated { .. }
+                            | ChunkingType::Shared { .. } => false,
+                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => true,
+                        };
 
                         // Get the chunk groups of the module
                         let chunk_groups = chunk_group_info
@@ -186,46 +359,74 @@ pub async fn compute_module_batches(
                             .get(&node.module)
                             .expect("all modules need to have chunk group info");
 
-                        // Get the chunk groups of the parent batch
-                        let batch = &mut state.batches[batch_idx];
-                        let batch_chunk_groups = &batch.chunk_groups;
+                        if in_same_batch {
+                            // Get the chunk groups of the parent batch
+                            let ModuleBatchBuilder::Batch {
+                                chunk_groups: batch_chunk_groups,
+                                ..
+                            } = &mut state.batches[batch_idx]
+                            else {
+                                unreachable!();
+                            };
 
-                        if chunk_groups == batch_chunk_groups {
-                            // chunk groups are equal, so we can place it in the same batch (if not
-                            // split)
-                            if next_child_batch.is_none() {
-                                // Create a new batch
+                            // When chunk groups are different, we want to create a new batch since
+                            // this is shared with other chunk groups.
+                            in_same_batch = chunk_groups == batch_chunk_groups;
+                        }
+
+                        if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) {
+                            if in_same_batch {
+                                // Place it in the same batch (if not split)
+                                if next_child_batch.is_none() {
+                                    // Create a new batch
+                                    let idx = state.batches.len();
+                                    state
+                                        .batches
+                                        .push(ModuleBatchBuilder::new_batch(chunk_groups.clone()));
+                                    *next_child_batch = Some(idx);
+                                }
+                                let idx = next_child_batch.unwrap();
+                                state.batch_assignments.insert(
+                                    node.module,
+                                    BatchAssignment::new(idx, *chunkable_module),
+                                );
+
+                                // Add an edge to the parent batch
+                                if batch_idx != idx {
+                                    state.add_edge(batch_idx, idx, ty.clone());
+                                }
+                            } else {
+                                // Since we create a new batch here, further children need to be in
+                                // a new batch too to avoid breaking
+                                // the ordering:
+                                *next_child_batch = None;
+
+                                // Assign the module to a new batch
                                 let idx = state.batches.len();
                                 state
                                     .batches
-                                    .push(ModuleBatchBuilder::new(chunk_groups.clone()));
-                                *next_child_batch = Some(idx);
-                            }
-                            let idx = next_child_batch.unwrap();
-                            state
-                                .batch_assignments
-                                .insert(node.module, BatchAssignment::new(idx));
+                                    .push(ModuleBatchBuilder::new_batch(chunk_groups.clone()));
+                                state.batch_assignments.insert(
+                                    node.module,
+                                    BatchAssignment::new(idx, *chunkable_module),
+                                );
 
-                            // Add an edge to the parent batch
-                            if batch_idx != idx {
+                                // Add an edge to the parent batch
                                 state.add_edge(batch_idx, idx, ty.clone());
                             }
                         } else {
-                            // Chunk groups are different. We want to create a new batch since this
-                            // is shared with other chunk groups.
-
-                            // Since we create a new batch here, further children need to be in a
-                            // new batch too to avoid breaking the ordering:
+                            // Since we create a new batch here, further children need to be in
+                            // a new batch too to avoid breaking
+                            // the ordering:
                             *next_child_batch = None;
 
-                            // Assign the module to a new batch
                             let idx = state.batches.len();
                             state
                                 .batches
-                                .push(ModuleBatchBuilder::new(chunk_groups.clone()));
+                                .push(ModuleBatchBuilder::new_module(node.module));
                             state
                                 .batch_assignments
-                                .insert(node.module, BatchAssignment::new(idx));
+                                .insert(node.module, BatchAssignment::new_already_added(idx));
 
                             // Add an edge to the parent batch
                             state.add_edge(batch_idx, idx, ty.clone());
@@ -236,13 +437,17 @@ pub async fn compute_module_batches(
                 |_, node, state| {
                     let BatchAssignment {
                         batch_idx,
-                        added_to_batch,
+                        chunkable_module_for_adding,
                         ..
                     } = state.batch_assignments.get_mut(&node.module).unwrap();
-                    if !*added_to_batch {
+                    if let Some(chunkable_module) = chunkable_module_for_adding.take() {
                         // modules need to be inserted in postorder into the batch
-                        state.batches[*batch_idx].modules.push(*node.module);
-                        *added_to_batch = true;
+                        let ModuleBatchBuilder::Batch { modules, .. } =
+                            &mut state.batches[*batch_idx]
+                        else {
+                            unreachable!();
+                        };
+                        modules.push(chunkable_module);
                     }
                 },
             )
@@ -252,35 +457,23 @@ pub async fn compute_module_batches(
         let mut result_modules = 0;
 
         // Create a petgraph from the collected data
-        let mut graph: DiGraph<ModuleBatchesGraphNode, ChunkingType, u32> =
+        let mut graph: DiGraph<ModuleOrBatch, ChunkingType, u32> =
             petgraph::graph::DiGraph::with_capacity(state.batches.len(), state.edges.len());
 
         // Add nodes and store node index
         let batch_indicies = state
             .batches
             .into_iter()
-            .map(|batch| {
-                if batch.modules.len() == 1 {
-                    result_modules += 1;
-                    Either::Left(batch.modules.into_iter().next().unwrap())
-                } else {
-                    Either::Right(batch.build())
-                }
-            })
-            .map(|either| async move {
-                Ok(match either {
-                    Either::Left(module) => {
-                        ModuleBatchesGraphNode::Module(module.to_resolved().await?)
-                    }
-                    Either::Right(batch) => {
-                        ModuleBatchesGraphNode::Batch(batch.to_resolved().await?)
-                    }
-                })
-            })
+            .map(|batch| batch.build())
             .try_join()
             .await?
             .into_iter()
-            .map(|batch| graph.add_node(batch))
+            .map(|batch| {
+                if matches!(batch, ModuleOrBatch::Module(_)) {
+                    result_modules += 1;
+                }
+                graph.add_node(batch)
+            })
             .collect::<Vec<_>>();
 
         let entries = entries

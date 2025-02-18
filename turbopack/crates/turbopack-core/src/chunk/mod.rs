@@ -1,6 +1,7 @@
 pub mod availability_info;
 pub mod available_modules;
 pub mod chunk_group;
+pub(crate) mod chunk_item_batch;
 pub mod chunking;
 pub(crate) mod chunking_context;
 pub(crate) mod containment_tree;
@@ -30,8 +31,12 @@ pub use self::{
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
-    asset::Asset, ident::AssetIdent, module::Module, module_graph::ModuleGraph,
-    output::OutputAssets, reference::ModuleReference,
+    asset::Asset,
+    ident::AssetIdent,
+    module::Module,
+    module_graph::{module_batch::ChunkableModuleOrBatch, ModuleGraph},
+    output::OutputAssets,
+    reference::ModuleReference,
 };
 
 /// A module id, which can be a number or string
@@ -222,8 +227,8 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 
 #[derive(Default)]
 pub struct ChunkGroupContent {
-    pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
+    pub async_items: FxIndexSet<ChunkableModuleOrBatch>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 }
 
@@ -305,7 +310,6 @@ impl AsyncModuleInfo {
 #[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
-// #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,

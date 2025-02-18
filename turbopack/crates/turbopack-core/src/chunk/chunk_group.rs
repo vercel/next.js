@@ -1,18 +1,23 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
+use either::Either;
 use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
-    availability_info::AvailabilityInfo, chunking::make_chunks, AsyncModuleInfo, Chunk,
-    ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
+    availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
+    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
 };
 use crate::{
-    chunk::ChunkingType,
+    chunk::{chunk_item_batch::ChunkItemOrBatchWithAsyncModuleInfo, ChunkingType},
     environment::ChunkLoading,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{
+        module_batch::{ChunkableModuleOrBatch, ModuleOrBatch},
+        module_batches::BatchingConfig,
+        GraphTraversalAction, ModuleGraph,
+    },
     output::OutputAssets,
     reference::ModuleReference,
     traced_asset::TracedAsset,
@@ -25,7 +30,8 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
+        + Send,
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -35,49 +41,46 @@ pub async fn make_chunk_group(
         ChunkLoading::Edge
     );
     let should_trace = *chunking_context.is_tracing_enabled().await?;
+    let batching_config = chunking_context.batching_config();
 
     let ChunkGroupContent {
-        chunkable_modules,
-        async_modules,
+        chunkable_items,
+        async_items,
         traced_modules,
     } = chunk_group_content(
-        &*module_graph.await?,
+        module_graph,
         chunk_group_entries,
         availability_info,
         can_split_async,
         should_trace,
+        batching_config,
     )
     .await?;
 
+    let async_modules = expand_batches(async_items).await?;
+
     let async_modules_info = module_graph.async_module_info().await?;
 
-    // Create map for chunk items with empty [Option<Vc<AsyncModuleInfo>>]
-    let all_modules = chunkable_modules
+    // Attach async info to chunkable modules
+    let mut chunk_items = chunkable_items
         .iter()
         .copied()
-        .map(async |m| {
-            if async_modules_info.contains(&ResolvedVc::upcast(m)) {
-                anyhow::Ok((
-                    m,
-                    Some(
-                        module_graph
-                            .referenced_async_modules(*ResolvedVc::upcast(m))
-                            .to_resolved()
-                            .await?,
-                    ),
-                ))
-            } else {
-                anyhow::Ok((m, None))
-            }
+        .map(|m| {
+            ChunkItemOrBatchWithAsyncModuleInfo::from_chunkable_module_or_batch(
+                m,
+                &async_modules_info,
+                module_graph,
+                *chunking_context,
+            )
         })
         .try_join()
         .await?
         .into_iter()
-        .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
+        .collect::<Vec<_>>();
 
     // Compute new [AvailabilityInfo]
     let availability_info = availability_info
-        .with_modules(Vc::cell(chunkable_modules))
+        .with_modules(Vc::cell(chunkable_items))
         .await?;
 
     // Insert async chunk loaders for every referenced async module
@@ -91,14 +94,13 @@ pub async fn make_chunk_group(
         })
         .try_join()
         .await?;
-    let async_loader_chunk_items =
-        async_loaders
-            .iter()
-            .map(|&chunk_item| ChunkItemWithAsyncModuleInfo {
-                chunk_item,
-                module: None,
-                async_info: None,
-            });
+    let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| {
+        ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(ChunkItemWithAsyncModuleInfo {
+            chunk_item,
+            module: None,
+            async_info: None,
+        })
+    });
 
     // And also add output assets referenced by async chunk loaders
     let async_loader_references = async_loaders
@@ -113,21 +115,6 @@ pub async fn make_chunk_group(
             Ok(ResolvedVc::upcast(
                 TracedAsset::new(*module).to_resolved().await?,
             ))
-        })
-        .try_join()
-        .await?;
-
-    let mut chunk_items = all_modules
-        .iter()
-        .map(|(module, async_info)| async move {
-            Ok(ChunkItemWithAsyncModuleInfo {
-                chunk_item: module
-                    .as_chunk_item(module_graph, *chunking_context)
-                    .to_resolved()
-                    .await?,
-                module: Some(*module),
-                async_info: *async_info,
-            })
         })
         .try_join()
         .await?;
@@ -157,6 +144,36 @@ pub async fn make_chunk_group(
     })
 }
 
+async fn expand_batches(
+    batches: impl IntoIterator<Item = ChunkableModuleOrBatch>,
+) -> Result<Vec<ResolvedVc<Box<dyn ChunkableModule>>>> {
+    let items = batches
+        .into_iter()
+        .map(async |item| {
+            Ok(match item {
+                ChunkableModuleOrBatch::Module(module) => Either::Left(module),
+                ChunkableModuleOrBatch::Batch(batch) => Either::Right(batch.await?),
+            })
+        })
+        .try_join()
+        .await?;
+    let len = items
+        .iter()
+        .map(|item| match item {
+            Either::Left(_) => 1,
+            Either::Right(batch) => batch.modules.len(),
+        })
+        .sum();
+    let mut result = Vec::with_capacity(len);
+    for item in items {
+        match item {
+            Either::Left(module) => result.push(module),
+            Either::Right(batch) => result.extend(batch.modules.iter().copied()),
+        }
+    }
+    Ok(result)
+}
+
 pub async fn references_to_output_assets(
     references: impl IntoIterator<Item = &ResolvedVc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
@@ -177,25 +194,28 @@ pub async fn references_to_output_assets(
 }
 
 pub async fn chunk_group_content(
-    module_graph: &ModuleGraph,
-    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    module_graph: Vc<ModuleGraph>,
+    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
+        + Send,
     availability_info: AvailabilityInfo,
     can_split_async: bool,
     should_trace: bool,
+    batching_config: Vc<BatchingConfig>,
 ) -> Result<ChunkGroupContent> {
-    type ModuleToChunkableMap =
-        FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>;
+    let module_batches_graph = module_graph.module_batches(batching_config).await?;
+
+    type ModuleToChunkableMap = FxHashMap<ModuleOrBatch, ChunkableModuleOrBatch>;
 
     struct TraverseState {
-        unsorted_chunkable_modules: ModuleToChunkableMap,
+        unsorted_items: ModuleToChunkableMap,
         result: ChunkGroupContent,
     }
 
     let mut state = TraverseState {
-        unsorted_chunkable_modules: FxHashMap::default(),
+        unsorted_items: FxHashMap::default(),
         result: ChunkGroupContent {
-            chunkable_modules: FxIndexSet::default(),
-            async_modules: FxIndexSet::default(),
+            chunkable_items: FxIndexSet::default(),
+            async_items: FxIndexSet::default(),
             traced_modules: FxIndexSet::default(),
         },
     };
@@ -205,101 +225,95 @@ pub async fn chunk_group_content(
         None => None,
     };
 
-    module_graph
-        .traverse_edges_from_entries_topological(
-            chunk_group_entries,
-            &mut state,
-            |parent_info,
-             node,
-             TraverseState {
-                 unsorted_chunkable_modules,
-                 result,
-             }| {
-                if let Some((_, ChunkingType::Traced)) = parent_info {
-                    if should_trace {
-                        result.traced_modules.insert(node.module);
-                    }
-                    return Ok(GraphTraversalAction::Exclude);
+    let chunk_group_entries = chunk_group_entries.into_iter();
+    let mut entries = Vec::with_capacity(chunk_group_entries.size_hint().0);
+    for entry in chunk_group_entries {
+        entries.push(module_batches_graph.get_entry_index(entry).await?);
+    }
+
+    module_batches_graph.traverse_edges_from_entries_topological(
+        entries,
+        &mut state,
+        |parent_info,
+         &node,
+         TraverseState {
+             unsorted_items,
+             result,
+         }| {
+            if let Some((_, ChunkingType::Traced)) = parent_info {
+                if should_trace {
+                    let ModuleOrBatch::Module(module) = node else {
+                        unreachable!();
+                    };
+                    result.traced_modules.insert(module);
                 }
+                return Ok(GraphTraversalAction::Exclude);
+            }
 
-                let Some(chunkable_module) =
-                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
-                else {
-                    return Ok(GraphTraversalAction::Exclude);
-                };
+            let Some(chunkable_node) = node.try_to_chunkable_module() else {
+                return Ok(GraphTraversalAction::Exclude);
+            };
 
-                let is_available = available_modules
-                    .as_ref()
-                    .is_some_and(|available_modules| available_modules.get(chunkable_module));
+            let is_available = available_modules
+                .as_ref()
+                .is_some_and(|available_modules| available_modules.get(chunkable_node));
 
-                let Some((_, edge)) = parent_info else {
-                    return Ok(if is_available {
+            let Some((_, edge)) = parent_info else {
+                return Ok(if is_available {
+                    GraphTraversalAction::Exclude
+                } else if unsorted_items.try_insert(node, chunkable_node).is_ok() {
+                    GraphTraversalAction::Continue
+                } else {
+                    GraphTraversalAction::Exclude
+                });
+            };
+
+            Ok(match edge {
+                ChunkingType::Parallel
+                | ChunkingType::ParallelInheritAsync
+                | ChunkingType::Shared { .. } => {
+                    if is_available {
                         GraphTraversalAction::Exclude
-                    } else if unsorted_chunkable_modules
-                        .try_insert(node.module, chunkable_module)
-                        .is_ok()
-                    {
+                    } else if unsorted_items.try_insert(node, chunkable_node).is_ok() {
                         GraphTraversalAction::Continue
                     } else {
                         GraphTraversalAction::Exclude
-                    });
-                };
-
-                Ok(match edge {
-                    ChunkingType::Parallel
-                    | ChunkingType::ParallelInheritAsync
-                    | ChunkingType::Shared { .. } => {
-                        if is_available {
-                            GraphTraversalAction::Exclude
-                        } else if unsorted_chunkable_modules
-                            .try_insert(node.module, chunkable_module)
-                            .is_ok()
-                        {
-                            GraphTraversalAction::Continue
-                        } else {
-                            GraphTraversalAction::Exclude
-                        }
                     }
-                    ChunkingType::Async => {
-                        if can_split_async {
-                            result.async_modules.insert(chunkable_module);
-                            GraphTraversalAction::Exclude
-                        } else if is_available {
-                            GraphTraversalAction::Exclude
-                        } else if unsorted_chunkable_modules
-                            .try_insert(node.module, chunkable_module)
-                            .is_ok()
-                        {
-                            GraphTraversalAction::Continue
-                        } else {
-                            GraphTraversalAction::Exclude
-                        }
-                    }
-                    ChunkingType::Traced => {
-                        // handled above before the sidecast
-                        unreachable!();
-                    }
-                    ChunkingType::Isolated { .. } => {
-                        // TODO currently not implemented
+                }
+                ChunkingType::Async => {
+                    if can_split_async {
+                        result.async_items.insert(chunkable_node);
+                        GraphTraversalAction::Exclude
+                    } else if is_available {
+                        GraphTraversalAction::Exclude
+                    } else if unsorted_items.try_insert(node, chunkable_node).is_ok() {
+                        GraphTraversalAction::Continue
+                    } else {
                         GraphTraversalAction::Exclude
                     }
-                })
-            },
-            |_,
-             node,
-             TraverseState {
-                 unsorted_chunkable_modules,
-                 result,
-             }| {
-                // Insert modules in topological order
-                if let Some(chunkable_module) =
-                    unsorted_chunkable_modules.get(&node.module).copied()
-                {
-                    result.chunkable_modules.insert(chunkable_module);
                 }
-            },
-        )
-        .await?;
+                ChunkingType::Traced => {
+                    // handled above before the sidecast
+                    unreachable!();
+                }
+                ChunkingType::Isolated { .. } => {
+                    // TODO currently not implemented
+                    GraphTraversalAction::Exclude
+                }
+            })
+        },
+        |_,
+         node,
+         TraverseState {
+             unsorted_items,
+             result,
+         }| {
+            // Insert modules in topological order
+            if let Some(chunkable_module) = unsorted_items.get(&node).copied() {
+                result.chunkable_items.insert(chunkable_module);
+            }
+        },
+    )?;
 
     Ok(state.result)
 }

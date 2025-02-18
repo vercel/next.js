@@ -71,8 +71,16 @@ impl ManifestAsyncModule {
     pub async fn manifest_chunks(self: ResolvedVc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
-            if *chunk_items.get(*this.inner).await? {
-                return Ok(Vc::cell(vec![]));
+            let inner_module = ResolvedVc::upcast(this.inner);
+            let batches = this
+                .module_graph
+                .module_batches(this.chunking_context.batching_config())
+                .await?;
+            let module_or_batch = batches.get_entry(inner_module).await?;
+            if let Some(chunkable_module_or_batch) = module_or_batch.try_to_chunkable_module() {
+                if *chunk_items.get(chunkable_module_or_batch).await? {
+                    return Ok(Vc::cell(vec![]));
+                }
             }
         }
         Ok(this.chunking_context.chunk_group_assets(
