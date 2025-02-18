@@ -1,7 +1,6 @@
 import { createServerModuleMap } from '../../server/app-render/action-utils'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import type { NextConfigComplete } from '../../server/config-shared'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 import { EdgeRouteModuleWrapper } from '../../server/web/edge-route-module-wrapper'
 
 // Import the userland code.
@@ -10,9 +9,6 @@ import * as module from 'VAR_USERLAND'
 // injected by the loader afterwards.
 declare const nextConfig: NextConfigComplete
 // INJECT:nextConfig
-
-// Initialize the cache handlers interface.
-initializeCacheHandlers()
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 

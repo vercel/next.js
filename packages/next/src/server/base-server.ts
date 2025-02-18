@@ -1438,15 +1438,16 @@ export default abstract class Server<
       // cache handlers.
       const handlers = getCacheHandlers()
       if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
-        if (typeof header === 'string') {
-          const expiredTags = header.split(',')
-          const promises: Promise<void>[] = []
-          for (const handler of handlers) {
-            promises.push(handler.receiveExpiredTags(...expiredTags))
-          }
-          await Promise.all(promises)
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] ?? ''
+        const expiredTags = typeof header === 'string' ? header.split(',') : []
+
+        const promises: Promise<void>[] = []
+        for (const handler of handlers) {
+          promises.push(handler.receiveExpiredTags(...expiredTags))
         }
+
+        // Only await if there are any promises to wait for.
+        if (promises.length > 0) await Promise.all(promises)
       }
 
       // set server components HMR cache to request meta so it can be passed
