@@ -308,4 +308,81 @@ describe('app-dir - server source maps', () => {
       // TODO: test `next start` with `--enable-source-maps`
     }
   })
+
+  it('sourcemaps errors during module evaluation', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/module-evaluation')
+
+    if (isNextDev) {
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain('Error: Boom')
+      })
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+      if (isTurbopack) {
+        expect(cliOutput).toContain(
+          '' +
+            '\n ⨯ Error: Boom' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            '\n    at [project]/app/module-evaluation/module.js [app-rsc] (ecmascript) (app/module-evaluation/module.js:1:6)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript) (app/module-evaluation/page.js:1:0)' +
+            '\n    at [project]/app/module-evaluation/page.js [app-rsc] (ecmascript, Next.js server component) (.next'
+        )
+      } else {
+        expect(cliOutput).toContain(
+          '' +
+            '\n ⨯ Error: Boom' +
+            // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
+            // TODO(veil): Location should be sourcemapped
+            '\n    at eval (app/module-evaluation/module.js:1:6)' +
+            // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
+            '\n    at <unknown> (rsc)/.'
+        )
+      }
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: Boom",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/module-evaluation/module.js (1:7) @ [project]/app/module-evaluation/module.js [app-rsc] (ecmascript)
+         > 1 | throw new Error('Boom')
+             |       ^",
+           "stack": [
+             "[project]/app/module-evaluation/module.js [app-rsc] (ecmascript) app/module-evaluation/module.js (1:7)",
+             "[project]/app/module-evaluation/page.js [app-rsc] (ecmascript) app/module-evaluation/page.js (1:1)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: Boom",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "app/module-evaluation/module.js (1:7) @ eval
+         > 1 | throw new Error('Boom')
+             |       ^",
+           "stack": [
+             "eval app/module-evaluation/module.js (1:7)",
+             "<FIXME-absolute-path>",
+             "<FIXME-file-protocol>",
+             "eval ./app/module-evaluation/page.js",
+             "<FIXME-absolute-path>",
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      }
+    } else {
+      // TODO: test `next build` with `--enable-source-maps`
+    }
+  })
 })
