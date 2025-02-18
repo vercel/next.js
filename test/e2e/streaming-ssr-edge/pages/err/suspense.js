@@ -1,9 +1,7 @@
 import { Suspense } from 'react'
 
-let did = false
 function MyError() {
-  if (!did && typeof window === 'undefined') {
-    did = true
+  if (typeof window === 'undefined') {
     throw new Error('oops')
   }
 }
