@@ -252,14 +252,14 @@ jobs:
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:nextjs \
-              --tags nextjs.test_session.name:"${{ inputs.stepName }}" \
+              --tags test_session.name:"${{ inputs.stepName }}" \
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:turbopack \
-              --tags nextsj.test_session.name:"${{ inputs.stepName }}" \
+              --tags test_session.name:"${{ inputs.stepName }}" \
               ./test/turbopack-test-junit-report
           fi
 
