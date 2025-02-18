@@ -101,11 +101,11 @@ testing = { version = "7.0.0" }
 browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.3"
-modularize_imports = { version = "0.76.0" }
-styled_components = { version = "0.104.0" }
-styled_jsx = { version = "0.80.0" }
-swc_emotion = { version = "0.80.0" }
-swc_relay = { version = "0.50.0" }
+modularize_imports = { version = "0.77.0" }
+styled_components = { version = "0.105.0" }
+styled_jsx = { version = "0.81.0" }
+swc_emotion = { version = "0.81.0" }
+swc_relay = { version = "0.51.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
