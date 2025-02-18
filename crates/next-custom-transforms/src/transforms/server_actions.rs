@@ -1859,7 +1859,11 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: ident.span,
+                                    span: if self.config.is_react_server_layer {
+                                        ident.span
+                                    } else {
+                                        DUMMY_SP
+                                    },
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1888,10 +1892,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
                                         name: Pat::Ident(
-                                            IdentName::new(export_name.clone(), ident.span).into(),
+                                            IdentName::new(
+                                                export_name.clone(),
+                                                if self.config.is_react_server_layer {
+                                                    ident.span
+                                                } else {
+                                                    DUMMY_SP
+                                                },
+                                            )
+                                            .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: call_expr_span,
+                                            span: if self.config.is_react_server_layer {
+                                                call_expr_span
+                                            } else {
+                                                DUMMY_SP
+                                            },
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),

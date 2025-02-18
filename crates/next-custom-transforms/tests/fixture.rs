@@ -875,7 +875,9 @@ fn test_edge_assert(input: PathBuf) {
 
 #[fixture("tests/fixture/source-maps/**/input.js")]
 fn test_source_maps(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
+    let output: PathBuf = input.parent().unwrap().join("output.js");
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+
     test_fixture(
         syntax(),
         &|_tr| {
@@ -884,7 +886,7 @@ fn test_source_maps(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_react_server_layer: true,
+                        is_react_server_layer,
                         use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter([]),
