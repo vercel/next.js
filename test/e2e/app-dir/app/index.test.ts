@@ -173,6 +173,8 @@ describe('app dir - basic', () => {
 
     await browser.eval('window.location.href = "/dynamic-client/first/second"')
 
+    await browser.waitForElementByCss('#id-page-params')
+
     expect(
       requests.some(
         (req) =>
