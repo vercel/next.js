@@ -920,7 +920,7 @@ describe('app-dir action handling', () => {
 
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
-      // We check all sourcemaps in the `static` folder for sensitive information given that chuniing
+      // We check all sourcemaps in the `static` folder for sensitive information given that chunking
       const sourcemaps = nodeFs
         .readdirSync(join(next.testDir, '.next', 'static'), {
           recursive: true,
