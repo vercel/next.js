@@ -16206,11 +16206,10 @@
     "test/production/graceful-shutdown/index.test.ts": {
       "passed": [
         "Graceful Shutdown development (next dev) should shut down child immediately",
-        "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity"
-      ],
-      "failed": [
+        "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity",
         "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when there is no activity"
       ],
+      "failed": [],
       "pending": [
         "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when request is made before shutdown",
         "Graceful Shutdown production (next start) should wait for requests to complete before exiting",
