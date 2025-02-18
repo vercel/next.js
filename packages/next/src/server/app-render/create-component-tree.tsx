@@ -40,7 +40,8 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -77,6 +78,7 @@ async function createComponentTreeInternal({
   preloadCallbacks,
   authInterrupts,
   StreamingMetadata,
+  StreamingMetadataOutlet,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -90,7 +92,8 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -395,7 +398,9 @@ async function createComponentTreeInternal({
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY ? <StreamingMetadata /> : undefined
+    actualSegment !== DEFAULT_SEGMENT_KEY && StreamingMetadata ? (
+      <StreamingMetadata />
+    ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
@@ -517,6 +522,7 @@ async function createComponentTreeInternal({
             preloadCallbacks,
             authInterrupts,
             StreamingMetadata,
+            StreamingMetadataOutlet,
           })
 
           childCacheNodeSeedData = seedData
@@ -578,7 +584,6 @@ async function createComponentTreeInternal({
   }
 
   const Component = MaybeComponent
-
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
@@ -705,6 +710,7 @@ async function createComponentTreeInternal({
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
           <MetadataOutlet ready={getMetadataReady} />
+          <StreamingMetadataOutlet />
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
