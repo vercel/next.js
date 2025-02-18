@@ -249,17 +249,20 @@ jobs:
           # Only available information in test execution that helps identify the job this was ran in.
           DD_TEST_SESSION_NAME: ${{ inputs.stepName }}
         run: |
+          echo "DD_TEST_SESSION_NAME= '$DD_TEST_SESSION_NAME'"
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           if [ -d ./test/test-junit-report ]; then
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:nextjs \
+              --tags nexts.test_session_name:"$DD_TEST_SESSION_NAME" \
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
             npx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:turbopack \
+              --tags nexts.test_session_name:"$DD_TEST_SESSION_NAME" \
               ./test/turbopack-test-junit-report
           fi
 
