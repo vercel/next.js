@@ -44,10 +44,8 @@ async fn compute_async_module_info_single(
     // importers, which is done using a postorder traversal of the graph.
     //
     // This however doesn't cover cycles of async modules, which are handled by determining all
-    // strongly-connected components using Tarjan's algorithm in the same traversal, and then
-    // marking all the whole SCC as async if one of the modules in the SCC is async.
-
-    // let mut edges = vec![];
+    // strongly-connected components using Tarjan's algorithm, and then marking all the whole SCC as
+    // async if one of the modules in the SCC is async.
 
     let mut async_modules = self_async_modules;
     graph.traverse_edges_from_entries_topological(
@@ -80,14 +78,18 @@ async fn compute_async_module_info_single(
         },
     )?;
 
-    // for (parent_module, module, a) in edges {
-    //     println!(
-    //         "visit {} -> {}, {}",
-    //         parent_module.ident().to_string().await?,
-    //         module.ident().to_string().await?,
-    //         a
-    //     );
-    // }
+    for scc in petgraph::algo::tarjan_scc(&graph.graph.0) {
+        // Only SCCs with more than one node are cycles
+        if scc.len() > 1
+            && scc
+                .iter()
+                .any(|idx| async_modules.contains(&graph.graph.node_weight(*idx).unwrap().module()))
+        {
+            for idx in scc {
+                async_modules.insert(graph.graph.node_weight(idx).unwrap().module());
+            }
+        }
+    }
 
     Ok(Vc::cell(async_modules))
 }
