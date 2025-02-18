@@ -4,14 +4,37 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::ChunkingType,
-    module::Module,
+    module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
 };
+
+#[turbo_tasks::value(transparent)]
+pub struct ModulesSet(FxHashSet<ResolvedVc<Box<dyn Module>>>);
 
 /// This lists all the modules that are async (self or transitively because they reference another
 /// module in this list).
 #[turbo_tasks::value(transparent)]
 pub struct AsyncModulesInfo(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
+#[turbo_tasks::value_impl]
+impl AsyncModulesInfo {
+    #[turbo_tasks::function]
+    pub fn is_async(&self, module: ResolvedVc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(self.0.contains(&module))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn is_async_multiple(&self, modules: ResolvedVc<Modules>) -> Result<Vc<ModulesSet>> {
+        Ok(Vc::cell(
+            modules
+                .await?
+                .iter()
+                .copied()
+                .filter(|m| self.0.contains(m))
+                .collect(),
+        ))
+    }
+}
 
 #[turbo_tasks::function(operation)]
 pub async fn compute_async_module_info(
