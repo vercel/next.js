@@ -1,14 +1,14 @@
-import { connection } from "next/server"
-import { notFound } from "next/navigation"
+import { connection } from 'next/server'
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return <p>not found</p>
+  return <p>redirect page</p>
 }
 
 export async function generateMetadata() {
   await connection()
   await new Promise((resolve) => setTimeout(resolve, 3 * 1000))
-  notFound()
+  redirect('/')
 }
 
 export const dynamic = 'force-dynamic'

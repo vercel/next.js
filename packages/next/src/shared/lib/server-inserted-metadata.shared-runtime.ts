@@ -1,8 +1,9 @@
 'use client'
 
-import { type JSX, createContext } from 'react'
+import type React from 'react';
+import { createContext } from 'react'
 
-export type MetadataResolver = () => JSX.Element
+export type MetadataResolver = () => React.ReactNode
 type MetadataResolverSetter = (m: MetadataResolver) => void
 
 export const ServerInsertedMetadataContext =
