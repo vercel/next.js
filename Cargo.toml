@@ -228,3 +228,5 @@ wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 
 mdxjs={git="https://github.com/kdy1/mdxjs-rs.git",branch = "swc-core-14"}
+
+hstr = { git = "https://github.com/kdy1/swc", branch = "hstr-leak" }
