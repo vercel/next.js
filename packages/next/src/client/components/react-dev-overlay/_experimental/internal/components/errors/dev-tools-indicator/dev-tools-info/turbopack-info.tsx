@@ -22,13 +22,23 @@ export function TurbopackInfo({
       setPreviousOpen={setPreviousOpen}
       {...props}
     >
-      <p className="dev-tools-info-paragraph">
-        Turbopack is an incremental bundler optimized for JavaScript and
-        TypeScript, written in Rust, and built into Next.js. To enable, include
-        the following flag in your next config file:
-      </p>
+      <article className="dev-tools-info-article">
+        <p className="dev-tools-info-paragraph">
+          Turbopack is an incremental bundler optimized for JavaScript and
+          TypeScript, written in Rust, and built into Next.js. Turbopack can be
+          used in Next.js in both the{' '}
+          <code className="dev-tools-info-code">pages</code> and{' '}
+          <code className="dev-tools-info-code">app</code> directories for
+          faster local development.
+        </p>
+        <p className="dev-tools-info-paragraph">
+          To enable Turbopack, use the{' '}
+          <code className="dev-tools-info-code">--turbopack</code> flag when
+          running the Next.js development server.
+        </p>
+      </article>
 
-      <div className="dev-tools-info-code-container">
+      <div className="dev-tools-info-code-block-container">
         <div className="dev-tools-info-code-block">
           <CopyButton
             actionLabel="Copy Next.js Turbopack Command"
@@ -38,56 +48,61 @@ export function TurbopackInfo({
           />
           <pre className="dev-tools-info-code-block-pre">
             <code>
-              <div className="dev-tools-info-code-line">{'  '}</div>
-              <div className="dev-tools-info-code-line">{'{'}</div>
-              <div className="dev-tools-info-code-line">
+              <div className="dev-tools-info-code-block-line">{'  '}</div>
+              <div className="dev-tools-info-code-block-line">{'{'}</div>
+              <div className="dev-tools-info-code-block-line">
                 {'  '}
-                <span className="dev-tools-info-code-json-key">
+                <span className="dev-tools-info-code-block-json-key">
                   "scripts"
-                </span>: {'{'}
+                </span>
+                : {'{'}
               </div>
-              <div className="dev-tools-info-code-line dev-tools-info-highlight">
+              <div className="dev-tools-info-code-block-line dev-tools-info-highlight">
                 {'    '}
-                <span className="dev-tools-info-code-json-key">
+                <span className="dev-tools-info-code-block-json-key">
                   "dev"
-                </span>:{' '}
-                <span className="dev-tools-info-code-json-value">
+                </span>
+                :{' '}
+                <span className="dev-tools-info-code-block-json-value">
                   "next dev --turbopack"
                 </span>
                 ,
               </div>
-              <div className="dev-tools-info-code-line">
+              <div className="dev-tools-info-code-block-line">
                 {'    '}
-                <span className="dev-tools-info-code-json-key">
+                <span className="dev-tools-info-code-block-json-key">
                   "build"
-                </span>:{' '}
-                <span className="dev-tools-info-code-json-value">
+                </span>
+                :{' '}
+                <span className="dev-tools-info-code-block-json-value">
                   "next build"
                 </span>
                 ,
               </div>
-              <div className="dev-tools-info-code-line">
+              <div className="dev-tools-info-code-block-line">
                 {'    '}
-                <span className="dev-tools-info-code-json-key">
+                <span className="dev-tools-info-code-block-json-key">
                   "start"
-                </span>:{' '}
-                <span className="dev-tools-info-code-json-value">
+                </span>
+                :{' '}
+                <span className="dev-tools-info-code-block-json-value">
                   "next start"
                 </span>
                 ,
               </div>
-              <div className="dev-tools-info-code-line">
+              <div className="dev-tools-info-code-block-line">
                 {'    '}
-                <span className="dev-tools-info-code-json-key">
+                <span className="dev-tools-info-code-block-json-key">
                   "lint"
-                </span>:{' '}
-                <span className="dev-tools-info-code-json-value">
+                </span>
+                :{' '}
+                <span className="dev-tools-info-code-block-json-value">
                   "next lint"
                 </span>
               </div>
-              <div className="dev-tools-info-code-line">{'  }'}</div>
-              <div className="dev-tools-info-code-line">{'}'}</div>
-              <div className="dev-tools-info-code-line">{'  '}</div>
+              <div className="dev-tools-info-code-block-line">{'  }'}</div>
+              <div className="dev-tools-info-code-block-line">{'}'}</div>
+              <div className="dev-tools-info-code-block-line">{'  '}</div>
             </code>
           </pre>
         </div>
@@ -97,7 +112,18 @@ export function TurbopackInfo({
 }
 
 export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = css`
-  .dev-tools-info-code-container {
+  .dev-tools-info-code {
+    background: var(--color-gray-400);
+    color: var(--color-gray-1000);
+    font-family: var(--font-stack-mono);
+    padding: var(--size-0_5) var(--size-1);
+    margin: 0;
+    font-size: 13px;
+    white-space: break-spaces;
+    border-radius: var(--rounded-md-2);
+  }
+
+  .dev-tools-info-code-block-container {
     padding: var(--size-1_5);
   }
 
@@ -131,22 +157,22 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = css`
     background: var(--color-background-100);
   }
 
-  .dev-tools-info-code-line {
+  .dev-tools-info-code-block-line {
     display: block;
     line-height: 1.5;
     padding: 0 1rem;
   }
 
-  .dev-tools-info-code-line.dev-tools-info-highlight {
+  .dev-tools-info-code-block-line.dev-tools-info-highlight {
     border-left: 2px solid var(--color-blue-900);
     background: var(--color-blue-400);
   }
 
-  .dev-tools-info-code-json-key {
+  .dev-tools-info-code-block-json-key {
     color: var(--color-syntax-keyword);
   }
 
-  .dev-tools-info-code-json-value {
+  .dev-tools-info-code-block-json-value {
     color: var(--color-syntax-link);
   }
 `

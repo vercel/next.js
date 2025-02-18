@@ -83,12 +83,17 @@ export const DEV_TOOLS_INFO_STYLES = css`
     margin: 0;
   }
 
-  .dev-tools-info-paragraph {
+  .dev-tools-info-article {
     padding: var(--size-2) var(--size-1_5);
     color: var(--color-gray-1000);
     font-size: 14px;
     line-height: 20px;
     margin: 0;
+  }
+  .dev-tools-info-paragraph {
+    &:last-child {
+      margin-bottom: 0;
+    }
   }
 
   .dev-tools-info-button-container {
