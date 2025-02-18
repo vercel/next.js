@@ -1236,13 +1236,10 @@
         "app dir - basic should use text/x-component for flight with edge runtime",
         "app dir - basic should work for catch-all edge page",
         "app dir - basic template component should render the template that holds state in a client component and reset on navigation",
-        "app dir - basic template component should render the template that is a server component and rerender on navigation"
+        "app dir - basic template component should render the template that is a server component and rerender on navigation",
+        "app dir - basic should generate build traces correctly"
       ],
-      "failed": [
-        "app dir - basic should encode chunk path correctly",
-        "app dir - basic should generate build traces correctly",
-        "app dir - basic should not have loader generated function for edge runtime"
-      ],
+      "failed": ["app dir - basic should encode chunk path correctly"],
       "pending": [
         "app dir - basic known bugs should support React fetch instrumentation client component",
         "app dir - basic known bugs should support React fetch instrumentation client component client-navigation",

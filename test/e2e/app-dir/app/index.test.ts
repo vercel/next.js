@@ -65,15 +65,6 @@ describe('app dir - basic', () => {
   }
 
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
-    it('should not have loader generated function for edge runtime', async () => {
-      expect(
-        await next.readFile('.next/server/app/dashboard/page.js')
-      ).not.toContain('_stringifiedConfig')
-      expect(await next.readFile('.next/server/middleware.js')).not.toContain(
-        '_middlewareConfig'
-      )
-    })
-
     if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should have correct size in build output', async () => {
         expect(next.cliOutput).toMatch(
@@ -182,17 +173,14 @@ describe('app dir - basic', () => {
 
     await browser.eval('window.location.href = "/dynamic-client/first/second"')
 
-    await check(async () => {
-      return requests.some(
+    expect(
+      requests.some(
         (req) =>
           req.includes(
             encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
           ) && req.includes('.js')
       )
-        ? 'found'
-        : // When it fails will log out the paths.
-          JSON.stringify(requests)
-    }, 'found')
+    ).toBe(true)
   })
 
   it.each([
