@@ -166,6 +166,7 @@ export class NextDevInstance extends NextInstance {
 
       const detectServerRestart = async () => {
         await retry(async () => {
+          console.count('retry detectServerRestart')
           const isServerReady = this.serverReadyPattern.test(
             this.cliOutput.slice(cliOutputLength)
           )
@@ -176,6 +177,7 @@ export class NextDevInstance extends NextInstance {
       }
 
       const waitServerToBeReadyAfterPatchFile = async () => {
+        console.log('waitServerToBeReadyAfterPatchFile', isServerRunning)
         if (!isServerRunning) {
           return
         }

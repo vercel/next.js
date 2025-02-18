@@ -170,10 +170,15 @@ describe('use-cache-unknown-cache-kind', () => {
         `module.exports = ${JSON.stringify(nextConfigWithCacheHandler)}`,
         () =>
           retry(async () => {
-            expect(await browser.elementByCss('p').text()).toBe('hello world')
+            console.count('retry check for hello world')
+            const text = await browser.elementByCss('p').text()
+            console.log('text is', JSON.stringify(text))
+            expect(text).toBe('hello world')
             await assertNoRedbox(browser)
           })
       )
+
+      console.log('test end')
     })
   }
 })

@@ -2,7 +2,7 @@ name: build-and-test
 
 on:
   push:
-    branches: ['canary']
+    branches: ['canary', 'hl/debug-unknown-cache-kind-test']
   pull_request:
     types: [opened, synchronize]
 
