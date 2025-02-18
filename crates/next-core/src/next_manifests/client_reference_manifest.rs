@@ -6,16 +6,13 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ModuleChunkItemIdExt,
-        ModuleId as TurbopackModuleId,
-    },
+    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
@@ -39,7 +36,6 @@ pub struct ClientReferenceManifestOptions {
     pub client_references: Vc<ClientReferenceGraphResult>,
     pub client_references_chunks: Vc<ClientReferencesChunks>,
     pub rsc_app_entry_chunks: Vc<OutputAssets>,
-    pub rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
     pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     pub ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
     pub async_module_info: Vc<AsyncModulesInfo>,
@@ -61,7 +57,6 @@ impl ClientReferenceManifest {
             client_references,
             client_references_chunks,
             rsc_app_entry_chunks,
-            rsc_app_entry_chunks_availability: _,
             client_chunking_context,
             ssr_chunking_context,
             async_module_info,
