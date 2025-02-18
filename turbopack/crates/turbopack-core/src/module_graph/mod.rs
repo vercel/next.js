@@ -245,7 +245,8 @@ impl SingleModuleGraph {
                         let current_idx = if let Some(current_idx) = modules.get(&module) {
                             *current_idx
                         } else {
-                            let idx = graph.add_node(SingleModuleGraphNode::VisitedModule { idx });
+                            let idx = graph
+                                .add_node(SingleModuleGraphNode::VisitedModule { idx, module });
                             modules.insert(module, idx);
                             idx
                         };
@@ -267,7 +268,10 @@ impl SingleModuleGraph {
                         } else {
                             let target_idx = visited_modules.get(&target);
                             let idx = graph.add_node(match target_idx {
-                                Some(idx) => SingleModuleGraphNode::VisitedModule { idx: *idx },
+                                Some(idx) => SingleModuleGraphNode::VisitedModule {
+                                    idx: *idx,
+                                    module: target,
+                                },
                                 None => {
                                     SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
                                         module: target,
@@ -492,12 +496,12 @@ impl SingleModuleGraph {
         state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
-            &'a SingleModuleGraphModuleNode,
+            &'a SingleModuleGraphNode,
             &mut S,
         ) -> Result<GraphTraversalAction>,
         mut visit_postorder: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
-            &'a SingleModuleGraphModuleNode,
+            &'a SingleModuleGraphNode,
             &mut S,
         ),
     ) -> Result<()> {
@@ -532,26 +536,29 @@ impl SingleModuleGraph {
             });
             match pass {
                 ReverseTopologicalPass::Visit => {
-                    if let SingleModuleGraphNode::Module(current_node) =
-                        graph.node_weight(current).unwrap()
-                    {
-                        visit_postorder(parent_arg, current_node, state);
-                    }
+                    visit_postorder(parent_arg, graph.node_weight(current).unwrap(), state);
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
-                    if let SingleModuleGraphNode::Module(current_node) =
-                        graph.node_weight(current).unwrap()
-                    {
-                        let action = visit_preorder(parent_arg, current_node, state);
-                        stack.push((ReverseTopologicalPass::Visit, parent, current));
-                        if action? == GraphTraversalAction::Continue && expanded.insert(current) {
-                            stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
-                                (
-                                    ReverseTopologicalPass::ExpandAndVisit,
-                                    Some((current, edge)),
-                                    child,
-                                )
-                            }));
+                    match graph.node_weight(current).unwrap() {
+                        current_node @ SingleModuleGraphNode::Module(_) => {
+                            let action = visit_preorder(parent_arg, current_node, state);
+                            stack.push((ReverseTopologicalPass::Visit, parent, current));
+                            if action? == GraphTraversalAction::Continue && expanded.insert(current)
+                            {
+                                stack.extend(iter_neighbors(graph, current).map(
+                                    |(edge, child)| {
+                                        (
+                                            ReverseTopologicalPass::ExpandAndVisit,
+                                            Some((current, edge)),
+                                            child,
+                                        )
+                                    },
+                                ));
+                            }
+                        }
+                        current_node @ SingleModuleGraphNode::VisitedModule { .. } => {
+                            visit_preorder(parent_arg, current_node, state)?;
+                            visit_postorder(parent_arg, current_node, state);
                         }
                     }
                 }
@@ -652,7 +659,7 @@ macro_rules! get_node {
             .node_weight(node_idx.node_idx)
         {
             Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok(node),
-            Some(SingleModuleGraphNode::VisitedModule { idx }) => {
+            Some(SingleModuleGraphNode::VisitedModule { idx, .. }) => {
                 match $graphs[idx.graph_idx].graph.node_weight(idx.node_idx) {
                     Some(SingleModuleGraphNode::Module(node)) => anyhow::Ok(node),
                     Some(SingleModuleGraphNode::VisitedModule { .. }) => Err(::anyhow::anyhow!(
@@ -844,7 +851,7 @@ impl ModuleGraph {
                 };
                 let target = match graph.node_weight(edge.target()).unwrap() {
                     SingleModuleGraphNode::Module(node) => node,
-                    SingleModuleGraphNode::VisitedModule { idx } => get_node!(graphs, idx)?,
+                    SingleModuleGraphNode::VisitedModule { idx, .. } => get_node!(graphs, idx)?,
                 };
                 visitor((source, edge.weight()), target)?;
             }
@@ -934,7 +941,7 @@ impl ModuleGraph {
                                 SingleModuleGraphNode::Module(_) => {
                                     (iter_neighbors(graph, current.node_idx), current)
                                 }
-                                SingleModuleGraphNode::VisitedModule { idx } => (
+                                SingleModuleGraphNode::VisitedModule { idx, .. } => (
                                     // We switch graphs
                                     iter_neighbors(&graphs[idx.graph_idx].graph, idx.node_idx),
                                     *idx,
@@ -986,16 +993,17 @@ pub struct SingleModuleGraphModuleNode {
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum SingleModuleGraphNode {
     Module(SingleModuleGraphModuleNode),
-    VisitedModule { idx: GraphNodeIndex },
+    VisitedModule {
+        idx: GraphNodeIndex,
+        module: ResolvedVc<Box<dyn Module>>,
+    },
 }
 
 impl SingleModuleGraphNode {
-    pub fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
+    pub fn module(&self) -> ResolvedVc<Box<dyn Module>> {
         match self {
-            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module, .. }) => {
-                Some(*module)
-            }
-            SingleModuleGraphNode::VisitedModule { .. } => None,
+            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module, .. }) => *module,
+            SingleModuleGraphNode::VisitedModule { module, .. } => *module,
         }
     }
 

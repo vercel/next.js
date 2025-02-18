@@ -313,7 +313,7 @@ impl ClientReferencesGraph {
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
-                    let module = node.module;
+                    let module = node.module();
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -346,7 +346,7 @@ impl ClientReferencesGraph {
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module) {
+                    match data.get(&node.module()) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,
