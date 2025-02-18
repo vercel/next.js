@@ -90,9 +90,12 @@ function getSourcePath(source: string) {
   return source.replace(/^(webpack:\/\/\/|webpack:\/\/|webpack:\/\/_N_E\/)/, '')
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function findOriginalSourcePositionAndContent(
   sourceMap: RawSourceMap,
-  position: { line: number; column: number | null }
+  position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
   let consumer: BasicSourceMapConsumer
   try {
@@ -106,8 +109,9 @@ async function findOriginalSourcePositionAndContent(
 
   try {
     const sourcePosition = consumer.originalPositionFor({
-      line: position.line,
-      column: position.column ?? 0,
+      line: position.lineNumber ?? 1,
+      // 0-based columns out requires 0-based columns in.
+      column: (position.column ?? 1) - 1,
     })
 
     if (!sourcePosition.source) {
@@ -191,7 +195,6 @@ export async function createOriginalStackFrame({
   frame: StackFrame
   errorMessage?: string
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (() => {
     if (moduleNotFound) {
@@ -205,11 +208,7 @@ export async function createOriginalStackFrame({
         source.compilation
       )
     }
-    // This returns 1-based lines and 0-based columns
-    return findOriginalSourcePositionAndContent(source.sourceMap, {
-      line: lineNumber ?? 1,
-      column,
-    })
+    return findOriginalSourcePositionAndContent(source.sourceMap, frame)
   })()
 
   if (!result) {

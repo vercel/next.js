@@ -232,6 +232,9 @@ function findApplicableSourceMapPayload(
   }
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
@@ -264,7 +267,8 @@ async function nativeTraceSource(
     try {
       const originalPosition = consumer.originalPositionFor({
         line: frame.line ?? 1,
-        column: frame.column ?? 1,
+        // 0-based columns out requires 0-based columns in.
+        column: (frame.column ?? 1) - 1,
       })
 
       if (originalPosition.source === null) {

@@ -56,12 +56,12 @@ describe('use-cache-standalone-search-params', () => {
     at Page (file:/`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-used/page.tsx (8:18) @ Page
+           "app/search-params-used/page.tsx (8:17) @ Page
 
               6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
               7 | }) {
            >  8 |   const param = (await searchParams).foo
-                |                  ^
+                |                 ^
               9 |
              10 |   return <p>param: {param}</p>
              11 | }"
