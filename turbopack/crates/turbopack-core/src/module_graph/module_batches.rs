@@ -1,6 +1,6 @@
 use anyhow::Result;
 use either::Either;
-use petgraph::graph::DiGraph;
+use petgraph::graph::{DiGraph, NodeIndex};
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -24,6 +24,15 @@ pub enum ModuleBatchesGraphNode {
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 pub struct ModuleBatchesGraph {
     graph: TracedDiGraph<ModuleBatchesGraphNode, ChunkingType>,
+
+    // NodeIndex isn't necessarily stable (because of swap_remove), but we never remove nodes.
+    //
+    // HashMaps have nondeterministic order, but this map is only used for lookups and not
+    // iteration.
+    //
+    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
+    #[turbo_tasks(trace_ignore)]
+    entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
 struct ModuleBatchBuilder {
@@ -119,7 +128,7 @@ pub async fn compute_module_batches(
                 state
                     .batch_assignments
                     .insert(entry, BatchAssignment::new(idx));
-                entries.push(entry);
+                entries.push((entry, idx));
             }
         }
 
@@ -129,7 +138,7 @@ pub async fn compute_module_batches(
         module_graph
             .await?
             .traverse_edges_from_entries_topological(
-                entries,
+                entries.iter().map(|&(module, _)| module),
                 &mut state,
                 |parent_info, node, state| {
                     if let Some((parent_node, ty)) = parent_info {
@@ -274,6 +283,11 @@ pub async fn compute_module_batches(
             .map(|batch| graph.add_node(batch))
             .collect::<Vec<_>>();
 
+        let entries = entries
+            .into_iter()
+            .map(|(module, idx)| (module, batch_indicies[idx]))
+            .collect::<FxHashMap<_, _>>();
+
         span.record("batches", batches_len - result_modules);
         span.record("modules", &result_modules);
         span.record("edges", &state.edges.len());
@@ -285,6 +299,7 @@ pub async fn compute_module_batches(
 
         Ok(ModuleBatchesGraph {
             graph: TracedDiGraph(graph),
+            entries,
         }
         .cell())
     }
