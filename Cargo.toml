@@ -159,6 +159,90 @@ opt-level = "s"
 [profile.release.package.swc_ecma_transforms_typescript]
 opt-level = 3
 
+[profile.release.package.swc_css_prefixer]
+opt-level = "s"
+
+[profile.release.package.zstd-sys]
+opt-level = 3
+
+[profile.release.package.sourcemap]
+opt-level = 3
+
+[profile.release.package.turbopack-wasm]
+opt-level = 3
+
+[profile.release.package.rustls]
+opt-level = "s"
+
+[profile.release.package.turbopack-ecmascript-plugins]
+opt-level = 3
+
+[profile.release.package.handlebars]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_compat_bugfixes]
+opt-level = "s"
+
+[profile.release.package.h2]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_compat_es2022]
+opt-level = "s"
+
+[profile.release.package.wasmer-config]
+opt-level = "s"
+
+[profile.release.package.wasmer-compiler]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_utils]
+opt-level = 3
+
+[profile.release.package.regex-syntax]
+opt-level = "s"
+
+[profile.release.package.turbopack-image]
+opt-level = 3
+
+[profile.release.package.turbo-tasks-env]
+opt-level = 3
+
+[profile.release.package.napi]
+opt-level = 3
+
+[profile.release.package.mdxjs]
+opt-level = "s"
+
+[profile.release.package.serde_json]
+opt-level = 3
+
+[profile.release.package.swc_plugin_runner]
+opt-level = "s"
+
+[profile.release.package.markdown]
+opt-level = "s"
+
+[profile.release.package.swc_ecma_preset_env]
+opt-level = "s"
+
+[profile.release.package.turbo-tasks-fetch]
+opt-level = 3
+
+[profile.release.package.swc_ecma_visit]
+opt-level = 3
+
+[profile.release.package.turbopack-mdx]
+opt-level = "s"
+
+[profile.release.package.autocfg]
+opt-level = "s"
+
+[profile.release.package.image]
+opt-level = 3
+
+[profile.release.package.serde]
+opt-level = 3
+
 [workspace.dependencies]
 # Workspace crates
 next-api = { path = "crates/next-api" }
