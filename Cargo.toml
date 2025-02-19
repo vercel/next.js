@@ -209,8 +209,8 @@ tempfile = "3.3.0"
 thread_local = "1.1.8"
 thiserror = "1.0.48"
 tiny-gradient = "0.1.0"
-tokio = "1.25.0"
-tokio-util = { version = "0.7.11", features = ["io", "rt"] }
+tokio = "1.43.0"
+tokio-util = { version = "0.7.13", features = ["io", "rt"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
