@@ -75,7 +75,7 @@ async fn compute_async_module_info_single(
 
     let mut async_modules = self_async_modules;
     graph.traverse_edges_from_entries_topological(
-        graph.entries.iter(),
+        graph.entry_modules(),
         &mut (),
         |_, _, _| Ok(GraphTraversalAction::Continue),
         |parent_info, module, _| {
