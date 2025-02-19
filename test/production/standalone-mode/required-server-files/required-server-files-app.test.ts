@@ -304,4 +304,22 @@ describe('required server files app router', () => {
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
   })
+
+  it('should not override params with query params', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/search/[key]',
+      { key: 'searchParams', nxtPkey: 'params' },
+      {
+        headers: {
+          'x-matched-path': '/search/[key]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('dd[data-params]').text()).toBe('params')
+    expect($('dd[data-searchParams]').text()).toBe('searchParams')
+  })
 })
