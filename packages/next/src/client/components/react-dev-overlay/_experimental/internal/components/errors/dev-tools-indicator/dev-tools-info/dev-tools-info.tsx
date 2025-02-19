@@ -15,7 +15,7 @@ export function DevToolsInfo({
   setPreviousOpen: (isOpen: boolean) => void
 }) {
   return (
-    <div className="dev-tools-info-popover" {...props}>
+    <div data-info-popover {...props}>
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
@@ -44,7 +44,7 @@ export function DevToolsInfo({
 }
 
 export const DEV_TOOLS_INFO_STYLES = css`
-  .dev-tools-info-popover {
+  [data-info-popover] {
     -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
@@ -60,7 +60,7 @@ export const DEV_TOOLS_INFO_STYLES = css`
     overflow: hidden;
     opacity: 0;
     outline: 0;
-    min-width: 248px;
+    min-width: 350px;
     transition: opacity var(--animate-out-duration-ms)
       var(--animate-out-timing-function);
 
