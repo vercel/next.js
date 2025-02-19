@@ -5,10 +5,6 @@ import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
-import {
-  onCaughtError,
-  onUncaughtError,
-} from '../react-client-callbacks/error-boundary-callbacks'
 
 const styles = {
   error: {
@@ -121,16 +117,6 @@ export class ErrorBoundaryHandler extends React.Component<
     return {
       error: state.error,
       previousPathname: props.pathname,
-    }
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
-    // We don't consider errors caught unless they're caught by an explicit error
-    // boundary. The built-in ones are considered implicit.
-    if (this.props.errorComponent === GlobalError) {
-      onUncaughtError(error, errorInfo)
-    } else {
-      onCaughtError(error, { ...errorInfo, errorBoundary: this })
     }
   }
 

@@ -54,11 +54,7 @@ describe('app-dir - owner-stack', () => {
      at useThrowError 
      at useErrorHook 
      at Page 
-     at AppDevOverlay 
-     at HotReload 
-     at Router 
-     at AppRouter 
-     at ServerRoot"
+     at ClientPageRoot"
     `)
   })
 
@@ -145,11 +141,7 @@ describe('app-dir - owner-stack', () => {
      at useThrowError 
      at useErrorHook 
      at Page 
-     at AppDevOverlay 
-     at HotReload 
-     at Router 
-     at AppRouter 
-     at ServerRoot"
+     at ClientPageRoot"
     `)
   })
 

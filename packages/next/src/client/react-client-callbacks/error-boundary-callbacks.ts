@@ -7,16 +7,35 @@ import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
 import { originConsoleError } from '../components/globals/intercept-console-error'
+import { AppDevOverlayErrorBoundary } from '../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
+import {
+  ErrorBoundaryHandler,
+  GlobalError as DefaultErrorBoundary,
+} from '../components/error-boundary'
 
 export function onCaughtError(
   err: unknown,
   errorInfo: ErrorInfo & { errorBoundary?: React.Component }
 ) {
+  const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
+
+  const isImplicitErrorBoundary =
+    (process.env.NODE_ENV !== 'production' &&
+      errorBoundaryComponent === AppDevOverlayErrorBoundary) ||
+    (errorBoundaryComponent === ErrorBoundaryHandler &&
+      (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>)
+        .props.errorComponent === DefaultErrorBoundary)
+  if (isImplicitErrorBoundary) {
+    // We don't consider errors caught unless they're caught by an explicit error
+    // boundary. The built-in ones are considered implicit.
+    // This mimics how the same app would behave without Next.js.
+    return onUncaughtError(err, errorInfo)
+  }
+
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(err) || isNextRouterError(err)) return
 
   if (process.env.NODE_ENV !== 'production') {
-    const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
     const errorBoundaryName =
       // read react component displayName
       (errorBoundaryComponent as any)?.displayName ||
