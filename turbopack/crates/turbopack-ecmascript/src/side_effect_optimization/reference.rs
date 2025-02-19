@@ -97,7 +97,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         } else {
             ResolvedVc::upcast(self.module)
         };
-        Ok(ModuleResolveResult::module(module).cell())
+        Ok(*ModuleResolveResult::module(module))
     }
 }
 
