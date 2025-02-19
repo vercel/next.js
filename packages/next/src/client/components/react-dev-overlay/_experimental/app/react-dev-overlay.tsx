@@ -36,7 +36,7 @@ export default function ReactDevOverlay({
         <ComponentStyles />
 
         <RenderError state={state} isAppDir={true}>
-          {({ readyErrors, totalErrorCount }) => {
+          {({ runtimeErrors, totalErrorCount }) => {
             return (
               <>
                 <DevToolsIndicator
@@ -47,7 +47,7 @@ export default function ReactDevOverlay({
 
                 <ErrorOverlay
                   state={state}
-                  readyErrors={readyErrors}
+                  runtimeErrors={runtimeErrors}
                   isErrorOverlayOpen={isErrorOverlayOpen}
                   setIsErrorOverlayOpen={setIsErrorOverlayOpen}
                 />

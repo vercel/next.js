@@ -70,7 +70,7 @@ const ignoredFrame = {
   ignored: true,
 }
 
-const readyErrors: ReadyRuntimeError[] = [
+const runtimeErrors: ReadyRuntimeError[] = [
   {
     id: 1,
     runtime: true,
@@ -152,7 +152,7 @@ const readyErrors: ReadyRuntimeError[] = [
 
 export const Default: Story = {
   args: {
-    readyErrors,
+    runtimeErrors,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
@@ -173,9 +173,9 @@ export const Turbopack: Story = {
 export const VeryLongErrorMessage: Story = {
   args: {
     ...Default.args,
-    readyErrors: [
+    runtimeErrors: [
       {
-        ...readyErrors[0],
+        ...runtimeErrors[0],
         error: Object.assign(new Error(lorem)),
       },
     ],
@@ -184,7 +184,7 @@ export const VeryLongErrorMessage: Story = {
 
 export const WithHydrationWarning: Story = {
   args: {
-    readyErrors: [
+    runtimeErrors: [
       {
         id: 1,
         runtime: true,

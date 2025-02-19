@@ -20,7 +20,7 @@ import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-t
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
 export interface ErrorsProps extends ErrorBaseProps {
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
 }
@@ -76,7 +76,7 @@ function ErrorDescription({
 }
 
 export function Errors({
-  readyErrors,
+  runtimeErrors,
   debugInfo,
   onClose,
   ...props
@@ -96,14 +96,14 @@ export function Errors({
   }, [onClose])
 
   const isLoading = useMemo<boolean>(() => {
-    return readyErrors.length < 1
-  }, [readyErrors.length])
+    return runtimeErrors.length < 1
+  }, [runtimeErrors.length])
 
   const [activeIdx, setActiveIndex] = useState<number>(0)
 
   const activeError = useMemo<ReadyErrorEvent | null>(
-    () => readyErrors[activeIdx] ?? null,
-    [activeIdx, readyErrors]
+    () => runtimeErrors[activeIdx] ?? null,
+    [activeIdx, runtimeErrors]
   )
 
   if (isLoading) {
@@ -158,7 +158,7 @@ export function Errors({
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
-      readyErrors={readyErrors}
+      runtimeErrors={runtimeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
