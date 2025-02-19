@@ -83,18 +83,24 @@ describe('streaming-ssr-edge', () => {
     expect(res2.headers.get('etag')).toBeDefined()
   })
 
-  it('should render 500 error correctly', async () => {
-    const errPaths = ['/err', '/err/render']
-    const promises = errPaths.map(async (pagePath) => {
-      const html = await next.render(pagePath)
-      if (isNextDev) {
-        // In development mode it should show the error popup.
-        expect(html).toContain('Error: oops')
-      } else {
-        expect(html).toContain('custom-500-page')
-      }
-    })
-    await Promise.all(promises)
+  it('should render 500 error from gIP correctly', async () => {
+    const html = await next.render('/err')
+    if (isNextDev) {
+      // In development mode it should show the error popup.
+      expect(html).toContain('Error: gip-oops')
+    } else {
+      expect(html).toContain('custom-500-page')
+    }
+  })
+
+  it('should render 500 error from render function correctly', async () => {
+    const html = await next.render('/err/render')
+    if (isNextDev) {
+      // In development mode it should show the error popup.
+      expect(html).toContain('Error: oops')
+    } else {
+      expect(html).toContain('custom-500-page')
+    }
   })
 
   it('should render fallback if error raised from suspense during streaming', async () => {
