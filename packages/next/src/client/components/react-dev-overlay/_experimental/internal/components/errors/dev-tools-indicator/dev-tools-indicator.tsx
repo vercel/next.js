@@ -3,13 +3,14 @@ import type { OverlayState } from '../../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import { Cross, NextLogo } from './internal/next-logo'
+import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'
 import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
+import { StopIcon } from '../../../icons/stop-icon'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -360,7 +361,7 @@ function DevToolsPopover({
               <MenuItem
                 data-hide-dev-tools
                 label="Hide Dev Tools"
-                value={<Cross color="var(--color-gray-900)" />}
+                value={<StopIcon />}
                 onClick={hide}
                 index={isTurbopack ? 2 : 3}
               />
@@ -374,12 +375,12 @@ function DevToolsPopover({
 
 function ChevronRight() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none">
       <path
         fill="#666"
         fillRule="evenodd"
-        d="m7.5 3.94.53.53 4.824 4.823a1 1 0 0 1 0 1.414L8.03 15.53l-.53.53L6.44 15l.53-.53L11.44 10 6.97 5.53 6.44 5 7.5 3.94Z"
         clipRule="evenodd"
+        d="M5.50011 1.93945L6.03044 2.46978L10.8537 7.293C11.2442 7.68353 11.2442 8.31669 10.8537 8.70722L6.03044 13.5304L5.50011 14.0608L4.43945 13.0001L4.96978 12.4698L9.43945 8.00011L4.96978 3.53044L4.43945 3.00011L5.50011 1.93945Z"
       />
     </svg>
   )
