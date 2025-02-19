@@ -265,7 +265,7 @@ pub async fn chunk_group_content(
                         // handled above before the sidecast
                         unreachable!();
                     }
-                    ChunkingType::Isolated { .. } => {
+                    ChunkingType::Isolated { .. } | ChunkingType::Shared { .. } => {
                         // TODO currently not implemented
                         GraphTraversalAction::Skip
                     }

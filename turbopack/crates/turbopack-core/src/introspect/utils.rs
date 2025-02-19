@@ -39,6 +39,11 @@ fn isolated_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
+fn shared_reference_ty() -> Vc<RcStr> {
+    Vc::cell("shared reference".into())
+}
+
+#[turbo_tasks::function]
 fn traced_reference_ty() -> Vc<RcStr> {
     Vc::cell("traced reference".into())
 }
@@ -82,6 +87,7 @@ pub async fn children_from_module_references(
                 }
                 Some(ChunkingType::Async) => key = async_reference_ty(),
                 Some(ChunkingType::Isolated { .. }) => key = isolated_reference_ty(),
+                Some(ChunkingType::Shared { .. }) => key = shared_reference_ty(),
                 Some(ChunkingType::Traced) => key = traced_reference_ty(),
             }
         }

@@ -88,7 +88,11 @@ async fn compute_async_module_info_single(
 
             // edges.push((parent_module, module, async_modules.contains(&module)));
             match chunking_type {
-                ChunkingType::ParallelInheritAsync => {
+                ChunkingType::ParallelInheritAsync
+                | ChunkingType::Shared {
+                    inherit_async: true,
+                    ..
+                } => {
                     if async_modules.contains(&module) {
                         async_modules.insert(parent_module);
                     }
@@ -96,7 +100,11 @@ async fn compute_async_module_info_single(
                 ChunkingType::Parallel
                 | ChunkingType::Async
                 | ChunkingType::Isolated { .. }
-                | ChunkingType::Traced => {
+                | ChunkingType::Traced
+                | ChunkingType::Shared {
+                    inherit_async: false,
+                    ..
+                } => {
                     // Nothing to propagate
                 }
             }

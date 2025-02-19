@@ -107,15 +107,25 @@ pub enum ChunkGroup {
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
+    /// a module with an incoming non-merging shared edge
+    Shared(ResolvedVc<Box<dyn Module>>),
+    /// a module with an incoming merging shared edge
+    SharedMerged {
+        parent: usize,
+        merge_tag: RcStr,
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    },
 }
 
 impl ChunkGroup {
     pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         match self {
-            ChunkGroup::Entry(e) | ChunkGroup::Async(e) | ChunkGroup::Isolated(e) => {
-                Either::Left(std::iter::once(*e))
-            }
-            ChunkGroup::IsolatedMerged { entries, .. } => Either::Right(entries.iter().copied()),
+            ChunkGroup::Entry(e)
+            | ChunkGroup::Async(e)
+            | ChunkGroup::Isolated(e)
+            | ChunkGroup::Shared(e) => Either::Left(std::iter::once(*e)),
+            ChunkGroup::IsolatedMerged { entries, .. }
+            | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
         }
     }
 }
@@ -130,6 +140,13 @@ enum ChunkGroupKey {
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
+        parent: ChunkGroupId,
+        merge_tag: RcStr,
+    },
+    /// a module with an incoming merging shared edge
+    Shared(ResolvedVc<Box<dyn Module>>),
+    /// a module with an incoming merging shared edge
+    SharedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
@@ -253,6 +270,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
                             ChunkGroupKey::Isolated(node.module),
                         ))),
+                        ChunkingType::Shared {
+                            merge_tag: None, ..
+                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                            ChunkGroupKey::Shared(node.module),
+                        ))),
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
                             ..
@@ -263,7 +285,23 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                     parent: ChunkGroupId(parent),
                                     merge_tag: merge_tag.clone(),
                                 });
-                            ChunkGroupInheritance::ChunkGroup(Either::Right(chunk_groups))
+                            ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Left(
+                                chunk_groups,
+                            )))
+                        }
+                        ChunkingType::Shared {
+                            merge_tag: Some(merge_tag),
+                            ..
+                        } => {
+                            let parents = module_chunk_groups.get(&parent.module).unwrap();
+                            let chunk_groups =
+                                parents.iter().map(|parent| ChunkGroupKey::SharedMerged {
+                                    parent: ChunkGroupId(parent),
+                                    merge_tag: merge_tag.clone(),
+                                });
+                            ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(
+                                chunk_groups,
+                            )))
                         }
                         ChunkingType::Traced => {
                             // Traced modules are not placed in chunk groups
@@ -422,6 +460,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             entries: isolated_merged_entries.into_iter().collect(),
                         }
                     }
+                    ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
+                    ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
+                        parent: parent.0 as usize,
+                        merge_tag,
+                        entries: isolated_merged_entries.into_iter().collect(),
+                    },
                 })
                 .collect(),
         }
