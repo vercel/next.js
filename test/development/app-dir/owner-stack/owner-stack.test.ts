@@ -1,6 +1,5 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { assertNoRedbox, retry } from 'next-test-utils'
 
 // Remove the location `()` part in every line of stack trace;
 // Remove the leading spaces in every line of stack trace;
@@ -22,21 +21,39 @@ describe('app-dir - owner-stack', () => {
     files: __dirname,
   })
 
-  // Webpack will trigger "[Fast Refresh] performing full reload because your application had an unrecoverable error" in CI.
-  // Repros locally on first visit.
-  ;(isTurbopack ? it : it.skip)(
-    'should log stitched error for browser uncaught errors',
-    async () => {
-      let errorStack: string | undefined
-      const browser = await next.browser('/browser/uncaught', {
-        beforePageLoad: (page) => {
-          page.on('pageerror', (error: unknown) => {
-            errorStack = (error as any).stack
-          })
-        },
-      })
+  it('should log stitched error for browser uncaught errors', async () => {
+    let errorStack: string | undefined
+    const browser = await next.browser('/browser/uncaught', {
+      beforePageLoad: (page) => {
+        page.on('pageerror', (error: unknown) => {
+          errorStack = (error as any).stack
+        })
+      },
+    })
 
-      await expect(browser).toDisplayRedbox(`
+    if (!isTurbopack) {
+      // Wait for Redbox to settle.
+      // TODO: Don't reload when landing on a faulty page.
+      // The issue may be that we receive an HMR update at all on landing.
+      // This is flaky. Sometimes we miss that the reload happened.
+      await retry(
+        async () => {
+          const logs = await browser.log()
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message:
+                  '[Fast Refresh] performing full reload because your application had an unrecoverable error',
+              }),
+            ])
+          )
+        },
+        1000,
+        200
+      ).catch(() => {})
+    }
+
+    await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
        "description": "Error: browser error",
@@ -53,16 +70,15 @@ describe('app-dir - owner-stack', () => {
      }
     `)
 
-      expect(normalizeBrowserConsoleStackTrace(errorStack))
-        .toMatchInlineSnapshot(`
+    expect(normalizeBrowserConsoleStackTrace(errorStack))
+      .toMatchInlineSnapshot(`
      "Error: browser error
      at useThrowError 
      at useErrorHook 
      at Page 
      at ClientPageRoot"
     `)
-    }
-  )
+  })
 
   it('should log stitched error for browser caught errors', async () => {
     const browser = await next.browser('/browser/caught')
