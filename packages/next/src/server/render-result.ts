@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { CacheControl, Revalidate } from './lib/cache-control'
+import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 
 import {
@@ -45,7 +45,7 @@ export type AppPageRenderResultMetadata = {
 
 export type PagesRenderResultMetadata = {
   pageData?: any
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean
