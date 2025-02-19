@@ -28,6 +28,12 @@ const styles = css`
 
   [data-nextjs-dialog] {
     outline: none;
+    overflow: hidden;
+    scroll-behavior: none;
+    -ms-overflow-style: none;
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar {
+    display: none;
   }
 
   ${
