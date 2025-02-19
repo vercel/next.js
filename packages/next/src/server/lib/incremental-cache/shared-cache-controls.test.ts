@@ -42,12 +42,12 @@ describe('SharedCacheControls', () => {
   it('should get cache control from in-memory cache', () => {
     sharedCacheControls.set('/route1', { revalidate: 15 })
     const cacheControl = sharedCacheControls.get('/route1')
-    expect(cacheControl).toBe({ revalidate: 15 })
+    expect(cacheControl).toEqual({ revalidate: 15 })
   })
 
   it('should get cache control from prerender manifest if not in cache', () => {
     const cacheControl = sharedCacheControls.get('/route2')
-    expect(cacheControl).toBe({ revalidate: 20, expire: 40 })
+    expect(cacheControl).toEqual({ revalidate: 20, expire: 40 })
   })
 
   it('should return undefined if cache control not found', () => {
@@ -58,7 +58,7 @@ describe('SharedCacheControls', () => {
   it('should set cache control in cache', () => {
     sharedCacheControls.set('/route3', { revalidate: 30 })
     const cacheControl = sharedCacheControls.get('/route3')
-    expect(cacheControl).toBe({ revalidate: 30 })
+    expect(cacheControl).toEqual({ revalidate: 30 })
   })
 
   it('should clear the in-memory cache', () => {
