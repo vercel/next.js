@@ -9,15 +9,15 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        MinifyType, ModuleId,
+        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, MinifyType,
+        ModuleChunkItemIdExt, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
@@ -104,15 +104,13 @@ impl EcmascriptDevEvaluateChunk {
             .iter()
             .map({
                 let chunking_context = this.chunking_context;
-                let module_graph = this.module_graph;
                 move |entry| async move {
                     if let Some(placeable) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
                     {
                         Ok(Some(
                             placeable
-                                .as_chunk_item(*module_graph, Vc::upcast(*chunking_context))
-                                .id()
+                                .chunk_item_id(Vc::upcast(*chunking_context))
                                 .await?,
                         ))
                     } else {
@@ -189,11 +187,9 @@ impl EcmascriptDevEvaluateChunk {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code, source_maps));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)
@@ -217,7 +213,7 @@ fn modifier() -> Vc<RcStr> {
 impl OutputAsset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let mut ident = self.ident.await?.clone_value();
+        let mut ident = self.ident.owned().await?;
 
         ident.add_modifier(modifier().to_resolved().await?);
 
@@ -281,7 +277,7 @@ impl Asset for EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

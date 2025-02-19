@@ -22,6 +22,7 @@ import {
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { createHangingInputAbortSignal } from './dynamic-rendering'
+import React from 'react'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -81,90 +82,95 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   return btoa(ivValue + arrayBufferToString(encrypted))
 }
 
-// Encrypts the action's bound args into a string.
-export async function encryptActionBoundArgs(actionId: string, args: any[]) {
-  const { clientModules } = getClientReferenceManifestForRsc()
+// Encrypts the action's bound args into a string. For the same combination of
+// actionId and args the same cached promise is returned. This ensures reference
+// equality for returned objects from "use cache" functions when they're invoked
+// multiple times within one render pass using the same bound args.
+export const encryptActionBoundArgs = React.cache(
+  async function encryptActionBoundArgs(actionId: string, ...args: any[]) {
+    const { clientModules } = getClientReferenceManifestForRsc()
 
-  // Create an error before any asynchronous calls, to capture the original
-  // call stack in case we need it when the serialization errors.
-  const error = new Error()
-  Error.captureStackTrace(error, encryptActionBoundArgs)
+    // Create an error before any asynchronous calls, to capture the original
+    // call stack in case we need it when the serialization errors.
+    const error = new Error()
+    Error.captureStackTrace(error, encryptActionBoundArgs)
 
-  let didCatchError = false
+    let didCatchError = false
 
-  const workUnitStore = workUnitAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
 
-  const hangingInputAbortSignal =
-    workUnitStore?.type === 'prerender'
-      ? createHangingInputAbortSignal(workUnitStore)
-      : undefined
+    const hangingInputAbortSignal =
+      workUnitStore?.type === 'prerender'
+        ? createHangingInputAbortSignal(workUnitStore)
+        : undefined
 
-  // Using Flight to serialize the args into a string.
-  const serialized = await streamToString(
-    renderToReadableStream(args, clientModules, {
-      signal: hangingInputAbortSignal,
-      onError(err) {
-        if (hangingInputAbortSignal?.aborted) {
-          return
-        }
+    // Using Flight to serialize the args into a string.
+    const serialized = await streamToString(
+      renderToReadableStream(args, clientModules, {
+        signal: hangingInputAbortSignal,
+        onError(err) {
+          if (hangingInputAbortSignal?.aborted) {
+            return
+          }
 
-        // We're only reporting one error at a time, starting with the first.
-        if (didCatchError) {
-          return
-        }
+          // We're only reporting one error at a time, starting with the first.
+          if (didCatchError) {
+            return
+          }
 
-        didCatchError = true
+          didCatchError = true
 
-        // Use the original error message together with the previously created
-        // stack, because err.stack is a useless Flight Server call stack.
-        error.message = err instanceof Error ? err.message : String(err)
-      },
-    }),
-    // We pass the abort signal to `streamToString` so that no chunks are
-    // included that are emitted after the signal was already aborted. This
-    // ensures that we can encode hanging promises.
-    hangingInputAbortSignal
-  )
+          // Use the original error message together with the previously created
+          // stack, because err.stack is a useless Flight Server call stack.
+          error.message = err instanceof Error ? err.message : String(err)
+        },
+      }),
+      // We pass the abort signal to `streamToString` so that no chunks are
+      // included that are emitted after the signal was already aborted. This
+      // ensures that we can encode hanging promises.
+      hangingInputAbortSignal
+    )
 
-  if (didCatchError) {
-    if (process.env.NODE_ENV === 'development') {
-      // Logging the error is needed for server functions that are passed to the
-      // client where the decryption is not done during rendering. Console
-      // replaying allows us to still show the error dev overlay in this case.
-      console.error(error)
+    if (didCatchError) {
+      if (process.env.NODE_ENV === 'development') {
+        // Logging the error is needed for server functions that are passed to the
+        // client where the decryption is not done during rendering. Console
+        // replaying allows us to still show the error dev overlay in this case.
+        console.error(error)
+      }
+
+      throw error
     }
 
-    throw error
+    if (!workUnitStore) {
+      return encodeActionBoundArg(actionId, serialized)
+    }
+
+    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
+    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+    const cacheKey = actionId + serialized
+
+    const cachedEncrypted =
+      prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
+      renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
+
+    if (cachedEncrypted) {
+      return cachedEncrypted
+    }
+
+    const cacheSignal =
+      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+
+    cacheSignal?.beginRead()
+
+    const encrypted = await encodeActionBoundArg(actionId, serialized)
+
+    cacheSignal?.endRead()
+    prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
+
+    return encrypted
   }
-
-  if (!workUnitStore) {
-    return encodeActionBoundArg(actionId, serialized)
-  }
-
-  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
-  const cacheKey = actionId + serialized
-
-  const cachedEncrypted =
-    prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
-    renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
-
-  if (cachedEncrypted) {
-    return cachedEncrypted
-  }
-
-  const cacheSignal =
-    workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
-
-  cacheSignal?.beginRead()
-
-  const encrypted = await encodeActionBoundArg(actionId, serialized)
-
-  cacheSignal?.endRead()
-  prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
-
-  return encrypted
-}
+)
 
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(

@@ -10,7 +10,9 @@ import { CssReset } from '../internal/styles/css-reset'
 import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
-import { useErrorHook } from '../internal/container/runtime-error/use-error-hook'
+import { RenderError } from '../internal/container/runtime-error/render-error'
+
+import { FontStyles } from '../font/font-styles'
 
 export default function ReactDevOverlay({
   state,
@@ -22,31 +24,41 @@ export default function ReactDevOverlay({
   children: React.ReactNode
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
-  const { readyErrors, totalErrorCount } = useErrorHook({
-    state,
-    isAppDir: true,
-  })
 
   const devOverlay = (
-    <ShadowPortal>
-      <CssReset />
-      <Base />
-      <Colors />
-      <ComponentStyles />
+    <>
+      {/* Fonts can only be loaded outside the Shadow DOM. */}
+      <FontStyles />
+      <ShadowPortal>
+        <CssReset />
+        <Base />
+        <Colors />
+        <ComponentStyles />
 
-      <DevToolsIndicator
-        state={state}
-        errorCount={totalErrorCount}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+        <RenderError state={state} isAppDir={true}>
+          {({ runtimeErrors, totalErrorCount }) => {
+            const isBuildError = runtimeErrors.length === 0
+            return (
+              <>
+                <DevToolsIndicator
+                  state={state}
+                  errorCount={totalErrorCount}
+                  isBuildError={isBuildError}
+                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+                />
 
-      <ErrorOverlay
-        state={state}
-        readyErrors={readyErrors}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
-    </ShadowPortal>
+                <ErrorOverlay
+                  state={state}
+                  runtimeErrors={runtimeErrors}
+                  isErrorOverlayOpen={isErrorOverlayOpen}
+                  setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+                />
+              </>
+            )
+          }}
+        </RenderError>
+      </ShadowPortal>
+    </>
   )
 
   return (

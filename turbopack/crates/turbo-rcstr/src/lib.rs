@@ -11,6 +11,7 @@ use std::{
 
 use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use shrink_to_fit::ShrinkToFit;
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
@@ -62,7 +63,7 @@ unsafe impl Sync for RcStr {}
 
 const DYNAMIC_TAG: u8 = 0b_00;
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
-const INLINE_TAG_INIT: NonZeroU8 = unsafe { NonZeroU8::new_unchecked(INLINE_TAG) };
+const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
@@ -295,6 +296,12 @@ impl Drop for RcStr {
             unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
     }
+}
+
+/// noop
+impl ShrinkToFit for RcStr {
+    #[inline(always)]
+    fn shrink_to_fit(&mut self) {}
 }
 
 #[cfg(test)]

@@ -16,6 +16,7 @@ pub fn connect_children(
     new_children: FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
     has_active_count: bool,
+    should_track_activeness: bool,
 ) {
     if new_children.is_empty() {
         return;
@@ -49,7 +50,7 @@ pub fn connect_children(
         // We need to decrease the active count because we temporarily increased it during
         // connect_child. We need to increase the active count when the parent has active
         // count, because it's added as follower.
-        if !has_active_count {
+        if should_track_activeness && !has_active_count {
             queue.push(AggregationUpdateJob::DecreaseActiveCounts {
                 task_ids: new_follower_ids,
             })
@@ -62,8 +63,10 @@ pub fn connect_children(
         });
         // We need to decrease the active count because we temporarily increased it during
         // connect_child.
-        queue.push(AggregationUpdateJob::DecreaseActiveCounts {
-            task_ids: new_follower_ids,
-        })
+        if should_track_activeness {
+            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: new_follower_ids,
+            });
+        }
     }
 }

@@ -25,7 +25,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
-    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
+    source_map::{GenerateSourceMap, SourceMap, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -167,12 +167,12 @@ pub trait Issue {
 
         Ok(PlainIssue {
             severity: *self.severity().await?,
-            file_path: self.file_path().to_string().await?.clone_value(),
-            stage: self.stage().await?.clone_value(),
-            title: self.title().await?.clone_value(),
+            file_path: self.file_path().to_string().owned().await?,
+            stage: self.stage().owned().await?,
+            title: self.title().owned().await?,
             description,
             detail,
-            documentation_link: self.documentation_link().await?.clone_value(),
+            documentation_link: self.documentation_link().owned().await?,
             source: {
                 if let Some(s) = &*self.source().await? {
                     Some(s.into_plain().await?)
@@ -451,7 +451,7 @@ pub struct IssueSource {
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
-    ByteOffset(usize, usize),
+    ByteOffset(u32, u32),
 }
 
 impl IssueSource {
@@ -475,7 +475,7 @@ impl IssueSource {
         }
     }
 
-    pub async fn resolve_source_map(&self, origin: Vc<FileSystemPath>) -> Result<Cow<'_, Self>> {
+    pub async fn resolve_source_map(&self) -> Result<Cow<'_, Self>> {
         if let Some(range) = &self.range {
             let (start, end) = match range {
                 SourceRange::LineColumn(start, end) => (*start, *end),
@@ -491,7 +491,7 @@ impl IssueSource {
             };
 
             // If we have a source map, map the line/column to the original source.
-            let mapped = source_pos(self.source, origin, start, end).await?;
+            let mapped = source_pos(self.source, start, end).await?;
 
             if let Some((source, start, end)) = mapped {
                 return Ok(Cow::Owned(IssueSource {
@@ -512,7 +512,7 @@ impl IssueSource {
     /// * `source`: The source code in which to look up the byte offsets.
     /// * `start`: The start index of the span. Must use **1-based** indexing.
     /// * `end`: The end index of the span. Must use **1-based** indexing.
-    pub fn from_swc_offsets(source: ResolvedVc<Box<dyn Source>>, start: usize, end: usize) -> Self {
+    pub fn from_swc_offsets(source: ResolvedVc<Box<dyn Source>>, start: u32, end: u32) -> Self {
         IssueSource {
             source,
             range: match (start == 0, end == 0) {
@@ -535,8 +535,8 @@ impl IssueSource {
     /// * `end`: Byte offset into the source that the text ends. 0-based index and exclusive.
     pub async fn from_byte_offset(
         source: ResolvedVc<Box<dyn Source>>,
-        start: usize,
-        end: usize,
+        start: u32,
+        end: u32,
     ) -> Result<Self> {
         Ok(IssueSource {
             source,
@@ -558,7 +558,7 @@ impl IssueSource {
 
 impl IssueSource {
     /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
-    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+    pub async fn to_swc_offsets(&self) -> Result<Option<(u32, u32)>> {
         Ok(match &self.range {
             Some(range) => match range {
                 SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
@@ -579,7 +579,6 @@ impl IssueSource {
 
 async fn source_pos(
     source: ResolvedVc<Box<dyn Source>>,
-    origin: Vc<FileSystemPath>,
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {
@@ -588,26 +587,25 @@ async fn source_pos(
     };
 
     let srcmap = generator.generate_source_map();
-
-    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+    let Some(srcmap) = &*SourceMap::new_from_rope_cached(srcmap).await? else {
         return Ok(None);
     };
 
-    let find = |line: usize, col: usize| async move {
+    let find = async |line: u32, col: u32| {
         let TokenWithSource {
             token,
             source_content,
-        } = &*srcmap.lookup_token_and_source(line, col).await?;
+        } = &srcmap.lookup_token_and_source(line, col).await?;
 
-        match &*token.await? {
-            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
+        match token {
+            crate::source_map::Token::Synthetic(t) => anyhow::Ok((
                 SourcePos {
                     line: t.generated_line as _,
                     column: t.generated_column as _,
                 },
                 *source_content,
             )),
-            crate::source_map::Token::Original(t) => Ok((
+            crate::source_map::Token::Original(t) => anyhow::Ok((
                 SourcePos {
                     line: t.original_line as _,
                     column: t.original_column as _,
@@ -1048,9 +1046,12 @@ pub async fn handle_issues<T: Send>(
     }
 }
 
-fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
+fn find_line_and_column(lines: &[FileLine], offset: u32) -> SourcePos {
     match lines.binary_search_by(|line| line.bytes_offset.cmp(&offset)) {
-        Ok(i) => SourcePos { line: i, column: 0 },
+        Ok(i) => SourcePos {
+            line: i as u32,
+            column: 0,
+        },
         Err(i) => {
             if i == 0 {
                 SourcePos {
@@ -1060,15 +1061,15 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             } else {
                 let line = &lines[i - 1];
                 SourcePos {
-                    line: i - 1,
-                    column: min(line.content.len(), offset - line.bytes_offset),
+                    line: (i - 1) as u32,
+                    column: min(line.content.len() as u32, offset - line.bytes_offset),
                 }
             }
         }
     }
 }
 
-fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
-    let line = &lines[pos.line];
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> u32 {
+    let line = &lines[pos.line as usize];
     line.bytes_offset + pos.column
 }

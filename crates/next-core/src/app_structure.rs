@@ -237,7 +237,7 @@ impl DirectoryTree {
         let mut subdirectories = BTreeMap::new();
 
         for (name, subdirectory) in &self.subdirectories {
-            subdirectories.insert(name.clone(), subdirectory.into_plain().await?.clone_value());
+            subdirectories.insert(name.clone(), subdirectory.into_plain().owned().await?);
         }
 
         Ok(PlainDirectoryTree {
@@ -1161,7 +1161,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // segment config. https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-option
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = modules.layout {
-        let mut layouts = root_layouts.await?.clone_value();
+        let mut layouts = root_layouts.owned().await?;
         layouts.push(layout);
         ResolvedVc::cell(layouts)
     } else {

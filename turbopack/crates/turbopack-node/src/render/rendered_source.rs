@@ -234,7 +234,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                     result_op,
                     ProxyResult {
                         status,
-                        headers: headers.await?.clone_value(),
+                        headers: headers.owned().await?,
                         body: body.clone(),
                     }
                     .resolved_cell(),

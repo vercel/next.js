@@ -7,18 +7,18 @@ export function LeftArrow({
 }) {
   return (
     <svg
-      className={className}
       width="16"
       height="16"
       viewBox="0 0 16 16"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
+      aria-label={title}
+      className={className}
     >
-      <title>{title}</title>
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M6.46963 13.7804L6.99996 14.3108L8.06062 13.2501L7.53029 12.7198L3.56062 8.75011H14.25H15V7.25011H14.25H3.56062L7.53029 3.28044L8.06062 2.75011L6.99996 1.68945L6.46963 2.21978L1.39641 7.29301C1.00588 7.68353 1.00588 8.3167 1.39641 8.70722L6.46963 13.7804Z"
+        d="M9.24996 12.0608L8.71963 11.5304L5.89641 8.70722C5.50588 8.3167 5.50588 7.68353 5.89641 7.29301L8.71963 4.46978L9.24996 3.93945L10.3106 5.00011L9.78029 5.53044L7.31062 8.00011L9.78029 10.4698L10.3106 11.0001L9.24996 12.0608Z"
         fill="currentColor"
       />
     </svg>

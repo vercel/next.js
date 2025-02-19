@@ -4,6 +4,7 @@ import {
   assertNoRedbox,
   openRedbox,
   getRedboxDescription,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 // TODO: parse the location and assert them in the future
@@ -18,6 +19,7 @@ function normalizeStackTrace(trace: string) {
 }
 
 async function getStackFramesContent(browser) {
+  await hasRedboxCallStack(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -45,7 +47,7 @@ async function getStackFramesContent(browser) {
 }
 
 describe('app-dir - owner-stack', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -69,7 +71,7 @@ describe('app-dir - owner-stack', () => {
       return log.message.includes('Error: browser error')
     }).message
 
-    // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+    // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
     if (isNewDevOverlay) {
       if (process.env.TURBOPACK) {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
@@ -113,22 +115,22 @@ describe('app-dir - owner-stack', () => {
     } else {
       if (process.env.TURBOPACK) {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-          "%o
-          %s Error: browser error
-          at useThrowError 
-          at useErrorHook 
-          at Page 
-          at react-stack-bottom-frame 
-          at renderWithHooks 
-          at updateFunctionComponent 
-          at beginWork 
-          at runWithFiberInDEV 
-          at performUnitOfWork 
-          at workLoopSync 
-          at renderRootSync 
-          at performWorkOnRoot 
-          at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+         "%o
+         %s Error: browser error
+         at useThrowError 
+         at useErrorHook 
+         at Page 
+         at react-stack-bottom-frame 
+         at renderWithHooks 
+         at updateFunctionComponent 
+         at beginWork 
+         at runWithFiberInDEV 
+         at performUnitOfWork 
+         at workLoopSync 
+         at renderRootSync 
+         at performWorkOnRoot 
+         at performWorkOnRootViaSchedulerTask 
+         at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
         `)
       } else {
         expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
@@ -166,23 +168,14 @@ describe('app-dir - owner-stack', () => {
     await openRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
-    if (isTurbopack) {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at useThrowError (app/browser/caught/page.js (34:11))
-       at useErrorHook (app/browser/caught/page.js (39:3))
-       at Thrower (app/browser/caught/page.js (29:3))
-       at Inner (app/browser/caught/page.js (23:7))
-       at Page (app/browser/caught/page.js (43:10))"
-      `)
-    } else {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-       "at useThrowError (app/browser/caught/page.js (34:11))
-       at useErrorHook (app/browser/caught/page.js (39:3))
-       at Thrower (app/browser/caught/page.js (29:3))
-       at Inner (app/browser/caught/page.js (23:8))
-       at Page (app/browser/caught/page.js (43:11))"
-      `)
-    }
+
+    expect(stackFramesContent).toMatchInlineSnapshot(`
+     "at useThrowError (app/browser/caught/page.js (34:11))
+     at useErrorHook (app/browser/caught/page.js (39:3))
+     at Thrower (app/browser/caught/page.js (29:3))
+     at Inner (app/browser/caught/page.js (23:7))
+     at Page (app/browser/caught/page.js (43:10))"
+    `)
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
       "%o
@@ -258,7 +251,7 @@ describe('app-dir - owner-stack', () => {
        at performWorkOnRoot 
        at performWorkOnRootViaSchedulerTask 
        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
-    `)
+      `)
     }
   })
 

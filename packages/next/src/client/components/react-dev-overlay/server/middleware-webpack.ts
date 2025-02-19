@@ -1,20 +1,21 @@
 import { constants as FS, promises as fs } from 'fs'
+import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
-import url from 'url'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import { fileURLToPath, pathToFileURL } from 'url'
+import {
+  SourceMapConsumer,
+  type BasicSourceMapConsumer,
+} from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
-  badRequest,
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  noContent,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
 } from './shared'
+import { middlewareResponse } from './middleware-response'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -27,13 +28,14 @@ import type {
 } from 'next/dist/compiled/source-map08'
 import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
+import { inspect } from 'util'
 
-function shouldIgnorePath(modulePath: string): boolean {
+function shouldIgnoreSource(sourceURL: string): boolean {
   return (
-    modulePath.includes('node_modules') ||
+    sourceURL.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist') ||
-    modulePath.startsWith('node:')
+    sourceURL.includes('next/dist') ||
+    sourceURL.startsWith('node:')
   )
 }
 
@@ -53,7 +55,7 @@ type Source =
       type: 'file'
       sourceMap: RawSourceMap
       ignoredSources: IgnoredSources
-      modulePath: string
+      moduleURL: string
     }
   | {
       type: 'bundle'
@@ -61,7 +63,7 @@ type Source =
       ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
-      modulePath: string
+      moduleURL: string
     }
 
 function getModuleById(
@@ -78,18 +80,34 @@ function findModuleNotFoundFromError(errorMessage: string | undefined) {
 }
 
 function getSourcePath(source: string) {
+  if (source.startsWith('file://')) {
+    return fileURLToPath(source)
+  }
   return source.replace(/^(webpack:\/\/\/|webpack:\/\/|webpack:\/\/_N_E\/)/, '')
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function findOriginalSourcePositionAndContent(
   sourceMap: RawSourceMap,
-  position: { line: number; column: number | null }
+  position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
-  const consumer = await new SourceMapConsumer(sourceMap)
+  let consumer: BasicSourceMapConsumer
+  try {
+    consumer = await new SourceMapConsumer(sourceMap)
+  } catch (cause) {
+    throw new Error(
+      `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
+  }
+
   try {
     const sourcePosition = consumer.originalPositionFor({
-      line: position.line,
-      column: position.column ?? 0,
+      line: position.lineNumber ?? 1,
+      // 0-based columns out requires 0-based columns in.
+      column: (position.column ?? 1) - 1,
     })
 
     if (!sourcePosition.source) {
@@ -111,16 +129,18 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
-export function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
-  const ignoreList = new Set<number>()
+export function getIgnoredSources(
+  sourceMap: RawSourceMap & { ignoreList?: number[] }
+): IgnoredSources {
+  const ignoreList = new Set<number>(sourceMap.ignoreList ?? [])
   const moduleFilenames = sourceMap?.sources ?? []
 
   for (let index = 0; index < moduleFilenames.length; index++) {
     // bundlerFilePath case: webpack://./app/page.tsx
-    const bundlerFilePath = moduleFilenames[index]
+    const webpackSourceURL = moduleFilenames[index]
     // Format the path to the normal file path
-    const formattedFilePath = formatFrameSourceFile(bundlerFilePath)
-    if (shouldIgnorePath(formattedFilePath)) {
+    const formattedFilePath = formatFrameSourceFile(webpackSourceURL)
+    if (shouldIgnoreSource(formattedFilePath)) {
       ignoreList.add(index)
     }
   }
@@ -171,9 +191,8 @@ export async function createOriginalStackFrame({
   frame: StackFrame
   errorMessage?: string
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
-  const result = await (async () => {
+  const result = await (() => {
     if (moduleNotFound) {
       if (source.type === 'file') {
         return undefined
@@ -185,11 +204,7 @@ export async function createOriginalStackFrame({
         source.compilation
       )
     }
-    // This returns 1-based lines and 0-based columns
-    return await findOriginalSourcePositionAndContent(source.sourceMap, {
-      line: lineNumber ?? 1,
-      column,
-    })
+    return findOriginalSourcePositionAndContent(source.sourceMap, frame)
   })()
 
   if (!result) {
@@ -205,19 +220,16 @@ export async function createOriginalStackFrame({
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
     // e.g. webpack://next/dist/.. needs to be ignored
-    shouldIgnorePath(source.modulePath)
+    shouldIgnoreSource(source.moduleURL)
 
   const sourcePath = getSourcePath(
     // When sourcePosition.source is the loader path the modulePath is generally better.
     (sourcePosition.source!.includes('|')
-      ? source.modulePath
-      : sourcePosition.source) || source.modulePath
+      ? source.moduleURL
+      : sourcePosition.source) || source.moduleURL
   )
   const filePath = path.resolve(rootDirectory, sourcePath)
-
-  const resolvedFilePath = sourceContent
-    ? path.relative(rootDirectory, filePath)
-    : sourcePosition.source
+  const resolvedFilePath = path.relative(rootDirectory, filePath)
 
   const traced: IgnorableStackFrame = {
     file: resolvedFilePath,
@@ -268,25 +280,45 @@ async function getSourceMapFromCompilation(
 }
 
 async function getSource(
-  filename: string,
+  sourceURL: string,
   options: {
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
   const { getCompilations } = options
 
-  if (path.isAbsolute(filename)) {
-    filename = url.pathToFileURL(filename).href
+  let nativeSourceMap: SourceMap | undefined
+  try {
+    nativeSourceMap = findSourceMap(sourceURL)
+  } catch (cause) {
+    throw new Error(
+      `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
   }
 
-  if (filename.startsWith('file:')) {
-    const sourceMap = await getSourceMapFromFile(filename)
+  if (nativeSourceMap !== undefined) {
+    const sourceMapPayload = nativeSourceMap.payload
+    return {
+      type: 'file',
+      sourceMap: sourceMapPayload,
+      ignoredSources: getIgnoredSources(sourceMapPayload),
+      moduleURL: sourceURL,
+    }
+  }
+
+  if (path.isAbsolute(sourceURL)) {
+    sourceURL = pathToFileURL(sourceURL).href
+  }
+
+  if (sourceURL.startsWith('file:')) {
+    const sourceMap = await getSourceMapFromFile(sourceURL)
     return sourceMap
       ? {
           type: 'file',
           sourceMap,
           ignoredSources: getIgnoredSources(sourceMap),
-          modulePath: filename.replace(/^file:\/\//, ''),
+          moduleURL: sourceURL,
         }
       : undefined
   }
@@ -294,7 +326,7 @@ async function getSource(
   // webpack-internal:///./src/hello.tsx => ./src/hello.tsx
   // rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => (rsc)/./src/hello.tsx
   // webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
-  const moduleId = filename
+  const moduleId = sourceURL
     .replace(
       /^(rsc:\/\/React\/[^/]+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
       ''
@@ -302,22 +334,10 @@ async function getSource(
     .replace(/\?\d+$/, '')
 
   // (rsc)/./src/hello.tsx => ./src/hello.tsx
-  const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
+  const moduleURL = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
-    const ignoreList = []
-    const moduleFilenames = sourceMap?.sources ?? []
-
-    for (let index = 0; index < moduleFilenames.length; index++) {
-      // bundlerFilePath case: webpack://./app/page.tsx
-      const bundlerFilePath = moduleFilenames[index]
-      // Format the path to the normal file path
-      const formattedFilePath = formatFrameSourceFile(bundlerFilePath)
-      if (shouldIgnorePath(formattedFilePath)) {
-        ignoreList.push(index)
-      }
-    }
 
     if (sourceMap) {
       const ignoredSources = getIgnoredSources(sourceMap)
@@ -326,7 +346,7 @@ async function getSource(
         sourceMap,
         compilation,
         moduleId,
-        modulePath,
+        moduleURL,
         ignoredSources,
       }
     }
@@ -335,7 +355,7 @@ async function getSource(
   return undefined
 }
 
-async function getOriginalStackFrames({
+function getOriginalStackFrames({
   isServer,
   isEdgeServer,
   isAppDirectory,
@@ -354,18 +374,32 @@ async function getOriginalStackFrames({
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
 }): Promise<OriginalStackFramesResponse> {
-  return Promise.allSettled(
-    frames.map((frame) =>
-      getOriginalStackFrame({
-        isServer,
-        isEdgeServer,
-        isAppDirectory,
-        frame,
-        clientStats,
-        serverStats,
-        edgeServerStats,
-        rootDirectory,
-      })
+  return Promise.all(
+    frames.map(
+      (frame): Promise<OriginalStackFramesResponse[number]> =>
+        getOriginalStackFrame({
+          isServer,
+          isEdgeServer,
+          isAppDirectory,
+          frame,
+          clientStats,
+          serverStats,
+          edgeServerStats,
+          rootDirectory,
+        }).then(
+          (value) => {
+            return {
+              status: 'fulfilled',
+              value,
+            }
+          },
+          (reason) => {
+            return {
+              status: 'rejected',
+              reason: inspect(reason, { colors: false }),
+            }
+          }
+        )
     )
   )
 }
@@ -440,7 +474,7 @@ async function getOriginalStackFrame({
     lineNumber: frame.lineNumber,
     column: frame.column ?? 1,
     methodName: frame.methodName,
-    ignored: shouldIgnorePath(filename),
+    ignored: shouldIgnoreSource(filename),
     arguments: [],
   }
   if (!source) {
@@ -484,7 +518,7 @@ export function getOverlayMiddleware(options: {
 
     if (pathname === '/__nextjs_original-stack-frames') {
       if (req.method !== 'POST') {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       const body = await new Promise<string>((resolve, reject) => {
@@ -501,7 +535,7 @@ export function getOverlayMiddleware(options: {
           body
         ) as OriginalStackFramesRequest
 
-        return json(
+        return middlewareResponse.json(
           res,
           await getOriginalStackFrames({
             isServer,
@@ -519,7 +553,7 @@ export function getOverlayMiddleware(options: {
           })
         )
       } catch (err) {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = {
@@ -530,7 +564,7 @@ export function getOverlayMiddleware(options: {
         arguments: searchParams.getAll('arguments').filter(Boolean),
       } satisfies StackFrame
 
-      if (!frame.file) return badRequest(res)
+      if (!frame.file) return middlewareResponse.badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
       const filePath = path.resolve(
@@ -541,16 +575,16 @@ export function getOverlayMiddleware(options: {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
-        await launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
+        launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -578,7 +612,7 @@ export function getSourceMapMiddleware(options: {
     const filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     let source: Source | undefined
@@ -602,15 +636,13 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      console.error('Failed to get source map:', error)
-
-      return internalServerError(res)
+      return middlewareResponse.internalServerError(res, error)
     }
 
     if (!source) {
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
-    return json(res, source.sourceMap)
+    return middlewareResponse.json(res, source.sourceMap)
   }
 }

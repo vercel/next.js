@@ -1,6 +1,7 @@
 use std::{
     borrow::Cow,
     cmp::max,
+    collections::BinaryHeap,
     fmt::{Debug, Display},
     future::Future,
     mem::take,
@@ -12,6 +13,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use futures::join;
+use once_cell::sync::Lazy;
 use owo_colors::{OwoColorize, Style};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
@@ -76,6 +78,34 @@ struct NodeJsPoolProcess {
     stdout_handler: OutputStreamHandler<ChildStdout, Stdout>,
     stderr_handler: OutputStreamHandler<ChildStderr, Stderr>,
     debug: bool,
+    cpu_time_invested: Duration,
+}
+
+impl Ord for NodeJsPoolProcess {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.cpu_time_invested
+            .cmp(&other.cpu_time_invested)
+            .then_with(|| {
+                self.child
+                    .as_ref()
+                    .map(|c| c.id())
+                    .cmp(&other.child.as_ref().map(|c| c.id()))
+            })
+    }
+}
+
+impl PartialOrd for NodeJsPoolProcess {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for NodeJsPoolProcess {}
+
+impl PartialEq for NodeJsPoolProcess {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
 }
 
 impl NodeJsPoolProcess {
@@ -432,6 +462,7 @@ impl NodeJsPoolProcess {
             stdout_handler,
             stderr_handler,
             debug,
+            cpu_time_invested: Duration::ZERO,
         };
 
         drop(guard);
@@ -675,6 +706,12 @@ enum AcquiredPermits {
     },
 }
 
+type IdleProcessesList = Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>;
+
+/// All non-empty `IdleProcessesList`s of the whole application.
+/// This is used to scale down processes globally.
+static ACTIVE_POOLS: Lazy<Mutex<Vec<IdleProcessesList>>> = Lazy::new(Default::default);
+
 /// A pool of Node.js workers operating on [entrypoint] with specific [cwd] and
 /// [env].
 ///
@@ -693,7 +730,7 @@ pub struct NodeJsPool {
     pub assets_root: ResolvedVc<FileSystemPath>,
     pub project_dir: ResolvedVc<FileSystemPath>,
     #[turbo_tasks(trace_ignore, debug_ignore)]
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     /// Semaphore to limit the number of concurrent operations in general
     #[turbo_tasks(trace_ignore, debug_ignore)]
     concurrency_semaphore: Arc<Semaphore>,
@@ -733,7 +770,7 @@ impl NodeJsPool {
             assets_for_source_mapping,
             assets_root,
             project_dir,
-            processes: Arc::new(Mutex::new(Vec::new())),
+            processes: Arc::new(Mutex::new(BinaryHeap::new())),
             concurrency_semaphore: Arc::new(Semaphore::new(if debug { 1 } else { concurrency })),
             bootup_semaphore: Arc::new(Semaphore::new(1)),
             idle_process_semaphore: Arc::new(Semaphore::new(0)),
@@ -763,7 +800,14 @@ impl NodeJsPool {
                 let idle_process_permit = idle_process_permit.context("acquiring idle process permit")?;
                 let process = {
                     let mut processes = self.processes.lock();
-                    processes.pop().unwrap()
+                    let process = processes.pop().unwrap();
+                    if processes.is_empty() {
+                        let mut pools = ACTIVE_POOLS.lock();
+                        if let Some(idx) = pools.iter().position(|p| Arc::ptr_eq(p, &self.processes)) {
+                            pools.swap_remove(idx);
+                        }
+                    }
+                    process
                 };
                 idle_process_permit.forget();
                 Ok((process, AcquiredPermits::Idle { concurrency_permit }))
@@ -819,6 +863,26 @@ impl NodeJsPool {
             allow_process_reuse: true,
         })
     }
+
+    pub fn scale_down() {
+        let pools = ACTIVE_POOLS.lock().clone();
+        for pool in pools {
+            let mut pool = pool.lock();
+            let best = pool.pop().unwrap();
+            pool.clear();
+            pool.push(best);
+            pool.shrink_to_fit();
+        }
+    }
+
+    pub fn scale_zero() {
+        let pools = take(&mut *ACTIVE_POOLS.lock());
+        for pool in pools {
+            let mut pool = pool.lock();
+            pool.clear();
+            pool.shrink_to_fit();
+        }
+    }
 }
 
 pub struct NodeJsOperation {
@@ -826,7 +890,7 @@ pub struct NodeJsOperation {
     // This is used for drop
     #[allow(dead_code)]
     permits: AcquiredPermits,
-    processes: Arc<Mutex<Vec<NodeJsPoolProcess>>>,
+    processes: Arc<Mutex<BinaryHeap<NodeJsPoolProcess>>>,
     idle_process_semaphore: Arc<Semaphore>,
     start: Instant,
     stats: Arc<Mutex<NodeJsPoolStats>>,
@@ -930,7 +994,7 @@ impl NodeJsOperation {
 
 impl Drop for NodeJsOperation {
     fn drop(&mut self) {
-        if let Some(process) = self.process.take() {
+        if let Some(mut process) = self.process.take() {
             let elapsed = self.start.elapsed();
             {
                 let stats = &mut self.stats.lock();
@@ -940,7 +1004,14 @@ impl Drop for NodeJsOperation {
                 }
             }
             if self.allow_process_reuse {
-                self.processes.lock().push(process);
+                process.cpu_time_invested += elapsed;
+                {
+                    let mut processes = self.processes.lock();
+                    if processes.is_empty() {
+                        ACTIVE_POOLS.lock().push(self.processes.clone());
+                    }
+                    processes.push(process);
+                }
                 self.idle_process_semaphore.add_permits(1);
             }
         }

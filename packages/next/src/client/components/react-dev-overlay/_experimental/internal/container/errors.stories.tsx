@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import { lorem } from '../../../internal/utils/lorem'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
@@ -69,85 +70,89 @@ const ignoredFrame = {
   ignored: true,
 }
 
-const readyErrors: ReadyRuntimeError[] = [
+const runtimeErrors: ReadyRuntimeError[] = [
   {
     id: 1,
     runtime: true,
     error: new Error('First error message'),
-    frames: [
-      frame,
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'ParentComponent',
-          lineNumber: 5,
+    frames: () =>
+      Promise.resolve([
+        frame,
+        {
+          ...frame,
+          originalStackFrame: {
+            ...frame.originalStackFrame,
+            methodName: 'ParentComponent',
+            lineNumber: 5,
+          },
         },
-      },
-      {
-        ...frame,
-        originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'GrandparentComponent',
-          lineNumber: 1,
+        {
+          ...frame,
+          originalStackFrame: {
+            ...frame.originalStackFrame,
+            methodName: 'GrandparentComponent',
+            lineNumber: 1,
+          },
         },
-      },
-      ...Array(20).fill(ignoredFrame),
-    ],
+        ...Array(20).fill(ignoredFrame),
+      ]),
   },
   {
     id: 2,
     runtime: true,
     error: new Error('Second error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Second error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Second error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Second error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Second error message'),
+        },
+      ]),
   },
   {
     id: 3,
     runtime: true,
     error: new Error('Third error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Third error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Third error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Third error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Third error message'),
+        },
+      ]),
   },
   {
     id: 4,
     runtime: true,
     error: new Error('Fourth error message'),
-    frames: [
-      {
-        error: true,
-        reason: 'Fourth error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('Fourth error message'),
-      },
-    ],
+    frames: () =>
+      Promise.resolve([
+        {
+          error: true,
+          reason: 'Fourth error message',
+          external: false,
+          ignored: false,
+          sourceStackFrame,
+          originalStackFrame,
+          originalCodeFrame: originalCodeFrame('Fourth error message'),
+        },
+      ]),
   },
 ]
 
 export const Default: Story = {
   args: {
-    readyErrors,
+    runtimeErrors,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
@@ -165,15 +170,21 @@ export const Turbopack: Story = {
   },
 }
 
-export const Minimized: Story = {
+export const VeryLongErrorMessage: Story = {
   args: {
     ...Default.args,
+    runtimeErrors: [
+      {
+        ...runtimeErrors[0],
+        error: Object.assign(new Error(lorem)),
+      },
+    ],
   },
 }
 
 export const WithHydrationWarning: Story = {
   args: {
-    readyErrors: [
+    runtimeErrors: [
       {
         id: 1,
         runtime: true,
@@ -205,21 +216,22 @@ export const WithHydrationWarning: Story = {
             },
           ],
         }),
-        frames: [
-          {
-            error: true,
-            reason: 'First error message',
-            external: false,
-            ignored: false,
-            sourceStackFrame: {
-              file: 'app/page.tsx',
-              methodName: 'Home',
-              arguments: [],
-              lineNumber: 10,
-              column: 5,
+        frames: () =>
+          Promise.resolve([
+            {
+              error: true,
+              reason: 'First error message',
+              external: false,
+              ignored: false,
+              sourceStackFrame: {
+                file: 'app/page.tsx',
+                methodName: 'Home',
+                arguments: [],
+                lineNumber: 10,
+                column: 5,
+              },
             },
-          },
-        ],
+          ]),
       },
     ],
     debugInfo: { devtoolsFrontendUrl: undefined },

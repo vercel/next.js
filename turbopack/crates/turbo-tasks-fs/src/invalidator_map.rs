@@ -1,13 +1,23 @@
 use std::sync::{LockResult, Mutex, MutexGuard};
 
 use concurrent_queue::ConcurrentQueue;
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use serde::{de::Visitor, Deserialize, Serialize};
-use turbo_tasks::Invalidator;
+use turbo_tasks::{Invalidator, ReadRef};
+
+use crate::{FileContent, LinkContent};
+
+#[derive(Serialize, Deserialize, PartialEq, Eq)]
+pub enum WriteContent {
+    File(ReadRef<FileContent>),
+    Link(ReadRef<LinkContent>),
+}
+
+type InnerMap = FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>;
 
 pub struct InvalidatorMap {
-    queue: ConcurrentQueue<(String, Invalidator)>,
-    map: Mutex<FxHashMap<String, FxHashSet<Invalidator>>>,
+    queue: ConcurrentQueue<(String, Invalidator, Option<WriteContent>)>,
+    map: Mutex<InnerMap>,
 }
 
 impl Default for InvalidatorMap {
@@ -24,17 +34,22 @@ impl InvalidatorMap {
         Self::default()
     }
 
-    pub fn lock(&self) -> LockResult<MutexGuard<'_, FxHashMap<String, FxHashSet<Invalidator>>>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, InnerMap>> {
         let mut guard = self.map.lock()?;
-        while let Ok((key, value)) = self.queue.pop() {
-            guard.entry(key).or_default().insert(value);
+        while let Ok((key, value, write_content)) = self.queue.pop() {
+            guard.entry(key).or_default().insert(value, write_content);
         }
         Ok(guard)
     }
 
     #[allow(unused_must_use)]
-    pub fn insert(&self, key: String, invalidator: Invalidator) {
-        self.queue.push((key, invalidator));
+    pub fn insert(
+        &self,
+        key: String,
+        invalidator: Invalidator,
+        write_content: Option<WriteContent>,
+    ) {
+        self.queue.push((key, invalidator, write_content));
     }
 }
 

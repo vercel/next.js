@@ -21,10 +21,6 @@ export function Component() {
             current: 1
         }
     };
-    var action = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
-        data,
-        baz.value,
-        foo
-    ]));
+    var action = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", data, baz.value, foo));
     return <form action={action}/>;
 }

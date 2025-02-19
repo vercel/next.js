@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
@@ -57,10 +57,7 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(
-            &content.inner_code,
-            content.source_map.map(ResolvedVc::upcast),
-        );
+        code.push_source(&content.inner_code, content.source_map.clone());
         write!(code, "{close}")?;
 
         if *this
@@ -146,7 +143,7 @@ impl Asset for SingleItemCssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

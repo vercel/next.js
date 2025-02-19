@@ -63,7 +63,7 @@ async fn func_without_args() -> Result<Vc<Value>> {
 #[turbo_tasks::function]
 async fn nested_func_without_args_waiting() -> Result<Vc<Value>> {
     println!("nested_func_without_args_waiting");
-    let value = func_without_args().await?.clone_value();
+    let value = func_without_args().owned().await?;
     Ok(value.cell())
 }
 

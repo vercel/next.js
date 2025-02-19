@@ -1,3 +1,17 @@
+/**
+ * Next.js Metadata API
+ *
+ * This file defines the types used by Next.js to configure metadata
+ * through static exports or dynamic `generateMetadata` functions in Server Components.
+ *
+ * @remarks
+ * - The static `metadata` object and `generateMetadata` function are only supported in Server Components.
+ * - Do not export both a `metadata` object and a `generateMetadata` function from the same route segment.
+ * - You can still render metadata in client components directly as part of the component's JSX.
+ *
+ * @see https://nextjs.org/docs/app/api-reference/metadata
+ */
+
 import type {
   AlternateURLs,
   Languages,
@@ -38,36 +52,79 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
 
 /**
  * Metadata interface to describe all the metadata fields that can be set in a document.
- * @interface
+ *
+ * @remarks
+ * This interface covers all the metadata fields available in Next.js including title, description,
+ * icons, openGraph, twitter, and more. Fields such as `metadataBase` help in composing absolute URLs
+ * from relative ones. The `title` field supports both simple strings and a template object with `default`,
+ * `template`, and `absolute` properties.
+ *
+ * @example
+ * ```tsx
+ * // Static metadata export in a layout or page:
+ * import type { Metadata } from 'next'
+ *
+ * export const metadata: Metadata = {
+ *   metadataBase: new URL('https://example.com'),
+ *   title: { default: 'My Site', template: '%s | My Site' },
+ *   description: 'Welcome to My Site',
+ *   alternates: {
+ *     canonical: 'https://example.com',
+ *     languages: {
+ *       'en-US': 'https://example.com/en-US',
+ *       'de-DE': 'https://example.com/de-DE'
+ *     }
+ *   },
+ *   openGraph: {
+ *     title: 'My Site',
+ *     description: 'Welcome to My Site',
+ *     url: 'https://example.com',
+ *     siteName: 'My Site',
+ *     images: [{ url: 'https://example.com/og.png' }]
+ *   },
+ * }
+ * ```
  */
 interface Metadata extends DeprecatedMetadataFields {
   /**
-   * The base path and origin for absolute urls for various metadata links such as OpenGraph images.
+   * The base path and origin for absolute URLs in various metadata fields.
+   *
+   * @remarks
+   * When relative URLs (for Open Graph images, alternates, etc.) are used, they are composed with this base.
+   * If not provided, Next.js will populate a default value based on environment variables.
    */
   metadataBase?: null | URL | undefined
 
   /**
    * The document title.
+   *
+   * @remarks
+   * The title can be a simple string (e.g., `"My Blog"`) or an object with:
+   * - `default`: A fallback title for child segments.
+   * - `template`: A title template (e.g., `"%s | My Website"`) applied to child titles.
+   * - `absolute`: A title that overrides parent templates.
+   *
    * @example
    * ```tsx
-   * "My Blog"
-   * <title>My Blog</title>
+   * // As a simple string:
+   * title: "My Blog"
    *
-   * { default: "Dashboard", template: "%s | My Website" }
-   * <title>Dashboard | My Website</title>
+   * // As a template object:
+   * title: { default: "Dashboard", template: "%s | My Website" }
    *
-   * { absolute: "My Blog", template: "%s | My Website" }
-   * <title>My Blog</title>
+   * // Using absolute value (ignores parent template):
+   * title: { absolute: "My Blog", template: "%s | My Website" }
    * ```
    */
   title?: null | string | TemplateString | undefined
 
   /**
-   * The document description, and optionally the OpenGraph and twitter descriptions.
+   * The document description, and optionally the Open Graph and Twitter descriptions.
+   *
    * @example
    * ```tsx
-   * "My Blog Description"
-   * <meta name="description" content="My Blog Description" />
+   * description: "My Blog Description"
+   * // Renders: <meta name="description" content="My Blog Description" />
    * ```
    */
   description?: null | string | undefined
@@ -77,79 +134,69 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The application name.
+   *
    * @example
    * ```tsx
-   * "My Blog"
-   * <meta name="application-name" content="My Blog" />
+   * applicationName: "My Blog"
+   * // Renders: <meta name="application-name" content="My Blog" />
    * ```
    */
   applicationName?: null | string | undefined
 
   /**
    * The authors of the document.
+   *
    * @example
    * ```tsx
-   * [{ name: "Next.js Team", url: "https://nextjs.org" }]
-   *
-   * <meta name="author" content="Next.js Team" />
-   * <link rel="author" href="https://nextjs.org" />
+   * authors: [{ name: "Next.js Team", url: "https://nextjs.org" }]
+   * // Renders:
+   * // <meta name="author" content="Next.js Team" />
+   * // <link rel="author" href="https://nextjs.org" />
    * ```
    */
   authors?: null | Author | Array<Author> | undefined
 
   /**
    * The generator used for the document.
+   *
    * @example
    * ```tsx
-   * "Next.js"
-   *
-   * <meta name="generator" content="Next.js" />
+   * generator: "Next.js"
+   * // Renders: <meta name="generator" content="Next.js" />
    * ```
    */
   generator?: null | string | undefined
 
   /**
-   * The keywords for the document. If an array is provided, it will be flattened into a single tag with comma separation.
+   * The keywords for the document.
+   *
+   * @remarks
+   * When an array is provided, keywords are flattened into a comma-separated string.
+   *
    * @example
    * ```tsx
-   * "nextjs, react, blog"
-   * <meta name="keywords" content="nextjs, react, blog" />
-   *
-   * ["react", "server components"]
-   * <meta name="keywords" content="react, server components" />
+   * keywords: "nextjs, react, blog"
+   * // or
+   * keywords: ["react", "server components"]
    * ```
    */
   keywords?: null | string | Array<string> | undefined
 
   /**
    * The referrer setting for the document.
+   *
    * @example
    * ```tsx
-   * "origin"
-   * <meta name="referrer" content="origin" />
+   * referrer: "origin"
+   * // Renders: <meta name="referrer" content="origin" />
    * ```
    */
   referrer?: null | ReferrerEnum | undefined
 
   /**
    * The theme color for the document.
-   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
-   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
-   * @example
-   * ```tsx
-   * "#000000"
-   * <meta name="theme-color" content="#000000" />
    *
-   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
-   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-   *
-   * [
-   *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
-   *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
-   * ]
-   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-   * ```
+   * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
   themeColor?:
     | null
@@ -160,45 +207,36 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The color scheme for the document.
-   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
-   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
-   * @example
-   * ```tsx
-   * "dark"
-   * <meta name="color-scheme" content="dark" />
-   * ```
+   *
+   * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
   colorScheme?: null | ColorSchemeEnum | undefined
 
   /**
    * The viewport setting for the document.
-   * @deprecated Use `export const viewport: Viewport = { ... }` instead.
-   * @see https://nextjs.org/docs/app/api-reference/functions/generate-viewport#the-viewport-object
-   * @example
-   * ```tsx
-   * { width: "device-width", initialScale: 1 }
-   * <meta name="viewport" content="width=device-width, initial-scale=1" />
-   * ```
+   *
+   * @deprecated Use the new viewport configuration (`export const viewport: Viewport = { ... }`) instead.
    */
   viewport?: null | string | ViewportLayout | undefined
 
   /**
    * The creator of the document.
+   *
    * @example
    * ```tsx
-   * "Next.js Team"
-   * <meta name="creator" content="Next.js Team" />
+   * creator: "Next.js Team"
+   * // Renders: <meta name="creator" content="Next.js Team" />
    * ```
    */
   creator?: null | string | undefined
 
   /**
    * The publisher of the document.
-   * @example
    *
+   * @example
    * ```tsx
-   * "Vercel"
-   * <meta name="publisher" content="Vercel" />
+   * publisher: "Vercel"
+   * // Renders: <meta name="publisher" content="Vercel" />
    * ```
    */
   publisher?: null | string | undefined
@@ -208,44 +246,34 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The robots setting for the document.
    *
-   * @see https://developer.mozilla.org/docs/Glossary/Robots.txt
+   * @remarks
+   * Can be a string (e.g., "index, follow") or an object with more granular rules.
+   *
    * @example
    * ```tsx
-   * "index, follow"
-   * <meta name="robots" content="index, follow" />
-   *
-   * { index: false, follow: false }
-   * <meta name="robots" content="noindex, nofollow" />
+   * robots: "index, follow"
+   * // or
+   * robots: { index: true, follow: true }
    * ```
+   *
+   * @see https://developer.mozilla.org/docs/Glossary/Robots.txt
    */
   robots?: null | string | Robots | undefined
 
   /**
    * The canonical and alternate URLs for the document.
+   *
+   * @remarks
+   * This field allows defining a canonical URL as well as alternate URLs (such as for multiple languages).
+   *
    * @example
    * ```tsx
-   * { canonical: "https://example.com" }
-   * <link rel="canonical" href="https://example.com" />
-   *
-   * { canonical: "https://example.com", hreflang: { "en-US": "https://example.com/en-US" } }
-   * <link rel="canonical" href="https://example.com" />
-   * <link rel="alternate" href="https://example.com/en-US" hreflang="en-US" />
-   * ```
-   *
-   * Multiple titles example for alternate URLs except `canonical`:
-   * ```tsx
-   * {
+   * alternates: {
    *   canonical: "https://example.com",
-   *   types: {
-   *     'application/rss+xml': [
-   *       { url: 'blog.rss', title: 'rss' },
-   *       { url: 'blog/js.rss', title: 'js title' },
-   *     ],
-   *   },
+   *   languages: {
+   *     "en-US": "https://example.com/en-US"
+   *   }
    * }
-   * <link rel="canonical" href="https://example.com" />
-   * <link rel="alternate" href="https://example.com/blog.rss" type="application/rss+xml" title="rss" />
-   * <link rel="alternate" href="https://example.com/blog/js.rss" type="application/rss+xml" title="js title" />
    * ```
    */
   alternates?: null | AlternateURLs | undefined
@@ -253,107 +281,103 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The icons for the document. Defaults to rel="icon".
    *
-   * @see https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#attr-icon
+   * @remarks
+   * You can specify a simple URL or an object to differentiate between icon types (e.g., apple-touch-icon).
+   *
    * @example
    * ```tsx
-   * "https://example.com/icon.png"
-   * <link rel="icon" href="https://example.com/icon.png" />
-   *
-   * { icon: "https://example.com/icon.png", apple: "https://example.com/apple-icon.png" }
-   * <link rel="icon" href="https://example.com/icon.png" />
-   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
-   *
-   * [{ rel: "icon", url: "https://example.com/icon.png" }, { rel: "apple-touch-icon", url: "https://example.com/apple-icon.png" }]
-   * <link rel="icon" href="https://example.com/icon.png" />
-   * <link rel="apple-touch-icon" href="https://example.com/apple-icon.png" />
+   * icons: "https://example.com/icon.png"
+   * // or
+   * icons: {
+   *   icon: "https://example.com/icon.png",
+   *   apple: "https://example.com/apple-icon.png"
+   * }
    * ```
+   *
+   * @see https://developer.mozilla.org/docs/Web/HTML/Attributes/rel#attr-icon
    */
   icons?: null | IconURL | Array<Icon> | Icons | undefined
 
   /**
    * A web application manifest, as defined in the Web Application Manifest specification.
    *
-   * @see https://developer.mozilla.org/docs/Web/Manifest
    * @example
    * ```tsx
-   * "https://example.com/manifest.json"
-   * <link rel="manifest" href="https://example.com/manifest.json" />
+   * manifest: "https://example.com/manifest.json"
+   * // Renders: <link rel="manifest" href="https://example.com/manifest.json" />
    * ```
    *
+   * @see https://developer.mozilla.org/docs/Web/Manifest
    */
   manifest?: null | string | URL | undefined
 
   /**
    * The Open Graph metadata for the document.
    *
-   * @see https://ogp.me
+   * @remarks
+   * Follows the Open Graph protocol to enrich link previews.
+   *
    * @example
    * ```tsx
-   * {
+   * openGraph: {
    *   type: "website",
    *   url: "https://example.com",
    *   title: "My Website",
    *   description: "My Website Description",
    *   siteName: "My Website",
-   *   images: [{
-   *     url: "https://example.com/og.png",
-   *   }],
+   *   images: [{ url: "https://example.com/og.png" }]
    * }
-   *
-   * <meta property="og:type" content="website" />
-   * <meta property="og:url" content="https://example.com" />
-   * <meta property="og:site_name" content="My Website" />
-   * <meta property="og:title" content="My Website" />
-   * <meta property="og:description" content="My Website Description" />
-   * <meta property="og:image" content="https://example.com/og.png" />
    * ```
+   *
+   * @see https://ogp.me/
    */
   openGraph?: null | OpenGraph | undefined
 
   /**
    * The Twitter metadata for the document.
+   *
+   * @remarks
+   * - Used for configuring Twitter Cards and can include details such as `card`, `site`, and `creator`.
+   * - Notably, more sites than just Twitter (now X) use this format.
+   *
    * @example
    * ```tsx
-   * { card: "summary_large_image", site: "@site", creator: "@creator", images: "https://example.com/og.png" }
-   *
-   * <meta name="twitter:card" content="summary_large_image" />
-   * <meta name="twitter:site" content="@site" />
-   * <meta name="twitter:creator" content="@creator" />
-   * <meta name="twitter:title" content="My Website" />
-   * <meta name="twitter:description" content="My Website Description" />
-   * <meta name="twitter:image" content="https://example.com/og.png" />
+   * twitter: {
+   *   card: "summary_large_image",
+   *   site: "@site",
+   *   creator: "@creator",
+   *   images: "https://example.com/og.png"
+   * }
    * ```
-   *
    */
   twitter?: null | Twitter | undefined
 
   /**
    * The Facebook metadata for the document.
-   * You can specify either appId or admins, but not both.
-   * @example
-   * ```tsx
-   * { appId: "12345678" }
    *
-   * <meta property="fb:app_id" content="12345678" />
-   * ```
+   * @remarks
+   * Specify either `appId` or `admins` (but not both) to configure Facebook integration.
    *
    * @example
    * ```tsx
-   * { admins: ["12345678"] }
-   *
-   * <meta property="fb:admins" content="12345678" />
+   * facebook: { appId: "12345678" }
+   * // Renders <meta property="fb:app_id" content="12345678" />
+   * // or
+   * facebook: { admins: ["12345678"] }
+   * // Renders <meta property="fb:admins" content="12345678" />
    * ```
    */
   facebook?: null | Facebook | undefined
 
   /**
    * The common verification tokens for the document.
+   *
    * @example
    * ```tsx
-   * { verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" } }
-   * <meta name="google-site-verification" content="1234567890" />
-   * <meta name="yandex-verification" content="1234567890" />
-   * <meta name="me" content="@me" />
+   * verification: { google: "1234567890", yandex: "1234567890", "me": "1234567890" }
+   * // Renders <meta name="google-site-verification" content="1234567890" />
+   * // <meta name="yandex-verification" content="1234567890" />
+   * // <meta name="me" content="@me" />
    * ```
    */
   verification?: Verification | undefined
@@ -361,61 +385,65 @@ interface Metadata extends DeprecatedMetadataFields {
   /**
    * The Apple web app metadata for the document.
    *
-   * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
    * @example
    * ```tsx
-   * { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
-   * <meta name="mobile-web-app-capable" content="yes" />
-   * <meta name="apple-mobile-web-app-title" content="My Website" />
-   * <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+   * appleWebApp: { capable: true, title: "My Website", statusBarStyle: "black-translucent" }
    * ```
    *
+   * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariHTMLRef/Articles/MetaTags.html
    */
   appleWebApp?: null | boolean | AppleWebApp | undefined
 
   /**
-   * Indicates if devices should try to interpret various formats and make actionable links out of them. For example it controles
-   * if telephone numbers on mobile that can be clicked to dial or not.
+   * Indicates whether devices should interpret certain formats (such as telephone numbers) as actionable links.
+   *
    * @example
    * ```tsx
-   * { telephone: false }
-   * <meta name="format-detection" content="telephone=no" />
+   * formatDetection: { telephone: false }
+   * // Renders: <meta name="format-detection" content="telephone=no" />
    * ```
-   *
    */
   formatDetection?: null | FormatDetection | undefined
 
   /**
    * The metadata for the iTunes App.
-   * It adds the `name="apple-itunes-app"` meta tag.
+   *
+   * @remarks
+   * Adds the `name="apple-itunes-app"` meta tag.
    *
    * @example
    * ```tsx
-   * { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } }
-   * <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
+   * itunes: { app: { id: "123456789", affiliateData: "123456789", appArguments: "123456789" } }
+   * // Renders <meta name="apple-itunes-app" content="app-id=123456789, affiliate-data=123456789, app-arguments=123456789" />
    * ```
    */
   itunes?: null | ItunesApp | undefined
 
   /**
-   * A brief description of what this web-page is about. Not recommended, superseded by description.
-   * It adds the `name="abstract"` meta tag.
+   * A brief description of the web page.
    *
-   * @see https://www.metatags.org/all-meta-tags-overview/meta-name-abstract/
+   * @remarks
+   * Rendered as the `abstract` meta tag. This is *not recommended* as it is superseded by `description`.
+   *
    * @example
    * ```tsx
-   * "My Website Description"
-   * <meta name="abstract" content="My Website Description" />
+   * abstract: "My Website Description"
+   * // Renders <meta name="abstract" content="My Website Description" />
    * ```
    */
   abstract?: null | string | undefined
 
   /**
    * The Facebook AppLinks metadata for the document.
+   *
    * @example
    * ```tsx
-   * { ios: { appStoreId: "123456789", url: "https://example.com" }, android: { packageName: "com.example", url: "https://example.com" } }
+   * appLinks: {
+   *   ios: { appStoreId: "123456789", url: "https://example.com" },
+   *   android: { packageName: "com.example", url: "https://example.com" }
+   * }
    *
+   * // Renders
    * <meta property="al:ios:app_store_id" content="123456789" />
    * <meta property="al:ios:url" content="https://example.com" />
    * <meta property="al:android:package" content="com.example" />
@@ -426,74 +454,94 @@ interface Metadata extends DeprecatedMetadataFields {
 
   /**
    * The archives link rel property.
+   *
    * @example
    * ```tsx
-   * { archives: "https://example.com/archives" }
-   * <link rel="archives" href="https://example.com/archives" />
+   * archives: "https://example.com/archives"
+   * // Renders <link rel="archives" href="https://example.com/archives" />
    * ```
    */
   archives?: null | string | Array<string> | undefined
 
   /**
    * The assets link rel property.
+   *
    * @example
    * ```tsx
-   * "https://example.com/assets"
-   * <link rel="assets" href="https://example.com/assets" />
+   * assets: "https://example.com/assets"
+   * // Renders <link rel="assets" href="https://example.com/assets" />
    * ```
    */
   assets?: null | string | Array<string> | undefined
 
   /**
    * The bookmarks link rel property.
+   *
+   * @remarks
+   * Although technically against the HTML spec, this is used in practice.
+   *
    * @example
    * ```tsx
-   * "https://example.com/bookmarks"
-   * <link rel="bookmarks" href="https://example.com/bookmarks" />
+   * bookmarks: "https://example.com/bookmarks"
+   * // Renders <link rel="bookmarks" href="https://example.com/bookmarks" />
    * ```
    */
-  bookmarks?: null | string | Array<string> | undefined // This is technically against HTML spec but is used in wild
+  bookmarks?: null | string | Array<string> | undefined
 
   /**
    * The pagination link rel properties.
    *
-   * @see https://developers.google.com/search/blog/2011/09/pagination-with-relnext-and-relprev
    * @example
    * ```tsx
-   * "https://example.com/items"
+   * pagination: {
+   *   previous: "https://example.com/items?page=1",
+   *   next: "https://example.com/items?page=3"
+   * }
+   *
+   * // Renders
    * <link rel="prev" href="https://example.com/items?page=1" />
    * <link rel="next" href="https://example.com/items?page=3" />
    * ```
+   *
+   * @see https://developers.google.com/search/blog/2011/09/pagination-with-relnext-and-relprev
    */
   pagination?: {
     previous?: null | string | URL | undefined
     next?: null | string | URL | undefined
   }
 
-  // meta name properties
-
   /**
    * The category meta name property.
+   *
    * @example
    * ```tsx
-   * "My Category"
-   * <meta name="category" content="My Category" />
+   * category: "My Category"
+   * // Renders <meta name="category" content="My Category" />
    * ```
    */
   category?: null | string | undefined
 
   /**
    * The classification meta name property.
+   *
    * @example
    * ```tsx
-   * "My Classification"
-   * <meta name="classification" content="My Classification" />
+   * classification: "My Classification"
+   * // Renders <meta name="classification" content="My Classification" />
    * ```
    */
   classification?: null | string | undefined
 
   /**
-   * Arbitrary name/value pairs for the document.
+   * Arbitrary name/value pairs for additional metadata.
+   *
+   * @remarks
+   * Use this field to define custom meta tags that are not directly supported.
+   *
+   * @example
+   * ```tsx
+   * other: { custom: ["meta1", "meta2"] }
+   * ```
    */
   other?:
     | ({
@@ -502,6 +550,10 @@ interface Metadata extends DeprecatedMetadataFields {
     | undefined
 }
 
+/**
+ * ResolvedMetadata represents the fully processed metadata after defaults are applied
+ * and relative URLs are composed with `metadataBase`.
+ */
 interface ResolvedMetadata extends DeprecatedMetadataFields {
   // origin and base path for absolute urls for various metadata links such as
   // opengraph-image
@@ -590,8 +642,6 @@ interface ResolvedMetadata extends DeprecatedMetadataFields {
   // meta name properties
   category: null | string
   classification: null | string
-
-  // Arbitrary name/value pairs
   other:
     | null
     | ({
@@ -649,24 +699,44 @@ declare namespace MetadataRoute {
   export type Manifest = ManifestFile
 }
 
+/**
+ * Interface for the viewport configuration.
+ *
+ * @remarks
+ * This configuration allows defining properties such as width, initial scale, theme colors,
+ * and color scheme.
+ *
+ * @example
+ * ```tsx
+ * export const viewport: Viewport = {
+ *   width: "device-width",
+ *   initialScale: 1,
+ *   themeColor: [
+ *     { media: "(prefers-color-scheme: dark)", color: "#000000" },
+ *     { media: "(prefers-color-scheme: light)", color: "#ffffff" }
+ *   ],
+ *   colorScheme: "dark"
+ * }
+ * ```
+ */
 interface Viewport extends ViewportLayout {
   /**
    * The theme color for the document.
+   *
    * @example
-   *
    * ```tsx
-   * "#000000"
-   * <meta name="theme-color" content="#000000" />
+   * themeColor: "#000000"
+   * // Renders <meta name="theme-color" content="#000000" />
    *
-   * { media: "(prefers-color-scheme: dark)", color: "#000000" }
-   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * themeColor: { media: "(prefers-color-scheme: dark)", color: "#000000" }
+   * // Renders <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
    *
-   * [
+   * themeColor: [
    *  { media: "(prefers-color-scheme: dark)", color: "#000000" },
    *  { media: "(prefers-color-scheme: light)", color: "#ffffff" }
    * ]
-   * <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
-   * <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+   * // Renders <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+   * // Renders <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
    * ```
    */
   themeColor?:
@@ -678,11 +748,11 @@ interface Viewport extends ViewportLayout {
 
   /**
    * The color scheme for the document.
-   * @example
    *
+   * @example
    * ```tsx
-   * "dark"
-   * <meta name="color-scheme" content="dark" />
+   * colorScheme: "dark"
+   * // Renders <meta name="color-scheme" content="dark" />
    * ```
    */
   colorScheme?: null | ColorSchemeEnum | undefined

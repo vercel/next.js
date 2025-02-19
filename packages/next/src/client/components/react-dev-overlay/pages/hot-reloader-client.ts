@@ -139,6 +139,7 @@ function handleSuccess() {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
+    reportHmrLatency([...turbopackUpdatedModules])
     onBuildOk()
   }
 }
@@ -213,7 +214,9 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: number | undefined = undefined
+let startLatency: number | null = null
+let turbopackLastUpdateLatency: number | null = null
+let turbopackUpdatedModules: Set<string> = new Set()
 
 function onBeforeFastRefresh(updatedModules: string[]) {
   if (updatedModules.length > 0) {
@@ -235,26 +238,27 @@ function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
 }
 
 function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
-  if (startLatency) {
-    const endLatency = Date.now()
-    const latency = endLatency - startLatency
-    console.log(`[Fast Refresh] done in ${latency}ms`)
-    sendMessage(
-      JSON.stringify({
-        event: 'client-hmr-latency',
-        id: window.__nextDevClientId,
-        startTime: startLatency,
-        endTime: endLatency,
-        page: window.location.pathname,
-        updatedModules,
-        // Whether the page (tab) was hidden at the time the event occurred.
-        // This can impact the accuracy of the event's timing.
-        isPageHidden: document.visibilityState === 'hidden',
-      })
-    )
-    if (self.__NEXT_HMR_LATENCY_CB) {
-      self.__NEXT_HMR_LATENCY_CB(latency)
-    }
+  if (!startLatency) return
+  // turbopack has a debounce for the BUILT event which we don't want to
+  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
+  let endLatency = turbopackLastUpdateLatency ?? Date.now()
+  const latency = endLatency - startLatency
+  console.log(`[Fast Refresh] done in ${latency}ms`)
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
+  if (self.__NEXT_HMR_LATENCY_CB) {
+    self.__NEXT_HMR_LATENCY_CB(latency)
   }
 }
 
@@ -274,6 +278,8 @@ function processMessage(obj: HMR_ACTION_TYPES) {
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      turbopackLastUpdateLatency = null
+      turbopackUpdatedModules.clear()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -345,7 +351,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
       const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      onBeforeFastRefresh(updatedModules)
+      onBeforeFastRefresh([...updatedModules])
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -357,7 +363,10 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         performFullReload(null)
       }
       onRefresh()
-      reportHmrLatency(updatedModules)
+      for (const module of updatedModules) {
+        turbopackUpdatedModules.add(module)
+      }
+      turbopackLastUpdateLatency = Date.now()
       break
     }
     default: {

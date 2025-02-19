@@ -120,16 +120,12 @@ export function getRSCModuleInformation(
   const parsedActionsMeta = actionsJson
     ? (JSON.parse(actionsJson[1]) as Record<string, string>)
     : undefined
-  const actions = parsedActionsMeta
-    ? (Object.values(parsedActionsMeta) as string[])
-    : undefined
   const clientInfoMatch = source.match(CLIENT_MODULE_LABEL)
   const isClientRef = !!clientInfoMatch
 
   if (!isReactServerLayer) {
     return {
       type: RSC_MODULE_TYPES.client,
-      actions,
       actionIds: parsedActionsMeta,
       isClientRef,
     }
@@ -145,7 +141,6 @@ export function getRSCModuleInformation(
 
   return {
     type,
-    actions,
     actionIds: parsedActionsMeta,
     clientRefs,
     clientEntryType,
