@@ -1264,7 +1264,7 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: true,
-    streamingMetadata: false,
+    streamingMetadata: true,
     htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
