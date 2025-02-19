@@ -1,0 +1,3 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css) */
+.style{cursor:url(../static/image.b151aca5.png);list-style-image:url(../static/image.b151aca5.png);background-image:url(../static/image.b151aca5.png)}
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_7d7e1c.css.map*/

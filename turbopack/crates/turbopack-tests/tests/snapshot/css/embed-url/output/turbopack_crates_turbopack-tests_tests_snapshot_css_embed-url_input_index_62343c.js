@@ -1,0 +1,6 @@
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
+    "output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_index_62343c.js",
+    {},
+    {"otherChunks":[{"path":"output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_00f6db._.css","included":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css)","[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css [test] (css)"],"moduleChunks":["output/4e721_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_module_7d7e1c.css","output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_style_7d7e1c.css"]},"output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_e139c1._.js","output/turbopack_crates_turbopack-tests_tests_snapshot_css_embed-url_input_424214._.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/index.js [test] (ecmascript)"]}
+]);
+// Dummy runtime
