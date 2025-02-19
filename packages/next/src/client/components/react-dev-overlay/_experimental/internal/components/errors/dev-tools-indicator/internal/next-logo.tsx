@@ -7,6 +7,7 @@ interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   isDevBuilding: boolean
   isDevRendering: boolean
+  isBuildError: boolean
   onTriggerClick: () => void
   openErrorOverlay: () => void
 }
@@ -62,6 +63,7 @@ export const NextLogo = forwardRef(function NextLogo(
     issueCount,
     isDevBuilding,
     isDevRendering,
+    isBuildError,
     onTriggerClick,
     openErrorOverlay,
     ...props
@@ -224,7 +226,9 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: var(--padding);
             align-items: center;
             padding-left: 8px;
-            padding-right: ${disabled ? '8px' : 'calc(var(--padding) * 2)'};
+            padding-right: ${disabled || isBuildError
+              ? '8px'
+              : 'calc(var(--padding) * 2)'};
             height: 32px;
             margin: 0 var(--padding);
             border-radius: 9999px;
@@ -462,7 +466,7 @@ export const NextLogo = forwardRef(function NextLogo(
                   )}
                 </div>
               </button>
-              {!disabled && (
+              {!disabled && !isBuildError && (
                 <button
                   data-issues-collapse
                   aria-label="Collapse issues badge"

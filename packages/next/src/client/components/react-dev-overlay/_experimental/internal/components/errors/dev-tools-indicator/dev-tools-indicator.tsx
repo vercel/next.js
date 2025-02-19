@@ -23,11 +23,13 @@ type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 export function DevToolsIndicator({
   state,
   errorCount,
+  isBuildError,
   setIsErrorOverlayOpen,
   position = INDICATOR_POSITION,
 }: {
   state: OverlayState
   errorCount: number
+  isBuildError: boolean
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
   // Technically this prop isn't needed, but useful for testing.
   position?: DevToolsIndicatorPosition
@@ -47,6 +49,7 @@ export function DevToolsIndicator({
         isTurbopack={!!process.env.TURBOPACK}
         position={position}
         disabled={state.disableDevIndicator}
+        isBuildError={isBuildError}
       />
     )
   )
@@ -71,6 +74,7 @@ function DevToolsPopover({
   isStaticRoute,
   isTurbopack,
   position,
+  isBuildError,
   hide,
   setIsErrorOverlayOpen,
 }: {
@@ -80,6 +84,7 @@ function DevToolsPopover({
   semver: string | undefined
   isTurbopack: boolean
   position: DevToolsIndicatorPosition
+  isBuildError: boolean
   hide: () => void
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
@@ -263,6 +268,7 @@ function DevToolsPopover({
         openErrorOverlay={openErrorOverlay}
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
+        isBuildError={isBuildError}
       />
 
       {routeInfoMounted && (
