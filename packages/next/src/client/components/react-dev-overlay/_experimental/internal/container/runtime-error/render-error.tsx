@@ -109,16 +109,7 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     }
   }, [nextError, isAppDir])
 
-  // Stringify since __NEXT_DEV_INDICATOR can be set to boolean false.
-  const hasDisabledDevIndicator =
-    process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
   const totalErrorCount = readyErrors.length
-
-  // Even if the dev indicator is disabled, we should show it
-  // along with the error overlay when there are errors.
-  if (hasDisabledDevIndicator && !totalErrorCount) {
-    return null
-  }
 
   return children({ readyErrors, totalErrorCount })
 }

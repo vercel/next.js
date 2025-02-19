@@ -58,6 +58,7 @@ const useAnimated = <T,>(
 
 export const NextLogo = forwardRef(function NextLogo(
   {
+    disabled,
     issueCount,
     isDevBuilding,
     isDevRendering,
@@ -93,6 +94,8 @@ export const NextLogo = forwardRef(function NextLogo(
         {
           '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
+          // if the indicator is disabled and there are no errors, hide the badge
+          display: disabled && !hasError ? 'none' : 'block',
         } as React.CSSProperties
       }
     >
@@ -116,6 +119,13 @@ export const NextLogo = forwardRef(function NextLogo(
             &:has([data-next-badge][data-error='true']) {
               --focus-color: #fff;
             }
+          }
+
+          [data-disabled-icon] {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 4px;
           }
 
           [data-next-badge] {
@@ -214,7 +224,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: var(--padding);
             align-items: center;
             padding-left: 8px;
-            padding-right: calc(var(--padding) * 2);
+            padding-right: ${disabled ? '8px' : 'calc(var(--padding) * 2)'};
             height: 32px;
             margin: 0 var(--padding);
             border-radius: 9999px;
@@ -412,15 +422,17 @@ export const NextLogo = forwardRef(function NextLogo(
       >
         <div ref={ref}>
           {/* Children */}
-          <button
-            ref={mergeRefs(triggerRef, propRef)}
-            data-next-mark
-            data-next-mark-loading={isLoading}
-            onClick={onTriggerClick}
-            {...props}
-          >
-            <NextMark isLoading={isLoading} />
-          </button>
+          {!disabled && (
+            <button
+              ref={mergeRefs(triggerRef, propRef)}
+              data-next-mark
+              data-next-mark-loading={isLoading}
+              onClick={onTriggerClick}
+              {...props}
+            >
+              <NextMark isLoading={isLoading} />
+            </button>
+          )}
           {isErrorExpanded && (
             <div data-issues>
               <button
@@ -428,6 +440,11 @@ export const NextLogo = forwardRef(function NextLogo(
                 aria-label="Open issues overlay"
                 onClick={openErrorOverlay}
               >
+                {disabled && (
+                  <div data-disabled-icon>
+                    <Warning />
+                  </div>
+                )}
                 <AnimateCount
                   // Used the key to force a re-render when the count changes.
                   key={issueCount}
@@ -445,17 +462,19 @@ export const NextLogo = forwardRef(function NextLogo(
                   )}
                 </div>
               </button>
-              <button
-                data-issues-collapse
-                aria-label="Collapse issues badge"
-                onClick={() => {
-                  setIsErrorExpanded(false)
-                  // Move focus to the trigger to prevent having it stuck on this element
-                  triggerRef.current?.focus()
-                }}
-              >
-                <Cross data-cross />
-              </button>
+              {!disabled && (
+                <button
+                  data-issues-collapse
+                  aria-label="Collapse issues badge"
+                  onClick={() => {
+                    setIsErrorExpanded(false)
+                    // Move focus to the trigger to prevent having it stuck on this element
+                    triggerRef.current?.focus()
+                  }}
+                >
+                  <Cross data-cross />
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -565,6 +584,25 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
           <rect width="5" height="1.5" fill="black" />
         </mask>
       </defs>
+    </svg>
+  )
+}
+
+function Warning() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 12 12"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M3.98071 1.125L1.125 3.98071L1.125 8.01929L3.98071 10.875H8.01929L10.875 8.01929V3.98071L8.01929 1.125H3.98071ZM3.82538 0C3.62647 0 3.4357 0.0790176 3.29505 0.21967L0.21967 3.29505C0.0790176 3.4357 0 3.62647 0 3.82538V8.17462C0 8.37353 0.0790178 8.5643 0.21967 8.70495L3.29505 11.7803C3.4357 11.921 3.62647 12 3.82538 12H8.17462C8.37353 12 8.5643 11.921 8.70495 11.7803L11.7803 8.70495C11.921 8.5643 12 8.37353 12 8.17462V3.82538C12 3.62647 11.921 3.4357 11.7803 3.29505L8.70495 0.21967C8.5643 0.0790177 8.37353 0 8.17462 0H3.82538ZM6.5625 2.8125V3.375V6V6.5625H5.4375V6V3.375V2.8125H6.5625ZM6 9C6.41421 9 6.75 8.66421 6.75 8.25C6.75 7.83579 6.41421 7.5 6 7.5C5.58579 7.5 5.25 7.83579 5.25 8.25C5.25 8.66421 5.58579 9 6 9Z"
+        fill="#EAEAEA"
+      />
     </svg>
   )
 }

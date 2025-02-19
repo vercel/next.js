@@ -44,6 +44,7 @@ export function DevToolsIndicator({
         setIsErrorOverlayOpen={setIsErrorOverlayOpen}
         isTurbopack={!!process.env.TURBOPACK}
         position={position}
+        disabled={state.disableDevIndicator}
       />
     )
   )
@@ -63,6 +64,7 @@ interface C {
 const Context = createContext({} as C)
 
 function DevToolsPopover({
+  disabled,
   issueCount,
   isStaticRoute,
   isTurbopack,
@@ -70,6 +72,7 @@ function DevToolsPopover({
   hide,
   setIsErrorOverlayOpen,
 }: {
+  disabled: boolean
   issueCount: number
   isStaticRoute: boolean
   semver: string | undefined
@@ -210,6 +213,7 @@ function DevToolsPopover({
         aria-controls="nextjs-dev-tools-menu"
         aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
         data-nextjs-dev-tools-button
+        disabled={disabled}
         issueCount={issueCount}
         onTriggerClick={onTriggerClick}
         onKeyDown={onTriggerKeydown}
