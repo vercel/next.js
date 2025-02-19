@@ -115,18 +115,25 @@ async fn chunk_items_with_info(
 pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+    chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
     let chunking_configs = &*chunking_context.chunking_configs().await?;
 
-    let chunk_items = chunk_items
-        .iter()
-        .map(|c| chunk_items_with_info(c.clone(), chunking_context))
-        .try_join()
-        .instrument(tracing::trace_span!("get chunk item info"))
-        .await?;
+    let span = tracing::trace_span!(
+        "get chunk item info",
+        chunk_items_or_batches = chunk_items_or_batches.len()
+    );
+    let chunk_items = async {
+        chunk_items_or_batches
+            .iter()
+            .map(|c| chunk_items_with_info(c.clone(), chunking_context))
+            .try_join()
+            .await
+    }
+    .instrument(span)
+    .await?;
 
     let mut map = FxIndexMap::<_, Vec<_>>::default();
     for result in chunk_items.iter() {
