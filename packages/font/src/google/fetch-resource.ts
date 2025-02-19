@@ -22,6 +22,7 @@ export function fetchResource(
       {
         agent: getProxyAgent(),
         headers: {
+          // The file format is based off of the user agent, make sure woff2 files are fetched
           'User-Agent':
             'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ' +
             'AppleWebKit/537.36 (KHTML, like Gecko) ' +

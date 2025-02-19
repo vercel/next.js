@@ -2,6 +2,13 @@ import { nextFontError } from '../next-font-error'
 import { fetchResource } from './fetch-resource'
 import { retry } from './retry'
 
+/**
+ * Fetches the CSS containing the @font-face declarations from Google Fonts.
+ * The fetch has a user agent header with a modern browser to ensure we'll get .woff2 files.
+ *
+ * The env variable NEXT_FONT_GOOGLE_MOCKED_RESPONSES may be set containing a path to mocked data.
+ * It's used to define mocked data to avoid hitting the Google Fonts API during tests.
+ */
 export async function fetchCSSFromGoogleFonts(
   url: string,
   fontFamily: string,
