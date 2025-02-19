@@ -6279,6 +6279,20 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/streaming-ssr-edge/streaming-ssr-edge.test.ts": {
+      "passed": [
+        "streaming-ssr-edge should support streaming for fizz response",
+        "streaming-ssr-edge should not stream to crawlers or google pagerender bot",
+        "streaming-ssr-edge should render 500 error from gIP correctly",
+        "streaming-ssr-edge should render fallback if error raised from suspense during streaming"
+      ],
+      "failed": [
+        "streaming-ssr-edge should render 500 error from render function correctly"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/styled-jsx/index.test.ts": {
       "passed": [
         "styled-jsx should contain styled-jsx styles during SSR",
@@ -14305,23 +14319,6 @@
         "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
       ],
       "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/integration/react-streaming/test/index.test.js": {
-      "passed": [
-        "production mode streaming prod prod should not stream to crawlers or google pagerender bot",
-        "production mode streaming prod prod should render fallback if error raised from suspense during streaming",
-        "production mode streaming prod prod should support streaming for fizz response",
-        "streaming dev dev should not stream to crawlers or google pagerender bot",
-        "streaming dev dev should render 500 error correctly",
-        "streaming dev dev should render fallback if error raised from suspense during streaming",
-        "streaming dev dev should support streaming for fizz response"
-      ],
-      "failed": [
-        "production mode streaming prod prod should render 500 error correctly"
-      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
