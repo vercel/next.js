@@ -5,8 +5,6 @@ import {
   getTurbopackJsConfig,
   isPersistentCachingEnabled,
   shouldDisplayIssue,
-  // isRelevantWarning,
-  // type EntryIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
@@ -14,9 +12,7 @@ import {
   rawEntrypointsToEntrypoints,
   handleRouteType,
 } from '../handle-entrypoints'
-// import type { Entrypoints } from '../swc/types'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-// import * as Log from '../output/log'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
