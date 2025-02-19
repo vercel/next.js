@@ -102,6 +102,8 @@
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
+    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050",
+    "@rspack/plugin-react-refresh": "1.0.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.9.3",
@@ -257,6 +259,7 @@
     "wait-port": "0.2.2",
     "webpack": "5.98.0",
     "webpack-bundle-analyzer": "4.7.0",
+    "webpack-dev-server": "5.2.0",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3",
     "yargs": "16.2.0"
