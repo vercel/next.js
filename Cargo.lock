@@ -2857,7 +2857,7 @@ dependencies = [
 [[package]]
 name = "hstr"
 version = "0.3.0"
-source = "git+https://github.com/kdy1/swc?branch=hstr-leak#a0da9361a24c5efef2db26df2e94772c8e793cba"
+source = "git+https://github.com/kdy1/swc?branch=hstr-leak#2a30e3fad185e441eb35c17c0efef4bfe22fffd2"
 dependencies = [
  "hashbrown 0.14.5",
  "new_debug_unreachable",
