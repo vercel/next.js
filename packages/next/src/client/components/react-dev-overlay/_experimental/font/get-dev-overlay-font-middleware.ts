@@ -1,40 +1,69 @@
 import { internalServerError } from '../../server/shared'
 import { notFound } from '../../../not-found'
-import type { ServerResponse } from 'http'
+import type { ServerResponse, IncomingMessage } from 'http'
 import path from 'path'
-import type { IncomingMessage } from 'http'
 import * as fs from 'fs/promises'
 import { constants } from 'fs'
 
+const FONT_PREFIX = '/__nextjs_font/'
+
+const VALID_FONTS = [
+  'geist-latin-ext.woff2',
+  'geist-mono-latin-ext.woff2',
+  'geist-latin.woff2',
+  'geist-mono-latin.woff2',
+]
+
+const FONT_HEADERS = {
+  'Content-Type': 'font/woff2',
+  'Cache-Control': 'public, max-age=31536000, immutable',
+} as const
+
 export function getDevOverlayFontMiddleware() {
-  return async function (
+  return async function devOverlayFontMiddleware(
     req: IncomingMessage,
     res: ServerResponse,
     next: () => void
   ): Promise<void> {
-    const { pathname } = new URL(`http://n${req.url}`)
-
-    if (!pathname.startsWith('/__nextjs_font/')) {
-      return next()
-    }
-
-    const fontFile = pathname.replace('/__nextjs_font/', '')
-    const fontPath = path.resolve(__dirname, fontFile)
-
     try {
-      const fileExists = await fs.access(fontPath, constants.F_OK).then(
-        () => true,
-        () => false
-      )
-      if (!fileExists) return notFound()
+      const { pathname } = new URL(`http://n${req.url}`)
+
+      if (!pathname.startsWith(FONT_PREFIX)) {
+        return next()
+      }
+
+      const fontFile = pathname.replace(FONT_PREFIX, '')
+      if (!VALID_FONTS.includes(fontFile)) {
+        return notFound()
+      }
+
+      const fontPath = path.resolve(__dirname, fontFile)
+      const fileExists = await checkFileExists(fontPath)
+
+      if (!fileExists) {
+        return notFound()
+      }
 
       const fontData = await fs.readFile(fontPath)
-      res.setHeader('Content-Type', 'font/woff2')
-      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+      Object.entries(FONT_HEADERS).forEach(([key, value]) => {
+        res.setHeader(key, value)
+      })
       res.end(fontData)
     } catch (err) {
-      console.error('Failed to serve font:', err)
+      console.error(
+        'Failed to serve font:',
+        err instanceof Error ? err.message : err
+      )
       return internalServerError(res)
     }
+  }
+}
+
+async function checkFileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath, constants.F_OK)
+    return true
+  } catch {
+    return false
   }
 }
