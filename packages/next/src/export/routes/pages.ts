@@ -219,7 +219,7 @@ export async function exportPagesPage(
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate ?? false,
+    cacheControl: { revalidate: metadata.revalidate ?? false },
     ssgNotFound,
   }
 }

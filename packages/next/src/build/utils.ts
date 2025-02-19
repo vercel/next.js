@@ -81,6 +81,7 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
+import type { CacheControl } from '../server/lib/cache-control'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -346,7 +347,8 @@ export interface PageInfo {
    */
   isRoutePPREnabled: boolean
   ssgPageRoutes: string[] | null
-  initialRevalidateSeconds: number | false
+  // TODO: initialCacheControl should be set per prerendered route.
+  initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
@@ -520,12 +522,14 @@ export async function printTreeView(
 
       usedSymbols.add(symbol)
 
-      if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
+      // TODO: Rework this to be usable for app router routes.
+      // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
+      if (pageInfo?.initialCacheControl?.revalidate) usedSymbols.add('ISR')
 
       messages.push([
         `${border} ${symbol} ${
-          pageInfo?.initialRevalidateSeconds
-            ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
+          pageInfo?.initialCacheControl
+            ? `${item} (ISR: ${pageInfo?.initialCacheControl.revalidate} Seconds)`
             : item
         }${
           totalDuration > MIN_DURATION

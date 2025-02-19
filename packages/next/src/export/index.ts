@@ -646,8 +646,8 @@ async function exportAppImpl(
     if (options.buildExport) {
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
-      if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+      if (result.cacheControl) {
+        info.cacheControl = result.cacheControl
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

@@ -8,20 +8,21 @@ import { CACHE_ONE_YEAR } from '../../lib/constants'
  * value for this option.
  */
 export type Revalidate = number | false
-export type ExpireTime = number
 
-export function formatRevalidate({
-  revalidate,
-  expireTime,
-}: {
+export interface CacheControl {
   revalidate: Revalidate
-  expireTime?: ExpireTime
-}): string {
+  expire?: number
+}
+
+export function getCacheControlHeader({
+  revalidate,
+  expire,
+}: CacheControl): string {
   const swrHeader =
-    typeof revalidate === 'number' && expireTime !== undefined
-      ? revalidate >= expireTime
+    typeof revalidate === 'number' && expire !== undefined
+      ? revalidate >= expire
         ? ''
-        : `stale-while-revalidate=${expireTime - revalidate}`
+        : `stale-while-revalidate=${expire - revalidate}`
       : 'stale-while-revalidate'
 
   if (revalidate === 0) {

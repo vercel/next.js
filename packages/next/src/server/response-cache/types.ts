@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
-import type { Revalidate } from '../lib/revalidate'
+import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
@@ -132,7 +132,7 @@ export interface IncrementalCachedPageValue {
 }
 
 export interface IncrementalResponseCacheEntry {
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   /**
    * timestamp in milliseconds to revalidate after
    */
@@ -174,7 +174,7 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
@@ -210,6 +210,7 @@ export interface GetIncrementalFetchCacheContext {
 
 export interface GetIncrementalResponseCacheContext {
   kind: Exclude<IncrementalCacheKind, IncrementalCacheKind.FETCH>
+
   /**
    * True if the route is enabled for PPR.
    */
@@ -230,7 +231,8 @@ export interface SetIncrementalFetchCacheContext {
 
 export interface SetIncrementalResponseCacheContext {
   fetchCache?: false
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
+
   /**
    * True if the route is enabled for PPR.
    */

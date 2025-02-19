@@ -3,7 +3,7 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { Revalidate } from '../server/lib/revalidate'
+import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 
 import '../lib/setup-exception-listeners'
 
@@ -209,7 +209,7 @@ import { turbopackBuild } from './turbopack-build'
 
 type Fallback = null | boolean | string
 
-export interface SsgRoute {
+export interface PrerenderManifestRoute {
   dataRoute: string | null
   experimentalBypassFor?: RouteHas[]
 
@@ -224,9 +224,19 @@ export interface SsgRoute {
   initialStatus?: number
 
   /**
-   * The revalidation configuration for this route.
+   * The revalidate value for this route. This might be inferred from:
+   * - route segment configs
+   * - fetch calls
+   * - unstable_cache
+   * - "use cache"
    */
   initialRevalidateSeconds: Revalidate
+
+  /**
+   * The expire value for this route, which is inferred from the "use cache"
+   * functions that are used by the route, or the expireTime config.
+   */
+  initialExpireSeconds: number | undefined
 
   /**
    * The prefetch data route associated with this page. If not defined, this
@@ -258,7 +268,7 @@ export interface SsgRoute {
   allowHeader: string[]
 }
 
-export interface DynamicSsgRoute {
+export interface DynamicPrerenderManifestRoute {
   dataRoute: string | null
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
@@ -328,8 +338,8 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
-  routes: { [route: string]: SsgRoute }
-  dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  routes: { [route: string]: PrerenderManifestRoute }
+  dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
@@ -2128,7 +2138,7 @@ export default async function build(
                   isRoutePPREnabled,
                   isHybridAmp,
                   ssgPageRoutes,
-                  initialRevalidateSeconds: false,
+                  initialCacheControl: undefined,
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
@@ -2708,6 +2718,28 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
+          const getCacheControl = (
+            exportPath: string,
+            defaultRevalidate: Revalidate = false
+          ): CacheControl => {
+            const cacheControl =
+              exportResult.byPath.get(exportPath)?.cacheControl
+
+            if (!cacheControl) {
+              return { revalidate: defaultRevalidate }
+            }
+
+            if (
+              cacheControl.revalidate !== false &&
+              cacheControl.revalidate > 0 &&
+              cacheControl.expire === undefined
+            ) {
+              cacheControl.expire = config.expireTime
+            }
+
+            return cacheControl
+          }
+
           if (debugOutput || process.env.NEXT_SSG_FETCH_METRICS === '1') {
             recordFetchMetrics(exportResult)
           }
@@ -2739,7 +2771,7 @@ export default async function build(
 
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
-              exportResult.byPath.get(page)?.revalidate === 0
+              getCacheControl(page).revalidate === 0
 
             if (hasRevalidateZero && pageInfos.get(page)?.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
@@ -2855,16 +2887,25 @@ export default async function build(
               if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
               const {
-                revalidate = appConfig.revalidate ?? false,
                 metadata = {},
                 hasEmptyPrelude,
                 hasPostponed,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
+              const cacheControl = getCacheControl(
+                route.pathname,
+                appConfig.revalidate
+              )
+
               pageInfos.set(route.pathname, {
                 ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
+                // TODO: Enable the following line to show "ISR" status in build
+                // output. Requires different presentation to also work for app
+                // router routes.
+                // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
+                // initialCacheControl: cacheControl,
               })
 
               // update the page (eg /blog/[slug]) to also have the postpone metadata
@@ -2872,9 +2913,14 @@ export default async function build(
                 ...(pageInfos.get(page) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
+                // TODO: Enable the following line to show "ISR" status in build
+                // output. Requires different presentation to also work for app
+                // router routes.
+                // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
+                // initialCacheControl: cacheControl,
               })
 
-              if (revalidate !== 0) {
+              if (cacheControl.revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
                 let dataRoute: string | null
@@ -2907,7 +2953,8 @@ export default async function build(
                     : undefined,
                   experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
-                  initialRevalidateSeconds: revalidate,
+                  initialRevalidateSeconds: cacheControl.revalidate,
+                  initialExpireSeconds: cacheControl.expire,
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
@@ -2944,8 +2991,11 @@ export default async function build(
               for (const route of dynamicRoutes) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
-                const { metadata, revalidate } =
-                  exportResult.byPath.get(route.pathname) ?? {}
+                const metadata = exportResult.byPath.get(
+                  route.pathname
+                )?.metadata
+
+                const cacheControl = getCacheControl(route.pathname)
 
                 let dataRoute: string | null = null
                 if (!isAppRouteHandler) {
@@ -2993,7 +3043,7 @@ export default async function build(
                 // found, mark that we should keep the shell forever (`false`).
                 let fallbackRevalidate: Revalidate | undefined =
                   isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? revalidate ?? false
+                    ? cacheControl.revalidate
                     : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
@@ -3268,10 +3318,11 @@ export default async function build(
                   for (const locale of i18n.locales) {
                     const localePage = `/${locale}${page === '/' ? '' : page}`
 
+                    const cacheControl = getCacheControl(localePage)
+
                     prerenderManifest.routes[localePage] = {
-                      initialRevalidateSeconds:
-                        exportResult.byPath.get(localePage)?.revalidate ??
-                        false,
+                      initialRevalidateSeconds: cacheControl.revalidate,
+                      initialExpireSeconds: cacheControl.expire,
                       experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
@@ -3285,9 +3336,11 @@ export default async function build(
                     }
                   }
                 } else {
+                  const cacheControl = getCacheControl(page)
+
                   prerenderManifest.routes[page] = {
-                    initialRevalidateSeconds:
-                      exportResult.byPath.get(page)?.revalidate ?? false,
+                    initialRevalidateSeconds: cacheControl.revalidate,
+                    initialExpireSeconds: cacheControl.expire,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
@@ -3301,10 +3354,8 @@ export default async function build(
                     allowHeader: ALLOWED_HEADERS,
                   }
                 }
-                // Set Page Revalidation Interval
                 if (pageInfo) {
-                  pageInfo.initialRevalidateSeconds =
-                    exportResult.byPath.get(page)?.revalidate ?? false
+                  pageInfo.initialCacheControl = getCacheControl(page)
                 }
               } else {
                 // For a dynamic SSG page, we did not copy its data exports and only
@@ -3350,15 +3401,11 @@ export default async function build(
                     )
                   }
 
-                  const initialRevalidateSeconds =
-                    exportResult.byPath.get(route.pathname)?.revalidate ?? false
-
-                  if (typeof initialRevalidateSeconds === 'undefined') {
-                    throw new Error("Invariant: page wasn't built")
-                  }
+                  const cacheControl = getCacheControl(route.pathname)
 
                   prerenderManifest.routes[route.pathname] = {
-                    initialRevalidateSeconds,
+                    initialRevalidateSeconds: cacheControl.revalidate,
+                    initialExpireSeconds: cacheControl.expire,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: page,
@@ -3372,9 +3419,8 @@ export default async function build(
                     allowHeader: ALLOWED_HEADERS,
                   }
 
-                  // Set route Revalidation Interval
                   if (pageInfo) {
-                    pageInfo.initialRevalidateSeconds = initialRevalidateSeconds
+                    pageInfo.initialCacheControl = cacheControl
                   }
                 }
               }

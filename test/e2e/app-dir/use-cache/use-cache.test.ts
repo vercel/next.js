@@ -370,15 +370,24 @@ describe('use-cache', () => {
       ])
     })
 
-    it('should match the expected revalidate config on the prerender manifest', async () => {
+    it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       )
 
       expect(prerenderManifest.version).toBe(4)
+
       expect(
         prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
       ).toBe(100)
+
+      expect(prerenderManifest.routes['/cache-life'].initialExpireSeconds).toBe(
+        250
+      )
+
+      expect(
+        prerenderManifest.routes['/cache-fetch'].initialExpireSeconds
+      ).toBe(31536000) // default expireTime
 
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
@@ -392,6 +401,23 @@ describe('use-cache', () => {
         await next.readFile('.next/server/app/cache-life.meta')
       )
       expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+    })
+
+    it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
+      let response = await next.fetch('/cache-life')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 100, expire is set to 250 => SWR 150
+        's-maxage=100, stale-while-revalidate=150'
+      )
+
+      response = await next.fetch('/cache-fetch')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 900, expire is one year (31536000, default
+        // expireTime) => SWR 31535100
+        's-maxage=900, stale-while-revalidate=31535100'
+      )
     })
 
     it('should propagate unstable_cache tags correctly', async () => {

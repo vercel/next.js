@@ -142,9 +142,9 @@ export default class ResponseCache implements ResponseCacheBase {
             resolved = true
           }
 
-          // We want to persist the result only if it has a revalidate value
+          // We want to persist the result only if it has a cache control value
           // defined.
-          if (typeof resolveValue.revalidate !== 'undefined') {
+          if (resolveValue.cacheControl) {
             if (this.minimalMode) {
               this.previousCacheItem = {
                 key: cacheKey,
@@ -153,7 +153,7 @@ export default class ResponseCache implements ResponseCacheBase {
               }
             } else {
               await incrementalCache.set(key, resolveValue.value, {
-                revalidate: resolveValue.revalidate,
+                cacheControl: resolveValue.cacheControl,
                 isRoutePPREnabled,
                 isFallback,
               })
@@ -162,14 +162,24 @@ export default class ResponseCache implements ResponseCacheBase {
 
           return resolveValue
         } catch (err) {
-          // When a getStaticProps path is erroring we automatically re-set the
-          // existing cache under a new expiration to prevent non-stop retrying.
-          if (cachedResponse) {
+          // When a path is erroring we automatically re-set the existing cache
+          // with new revalidate and expire times to prevent non-stop retrying.
+          if (cachedResponse?.cacheControl) {
+            const newRevalidate = Math.min(
+              Math.max(cachedResponse.cacheControl.revalidate || 3, 3),
+              30
+            )
+
+            const newExpire =
+              cachedResponse.cacheControl.expire === undefined
+                ? undefined
+                : Math.max(
+                    newRevalidate + 3,
+                    cachedResponse.cacheControl.expire
+                  )
+
             await incrementalCache.set(key, cachedResponse.value, {
-              revalidate: Math.min(
-                Math.max(cachedResponse.revalidate || 3, 3),
-                30
-              ),
+              cacheControl: { revalidate: newRevalidate, expire: newExpire },
               isRoutePPREnabled,
               isFallback,
             })
