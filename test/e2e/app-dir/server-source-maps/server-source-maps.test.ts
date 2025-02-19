@@ -216,6 +216,7 @@ describe('app-dir - server source maps', () => {
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
 
+      // TODO(veil): Should be a single error
       await expect(browser).toDisplayRedbox(`
        {
          "count": 2,
