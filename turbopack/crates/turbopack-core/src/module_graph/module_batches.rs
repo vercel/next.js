@@ -265,11 +265,7 @@ pub async fn compute_module_batches(
 
         // Find all chunk group entries and assign them to batches
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-            println!(
-                "chunk_group {i}: {}",
-                chunk_group.debug_str(&chunk_group_info).await?
-            );
+        for chunk_group in &chunk_group_info.chunk_groups {
             let start_index = state.batches.len();
             // All entries with the same chunk groups bitmap are in the same batch.
             for entry in chunk_group.entries() {
