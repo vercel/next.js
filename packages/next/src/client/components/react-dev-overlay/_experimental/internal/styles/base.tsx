@@ -5,8 +5,6 @@ export function Base() {
   return (
     <style>
       {css`
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap');
-
         :host {
           ${
             // Although the style applied to the shadow host is isolated,
