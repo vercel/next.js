@@ -9339,6 +9339,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "tracing",
+ "triomphe 0.1.12",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -9346,6 +9347,7 @@ dependencies = [
  "turbo-tasks-memory",
  "turbo-tasks-testing",
  "unicode-segmentation",
+ "unsize",
  "urlencoding",
 ]
 
