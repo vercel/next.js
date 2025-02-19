@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
-import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { SerializeOptions } from 'next/dist/compiled/cookie'
 import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
@@ -227,10 +227,10 @@ function setPreviewData<T>(
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        ? ({ maxAge: options.maxAge } as SerializeOptions)
         : undefined),
       ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
+        ? ({ path: options.path } as SerializeOptions)
         : undefined),
     }),
     serialize(COOKIE_NAME_PRERENDER_DATA, payload, {
@@ -239,10 +239,10 @@ function setPreviewData<T>(
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
       ...(options.maxAge !== undefined
-        ? ({ maxAge: options.maxAge } as CookieSerializeOptions)
+        ? ({ maxAge: options.maxAge } as SerializeOptions)
         : undefined),
       ...(options.path !== undefined
-        ? ({ path: options.path } as CookieSerializeOptions)
+        ? ({ path: options.path } as SerializeOptions)
         : undefined),
     }),
   ])

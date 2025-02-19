@@ -153,9 +153,6 @@ importers:
       '@types/cheerio':
         specifier: 0.22.16
         version: 0.22.16
-      '@types/cookie':
-        specifier: 0.3.3
-        version: 0.3.3
       '@types/cross-spawn':
         specifier: 6.0.0
         version: 6.0.0
@@ -235,8 +232,8 @@ importers:
         specifier: 0.22.0
         version: 0.22.0
       cookie:
-        specifier: 0.4.1
-        version: 0.4.1
+        specifier: 1.0.2
+        version: 1.0.2
       cors:
         specifier: 2.8.5
         version: 2.8.5
@@ -1083,9 +1080,6 @@ importers:
       '@types/content-type':
         specifier: 1.1.3
         version: 1.1.3
-      '@types/cookie':
-        specifier: 0.3.3
-        version: 0.3.3
       '@types/cross-spawn':
         specifier: 6.0.0
         version: 6.0.0
@@ -1237,8 +1231,8 @@ importers:
         specifier: 1.0.4
         version: 1.0.4
       cookie:
-        specifier: 0.4.1
-        version: 0.4.1
+        specifier: 1.0.2
+        version: 1.0.2
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -5736,9 +5730,6 @@ packages:
   '@types/content-type@1.1.3':
     resolution: {integrity: sha512-pv8VcFrZ3fN93L4rTNIbbUzdkzjEyVMp5mPVjsFfOYTDOZMZiZ8P1dhu+kEv3faYyKzZgLlSvnyQNFg+p/v5ug==}
 
-  '@types/cookie@0.3.3':
-    resolution: {integrity: sha512-LKVP3cgXBT9RYj+t+9FDKwS5tdI+rPBXaNSkma7hvqy35lc7mAokC2zsqWJH0LaqIt3B962nuYI77hsJoT1gow==}
-
   '@types/cookie@0.6.0':
     resolution: {integrity: sha512-4Kh9a6B2bQciAhf7FSuMRRkUWecJgJu9nPnx3yzpsfXX/c50REIqpHY4C82bXP90qrLtXtkDxTZosYO3UpOwlA==}
 
@@ -7675,13 +7666,13 @@ packages:
     resolution: {integrity: sha512-+Hp8fLp57wnUSt0tY0tHEXh4voZRDnoIrZPqlo3DPiI4y9lwg/jqx+1Om94/W6ZaPDOUbnjOt/99w66zk+l1Xg==}
     engines: {node: '>= 0.6'}
 
-  cookie@0.4.1:
-    resolution: {integrity: sha512-ZwrFkGJxUR3EIoXtO+yVE69Eb7KlixbaeAWfBQB9vVsNn/o+Yw69gBWSSDK825hQNdN+wF8zELf3dFNl/kxkUA==}
-    engines: {node: '>= 0.6'}
-
   cookie@0.5.0:
     resolution: {integrity: sha512-YZ3GUyn/o8gfKJlnlX7g7xq4gyO6OSuhGPKaaGssGB2qgDUS0gPgtTvoyZLTt9Ab6dC4hfc9dV5arkvc/OCmrw==}
     engines: {node: '>= 0.6'}
+
+  cookie@1.0.2:
+    resolution: {integrity: sha512-9Kr/j4O16ISv8zBBhJoi4bXOYNTkFLOqSL3UDB0njXxCXNezjeyVrJyGOWtgfs/q2km1gwBcfH8q1yEGoMYunA==}
+    engines: {node: '>=18'}
 
   cookiejar@2.1.2:
     resolution: {integrity: sha512-Mw+adcfzPxcPeI+0WlvRrr/3lGVO0bD75SxX6811cxSh1Wbxx7xZBGK1eVtDf6si8rg2lhnUjsVLMFMfbRIuwA==}
@@ -21807,8 +21798,6 @@ snapshots:
 
   '@types/content-type@1.1.3': {}
 
-  '@types/cookie@0.3.3': {}
-
   '@types/cookie@0.6.0': {}
 
   '@types/cross-spawn@6.0.0':
@@ -24104,9 +24093,9 @@ snapshots:
 
   cookie@0.4.0: {}
 
-  cookie@0.4.1: {}
-
   cookie@0.5.0: {}
+
+  cookie@1.0.2: {}
 
   cookiejar@2.1.2: {}
 
