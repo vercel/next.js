@@ -91,7 +91,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
 
     if (isReact18) {
       expect(await session.getRedboxDescriptionWarning()).toMatchInlineSnapshot(
-        `undefined`
+        `null`
       )
     } else {
       expect(await session.getRedboxDescriptionWarning())
