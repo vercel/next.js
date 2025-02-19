@@ -16,8 +16,8 @@ use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, Upcast, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
+    Upcast, ValueToString, Vc,
 };
 use turbo_tasks_hash::DeterministicHash;
 
@@ -202,24 +202,12 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-type AsyncInfo =
-    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Vec<ResolvedVc<Box<dyn ChunkableModule>>>>;
-
 #[derive(Default)]
 pub struct ChunkGroupContent {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub passthrough_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    /// A map from local module to all children from which the async module
-    /// status is inherited
-    pub forward_edges_inherit_async: AsyncInfo,
-    /// A map from local module to all parents that inherit the async module
-    /// status
-    pub local_back_edges_inherit_async: AsyncInfo,
-    /// A map from already available async modules to all local parents that
-    /// inherit the async module status
-    pub available_async_modules_back_edges_inherit_async: AsyncInfo,
 }
 
 #[turbo_tasks::value_trait]
@@ -281,14 +269,14 @@ pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
-    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AsyncModuleInfo {
     #[turbo_tasks::function]
     pub async fn new(
-        referenced_async_modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+        referenced_async_modules: Vec<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             referenced_async_modules: referenced_async_modules.into_iter().collect(),
