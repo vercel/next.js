@@ -10,7 +10,7 @@ const templateDir = path.resolve(dirname, 'template')
 fs.mkdirSync(appDir, { recursive: true })
 
 fs.copyFileSync(
-  path.join(templateDir, 'layout.js'),
+  path.join(templateDir, 'root-layout.js'),
   path.join(appDir, 'layout.js')
 )
 
@@ -22,6 +22,7 @@ for (let i = 0; i < 1000; i++) {
     'server-and-client-components/client-component.js',
     'server-and-client-components/page.js',
     'server-components-only/page.js',
+    'layout.js',
   ]
   for (const file of files) {
     const source = path.join(templateDir, file)
