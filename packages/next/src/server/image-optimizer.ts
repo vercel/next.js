@@ -416,7 +416,7 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          cacheControl: { revalidate: maxAge, expire: expireAt },
+          cacheControl: { revalidate: maxAge },
           isStale: now > expireAt,
           isFallback: false,
         }
@@ -445,11 +445,9 @@ export class ImageOptimizerCache {
       throw new InvariantError('revalidate must be a number for image-cache')
     }
 
-    const expire =
-      cacheControl?.expire ??
-      Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000
-
-    const expireAt = expire + Date.now()
+    const expireAt =
+      Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
+      Date.now()
 
     try {
       await writeToCacheDir(
