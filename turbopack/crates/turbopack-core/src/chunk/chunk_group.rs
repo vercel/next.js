@@ -16,6 +16,7 @@ use crate::{
     environment::ChunkLoading,
     module::Module,
     module_graph::{
+        chunk_group_info::ChunkGroup,
         module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleOrBatch},
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
         GraphTraversalAction, ModuleGraph,
@@ -32,9 +33,7 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send
-        + Clone,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -53,7 +52,7 @@ pub async fn make_chunk_group(
         traced_modules,
     } = chunk_group_content(
         module_graph,
-        chunk_group_entries.clone(),
+        chunk_group.entries(),
         availability_info,
         can_split_async,
         should_trace,
@@ -95,8 +94,12 @@ pub async fn make_chunk_group(
         .await?;
 
     // Compute new [AvailabilityInfo]
+    let current_chunk_group_idx = *module_graph
+        .chunk_group_info()
+        .get_index_of(chunk_group)
+        .await?;
     let availability_info = availability_info
-        .with_modules(Vc::cell(chunkable_items))
+        .with_modules(current_chunk_group_idx)
         .await?;
 
     // Insert async chunk loaders for every referenced async module
@@ -207,8 +210,10 @@ pub async fn chunk_group_content(
         traced_modules: FxIndexSet::default(),
     };
 
-    let available_modules = match availability_info.available_modules() {
-        Some(available_modules) => Some(available_modules.snapshot().await?),
+    let chunk_group_info = module_graph.chunk_group_info().await?;
+
+    let available_chunk_groups = match availability_info.available_chunk_groups() {
+        Some(available_chunk_groups) => Some(available_chunk_groups.await?),
         None => None,
     };
 
@@ -218,10 +223,10 @@ pub async fn chunk_group_content(
         entries.push(module_batches_graph.get_entry_index(entry).await?);
     }
 
-    module_batches_graph.traverse_edges_from_entries_topological(
+    let x = module_batches_graph.traverse_edges_from_entries_topological(
         entries,
         &mut state,
-        |parent_info, &node, state| {
+        async move |parent_info, node, state| {
             // Traced modules need to have a special handling
             if let Some((
                 _,
@@ -244,9 +249,13 @@ pub async fn chunk_group_content(
                 return Ok(GraphTraversalAction::Exclude);
             };
 
-            let is_available = available_modules
-                .as_ref()
-                .is_some_and(|available_modules| available_modules.get(chunkable_node));
+            let is_available = if let Some(available_modules) = &available_chunk_groups {
+                available_modules
+                    .is_available_individual(&chunk_group_info, chunkable_node)
+                    .await?
+            } else {
+                false
+            };
 
             let Some((_, edge)) = parent_info else {
                 // An entry from the entries list
@@ -309,11 +318,12 @@ pub async fn chunk_group_content(
         },
         |_, node, state| {
             // Insert modules in topological order
-            if let Some(chunkable_module) = state.unsorted_items.get(node).copied() {
+            if let Some(chunkable_module) = state.unsorted_items.get(&node).copied() {
                 state.chunkable_items.insert(chunkable_module);
             }
         },
-    )?;
+    );
+    x.await?;
 
     let mut batch_groups = FxIndexSet::default();
     for &module in &state.chunkable_items {

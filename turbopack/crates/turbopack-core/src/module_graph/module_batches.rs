@@ -140,22 +140,22 @@ impl ModuleBatchesGraph {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &ModuleBatchesGraphNode, edge &ChunkingType), target
     ///      &ModuleBatchesGraphNode, state &S
-    pub fn traverse_edges_from_entries_topological<'a, S>(
+    pub async fn traverse_edges_from_entries_topological<'a, 's, S: 's>(
         &'a self,
         entries: impl IntoIterator<
             Item = NodeIndex,
             IntoIter = impl Iterator<Item = NodeIndex> + DoubleEndedIterator,
         >,
-        state: &mut S,
-        mut visit_preorder: impl FnMut(
-            Option<(&'a ModuleOrBatch, &'a ModuleBatchesGraphEdge)>,
-            &'a ModuleOrBatch,
-            &mut S,
+        state: &'s mut S,
+        mut visit_preorder: impl for<'t> AsyncFnMut(
+            Option<(ModuleOrBatch, ModuleBatchesGraphEdge)>,
+            ModuleOrBatch,
+            &'t mut S,
         ) -> Result<GraphTraversalAction>,
-        mut visit_postorder: impl FnMut(
-            Option<(&'a ModuleOrBatch, &'a ModuleBatchesGraphEdge)>,
-            &'a ModuleOrBatch,
-            &mut S,
+        mut visit_postorder: impl for<'t> FnMut(
+            Option<(ModuleOrBatch, ModuleBatchesGraphEdge)>,
+            ModuleOrBatch,
+            &'t mut S,
         ),
     ) -> Result<()> {
         let graph = &self.graph;
@@ -179,18 +179,18 @@ impl ModuleBatchesGraph {
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|(node, edge)| {
                 (
-                    graph.node_weight(node).unwrap(),
-                    graph.edge_weight(edge).unwrap(),
+                    *graph.node_weight(node).unwrap(),
+                    graph.edge_weight(edge).unwrap().clone(),
                 )
             });
             match pass {
                 ReverseTopologicalPass::Visit => {
-                    let current_node = graph.node_weight(current).unwrap();
+                    let current_node = *graph.node_weight(current).unwrap();
                     visit_postorder(parent_arg, current_node, state);
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
-                    let current_node = graph.node_weight(current).unwrap();
-                    let action = visit_preorder(parent_arg, current_node, state)?;
+                    let current_node = *graph.node_weight(current).unwrap();
+                    let action = visit_preorder(parent_arg, current_node, state).await?;
                     if action == GraphTraversalAction::Exclude {
                         continue;
                     }

@@ -1,4 +1,5 @@
 pub mod availability_info;
+pub mod available_chunk_groups;
 pub mod available_modules;
 pub mod chunk_group;
 pub(crate) mod chunk_item_batch;
