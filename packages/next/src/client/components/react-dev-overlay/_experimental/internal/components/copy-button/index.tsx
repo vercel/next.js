@@ -194,11 +194,11 @@ export function CopyButton({
       aria-label={label}
       aria-disabled={isDisabled}
       disabled={isDisabled}
-      data-nextjs-data-runtime-error-copy-button
+      data-nextjs-copy-button
       className={cx(
         props.className,
-        'nextjs-data-runtime-error-copy-button',
-        `nextjs-data-runtime-error-copy-button--${copyState.state}`
+        'nextjs-data-copy-button',
+        `nextjs-data-copy-button--${copyState.state}`
       )}
       onClick={() => {
         if (!isDisabled) {
@@ -247,28 +247,17 @@ function CopySuccessIcon() {
 }
 
 export const COPY_BUTTON_STYLES = css`
-  [data-nextjs-data-runtime-error-copy-button],
-  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
-    position: relative;
-    padding: 0;
-    border: none;
-    background: none;
-    outline: none;
-  }
-  [data-nextjs-data-runtime-error-copy-button] > svg {
-    vertical-align: middle;
-  }
-  .nextjs-data-runtime-error-copy-button {
+  .nextjs-data-copy-button {
     color: inherit;
   }
-  .nextjs-data-runtime-error-copy-button--initial:hover {
+  .nextjs-data-copy-button--initial:hover {
     cursor: pointer;
   }
-  .nextjs-data-runtime-error-copy-button--error,
-  .nextjs-data-runtime-error-copy-button--error:hover {
+  .nextjs-data-copy-button--error,
+  .nextjs-data-copy-button--error:hover {
     color: var(--color-ansi-red);
   }
-  .nextjs-data-runtime-error-copy-button--success {
+  .nextjs-data-copy-button--success {
     color: var(--color-ansi-green);
   }
 `

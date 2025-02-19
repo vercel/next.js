@@ -16,7 +16,9 @@ export const Toast: React.FC<ToastProps> = function Toast({
     <div
       {...props}
       onClick={(e) => {
-        e.preventDefault()
+        if (!(e.target as HTMLElement).closest('a')) {
+          e.preventDefault()
+        }
         return onClick?.()
       }}
       className={cx('nextjs-toast', className)}

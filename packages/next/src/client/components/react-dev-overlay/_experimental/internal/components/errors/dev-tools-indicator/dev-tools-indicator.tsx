@@ -8,6 +8,7 @@ import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/i
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'
+import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -83,20 +84,38 @@ function DevToolsPopover({
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const turbopackRef = useRef<HTMLElement>(null)
+  const triggerTurbopackRef = useRef<HTMLButtonElement | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [isTurbopackInfoOpen, setIsTurbopackInfoOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
   // This hook lets us do an exit animation before unmounting the component
-  const { mounted, rendered } = useDelayedRender(isMenuOpen, {
-    // Intentionally no fade in, makes the UI feel more immediate
-    enterDelay: 0,
-    // Graceful fade out to confirm that the UI did not break
-    exitDelay: ANIMATE_OUT_DURATION_MS,
-  })
+  const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
+    isMenuOpen,
+    {
+      // Intentionally no fade in, makes the UI feel more immediate
+      enterDelay: 0,
+      // Graceful fade out to confirm that the UI did not break
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    }
+  )
+  const { mounted: turbopackInfoMounted, rendered: turbopackInfoRendered } =
+    useDelayedRender(isTurbopackInfoOpen, {
+      enterDelay: 0,
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    })
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
+  useFocusTrap(turbopackRef, triggerTurbopackRef, isTurbopackInfoOpen)
+  useClickOutside(
+    turbopackRef,
+    triggerTurbopackRef,
+    isTurbopackInfoOpen,
+    closeTurbopackInfo
+  )
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -191,6 +210,10 @@ function DevToolsPopover({
     }, ANIMATE_OUT_DURATION_MS)
   }
 
+  function closeTurbopackInfo() {
+    setIsTurbopackInfoOpen(false)
+  }
+
   const [vertical, horizontal] = position.split('-', 2)
 
   return (
@@ -222,7 +245,21 @@ function DevToolsPopover({
         isDevRendering={useIsDevRendering()}
       />
 
-      {mounted && (
+      {turbopackInfoMounted && (
+        <TurbopackInfo
+          ref={turbopackRef}
+          isOpen={isTurbopackInfoOpen}
+          setIsOpen={setIsTurbopackInfoOpen}
+          setPreviousOpen={setIsMenuOpen}
+          style={{
+            [vertical]: 'calc(100% + var(--size-gap))',
+            [horizontal]: 0,
+          }}
+          data-rendered={turbopackInfoRendered}
+        />
+      )}
+
+      {menuMounted && (
         <div
           ref={menuRef}
           id="nextjs-dev-tools-menu"
@@ -233,7 +270,7 @@ function DevToolsPopover({
           tabIndex={-1}
           className="dev-tools-indicator-menu"
           onKeyDown={onMenuKeydown}
-          data-rendered={rendered}
+          data-rendered={menuRendered}
           style={
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
@@ -270,8 +307,8 @@ function DevToolsPopover({
                 <MenuItem
                   index={1}
                   label="Try Turbopack"
-                  value={<ExternalIcon />}
-                  href="https://nextjs.org/docs/app/api-reference/turbopack"
+                  value={<ChevronRight />}
+                  onClick={() => setIsTurbopackInfoOpen(true)}
                 />
               )}
             </div>
@@ -289,6 +326,19 @@ function DevToolsPopover({
         </div>
       )}
     </Toast>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none">
+      <path
+        fill="#666"
+        fillRule="evenodd"
+        d="m7.5 3.94.53.53 4.824 4.823a1 1 0 0 1 0 1.414L8.03 15.53l-.53.53L6.44 15l.53-.53L11.44 10 6.97 5.53 6.44 5 7.5 3.94Z"
+        clipRule="evenodd"
+      />
+    </svg>
   )
 }
 
@@ -365,7 +415,7 @@ function IssueCount({ children }: { children: number }) {
 //////////////////////////////////////////////////////////////////////////////////////
 
 function useFocusTrap(
-  menuRef: React.RefObject<HTMLDivElement | null>,
+  menuRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   isMenuOpen: boolean
 ) {
@@ -391,7 +441,7 @@ function useFocusTrap(
 //////////////////////////////////////////////////////////////////////////////////////
 
 function useClickOutside(
-  menuRef: React.RefObject<HTMLDivElement | null>,
+  menuRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   isMenuOpen: boolean,
   closeMenu: () => void
@@ -441,26 +491,6 @@ function useClickOutside(
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-
-function ExternalIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      role="img"
-      aria-label="External link"
-    >
-      <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="M13.5 10.25V13.25C13.5 13.3881 13.3881 13.5 13.25 13.5H2.75C2.61193 13.5 2.5 13.3881 2.5 13.25L2.5 2.75C2.5 2.61193 2.61193 2.5 2.75 2.5H5.75H6.5V1H5.75H2.75C1.7835 1 1 1.7835 1 2.75V13.25C1 14.2165 1.7835 15 2.75 15H13.25C14.2165 15 15 14.2165 15 13.25V10.25V9.5H13.5V10.25ZM9 1H9.75H14.2495C14.6637 1 14.9995 1.33579 14.9995 1.75V6.25V7H13.4995V6.25V3.56066L8.53033 8.52978L8 9.06011L6.93934 7.99945L7.46967 7.46912L12.4388 2.5H9.75H9V1Z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
 
 export const DEV_TOOLS_INDICATOR_STYLES = css`
   .dev-tools-indicator-menu {
