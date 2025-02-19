@@ -80,8 +80,35 @@ export function navigate(
   shouldScroll: boolean
 ): NavigationResult {
   const now = Date.now()
+  const href = url.href
 
-  const cacheKey = createCacheKey(url.href, nextUrl)
+  // We special case navigations to the exact same URL as the current location.
+  // It's a common UI pattern for apps to refresh when you click a link to the
+  // current page. So when this happens, we refresh the dynamic data in the page
+  // segments.
+  //
+  // Note that this does not apply if the any part of the hash or search query
+  // has changed. This might feel a bit weird but it makes more sense when you
+  // consider that the way to trigger this behavior is to click the same link
+  // multiple times.
+  //
+  // TODO: We should probably refresh the *entire* route when this case occurs,
+  // not just the page segments. Essentially treating it the same as a refresh()
+  // triggered by an action, which is the more explicit way of modeling the UI
+  // pattern described above.
+  //
+  // Also note that this only refreshes the dynamic data, not static/ cached
+  // data. If the page segment is fully static and prefetched, the request is
+  // skipped. (This is also how refresh() works.)
+  const isSamePageNavigation =
+    // TODO: This is not the only place we read from the location, but we should
+    // consider storing the current URL in the router state instead of reading
+    // from the location object. In practice I don't think this matters much
+    // since we keep them in sync anyway, but having two sources of truth can
+    // lead to subtle bugs and race conditions.
+    href === window.location.href
+
+  const cacheKey = createCacheKey(href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
   if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
@@ -94,6 +121,7 @@ export function navigate(
     return navigateUsingPrefetchedRouteTree(
       url,
       nextUrl,
+      isSamePageNavigation,
       currentCacheNode,
       currentFlightRouterState,
       prefetchFlightRouterState,
@@ -111,6 +139,7 @@ export function navigate(
     data: navigateDynamicallyWithNoPrefetch(
       url,
       nextUrl,
+      isSamePageNavigation,
       currentCacheNode,
       currentFlightRouterState,
       shouldScroll,
@@ -122,6 +151,7 @@ export function navigate(
 function navigateUsingPrefetchedRouteTree(
   url: URL,
   nextUrl: string | null,
+  isSamePageNavigation: boolean,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   prefetchFlightRouterState: FlightRouterState,
@@ -146,6 +176,7 @@ function navigateUsingPrefetchedRouteTree(
     prefetchSeedData,
     prefetchHead,
     isPrefetchHeadPartial,
+    isSamePageNavigation,
     scrollableSegments
   )
   if (task !== null) {
@@ -283,6 +314,7 @@ function readRenderSnapshotFromCache(
 async function navigateDynamicallyWithNoPrefetch(
   url: URL,
   nextUrl: string | null,
+  isSamePageNavigation: boolean,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   shouldScroll: boolean,
@@ -345,6 +377,7 @@ async function navigateDynamicallyWithNoPrefetch(
     prefetchSeedData,
     prefetchHead,
     isPrefetchHeadPartial,
+    isSamePageNavigation,
     scrollableSegments
   )
   if (task !== null) {

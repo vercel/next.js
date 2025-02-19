@@ -334,6 +334,7 @@ export function navigateReducer(
               seedData,
               head,
               isHeadPartial,
+              false,
               scrollableSegments
             )
 
