@@ -1,9 +1,9 @@
-import { internalServerError } from '../../server/shared'
-import { notFound } from '../../../not-found'
 import type { ServerResponse, IncomingMessage } from 'http'
 import path from 'path'
 import * as fs from 'fs/promises'
 import { constants } from 'fs'
+import * as Log from '../../../../../build/output/log'
+import { middlewareResponse } from '../../server/middleware-response'
 
 const FONT_PREFIX = '/__nextjs_font/'
 
@@ -34,14 +34,14 @@ export function getDevOverlayFontMiddleware() {
 
       const fontFile = pathname.replace(FONT_PREFIX, '')
       if (!VALID_FONTS.includes(fontFile)) {
-        return notFound()
+        return middlewareResponse.notFound(res)
       }
 
       const fontPath = path.resolve(__dirname, fontFile)
       const fileExists = await checkFileExists(fontPath)
 
       if (!fileExists) {
-        return notFound()
+        return middlewareResponse.notFound(res)
       }
 
       const fontData = await fs.readFile(fontPath)
@@ -50,11 +50,11 @@ export function getDevOverlayFontMiddleware() {
       })
       res.end(fontData)
     } catch (err) {
-      console.error(
+      Log.error(
         'Failed to serve font:',
         err instanceof Error ? err.message : err
       )
-      return internalServerError(res)
+      return middlewareResponse.internalServerError(res)
     }
   }
 }
