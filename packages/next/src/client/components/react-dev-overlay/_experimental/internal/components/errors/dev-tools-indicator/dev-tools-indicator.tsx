@@ -307,7 +307,7 @@ function DevToolsPopover({
                 <MenuItem
                   index={1}
                   label="Try Turbopack"
-                  value={isTurbopack ? 'Enabled' : 'Disabled'}
+                  value={<ChevronRight />}
                   onClick={() => setIsTurbopackInfoOpen(true)}
                 />
               )}
@@ -326,6 +326,19 @@ function DevToolsPopover({
         </div>
       )}
     </Toast>
+  )
+}
+
+function ChevronRight() {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none">
+      <path
+        fill="#666"
+        fillRule="evenodd"
+        d="m7.5 3.94.53.53 4.824 4.823a1 1 0 0 1 0 1.414L8.03 15.53l-.53.53L6.44 15l.53-.53L11.44 10 6.97 5.53 6.44 5 7.5 3.94Z"
+        clipRule="evenodd"
+      />
+    </svg>
   )
 }
 
