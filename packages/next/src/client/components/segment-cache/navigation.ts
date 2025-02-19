@@ -39,7 +39,10 @@ type MPANavigationResult = {
 
 type NoOpNavigationResult = {
   tag: NavigationResultTag.NoOp
-  data: null
+  data: {
+    canonicalUrl: string
+    shouldScroll: boolean
+  }
 }
 
 type SuccessfulNavigationResult = {
@@ -50,6 +53,7 @@ type SuccessfulNavigationResult = {
     canonicalUrl: string
     scrollableSegments: Array<FlightSegmentPath>
     shouldScroll: boolean
+    hash: string
   }
 }
 
@@ -65,11 +69,6 @@ export type NavigationResult =
   | SuccessfulNavigationResult
   | NoOpNavigationResult
   | AsyncNavigationResult
-
-const noOpNavigationResult: NoOpNavigationResult = {
-  tag: NavigationResultTag.NoOp,
-  data: null,
-}
 
 /**
  * Navigate to a new URL, using the Segment Cache to construct a response.
@@ -97,7 +96,7 @@ export function navigate(
     const prefetchSeedData = snapshot.seedData
     const prefetchHead = route.head
     const isPrefetchHeadPartial = route.isHeadPartial
-    const canonicalUrl = route.canonicalUrl
+    const newCanonicalUrl = route.canonicalUrl
     return navigateUsingPrefetchedRouteTree(
       url,
       nextUrl,
@@ -107,8 +106,9 @@ export function navigate(
       prefetchSeedData,
       prefetchHead,
       isPrefetchHeadPartial,
-      canonicalUrl,
-      shouldScroll
+      newCanonicalUrl,
+      shouldScroll,
+      url.hash
     )
   }
   // There's no matching prefetch for this route in the cache.
@@ -119,7 +119,8 @@ export function navigate(
       nextUrl,
       currentCacheNode,
       currentFlightRouterState,
-      shouldScroll
+      shouldScroll,
+      url.hash
     ),
   }
 }
@@ -134,7 +135,8 @@ function navigateUsingPrefetchedRouteTree(
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  hash: string
 ): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
   // Recursively construct a prefetch tree by reading from the Segment Cache. To
   // maintain compatibility, we output the same data structures as the old
@@ -169,11 +171,19 @@ function navigateUsingPrefetchedRouteTree(
       currentCacheNode,
       canonicalUrl,
       scrollableSegments,
-      shouldScroll
+      shouldScroll,
+      hash
     )
   }
-  // The server sent back an empty tree patch. There's nothing to update.
-  return noOpNavigationResult
+  // The server sent back an empty tree patch. There's nothing to update, except
+  // possibly the URL.
+  return {
+    tag: NavigationResultTag.NoOp,
+    data: {
+      canonicalUrl,
+      shouldScroll,
+    },
+  }
 }
 
 function navigationTaskToResult(
@@ -181,7 +191,8 @@ function navigationTaskToResult(
   currentCacheNode: CacheNode,
   canonicalUrl: string,
   scrollableSegments: Array<FlightSegmentPath>,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  hash: string
 ): SuccessfulNavigationResult | MPANavigationResult {
   const flightRouterState = task.route
   if (flightRouterState === null) {
@@ -201,6 +212,7 @@ function navigationTaskToResult(
       canonicalUrl,
       scrollableSegments,
       shouldScroll,
+      hash,
     },
   }
 }
@@ -279,7 +291,8 @@ async function navigateDynamicallyWithNoPrefetch(
   nextUrl: string | null,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  hash: string
 ): Promise<
   MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
 > {
@@ -301,9 +314,6 @@ async function navigateDynamicallyWithNoPrefetch(
   })
   const { flightData, canonicalUrl: canonicalUrlOverride } =
     await promiseForDynamicServerResponse
-
-  // TODO: Detect if the only thing that changed was the hash, like we do in
-  // in navigateReducer
 
   if (typeof flightData === 'string') {
     // This is an MPA navigation.
@@ -364,11 +374,19 @@ async function navigateDynamicallyWithNoPrefetch(
       currentCacheNode,
       canonicalUrl,
       scrollableSegments,
-      shouldScroll
+      shouldScroll,
+      hash
     )
   }
-  // The server sent back an empty tree patch. There's nothing to update.
-  return noOpNavigationResult
+  // The server sent back an empty tree patch. There's nothing to update, except
+  // possibly the URL.
+  return {
+    tag: NavigationResultTag.NoOp,
+    data: {
+      canonicalUrl,
+      shouldScroll,
+    },
+  }
 }
 
 function simulatePrefetchTreeUsingDynamicTreePatch(
