@@ -28,7 +28,8 @@ describe('app dir - metadata navigation', () => {
 
     it('should support notFound in generateMetadata', async () => {
       const res = await next.fetch('/async/not-found')
-      expect(res.status).toBe(404)
+      // metadata is suspended in SSR, it won't affect the response status
+      expect(res.status).toBe(200)
       const $ = await next.render$('/async/not-found')
 
       // TODO-APP: support render custom not-found in SSR for generateMetadata.
@@ -75,7 +76,10 @@ describe('app dir - metadata navigation', () => {
       const res = await next.fetch('/async/redirect', {
         redirect: 'manual',
       })
-      expect(res.status).toBe(307)
+      // metadata is suspended in SSR, it won't affect the response status
+      expect(res.status).toBe(200)
+      const browser = await next.browser('/async/redirect')
+      expect(await browser.elementByCss('p').text()).toBe('params - basic')
     })
 
     it('should show the index title', async () => {

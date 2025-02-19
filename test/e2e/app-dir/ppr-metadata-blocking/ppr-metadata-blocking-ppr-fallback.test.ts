@@ -4,6 +4,7 @@ function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
+// The default ppr-metadata-blocking is covered by test/e2e/app-dir/ppr-metadata-streaming/ppr-metadata-streaming.test.ts
 describe('ppr-metadata-blocking-ppr-fallback', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
