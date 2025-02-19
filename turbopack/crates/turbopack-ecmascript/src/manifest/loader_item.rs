@@ -6,7 +6,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
+        ChunkData, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -131,11 +132,6 @@ impl ChunkItem for ManifestLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(*self.manifest.await?.chunking_context)
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = &*self.await?;
         let mut code = Vec::new();
@@ -152,11 +148,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .as_chunk_item(
-                *this.module_graph,
-                *ResolvedVc::upcast(manifest.chunking_context),
-            )
-            .id()
+            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
@@ -165,11 +157,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
-            .as_chunk_item(
-                *this.module_graph,
-                *ResolvedVc::upcast(manifest.chunking_context),
-            )
-            .id()
+            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
             .await?;
 
         // This is the code that will be executed when the dynamic import is reached.

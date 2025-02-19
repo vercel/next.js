@@ -80,7 +80,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
-  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -595,6 +594,7 @@ async function writeStandaloneDirectory(
   outputFileTracingRoot: string,
   requiredServerFiles: RequiredServerFilesManifest,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>,
   loadedEnvFiles: LoadedEnvFiles,
@@ -612,6 +612,7 @@ async function writeStandaloneDirectory(
         outputFileTracingRoot,
         requiredServerFiles.config,
         middlewareManifest,
+        hasNodeMiddleware,
         hasInstrumentationHook,
         staticPages
       )
@@ -638,6 +639,23 @@ async function writeStandaloneDirectory(
         })
         await fs.copyFile(filePath, outputPath)
       }
+
+      if (hasNodeMiddleware) {
+        const middlewareOutput = path.join(
+          distDir,
+          STANDALONE_DIRECTORY,
+          requiredServerFiles.config.distDir,
+          SERVER_DIRECTORY,
+          'middleware.js'
+        )
+
+        await fs.mkdir(path.dirname(middlewareOutput), { recursive: true })
+        await fs.copyFile(
+          path.join(distDir, SERVER_DIRECTORY, 'middleware.js'),
+          middlewareOutput
+        )
+      }
+
       await recursiveCopy(
         path.join(distDir, SERVER_DIRECTORY, 'pages'),
         path.join(
@@ -1322,24 +1340,6 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
-      if (config.experimental.streamingMetadata) {
-        // Write html limited bots config to response-config-manifest
-        const responseConfigManifestPath = path.join(
-          distDir,
-          RESPONSE_CONFIG_MANIFEST
-        )
-        const responseConfigManifest: {
-          version: number
-          htmlLimitedBots: string
-        } = {
-          version: 0,
-          htmlLimitedBots:
-            config.experimental.htmlLimitedBots ||
-            HTML_LIMITED_BOT_UA_RE_STRING,
-        }
-        await writeManifest(responseConfigManifestPath, responseConfigManifest)
-      }
-
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
       await writeFileUtf8(
@@ -1409,7 +1409,10 @@ export default async function build(
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
-          } = await turbopackBuild(true)
+          } = await turbopackBuild(
+            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
+              process.env.NEXT_TURBOPACK_USE_WORKER !== '0'
+          )
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
@@ -2247,9 +2250,6 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(config.experimental.streamingMetadata
-                ? [RESPONSE_CONFIG_MANIFEST]
-                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
@@ -2324,6 +2324,7 @@ export default async function build(
       const middlewareFile = rootPaths.find((p) =>
         p.includes(MIDDLEWARE_FILENAME)
       )
+      let hasNodeMiddleware = false
 
       if (middlewareFile) {
         const staticInfo = await getStaticInfoIncludingLayouts({
@@ -2337,6 +2338,7 @@ export default async function build(
         })
 
         if (staticInfo.runtime === 'nodejs') {
+          hasNodeMiddleware = true
           functionsConfigManifest.functions['/_middleware'] = {
             runtime: staticInfo.runtime,
             matchers: staticInfo.middleware?.matchers ?? [
@@ -2754,6 +2756,10 @@ export default async function build(
                 ? true
                 : undefined
 
+            const htmlBotsRegexString =
+              config.experimental.htmlLimitedBots ||
+              HTML_LIMITED_BOT_UA_RE_STRING
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2763,6 +2769,21 @@ export default async function build(
                 key: 'content-type',
                 value: 'multipart/form-data;.*',
               },
+              // If it's PPR rendered non-static page, bypass the PPR cache when streaming metadata is enabled.
+              // This will skip the postpone data for those bots requests and instead produce a dynamic render.
+              ...(isRoutePPREnabled &&
+              // Disable streaming metadata for PPR on deployment where we don't have the special env.
+              // TODO: enable streaming metadata in PPR mode by default once it's ready.
+              process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+              config.experimental.streamingMetadata
+                ? [
+                    {
+                      type: 'header',
+                      key: 'user-agent',
+                      value: htmlBotsRegexString,
+                    },
+                  ]
+                : []),
             ]
 
             // We should collect all the dynamic routes into a single array for
@@ -3543,6 +3564,7 @@ export default async function build(
           outputFileTracingRoot,
           requiredServerFilesManifest,
           middlewareManifest,
+          hasNodeMiddleware,
           hasInstrumentationHook,
           staticPages,
           loadedEnvFiles,

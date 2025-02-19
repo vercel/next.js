@@ -2,7 +2,7 @@ use std::{io::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use swc_core::{
-    base::{try_with_handler, Compiler},
+    base::try_with_handler,
     common::{
         comments::{Comments, SingleThreadedComments},
         BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
@@ -19,20 +19,21 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
 #[turbo_tasks::function]
 pub async fn minify(
     path: Vc<FileSystemPath>,
     code: Vc<Code>,
     source_maps: Vc<bool>,
+    mangle: bool,
 ) -> Result<Vc<Code>> {
     let path = path.await?;
     let source_maps = source_maps.await?.then(|| code.generate_source_map());
@@ -40,8 +41,7 @@ pub async fn minify(
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {
-        let compiler = Arc::new(Compiler::new(cm.clone()));
-        let fm = compiler.cm.new_source_file(
+        let fm = cm.new_source_file(
             FileName::Custom(path.path.to_string()).into(),
             code.source_code().to_str()?.into_owned(),
         );
@@ -70,44 +70,46 @@ pub async fn minify(
                 let unresolved_mark = Mark::new();
                 let top_level_mark = Mark::new();
 
-                Ok(compiler.run_transform(handler, false, || {
-                    let program = program.apply(paren_remover(Some(&comments)));
+                let program = program.apply(paren_remover(Some(&comments)));
 
-                    let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
-                        unresolved_mark,
-                        top_level_mark,
-                        false,
-                    ));
+                let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
+                    unresolved_mark,
+                    top_level_mark,
+                    false,
+                ));
 
-                    program = swc_core::ecma::minifier::optimize(
-                        program,
-                        cm.clone(),
-                        Some(&comments),
-                        None,
-                        &MinifyOptions {
-                            compress: Some(CompressOptions {
-                                // Only run 2 passes, this is a tradeoff between performance and
-                                // compression size. Default is 3 passes.
-                                passes: 2,
-                                ..Default::default()
-                            }),
-                            mangle: Some(MangleOptions {
+                program = swc_core::ecma::minifier::optimize(
+                    program,
+                    cm.clone(),
+                    Some(&comments),
+                    None,
+                    &MinifyOptions {
+                        compress: Some(CompressOptions {
+                            // Only run 2 passes, this is a tradeoff between performance and
+                            // compression size. Default is 3 passes.
+                            passes: 2,
+                            ..Default::default()
+                        }),
+                        mangle: if mangle {
+                            Some(MangleOptions {
                                 reserved: vec!["AbortSignal".into()],
                                 ..Default::default()
-                            }),
-                            ..Default::default()
+                            })
+                        } else {
+                            None
                         },
-                        &ExtraOptions {
-                            top_level_mark,
-                            unresolved_mark,
-                            mangle_name_cache: None,
-                        },
-                    );
+                        ..Default::default()
+                    },
+                    &ExtraOptions {
+                        top_level_mark,
+                        unresolved_mark,
+                        mangle_name_cache: None,
+                    },
+                );
 
-                    program.apply(ecma::transforms::base::fixer::fixer(Some(
-                        &comments as &dyn Comments,
-                    )))
-                }))
+                Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
+                    &comments as &dyn Comments,
+                ))))
             })
         })?;
 
@@ -119,10 +121,7 @@ pub async fn minify(
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(ResolvedVc::upcast(
-                ParseResultSourceMap::new(cm, src_map_buf, original_map.to_resolved().await?)
-                    .resolved_cell(),
-            )),
+            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
         );
 
         write!(

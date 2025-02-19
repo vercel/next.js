@@ -632,5 +632,17 @@
   "631": "Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.",
   "632": "Invariant (SlowModuleDetectionPlugin): Module is missing a required debugId. This is a Next.js internal bug.",
   "633": "Dynamic route not found",
-  "634": "Route %s used \"searchParams\" inside \"use cache\". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \"searchParams\" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
+  "634": "Route %s used \"searchParams\" inside \"use cache\". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \"searchParams\" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "635": "%s: Invalid source map. Only conformant source maps can be used to find the original code.",
+  "636": "Invariant: frames must be a function when the React version has React.use. This is a bug in Next.js.",
+  "637": "Invariant: frames must be an array when the React version does not have React.use. This is a bug in Next.js.",
+  "638": "The following tags are missing in the Root Layout: %s.\\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+  "639": "unstable_rootParams() can only be used within App Router.",
+  "640": "Route %s used \"unstable_rootParams\" inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "641": "Route %s used \\`unstable_rootParams()\\` in Pages Router. This API is only available within App Router.",
+  "642": "Route %s used \\`unstable_rootParams()\\` inside \\`\"use cache\"\\` or \\`unstable_cache\\`. Support for this API inside cache scopes is planned for a future version of Next.js.",
+  "643": "Invalid \"devIndicator.position\" provided, expected one of %s, received %s",
+  "644": "@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.",
+  "645": "@rspack/plugin-react-refresh is not available. Please make sure the appropriate Next.js plugin is installed.",
+  "646": "No span found for compilation"
 }

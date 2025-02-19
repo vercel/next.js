@@ -363,9 +363,6 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
-};
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
@@ -497,8 +494,13 @@ exports.useDebugValue = function () {};
 exports.useDeferredValue = function (value, initialValue) {
   return ReactSharedInternals.H.useDeferredValue(value, initialValue);
 };
-exports.useEffect = function (create, deps) {
-  return ReactSharedInternals.H.useEffect(create, deps);
+exports.useEffect = function (create, createDeps, update) {
+  var dispatcher = ReactSharedInternals.H;
+  if ("function" === typeof update)
+    throw Error(
+      "useEffect CRUD overload is not enabled in this build of React."
+    );
+  return dispatcher.useEffect(create, createDeps);
 };
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
@@ -541,4 +543,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-canary-0a82580b-20250203";
+exports.version = "19.1.0-canary-32b0cad8-20250213";

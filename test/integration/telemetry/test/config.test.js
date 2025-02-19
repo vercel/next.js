@@ -84,7 +84,7 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"reactStrictMode": false/)
           expect(event1).toMatch(/"turboFlag": false/)
           expect(event1).toMatch(/"pagesDir": true/)
-          expect(event1).toMatch(/"appDir": false/)
+          expect(event1).toMatch(/"appDir": true/)
         } catch (err) {
           require('console').error('failing stderr', stderr, err)
           throw err
@@ -287,6 +287,7 @@ describe('config telemetry', () => {
             expect.arrayContaining([
               {
                 featureName: 'next/image',
+                // FIXME: Should be +1 from App Router
                 invocationCount: 2,
               },
               {
@@ -532,12 +533,14 @@ describe('config telemetry', () => {
           )
           // eslint-disable-next-line jest/no-standalone-expect
           expect(featureUsageEvents).toContainEqual({
+            // FIXME: Should be +1 from App Router
             featureName: 'next/legacy/image',
             invocationCount: 2,
           })
           // eslint-disable-next-line jest/no-standalone-expect
           expect(featureUsageEvents).toContainEqual({
             featureName: 'next/image',
+            // FIXME: Should be +1 from App Router
             invocationCount: 2,
           })
         }
@@ -724,6 +727,7 @@ describe('config telemetry', () => {
             path.join(appDir, 'next.config.js')
           )
 
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '~app'))
           await fs.move(path.join(appDir, '_app'), path.join(appDir, 'app'))
 
           const { stderr } = await nextBuild(appDir, [], {
@@ -737,6 +741,7 @@ describe('config telemetry', () => {
           )
 
           await fs.move(path.join(appDir, 'app'), path.join(appDir, '_app'))
+          await fs.move(path.join(appDir, '~app'), path.join(appDir, 'app'))
 
           const featureUsageEvents = findAllTelemetryEvents(
             stderr,

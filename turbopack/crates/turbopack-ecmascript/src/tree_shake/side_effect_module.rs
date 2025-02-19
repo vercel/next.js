@@ -23,7 +23,7 @@ pub(super) struct SideEffectsModule {
     /// Original module
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     /// The part of the original module that is the binding
-    pub part: ResolvedVc<ModulePart>,
+    pub part: ModulePart,
     /// The module that is the binding
     pub resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
@@ -35,7 +35,7 @@ impl SideEffectsModule {
     #[turbo_tasks::function]
     pub fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
-        part: ResolvedVc<ModulePart>,
+        part: ModulePart,
         resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
@@ -53,8 +53,8 @@ impl SideEffectsModule {
 impl Module for SideEffectsModule {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.module.ident().await?.clone_value();
-        ident.parts.push(self.part);
+        let mut ident = self.module.ident().owned().await?;
+        ident.parts.push(self.part.clone());
 
         ident.add_asset(
             ResolvedVc::cell(RcStr::from("resolved")),

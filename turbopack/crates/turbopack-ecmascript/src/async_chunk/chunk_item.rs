@@ -4,8 +4,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
-        ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunksData,
+        ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunkingContextExt, ChunksData,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     module::Module,
@@ -36,7 +36,7 @@ impl AsyncLoaderChunkItem {
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
         if let Some(chunk_items) = module.availability_info.available_modules() {
-            if chunk_items.get(*module.inner).await?.is_some() {
+            if *chunk_items.get(*module.inner).await? {
                 return Ok(Vc::cell(vec![]));
             }
         }
@@ -60,11 +60,6 @@ impl AsyncLoaderChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for AsyncLoaderChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let module = this.module.await?;
@@ -74,11 +69,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         {
             Some(
                 placeable
-                    .as_chunk_item(
-                        *this.module_graph,
-                        *ResolvedVc::upcast(this.chunking_context),
-                    )
-                    .id()
+                    .chunk_item_id(*ResolvedVc::upcast(this.chunking_context))
                     .await?,
             )
         } else {

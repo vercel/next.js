@@ -1,11 +1,15 @@
 use anyhow::{bail, Result};
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
+    Vc,
+};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -17,7 +21,7 @@ use turbopack_core::{
 };
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::AstPath,
     runtime_functions::TURBOPACK_REQUIRE,
@@ -29,28 +33,23 @@ use crate::{
 pub struct WorkerAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
     pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
-#[turbo_tasks::value_impl]
 impl WorkerAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
         issue_source: IssueSource,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(WorkerAssetReference {
+    ) -> Self {
+        WorkerAssetReference {
             origin,
             request,
-            path,
             issue_source,
             in_try,
-        })
+        }
     }
 }
 
@@ -92,12 +91,11 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                 worker_loader_module.to_resolved().await?,
-            ))
-            .cell())
+            )))
         } else {
-            Ok(ModuleResolveResult::unresolvable().cell())
+            Ok(*ModuleResolveResult::unresolvable())
         }
     }
 }
@@ -115,15 +113,32 @@ impl ValueToString for WorkerAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for WorkerAssetReference {}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for WorkerAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for WorkerAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen { reference, path }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct WorkerAssetReferenceCodeGen {
+    reference: ResolvedVc<WorkerAssetReference>,
+    path: AstPath,
+}
+
+impl WorkerAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let Some(loader) = self.worker_loader_module().await? else {
+    ) -> Result<CodeGeneration> {
+        let Some(loader) = self.reference.await?.worker_loader_module().await? else {
             bail!("Worker loader could not be created");
         };
 
@@ -131,9 +146,7 @@ impl CodeGenerateable for WorkerAssetReference {
             .chunk_item_id_from_ident(loader.ident())
             .await?;
 
-        let path = &self.path.await?;
-
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
                     match args.first_mut() {
@@ -176,6 +189,6 @@ impl CodeGenerateable for WorkerAssetReference {
             );
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]).cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

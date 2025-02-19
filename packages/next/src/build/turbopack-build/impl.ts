@@ -49,6 +49,7 @@ export async function turbopackBuild(): Promise<{
   const hasRewrites = NextBuildContext.hasRewrites!
   const rewrites = NextBuildContext.rewrites!
   const appDirOnly = NextBuildContext.appDirOnly!
+  const noMangling = NextBuildContext.noMangling!
 
   const startTime = process.hrtime()
   const bindings = await loadBindings(config?.experimental?.useWasmBinary)
@@ -88,6 +89,7 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
       previewProps,
       browserslistQuery: supportedBrowsers.join(', '),
+      noMangling,
     },
     {
       persistentCaching,

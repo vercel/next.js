@@ -5,8 +5,6 @@ export function Base() {
   return (
     <style>
       {css`
-        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap');
-
         :host {
           ${
             // Although the style applied to the shadow host is isolated,
@@ -83,6 +81,7 @@ export function Base() {
           --rounded-none: 0px;
           --rounded-sm: 0.125rem; /* 2px */
           --rounded-md: 0.25rem; /* 4px */
+          --rounded-md-2: 0.375rem; /* 6px */
           --rounded-lg: 0.5rem; /* 8px */
           --rounded-xl: 0.75rem; /* 12px */
           --rounded-2xl: 1rem; /* 16px */
@@ -115,6 +114,10 @@ export function Base() {
           --size-11: 2.75rem; /* 44px */
           --size-11_5: 2.875rem; /* 46px */
           --size-12: 3rem; /* 48px */
+
+          @media print {
+            display: none;
+          }
         }
 
         @media (prefers-color-scheme: dark) {

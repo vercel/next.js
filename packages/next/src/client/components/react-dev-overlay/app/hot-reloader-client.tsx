@@ -63,6 +63,8 @@ let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
+let turbopackLastUpdateLatency: number | null = null
+let turbopackUpdatedModules: Set<string> = new Set()
 
 let pendingHotUpdateWebpack = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
@@ -104,7 +106,9 @@ function reportHmrLatency(
   updatedModules: ReadonlyArray<string>
 ) {
   if (!startLatency) return
-  let endLatency = Date.now()
+  // turbopack has a debounce for the "built" event which we don't want to
+  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
+  let endLatency = turbopackLastUpdateLatency ?? Date.now()
   const latency = endLatency - startLatency
   console.log(`[Fast Refresh] done in ${latency}ms`)
   sendMessage(
@@ -314,6 +318,7 @@ function processMessage(
   function handleHotUpdate() {
     if (process.env.TURBOPACK) {
       dispatcher.onBuildOk()
+      reportHmrLatency(sendMessage, [...turbopackUpdatedModules])
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
@@ -375,6 +380,8 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      turbopackLastUpdateLatency = null
+      turbopackUpdatedModules.clear()
       if (!process.env.TURBOPACK) {
         setPendingHotUpdateWebpack()
       }
@@ -461,7 +468,6 @@ function processMessage(
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -472,7 +478,10 @@ function processMessage(
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null, sendMessage)
       }
-      reportHmrLatency(sendMessage, updatedModules)
+      for (const module of extractModulesFromTurbopackMessage(obj.data)) {
+        turbopackUpdatedModules.add(module)
+      }
+      turbopackLastUpdateLatency = Date.now()
       break
     }
     // TODO-APP: make server component change more granular

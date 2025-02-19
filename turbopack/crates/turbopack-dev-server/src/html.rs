@@ -101,14 +101,14 @@ impl DevHtmlAsset {
 impl DevHtmlAsset {
     #[turbo_tasks::function]
     pub async fn with_path(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.path = path;
         Ok(html.cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_body(self: Vc<Self>, body: RcStr) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.body = Some(body);
         Ok(html.cell())
     }

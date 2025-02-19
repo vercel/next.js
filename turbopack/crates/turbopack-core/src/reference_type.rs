@@ -43,7 +43,7 @@ pub enum ImportWithType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
-    ImportPart(ResolvedVc<ModulePart>),
+    ImportPart(ModulePart),
     Import,
     ImportWithType(ImportWithType),
     DynamicImport,

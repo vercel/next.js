@@ -90,6 +90,7 @@ pub trait ExecuteContext<'e>: Sized {
     fn get_task_description(&self, task_id: TaskId) -> String;
     fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
+    fn should_track_activeness(&self) -> bool;
 }
 
 pub struct ParentRef<'a> {
@@ -356,6 +357,10 @@ where
 
     fn should_track_dependencies(&self) -> bool {
         self.backend.should_track_dependencies()
+    }
+
+    fn should_track_activeness(&self) -> bool {
+        self.backend.should_track_activeness()
     }
 }
 

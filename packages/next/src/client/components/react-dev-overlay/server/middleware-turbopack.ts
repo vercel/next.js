@@ -1,26 +1,26 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
-  badRequest,
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  jsonString,
-  noContent,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
 } from './shared'
-
+import { middlewareResponse } from './middleware-response'
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
 import url from 'url'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
+import {
+  SourceMapConsumer,
+  type BasicSourceMapConsumer,
+  type NullableMappedPosition,
+} from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { inspect } from 'node:util'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -84,7 +84,7 @@ export async function batchedTraceSource(
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack://[turbopack]
+    // isInternal means resource starts with turbopack:///[turbopack]
     !!sourceFrame.isInternal
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
@@ -226,42 +226,65 @@ function findApplicableSourceMapPayload(
   }
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
-  const sourceMap = findSourceMap(
-    // TODO(veil): Why are the frames sent encoded?
+  const sourceURL = // TODO(veil): Why are the frames sent encoded?
     decodeURIComponent(frame.file)
-  )
-  if (sourceMap !== undefined) {
-    const traced = await SourceMapConsumer.with(
-      sourceMap.payload,
-      null,
-      async (consumer) => {
-        const originalPosition = consumer.originalPositionFor({
-          line: frame.line ?? 1,
-          column: frame.column ?? 1,
-        })
+  let sourceMapPayload: ModernSourceMapPayload | undefined
+  try {
+    sourceMapPayload = findSourceMap(sourceURL)?.payload
+  } catch (cause) {
+    throw new Error(
+      `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
+  }
 
-        if (originalPosition.source === null) {
-          return null
-        }
+  if (sourceMapPayload !== undefined) {
+    let consumer: BasicSourceMapConsumer
+    try {
+      consumer = await new SourceMapConsumer(sourceMapPayload)
+    } catch (cause) {
+      throw new Error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+        { cause }
+      )
+    }
+    let traced: {
+      originalPosition: NullableMappedPosition
+      sourceContent: string | null
+    } | null
+    try {
+      const originalPosition = consumer.originalPositionFor({
+        line: frame.line ?? 1,
+        // 0-based columns out requires 0-based columns in.
+        column: (frame.column ?? 1) - 1,
+      })
 
+      if (originalPosition.source === null) {
+        traced = null
+      } else {
         const sourceContent: string | null =
           consumer.sourceContentFor(
             originalPosition.source,
             /* returnNullOnMissing */ true
           ) ?? null
 
-        return { originalPosition, sourceContent }
+        traced = { originalPosition, sourceContent }
       }
-    )
+    } finally {
+      consumer.destroy()
+    }
 
     if (traced !== null) {
       const { originalPosition, sourceContent } = traced
       const applicableSourceMap = findApplicableSourceMapPayload(
         frame,
-        sourceMap.payload
+        sourceMapPayload
       )
 
       // TODO(veil): Upstream a method to sourcemap consumer that immediately says if a frame is ignored or not.
@@ -347,7 +370,7 @@ export function getOverlayMiddleware(project: Project) {
 
     if (pathname === '/__nextjs_original-stack-frames') {
       if (req.method !== 'POST') {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       const body = await new Promise<string>((resolve, reject) => {
@@ -361,40 +384,46 @@ export function getOverlayMiddleware(project: Project) {
 
       const request = JSON.parse(body) as OriginalStackFramesRequest
       const stackFrames = createStackFrames(request)
-      const result = (await Promise.allSettled(
+      const result: OriginalStackFramesResponse = await Promise.all(
         stackFrames.map(async (frame) => {
           try {
             const stackFrame = await createOriginalStackFrame(project, frame)
             if (stackFrame === null) {
-              return Promise.reject('Failed to create original stack frame')
+              return {
+                status: 'rejected',
+                reason: 'Failed to create original stack frame',
+              }
             }
-            return stackFrame
-          } catch (e: any) {
-            return Promise.reject(e.stack)
+            return { status: 'fulfilled', value: stackFrame }
+          } catch (error) {
+            return {
+              status: 'rejected',
+              reason: inspect(error, { colors: false }),
+            }
           }
         })
-      )) satisfies OriginalStackFramesResponse
+      )
 
-      return json(res, result)
+      return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = createStackFrame(searchParams)
 
-      if (!frame) return badRequest(res)
+      if (!frame) return middlewareResponse.badRequest(res)
 
       const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
         launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -416,7 +445,7 @@ export function getSourceMapMiddleware(project: Project) {
     let filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     // TODO(veil): Always try the native version first.
@@ -428,10 +457,10 @@ export function getSourceMapMiddleware(project: Project) {
       const sourceMap = findSourceMap(filename)
 
       if (sourceMap) {
-        return json(res, sourceMap.payload)
+        return middlewareResponse.json(res, sourceMap.payload)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     try {
@@ -445,20 +474,20 @@ export function getSourceMapMiddleware(project: Project) {
       const sourceMapString = await project.getSourceMap(filename)
 
       if (sourceMapString) {
-        return jsonString(res, sourceMapString)
+        return middlewareResponse.jsonString(res, sourceMapString)
       }
 
       if (filename.startsWith('file:')) {
         const sourceMap = await getSourceMapFromFile(filename)
 
         if (sourceMap) {
-          return json(res, sourceMap)
+          return middlewareResponse.json(res, sourceMap)
         }
       }
     } catch (error) {
       console.error('Failed to get source map:', error)
     }
 
-    noContent(res)
+    middlewareResponse.noContent(res)
   }
 }

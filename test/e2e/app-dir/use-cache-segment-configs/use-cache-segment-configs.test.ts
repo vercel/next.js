@@ -31,7 +31,7 @@ describe('use-cache-segment-configs', () => {
         expect(description).toBe('Failed to compile')
 
         expect(source).toMatchInlineSnapshot(`
-         "./app/runtime/page.tsx:1:14
+         "./app/runtime/page.tsx (1:14)
          Ecmascript file had an error
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^

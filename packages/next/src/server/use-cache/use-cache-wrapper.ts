@@ -48,6 +48,7 @@ import {
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
+import React from 'react'
 
 type CacheKeyParts = [
   buildId: string,
@@ -167,6 +168,7 @@ function generateCacheEntryWithCacheContext(
     hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
     isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
+    forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(
@@ -696,10 +698,13 @@ export function cache(
           workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
             ? []
             : workUnitStore.implicitTags
-        const entry: undefined | CacheEntry = await cacheHandler.get(
-          serializedCacheKey,
-          implicitTags
-        )
+
+        const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
+
+        const entry = forceRevalidate
+          ? undefined
+          : await cacheHandler.get(serializedCacheKey, implicitTags)
+
         const currentTime = performance.timeOrigin + performance.now()
         if (
           workUnitStore !== undefined &&
@@ -861,7 +866,8 @@ export function cache(
       })
     },
   }[name]
-  return cachedFn
+
+  return React.cache(cachedFn)
 }
 
 /**
@@ -898,4 +904,25 @@ function isPageComponent(
     typeof props === 'object' &&
     (props as UseCachePageComponentProps).$$isPageComponent
   )
+}
+
+function shouldForceRevalidate(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore | undefined
+): boolean {
+  if (workStore.isOnDemandRevalidate) {
+    return true
+  }
+
+  if (workStore.dev && workUnitStore) {
+    if (workUnitStore.type === 'request') {
+      return workUnitStore.headers.get('cache-control') === 'no-cache'
+    }
+
+    if (workUnitStore.type === 'cache') {
+      return workUnitStore.forceRevalidate
+    }
+  }
+
+  return false
 }

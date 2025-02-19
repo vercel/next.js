@@ -42,8 +42,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           SCRIPT: test/build-rspack-dev-tests-manifest.js
-          PR_TITLE: Update Rspack development test manifest
-          PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Rspack.
+          PR_TITLE: Update bundler development test manifest
+          PR_BODY: This auto-generated PR updates the development integration test manifest used when testing alternative bundlers.
   update_build_manifest:
     name: Update and upload Rspack production test manifest
     if: github.repository_owner == 'vercel'
@@ -78,5 +78,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
           SCRIPT: test/build-rspack-build-tests-manifest.js
-          PR_TITLE: Update Rspack production test manifest
-          PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Rspack.
+          PR_TITLE: Update bundler production test manifest
+          PR_BODY: This auto-generated PR updates the production integration test manifest used when testing alternative bundlers.

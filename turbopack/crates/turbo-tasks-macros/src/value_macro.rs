@@ -343,6 +343,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::trace::TraceRawVcs,
             turbo_tasks::NonLocalValue,
         )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
     match serialization_mode {
         SerializationMode::Auto | SerializationMode::AutoForInput => {

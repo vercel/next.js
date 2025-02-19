@@ -9,6 +9,13 @@ const meta: Meta<typeof DevToolsIndicator> = {
   parameters: {
     layout: 'centered',
   },
+  argTypes: {
+    position: {
+      control: 'select',
+      options: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+      defaultValue: 'bottom-left',
+    },
+  },
   decorators: [
     withShadowPortal,
     // Test for high z-index
@@ -48,17 +55,29 @@ const state: OverlayState = {
   buildError: null,
   errors: [],
   refreshState: { type: 'idle' },
+  disableDevIndicator: false,
   rootLayoutMissingTags: [],
   versionInfo: mockVersionInfo,
   notFound: false,
-  staticIndicator: false,
+  staticIndicator: true,
   debugInfo: { devtoolsFrontendUrl: undefined },
 }
 
-export const NoErrors: Story = {
+export const StaticRoute: Story = {
   args: {
     errorCount: 0,
     state,
+    setIsErrorOverlayOpen: () => {},
+  },
+}
+
+export const DynamicRoute: Story = {
+  args: {
+    errorCount: 0,
+    state: {
+      ...state,
+      staticIndicator: false,
+    },
     setIsErrorOverlayOpen: () => {},
   },
 }
@@ -76,18 +95,5 @@ export const MultipleErrors: Story = {
     errorCount: 3,
     state,
     setIsErrorOverlayOpen: () => {},
-  },
-}
-
-export const WithStaticIndicator: Story = {
-  args: {
-    errorCount: 3,
-    state: {
-      ...state,
-      staticIndicator: true,
-    },
-    setIsErrorOverlayOpen: () => {
-      console.log('setIsErrorOverlayOpen called')
-    },
   },
 }

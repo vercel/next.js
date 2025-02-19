@@ -60,6 +60,7 @@ export type WorkStoreContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
+    | 'dev'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -117,8 +118,6 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
-    rootParams: {},
-
     requestEndedState,
     isPrefetchRequest,
     buildId,
@@ -127,6 +126,7 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     dynamicIOEnabled: renderOpts.experimental.dynamicIO,
+    dev: renderOpts.dev ?? false,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

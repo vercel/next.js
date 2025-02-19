@@ -120,8 +120,8 @@ impl InstrumentationEndpoint {
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
-        .await?
-        .clone_value();
+        .owned()
+        .await?;
 
         let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
         else {
@@ -187,7 +187,7 @@ impl InstrumentationEndpoint {
 
         if this.is_edge {
             let edge_files = self.edge_files();
-            let mut output_assets = edge_files.await?.clone_value();
+            let mut output_assets = edge_files.owned().await?;
 
             let node_root = this.project.node_root();
             let node_root_value = node_root.await?;
@@ -256,9 +256,7 @@ impl Endpoint for InstrumentationEndpoint {
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
-                all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value()
+                all_server_paths(output_assets, node_root).owned().await?
             } else {
                 vec![]
             };

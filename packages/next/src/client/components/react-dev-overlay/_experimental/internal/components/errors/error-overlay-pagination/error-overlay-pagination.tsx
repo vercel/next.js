@@ -1,34 +1,46 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 import { noop as css } from '../../../helpers/noop-template'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 type ErrorPaginationProps = {
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   activeIdx: number
   onActiveIndexChange: (index: number) => void
 }
 
 export function ErrorOverlayPagination({
-  readyErrors,
+  runtimeErrors,
   activeIdx,
   onActiveIndexChange,
 }: ErrorPaginationProps) {
   const handlePrevious = useCallback(
     () =>
-      activeIdx > 0 ? onActiveIndexChange(Math.max(0, activeIdx - 1)) : null,
+      startTransition(() => {
+        if (activeIdx > 0) {
+          onActiveIndexChange(Math.max(0, activeIdx - 1))
+        }
+      }),
     [activeIdx, onActiveIndexChange]
   )
 
   const handleNext = useCallback(
     () =>
-      activeIdx < readyErrors.length - 1
-        ? onActiveIndexChange(
-            Math.max(0, Math.min(readyErrors.length - 1, activeIdx + 1))
+      startTransition(() => {
+        if (activeIdx < runtimeErrors.length - 1) {
+          onActiveIndexChange(
+            Math.max(0, Math.min(runtimeErrors.length - 1, activeIdx + 1))
           )
-        : null,
-    [activeIdx, readyErrors.length, onActiveIndexChange]
+        }
+      }),
+    [activeIdx, runtimeErrors.length, onActiveIndexChange]
   )
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
@@ -51,16 +63,10 @@ export function ErrorOverlayPagination({
       if (e.key === 'ArrowLeft') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonLeft.current) {
-          buttonLeft.current.focus()
-        }
         handlePrevious && handlePrevious()
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         e.stopPropagation()
-        if (buttonRight.current) {
-          buttonRight.current.focus()
-        }
         handleNext && handleNext()
       }
     }
@@ -93,13 +99,13 @@ export function ErrorOverlayPagination({
         if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
-      } else if (activeIdx === readyErrors.length - 1) {
+      } else if (activeIdx === runtimeErrors.length - 1) {
         if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
     }
-  }, [nav, activeIdx, readyErrors.length])
+  }, [nav, activeIdx, runtimeErrors.length])
 
   return (
     <nav
@@ -112,6 +118,7 @@ export function ErrorOverlayPagination({
         disabled={activeIdx === 0}
         aria-disabled={activeIdx === 0}
         onClick={handlePrevious}
+        data-nextjs-dialog-error-previous
         className="error-overlay-pagination-button"
       >
         <LeftArrow
@@ -120,19 +127,20 @@ export function ErrorOverlayPagination({
         />
       </button>
       <div className="error-overlay-pagination-count">
-        <span>{activeIdx + 1}/</span>
+        <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
         <span data-nextjs-dialog-header-total-count>
           {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
-          {readyErrors.length || 1}
+          {runtimeErrors.length || 1}
         </span>
       </div>
       <button
         ref={buttonRight}
         type="button"
         // If no errors or the last error is active, disable the button.
-        disabled={activeIdx >= readyErrors.length - 1}
-        aria-disabled={activeIdx >= readyErrors.length - 1}
+        disabled={activeIdx >= runtimeErrors.length - 1}
+        aria-disabled={activeIdx >= runtimeErrors.length - 1}
         onClick={handleNext}
+        data-nextjs-dialog-error-next
         className="error-overlay-pagination-button"
       >
         <RightArrow
@@ -150,14 +158,8 @@ export const styles = css`
     display: flex;
     justify-content: center;
     align-items: center;
-
-    padding: 4px;
     gap: 8px;
-    background: var(--color-background-100);
-    background-clip: padding-box;
-    box-shadow: var(--shadow-small);
-    border: 1px solid var(--color-gray-alpha-400);
-    border-radius: var(--rounded-full);
+    width: fit-content;
   }
 
   .error-overlay-pagination-count {
@@ -174,14 +176,16 @@ export const styles = css`
     justify-content: center;
     align-items: center;
 
-    padding: 4px;
+    width: 24px;
+    height: 24px;
     background: var(--color-gray-300);
+    flex-shrink: 0;
 
     border: none;
     border-radius: var(--rounded-full);
 
-    &:focus {
-      outline: none;
+    &:focus-visible {
+      outline: var(--focus-ring);
     }
 
     &:not(:disabled):active {

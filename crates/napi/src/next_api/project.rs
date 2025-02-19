@@ -40,9 +40,9 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::PlainIssue,
     output::{OutputAsset, OutputAssets},
-    source_map::{SourceMap, Token},
+    source_map::{OptionSourceMap, OptionStringifiedSourceMap, SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
-    SOURCE_MAP_PREFIX,
+    PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
 };
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
@@ -65,8 +65,9 @@ use crate::{register, util::DhatProfilerGuard};
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX: Lazy<String> = Lazy::new(|| format!("{}///", SOURCE_URL_PROTOCOL));
 static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
-    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
+    Lazy::new(|| format!("{}///[{}]/", SOURCE_URL_PROTOCOL, PROJECT_FILESYSTEM_NAME));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -145,6 +146,11 @@ pub struct NapiProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: String,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: bool,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -191,6 +197,11 @@ pub struct NapiPartialProjectOptions {
 
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<String>,
+
+    /// When the code is minified, this opts out of the default mangling of
+    /// local names for variables, functions etc., which can be useful for
+    /// debugging/profiling purposes.
+    pub no_mangling: Option<bool>,
 }
 
 #[napi(object)]
@@ -242,6 +253,7 @@ impl From<NapiProjectOptions> for ProjectOptions {
             build_id: val.build_id.into(),
             preview_props: val.preview_props.into(),
             browserslist_query: val.browserslist_query.into(),
+            no_mangling: val.no_mangling,
         }
     }
 }
@@ -1224,10 +1236,10 @@ pub struct StackFrame {
     pub method_name: Option<String>,
 }
 
-pub async fn get_source_map(
+pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
     file_path: String,
-) -> Result<Option<ResolvedVc<SourceMap>>> {
+) -> Result<Option<Vc<OptionStringifiedSourceMap>>> {
     let (file, module) = match Url::parse(&file_path) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1264,20 +1276,31 @@ pub async fn get_source_map(
         .client_relative_path()
         .join(chunk_base.into());
 
-    let mut map = container
-        .get_source_map(server_path, module.clone())
-        .await?;
+    let mut map = container.get_source_map(server_path, module.clone());
 
-    if map.is_none() {
+    if map.await?.is_none() {
         // If the chunk doesn't exist as a server chunk, try a client chunk.
         // TODO: Properly tag all server chunks and use the `isServer` query param.
         // Currently, this is inaccurate as it does not cover RSC server
         // chunks.
-        map = container.get_source_map(client_path, module).await?;
+        map = container.get_source_map(client_path, module);
     }
 
-    let map = map.context("chunk/module is missing a sourcemap")?;
+    if map.await?.is_none() {
+        bail!("chunk/module is missing a sourcemap");
+    }
 
+    Ok(Some(map))
+}
+
+pub async fn get_source_map(
+    container: Vc<ProjectContainer>,
+    file_path: String,
+) -> Result<Option<ReadRef<OptionSourceMap>>> {
+    let Some(map) = get_source_map_rope(container, file_path).await? else {
+        return Ok(None);
+    };
+    let map = SourceMap::new_from_rope_cached(map).await?;
     Ok(Some(map))
 }
 
@@ -1294,6 +1317,9 @@ pub async fn project_trace_source(
             let Some(map) = get_source_map(container, frame.file).await? else {
                 return Ok(None);
             };
+            let Some(map) = &*map else {
+                return Ok(None);
+            };
 
             let Some(line) = frame.line else {
                 return Ok(None);
@@ -1301,17 +1327,17 @@ pub async fn project_trace_source(
 
             let token = map
                 .lookup_token(
-                    (line as usize).saturating_sub(1),
-                    (frame.column.unwrap_or(1) as usize).saturating_sub(1),
+                    line.saturating_sub(1),
+                    frame.column.unwrap_or(1).saturating_sub(1),
                 )
                 .await?;
 
-            let (original_file, line, column, name) = match &*token {
+            let (original_file, line, column, name) = match token {
                 Token::Original(token) => (
                     urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
-                    Some(token.original_line as u32 + 1),
-                    Some(token.original_column as u32 + 1),
+                    Some(token.original_line + 1),
+                    Some(token.original_column + 1),
                     token.name.clone(),
                 ),
                 Token::Synthetic(token) => {
@@ -1339,7 +1365,7 @@ pub async fn project_trace_source(
             } else if let Some(source_file) =
                 original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
             {
-                // Server code uses turbopack://[project]
+                // Server code uses turbopack:///[project]
                 // TODO should this also be file://?
                 (
                     get_relative_path_to(
@@ -1352,8 +1378,9 @@ pub async fn project_trace_source(
                     Some(source_file.to_string()),
                     false,
                 )
-            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
-                // All other code like turbopack://[turbopack] is internal code
+            } else if let Some(source_file) = original_file.strip_prefix(&*SOURCE_MAP_PREFIX) {
+                // All other code like turbopack:///[turbopack] is internal code
+                // TODO(veil): Should the protocol be preserved?
                 (source_file.to_string(), None, true)
             } else {
                 bail!(
@@ -1418,11 +1445,13 @@ pub async fn project_get_source_map(
 
     let source_map = turbo_tasks
         .run_once(async move {
-            let Some(map) = get_source_map(container, file_path).await? else {
+            let Some(map) = get_source_map_rope(container, file_path).await? else {
                 return Ok(None);
             };
-
-            Ok(Some(map.to_rope().await?.to_str()?.into_owned()))
+            let Some(map) = &*map.await? else {
+                return Ok(None);
+            };
+            Ok(Some(map.to_str()?.to_string()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;

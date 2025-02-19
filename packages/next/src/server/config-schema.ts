@@ -228,18 +228,29 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .optional(),
     deploymentId: z.string().optional(),
     devIndicators: z
-      .object({
-        appIsrStatus: z.boolean().optional(),
-        buildActivity: z.boolean().optional(),
-        buildActivityPosition: z
-          .union([
-            z.literal('bottom-left'),
-            z.literal('bottom-right'),
-            z.literal('top-left'),
-            z.literal('top-right'),
-          ])
-          .optional(),
-      })
+      .union([
+        z.object({
+          appIsrStatus: z.boolean().optional(),
+          buildActivity: z.boolean().optional(),
+          buildActivityPosition: z
+            .union([
+              z.literal('bottom-left'),
+              z.literal('bottom-right'),
+              z.literal('top-left'),
+              z.literal('top-right'),
+            ])
+            .optional(),
+          position: z
+            .union([
+              z.literal('bottom-left'),
+              z.literal('bottom-right'),
+              z.literal('top-left'),
+              z.literal('top-right'),
+            ])
+            .optional(),
+        }),
+        z.literal(false),
+      ])
       .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
@@ -333,7 +344,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .readonly()
           .optional(),
         taint: z.boolean().optional(),
-        reactOwnerStack: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         scrollRestoration: z.boolean().optional(),

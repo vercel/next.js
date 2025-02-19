@@ -72,7 +72,7 @@ impl ChunkType for EcmascriptChunkType {
                 )
                 .try_join()
                 .await?,
-            referenced_output_assets: referenced_output_assets.await?.clone_value(),
+            referenced_output_assets: referenced_output_assets.owned().await?,
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))

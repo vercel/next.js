@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import { check, describeVariants as describe, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
 
@@ -301,7 +301,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
     await session.assertHasRedbox()
 
-    await expect(session.getRedboxSource()).resolves.toInclude('render() {')
+    // wait for patch to get applied
+    await retry(async () => {
+      await expect(session.getRedboxSource()).resolves.toInclude('render() {')
+    })
 
     expect(await session.getRedboxSource()).toInclude(
       "throw new Error('nooo');"
@@ -434,14 +437,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       expect(redboxSource).toMatchInlineSnapshot(`
-        "./index.js:7:41
-        Parsing ecmascript source code failed
-          5 |   throw Error('no ' + i)
-          6 | }, 1000)
-        > 7 | export default function FunctionNamed() {
-            |                                         ^
+       "./index.js (7:41)
+       Parsing ecmascript source code failed
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+       > 7 | export default function FunctionNamed() {
+           |                                         ^
 
-        Expected '}', got '<eof>'"
+       Expected '}', got '<eof>'"
       `)
     } else {
       expect(redboxSource).toMatchInlineSnapshot(`
@@ -471,14 +474,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       expect(redboxSource).toMatchInlineSnapshot(`
-        "./index.js:7:41
-        Parsing ecmascript source code failed
-          5 |   throw Error('no ' + i)
-          6 | }, 1000)
-        > 7 | export default function FunctionNamed() {
-            |                                         ^
+       "./index.js (7:41)
+       Parsing ecmascript source code failed
+         5 |   throw Error('no ' + i)
+         6 | }, 1000)
+       > 7 | export default function FunctionNamed() {
+           |                                         ^
 
-        Expected '}', got '<eof>'"
+       Expected '}', got '<eof>'"
       `)
     } else {
       expect(redboxSource).toMatchInlineSnapshot(`

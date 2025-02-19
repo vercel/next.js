@@ -23,11 +23,6 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
-#[proc_macro_derive(ShrinkToFit, attributes(turbo_tasks))]
-pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
-    derive::derive_shrink_to_fit(input)
-}
-
 #[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
 pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
     derive::derive_non_local_value(input)

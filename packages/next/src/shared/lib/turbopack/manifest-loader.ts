@@ -2,15 +2,20 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
-import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
+import type {
+  StatsAsset,
+  StatsChunk,
+  StatsChunkGroup,
+  StatsModule,
+  StatsCompilation as WebpackStats,
+} from 'webpack'
 import type { BuildManifest } from '../../../server/get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
-import type {
-  REACT_LOADABLE_MANIFEST} from '../constants';
+import type { REACT_LOADABLE_MANIFEST } from '../constants'
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
@@ -41,7 +46,11 @@ import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
-import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../../../server/dev/turbopack-utils'
+import {
+  addMetadataIdToRoute,
+  addRouteSuffix,
+  removeRouteSuffix,
+} from '../../../server/dev/turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import type { Entrypoints } from '../../../build/swc/types'
 
@@ -54,17 +63,24 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
-type ManifestName = | typeof MIDDLEWARE_MANIFEST
-| typeof BUILD_MANIFEST
-| typeof APP_BUILD_MANIFEST
-| typeof PAGES_MANIFEST
-| typeof WEBPACK_STATS
-| typeof APP_PATHS_MANIFEST
-| `${typeof SERVER_REFERENCE_MANIFEST}.json`
-| `${typeof NEXT_FONT_MANIFEST}.json`
-| typeof REACT_LOADABLE_MANIFEST
+type ManifestName =
+  | typeof MIDDLEWARE_MANIFEST
+  | typeof BUILD_MANIFEST
+  | typeof APP_BUILD_MANIFEST
+  | typeof PAGES_MANIFEST
+  | typeof WEBPACK_STATS
+  | typeof APP_PATHS_MANIFEST
+  | `${typeof SERVER_REFERENCE_MANIFEST}.json`
+  | `${typeof NEXT_FONT_MANIFEST}.json`
+  | typeof REACT_LOADABLE_MANIFEST
 
-const getManifestPath = (page: string, distDir: string, name: ManifestName, type: string, firstCall: boolean) => {
+const getManifestPath = (
+  page: string,
+  distDir: string,
+  name: ManifestName,
+  type: string,
+  firstCall: boolean
+) => {
   let manifestPath = posix.join(
     distDir,
     `server`,
@@ -77,16 +93,24 @@ const getManifestPath = (page: string, distDir: string, name: ManifestName, type
     name
   )
 
-  if(firstCall) {
+  if (firstCall) {
     const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
     // Check the ambiguity of /sitemap and /sitemap.xml
     if (isSitemapRoute && !existsSync(manifestPath)) {
-      manifestPath = getManifestPath(page.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type, false)
+      manifestPath = getManifestPath(
+        page.replace(/\/sitemap\/route$/, '/sitemap.xml/route'),
+        distDir,
+        name,
+        type,
+        false
+      )
     }
     // existsSync is faster than using the async version
-    if(!existsSync(manifestPath) && page.endsWith('/route')) {
+    if (!existsSync(manifestPath) && page.endsWith('/route')) {
       // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-      let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
+      let metadataPage = addRouteSuffix(
+        addMetadataIdToRoute(removeRouteSuffix(page))
+      )
       manifestPath = getManifestPath(metadataPage, distDir, name, type, false)
     }
   }
@@ -96,8 +120,7 @@ const getManifestPath = (page: string, distDir: string, name: ManifestName, type
 
 async function readPartialManifest<T>(
   distDir: string,
-  name:
-    ManifestName,
+  name: ManifestName,
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
@@ -275,19 +298,10 @@ export class TurbopackManifestLoader {
   }
 
   private async writeWebpackStats(): Promise<void> {
-    const webpackStats = this.mergeWebpackStats(
-      this.webpackStats.values()
-    )
-    const path = join(
-      this.distDir,
-      'server',
-      WEBPACK_STATS
-    )
+    const webpackStats = this.mergeWebpackStats(this.webpackStats.values())
+    const path = join(this.distDir, 'server', WEBPACK_STATS)
     deleteCache(path)
-    await writeFileAtomic(
-      path,
-      JSON.stringify(webpackStats, null, 2)
-    )
+    await writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
   }
 
   async loadBuildManifest(
@@ -311,16 +325,14 @@ export class TurbopackManifestLoader {
   }
 
   private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
-    const entrypoints: Record<string, StatsChunkGroup> = {};
+    const entrypoints: Record<string, StatsChunkGroup> = {}
     const assets: Map<string, StatsAsset> = new Map()
     const chunks: Map<string, StatsChunk> = new Map()
     const modules: Map<string | number, StatsModule> = new Map()
 
     for (const statsFile of statsFiles) {
       if (statsFile.entrypoints) {
-        for (const [k, v] of Object.entries(
-          statsFile.entrypoints
-        )) {
+        for (const [k, v] of Object.entries(statsFile.entrypoints)) {
           if (!entrypoints[k]) {
             entrypoints[k] = v
           }
@@ -345,10 +357,10 @@ export class TurbopackManifestLoader {
 
       if (statsFile.modules) {
         for (const module of statsFile.modules) {
-          const id = module.id;
+          const id = module.id
           if (id != null) {
             // Merge the chunk list for the module. This can vary across endpoints.
-            const existing = modules.get(id);
+            const existing = modules.get(id)
             if (existing == null) {
               modules.set(id, module)
             } else if (module.chunks != null && existing.chunks != null) {
@@ -578,10 +590,16 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
   ): Promise<boolean> {
-    const middlewareManifestPath = getManifestPath(pageName, this.distDir, MIDDLEWARE_MANIFEST, type, true)
+    const middlewareManifestPath = getManifestPath(
+      pageName,
+      this.distDir,
+      MIDDLEWARE_MANIFEST,
+      type,
+      true
+    )
 
     // middlewareManifest is actually "edge manifest" and not all routes are edge runtime. If it is not written we skip it.
-    if(!existsSync(middlewareManifestPath)) {
+    if (!existsSync(middlewareManifestPath)) {
       return false
     }
 
