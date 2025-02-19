@@ -33,8 +33,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -442,11 +442,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ])
             }
         }
-    } else if let Some(chunkable) =
-        Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry_module).await?
-    {
-        let module_graph = ModuleGraph::from_module(Vc::upcast(chunkable), ChunkGroupType::Entry);
-        chunking_context.root_chunk_group_assets(chunkable, module_graph)
     } else {
         // TODO convert into a serve-able asset
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")

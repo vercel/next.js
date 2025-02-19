@@ -119,6 +119,23 @@ pub enum ChunkGroup {
     },
 }
 
+#[turbo_tasks::value_impl]
+impl ChunkGroup {
+    #[turbo_tasks::function]
+    pub fn isolated_merged_interned(
+        parent: usize,
+        merge_tag: RcStr,
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    ) -> Vc<Self> {
+        ChunkGroup::IsolatedMerged {
+            parent,
+            merge_tag,
+            entries,
+        }
+        .cell()
+    }
+}
+
 impl ChunkGroup {
     pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         match self {

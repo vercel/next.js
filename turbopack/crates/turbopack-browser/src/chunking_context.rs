@@ -9,14 +9,14 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId, SourceMapsType,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
+        SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -415,39 +415,24 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunk_group(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-        module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<ChunkGroupResult> {
-        self.chunk_group_multiple(
-            ident,
-            Vc::cell(vec![module]),
-            module_graph,
-            availability_info,
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_group_multiple(
+    async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        modules: Vc<ChunkableModules>,
+        chunk_group: Vc<ChunkGroup>,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
-            let modules = modules.await?;
+            let chunk_group = chunk_group.await?;
+            let modules = chunk_group.entries();
             let input_availability_info = availability_info.into_value();
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                modules.iter().copied().map(ResolvedVc::upcast),
+                modules,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
