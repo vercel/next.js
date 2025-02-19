@@ -81,7 +81,7 @@ pub struct ClientReferenceGraphResult {
     pub client_references_by_server_component:
         FxIndexMap<Option<ResolvedVc<NextServerComponentModule>>, Vec<ResolvedVc<Box<dyn Module>>>>,
     pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
-    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
     pub visited_nodes: ResolvedVc<VisitedClientReferenceGraphNodes>,
 }
 
@@ -147,7 +147,7 @@ impl ClientReferenceGraphResult {
 #[derive(Clone, Debug)]
 pub struct ServerEntries {
     pub server_component_entries: Vec<ResolvedVc<NextServerComponentModule>>,
-    pub server_utils: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub server_utils: Vec<ResolvedVc<NextServerUtilityModule>>,
 }
 
 #[turbo_tasks::function]
@@ -268,7 +268,7 @@ impl VisitClientReferenceNodeState {
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference, ReadRef<RcStr>),
     ServerComponentEntry(ResolvedVc<NextServerComponentModule>, ReadRef<RcStr>),
-    ServerUtilEntry(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
+    ServerUtilEntry(ResolvedVc<NextServerUtilityModule>, ReadRef<RcStr>),
     Internal(ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>),
 }
 
@@ -306,7 +306,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 // nodes' edges.
                 VisitClientReferenceNodeType::ClientReference(..) => return Ok(vec![]),
                 VisitClientReferenceNodeType::Internal(module, _) => module,
-                VisitClientReferenceNodeType::ServerUtilEntry(module, _) => module,
+                VisitClientReferenceNodeType::ServerUtilEntry(module, _) => {
+                    ResolvedVc::upcast(module)
+                }
                 VisitClientReferenceNodeType::ServerComponentEntry(module, _) => {
                     ResolvedVc::upcast(module)
                 }
@@ -370,11 +372,13 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         });
                     }
 
-                    if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module).is_some() {
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                    {
                         return Ok(VisitClientReferenceNode {
                             state: VisitClientReferenceNodeState::InServerUtil,
                             ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                *module,
+                                server_util_module,
                                 module.ident().to_string().await?,
                             ),
                         });
