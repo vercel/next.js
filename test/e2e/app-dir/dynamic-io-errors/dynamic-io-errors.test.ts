@@ -159,10 +159,17 @@ function runTests(options: { withMinification: boolean }) {
           throw new Error('expected build not to fail for fully static project')
         }
 
-        expect(next.cliOutput).toContain('ƒ / ')
-        const $ = await next.render$('/')
-        expect($('#dynamic').text()).toBe('Dynamic')
-        expect($('[data-fallback]').length).toBe(0)
+        if (WITH_PPR) {
+          expect(next.cliOutput).toContain('◐ / ')
+          const $ = await next.render$('/')
+          expect($('#dynamic').text()).toBe('Dynamic')
+          expect($('[data-fallback]').length).toBe(1)
+        } else {
+          expect(next.cliOutput).toContain('ƒ / ')
+          const $ = await next.render$('/')
+          expect($('#dynamic').text()).toBe('Dynamic')
+          expect($('[data-fallback]').length).toBe(0)
+        }
       })
     })
 

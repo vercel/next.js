@@ -39,9 +39,9 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       expect($('head title').text()).toBe('suspenseful page - static')
     })
 
-    it('should contain async generated metadata in head for dynamic page', async () => {
+    it('should contain async generated metadata in body for dynamic page', async () => {
       const $ = await next.render$('/suspenseful/dynamic')
-      expect($('head title').text()).toBe('suspenseful page - dynamic')
+      expect($('body title').text()).toBe('suspenseful page - dynamic')
     })
   }
 )

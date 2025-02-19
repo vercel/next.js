@@ -173,7 +173,7 @@ describe('opentelemetry', () => {
                             ? // In dev, additional client components are being loaded
                               // due to RSC props being deserialized.
                               9
-                            : 6,
+                            : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
