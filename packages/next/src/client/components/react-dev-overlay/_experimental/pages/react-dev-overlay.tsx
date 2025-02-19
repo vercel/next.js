@@ -41,24 +41,28 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
         <ComponentStyles />
 
         <RenderError state={state} isAppDir={false}>
-          {({ runtimeErrors, totalErrorCount }) => (
-            <>
-              <DevToolsIndicator
-                state={state}
-                errorCount={totalErrorCount}
-                setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-              />
-
-              {(hasRuntimeErrors || hasBuildError) && (
-                <ErrorOverlay
+          {({ runtimeErrors, totalErrorCount }) => {
+            const isBuildError = runtimeErrors.length === 0
+            return (
+              <>
+                <DevToolsIndicator
                   state={state}
-                  runtimeErrors={runtimeErrors}
-                  isErrorOverlayOpen={isErrorOverlayOpen}
+                  errorCount={totalErrorCount}
+                  isBuildError={isBuildError}
                   setIsErrorOverlayOpen={setIsErrorOverlayOpen}
                 />
-              )}
-            </>
-          )}
+
+                {(hasRuntimeErrors || hasBuildError) && (
+                  <ErrorOverlay
+                    state={state}
+                    runtimeErrors={runtimeErrors}
+                    isErrorOverlayOpen={isErrorOverlayOpen}
+                    setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+                  />
+                )}
+              </>
+            )
+          }}
         </RenderError>
       </ShadowPortal>
     </>

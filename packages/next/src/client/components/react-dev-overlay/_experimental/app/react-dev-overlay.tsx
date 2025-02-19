@@ -37,11 +37,13 @@ export default function ReactDevOverlay({
 
         <RenderError state={state} isAppDir={true}>
           {({ runtimeErrors, totalErrorCount }) => {
+            const isBuildError = runtimeErrors.length === 0
             return (
               <>
                 <DevToolsIndicator
                   state={state}
                   errorCount={totalErrorCount}
+                  isBuildError={isBuildError}
                   setIsErrorOverlayOpen={setIsErrorOverlayOpen}
                 />
 
