@@ -6,7 +6,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "couchbase": "^3.1.3",
+    "couchbase": "^4.0.0",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
