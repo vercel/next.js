@@ -7,11 +7,11 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ChunkingContext},
-    code_builder::{fileify_source_map, Code, CodeBuilder},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemTy, ChunkingContext},
+    code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
-    source_map::GenerateSourceMap,
+    source_map::utils::fileify_source_map,
 };
 
 use crate::{
@@ -24,7 +24,7 @@ use crate::{
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<Rope>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
@@ -46,7 +46,7 @@ impl EcmascriptChunkItemContent {
             .await?;
 
         let content = content.await?;
-        let async_module = async_module_options.await?.clone_value();
+        let async_module = async_module_options.owned().await?;
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
@@ -55,7 +55,7 @@ impl EcmascriptChunkItemContent {
                 None
             },
             inner_code: content.inner_code.clone(),
-            source_map: content.source_map,
+            source_map: content.source_map.clone(),
             options: if content.is_esm {
                 EcmascriptChunkItemOptions {
                     strict: true,
@@ -130,15 +130,9 @@ impl EcmascriptChunkItemContent {
         }
 
         let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
-            let source_map = self.source_map.map(|m| m.generate_source_map());
-            match source_map {
-                Some(map) => fileify_source_map(map, *rewrite_source_path)
-                    .await?
-                    .map(ResolvedVc::upcast),
-                None => None,
-            }
+            fileify_source_map(self.source_map.as_ref(), *rewrite_source_path).await?
         } else {
-            self.source_map
+            self.source_map.clone()
         };
 
         code.push_source(&self.inner_code, source_map);
@@ -208,7 +202,6 @@ pub trait EcmascriptChunkItem: ChunkItem {
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
     }
-    fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
 
     /// Specifies which availablility information the chunk item needs for code
     /// generation
@@ -246,7 +239,11 @@ async fn module_factory_with_code_generation_issue(
         {
             Ok(factory) => factory,
             Err(error) => {
-                let id = chunk_item.id().to_string().await;
+                let id = chunk_item
+                    .chunking_context()
+                    .chunk_item_id(Vc::upcast(chunk_item))
+                    .to_string()
+                    .await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
                 let error = error.context(format!(
                     "An error occurred while generating the chunk item {}",

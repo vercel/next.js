@@ -2583,14 +2583,14 @@ export async function nextbuildjest(task, opts) {
 
 export async function client(task, opts) {
   await task
-    .source('src/client/**/!(*.test).+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx|woff2)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
-    .source('src/client/**/!(*.test).+(js|ts|tsx)')
+    .source('src/client/**/!(*.test).+(js|ts|tsx|woff2)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }

@@ -21,40 +21,52 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
 
   if (!docsURL) {
     return (
-      <button className="docs-link-button" disabled>
-        <DocsIcon />
+      <button
+        title="No related Next.js docs found"
+        aria-label="No related Next.js docs found"
+        className="docs-link-button"
+        disabled
+      >
+        <DocsIcon
+          className="error-overlay-toolbar-button-icon"
+          width={14}
+          height={14}
+        />
       </button>
     )
   }
 
   return (
     <a
-      title="Related Next.js Docs"
-      aria-label="Related Next.js Docs"
+      title="Go to related Next.js docs"
+      aria-label="Go to related Next.js docs"
       className="docs-link-button"
       href={docsURL}
       target="_blank"
       rel="noopener noreferrer"
     >
-      <DocsIcon />
+      <DocsIcon
+        className="error-overlay-toolbar-button-icon"
+        width={14}
+        height={14}
+      />
     </a>
   )
 }
 
-function DocsIcon() {
+function DocsIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
+      width="14"
+      height="14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      className="error-overlay-toolbar-button-icon"
+      {...props}
     >
       <path
         fillRule="evenodd"
         clipRule="evenodd"
-        d="M0 1H0.75H5C6.2267 1 7.31583 1.58901 8 2.49963C8.68417 1.58901 9.7733 1 11 1H15.25H16V1.75V13V13.75H15.25H10.7426C10.1459 13.75 9.57361 13.9871 9.15165 14.409L8.53033 15.0303H7.46967L6.84835 14.409C6.42639 13.9871 5.8541 13.75 5.25736 13.75H0.75H0V13V1.75V1ZM7.25 4.75C7.25 3.50736 6.24264 2.5 5 2.5H1.5V12.25H5.25736C5.96786 12.25 6.65758 12.4516 7.25 12.8232V4.75ZM8.75 12.8232V4.75C8.75 3.50736 9.75736 2.5 11 2.5H14.5V12.25H10.7426C10.0321 12.25 9.34242 12.4516 8.75 12.8232Z"
+        d="M0 .875h4.375C5.448.875 6.401 1.39 7 2.187A3.276 3.276 0 0 1 9.625.875H14v11.156H9.4c-.522 0-1.023.208-1.392.577l-.544.543h-.928l-.544-.543c-.369-.37-.87-.577-1.392-.577H0V.875zm6.344 3.281a1.969 1.969 0 0 0-1.969-1.968H1.312v8.53H4.6c.622 0 1.225.177 1.744.502V4.156zm1.312 7.064V4.156c0-1.087.882-1.968 1.969-1.968h3.063v8.53H9.4c-.622 0-1.225.177-1.744.502z"
         fill="currentColor"
       />
     </svg>

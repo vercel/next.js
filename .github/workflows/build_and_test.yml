@@ -16,7 +16,7 @@ env:
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -581,7 +581,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
 
@@ -596,7 +596,7 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
       stepName: 'test-ppr-dev-${{ matrix.group }}'
     secrets: inherit
 
@@ -611,50 +611,9 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+      afterBuild: __NEXT_EXPERIMENTAL_PPR=true __NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY=false NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
-
-  report-test-results-to-datadog:
-    needs:
-      [
-        'changes',
-        'test-unit',
-        'test-dev',
-        'test-prod',
-        'test-integration',
-        'test-ppr-dev',
-        'test-ppr-prod',
-        'test-ppr-integration',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
-        'test-turbopack-production',
-        'test-turbopack-production-integration',
-      ]
-    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
-
-    runs-on: ubuntu-latest
-    name: report test results to datadog
-    steps:
-      - name: Download test report artifacts
-        id: download-test-reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-reports-*
-          path: test
-          merge-multiple: true
-
-      - name: Upload test report to datadog
-        run: |
-          if [ -d ./test/test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
-          fi
-
-          if [ -d ./test/turbopack-test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
-          fi
 
   tests-pass:
     needs:

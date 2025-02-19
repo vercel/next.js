@@ -28,6 +28,10 @@ const styles = css`
 
   [data-nextjs-dialog] {
     outline: none;
+    overflow: hidden;
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar {
+    display: none;
   }
 
   ${
@@ -55,6 +59,7 @@ const styles = css`
     display: flex;
     flex-direction: column;
     position: relative;
+    padding: var(--size-4) var(--size-3);
   }
 
   /* Account for the footer height, when present */
@@ -64,8 +69,7 @@ const styles = css`
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    padding: var(--next-dialog-row-padding);
-    padding-bottom: 0;
+    margin-bottom: var(--size-2);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {

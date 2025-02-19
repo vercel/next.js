@@ -17,12 +17,12 @@ export interface ErrorBaseProps {
 
 export function ErrorOverlay({
   state,
-  readyErrors,
+  runtimeErrors,
   isErrorOverlayOpen,
   setIsErrorOverlayOpen,
 }: {
   state: OverlayState
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   isErrorOverlayOpen: boolean
   setIsErrorOverlayOpen: (value: boolean) => void
 }) {
@@ -44,7 +44,7 @@ export function ErrorOverlay({
     return (
       <RootLayoutMissingTagsError
         {...commonProps}
-        // This is a runtime error, forcedly display error overlay
+        // This is not a runtime error, forcedly display error overlay
         rendered
         missingTags={state.rootLayoutMissingTags}
       />
@@ -52,11 +52,18 @@ export function ErrorOverlay({
   }
 
   if (state.buildError !== null) {
-    return <BuildError {...commonProps} message={state.buildError} />
+    return (
+      <BuildError
+        {...commonProps}
+        message={state.buildError}
+        // This is not a runtime error, forcedly display error overlay
+        rendered
+      />
+    )
   }
 
   // No Runtime Errors.
-  if (!readyErrors.length) {
+  if (!runtimeErrors.length) {
     return null
   }
 
@@ -68,7 +75,7 @@ export function ErrorOverlay({
     <Errors
       {...commonProps}
       debugInfo={state.debugInfo}
-      readyErrors={readyErrors}
+      runtimeErrors={runtimeErrors}
       onClose={() => {
         setIsErrorOverlayOpen(false)
       }}

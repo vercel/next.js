@@ -20,7 +20,7 @@ import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-t
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
 export interface ErrorsProps extends ErrorBaseProps {
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   debugInfo: DebugInfo
   onClose: () => void
 }
@@ -53,16 +53,22 @@ function ErrorDescription({
       ? ''
       : error.name + ': '
 
-  // If it's replayed error, display the environment name
   const environmentName =
-    'environmentName' in error ? error['environmentName'] : ''
+    'environmentName' in error ? error.environmentName : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
+
+  // The environment name will be displayed as a label, so remove it
+  // from the message (e.g. "[ Server ] hello world" -> "hello world").
+  let message = error.message
+  if (message.startsWith(envPrefix)) {
+    message = message.slice(envPrefix.length)
+  }
+
   return (
     <>
-      {envPrefix}
       {title}
       <HotlinkedText
-        text={hydrationWarning || error.message}
+        text={hydrationWarning || message}
         matcher={isNextjsLink}
       />
     </>
@@ -70,7 +76,7 @@ function ErrorDescription({
 }
 
 export function Errors({
-  readyErrors,
+  runtimeErrors,
   debugInfo,
   onClose,
   ...props
@@ -90,14 +96,14 @@ export function Errors({
   }, [onClose])
 
   const isLoading = useMemo<boolean>(() => {
-    return readyErrors.length < 1
-  }, [readyErrors.length])
+    return runtimeErrors.length < 1
+  }, [runtimeErrors.length])
 
   const [activeIdx, setActiveIndex] = useState<number>(0)
 
   const activeError = useMemo<ReadyErrorEvent | null>(
-    () => readyErrors[activeIdx] ?? null,
-    [activeIdx, readyErrors]
+    () => runtimeErrors[activeIdx] ?? null,
+    [activeIdx, runtimeErrors]
   )
 
   if (isLoading) {
@@ -152,7 +158,7 @@ export function Errors({
       onClose={isServerError ? undefined : onClose}
       debugInfo={debugInfo}
       error={error}
-      readyErrors={readyErrors}
+      runtimeErrors={runtimeErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
@@ -186,10 +192,9 @@ export function Errors({
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
           hydrationMismatchType={hydrationErrorType}
-          componentStackFrames={activeError.componentStackFrames || []}
           firstContent={serverContent}
           secondContent={clientContent}
-          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
       ) : null}
       <Suspense fallback={<div data-nextjs-error-suspended />}>
@@ -265,10 +270,10 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--size-3);
+    margin-bottom: var(--size-3_5);
   }
   .error-overlay-notes-container {
-    padding: 0 var(--size-4);
+    margin: var(--size-2) var(--size-0_5);
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;

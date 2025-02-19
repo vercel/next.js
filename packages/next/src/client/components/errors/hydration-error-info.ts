@@ -1,4 +1,7 @@
-import { getHydrationErrorStackInfo } from '../is-hydration-error'
+import {
+  getHydrationErrorStackInfo,
+  testReactHydrationWarning,
+} from '../is-hydration-error'
 
 export type HydrationErrorState = {
   // Hydration warning template format: <message> <serverContent> <clientContent>
@@ -28,8 +31,6 @@ const textAndTagsMismatchWarnings = new Set([
   'Warning: Expected server HTML to contain a matching text node for "%s" in <%s>.%s',
   'Warning: Did not expect server HTML to contain the text node "%s" in <%s>.%s',
 ])
-const textMismatchWarning =
-  'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 export const getHydrationWarningType = (
   message: NullableText
@@ -52,27 +53,8 @@ export const getHydrationWarningType = (
 
 const isHtmlTagsWarning = (message: string) => htmlTagsWarnings.has(message)
 
-const isTextMismatchWarning = (message: string) =>
-  textMismatchWarning === message
 const isTextInTagsMismatchWarning = (msg: string) =>
   textAndTagsMismatchWarnings.has(msg)
-
-const isKnownHydrationWarning = (message: NullableText) => {
-  if (typeof message !== 'string') {
-    return false
-  }
-  // React 18 has the `Warning: ` prefix.
-  // React 19 does not.
-  const normalizedMessage = message.startsWith('Warning: ')
-    ? message
-    : `Warning: ${message}`
-
-  return (
-    isHtmlTagsWarning(normalizedMessage) ||
-    isTextInTagsMismatchWarning(normalizedMessage) ||
-    isTextMismatchWarning(normalizedMessage)
-  )
-}
 
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
@@ -90,16 +72,115 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
  */
 
 export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
-  const [msg, serverContent, clientContent, componentStack] = args
-  if (isKnownHydrationWarning(msg)) {
-    hydrationErrorState.warning = [
+  let [msg, firstContent, secondContent, ...rest] = args
+  if (testReactHydrationWarning(msg)) {
+    // Some hydration warnings has 4 arguments, some has 3, fallback to the last argument
+    // when the 3rd argument is not the component stack but an empty string
+    const isReact18 = msg.startsWith('Warning: ')
+
+    // For some warnings, there's only 1 argument for template.
+    // The second argument is the diff or component stack.
+    if (args.length === 3) {
+      secondContent = ''
+    }
+
+    const warning: [string, string, string] = [
       // remove the last %s from the message
       msg,
-      serverContent,
-      clientContent,
+      firstContent,
+      secondContent,
     ]
-    hydrationErrorState.componentStack = componentStack
-    hydrationErrorState.serverContent = serverContent
-    hydrationErrorState.clientContent = clientContent
+
+    const lastArg = (rest[rest.length - 1] || '').trim()
+    if (!isReact18) {
+      hydrationErrorState.reactOutputComponentDiff = lastArg
+    } else {
+      hydrationErrorState.reactOutputComponentDiff =
+        generateHydrationDiffReact18(msg, firstContent, secondContent, lastArg)
+    }
+
+    hydrationErrorState.warning = warning
+    hydrationErrorState.serverContent = firstContent
+    hydrationErrorState.clientContent = secondContent
   }
+}
+
+/*
+ * Some hydration errors in React 18 does not have the diff in the error message.
+ * Instead it has the error stack trace which is component stack that we can leverage.
+ * Will parse the diff from the error stack trace
+ *  e.g.
+ *  Warning: Expected server HTML to contain a matching <div> in <p>.
+ *    at div
+ *    at p
+ *    at div
+ *    at div
+ *    at Page
+ *  output:
+ *    <Page>
+ *      <div>
+ *        <p>
+ *  >       <div>
+ *
+ */
+function generateHydrationDiffReact18(
+  message: string,
+  firstContent: string,
+  secondContent: string,
+  lastArg: string
+) {
+  const componentStack = lastArg
+  let firstIndex = -1
+  let secondIndex = -1
+  const hydrationWarningType = getHydrationWarningType(message)
+
+  // at div\n at Foo\n at Bar (....)\n -> [div, Foo]
+  const components = componentStack
+    .split('\n')
+    // .reverse()
+    .map((line: string, index: number) => {
+      // `<space>at <component> (<location>)` -> `at <component> (<location>)`
+      line = line.trim()
+      // extract `<space>at <component>` to `<<component>>`
+      // e.g. `  at Foo` -> `<Foo>`
+      const [, component, location] = /at (\w+)( \((.*)\))?/.exec(line) || []
+      // If there's no location then it's user-land stack frame
+      if (!location) {
+        if (component === firstContent && firstIndex === -1) {
+          firstIndex = index
+        } else if (component === secondContent && secondIndex === -1) {
+          secondIndex = index
+        }
+      }
+      return location ? '' : component
+    })
+    .filter(Boolean)
+    .reverse()
+
+  let diff = ''
+  for (let i = 0; i < components.length; i++) {
+    const component = components[i]
+    const matchFirstContent =
+      hydrationWarningType === 'tag' && i === components.length - firstIndex - 1
+    const matchSecondContent =
+      hydrationWarningType === 'tag' &&
+      i === components.length - secondIndex - 1
+    if (matchFirstContent || matchSecondContent) {
+      const spaces = ' '.repeat(Math.max(i * 2 - 2, 0) + 2)
+      diff += `> ${spaces}<${component}>\n`
+    } else {
+      const spaces = ' '.repeat(i * 2 + 2)
+      diff += `${spaces}<${component}>\n`
+    }
+  }
+  if (hydrationWarningType === 'text') {
+    const spaces = ' '.repeat(components.length * 2)
+    diff += `+ ${spaces}"${firstContent}"\n`
+    diff += `- ${spaces}"${secondContent}"\n`
+  } else if (hydrationWarningType === 'text-in-tag') {
+    const spaces = ' '.repeat(components.length * 2)
+    diff += `> ${spaces}<${secondContent}>\n`
+    diff += `>   ${spaces}"${firstContent}"\n`
+  }
+  return diff
 }

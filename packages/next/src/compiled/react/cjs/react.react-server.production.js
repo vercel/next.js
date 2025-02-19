@@ -340,6 +340,9 @@ exports.cache = function (fn) {
     }
   };
 };
+exports.captureOwnerStack = function () {
+  return null;
+};
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(formatProdErrorMessage(267, element));
@@ -423,4 +426,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.1.0-canary-93b58361-20250209";
+exports.version = "19.1.0-canary-32b0cad8-20250213";

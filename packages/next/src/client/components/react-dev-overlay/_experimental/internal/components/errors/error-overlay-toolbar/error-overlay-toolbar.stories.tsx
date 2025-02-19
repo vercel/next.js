@@ -28,10 +28,3 @@ export const WithErrorOnly: Story = {
     debugInfo: undefined,
   },
 }
-
-export const WithoutError: Story = {
-  args: {
-    error: undefined,
-    debugInfo: undefined,
-  },
-}

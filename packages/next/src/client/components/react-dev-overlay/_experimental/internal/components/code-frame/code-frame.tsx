@@ -69,12 +69,16 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         onClick={open}
       >
         <p className="code-frame-link">
-          <span className="code-frame-icon">
+          <span className="code-frame-icon" data-icon="left">
             <FileIcon lang={fileExtension} />
+          </span>
+          <span data-text>
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <ExternalIcon width={16} height={16} />
+          <span className="code-frame-icon" data-icon="right">
+            <ExternalIcon width={16} height={16} />
+          </span>
         </p>
       </button>
       <pre className="code-frame-pre">
@@ -84,7 +88,10 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),
@@ -109,16 +116,26 @@ export const CODE_FRAME_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
-    margin: var(--next-dialog-row-padding);
-
-    &:has(~ [data-nextjs-call-stack]) {
-      margin-bottom: 0;
-    }
+    margin: var(--size-2) 0;
   }
 
   .code-frame-link,
   .code-frame-pre {
     padding: 12px;
+  }
+
+  .code-frame-link svg {
+    flex-shrink: 0;
+  }
+
+  .code-frame-link [data-text] {
+    display: inline-flex;
+    text-align: left;
+    margin: auto 6px;
+  }
+
+  .code-frame-pre {
+    white-space: pre-wrap;
   }
 
   .code-frame-header {
@@ -138,12 +155,6 @@ export const CODE_FRAME_STYLES = css`
     }
   }
 
-  .code-frame-icon {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {
     background-color: var(--color-ansi-selection);
@@ -161,10 +172,11 @@ export const CODE_FRAME_STYLES = css`
 
   .code-frame-link {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
     margin: 0;
     outline: 0;
+  }
+  .code-frame-link [data-icon='right'] {
+    margin-left: auto;
   }
 
   [data-nextjs-codeframe] div > pre {

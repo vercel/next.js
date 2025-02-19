@@ -1,16 +1,11 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
-  badRequest,
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  jsonString,
-  noContent,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
 } from './shared'
-
+import { middlewareResponse } from './middleware-response'
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
 import url from 'url'
@@ -89,7 +84,7 @@ export async function batchedTraceSource(
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack://[turbopack]
+    // isInternal means resource starts with turbopack:///[turbopack]
     !!sourceFrame.isInternal
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
@@ -231,6 +226,9 @@ function findApplicableSourceMapPayload(
   }
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function nativeTraceSource(
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
@@ -263,7 +261,8 @@ async function nativeTraceSource(
     try {
       const originalPosition = consumer.originalPositionFor({
         line: frame.line ?? 1,
-        column: frame.column ?? 1,
+        // 0-based columns out requires 0-based columns in.
+        column: (frame.column ?? 1) - 1,
       })
 
       if (originalPosition.source === null) {
@@ -371,7 +370,7 @@ export function getOverlayMiddleware(project: Project) {
 
     if (pathname === '/__nextjs_original-stack-frames') {
       if (req.method !== 'POST') {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       const body = await new Promise<string>((resolve, reject) => {
@@ -405,26 +404,26 @@ export function getOverlayMiddleware(project: Project) {
         })
       )
 
-      return json(res, result)
+      return middlewareResponse.json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = createStackFrame(searchParams)
 
-      if (!frame) return badRequest(res)
+      if (!frame) return middlewareResponse.badRequest(res)
 
       const fileExists = await fs.access(frame.file, FS.F_OK).then(
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
         launchEditor(frame.file, frame.line ?? 1, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -446,7 +445,7 @@ export function getSourceMapMiddleware(project: Project) {
     let filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     // TODO(veil): Always try the native version first.
@@ -458,10 +457,10 @@ export function getSourceMapMiddleware(project: Project) {
       const sourceMap = findSourceMap(filename)
 
       if (sourceMap) {
-        return json(res, sourceMap.payload)
+        return middlewareResponse.json(res, sourceMap.payload)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     try {
@@ -475,20 +474,20 @@ export function getSourceMapMiddleware(project: Project) {
       const sourceMapString = await project.getSourceMap(filename)
 
       if (sourceMapString) {
-        return jsonString(res, sourceMapString)
+        return middlewareResponse.jsonString(res, sourceMapString)
       }
 
       if (filename.startsWith('file:')) {
         const sourceMap = await getSourceMapFromFile(filename)
 
         if (sourceMap) {
-          return json(res, sourceMap)
+          return middlewareResponse.json(res, sourceMap)
         }
       }
     } catch (error) {
       console.error('Failed to get source map:', error)
     }
 
-    noContent(res)
+    middlewareResponse.noContent(res)
   }
 }

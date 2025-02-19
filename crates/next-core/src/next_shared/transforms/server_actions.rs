@@ -58,7 +58,7 @@ impl CustomTransformer for NextServerActions {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 use_cache_enabled: self.use_cache_enabled,
                 hash_salt: self.encryption_key.await?.to_string(),
-                cache_kinds: self.cache_kinds.await?.clone_value(),
+                cache_kinds: self.cache_kinds.owned().await?,
             },
             ctx.comments.clone(),
             Default::default(),

@@ -122,6 +122,14 @@ impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
     }
 }
 
+impl<T: TraceRawVcs> TraceRawVcs for Box<[T]> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
 impl<T: TraceRawVcs, const N: usize> TraceRawVcs for [T; N] {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {

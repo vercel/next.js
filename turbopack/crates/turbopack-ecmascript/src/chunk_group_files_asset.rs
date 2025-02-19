@@ -168,11 +168,6 @@ impl ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks = self.chunks();
         let this = self.await?;

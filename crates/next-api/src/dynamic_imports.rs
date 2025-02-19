@@ -9,9 +9,10 @@
 //!     [implementation 2](https://github.com/vercel/next.js/pull/56389/files#diff-791951bbe1fa09bcbad9be9173412d0848168f7d658758f11b6e8888a021552c),
 //!     [implementation 3](https://github.com/vercel/next.js/pull/56389/files#diff-c33f6895801329243dd3f627c69da259bcab95c2c9d12993152842591931ff01R557)
 //! - When running an application,
-//!    - Server reads generated `react-loadable-manifest.json`, sets dynamicImportIds with the mapping of the import ids, and dynamicImports to the actual corresponding chunks.
-//!         [implementation 1](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/load-components.ts#L119),
-//!         [implementation 2](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1417C7-L1420)
+//!    - Server reads generated `react-loadable-manifest.json`, sets dynamicImportIds with the
+//!      mapping of the import ids, and dynamicImports to the actual corresponding chunks.
+//!      [implementation 1](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/load-components.ts#L119),
+//!      [implementation 2](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1417C7-L1420)
 //!    - Server embeds those into __NEXT_DATA__ and [send to the client.](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/server/render.tsx#L1453)
 //!    - When client boots up, pass it to the [client preload](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/client/index.tsx#L943)
 //!    - Loadable runtime [injects preload fn](https://github.com/vercel/next.js/blob/ad42b610c25b72561ad367b82b1c7383fd2a5dd2/packages/next/src/shared/lib/loadable.shared-runtime.tsx#L281)
@@ -30,8 +31,8 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
-        ChunkingContext, ModuleId,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkableModule, ChunkingContext,
+        ModuleChunkItemIdExt, ModuleId,
     },
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
@@ -82,8 +83,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                .id()
+                .chunk_item_id(Vc::upcast(chunking_context))
                 .to_resolved()
                 .await?;
 

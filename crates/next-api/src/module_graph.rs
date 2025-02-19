@@ -12,7 +12,8 @@ use next_core::{
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     context::AssetContext,
@@ -312,7 +313,7 @@ impl ClientReferencesGraph {
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
-                    let module = node.module;
+                    let module = node.module();
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -345,7 +346,7 @@ impl ClientReferencesGraph {
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module) {
+                    match data.get(&node.module()) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,
@@ -502,10 +503,10 @@ impl ReducedGraphs {
                     .server_actions
                     .iter()
                     .map(|graph| async move {
-                        Ok(graph
+                        graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
-                            .await?
-                            .clone_value())
+                            .owned()
+                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -530,8 +531,8 @@ impl ReducedGraphs {
                 // Just a single graph, no need to merge results
                 graph
                     .get_client_references_for_endpoint(entry)
+                    .owned()
                     .await?
-                    .clone_value()
             } else {
                 let results = self
                     .client_references
@@ -544,8 +545,9 @@ impl ReducedGraphs {
                     .try_join()
                     .await?;
 
-                let mut result = results[0].clone_value();
-                for r in results.into_iter().skip(1) {
+                let mut iter = results.into_iter();
+                let mut result = ReadRef::into_owned(iter.next().unwrap());
+                for r in iter {
                     result.extend(&r);
                 }
                 result

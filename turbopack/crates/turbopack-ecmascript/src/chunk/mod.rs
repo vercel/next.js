@@ -216,8 +216,8 @@ impl Introspectable for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let mut children = children_from_output_assets(self.references())
-            .await?
-            .clone_value();
+            .owned()
+            .await?;
         let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((

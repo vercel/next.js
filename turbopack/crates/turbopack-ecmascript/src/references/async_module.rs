@@ -11,7 +11,6 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
-    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -103,7 +102,6 @@ impl AsyncModule {
         &self,
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
@@ -118,9 +116,7 @@ impl AsyncModule {
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
-                            referenced_asset
-                                .get_ident(module_graph, chunking_context)
-                                .await?
+                            referenced_asset.get_ident(chunking_context).await?
                         } else {
                             None
                         }
@@ -130,9 +126,7 @@ impl AsyncModule {
                             .referenced_async_modules
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
-                            referenced_asset
-                                .get_ident(module_graph, chunking_context)
-                                .await?
+                            referenced_asset.get_ident(chunking_context).await?
                         } else {
                             None
                         }
@@ -190,23 +184,18 @@ impl AsyncModule {
             has_top_level_await: self.has_top_level_await,
         }))
     }
+}
 
-    #[turbo_tasks::function]
+impl AsyncModule {
     pub async fn code_generation(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         if let Some(async_module_info) = async_module_info {
             let async_idents = self
-                .get_async_idents(
-                    async_module_info,
-                    references,
-                    module_graph,
-                    chunking_context,
-                )
+                .get_async_idents(async_module_info, references, chunking_context)
                 .await?;
 
             if !async_idents.is_empty() {
@@ -245,7 +234,7 @@ impl AsyncModule {
                                 type_ann: None,
                             }.into(),
                         )),
-                ].to_vec()).cell());
+                ].to_vec()));
             }
         }
 
