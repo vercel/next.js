@@ -575,7 +575,7 @@ export default function HotReload({
   const shouldRenderErrorOverlay = useSyncExternalStore(
     () => () => {},
     () => !shouldRenderRootLevelErrorOverlay(),
-    () => true
+    () => false
   )
 
   const handleOnUnhandledError = useCallback(
