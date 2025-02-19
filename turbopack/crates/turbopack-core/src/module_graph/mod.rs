@@ -26,6 +26,7 @@ use crate::{
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        module_batches::{compute_module_batches, ModuleBatchesGraph},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
     reference::primary_chunkable_referenced_modules,
@@ -33,6 +34,8 @@ use crate::{
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+pub mod module_batch;
+pub(crate) mod module_batches;
 mod traced_di_graph;
 
 #[derive(
@@ -719,6 +722,11 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
         compute_chunk_group_info(self).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_batches(self: Vc<Self>) -> Result<Vc<ModuleBatchesGraph>> {
+        compute_module_batches(self).await
     }
 
     #[turbo_tasks::function]
