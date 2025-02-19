@@ -190,6 +190,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let span = span_outer.clone();
     async move {
+        #[allow(clippy::type_complexity)]
         let mut chunk_groups_map: FxIndexMap<
             ChunkGroupKey,
             (ChunkGroupId, FxIndexSet<ResolvedVc<Box<dyn Module>>>),
