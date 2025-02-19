@@ -244,7 +244,7 @@ jobs:
           path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Upload test report to datadog
-        if: ${{ inputs.afterBuild && always() }}
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
         run: |
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           # Add a `nextjs.test_session.name` tag to help identify the job
