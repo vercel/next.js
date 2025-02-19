@@ -1301,9 +1301,7 @@ describe('Prerender', () => {
       it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=31536000, stale-while-revalidate'
+          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)

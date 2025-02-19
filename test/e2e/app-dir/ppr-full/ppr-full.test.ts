@@ -596,7 +596,7 @@ describe('ppr-full', () => {
 
           if (isNextStart) {
             expect(res.headers.get('cache-control')).toEqual(
-              's-maxage=31536000, stale-while-revalidate'
+              's-maxage=31536000'
             )
           }
 
