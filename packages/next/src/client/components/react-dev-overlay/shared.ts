@@ -21,6 +21,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
+  disableDevIndicator: boolean
   debugInfo: DebugInfo
 }
 
@@ -106,6 +107,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   errors: [],
   notFound: false,
   staticIndicator: false,
+  disableDevIndicator: process.env.__NEXT_DEV_INDICATOR?.toString() === 'false',
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
