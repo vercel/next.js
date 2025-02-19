@@ -742,7 +742,7 @@ export interface NextConfig extends Record<string, any> {
     | {
         beforeFiles?: Rewrite[]
         afterFiles?: Rewrite[]
-        fallback: Rewrite[]
+        fallback?: Rewrite[]
       }
   >
 
