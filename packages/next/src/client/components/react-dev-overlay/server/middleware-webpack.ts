@@ -10,16 +10,12 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
-  badRequest,
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  noContent,
-  notFound,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
 } from './shared'
+import { middlewareResponse } from './middleware-response'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -522,7 +518,7 @@ export function getOverlayMiddleware(options: {
 
     if (pathname === '/__nextjs_original-stack-frames') {
       if (req.method !== 'POST') {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       const body = await new Promise<string>((resolve, reject) => {
@@ -539,7 +535,7 @@ export function getOverlayMiddleware(options: {
           body
         ) as OriginalStackFramesRequest
 
-        return json(
+        return middlewareResponse.json(
           res,
           await getOriginalStackFrames({
             isServer,
@@ -557,7 +553,7 @@ export function getOverlayMiddleware(options: {
           })
         )
       } catch (err) {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = {
@@ -568,7 +564,7 @@ export function getOverlayMiddleware(options: {
         arguments: searchParams.getAll('arguments').filter(Boolean),
       } satisfies StackFrame
 
-      if (!frame.file) return badRequest(res)
+      if (!frame.file) return middlewareResponse.badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
       const filePath = path.resolve(
@@ -579,16 +575,16 @@ export function getOverlayMiddleware(options: {
         () => true,
         () => false
       )
-      if (!fileExists) return notFound(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
         launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -616,7 +612,7 @@ export function getSourceMapMiddleware(options: {
     const filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     let source: Source | undefined
@@ -640,13 +636,13 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      return internalServerError(res, error)
+      return middlewareResponse.internalServerError(res, error)
     }
 
     if (!source) {
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
-    return json(res, source.sourceMap)
+    return middlewareResponse.json(res, source.sourceMap)
   }
 }
