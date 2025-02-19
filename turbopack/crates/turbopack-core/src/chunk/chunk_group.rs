@@ -242,7 +242,9 @@ pub async fn chunk_group_content(
                 };
 
                 Ok(match edge {
-                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
+                    ChunkingType::Parallel
+                    | ChunkingType::ParallelInheritAsync
+                    | ChunkingType::Shared { .. } => {
                         if is_available {
                             GraphTraversalAction::Skip
                         } else {
@@ -265,7 +267,7 @@ pub async fn chunk_group_content(
                         // handled above before the sidecast
                         unreachable!();
                     }
-                    ChunkingType::Isolated { .. } | ChunkingType::Shared { .. } => {
+                    ChunkingType::Isolated { .. } => {
                         // TODO currently not implemented
                         GraphTraversalAction::Skip
                     }
