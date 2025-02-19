@@ -179,9 +179,6 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
-    /// Module not placed in chunk group, but its references are still followed and placed into the
-    /// chunk group.
-    Passthrough,
     // Module not placed in chunk group, but its references are still followed.
     Traced,
 }
@@ -207,7 +204,6 @@ pub struct ChunkGroupContent {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-    pub passthrough_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
 }
 
 #[turbo_tasks::value_trait]

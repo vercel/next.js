@@ -2,9 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, AsyncModuleInfo, Chunk,
@@ -42,7 +40,6 @@ pub async fn make_chunk_group(
         chunkable_modules,
         async_modules,
         traced_modules,
-        passthrough_modules,
     } = chunk_group_content(
         &*module_graph.await?,
         chunk_group_entries,
@@ -135,27 +132,14 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
-    // Get references from passthrough modules and attach them as references output assets
-    let output_assets_from_passthrough_modules = passthrough_modules
-        .iter()
-        .map(|module| {
-            module
-                .as_chunk_item(module_graph, *chunking_context)
-                .references()
-        })
-        .try_flat_join()
-        .await?;
-
     chunk_items.extend(async_loader_chunk_items);
     referenced_output_assets.reserve(
         async_loader_references
             .iter()
             .map(|r| r.len())
-            .sum::<usize>()
-            + output_assets_from_passthrough_modules.len(),
+            .sum::<usize>(),
     );
     referenced_output_assets.extend(async_loader_references.into_iter().flatten());
-    referenced_output_assets.extend(output_assets_from_passthrough_modules);
 
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
@@ -213,7 +197,6 @@ pub async fn chunk_group_content(
             chunkable_modules: FxIndexSet::default(),
             async_modules: FxIndexSet::default(),
             traced_modules: FxIndexSet::default(),
-            passthrough_modules: FxIndexSet::default(),
         },
     };
 
@@ -259,10 +242,6 @@ pub async fn chunk_group_content(
                 };
 
                 Ok(match edge {
-                    ChunkingType::Passthrough => {
-                        result.passthrough_modules.insert(chunkable_module);
-                        GraphTraversalAction::Continue
-                    }
                     ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
                         if is_available {
                             GraphTraversalAction::Skip

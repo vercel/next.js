@@ -96,7 +96,6 @@ async fn compute_async_module_info_single(
                 ChunkingType::Parallel
                 | ChunkingType::Async
                 | ChunkingType::Isolated { .. }
-                | ChunkingType::Passthrough
                 | ChunkingType::Traced => {
                     // Nothing to propagate
                 }
