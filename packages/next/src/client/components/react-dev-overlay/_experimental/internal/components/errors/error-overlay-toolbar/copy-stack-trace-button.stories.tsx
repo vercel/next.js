@@ -13,25 +13,14 @@ const meta: Meta<typeof CopyStackTraceButton> = {
 export default meta
 type Story = StoryObj<typeof CopyStackTraceButton>
 
-const errorWithStack = new Error('Test error')
-errorWithStack.stack = `Error: Test error
-    at Context.<anonymous> (test.ts:1:1)
-    at processImmediate (node:internal/timers:466:21)`
-
 export const WithStackTrace: Story = {
   args: {
-    error: errorWithStack,
+    error: new Error('Boom'),
   },
 }
 
 export const WithoutStackTrace: Story = {
   args: {
-    error: new Error('Error without stack'),
-  },
-}
-
-export const Disabled: Story = {
-  args: {
-    error: undefined,
+    error: Object.assign(new Error('Boom'), { stack: undefined }),
   },
 }

@@ -6,7 +6,6 @@ use std::{
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
-    sync::Arc,
     task::{Context as TaskContext, Poll},
 };
 
@@ -16,7 +15,9 @@ use futures::Stream;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
+use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+use unsize::{CoerceUnsize, Coercion};
 use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
@@ -118,8 +119,22 @@ impl Rope {
     }
 }
 
+impl From<Vec<u8>> for Rope {
+    fn from(mut bytes: Vec<u8>) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
+impl From<String> for Rope {
+    fn from(mut bytes: String) -> Self {
+        bytes.shrink_to_fit();
+        Rope::from(Bytes::from(bytes))
+    }
+}
+
 impl<T: Into<Bytes>> From<T> for Rope {
-    fn from(bytes: T) -> Self {
+    default fn from(bytes: T) -> Self {
         let bytes = bytes.into();
         // We can't have an InnerRope which contains an empty Local section.
         if bytes.is_empty() {
@@ -127,7 +142,7 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)])),
+                data: InnerRope(Arc::from([Local(bytes)]).unsize(Coercion::to_slice())),
             }
         }
     }
@@ -309,7 +324,10 @@ impl Uncommitted {
         match mem::take(self) {
             Self::None => None,
             Self::Static(s) => Some(s.into()),
-            Self::Owned(v) => Some(v.into()),
+            Self::Owned(mut v) => {
+                v.shrink_to_fit();
+                Some(v.into())
+            }
         }
     }
 }
@@ -522,7 +540,7 @@ impl InnerRope {
 
 impl Default for InnerRope {
     fn default() -> Self {
-        InnerRope(Arc::from([]))
+        InnerRope(Arc::new([]).unsize(Coercion::to_slice()))
     }
 }
 

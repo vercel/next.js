@@ -84,6 +84,7 @@ body:
         - 'dynamicIO'
         - 'Dynamic Routes'
         - 'Error Handling'
+        - 'Error Overlay'
         - 'Lazy Loading'
         - 'Font (next/font)'
         - 'Form (next/form)'

@@ -49,7 +49,6 @@ use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
-use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -73,6 +72,7 @@ use watcher::DiskWatcher;
 use self::{invalidation::Write, json::UnparseableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
+    invalidator_map::WriteContent,
     retry::{retry_blocking, retry_future},
     rope::{Rope, RopeReader},
 };
@@ -244,9 +244,10 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_invalidator(&self, path: &Path) -> Result<()> {
+    fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
-        self.invalidator_map.insert(path_to_key(path), invalidator);
+        self.invalidator_map
+            .insert(path_to_key(path), invalidator, None);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
@@ -257,20 +258,30 @@ impl DiskFileSystemInner {
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function. It removes and returns
     /// the current list of invalidators.
-    fn register_sole_invalidator(
+    fn register_write_invalidator(
         &self,
         path: &Path,
         invalidator: Invalidator,
-    ) -> Result<FxHashSet<Invalidator>> {
+        write_content: WriteContent,
+    ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let old_invalidators =
-            invalidator_map.insert(path_to_key(path), FxHashSet::from_iter([invalidator]));
+        let invalidators = invalidator_map.entry(path_to_key(path)).or_default();
+        let old_invalidators = invalidators
+            .extract_if(|i, old_write_content| {
+                i == &invalidator
+                    || old_write_content
+                        .as_ref()
+                        .is_none_or(|old| old != &write_content)
+            })
+            .filter(|(i, _)| i != &invalidator)
+            .collect::<Vec<_>>();
+        invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
             self.watcher.ensure_watching(dir, self.root_path())?;
         }
-        Ok(old_invalidators.unwrap_or_default())
+        Ok(old_invalidators)
     }
 
     /// registers the path as an invalidator for the current task,
@@ -278,7 +289,7 @@ impl DiskFileSystemInner {
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
-            .insert(path_to_key(path), invalidator);
+            .insert(path_to_key(path), invalidator, None);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         self.watcher.ensure_watching(path, self.root_path())?;
         Ok(())
@@ -300,7 +311,7 @@ impl DiskFileSystemInner {
             .into_par_iter()
             .chain(dir_invalidator_map.into_par_iter())
             .flat_map(|(_, invalidators)| invalidators.into_par_iter());
-        iter.for_each(|i| {
+        iter.for_each(|(i, _)| {
             let _span = span.clone().entered();
             let _guard = handle.enter();
             i.invalidate()
@@ -323,26 +334,30 @@ impl DiskFileSystemInner {
                     .into_par_iter()
                     .map(move |i| (reason.clone(), i))
             });
-        iter.for_each(|(reason, invalidator)| {
+        iter.for_each(|(reason, (invalidator, _))| {
             let _span = span.clone().entered();
             let _guard = handle.enter();
             invalidator.invalidate_with_reason(reason)
         });
     }
 
-    fn invalidate_from_write(&self, full_path: &Path, invalidators: FxHashSet<Invalidator>) {
+    fn invalidate_from_write(
+        &self,
+        full_path: &Path,
+        invalidators: Vec<(Invalidator, Option<WriteContent>)>,
+    ) {
         if !invalidators.is_empty() {
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {
-                    let invalidator = invalidators.into_iter().next().unwrap();
+                    let (invalidator, _) = invalidators.into_iter().next().unwrap();
                     invalidator.invalidate_with_reason(Write { path });
                 } else {
-                    invalidators.into_iter().for_each(|invalidator| {
+                    invalidators.into_iter().for_each(|(invalidator, _)| {
                         invalidator.invalidate_with_reason(Write { path: path.clone() });
                     });
                 }
             } else {
-                invalidators.into_iter().for_each(|invalidator| {
+                invalidators.into_iter().for_each(|(invalidator, _)| {
                     invalidator.invalidate();
                 });
             }
@@ -498,7 +513,7 @@ impl FileSystem for DiskFileSystem {
     async fn read(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<FileContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_future(|| File::from_path(full_path.clone()))
@@ -579,7 +594,7 @@ impl FileSystem for DiskFileSystem {
     async fn read_link(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<LinkContent>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_future(|| fs::read_link(&full_path))
@@ -665,7 +680,7 @@ impl FileSystem for DiskFileSystem {
     async fn track(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path)?;
         Ok(Completion::new())
     }
 
@@ -683,7 +698,11 @@ impl FileSystem for DiskFileSystem {
             let _lock = inner.lock_path(&full_path).await;
 
             // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = inner.register_sole_invalidator(&full_path, invalidator)?;
+            let old_invalidators = inner.register_write_invalidator(
+                &full_path,
+                invalidator,
+                WriteContent::File(content.clone()),
+            )?;
 
             // We perform an untracked comparison here, so that this write is not dependent
             // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
@@ -701,8 +720,10 @@ impl FileSystem for DiskFileSystem {
             if compare == FileComparison::Equal {
                 if !old_invalidators.is_empty() {
                     let key = path_to_key(&full_path);
-                    for i in old_invalidators {
-                        inner.invalidator_map.insert(key.clone(), i);
+                    for (invalidator, write_content) in old_invalidators {
+                        inner
+                            .invalidator_map
+                            .insert(key.clone(), invalidator, write_content);
                     }
                 }
                 return Ok(());
@@ -806,7 +827,11 @@ impl FileSystem for DiskFileSystem {
 
             let _lock = inner.lock_path(&full_path).await;
 
-            let old_invalidators = inner.register_sole_invalidator(&full_path, invalidator)?;
+            let old_invalidators = inner.register_write_invalidator(
+                &full_path,
+                invalidator,
+                WriteContent::Link(content.clone()),
+            )?;
 
             // TODO(sokra) preform a untracked read here, register an invalidator and get
             // all existing invalidators
@@ -832,8 +857,10 @@ impl FileSystem for DiskFileSystem {
             if is_equal {
                 if !old_invalidators.is_empty() {
                     let key = path_to_key(&full_path);
-                    for i in old_invalidators {
-                        inner.invalidator_map.insert(key.clone(), i);
+                    for (invalidator, write_content) in old_invalidators {
+                        inner
+                            .invalidator_map
+                            .insert(key.clone(), invalidator, write_content);
                     }
                 }
                 return Ok(());
@@ -919,7 +946,7 @@ impl FileSystem for DiskFileSystem {
     async fn metadata(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<FileMeta>> {
         mark_session_dependent();
         let full_path = self.to_sys_path(fs_path).await?;
-        self.inner.register_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(&full_path, |path| std::fs::metadata(path))
@@ -1545,7 +1572,7 @@ impl FileSystemPath {
             .cell());
         }
         let parent = self.parent().to_resolved().await?;
-        let parent_result = parent.realpath_with_links().await?;
+        let parent_result = parent.realpath_with_links().owned().await?;
         let basename = this
             .path
             .rsplit_once('/')
@@ -1559,7 +1586,7 @@ impl FileSystemPath {
         } else {
             self
         };
-        let mut result = parent_result.clone_value();
+        let mut result = parent_result;
         if matches!(*real_self.get_type().await?, FileSystemEntryType::Symlink) {
             if let LinkContent::Link { target, link_type } = &*real_self.read_link().await? {
                 result.symlinks.push(real_self);
@@ -1864,7 +1891,7 @@ impl From<&[u8]> for File {
 
 impl From<ReadRef<Rope>> for File {
     fn from(rope: ReadRef<Rope>) -> Self {
-        File::from_rope(rope.clone_value())
+        File::from_rope(ReadRef::into_owned(rope))
     }
 }
 
@@ -2084,7 +2111,7 @@ impl FileContent {
                                     content: l.to_string(),
                                     bytes_offset,
                                 };
-                                bytes_offset += l.len() + 1;
+                                bytes_offset += (l.len() + 1) as u32;
                                 line
                             })
                             .collect(),
@@ -2195,7 +2222,7 @@ impl FileJsonContent {
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileLine {
     pub content: String,
-    pub bytes_offset: usize,
+    pub bytes_offset: u32,
 }
 
 #[turbo_tasks::value(shared, serialization = "none")]

@@ -102,7 +102,7 @@ impl MiddlewareEndpoint {
         )
         .resolve_entries(*this.asset_context);
 
-        let mut evaluatable_assets = evaluatable_assets.await?.clone_value();
+        let mut evaluatable_assets = evaluatable_assets.owned().await?;
 
         let Some(module) =
             Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
@@ -137,7 +137,7 @@ impl MiddlewareEndpoint {
         let config = parse_config_from_source(userland_module);
 
         let edge_files = self.edge_files();
-        let mut output_assets = edge_files.await?.clone_value();
+        let mut output_assets = edge_files.owned().await?;
 
         let node_root = this.project.node_root();
         let node_root_value = node_root.await?;
@@ -239,7 +239,7 @@ impl MiddlewareEndpoint {
             page: "/".into(),
             regions,
             matchers,
-            env: this.project.edge_env().await?.clone_value(),
+            env: this.project.edge_env().owned().await?,
         };
         let middleware_manifest_v2 = MiddlewaresManifestV2 {
             middleware: [("/".into(), edge_function_definition)]
@@ -285,17 +285,15 @@ impl Endpoint for MiddlewareEndpoint {
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
-                let server_paths = all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value();
+                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .into_future()
+                    .owned()
                     .instrument(tracing::info_span!("client_paths"))
-                    .await?
-                    .clone_value();
+                    .await?;
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])

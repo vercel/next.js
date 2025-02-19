@@ -19,7 +19,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    code_gen::{CodeGen, CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
         pattern_mapping::{PatternMapping, ResolveType},
@@ -86,28 +86,23 @@ impl ChunkableModuleReference for CjsAssetReference {}
 pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
     pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
-#[turbo_tasks::value_impl]
 impl CjsRequireAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
         issue_source: IssueSource,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(CjsRequireAssetReference {
+    ) -> Self {
+        CjsRequireAssetReference {
             origin,
             request,
-            path,
             issue_source,
             in_try,
-        })
+        }
     }
 }
 
@@ -137,32 +132,47 @@ impl ValueToString for CjsRequireAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for CjsRequireAssetReference {}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for CjsRequireAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for CjsRequireAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::CjsRequireAssetReferenceCodeGen(CjsRequireAssetReferenceCodeGen {
+                reference,
+                path,
+            }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct CjsRequireAssetReferenceCodeGen {
+    reference: ResolvedVc<CjsRequireAssetReference>,
+    path: AstPath,
+}
+
+impl CjsRequireAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
         let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
-            module_graph,
+            *reference.request,
+            *reference.origin,
             Vc::upcast(chunking_context),
-            cjs_resolve(
-                *self.origin,
-                *self.request,
-                Some(self.issue_source.clone()),
-                self.in_try,
-            ),
+            self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
                 match args.into_iter().next() {
@@ -186,7 +196,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             );
         }));
 
-        Ok(CodeGeneration::visitors(visitors).cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -195,28 +205,23 @@ impl CodeGenerateable for CjsRequireAssetReference {
 pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
     pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
-#[turbo_tasks::value_impl]
 impl CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
         issue_source: IssueSource,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(CjsRequireResolveAssetReference {
+    ) -> Self {
+        CjsRequireResolveAssetReference {
             origin,
             request,
-            path,
             issue_source,
             in_try,
-        })
+        }
     }
 }
 
@@ -246,33 +251,47 @@ impl ValueToString for CjsRequireResolveAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for CjsRequireResolveAssetReference {}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
-        &self,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let pm = PatternMapping::resolve_request(
-            *self.request,
-            *self.origin,
-            module_graph,
-            Vc::upcast(chunking_context),
-            cjs_resolve(
-                *self.origin,
-                *self.request,
-                Some(self.issue_source.clone()),
-                self.in_try,
+impl IntoCodeGenReference for CjsRequireResolveAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::CjsRequireResolveAssetReferenceCodeGen(
+                CjsRequireResolveAssetReferenceCodeGen { reference, path },
             ),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct CjsRequireResolveAssetReferenceCodeGen {
+    reference: ResolvedVc<CjsRequireResolveAssetReference>,
+    path: AstPath,
+}
+
+impl CjsRequireResolveAssetReferenceCodeGen {
+    pub async fn code_generation(
+        &self,
+        _module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let reference = self.reference.await?;
+
+        let pm = PatternMapping::resolve_request(
+            *reference.request,
+            *reference.origin,
+            Vc::upcast(chunking_context),
+            self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
         // Inline the result of the `require.resolve` call as a literal.
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Call(call_expr) = expr {
                 let args = std::mem::take(&mut call_expr.args);
                 *expr = match args.into_iter().next() {
@@ -299,7 +318,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             // but we can ignore that as it will be recomputed anyway.
         }));
 
-        Ok(CodeGeneration::visitors(visitors).cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

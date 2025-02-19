@@ -43,7 +43,7 @@ pub async fn maybe_add_babel_loader(
 
     if has_babel_config {
         let mut rules = if let Some(webpack_rules) = webpack_rules {
-            webpack_rules.await?.clone_value()
+            webpack_rules.owned().await?
         } else {
             Default::default()
         };
@@ -87,7 +87,7 @@ pub async fn maybe_add_babel_loader(
                     options: Default::default(),
                 };
                 if let Some(rule) = rule {
-                    let mut loaders = rule.loaders.await?.clone_value();
+                    let mut loaders = rule.loaders.owned().await?;
                     loaders.push(loader);
                     rule.loaders = ResolvedVc::cell(loaders);
                 } else {

@@ -4,7 +4,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
 };
 
@@ -321,7 +321,7 @@ impl RouteTree {
         self: Vc<Self>,
         segments: Vec<BaseSegment>,
     ) -> Result<Vc<RouteTree>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         this.prepend_base(segments);
         Ok(this.cell())
     }
@@ -330,7 +330,7 @@ impl RouteTree {
     async fn with_base_len(self: Vc<Self>, base_len: usize) -> Result<Vc<RouteTree>> {
         let this = self.await?;
         if this.base.len() > base_len {
-            let mut inner = this.clone_value();
+            let mut inner = ReadRef::into_owned(this);
             let mut drain = inner.base.drain(base_len..);
             let selector_segment = drain.next().unwrap();
             let inner_base = drain.collect();
@@ -362,7 +362,7 @@ impl RouteTree {
         self: Vc<Self>,
         mapper: Vc<Box<dyn MapGetContentSourceContent>>,
     ) -> Result<Vc<Self>> {
-        let mut this = self.await?.clone_value();
+        let mut this = self.owned().await?;
         let RouteTree {
             base: _,
             static_segments,

@@ -2,7 +2,7 @@
 name = "turbo-tasks-fs"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 
 [lib]
@@ -47,6 +47,8 @@ serde_json = { workspace = true }
 serde_path_to_error = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+unsize = "1.1.0"
+triomphe = { workspace = true, features = ["unsize"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-hash = { workspace = true }

@@ -1,4 +1,4 @@
-export function run(fn) {
+export function runInternalSourceMapped(fn) {
     return fn();
 }
 //# sourceMappingURL=sourcemapped.js.map

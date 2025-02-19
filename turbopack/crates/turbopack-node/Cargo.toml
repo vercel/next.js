@@ -2,7 +2,7 @@
 name = "turbopack-node"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -20,7 +20,7 @@ workspace = true
 anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
-const_format = "0.2.30"
+const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }
 futures-retry = { workspace = true }
