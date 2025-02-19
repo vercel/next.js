@@ -42,7 +42,7 @@ export const SingleError: Story = {
     return (
       <ErrorOverlayPagination
         activeIdx={activeIdx}
-        readyErrors={[mockErrors[0]]}
+        runtimeErrors={[mockErrors[0]]}
         onActiveIndexChange={setActiveIdx}
       />
     )
@@ -55,7 +55,7 @@ export const MultipleErrors: Story = {
     return (
       <ErrorOverlayPagination
         activeIdx={activeIdx}
-        readyErrors={mockErrors}
+        runtimeErrors={mockErrors}
         onActiveIndexChange={setActiveIdx}
       />
     )
@@ -68,7 +68,7 @@ export const LastError: Story = {
     return (
       <ErrorOverlayPagination
         activeIdx={activeIdx}
-        readyErrors={mockErrors}
+        runtimeErrors={mockErrors}
         onActiveIndexChange={setActiveIdx}
       />
     )
@@ -81,7 +81,7 @@ export const VeryManyErrors: Story = {
     return (
       <ErrorOverlayPagination
         activeIdx={activeIdx}
-        readyErrors={Array(780).fill(mockErrors).flat()}
+        runtimeErrors={Array(780).fill(mockErrors).flat()}
         onActiveIndexChange={setActiveIdx}
       />
     )

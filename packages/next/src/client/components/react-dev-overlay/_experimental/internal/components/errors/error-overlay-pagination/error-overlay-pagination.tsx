@@ -11,13 +11,13 @@ import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 type ErrorPaginationProps = {
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   activeIdx: number
   onActiveIndexChange: (index: number) => void
 }
 
 export function ErrorOverlayPagination({
-  readyErrors,
+  runtimeErrors,
   activeIdx,
   onActiveIndexChange,
 }: ErrorPaginationProps) {
@@ -34,13 +34,13 @@ export function ErrorOverlayPagination({
   const handleNext = useCallback(
     () =>
       startTransition(() => {
-        if (activeIdx < readyErrors.length - 1) {
+        if (activeIdx < runtimeErrors.length - 1) {
           onActiveIndexChange(
-            Math.max(0, Math.min(readyErrors.length - 1, activeIdx + 1))
+            Math.max(0, Math.min(runtimeErrors.length - 1, activeIdx + 1))
           )
         }
       }),
-    [activeIdx, readyErrors.length, onActiveIndexChange]
+    [activeIdx, runtimeErrors.length, onActiveIndexChange]
   )
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
@@ -99,13 +99,13 @@ export function ErrorOverlayPagination({
         if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
-      } else if (activeIdx === readyErrors.length - 1) {
+      } else if (activeIdx === runtimeErrors.length - 1) {
         if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
     }
-  }, [nav, activeIdx, readyErrors.length])
+  }, [nav, activeIdx, runtimeErrors.length])
 
   return (
     <nav
@@ -130,15 +130,15 @@ export function ErrorOverlayPagination({
         <span data-nextjs-dialog-error-index={activeIdx}>{activeIdx + 1}/</span>
         <span data-nextjs-dialog-header-total-count>
           {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
-          {readyErrors.length || 1}
+          {runtimeErrors.length || 1}
         </span>
       </div>
       <button
         ref={buttonRight}
         type="button"
         // If no errors or the last error is active, disable the button.
-        disabled={activeIdx >= readyErrors.length - 1}
-        aria-disabled={activeIdx >= readyErrors.length - 1}
+        disabled={activeIdx >= runtimeErrors.length - 1}
+        aria-disabled={activeIdx >= runtimeErrors.length - 1}
         onClick={handleNext}
         data-nextjs-dialog-error-next
         className="error-overlay-pagination-button"

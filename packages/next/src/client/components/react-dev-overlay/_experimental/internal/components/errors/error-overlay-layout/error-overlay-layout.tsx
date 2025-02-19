@@ -45,7 +45,7 @@ interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   isBuildError?: boolean
   onClose?: () => void
   // TODO: better handle receiving
-  readyErrors?: ReadyRuntimeError[]
+  runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
@@ -62,7 +62,7 @@ export function ErrorOverlayLayout({
   isBuildError,
   onClose,
   versionInfo,
-  readyErrors,
+  runtimeErrors,
   activeIdx,
   setActiveIndex,
   footerMessage,
@@ -122,12 +122,12 @@ export function ErrorOverlayLayout({
             </DialogFooter>
           )}
           <ErrorOverlayBottomStack
-            count={readyErrors?.length ?? 0}
+            count={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
         <ErrorOverlayNav
-          readyErrors={readyErrors}
+          runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           versionInfo={versionInfo}
