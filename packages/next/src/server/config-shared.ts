@@ -1258,7 +1258,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    streamingMetadata: false,
+    streamingMetadata: true,
     htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
