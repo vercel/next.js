@@ -344,6 +344,7 @@ jobs:
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      skipNativeBuild: 'yes'
       stepName: 'test-unit-${{ matrix.node }}'
 
     secrets: inherit
