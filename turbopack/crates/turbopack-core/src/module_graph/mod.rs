@@ -139,8 +139,17 @@ impl VisitedModules {
     }
 }
 
+pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>;
+
 #[turbo_tasks::value(transparent)]
-pub struct GraphEntries(Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>);
+pub struct GraphEntries(GraphEntriesT);
+#[turbo_tasks::value_impl]
+impl GraphEntries {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
@@ -160,7 +169,7 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>,
+    pub entries: GraphEntriesT,
 }
 
 impl SingleModuleGraph {
@@ -168,7 +177,7 @@ impl SingleModuleGraph {
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
     async fn new_inner(
-        entries: &Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>,
+        entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
         let root_edges = entries
@@ -752,7 +761,7 @@ impl ModuleGraph {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_bfs<'a>(
+    pub async fn traverse_edges_from_entries_bfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -762,11 +771,13 @@ impl ModuleGraph {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
-        let entries = entries.into_iter();
-        let mut queue = VecDeque::with_capacity(entries.size_hint().0);
-        for e in entries {
-            queue.push_back(ModuleGraph::get_entry(&graphs, e).await?);
-        }
+        let mut queue = VecDeque::from(
+            entries
+                .into_iter()
+                .map(|e| ModuleGraph::get_entry(&graphs, e))
+                .try_join()
+                .await?,
+        );
         let mut visited = HashSet::new();
         for entry_node in &queue {
             visitor(None, get_node!(graphs, entry_node)?);
@@ -1002,7 +1013,7 @@ impl SingleModuleGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
-        entries: Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>,
+        entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await

@@ -5,7 +5,10 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue,
     OperationVc, ResolvedVc, Vc,
 };
-use turbopack_core::{module::Modules, module_graph::ModuleGraph, output::OutputAssets};
+use turbopack_core::{
+    module_graph::{GraphEntries, ModuleGraph},
+    output::OutputAssets,
+};
 
 use crate::{paths::ServerPath, project::Project};
 
@@ -51,11 +54,11 @@ pub trait Endpoint {
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
-    fn root_modules(self: Vc<Self>) -> Vc<Modules>;
+    fn root_modules(self: Vc<Self>) -> Vc<GraphEntries>;
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
-    fn additional_root_modules(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<Modules> {
-        Modules::empty()
+    fn additional_root_modules(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
+        GraphEntries::empty()
     }
 }
 
