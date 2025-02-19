@@ -998,13 +998,15 @@ export async function getRouteTypeFromDevToolsIndicator(
   })
 }
 
-export function getRedboxHeader(browser: BrowserInterface) {
+export function getRedboxHeader(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal?.shadowRoot
-    return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
+    return root?.querySelector('[data-nextjs-dialog-header]')?.innerText ?? null
   })
 }
 
@@ -1027,7 +1029,7 @@ export async function getRedboxTotalErrorCount(
 
 export function getRedboxSource(
   browser: BrowserInterface
-): Promise<string | undefined> {
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1037,8 +1039,10 @@ export function getRedboxSource(
         )
       )
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText
+    return (
+      root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+        ?.innerText ?? null
+    )
   })
 }
 
@@ -1050,9 +1054,11 @@ export function getRedboxTitle(
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector(
-      '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
-    ).innerText
+    return (
+      root.querySelector(
+        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+      )?.innerText ?? null
+    )
   })
 }
 
@@ -1087,43 +1093,43 @@ export function getRedboxEnvironmentLabel(
 
 export function getRedboxDescription(
   browser: BrowserInterface
-): Promise<string> {
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector('#nextjs__container_errors_desc').innerText
-    if (text === null) throw new Error('No redbox description found')
-    return text
+    return (
+      root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxDescriptionWarning(browser: BrowserInterface) {
+export function getRedboxDescriptionWarning(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector(
-      '#nextjs__container_errors__notes'
-    )?.innerText
-    return text
+    return (
+      root.querySelector('#nextjs__container_errors__notes')?.innerText ?? null
+    )
   })
 }
 
 export function getRedboxErrorLink(
   browser: BrowserInterface
-): Promise<string | undefined> {
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector(
-      '#nextjs__container_errors__link'
-    )?.innerText
-    return text
+    return (
+      root.querySelector('#nextjs__container_errors__link')?.innerText ?? null
+    )
   })
 }
 
