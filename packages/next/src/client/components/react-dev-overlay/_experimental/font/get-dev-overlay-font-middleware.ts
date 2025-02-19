@@ -2,6 +2,7 @@ import type { ServerResponse, IncomingMessage } from 'http'
 import path from 'path'
 import * as fs from 'fs/promises'
 import { constants } from 'fs'
+import * as Log from '../../../../../build/output/log'
 import { middlewareResponse } from '../../server/middleware-response'
 
 const FONT_PREFIX = '/__nextjs_font/'
@@ -49,7 +50,7 @@ export function getDevOverlayFontMiddleware() {
       })
       res.end(fontData)
     } catch (err) {
-      console.error(
+      Log.error(
         'Failed to serve font:',
         err instanceof Error ? err.message : err
       )
