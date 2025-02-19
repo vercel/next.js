@@ -430,11 +430,10 @@
         "app-dir edge SSR should handle /index routes correctly",
         "app-dir edge SSR should handle edge only routes",
         "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
-        "app-dir edge SSR should treat process as object without polyfill in edge runtime"
-      ],
-      "failed": [
+        "app-dir edge SSR should treat process as object without polyfill in edge runtime",
         "app-dir edge SSR should generate matchers correctly in middleware manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -991,11 +990,10 @@
         "app-dir static/dynamic handling usePathname should have values from canonical url on rewrite",
         "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite",
-        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary"
-      ],
-      "failed": [
+        "app-dir static/dynamic handling useSearchParams server response should bailout to client rendering - with suspense boundary",
         "app-dir static/dynamic handling should output HTML/RSC files for static paths"
       ],
+      "failed": [],
       "pending": [
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
         "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -6278,6 +6276,20 @@
       "pending": [
         "react 18 streaming SSR in minimal mode with node runtime should pass correct nextRuntime values"
       ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/streaming-ssr-edge/streaming-ssr-edge.test.ts": {
+      "passed": [
+        "streaming-ssr-edge should support streaming for fizz response",
+        "streaming-ssr-edge should not stream to crawlers or google pagerender bot",
+        "streaming-ssr-edge should render 500 error from gIP correctly",
+        "streaming-ssr-edge should render fallback if error raised from suspense during streaming"
+      ],
+      "failed": [
+        "streaming-ssr-edge should render 500 error from render function correctly"
+      ],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -14311,23 +14323,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/integration/react-streaming/test/index.test.js": {
-      "passed": [
-        "production mode streaming prod prod should not stream to crawlers or google pagerender bot",
-        "production mode streaming prod prod should render fallback if error raised from suspense during streaming",
-        "production mode streaming prod prod should support streaming for fizz response",
-        "streaming dev dev should not stream to crawlers or google pagerender bot",
-        "streaming dev dev should render 500 error correctly",
-        "streaming dev dev should render fallback if error raised from suspense during streaming",
-        "streaming dev dev should support streaming for fizz response"
-      ],
-      "failed": [
-        "production mode streaming prod prod should render 500 error correctly"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/integration/read-only-source-hmr/test/index.test.js": {
       "passed": [
         "Read-only source HMR should detect a new page",
@@ -16208,11 +16203,10 @@
     "test/production/graceful-shutdown/index.test.ts": {
       "passed": [
         "Graceful Shutdown development (next dev) should shut down child immediately",
-        "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity"
-      ],
-      "failed": [
+        "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when there is no activity",
         "Graceful Shutdown production (standalone mode) should not accept new requests during shutdown cleanup when there is no activity"
       ],
+      "failed": [],
       "pending": [
         "Graceful Shutdown production (next start) should not accept new requests during shutdown cleanup when request is made before shutdown",
         "Graceful Shutdown production (next start) should wait for requests to complete before exiting",

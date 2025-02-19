@@ -197,7 +197,7 @@ pub async fn resolve_node_pre_gyp_files(
                         _ => {}
                     }
                 }
-                return Ok(ModuleResolveResult::modules_with_affecting_sources(
+                return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                     sources
                         .into_iter()
                         .map(|(key, source)| async move {
@@ -215,12 +215,11 @@ pub async fn resolve_node_pre_gyp_files(
                         })
                         .try_join()
                         .await?,
-                )
-                .cell());
+                ));
             }
         };
     }
-    Ok(ModuleResolveResult::unresolvable().cell())
+    Ok(*ModuleResolveResult::unresolvable())
 }
 
 #[turbo_tasks::value]
@@ -305,7 +304,7 @@ pub async fn resolve_node_gyp_build_files(
                         }
                     }
                     if !resolved.is_empty() {
-                        return Ok(ModuleResolveResult::modules_with_affecting_sources(
+                        return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                             resolved
                                 .into_iter()
                                 .map(|(key, source)| async move {
@@ -320,8 +319,7 @@ pub async fn resolve_node_gyp_build_files(
                                 .await?
                                 .into_iter(),
                             merged_affecting_sources,
-                        )
-                        .into());
+                        ));
                     }
                 }
             }
@@ -441,5 +439,5 @@ pub async fn resolve_node_bindings_files(
         .map(|try_dir| try_path(format!("{}/{}", try_dir, &file_name).into()))
         .try_flat_join()
         .await?;
-    Ok(ModuleResolveResult::modules(modules).cell())
+    Ok(*ModuleResolveResult::modules(modules))
 }

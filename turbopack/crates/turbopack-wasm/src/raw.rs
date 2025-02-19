@@ -143,11 +143,6 @@ impl ChunkItem for RawModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let path = self.wasm_asset.path().await?;
         let output_root = self.chunking_context.output_root().await?;

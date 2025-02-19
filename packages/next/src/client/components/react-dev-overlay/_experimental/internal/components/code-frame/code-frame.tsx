@@ -69,12 +69,16 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         onClick={open}
       >
         <p className="code-frame-link">
-          <span className="code-frame-icon">
+          <span className="code-frame-icon" data-icon="left">
             <FileIcon lang={fileExtension} />
+          </span>
+          <span data-text>
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <ExternalIcon width={16} height={16} />
+          <span className="code-frame-icon" data-icon="right">
+            <ExternalIcon width={16} height={16} />
+          </span>
         </p>
       </button>
       <pre className="code-frame-pre">
@@ -120,6 +124,16 @@ export const CODE_FRAME_STYLES = css`
     padding: 12px;
   }
 
+  .code-frame-link svg {
+    flex-shrink: 0;
+  }
+
+  .code-frame-link [data-text] {
+    display: inline-flex;
+    text-align: left;
+    margin: auto 6px;
+  }
+
   .code-frame-pre {
     white-space: pre-wrap;
   }
@@ -141,12 +155,6 @@ export const CODE_FRAME_STYLES = css`
     }
   }
 
-  .code-frame-icon {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {
     background-color: var(--color-ansi-selection);
@@ -164,10 +172,11 @@ export const CODE_FRAME_STYLES = css`
 
   .code-frame-link {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
     margin: 0;
     outline: 0;
+  }
+  .code-frame-link [data-icon='right'] {
+    margin-left: auto;
   }
 
   [data-nextjs-codeframe] div > pre {

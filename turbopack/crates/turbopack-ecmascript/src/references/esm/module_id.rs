@@ -6,10 +6,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ChunkingTypeOption,
-    },
+    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
     module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -86,7 +83,7 @@ pub struct EsmModuleIdAssetReferenceCodeGen {
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -94,10 +91,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
         if let ReferencedAsset::Some(asset) =
             &*self.reference.await?.inner.get_referenced_asset().await?
         {
-            let id = asset
-                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                .id()
-                .await?;
+            let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
                 *expr = id.clone()

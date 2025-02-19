@@ -9,7 +9,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -321,11 +321,6 @@ impl ChunkItem for ModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.module.classes().await?;
 
@@ -378,8 +373,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable
-                            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
-                            .id()
+                            .chunk_item_id(Vc::upcast(*self.chunking_context))
                             .await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);

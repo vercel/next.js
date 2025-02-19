@@ -34,15 +34,15 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '\nError: Boom' +
-          '\n    at logError (app/rsc-error-log/page.js:4:16)' +
-          '\n    at Page (app/rsc-error-log/page.js:11:2)' +
-          '\n  2 |' +
-          '\n  3 | function logError() {' +
-          "\n> 4 |   const error = new Error('Boom')" +
+          '\n    at logError (app/rsc-error-log/page.js:5:16)' +
+          '\n    at Page (app/rsc-error-log/page.js:12:2)' +
+          '\n  3 |' +
+          '\n  4 | function logError() {' +
+          "\n> 5 |   const error = new Error('Boom')" +
           '\n    |                ^' +
-          '\n  5 |   console.error(error)' +
-          '\n  6 | }' +
-          '\n  7 |' +
+          '\n  6 |   console.error(error)' +
+          '\n  7 | }' +
+          '\n  8 |' +
           '\n'
       )
     } else {
@@ -193,7 +193,7 @@ describe('app-dir - server source maps', () => {
 
   it('thrown SSR errors', async () => {
     const outputIndex = next.cliOutput.length
-    await next.render('/ssr-throw')
+    const browser = await next.browser('/ssr-throw')
 
     if (isNextDev) {
       await retry(() => {
@@ -215,6 +215,23 @@ describe('app-dir - server source maps', () => {
           "\n  digest: '"
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 2,
+         "description": "Error: Boom",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "app/ssr-throw/Thrower.js (4:9) @ throwError
+       > 4 |   throw new Error('Boom')
+           |         ^",
+         "stack": [
+           "throwError app/ssr-throw/Thrower.js (4:9)",
+           "Thrower app/ssr-throw/Thrower.js (8:3)",
+           "Page app/ssr-throw/page.js (6:10)",
+         ],
+       }
+      `)
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
     }

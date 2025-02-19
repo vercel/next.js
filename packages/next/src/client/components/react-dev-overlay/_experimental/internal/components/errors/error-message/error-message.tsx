@@ -26,6 +26,7 @@ export const styles = css`
     font-size: var(--size-font);
     letter-spacing: -0.32px;
     line-height: var(--size-6);
+    overflow-wrap: break-word;
     white-space: pre-wrap;
   }
 `

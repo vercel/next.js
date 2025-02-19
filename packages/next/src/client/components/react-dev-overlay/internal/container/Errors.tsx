@@ -84,9 +84,10 @@ function ErrorDescription({
   const environmentName =
     'environmentName' in error ? error['environmentName'] : ''
   const envPrefix = environmentName ? `[ ${environmentName} ] ` : ''
+  const isMsgMissingEnvPrefix = !error.message.startsWith(envPrefix)
   return (
     <>
-      {envPrefix}
+      {isMsgMissingEnvPrefix && envPrefix}
       {title}
       <HotlinkedText
         text={hydrationWarning || error.message}

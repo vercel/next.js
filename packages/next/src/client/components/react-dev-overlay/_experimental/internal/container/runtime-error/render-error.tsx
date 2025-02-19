@@ -32,7 +32,7 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
 
 type Props = {
   children: (params: {
-    readyErrors: ReadyRuntimeError[]
+    runtimeErrors: ReadyRuntimeError[]
     totalErrorCount: number
   }) => React.ReactNode
   state: OverlayState
@@ -58,7 +58,7 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     [eventId: string]: ReadyRuntimeError
   }>({})
 
-  const [readyErrors, nextError] = useMemo<
+  const [runtimeErrors, nextError] = useMemo<
     [ReadyRuntimeError[], SupportedErrorEvent | null]
   >(() => {
     let ready: ReadyRuntimeError[] = []
@@ -109,12 +109,14 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
     }
   }, [nextError, isAppDir])
 
-  return children({ readyErrors, totalErrorCount: readyErrors.length })
+  const totalErrorCount = runtimeErrors.length
+
+  return children({ runtimeErrors, totalErrorCount })
 }
 
 const RenderBuildError = ({ children }: Props) => {
   return children({
-    readyErrors: [],
+    runtimeErrors: [],
     // Build errors and missing root layout tags persist until fixed,
     // so we can set a fixed error count of 1
     totalErrorCount: 1,

@@ -15,7 +15,7 @@ type Story = StoryObj<typeof ErrorOverlayNav>
 
 export const Default: Story = {
   args: {
-    readyErrors: [
+    runtimeErrors: [
       {
         id: 0,
         runtime: true,

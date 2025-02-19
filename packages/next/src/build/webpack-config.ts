@@ -92,6 +92,8 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
+import { getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -1802,7 +1804,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (require('@rspack/plugin-react-refresh') as any)()
+            new (getRspackReactRefresh() as any)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -1912,7 +1914,9 @@ export default async function getBaseWebpackConfig(
           appDirEnabled: hasAppDir,
           clientRouterFilters,
         }),
-      !isRspack && new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
+      isRspack
+        ? new RspackProfilingPlugin({ runWebpackSpan })
+        : new ProfilingPlugin({ runWebpackSpan, rootDir: dir }),
       new WellKnownErrorsPlugin(),
       isClient &&
         new CopyFilePlugin({
@@ -2130,8 +2134,14 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivity: config.devIndicators.buildActivity,
-    buildActivityPosition: config.devIndicators.buildActivityPosition,
+    buildActivity:
+      config.devIndicators === false
+        ? false
+        : config.devIndicators.buildActivity,
+    buildActivityPosition:
+      config.devIndicators === false
+        ? undefined
+        : config.devIndicators.position,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
     reactStrictMode: config.reactStrictMode,
     optimizeCss: config.experimental.optimizeCss,

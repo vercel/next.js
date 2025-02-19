@@ -15,7 +15,7 @@ use turbo_tasks_fs::{
 
 use crate::{
     asset::AssetContent, source::Source, source_map::utils::add_default_ignore_list,
-    source_pos::SourcePos, virtual_source::VirtualSource, SOURCE_MAP_PREFIX,
+    source_pos::SourcePos, virtual_source::VirtualSource, SOURCE_URL_PROTOCOL,
 };
 
 pub(crate) mod source_map_asset;
@@ -412,7 +412,7 @@ impl SourceMap {
             Ok(
                 if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
                     let path_str = path.to_string().await?;
-                    let source = format!("{SOURCE_MAP_PREFIX}{}", path_str);
+                    let source = format!("{SOURCE_URL_PROTOCOL}///{}", path_str);
                     let source_content = if let Some(source_content) = source_content {
                         source_content
                     } else if let FileContent::Content(file) = &*path.read().await? {
@@ -430,7 +430,7 @@ impl SourceMap {
                         .replace_all(&source_request, |s: &regex::Captures<'_>| {
                             s[0].replace('.', "_")
                         });
-                    let source = format!("{SOURCE_MAP_PREFIX}{}/{}", origin_str, source);
+                    let source = format!("{SOURCE_URL_PROTOCOL}///{}/{}", origin_str, source);
                     let source_content = source_content.unwrap_or_else(|| {
                         format!(
                             "unable to access {source_request} in {origin_str} (it's leaving the \
