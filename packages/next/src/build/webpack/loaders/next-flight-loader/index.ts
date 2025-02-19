@@ -60,13 +60,18 @@ export default function transformSource(
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
-
   const module = this._module!
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
+  let prefix = ''
+  if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
+    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+    prefix = `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n`
+    source = prefix + source
+  }
 
   // Resource key is the unique identifier for the resource. When RSC renders
   // a client module, that key is used to identify that module across all compiler
@@ -112,7 +117,9 @@ export default function transformSource(
         return
       }
 
-      let esmSource = `\
+      let esmSource =
+        prefix +
+        `\
 import { registerClientReference } from "react-server-dom-webpack/server.edge";
 `
       for (const ref of clientRefs) {
@@ -139,12 +146,13 @@ ${JSON.stringify(ref)},
 
       return this.callback(null, esmSource, sourceMap)
     } else if (assumedSourceType === 'commonjs') {
-      let cjsSource = `\
+      let cjsSource =
+        prefix +
+        `\
 const { createProxy } = require("${MODULE_PROXY_PATH}")
 
 module.exports = createProxy(${stringifiedResourceKey})
 `
-
       return this.callback(null, cjsSource, sourceMap)
     }
   }
