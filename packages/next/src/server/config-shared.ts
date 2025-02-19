@@ -1126,7 +1126,9 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  expireTime: 31536000, // one year
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
+    ? undefined
+    : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
