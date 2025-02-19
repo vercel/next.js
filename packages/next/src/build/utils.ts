@@ -528,7 +528,7 @@ export async function printTreeView(
 
       messages.push([
         `${border} ${symbol} ${
-          pageInfo?.initialCacheControl
+          pageInfo?.initialCacheControl?.revalidate
             ? `${item} (ISR: ${pageInfo?.initialCacheControl.revalidate} Seconds)`
             : item
         }${
