@@ -166,7 +166,9 @@ pub trait ChunkingContext {
     }
 
     fn batching_config(self: Vc<Self>) -> Vc<BatchingConfig> {
-        BatchingConfig::default().cell()
+        BatchingConfig::new(BatchingConfig {
+            ..Default::default()
+        })
     }
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {

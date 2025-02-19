@@ -4,7 +4,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt,
+    ValueToString, Vc,
 };
 
 use crate::{
@@ -18,12 +19,20 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Default)]
+#[turbo_tasks::value]
+#[derive(Debug, Clone, Default, TaskInput, Hash)]
 pub struct BatchingConfig {
     /// Use a heuristic based on the module path to create batches. It aims for batches of a good
     /// size.
     pub use_heuristic: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl BatchingConfig {
+    #[turbo_tasks::function]
+    pub fn new(config: BatchingConfig) -> Vc<Self> {
+        config.cell()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
