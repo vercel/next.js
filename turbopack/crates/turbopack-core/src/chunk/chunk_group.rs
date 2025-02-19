@@ -1,13 +1,12 @@
 use std::collections::HashSet;
 
-use anyhow::Result;
-use either::Either;
+use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
-    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
+    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
 };
 use crate::{
     chunk::{chunk_item_batch::ChunkItemOrBatchWithAsyncModuleInfo, ChunkingType},
@@ -15,7 +14,7 @@ use crate::{
     module::Module,
     module_graph::{
         module_batch::{ChunkableModuleOrBatch, ModuleOrBatch},
-        module_batches::BatchingConfig,
+        module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
         GraphTraversalAction, ModuleGraph,
     },
     output::OutputAssets,
@@ -45,7 +44,7 @@ pub async fn make_chunk_group(
 
     let ChunkGroupContent {
         chunkable_items,
-        async_items,
+        async_modules,
         traced_modules,
     } = chunk_group_content(
         module_graph,
@@ -56,8 +55,6 @@ pub async fn make_chunk_group(
         batching_config,
     )
     .await?;
-
-    let async_modules = expand_batches(async_items).await?;
 
     let async_modules_info = module_graph.async_module_info().await?;
 
@@ -144,36 +141,6 @@ pub async fn make_chunk_group(
     })
 }
 
-async fn expand_batches(
-    batches: impl IntoIterator<Item = ChunkableModuleOrBatch>,
-) -> Result<Vec<ResolvedVc<Box<dyn ChunkableModule>>>> {
-    let items = batches
-        .into_iter()
-        .map(async |item| {
-            Ok(match item {
-                ChunkableModuleOrBatch::Module(module) => Either::Left(module),
-                ChunkableModuleOrBatch::Batch(batch) => Either::Right(batch.await?),
-            })
-        })
-        .try_join()
-        .await?;
-    let len = items
-        .iter()
-        .map(|item| match item {
-            Either::Left(_) => 1,
-            Either::Right(batch) => batch.modules.len(),
-        })
-        .sum();
-    let mut result = Vec::with_capacity(len);
-    for item in items {
-        match item {
-            Either::Left(module) => result.push(module),
-            Either::Right(batch) => result.extend(batch.modules.iter().copied()),
-        }
-    }
-    Ok(result)
-}
-
 pub async fn references_to_output_assets(
     references: impl IntoIterator<Item = &ResolvedVc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
@@ -215,7 +182,7 @@ pub async fn chunk_group_content(
         unsorted_items: FxHashMap::default(),
         result: ChunkGroupContent {
             chunkable_items: FxIndexSet::default(),
-            async_items: FxIndexSet::default(),
+            async_modules: FxIndexSet::default(),
             traced_modules: FxIndexSet::default(),
         },
     };
@@ -240,7 +207,15 @@ pub async fn chunk_group_content(
              unsorted_items,
              result,
          }| {
-            if let Some((_, ChunkingType::Traced)) = parent_info {
+            // Traced modules need to have a special handling
+            if let Some((
+                _,
+                ModuleBatchesGraphEdge {
+                    ty: ChunkingType::Traced,
+                    ..
+                },
+            )) = parent_info
+            {
                 if should_trace {
                     let ModuleOrBatch::Module(module) = node else {
                         unreachable!();
@@ -259,6 +234,7 @@ pub async fn chunk_group_content(
                 .is_some_and(|available_modules| available_modules.get(chunkable_node));
 
             let Some((_, edge)) = parent_info else {
+                // An entry from the entries list
                 return Ok(if is_available {
                     GraphTraversalAction::Exclude
                 } else if unsorted_items.try_insert(node, chunkable_node).is_ok() {
@@ -268,7 +244,7 @@ pub async fn chunk_group_content(
                 });
             };
 
-            Ok(match edge {
+            Ok(match edge.ty {
                 ChunkingType::Parallel
                 | ChunkingType::ParallelInheritAsync
                 | ChunkingType::Shared { .. } => {
@@ -282,7 +258,9 @@ pub async fn chunk_group_content(
                 }
                 ChunkingType::Async => {
                     if can_split_async {
-                        result.async_items.insert(chunkable_node);
+                        let chunkable_module = ResolvedVc::try_downcast(edge.module)
+                            .context("Module in async chunking edge is not chunkable")?;
+                        result.async_modules.insert(chunkable_module);
                         GraphTraversalAction::Exclude
                     } else if is_available {
                         GraphTraversalAction::Exclude

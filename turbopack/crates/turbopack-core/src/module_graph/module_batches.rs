@@ -1,8 +1,11 @@
 use anyhow::{bail, Result};
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+};
 
 use crate::{
     chunk::{ChunkableModule, ChunkingType},
@@ -23,9 +26,15 @@ pub struct BatchingConfig {
     pub use_heuristic: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub struct ModuleBatchesGraphEdge {
+    pub ty: ChunkingType,
+    pub module: ResolvedVc<Box<dyn Module>>,
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 pub struct ModuleBatchesGraph {
-    graph: TracedDiGraph<ModuleOrBatch, ChunkingType>,
+    graph: TracedDiGraph<ModuleOrBatch, ModuleBatchesGraphEdge>,
 
     // NodeIndex isn't necessarily stable (because of swap_remove), but we never remove nodes.
     //
@@ -83,12 +92,12 @@ impl ModuleBatchesGraph {
         >,
         state: &mut S,
         mut visit_preorder: impl FnMut(
-            Option<(&'a ModuleOrBatch, &'a ChunkingType)>,
+            Option<(&'a ModuleOrBatch, &'a ModuleBatchesGraphEdge)>,
             &'a ModuleOrBatch,
             &mut S,
         ) -> Result<GraphTraversalAction>,
         mut visit_postorder: impl FnMut(
-            Option<(&'a ModuleOrBatch, &'a ChunkingType)>,
+            Option<(&'a ModuleOrBatch, &'a ModuleBatchesGraphEdge)>,
             &'a ModuleOrBatch,
             &mut S,
         ),
@@ -224,12 +233,18 @@ struct TraversalState {
     /// Assigment of modules to batches, assigned in preorder
     batch_assignments: FxHashMap<ResolvedVc<Box<dyn Module>>, BatchAssignment>,
     /// Edges between batches (from, to, ty)
-    edges: FxIndexSet<(usize, usize, ChunkingType)>,
+    edges: FxIndexSet<(usize, usize, ChunkingType, ResolvedVc<Box<dyn Module>>)>,
 }
 
 impl TraversalState {
-    fn add_edge(&mut self, from: usize, to: usize, ty: ChunkingType) {
-        self.edges.insert((from, to, ty));
+    fn add_edge(
+        &mut self,
+        from: usize,
+        to: usize,
+        ty: ChunkingType,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) {
+        self.edges.insert((from, to, ty, module));
     }
 }
 
@@ -309,7 +324,12 @@ pub async fn compute_module_batches(
                                 unreachable!();
                             };
                             // Add self edge
-                            state.add_edge(assignment.batch_idx, assignment.batch_idx, ty.clone());
+                            state.add_edge(
+                                assignment.batch_idx,
+                                assignment.batch_idx,
+                                ty.clone(),
+                                node.module,
+                            );
                             return Ok(GraphTraversalAction::Exclude);
                         }
                         // Get batch assignments for parent and current node
@@ -332,7 +352,7 @@ pub async fn compute_module_batches(
                             current_assignment
                         {
                             // Already assigned and processed, but we still need to add an edge
-                            state.add_edge(batch_idx, idx, ty.clone());
+                            state.add_edge(batch_idx, idx, ty.clone(), node.module);
                             return Ok(GraphTraversalAction::Skip);
                         }
                         let mut in_same_batch = match ty {
@@ -393,7 +413,7 @@ pub async fn compute_module_batches(
 
                                 // Add an edge to the parent batch
                                 if batch_idx != idx {
-                                    state.add_edge(batch_idx, idx, ty.clone());
+                                    state.add_edge(batch_idx, idx, ty.clone(), node.module);
                                 }
                             } else {
                                 // Since we create a new batch here, further children need to be in
@@ -412,7 +432,7 @@ pub async fn compute_module_batches(
                                 );
 
                                 // Add an edge to the parent batch
-                                state.add_edge(batch_idx, idx, ty.clone());
+                                state.add_edge(batch_idx, idx, ty.clone(), node.module);
                             }
                         } else {
                             // Since we create a new batch here, further children need to be in
@@ -429,7 +449,7 @@ pub async fn compute_module_batches(
                                 .insert(node.module, BatchAssignment::new_already_added(idx));
 
                             // Add an edge to the parent batch
-                            state.add_edge(batch_idx, idx, ty.clone());
+                            state.add_edge(batch_idx, idx, ty.clone(), node.module);
                         }
                     }
                     Ok(GraphTraversalAction::Continue)
@@ -457,7 +477,7 @@ pub async fn compute_module_batches(
         let mut result_modules = 0;
 
         // Create a petgraph from the collected data
-        let mut graph: DiGraph<ModuleOrBatch, ChunkingType, u32> =
+        let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
             petgraph::graph::DiGraph::with_capacity(state.batches.len(), state.edges.len());
 
         // Add nodes and store node index
@@ -486,8 +506,12 @@ pub async fn compute_module_batches(
         span.record("edges", &state.edges.len());
 
         // Add edges
-        for (from, to, ty) in state.edges {
-            graph.add_edge(batch_indicies[from], batch_indicies[to], ty);
+        for (from, to, ty, module) in state.edges {
+            graph.add_edge(
+                batch_indicies[from],
+                batch_indicies[to],
+                ModuleBatchesGraphEdge { ty, module },
+            );
         }
 
         Ok(ModuleBatchesGraph {
