@@ -70,7 +70,7 @@ pub async fn bootstrap(
 
     let pathname = normalize_app_page_to_pathname(path);
 
-    let mut config = config.await?.clone_value();
+    let mut config = config.owned().await?;
     config.insert("PAGE".to_string(), path.to_string());
     config.insert("PATHNAME".to_string(), pathname);
 
@@ -97,7 +97,7 @@ pub async fn bootstrap(
         .to_resolved()
         .await?;
 
-    let mut inner_assets = inner_assets.await?.clone_value();
+    let mut inner_assets = inner_assets.owned().await?;
     inner_assets.insert("ENTRY".into(), asset);
     inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
 

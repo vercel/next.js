@@ -14,7 +14,14 @@ describe('app-dir - errors', () => {
 
   describe('error component', () => {
     it('should trigger error component when an error happens during rendering', async () => {
-      const browser = await next.browser('/client-component')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/client-component', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
       await browser.elementByCss('#error-trigger-button').click()
 
       if (isNextDev) {
@@ -27,10 +34,20 @@ describe('app-dir - errors', () => {
           await browser.waitForElementByCss('#error-boundary-message').text()
         ).toBe('An error occurred: this is a test')
       }
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
     })
 
     it('should trigger error component when an error happens during server components rendering', async () => {
-      const browser = await next.browser('/server-component')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/server-component', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
 
       expect(
         await browser.waitForElementByCss('#error-boundary-message').text()
@@ -49,6 +66,9 @@ describe('app-dir - errors', () => {
         // await assertHasRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       }
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
     })
 
     it('should preserve custom digests', async () => {
@@ -143,7 +163,14 @@ describe('app-dir - errors', () => {
     })
 
     it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
-      const browser = await next.browser('/global-error-boundary/client')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/global-error-boundary/client', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
       await browser.elementByCss('#error-trigger-button').click()
 
       if (isNextDev) {
@@ -156,10 +183,20 @@ describe('app-dir - errors', () => {
           'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
         )
       }
+
+      // FIXME(veil): Should contain thrown error.
+      expect(pageErrors).toEqual([])
     })
 
     it('should display error digest for error in server component with default error boundary', async () => {
-      const browser = await next.browser('/global-error-boundary/server')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/global-error-boundary/server', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
 
       if (isNextDev) {
         await assertHasRedbox(browser)
@@ -174,6 +211,9 @@ describe('app-dir - errors', () => {
           await browser.waitForElementByCss('body').elementByCss('p').text()
         ).toMatch(/Digest: \w+/)
       }
+
+      // FIXME(veil): Should contain thrown error.
+      expect(pageErrors).toEqual([])
     })
 
     // production tests

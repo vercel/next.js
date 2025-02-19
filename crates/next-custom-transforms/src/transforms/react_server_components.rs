@@ -333,7 +333,6 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
             vec![span1, span2]
         ),
-        //NEXT_RSC_ERR_INVALID_API
         RSCErrorKind::NextRscErrInvalidApi((source, span)) => (
             format!("\"{source}\" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching\n\n"), vec![span]
         ),
@@ -639,7 +638,22 @@ impl ReactServerComponentValidator {
 
             invalid_client_imports: vec![Atom::from("server-only"), Atom::from("next/headers")],
 
-            invalid_client_lib_apis_mapping: FxHashMap::from_iter([("next/server", vec!["after"])]),
+            invalid_client_lib_apis_mapping: FxHashMap::from_iter([
+                ("next/server", vec!["after"]),
+                (
+                    "next/cache",
+                    vec![
+                        "revalidatePath",
+                        "revalidateTag",
+                        // "unstable_cache", // useless in client, but doesn't technically error
+                        "unstable_cacheLife",
+                        "unstable_cacheTag",
+                        "unstable_expirePath",
+                        "unstable_expireTag",
+                        // "unstable_noStore" // no-op in client, but allowed for legacy reasons
+                    ],
+                ),
+            ]),
             imports: ImportMap::default(),
         }
     }

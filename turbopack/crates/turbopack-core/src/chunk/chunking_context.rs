@@ -18,7 +18,6 @@ use crate::{
 
 #[derive(
     Debug,
-    Default,
     TaskInput,
     Clone,
     Copy,
@@ -32,9 +31,14 @@ use crate::{
     NonLocalValue,
 )]
 pub enum MinifyType {
-    #[default]
-    Minify,
+    Minify { mangle: bool },
     NoMinify,
+}
+
+impl Default for MinifyType {
+    fn default() -> Self {
+        Self::Minify { mangle: true }
+    }
 }
 
 #[derive(
@@ -220,8 +224,11 @@ pub trait ChunkingContext {
         ident: Vc<AssetIdent>,
     ) -> Result<Vc<ModuleId>>;
 
-    fn chunk_item_id(self: Vc<Self>, chunk_item: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
-        self.chunk_item_id_from_ident(chunk_item.asset_ident())
+    fn chunk_item_id(self: Vc<Self>, module: Vc<Box<dyn ChunkItem>>) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(module.asset_ident())
+    }
+    fn chunk_item_id_from_module(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<ModuleId> {
+        self.chunk_item_id_from_ident(module.ident())
     }
 }
 

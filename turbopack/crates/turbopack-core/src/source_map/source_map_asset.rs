@@ -43,13 +43,13 @@ impl Asset for SourceMapAsset {
         else {
             bail!("asset does not support generating source maps")
         };
-        let sm = if let Some(sm) = &*generate_source_map.generate_source_map().await? {
-            **sm
+        if let Some(sm) = &*generate_source_map.generate_source_map().await? {
+            Ok(AssetContent::file(File::from(sm.clone()).into()))
         } else {
-            SourceMap::empty()
-        };
-        let sm = sm.to_rope().await?;
-        Ok(AssetContent::file(File::from(sm).into()))
+            Ok(AssetContent::file(
+                File::from(SourceMap::empty_rope()).into(),
+            ))
+        }
     }
 }
 

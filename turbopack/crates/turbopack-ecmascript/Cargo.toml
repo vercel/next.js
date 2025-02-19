@@ -2,7 +2,7 @@
 name = "turbopack-ecmascript"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -15,6 +15,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+data-encoding = "2.3.3"
 either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
@@ -48,6 +49,7 @@ swc_core = { workspace = true, features = [
   "common",
   "common_concurrent",
   "common_sourcemap",
+  "ecma_ast_shrink",
   "ecma_codegen",
   "ecma_lints",
   "ecma_minifier",

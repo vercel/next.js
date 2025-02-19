@@ -18,6 +18,7 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
@@ -25,7 +26,7 @@ pub use self::{
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc},
-    read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
+    read::{ReadOwnedVcFuture, ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::ResolvedVc,
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
@@ -33,8 +34,10 @@ use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, RawVc, ResolveTypeError, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError,
 };
+
+type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
 /// heap or in persistent cache, depending on the Turbo Engine backend implementation.
@@ -596,14 +599,33 @@ where
     #[cfg(feature = "non_operation_vc_strongly_consistent")]
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
-        self.node.into_strongly_consistent_read().into()
+        self.node.into_read().strongly_consistent().into()
     }
 
     /// Returns a untracked read of the value. This will not invalidate the current function when
     /// the read value changed.
     #[must_use]
     pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node.into_read_untracked().into()
+        self.node.into_read().untracked().into()
+    }
+
+    /// Read the value with the hint that this is the final read of the value. This might drop the
+    /// cell content. Future reads might need to recompute the value.
+    #[must_use]
+    pub fn final_read_hint(self) -> ReadVcFuture<T> {
+        self.node.into_read().final_read_hint().into()
+    }
+}
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+    VcReadTarget<T>: Clone,
+{
+    /// Read the value and returns a owned version of it. It might clone the value.
+    pub fn owned(self) -> ReadOwnedVcFuture<T> {
+        let future: ReadVcFuture<T> = self.node.into_read().into();
+        future.owned()
     }
 }
 

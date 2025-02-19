@@ -3,6 +3,10 @@ import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { BrowserInterface } from 'next-webdriver'
+import {
+  createRenderResumeDataCache,
+  RenderResumeDataCache,
+} from 'next/dist/server/resume-data-cache/resume-data-cache'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -97,6 +101,29 @@ describe('use-cache', () => {
     const a = await browser.waitForElementByCss('#a').text()
     const b = await browser.waitForElementByCss('#b').text()
     expect(a).toBe(b)
+  })
+
+  it('should return the same object reference for multiple invocations', async () => {
+    const browser = await next.browser('/referential-equality')
+    expect(await browser.elementById('same-arg').text()).toBe('true')
+    expect(await browser.elementById('different-args').text()).toBe('true')
+    expect(await browser.elementById('same-bound-arg').text()).toBe('true')
+    expect(await browser.elementById('different-bound-args').text()).toBe(
+      'true'
+    )
+  })
+
+  it('should dedupe cached data in the RSC payload', async () => {
+    const text = await next
+      .fetch('/rsc-payload')
+      .then((response) => response.text())
+
+    // The cached data is passed to two client components, but should appear
+    // only once in the RSC payload that's included in the HTML document.
+    expect(text).toIncludeRepeated(
+      '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
+      1
+    )
   })
 
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
@@ -276,6 +303,29 @@ describe('use-cache', () => {
     })
   }
 
+  it('should revalidate caches during on-demand revalidation', async () => {
+    const browser = await next.browser('/on-demand-revalidate')
+    const initial = await browser.elementById('value').text()
+
+    // Bust the ISR cache first to populate the "use cache" in-memory cache for
+    // the subsequent on-demand revalidation.
+    await browser.elementById('revalidate-path').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('value').text()).not.toBe(initial)
+    })
+
+    const value = await browser.elementById('value').text()
+
+    await browser.elementById('revalidate-api-route').click()
+    await browser.waitForElementByCss('#revalidate-api-route:enabled')
+
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('value').text()).not.toBe(value)
+    })
+  })
+
   if (isNextStart) {
     it('should prerender fully cacheable pages as static HTML', async () => {
       const prerenderManifest = JSON.parse(
@@ -309,8 +359,11 @@ describe('use-cache', () => {
         '/logs',
         '/method-props',
         '/not-found',
+        '/on-demand-revalidate',
         '/passed-to-client',
         '/react-cache',
+        '/referential-equality',
+        '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
         '/with-server-action',
@@ -571,6 +624,27 @@ describe('use-cache', () => {
       })
     })
   }
+
+  if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+    it('should exclude inner caches from the resume data cache (RDC)', async () => {
+      await next.fetch('/rdc')
+
+      const resumeDataCache = extractResumeDataCacheFromPostponedState(
+        JSON.parse(await next.readFile('.next/server/app/rdc.meta')).postponed
+      )
+
+      const cacheKeys = Array.from(resumeDataCache.cache.keys())
+
+      // There should be no cache entry for the "middle" cache function, because
+      // it's only used inside another cache scope ("outer"). Whereas "inner" is
+      // also used inside a prerender scope (the page). Note: We're matching on
+      // the "id" args that are encoded into the respective cache keys.
+      expect(cacheKeys).toMatchObject([
+        expect.stringContaining('["outer"]'),
+        expect.stringContaining('["inner"]'),
+      ])
+    })
+  }
 })
 
 async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
@@ -580,5 +654,16 @@ async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
     format(
       ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
     )
+  )
+}
+
+function extractResumeDataCacheFromPostponedState(
+  state: string
+): RenderResumeDataCache {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)![1]
+  const postponedStringLength = parseInt(postponedStringLengthMatch)
+
+  return createRenderResumeDataCache(
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
   )
 }

@@ -20,6 +20,7 @@ type Story = StoryObj<typeof ReactDevOverlay>
 const state: OverlayState = {
   nextId: 0,
   buildError: null,
+  disableDevIndicator: false,
   errors: [
     {
       id: 1,

@@ -10,15 +10,14 @@ use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
+        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
+        ModuleChunkItemIdExt,
     },
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
     module::Module,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -33,7 +32,7 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::EcmascriptChunkPlaceable,
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::CodeGeneration,
     magic_identifier,
     references::util::{request_to_string, throw_module_not_found_expr},
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
@@ -52,12 +51,11 @@ pub enum ReferencedAsset {
 impl ReferencedAsset {
     pub async fn get_ident(
         &self,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<String>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                Some(Self::get_ident_from_placeable(asset, module_graph, chunking_context).await?)
+                Some(Self::get_ident_from_placeable(asset, chunking_context).await?)
             }
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
@@ -68,13 +66,9 @@ impl ReferencedAsset {
 
     pub(crate) async fn get_ident_from_placeable(
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let id = asset
-            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-            .id()
-            .await?;
+        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
         Ok(magic_identifier::mangle(&format!("imported module {}", id)))
     }
 }
@@ -110,14 +104,17 @@ impl ReferencedAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(transparent)]
+pub struct EsmAssetReferences(Vec<ResolvedVc<EsmAssetReference>>);
+
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub export_name: Option<ResolvedVc<ModulePart>>,
+    pub export_name: Option<ModulePart>,
     pub import_externals: bool,
 }
 
@@ -137,17 +134,17 @@ impl EsmAssetReference {
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
         annotations: Value<ImportAnnotations>,
-        export_name: Option<ResolvedVc<ModulePart>>,
+        export_name: Option<ModulePart>,
         import_externals: bool,
-    ) -> Vc<Self> {
-        Self::cell(EsmAssetReference {
+    ) -> Self {
+        EsmAssetReference {
             origin,
             request,
             issue_source,
             annotations: annotations.into_value(),
             export_name,
             import_externals,
-        })
+        }
     }
 }
 
@@ -166,24 +163,23 @@ impl ModuleReference for EsmAssetReference {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
         } else if let Some(part) = &self.export_name {
-            EcmaScriptModulesReferenceSubType::ImportPart(*part)
+            EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {
             EcmaScriptModulesReferenceSubType::Import
         };
 
         if let Request::Module { module, .. } = &*self.request.await? {
             if module == TURBOPACK_PART_IMPORT_SOURCE {
-                if let Some(part) = self.export_name {
+                if let Some(part) = &self.export_name {
                     let module: ResolvedVc<crate::EcmascriptModuleAsset> =
                         ResolvedVc::try_downcast_type(self.origin)
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
-                    return Ok(ModuleResolveResult::module(
-                        EcmascriptModulePartAsset::select_part(*module, *part)
+                    return Ok(*ModuleResolveResult::module(
+                        EcmascriptModulePartAsset::select_part(*module, part.clone())
                             .to_resolved()
                             .await?,
-                    )
-                    .cell());
+                    ));
                 }
 
                 bail!("export_name is required for part import")
@@ -199,21 +195,17 @@ impl ModuleReference for EsmAssetReference {
         )
         .await?;
 
-        if let Some(part) = self.export_name {
-            let part = part.await?;
-            if let &ModulePart::Export(export_name) = &*part {
-                for &module in result.primary_modules().await? {
-                    if let Some(module) = ResolvedVc::try_downcast(module) {
-                        let export = export_name.await?;
-                        if *is_export_missing(*module, export.clone_value()).await? {
-                            InvalidExport {
-                                export: export_name,
-                                module,
-                                source: self.issue_source.clone(),
-                            }
-                            .resolved_cell()
-                            .emit();
+        if let Some(ModulePart::Export(export_name)) = &self.export_name {
+            for &module in result.primary_modules().await? {
+                if let Some(module) = ResolvedVc::try_downcast(module) {
+                    if *is_export_missing(*module, export_name.clone()).await? {
+                        InvalidExport {
+                            export: export_name.clone(),
+                            module,
+                            source: self.issue_source.clone(),
                         }
+                        .resolved_cell()
+                        .emit();
                     }
                 }
             }
@@ -256,14 +248,11 @@ impl ChunkableModuleReference for EsmAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl EsmAssetReference {
+    pub async fn code_generation(
         self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
         // only chunked references can be imported
@@ -279,26 +268,20 @@ impl CodeGenerateable for EsmAssetReference {
                     span: DUMMY_SP,
                 });
                 Some((format!("throw {request}").into(), stmt))
-            } else if let Some(ident) = referenced_asset
-                .get_ident(module_graph, chunking_context)
-                .await?
-            {
+            } else if let Some(ident) = referenced_asset.get_ident(chunking_context).await? {
                 let span = this
                     .issue_source
                     .to_swc_offsets()
                     .await?
                     .map_or(DUMMY_SP, |(start, end)| {
-                        Span::new(BytePos(start as u32), BytePos(end as u32))
+                        Span::new(BytePos(start), BytePos(end))
                     });
                 match &*referenced_asset {
                     ReferencedAsset::Unresolvable => {
                         unreachable!()
                     }
                     ReferencedAsset::Some(asset) => {
-                        let id = asset
-                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                            .id()
-                            .await?;
+                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
                         let name = ident;
                         Some((
                             id.to_string().into(),
@@ -396,7 +379,7 @@ impl CodeGenerateable for EsmAssetReference {
         };
 
         if let Some((key, stmt)) = result {
-            Ok(CodeGeneration::hoisted_stmt(key, stmt).cell())
+            Ok(CodeGeneration::hoisted_stmt(key, stmt))
         } else {
             Ok(CodeGeneration::empty())
         }
@@ -413,7 +396,7 @@ fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
 
 #[turbo_tasks::value(shared)]
 pub struct InvalidExport {
-    export: ResolvedVc<RcStr>,
+    export: RcStr,
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     source: IssueSource,
 }
@@ -429,7 +412,7 @@ impl Issue for InvalidExport {
     async fn title(&self) -> Result<Vc<StyledString>> {
         Ok(StyledString::Line(vec![
             StyledString::Text("Export ".into()),
-            StyledString::Code(self.export.await?.clone_value()),
+            StyledString::Code(self.export.clone()),
             StyledString::Text(" doesn't exist in target module".into()),
         ])
         .cell())
@@ -447,20 +430,19 @@ impl Issue for InvalidExport {
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let export = self.export.await?;
         let export_names = all_known_export_names(*self.module).await?;
         let did_you_mean = export_names
             .iter()
-            .map(|s| (s, jaro(export.as_str(), s.as_str())))
+            .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
                     StyledString::Text("The export ".into()),
-                    StyledString::Code(export.clone_value()),
+                    StyledString::Code(self.export.clone()),
                     StyledString::Text(" was not found in module ".into()),
-                    StyledString::Strong(self.module.ident().to_string().await?.clone_value()),
+                    StyledString::Strong(self.module.ident().to_string().owned().await?),
                     StyledString::Text(".".into()),
                 ]),
                 if let Some(did_you_mean) = did_you_mean {

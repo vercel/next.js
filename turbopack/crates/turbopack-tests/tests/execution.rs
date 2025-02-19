@@ -10,6 +10,7 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
@@ -47,6 +48,10 @@ use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::jest::JestRunResult;
+use turbopack_trace_utils::{
+    filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+    tracing_presets::TRACING_TURBO_TASKS_TARGETS,
+};
 
 use crate::util::REPO_ROOT;
 
@@ -168,22 +173,43 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         std::fs::remove_dir_all(&output_path)?;
     }
 
+    let subscriber = Registry::default();
+
+    let trace = TRACING_TURBO_TASKS_TARGETS.join(",");
+    let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
+
+    std::fs::create_dir_all(&output_path)
+        .context("Unable to create output directory")
+        .unwrap();
+    let trace_file = output_path.join("trace-turbopack");
+    let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+    let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+    let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+    subscriber.init();
+
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
+            dependency_tracking: false,
             ..Default::default()
         },
         noop_backing_storage(),
     ));
-    tt.run_once(async move {
-        let emit_op =
-            run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-        let result = emit_op.read_strongly_consistent().await?;
-        apply_effects(emit_op).await?;
+    let result = tt
+        .run_once(async move {
+            let emit_op =
+                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let result = emit_op.read_strongly_consistent().owned().await?;
+            apply_effects(emit_op).await?;
 
-        Ok(result.clone_value())
-    })
-    .await
+            Ok(result)
+        })
+        .await;
+
+    drop(trace_writer_guard);
+
+    result
 }
 
 #[turbo_tasks::function(operation)]

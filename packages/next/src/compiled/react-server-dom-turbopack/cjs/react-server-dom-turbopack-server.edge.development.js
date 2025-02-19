@@ -566,7 +566,59 @@
       }
     }
     function getCurrentStackInDEV() {
-      return "";
+      var owner = resolveOwner();
+      if (null === owner) return "";
+      try {
+        var info = "";
+        if (owner.owner || "string" !== typeof owner.name) {
+          for (; owner; ) {
+            var ownerStack = owner.debugStack;
+            if (null != ownerStack) {
+              if ((owner = owner.owner)) {
+                var JSCompiler_temp_const = info;
+                var error = ownerStack,
+                  prevPrepareStackTrace = Error.prepareStackTrace;
+                Error.prepareStackTrace = prepareStackTrace;
+                var stack = error.stack;
+                Error.prepareStackTrace = prevPrepareStackTrace;
+                stack.startsWith("Error: react-stack-top-frame\n") &&
+                  (stack = stack.slice(29));
+                var idx = stack.indexOf("\n");
+                -1 !== idx && (stack = stack.slice(idx + 1));
+                idx = stack.indexOf("react-stack-bottom-frame");
+                -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
+                var JSCompiler_inline_result =
+                  -1 !== idx ? (stack = stack.slice(0, idx)) : "";
+                info =
+                  JSCompiler_temp_const + ("\n" + JSCompiler_inline_result);
+              }
+            } else break;
+          }
+          var JSCompiler_inline_result$jscomp$0 = info;
+        } else {
+          JSCompiler_temp_const = owner.name;
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              (prefix =
+                ((error = x.stack.trim().match(/\n( *(at )?)/)) && error[1]) ||
+                ""),
+                (suffix =
+                  -1 < x.stack.indexOf("\n    at")
+                    ? " (<anonymous>)"
+                    : -1 < x.stack.indexOf("@")
+                      ? "@unknown:0:0"
+                      : "");
+            }
+          JSCompiler_inline_result$jscomp$0 =
+            "\n" + prefix + JSCompiler_temp_const + suffix;
+        }
+      } catch (x) {
+        JSCompiler_inline_result$jscomp$0 =
+          "\nError generating stack: " + x.message + "\n" + x.stack;
+      }
+      return JSCompiler_inline_result$jscomp$0;
     }
     function defaultErrorHandler(error) {
       console.error(error);
@@ -640,7 +692,7 @@
           ? defaultFilterStackFrame
           : filterStackFrame;
       this.didWarnForKey = null;
-      type = createTask(this, model, null, !1, abortSet, null);
+      type = createTask(this, model, null, !1, abortSet, null, null, null);
       pingedTasks.push(type);
     }
     function noop() {}
@@ -659,7 +711,9 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       (task = thenable._debugInfo) &&
         forwardDebugInfo(request, newTask.id, task);
@@ -757,7 +811,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -827,7 +883,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -880,14 +938,21 @@
       return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
-      currentOwner = {
+      var componentDebugInfo = {
         name: "",
         env: task.environmentName,
         key: null,
         owner: task.debugOwner
       };
+      componentDebugInfo.stack =
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1);
+      componentDebugInfo.debugStack = task.debugStack;
+      request = componentDebugInfo.debugTask = task.debugTask;
+      currentOwner = componentDebugInfo;
       try {
-        return callback(arg);
+        return request ? request.run(callback.bind(null, arg)) : callback(arg);
       } finally {
         currentOwner = null;
       }
@@ -957,7 +1022,14 @@
           (multiShot._debugInfo = result._debugInfo),
           multiShot);
     }
-    function renderFunctionComponent(request, task, key, Component, props) {
+    function renderFunctionComponent(
+      request,
+      task,
+      key,
+      Component,
+      props,
+      validated
+    ) {
       var prevThenableState = task.thenableState;
       task.thenableState = null;
       if (null === debugID) return outlineTask(request, task);
@@ -974,23 +1046,51 @@
           key: key,
           owner: task.debugOwner
         };
+        componentDebugInfo.stack =
+          null === task.debugStack
+            ? null
+            : filterStackTrace(request, task.debugStack, 1);
         componentDebugInfo.props = props;
+        componentDebugInfo.debugStack = task.debugStack;
+        componentDebugInfo.debugTask = task.debugTask;
         outlineComponentInfo(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       currentComponentDebugInfo = componentDebugInfo;
       props = supportsComponentStorage
-        ? componentStorage.run(
-            componentDebugInfo,
-            callComponentInDEV,
-            Component,
-            props,
-            componentDebugInfo
-          )
-        : callComponentInDEV(Component, props, componentDebugInfo);
+        ? task.debugTask
+          ? task.debugTask.run(
+              componentStorage.run.bind(
+                componentStorage,
+                componentDebugInfo,
+                callComponentInDEV,
+                Component,
+                props,
+                componentDebugInfo
+              )
+            )
+          : componentStorage.run(
+              componentDebugInfo,
+              callComponentInDEV,
+              Component,
+              props,
+              componentDebugInfo
+            )
+        : task.debugTask
+          ? task.debugTask.run(
+              callComponentInDEV.bind(
+                null,
+                Component,
+                props,
+                componentDebugInfo
+              )
+            )
+          : callComponentInDEV(Component, props, componentDebugInfo);
       if (request.status === ABORTING)
         throw (
           ("object" !== typeof props ||
@@ -1007,14 +1107,59 @@
         props
       );
       Component = task.keyPath;
-      prevThenableState = task.implicitSlot;
+      validated = task.implicitSlot;
       null !== key
         ? (task.keyPath = null === Component ? key : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
-      task.implicitSlot = prevThenableState;
+      task.implicitSlot = validated;
       return request;
+    }
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
+      }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      supportsComponentStorage
+        ? debugTask
+          ? debugTask.run(
+              componentStorage.run.bind(
+                componentStorage,
+                componentDebugInfo,
+                callComponentInDEV,
+                logKeyError,
+                null,
+                componentDebugInfo
+              )
+            )
+          : componentStorage.run(
+              componentDebugInfo,
+              callComponentInDEV,
+              logKeyError,
+              null,
+              componentDebugInfo
+            )
+        : debugTask
+          ? debugTask.run(
+              callComponentInDEV.bind(
+                null,
+                logKeyError,
+                null,
+                componentDebugInfo
+              )
+            )
+          : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1033,7 +1178,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1052,7 +1199,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1066,14 +1215,16 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
         : "$L" + task.id.toString(16);
     }
-    function renderElement(request, task, type, key, ref, props) {
+    function renderElement(request, task, type, key, ref, props, validated) {
       if (null !== ref && void 0 !== ref)
         throw Error(
           "Refs cannot be used in Server Components, nor passed to Client Components."
@@ -1089,7 +1240,22 @@
       ) {
         if (type === REACT_FRAGMENT_TYPE && null === key)
           return (
-            (type = task.implicitSlot),
+            2 === validated &&
+              ((validated = {
+                name: "Fragment",
+                env: (0, request.environmentName)(),
+                key: key,
+                owner: task.debugOwner,
+                stack:
+                  null === task.debugStack
+                    ? null
+                    : filterStackTrace(request, task.debugStack, 1),
+                props: props,
+                debugStack: task.debugStack,
+                debugTask: task.debugTask
+              }),
+              warnForMissingKey(request, key, validated, task.debugTask)),
+            (validated = task.implicitSlot),
             null === task.keyPath && (task.implicitSlot = !0),
             (request = renderModelDestructive(
               request,
@@ -1098,7 +1264,7 @@
               "",
               props.children
             )),
-            (task.implicitSlot = type),
+            (task.implicitSlot = validated),
             request
           );
         if (
@@ -1110,26 +1276,61 @@
             case REACT_LAZY_TYPE:
               type = callLazyInitInDEV(type);
               if (request.status === ABORTING) throw null;
-              return renderElement(request, task, type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_FORWARD_REF_TYPE:
               return renderFunctionComponent(
                 request,
                 task,
                 key,
                 type.render,
-                props
+                props,
+                validated
               );
             case REACT_MEMO_TYPE:
-              return renderElement(request, task, type.type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type.type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_ELEMENT_TYPE:
               type._store.validated = 1;
           }
-      } else return renderFunctionComponent(request, task, key, type, props);
+      } else
+        return renderFunctionComponent(
+          request,
+          task,
+          key,
+          type,
+          props,
+          validated
+        );
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
       null !== task.debugOwner &&
         outlineComponentInfo(request, task.debugOwner);
-      request = [REACT_ELEMENT_TYPE, type, key, props, task.debugOwner];
+      request = [
+        REACT_ELEMENT_TYPE,
+        type,
+        key,
+        props,
+        task.debugOwner,
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1),
+        validated
+      ];
       task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
@@ -1152,7 +1353,9 @@
       keyPath,
       implicitSlot,
       abortSet,
-      debugOwner
+      debugOwner,
+      debugStack,
+      debugTask
     ) {
       request.pendingChunks++;
       var id = request.nextChunkId++;
@@ -1200,6 +1403,8 @@
       };
       task.environmentName = request.environmentName();
       task.debugOwner = debugOwner;
+      task.debugStack = debugStack;
+      task.debugTask = debugTask;
       abortSet.add(task);
       return task;
     }
@@ -1292,6 +1497,8 @@
         null,
         !1,
         request.abortableTasks,
+        null,
+        null,
         null
       );
       retryTask(request, value);
@@ -1385,6 +1592,8 @@
           null,
           !1,
           request.abortableTasks,
+          null,
+          null,
           null
         ),
         reader = blob.stream().getReader(),
@@ -1427,7 +1636,9 @@
               task.keyPath,
               task.implicitSlot,
               request.abortableTasks,
-              task.debugOwner
+              task.debugOwner,
+              task.debugStack,
+              task.debugTask
             )),
             (value = request.ping),
             key.then(value, value),
@@ -1484,13 +1695,16 @@
             _existingReference = value.props;
             var refProp = _existingReference.ref;
             task.debugOwner = value._owner;
+            task.debugStack = value._debugStack;
+            task.debugTask = value._debugTask;
             request = renderElement(
               request,
               task,
               value.type,
               value.key,
               void 0 !== refProp ? refProp : null,
-              _existingReference
+              _existingReference,
+              value._store.validated
             );
             "object" === typeof request &&
               null !== request &&
@@ -1880,6 +2094,7 @@
           key: componentInfo.key,
           owner: componentInfo.owner
         };
+        componentDebugInfo.stack = componentInfo.stack;
         componentDebugInfo.props = componentInfo.props;
         objectLimit = outlineConsoleValue(
           request,
@@ -1945,25 +2160,34 @@
         counter.objectLimit--;
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
-            return (
-              null != value._owner &&
-                outlineComponentInfo(request, value._owner),
-              "object" === typeof value.type &&
-                null !== value.type &&
-                doNotLimit.add(value.type),
-              "object" === typeof value.key &&
-                null !== value.key &&
-                doNotLimit.add(value.key),
-              doNotLimit.add(value.props),
-              null !== value._owner && doNotLimit.add(value._owner),
-              [
-                REACT_ELEMENT_TYPE,
-                value.type,
-                value.key,
-                value.props,
-                value._owner
-              ]
-            );
+            null != value._owner && outlineComponentInfo(request, value._owner);
+            "object" === typeof value.type &&
+              null !== value.type &&
+              doNotLimit.add(value.type);
+            "object" === typeof value.key &&
+              null !== value.key &&
+              doNotLimit.add(value.key);
+            doNotLimit.add(value.props);
+            null !== value._owner && doNotLimit.add(value._owner);
+            counter = null;
+            if (null != value._debugStack)
+              for (
+                counter = filterStackTrace(request, value._debugStack, 1),
+                  doNotLimit.add(counter),
+                  request = 0;
+                request < counter.length;
+                request++
+              )
+                doNotLimit.add(counter[request]);
+            return [
+              REACT_ELEMENT_TYPE,
+              value.type,
+              value.key,
+              value.props,
+              value._owner,
+              counter,
+              value._store.validated
+            ];
         }
         if ("function" === typeof value.then) {
           switch (value.status) {
@@ -3566,6 +3790,7 @@
       throw Error(
         'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
       );
+    var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
     var callComponent = {
         "react-stack-bottom-frame": function (

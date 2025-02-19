@@ -1467,6 +1467,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1579,6 +1580,12 @@ export async function copyTracedFiles(
         Log.warn(`Failed to copy traced files for ${pageFile}`, err)
       }
     })
+  }
+
+  if (hasNodeMiddleware) {
+    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+    const middlewareTrace = `${middlewareFile}.nft.json`
+    await handleTraceFiles(middlewareTrace)
   }
 
   if (appPageKeys) {
@@ -1775,7 +1782,13 @@ export function isWebpackClientOnlyLayer(
 export function isWebpackDefaultLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return layer === null || layer === undefined
+  return (
+    layer === null ||
+    layer === undefined ||
+    layer === WEBPACK_LAYERS.pagesDirBrowser ||
+    layer === WEBPACK_LAYERS.pagesDirEdge ||
+    layer === WEBPACK_LAYERS.pagesDirNode
+  )
 }
 
 export function isWebpackBundledLayer(

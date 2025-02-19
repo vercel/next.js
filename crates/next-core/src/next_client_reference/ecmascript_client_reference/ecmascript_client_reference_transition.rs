@@ -50,7 +50,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let part = match &*reference_type {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
                 part,
-            )) => Some(*part),
+            )) => Some(part),
             _ => None,
         };
 
@@ -59,7 +59,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(*part),
+            Some(part) => source.ident().with_part(part.clone()),
             None => source.ident(),
         };
         let ident_ref = ident.await?;

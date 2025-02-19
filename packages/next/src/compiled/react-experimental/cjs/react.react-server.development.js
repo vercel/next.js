@@ -969,13 +969,6 @@
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
     };
-    exports.useActionState = function (action, initialState, permalink) {
-      return resolveDispatcher().useActionState(
-        action,
-        initialState,
-        permalink
-      );
-    };
     exports.useCallback = function (callback, deps) {
       return resolveDispatcher().useCallback(callback, deps);
     };
@@ -988,5 +981,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-experimental-0a82580b-20250203";
+    exports.version = "19.1.0-experimental-32b0cad8-20250213";
   })();

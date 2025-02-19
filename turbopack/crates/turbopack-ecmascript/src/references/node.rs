@@ -33,12 +33,11 @@ impl PackageJsonReference {
 impl ModuleReference for PackageJsonReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
             RawModule::new(Vc::upcast(FileSource::new(*self.package_json)))
                 .to_resolved()
                 .await?,
-        ))
-        .cell())
+        )))
     }
 }
 
@@ -117,7 +116,7 @@ async fn resolve_reference_from_dir(
             .await?
             .into_iter(),
         ),
-        (None, None) => return Ok(ModuleResolveResult::unresolvable().cell()),
+        (None, None) => return Ok(*ModuleResolveResult::unresolvable()),
     };
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
@@ -142,7 +141,10 @@ async fn resolve_reference_from_dir(
             PatternMatch::Directory(..) => {}
         }
     }
-    Ok(ModuleResolveResult::modules_with_affecting_sources(results, affecting_sources).cell())
+    Ok(*ModuleResolveResult::modules_with_affecting_sources(
+        results,
+        affecting_sources,
+    ))
 }
 
 #[turbo_tasks::value_impl]
