@@ -9,6 +9,8 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       files: __dirname,
     })
 
+    const rootSelector = isNextDev ? 'body' : 'head'
+
     if (isNextStart) {
       // Precondition for the following tests in build mode.
       // This test is only useful for non-PPR mode as in PPR mode those routes
@@ -29,7 +31,6 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       const $ = await next.render$('/')
       // In dev, it suspenses as dynamic rendering so it's inserted into body;
       // In build, it's resolved as static rendering so it's inserted into head.
-      const rootSelector = isNextDev ? 'body' : 'head'
       expect($(`${rootSelector} title`).text()).toBe('index page')
       expect(
         $(`${rootSelector} meta[name="description"]`).attr('content')
@@ -38,7 +39,9 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
     it('should contain async generated metadata in head static page with suspenseful content', async () => {
       const $ = await next.render$('/suspenseful/static')
-      expect($('head title').text()).toBe('suspenseful page - static')
+      expect($(`${rootSelector} title`).text()).toBe(
+        'suspenseful page - static'
+      )
     })
 
     it('should contain async generated metadata in body for dynamic page', async () => {

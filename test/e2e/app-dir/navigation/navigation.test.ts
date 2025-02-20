@@ -410,10 +410,10 @@ describe('app dir - navigation', () => {
 
   describe('bots', () => {
     if (!isNextDeploy) {
-      it('should block rendering for bots and return 404 status', async () => {
+      it('should block rendering for html limited bots and return 404 status', async () => {
         const res = await next.fetch('/not-found/servercomponent', {
           headers: {
-            'User-Agent': 'Googlebot',
+            'User-Agent': 'Discordbot',
           },
         })
 
@@ -585,21 +585,30 @@ describe('app dir - navigation', () => {
     })
 
     describe('status code', () => {
-      it('should respond with 307 status code in server component', async () => {
+      it('should respond with 307 status code in server component for html bots', async () => {
         const res = await next.fetch('/redirect/servercomponent', {
           redirect: 'manual',
+          headers: {
+            'User-Agent': 'Discordbot',
+          },
         })
         expect(res.status).toBe(307)
       })
-      it('should respond with 307 status code in client component', async () => {
+      it('should respond with 307 status code in client component for html bots', async () => {
         const res = await next.fetch('/redirect/clientcomponent', {
           redirect: 'manual',
+          headers: {
+            'User-Agent': 'Discordbot',
+          },
         })
         expect(res.status).toBe(307)
       })
-      it('should respond with 308 status code if permanent flag is set', async () => {
+      it('should respond with 308 status code if permanent flag is set for html bots', async () => {
         const res = await next.fetch('/redirect/servercomponent-2', {
           redirect: 'manual',
+          headers: {
+            'User-Agent': 'Discordbot',
+          },
         })
         expect(res.status).toBe(308)
       })
@@ -910,15 +919,6 @@ describe('app dir - navigation', () => {
         .click()
 
       if (!isNextDev) {
-        expect(
-          await browser
-            .waitForElementByCss(
-              '#loading',
-              // Give it some time to commit
-              100
-            )
-            .text()
-        ).toEqual('Loading')
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
 
         await waitFor(resolveMetadataDuration + 500)
