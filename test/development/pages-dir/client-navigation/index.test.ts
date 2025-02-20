@@ -9,7 +9,7 @@ import {
   waitFor,
   check,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -54,14 +54,6 @@ describe('Client Navigation', () => {
 
       expect(text).toBe('This is the about page.')
       await browser.close()
-    })
-
-    it('should have proper error when no children are provided', async () => {
-      const browser = await webdriver(next.appPort, '/link-no-child')
-      await assertHasRedbox(browser)
-      expect(await getRedboxHeader(browser)).toContain(
-        'No children were passed to <Link> with `href` of `/about` but one child is required'
-      )
     })
 
     it('should not throw error when one number type child is provided', async () => {
@@ -277,15 +269,28 @@ describe('Client Navigation', () => {
   })
 
   describe('with empty getInitialProps()', () => {
-    it('should render an error', async () => {
-      let browser
+    it('should render a redbox', async () => {
+      let browser: BrowserInterface
       try {
-        browser = await webdriver(next.appPort, '/nav')
+        const pageErrors: unknown[] = []
+        browser = await webdriver(next.appPort, '/nav', {
+          beforePageLoad: (page) => {
+            page.on('pageerror', (error: unknown) => {
+              pageErrors.push(error)
+            })
+          },
+        })
         await browser.elementByCss('#empty-props').click()
         await assertHasRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /should resolve to an object\. But found "null" instead\./
         )
+        expect(pageErrors).toEqual([
+          expect.objectContaining({
+            message:
+              '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.',
+          }),
+        ])
       } finally {
         if (browser) {
           await browser.close()
@@ -1377,13 +1382,39 @@ describe('Client Navigation', () => {
 
   describe('runtime errors', () => {
     it('should show redbox when a client side error is thrown inside a component', async () => {
-      let browser
+      const isReact18 = process.env.NEXT_TEST_REACT_VERSION?.startsWith('18')
+      let browser: BrowserInterface
       try {
-        browser = await webdriver(next.appPort, '/error-inside-browser-page')
+        const pageErrors: unknown[] = []
+        browser = await webdriver(next.appPort, '/error-inside-browser-page', {
+          beforePageLoad: (page) => {
+            page.on('pageerror', (error: unknown) => {
+              pageErrors.push(error)
+            })
+          },
+        })
         await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:13\)/)
+
+        expect(pageErrors).toEqual(
+          isReact18
+            ? [
+                expect.objectContaining({
+                  message: 'An Expected error occurred',
+                }),
+                expect.objectContaining({
+                  message: 'An Expected error occurred',
+                }),
+                expect.objectContaining({
+                  message:
+                    'There was an error while hydrating. Because the error happened outside of a Suspense boundary, the entire root will switch to client rendering.',
+                }),
+              ]
+            : // TODO(veil): Should contain thrown error
+              []
+        )
       } finally {
         if (browser) {
           await browser.close()
@@ -1392,16 +1423,27 @@ describe('Client Navigation', () => {
     })
 
     it('should show redbox when a client side error is thrown outside a component', async () => {
-      let browser
+      let browser: BrowserInterface
       try {
+        const pageErrors: unknown[] = []
         browser = await webdriver(
           next.appPort,
-          '/error-in-the-browser-global-scope'
+          '/error-in-the-browser-global-scope',
+          {
+            beforePageLoad: (page) => {
+              page.on('pageerror', (error: unknown) => {
+                pageErrors.push(error)
+              })
+            },
+          }
         )
         await assertHasRedbox(browser)
         const text = await getRedboxSource(browser)
         expect(text).toMatch(/An Expected error occurred/)
         expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
+        expect(pageErrors).toEqual([
+          expect.objectContaining({ message: 'An Expected error occurred' }),
+        ])
       } finally {
         if (browser) {
           await browser.close()

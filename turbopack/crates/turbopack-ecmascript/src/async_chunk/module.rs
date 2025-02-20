@@ -6,13 +6,14 @@ use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleModuleReference},
 };
 
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
 
 #[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
+fn async_loader_modifier() -> Vc<RcStr> {
     Vc::cell("async loader".into())
 }
 
@@ -42,7 +43,7 @@ impl AsyncLoaderModule {
 
     #[turbo_tasks::function]
     pub fn asset_ident_for(module: Vc<Box<dyn ChunkableModule>>) -> Vc<AssetIdent> {
-        module.ident().with_modifier(modifier())
+        module.ident().with_modifier(async_loader_modifier())
     }
 }
 
@@ -84,11 +85,13 @@ impl ChunkableModule for AsyncLoaderModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             AsyncLoaderChunkItem {
                 chunking_context,
+                module_graph,
                 module: self,
             }
             .cell(),

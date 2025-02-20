@@ -2,13 +2,16 @@ import {
   webpack,
   ModuleFilenameHelpers,
   sources,
+  WebpackError,
+  type CacheFacade,
+  type Compilation,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'next/dist/compiled/p-limit'
 import { spans } from '../../profiling-plugin'
 
 function buildError(error: any, file: string) {
   if (error.line) {
-    return new Error(
+    return new WebpackError(
       `${file} from Minifier\n${error.message} [${file}:${error.line},${
         error.col
       }]${
@@ -18,27 +21,44 @@ function buildError(error: any, file: string) {
   }
 
   if (error.stack) {
-    return new Error(`${file} from Minifier\n${error.message}\n${error.stack}`)
+    return new WebpackError(
+      `${file} from Minifier\n${error.message}\n${error.stack}`
+    )
   }
 
-  return new Error(`${file} from Minifier\n${error.message}`)
+  return new WebpackError(`${file} from Minifier\n${error.message}`)
 }
 
 const debugMinify = process.env.NEXT_DEBUG_MINIFY
 
 export class MinifyPlugin {
+  constructor(private options: { noMangling?: boolean }) {}
+
   async optimize(
     compiler: any,
-    compilation: any,
+    compilation: Compilation,
     assets: any,
-    cache: any,
-    { SourceMapSource, RawSource }: any
+    cache: CacheFacade,
+    {
+      SourceMapSource,
+      RawSource,
+    }: {
+      SourceMapSource: typeof sources.SourceMapSource
+      RawSource: typeof sources.RawSource
+    }
   ) {
+    const mangle = !this.options.noMangling
     const compilationSpan = spans.get(compilation)! || spans.get(compiler)
+
     const MinifierSpan = compilationSpan.traceChild(
       'minify-webpack-plugin-optimize'
     )
-    MinifierSpan.setAttribute('compilationName', compilation.name)
+
+    if (compilation.name) {
+      MinifierSpan.setAttribute('compilationName', compilation.name)
+    }
+
+    MinifierSpan.setAttribute('mangle', String(mangle))
 
     return MinifierSpan.traceAsyncFn(async () => {
       const assetsList = Object.keys(assets)
@@ -72,21 +92,21 @@ export class MinifyPlugin {
             return true
           })
           .map(async (name) => {
-            const { info, source } = compilation.getAsset(name)
+            const { info, source } = compilation.getAsset(name)!
 
-            const eTag = cache.getLazyHashedEtag(source)
-            const output = await cache.getPromise(name, eTag)
+            const eTag = cache.mergeEtags(
+              cache.getLazyHashedEtag(source),
+              JSON.stringify(this.options)
+            )
+
+            const output = await cache.getPromise<
+              { source: sources.Source } | undefined
+            >(name, eTag)
 
             if (debugMinify && debugMinify === '1') {
               console.log(
-                JSON.stringify({
-                  name,
-                  source: source.source().toString(),
-                }),
-                {
-                  breakLength: Infinity,
-                  maxStringLength: Infinity,
-                }
+                JSON.stringify({ name, source: source.source().toString() }),
+                { breakLength: Infinity, maxStringLength: Infinity }
               )
             }
             return { name, info, inputSource: source, output, eTag }
@@ -98,25 +118,29 @@ export class MinifyPlugin {
       // eslint-disable-next-line consistent-return
       const getWorker = () => {
         return {
-          minify: async (options: any) => {
-            const result = await require('../../../../swc').minify(
-              options.input,
-              {
-                ...(options.inputSourceMap
-                  ? {
-                      sourceMap: {
-                        content: JSON.stringify(options.inputSourceMap),
-                      },
-                    }
-                  : {}),
-                compress: true,
-                mangle: true,
-                module: 'unknown',
-                output: {
-                  comments: false,
-                },
-              }
-            )
+          minify: async (options: {
+            input: string
+            inputSourceMap: Object
+          }) => {
+            const result = await (
+              require('../../../../swc') as typeof import('../../../../swc')
+            ).minify(options.input, {
+              ...(options.inputSourceMap
+                ? {
+                    sourceMap: {
+                      content: JSON.stringify(options.inputSourceMap),
+                    },
+                  }
+                : {}),
+              // Compress options are defined in crates/napi/src/minify.rs.
+              compress: false,
+              // Mangle options may be amended in crates/napi/src/minify.rs.
+              mangle,
+              module: 'unknown',
+              output: {
+                comments: false,
+              },
+            })
 
             return result
           },
@@ -149,42 +173,38 @@ export class MinifyPlugin {
                   ? sourceFromInputSource.toString()
                   : sourceFromInputSource
 
-                const options = {
-                  name,
-                  input,
-                  inputSourceMap,
-                }
+                let minifiedOutput: { code: string; map: any } | undefined
 
                 try {
-                  output = await getWorker().minify(options)
+                  minifiedOutput = await getWorker().minify({
+                    input,
+                    inputSourceMap,
+                  })
                 } catch (error) {
                   compilation.errors.push(buildError(error, name))
 
                   return
                 }
 
-                if (output.map) {
-                  output.source = new SourceMapSource(
-                    output.code,
-                    name,
-                    output.map,
-                    input,
-                    inputSourceMap,
-                    true
-                  )
-                } else {
-                  output.source = new RawSource(output.code)
-                }
+                const source = minifiedOutput.map
+                  ? new SourceMapSource(
+                      minifiedOutput.code,
+                      name,
+                      minifiedOutput.map,
+                      input,
+                      inputSourceMap,
+                      true
+                    )
+                  : new RawSource(minifiedOutput.code)
 
-                await cache.storePromise(name, eTag, {
-                  source: output.source,
-                })
+                await cache.storePromise(name, eTag, { source })
+
+                output = { source }
               }
 
               const newInfo = { minimized: true }
-              const { source } = output
 
-              compilation.updateAsset(name, source, newInfo)
+              compilation.updateAsset(name, output.source, newInfo)
             })
           })
         )
@@ -199,48 +219,53 @@ export class MinifyPlugin {
   }
 
   apply(compiler: any) {
-    const { SourceMapSource, RawSource } = compiler?.webpack?.sources || sources
+    const { SourceMapSource, RawSource } = (compiler?.webpack?.sources ||
+      sources) as typeof sources
+
     const pluginName = this.constructor.name
 
-    compiler.hooks.thisCompilation.tap(pluginName, (compilation: any) => {
-      const cache = compilation.getCache('MinifierWebpackPlugin')
+    compiler.hooks.thisCompilation.tap(
+      pluginName,
+      (compilation: Compilation) => {
+        const cache = compilation.getCache('MinifierWebpackPlugin')
 
-      const handleHashForChunk = (hash: any, _chunk: any) => {
-        // increment 'c' to invalidate cache
-        hash.update('c')
-      }
+        const handleHashForChunk = (hash: any, _chunk: any) => {
+          // increment 'c' to invalidate cache
+          hash.update('c')
+        }
 
-      const JSModulesHooks =
-        webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
-          compilation
-        )
-      JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
-        if (!chunk.hasRuntime()) return
-        return handleHashForChunk(hash, chunk)
-      })
-
-      compilation.hooks.processAssets.tapPromise(
-        {
-          name: pluginName,
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
-        },
-        (assets: any) =>
-          this.optimize(compiler, compilation, assets, cache, {
-            SourceMapSource,
-            RawSource,
-          })
-      )
-
-      compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {
-        stats.hooks.print
-          .for('asset.info.minimized')
-          .tap(
-            'minify-webpack-plugin',
-            (minimized: any, { green, formatFlag }: any) =>
-              // eslint-disable-next-line no-undefined
-              minimized ? green(formatFlag('minimized')) : undefined
+        const JSModulesHooks =
+          webpack.javascript.JavascriptModulesPlugin.getCompilationHooks(
+            compilation
           )
-      })
-    })
+        JSModulesHooks.chunkHash.tap(pluginName, (chunk, hash) => {
+          if (!chunk.hasRuntime()) return
+          return handleHashForChunk(hash, chunk)
+        })
+
+        compilation.hooks.processAssets.tapPromise(
+          {
+            name: pluginName,
+            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
+          },
+          (assets: any) =>
+            this.optimize(compiler, compilation, assets, cache, {
+              SourceMapSource,
+              RawSource,
+            })
+        )
+
+        compilation.hooks.statsPrinter.tap(pluginName, (stats: any) => {
+          stats.hooks.print
+            .for('asset.info.minimized')
+            .tap(
+              'minify-webpack-plugin',
+              (minimized: any, { green, formatFlag }: any) =>
+                // eslint-disable-next-line no-undefined
+                minimized ? green(formatFlag('minimized')) : undefined
+            )
+        })
+      }
+    )
   }
 }

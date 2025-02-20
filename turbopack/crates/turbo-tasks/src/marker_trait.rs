@@ -66,6 +66,7 @@ macro_rules! impl_auto_marker_trait {
         unsafe impl<T: $trait + ?Sized> $trait for ::std::sync::Mutex<T> {}
         unsafe impl<T: $trait + ?Sized> $trait for ::std::cell::RefCell<T> {}
         unsafe impl<T: ?Sized> $trait for ::std::marker::PhantomData<T> {}
+        unsafe impl<L: $trait, R: $trait> $trait for ::either::Either<L, R> {}
 
         unsafe impl<T: $trait + ?Sized> $trait for $crate::TraitRef<T> {}
         unsafe impl<T> $trait for $crate::ReadRef<T>
@@ -74,6 +75,7 @@ macro_rules! impl_auto_marker_trait {
             <<T as $crate::VcValueType>::Read as $crate::VcRead<T>>::Target: $trait
         {}
         unsafe impl<T: $trait> $trait for $crate::State<T> {}
+        unsafe impl<T: $trait> $trait for $crate::TransientState<T> {}
         unsafe impl<T: $trait> $trait for $crate::Value<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientValue<T> {}
         unsafe impl<T: $trait> $trait for $crate::TransientInstance<T> {}

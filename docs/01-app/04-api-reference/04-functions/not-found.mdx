@@ -19,7 +19,7 @@ async function fetchUser(id) {
 }
 
 export default async function Profile({ params }) {
-  const user = await fetchUser(params.id)
+  const user = await fetchUser((await params).id)
 
   if (!user) {
     notFound()

@@ -642,21 +642,21 @@ graph TD
 {
     ModuleEvaluation: 10,
     Export(
+        "BubbledError",
+    ): 11,
+    Export(
         "SpanKind",
     ): 12,
-    Export(
-        "isBubbledError",
-    ): 15,
-    Exports: 16,
     Export(
         "SpanStatusCode",
     ): 13,
     Export(
-        "BubbledError",
-    ): 11,
-    Export(
         "getTracer",
     ): 14,
+    Export(
+        "isBubbledError",
+    ): 15,
+    Exports: 16,
 }
 ```
 
@@ -1101,21 +1101,21 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 10,
     Export(
+        "BubbledError",
+    ): 11,
+    Export(
         "SpanKind",
     ): 12,
-    Export(
-        "isBubbledError",
-    ): 15,
-    Exports: 16,
     Export(
         "SpanStatusCode",
     ): 13,
     Export(
-        "BubbledError",
-    ): 11,
-    Export(
         "getTracer",
     ): 14,
+    Export(
+        "isBubbledError",
+    ): 15,
+    Exports: 16,
 }
 ```
 

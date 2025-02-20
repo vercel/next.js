@@ -5,7 +5,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
-    ecmascript::{EcmascriptInputTransform, TreeShakingMode},
+    ecmascript::TreeShakingMode,
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
         ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
@@ -14,17 +14,14 @@ use turbopack::{
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo},
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    free_var_references,
     resolve::options::{ImportMap, ImportMapping},
-};
-use turbopack_ecmascript_plugins::transform::{
-    emotion::{EmotionTransformConfig, EmotionTransformer},
-    styled_components::{StyledComponentsTransformConfig, StyledComponentsTransformer},
-    styled_jsx::StyledJsxTransformer,
 };
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
@@ -110,17 +107,20 @@ async fn get_client_module_options_context(
     execution_context: ResolvedVc<ExecutionContext>,
     env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
+    source_maps_type: SourceMapsType,
 ) -> Result<Vc<ModuleOptionsContext>> {
+    let is_dev = matches!(*node_env.await?, NodeEnv::Development);
     let module_options_context = ModuleOptionsContext {
         preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+        keep_last_successful_parse: is_dev,
         ..Default::default()
     };
 
     let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
 
-    let enable_react_refresh = matches!(*node_env.await?, NodeEnv::Development)
+    let enable_react_refresh = is_dev
         && assert_can_resolve_react_refresh(project_path, resolve_options_context)
             .await?
             .is_found();
@@ -133,8 +133,6 @@ async fn get_client_module_options_context(
         .resolved_cell(),
     );
 
-    let versions = *env.runtime_versions().await?;
-
     let conditions = RuleCondition::any(vec![
         RuleCondition::ResourcePathEndsWith(".js".to_string()),
         RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -145,18 +143,7 @@ async fn get_client_module_options_context(
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    EmotionTransformer::new(&EmotionTransformConfig::default())
-                        .expect("Should be able to create emotion transformer"),
-                ) as _)),
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
-                ) as _)),
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    StyledJsxTransformer::new(versions),
-                ) as _)),
-            ]),
+            prepend: ResolvedVc::cell(vec![]),
             append: ResolvedVc::cell(vec![]),
         }],
     );
@@ -167,7 +154,8 @@ async fn get_client_module_options_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
-            ..Default::default()
+            source_maps: source_maps_type,
+            ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
@@ -188,6 +176,7 @@ pub fn get_client_asset_context(
     execution_context: Vc<ExecutionContext>,
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
+    source_maps_type: SourceMapsType,
 ) -> Vc<Box<dyn AssetContext>> {
     let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
     let module_options_context = get_client_module_options_context(
@@ -195,6 +184,7 @@ pub fn get_client_asset_context(
         execution_context,
         compile_time_info.environment(),
         node_env,
+        source_maps_type,
     );
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -208,13 +198,12 @@ pub fn get_client_asset_context(
     asset_context
 }
 
-fn client_defines(node_env: &NodeEnv) -> Vc<CompileTimeDefines> {
+fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = node_env.to_string()
     )
-    .cell()
 }
 
 #[turbo_tasks::function]
@@ -222,6 +211,7 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
+    let node_env = node_env.await?;
     CompileTimeInfo::builder(
         Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
@@ -235,7 +225,10 @@ pub async fn get_client_compile_time_info(
         .to_resolved()
         .await?,
     )
-    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .defines(client_defines(&node_env).resolved_cell())
+    .free_var_references(
+        free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
+    )
     .cell()
     .await
 }

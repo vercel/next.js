@@ -16,16 +16,6 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         .into();
     };
 
-    let value_shrink_to_fit_impl = if input.manual_shrink_to_fit.is_none() {
-        Some(quote! {
-            impl turbo_tasks::ShrinkToFit for #ty {
-                fn shrink_to_fit(&mut self) {}
-            }
-        })
-    } else {
-        None
-    };
-
     let value_debug_impl = quote! {
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ty {
@@ -72,7 +62,6 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         #value_type_and_register
 
         #value_debug_impl
-        #value_shrink_to_fit_impl
         #value_default_impl
     }
     .into()

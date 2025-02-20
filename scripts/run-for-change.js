@@ -39,7 +39,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/create-next-app',
     'test/integration/create-next-app',
     'examples/basic-css',
-    'examples/with-mdx',
+    'examples/mdx-pages',
     'examples/with-sass',
     'examples/with-eslint',
   ],

@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../_experimental/internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
@@ -22,17 +22,17 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../internal/helpers/parse-stack'
-import ReactDevOverlay from './ReactDevOverlay'
-import { useErrorHandler } from '../internal/helpers/use-error-handler'
-import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
+import { parseStack } from '../_experimental/internal/helpers/parse-stack'
+import ReactDevOverlay from './react-dev-overlay'
+import { useErrorHandler } from '../../errors/use-error-handler'
+import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from '../internal/helpers/use-websocket'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+} from '../_experimental/internal/helpers/use-websocket'
+import { parseComponentStack } from '../_experimental/internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -41,11 +41,13 @@ import type {
 } from '../../../../server/dev/hot-reloader-types'
 import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from '../shared'
-import type { HydrationErrorState } from '../internal/helpers/hydration-error-info'
+import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
-import { getReactStitchedError } from '../internal/helpers/stitched-error'
+import { getReactStitchedError } from '../../errors/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
+import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
+import type { GlobalErrorComponent } from '../../error-boundary'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -61,6 +63,8 @@ let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 let reloading = false
 let startLatency: number | null = null
+let turbopackLastUpdateLatency: number | null = null
+let turbopackUpdatedModules: Set<string> = new Set()
 
 let pendingHotUpdateWebpack = Promise.resolve()
 let resolvePendingHotUpdateWebpack: () => void = () => {}
@@ -102,7 +106,9 @@ function reportHmrLatency(
   updatedModules: ReadonlyArray<string>
 ) {
   if (!startLatency) return
-  let endLatency = Date.now()
+  // turbopack has a debounce for the "built" event which we don't want to
+  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
+  let endLatency = turbopackLastUpdateLatency ?? Date.now()
   const latency = endLatency - startLatency
   console.log(`[Fast Refresh] done in ${latency}ms`)
   sendMessage(
@@ -312,6 +318,7 @@ function processMessage(
   function handleHotUpdate() {
     if (process.env.TURBOPACK) {
       dispatcher.onBuildOk()
+      reportHmrLatency(sendMessage, [...turbopackUpdatedModules])
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
@@ -334,7 +341,7 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
-      if (process.env.__NEXT_APP_ISR_INDICATOR) {
+      if (process.env.__NEXT_DEV_INDICATOR) {
         if (appIsrManifestRef) {
           appIsrManifestRef.current = obj.data
 
@@ -343,20 +350,7 @@ function processMessage(
           // as we'll receive the updated manifest before usePathname
           // triggers for new value
           if ((pathnameRef.current as string) in obj.data) {
-            // the indicator can be hidden for an hour.
-            // check if it's still hidden
-            const indicatorHiddenAt = Number(
-              localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-            )
-
-            const isHidden =
-              indicatorHiddenAt &&
-              !isNaN(indicatorHiddenAt) &&
-              Date.now() < indicatorHiddenAt
-
-            if (!isHidden) {
-              dispatcher.onStaticIndicator(true)
-            }
+            dispatcher.onStaticIndicator(true)
           } else {
             dispatcher.onStaticIndicator(false)
           }
@@ -366,6 +360,8 @@ function processMessage(
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      turbopackLastUpdateLatency = null
+      turbopackUpdatedModules.clear()
       if (!process.env.TURBOPACK) {
         setPendingHotUpdateWebpack()
       }
@@ -452,7 +448,6 @@ function processMessage(
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      const updatedModules = extractModulesFromTurbopackMessage(obj.data)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
         type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -463,7 +458,10 @@ function processMessage(
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
         performFullReload(null, sendMessage)
       }
-      reportHmrLatency(sendMessage, updatedModules)
+      for (const module of extractModulesFromTurbopackMessage(obj.data)) {
+        turbopackUpdatedModules.add(module)
+      }
+      turbopackLastUpdateLatency = Date.now()
       break
     }
     // TODO-APP: make server component change more granular
@@ -472,13 +470,20 @@ function processMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
+          hash: obj.hash,
         })
       )
+
+      // Store the latest hash in a session cookie so that it's sent back to the
+      // server with any subsequent requests.
+      document.cookie = `__next_hmr_refresh_hash__=${obj.hash}`
+
       if (RuntimeErrorHandler.hadRuntimeError) {
         if (reloading) return
         reloading = true
         return window.location.reload()
       }
+
       startTransition(() => {
         router.hmrRefresh()
         dispatcher.onRefresh()
@@ -530,9 +535,11 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
+  globalError,
 }: {
   assetPrefix: string
-  children?: ReactNode
+  children: ReactNode
+  globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
   const [state, dispatch] = useErrorOverlayReducer()
 
@@ -580,12 +587,11 @@ export default function HotReload({
       const componentStackTrace =
         (error as any)._componentStack || errorDetails?.componentStack
       const warning = errorDetails?.warning
-      const stitchedError = getReactStitchedError(error)
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
-        reason: stitchedError,
-        frames: parseStack(stitchedError.stack || ''),
+        reason: error,
+        frames: parseStack(error.stack || ''),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
@@ -624,7 +630,7 @@ export default function HotReload({
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
-  if (process.env.__NEXT_APP_ISR_INDICATOR) {
+  if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which
     // isn't a runtime conditional only build-time so ignore hooks rule
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -636,18 +642,7 @@ export default function HotReload({
       if (appIsrManifest) {
         if (pathname && pathname in appIsrManifest) {
           try {
-            const indicatorHiddenAt = Number(
-              localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-            )
-
-            const isHidden =
-              indicatorHiddenAt &&
-              !isNaN(indicatorHiddenAt) &&
-              Date.now() < indicatorHiddenAt
-
-            if (!isHidden) {
-              dispatcher.onStaticIndicator(true)
-            }
+            dispatcher.onStaticIndicator(true)
           } catch (reason) {
             let message = ''
 
@@ -676,6 +671,7 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
+        handleDevBuildIndicatorHmrEvents(obj)
         processMessage(
           obj,
           sendMessage,
@@ -708,7 +704,7 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay state={state} dispatcher={dispatcher}>
+      <ReactDevOverlay state={state} globalError={globalError}>
         {children}
       </ReactDevOverlay>
     )

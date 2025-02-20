@@ -22,7 +22,9 @@ describe('Error overlay - error message urls', () => {
 
     await session.assertHasRedbox()
 
-    const link = await browser.elementByCss('[data-nextjs-terminal] a')
+    const link = await browser.elementByCss(
+      '[data-nextjs-terminal] a, [data-nextjs-codeframe] a'
+    )
     const text = await link.text()
     const href = await link.getAttribute('href')
     expect(text).toEqual(

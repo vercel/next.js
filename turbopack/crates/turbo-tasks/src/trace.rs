@@ -9,6 +9,7 @@ use std::{
 };
 
 use auto_hash_map::{AutoMap, AutoSet};
+use either::Either;
 use indexmap::{IndexMap, IndexSet};
 use turbo_rcstr::RcStr;
 
@@ -114,6 +115,14 @@ impl<T: TraceRawVcs> TraceRawVcs for Option<T> {
 }
 
 impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
+impl<T: TraceRawVcs> TraceRawVcs for Box<[T]> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
@@ -250,6 +259,15 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &T {
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for &mut T {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         (**self).trace_raw_vcs(trace_context);
+    }
+}
+
+impl<L: TraceRawVcs, R: TraceRawVcs> TraceRawVcs for Either<L, R> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        match self {
+            Either::Left(l) => l.trace_raw_vcs(trace_context),
+            Either::Right(r) => r.trace_raw_vcs(trace_context),
+        }
     }
 }
 

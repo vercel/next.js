@@ -1,20 +1,23 @@
 import { constants as FS, promises as fs } from 'fs'
+import { findSourceMap, type SourceMap } from 'module'
 import path from 'path'
-import url from 'url'
-import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
-import { launchEditor } from '../internal/helpers/launchEditor'
+import { fileURLToPath, pathToFileURL } from 'url'
 import {
-  badRequest,
+  SourceMapConsumer,
+  type BasicSourceMapConsumer,
+} from 'next/dist/compiled/source-map08'
+import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
+import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
+import {
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  noContent,
   type OriginalStackFrameResponse,
+  type OriginalStackFramesRequest,
+  type OriginalStackFramesResponse,
 } from './shared'
-export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parse-stack'
+import { middlewareResponse } from './middleware-response'
+export { getServerError } from '../_experimental/internal/helpers/node-stack-frames'
+export { parseStack } from '../_experimental/internal/helpers/parse-stack'
 export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -23,15 +26,16 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
+import { formatFrameSourceFile } from '../_experimental/internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
+import { inspect } from 'util'
 
-function shouldIgnorePath(modulePath: string): boolean {
+function shouldIgnoreSource(sourceURL: string): boolean {
   return (
-    modulePath.includes('node_modules') ||
+    sourceURL.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist') ||
-    modulePath.startsWith('node:')
+    sourceURL.includes('next/dist') ||
+    sourceURL.startsWith('node:')
   )
 }
 
@@ -51,7 +55,7 @@ type Source =
       type: 'file'
       sourceMap: RawSourceMap
       ignoredSources: IgnoredSources
-      modulePath: string
+      moduleURL: string
     }
   | {
       type: 'bundle'
@@ -59,7 +63,7 @@ type Source =
       ignoredSources: IgnoredSources
       compilation: webpack.Compilation
       moduleId: string
-      modulePath: string
+      moduleURL: string
     }
 
 function getModuleById(
@@ -76,18 +80,34 @@ function findModuleNotFoundFromError(errorMessage: string | undefined) {
 }
 
 function getSourcePath(source: string) {
+  if (source.startsWith('file://')) {
+    return fileURLToPath(source)
+  }
   return source.replace(/^(webpack:\/\/\/|webpack:\/\/|webpack:\/\/_N_E\/)/, '')
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function findOriginalSourcePositionAndContent(
   sourceMap: RawSourceMap,
-  position: { line: number; column: number | null }
+  position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
-  const consumer = await new SourceMapConsumer(sourceMap)
+  let consumer: BasicSourceMapConsumer
+  try {
+    consumer = await new SourceMapConsumer(sourceMap)
+  } catch (cause) {
+    throw new Error(
+      `${sourceMap.file}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
+  }
+
   try {
     const sourcePosition = consumer.originalPositionFor({
-      line: position.line,
-      column: position.column ?? 0,
+      line: position.lineNumber ?? 1,
+      // 0-based columns out requires 0-based columns in.
+      column: (position.column ?? 1) - 1,
     })
 
     if (!sourcePosition.source) {
@@ -109,16 +129,18 @@ async function findOriginalSourcePositionAndContent(
   }
 }
 
-export function getIgnoredSources(sourceMap: RawSourceMap): IgnoredSources {
-  const ignoreList = new Set<number>()
+export function getIgnoredSources(
+  sourceMap: RawSourceMap & { ignoreList?: number[] }
+): IgnoredSources {
+  const ignoreList = new Set<number>(sourceMap.ignoreList ?? [])
   const moduleFilenames = sourceMap?.sources ?? []
 
   for (let index = 0; index < moduleFilenames.length; index++) {
     // bundlerFilePath case: webpack://./app/page.tsx
-    const bundlerFilePath = moduleFilenames[index]
+    const webpackSourceURL = moduleFilenames[index]
     // Format the path to the normal file path
-    const formattedFilePath = formatFrameSourceFile(bundlerFilePath)
-    if (shouldIgnorePath(formattedFilePath)) {
+    const formattedFilePath = formatFrameSourceFile(webpackSourceURL)
+    if (shouldIgnoreSource(formattedFilePath)) {
       ignoreList.add(index)
     }
   }
@@ -149,17 +171,6 @@ function isIgnoredSource(
   return false
 }
 
-function createStackFrame(searchParams: URLSearchParams) {
-  const file = searchParams.get('file') as string
-  return {
-    file,
-    methodName: searchParams.get('methodName') as string,
-    lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-    arguments: searchParams.getAll('arguments').filter(Boolean),
-  } satisfies StackFrame
-}
-
 function findOriginalSourcePositionAndContentFromCompilation(
   moduleId: string | undefined,
   importedModule: string,
@@ -180,9 +191,8 @@ export async function createOriginalStackFrame({
   frame: StackFrame
   errorMessage?: string
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
-  const result = await (async () => {
+  const result = await (() => {
     if (moduleNotFound) {
       if (source.type === 'file') {
         return undefined
@@ -194,11 +204,7 @@ export async function createOriginalStackFrame({
         source.compilation
       )
     }
-    // This returns 1-based lines and 0-based columns
-    return await findOriginalSourcePositionAndContent(source.sourceMap, {
-      line: lineNumber ?? 1,
-      column,
-    })
+    return findOriginalSourcePositionAndContent(source.sourceMap, frame)
   })()
 
   if (!result) {
@@ -214,19 +220,16 @@ export async function createOriginalStackFrame({
     isIgnoredSource(source, sourcePosition) ||
     // If the source file is externals, should be excluded even it's not ignored source.
     // e.g. webpack://next/dist/.. needs to be ignored
-    shouldIgnorePath(source.modulePath)
+    shouldIgnoreSource(source.moduleURL)
 
   const sourcePath = getSourcePath(
     // When sourcePosition.source is the loader path the modulePath is generally better.
     (sourcePosition.source!.includes('|')
-      ? source.modulePath
-      : sourcePosition.source) || source.modulePath
+      ? source.moduleURL
+      : sourcePosition.source) || source.moduleURL
   )
   const filePath = path.resolve(rootDirectory, sourcePath)
-
-  const resolvedFilePath = sourceContent
-    ? path.relative(rootDirectory, filePath)
-    : sourcePosition.source
+  const resolvedFilePath = path.relative(rootDirectory, filePath)
 
   const traced: IgnorableStackFrame = {
     file: resolvedFilePath,
@@ -277,25 +280,45 @@ async function getSourceMapFromCompilation(
 }
 
 async function getSource(
-  filename: string,
+  sourceURL: string,
   options: {
     getCompilations: () => webpack.Compilation[]
   }
 ): Promise<Source | undefined> {
   const { getCompilations } = options
 
-  if (path.isAbsolute(filename)) {
-    filename = url.pathToFileURL(filename).href
+  let nativeSourceMap: SourceMap | undefined
+  try {
+    nativeSourceMap = findSourceMap(sourceURL)
+  } catch (cause) {
+    throw new Error(
+      `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code.`,
+      { cause }
+    )
   }
 
-  if (filename.startsWith('file:')) {
-    const sourceMap = await getSourceMapFromFile(filename)
+  if (nativeSourceMap !== undefined) {
+    const sourceMapPayload = nativeSourceMap.payload
+    return {
+      type: 'file',
+      sourceMap: sourceMapPayload,
+      ignoredSources: getIgnoredSources(sourceMapPayload),
+      moduleURL: sourceURL,
+    }
+  }
+
+  if (path.isAbsolute(sourceURL)) {
+    sourceURL = pathToFileURL(sourceURL).href
+  }
+
+  if (sourceURL.startsWith('file:')) {
+    const sourceMap = await getSourceMapFromFile(sourceURL)
     return sourceMap
       ? {
           type: 'file',
           sourceMap,
           ignoredSources: getIgnoredSources(sourceMap),
-          modulePath: filename.replace(/^file:\/\//, ''),
+          moduleURL: sourceURL,
         }
       : undefined
   }
@@ -303,7 +326,7 @@ async function getSource(
   // webpack-internal:///./src/hello.tsx => ./src/hello.tsx
   // rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => (rsc)/./src/hello.tsx
   // webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
-  const moduleId = filename
+  const moduleId = sourceURL
     .replace(
       /^(rsc:\/\/React\/[^/]+\/)?(webpack-internal:\/\/\/|webpack:\/\/(_N_E\/)?)/,
       ''
@@ -311,22 +334,10 @@ async function getSource(
     .replace(/\?\d+$/, '')
 
   // (rsc)/./src/hello.tsx => ./src/hello.tsx
-  const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
+  const moduleURL = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
-    const ignoreList = []
-    const moduleFilenames = sourceMap?.sources ?? []
-
-    for (let index = 0; index < moduleFilenames.length; index++) {
-      // bundlerFilePath case: webpack://./app/page.tsx
-      const bundlerFilePath = moduleFilenames[index]
-      // Format the path to the normal file path
-      const formattedFilePath = formatFrameSourceFile(bundlerFilePath)
-      if (shouldIgnorePath(formattedFilePath)) {
-        ignoreList.push(index)
-      }
-    }
 
     if (sourceMap) {
       const ignoredSources = getIgnoredSources(sourceMap)
@@ -335,13 +346,159 @@ async function getSource(
         sourceMap,
         compilation,
         moduleId,
-        modulePath,
+        moduleURL,
         ignoredSources,
       }
     }
   }
 
   return undefined
+}
+
+function getOriginalStackFrames({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frames,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frames: StackFrame[]
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}): Promise<OriginalStackFramesResponse> {
+  return Promise.all(
+    frames.map(
+      (frame): Promise<OriginalStackFramesResponse[number]> =>
+        getOriginalStackFrame({
+          isServer,
+          isEdgeServer,
+          isAppDirectory,
+          frame,
+          clientStats,
+          serverStats,
+          edgeServerStats,
+          rootDirectory,
+        }).then(
+          (value) => {
+            return {
+              status: 'fulfilled',
+              value,
+            }
+          },
+          (reason) => {
+            return {
+              status: 'rejected',
+              reason: inspect(reason, { colors: false }),
+            }
+          }
+        )
+    )
+  )
+}
+
+async function getOriginalStackFrame({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frame,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frame: StackFrame
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}): Promise<OriginalStackFrameResponse> {
+  const filename = frame.file ?? ''
+  const source = await getSource(filename, {
+    getCompilations: () => {
+      const compilations: webpack.Compilation[] = []
+
+      // Try Client Compilation first. In `pages` we leverage
+      // `isClientError` to check. In `app` it depends on if it's a server
+      // / client component and when the code throws. E.g. during HTML
+      // rendering it's the server/edge compilation.
+      if ((!isEdgeServer && !isServer) || isAppDirectory) {
+        const compilation = clientStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Server Compilation. In `pages` this could be something
+      // imported in getServerSideProps/getStaticProps as the code for
+      // those is tree-shaken. In `app` this finds server components and
+      // code that was imported from a server component. It also covers
+      // when client component code throws during HTML rendering.
+      if (isServer || isAppDirectory) {
+        const compilation = serverStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Edge Server Compilation. Both cases are the same as Server
+      // Compilation, main difference is that it covers `runtime: 'edge'`
+      // pages/app routes.
+      if (isEdgeServer || isAppDirectory) {
+        const compilation = edgeServerStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      return compilations
+    },
+  })
+
+  // This stack frame is used for the one that couldn't locate the source or source mapped frame
+  const defaultStackFrame: IgnorableStackFrame = {
+    file: frame.file,
+    lineNumber: frame.lineNumber,
+    column: frame.column ?? 1,
+    methodName: frame.methodName,
+    ignored: shouldIgnoreSource(filename),
+    arguments: [],
+  }
+  if (!source) {
+    // return original stack frame with no source map
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  const originalStackFrameResponse = await createOriginalStackFrame({
+    frame,
+    source,
+    rootDirectory,
+  })
+
+  if (!originalStackFrameResponse) {
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  return originalStackFrameResponse
 }
 
 export function getOverlayMiddleware(options: {
@@ -359,102 +516,55 @@ export function getOverlayMiddleware(options: {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
-    if (pathname === '/__nextjs_original-stack-frame') {
-      const isServer = searchParams.get('isServer') === 'true'
-      const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
-      const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
-      const frame = createStackFrame(searchParams)
+    if (pathname === '/__nextjs_original-stack-frames') {
+      if (req.method !== 'POST') {
+        return middlewareResponse.badRequest(res)
+      }
 
-      let source: Source | undefined
-      try {
-        source = await getSource(frame.file, {
-          getCompilations: () => {
-            const compilations: webpack.Compilation[] = []
-
-            // Try Client Compilation first. In `pages` we leverage
-            // `isClientError` to check. In `app` it depends on if it's a server
-            // / client component and when the code throws. E.g. during HTML
-            // rendering it's the server/edge compilation.
-            if ((!isEdgeServer && !isServer) || isAppDirectory) {
-              const compilation = clientStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Server Compilation. In `pages` this could be something
-            // imported in getServerSideProps/getStaticProps as the code for
-            // those is tree-shaken. In `app` this finds server components and
-            // code that was imported from a server component. It also covers
-            // when client component code throws during HTML rendering.
-            if (isServer || isAppDirectory) {
-              const compilation = serverStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Edge Server Compilation. Both cases are the same as Server
-            // Compilation, main difference is that it covers `runtime: 'edge'`
-            // pages/app routes.
-            if (isEdgeServer || isAppDirectory) {
-              const compilation = edgeServerStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            return compilations
-          },
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk) => {
+          data += chunk
         })
-      } catch (err) {
-        console.error('Failed to get source map:', err)
-        return internalServerError(res)
-      }
-
-      // This stack frame is used for the one that couldn't locate the source or source mapped frame
-      const defaultStackFrame: IgnorableStackFrame = {
-        file: frame.file,
-        lineNumber: frame.lineNumber,
-        column: frame.column ?? 1,
-        methodName: frame.methodName,
-        ignored: shouldIgnorePath(frame.file),
-        arguments: [],
-      }
-      if (!source) {
-        // return original stack frame with no source map
-        return json(res, {
-          originalStackFrame: defaultStackFrame,
-          originalCodeFrame: null,
-        })
-      }
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
 
       try {
-        const originalStackFrameResponse = await createOriginalStackFrame({
-          frame,
-          source,
-          rootDirectory,
-        })
+        const { frames, isServer, isEdgeServer, isAppDirectory } = JSON.parse(
+          body
+        ) as OriginalStackFramesRequest
 
-        if (!originalStackFrameResponse) {
-          return json(res, {
-            originalStackFrame: defaultStackFrame,
-            originalCodeFrame: null,
+        return middlewareResponse.json(
+          res,
+          await getOriginalStackFrames({
+            isServer,
+            isEdgeServer,
+            isAppDirectory,
+            frames: frames.map((frame) => ({
+              ...frame,
+              lineNumber: frame.lineNumber ?? 0,
+              column: frame.column ?? 0,
+            })),
+            clientStats,
+            serverStats,
+            edgeServerStats,
+            rootDirectory,
           })
-        }
-
-        return json(res, originalStackFrameResponse)
+        )
       } catch (err) {
-        console.log('Failed to parse source map:', err)
-        return internalServerError(res)
+        return middlewareResponse.badRequest(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const frame = {
+        file: searchParams.get('file') as string,
+        methodName: searchParams.get('methodName') as string,
+        lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+        column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+        arguments: searchParams.getAll('arguments').filter(Boolean),
+      } satisfies StackFrame
 
-      if (!frame.file) return badRequest(res)
+      if (!frame.file) return middlewareResponse.badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
       const filePath = path.resolve(
@@ -465,16 +575,16 @@ export function getOverlayMiddleware(options: {
         () => true,
         () => false
       )
-      if (!fileExists) return noContent(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
-        await launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
+        launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -502,7 +612,7 @@ export function getSourceMapMiddleware(options: {
     const filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     let source: Source | undefined
@@ -526,15 +636,13 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      console.error('Failed to get source map:', error)
-
-      return internalServerError(res)
+      return middlewareResponse.internalServerError(res, error)
     }
 
     if (!source) {
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
-    return json(res, source.sourceMap)
+    return middlewareResponse.json(res, source.sourceMap)
   }
 }

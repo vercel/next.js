@@ -1,10 +1,9 @@
 ---
 title: unstable_cache
 description: API Reference for the unstable_cache function.
-version: legacy
 ---
 
-In version 15, we recommend using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive instead.
+> **Note:** This API will be replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) when it reaches stability.
 
 `unstable_cache` allows you to cache the results of expensive operations, like database queries, and reuse them across multiple requests.
 
@@ -51,12 +50,17 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ```tsx filename="app/page.tsx" switcher
 import { unstable_cache } from 'next/cache'
 
-export default async function Page({ params }: { params: { userId: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ userId: string }>
+}) {
+  const userId = (await params).userId
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: params.userId }
+      return { id: userId }
     },
-    [params.userId], // add the user ID to the cache key
+    [userId], // add the user ID to the cache key
     {
       tags: ['users'],
       revalidate: 60,
@@ -71,11 +75,12 @@ export default async function Page({ params }: { params: { userId: string } }) {
 import { unstable_cache } from 'next/cache';
 
 export default async function Page({ params } }) {
+  const userId = (await params).userId
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: params.userId };
+      return { id: userId };
     },
-    [params.userId], // add the user ID to the cache key
+    [userId], // add the user ID to the cache key
     {
       tags: ["users"],
       revalidate: 60,

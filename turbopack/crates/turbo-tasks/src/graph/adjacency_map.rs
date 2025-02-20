@@ -1,8 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    hash::Hash,
-};
+use std::{collections::VecDeque, hash::Hash};
 
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
@@ -16,7 +14,7 @@ use crate::{self as turbo_tasks, NonLocalValue};
     deserialize = "T: Deserialize<'de> + Eq + Hash"
 ))]
 pub struct AdjacencyMap<T> {
-    adjacency_map: HashMap<T, Vec<T>>,
+    adjacency_map: FxHashMap<T, Vec<T>>,
     roots: Vec<T>,
 }
 
@@ -49,7 +47,7 @@ where
     /// Creates a new adjacency map
     pub fn new() -> Self {
         Self {
-            adjacency_map: HashMap::new(),
+            adjacency_map: FxHashMap::default(),
             roots: Vec::new(),
         }
     }
@@ -67,7 +65,7 @@ where
 
 impl<T> GraphStore for AdjacencyMap<T>
 where
-    T: Eq + Hash + Clone,
+    T: Eq + Hash + Clone + Send,
 {
     type Node = T;
     type Handle = T;
@@ -101,7 +99,7 @@ where
                 .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 
@@ -116,7 +114,7 @@ where
                 .rev()
                 .map(|root| (None, root))
                 .collect(),
-            expanded: HashSet::new(),
+            expanded: FxHashSet::default(),
         }
     }
 
@@ -131,7 +129,7 @@ where
                 .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 
@@ -144,7 +142,7 @@ where
         ReverseTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: vec![(ReverseTopologicalPass::Pre, node)],
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 }
@@ -161,9 +159,9 @@ pub struct IntoReverseTopologicalIter<T>
 where
     T: Eq + Hash + Clone,
 {
-    adjacency_map: HashMap<T, Vec<T>>,
+    adjacency_map: FxHashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, T)>,
-    visited: HashSet<T>,
+    visited: FxHashSet<T>,
 }
 
 impl<T> Iterator for IntoReverseTopologicalIter<T>
@@ -210,9 +208,9 @@ pub struct IntoBreadthFirstEdges<T>
 where
     T: Eq + std::hash::Hash + Clone,
 {
-    adjacency_map: HashMap<T, Vec<T>>,
+    adjacency_map: FxHashMap<T, Vec<T>>,
     stack: VecDeque<(Option<T>, T)>,
-    expanded: HashSet<T>,
+    expanded: FxHashSet<T>,
 }
 
 impl<T> Iterator for IntoBreadthFirstEdges<T>
@@ -246,9 +244,9 @@ pub struct ReverseTopologicalIter<'graph, T>
 where
     T: Eq + Hash + Clone,
 {
-    adjacency_map: &'graph HashMap<T, Vec<T>>,
+    adjacency_map: &'graph FxHashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, &'graph T)>,
-    visited: HashSet<&'graph T>,
+    visited: FxHashSet<&'graph T>,
 }
 
 impl<'graph, T> Iterator for ReverseTopologicalIter<'graph, T>

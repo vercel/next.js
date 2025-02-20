@@ -2770,12 +2770,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, turbopackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_214 = [];
+    var JSCompiler_object_inline_chunks_227 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_214.push(chunk);
+      JSCompiler_object_inline_chunks_227.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_214, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_227, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);

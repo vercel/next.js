@@ -26,7 +26,10 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - name: Install dependencies
         shell: bash
@@ -59,7 +62,10 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - name: Install dependencies
         shell: bash
