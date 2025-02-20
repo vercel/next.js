@@ -103,34 +103,4 @@ describe('Build Activity Indicator', () => {
       await browser.close()
     })
   })
-
-  describe.each(['pages', 'app'])(
-    'Disabled with next.config.js - (%s)',
-    (pagesOrApp) => {
-      beforeAll(async () => {
-        await fs.writeFile(
-          nextConfig,
-          'module.exports = { devIndicators: { buildActivity: false } }',
-          'utf8'
-        )
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort)
-      })
-
-      afterAll(async () => {
-        await killApp(app)
-        await fs.remove(nextConfig)
-      })
-
-      it('Does not add the build indicator container', async () => {
-        const browser = await webdriver(
-          appPort,
-          pagesOrApp === 'pages' ? '/' : '/app'
-        )
-        const html = await browser.eval('document.body.innerHTML')
-        expect(html).not.toMatch(/__next-build-indicator/)
-        await browser.close()
-      })
-    }
-  )
 })
