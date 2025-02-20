@@ -22,7 +22,7 @@ export function useIsDevBuilding() {
   return useSyncExternalStore(subscribe, getSnapshot)
 }
 
-export function initializeForNewOverlay() {
+export function initialize() {
   devBuildIndicator.show = () => {
     isVisible = true
     listeners.forEach((listener) => listener())
