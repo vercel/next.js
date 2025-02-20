@@ -1,0 +1,19 @@
+diff --git a/dist/types-a5624094.d.ts b/dist/types-a5624094.d.ts
+index 8e1eb5e94642cb7e943fdb09da96606021701921..9958875a5d2026867455238ec44a71f905d758a4 100644
+--- a/dist/types-a5624094.d.ts
++++ b/dist/types-a5624094.d.ts
+@@ -1,4 +1,4 @@
+-import { ComponentType } from 'react';
++import { ComponentType, JSX } from 'react';
+ import { WebRenderer, Canvas } from 'storybook/internal/types';
+ 
+ interface ReactRenderer extends WebRenderer {
+diff --git a/template/components/index.js b/template/components/index.js
+deleted file mode 100644
+index c473ab7bed22857c051643fc4f0fce5637793adc..0000000000000000000000000000000000000000
+diff --git a/template/stories/docgen-components/imported.js b/template/stories/docgen-components/imported.js
+deleted file mode 100644
+index bd94145261b03fff811e93a3d8f350a03b7a5105..0000000000000000000000000000000000000000
+diff --git a/template/stories/docgen-components/js-proptypes/ext.js b/template/stories/docgen-components/js-proptypes/ext.js
+deleted file mode 100644
+index 11d0ad4810bb77980bc7be0b7697f3a85b15ffd2..0000000000000000000000000000000000000000

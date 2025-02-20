@@ -4,6 +4,7 @@ import {
   assertNoRedbox,
   openRedbox,
   getRedboxDescription,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 // TODO: parse the location and assert them in the future
@@ -18,6 +19,7 @@ function normalizeStackTrace(trace: string) {
 }
 
 async function getStackFramesContent(browser) {
+  await hasRedboxCallStack(browser)
   const stackFrameElements = await browser.elementsByCss(
     '[data-nextjs-call-stack-frame]'
   )
@@ -55,17 +57,11 @@ describe('app-dir - owner-stack', () => {
     await assertHasRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useErrorHook (app/browser/uncaught/page.js (10:3))
-        at Page (app/browser/uncaught/page.js (14:3))"
-      `)
-    } else {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useThrowError (app/browser/uncaught/page.js (10:3))
-        at useErrorHook (app/browser/uncaught/page.js (14:3))"
-      `)
-    }
+    expect(stackFramesContent).toMatchInlineSnapshot(`
+     "at useThrowError (app/browser/uncaught/page.js (5:11))
+     at useErrorHook (app/browser/uncaught/page.js (10:3))
+     at Page (app/browser/uncaught/page.js (14:3))"
+    `)
 
     const logs = await browser.log()
     const errorLog = logs.find((log) => {
@@ -74,41 +70,41 @@ describe('app-dir - owner-stack', () => {
 
     if (process.env.TURBOPACK) {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "%o
-        %s Error: browser error
-        at useThrowError 
-        at useErrorHook 
-        at Page 
-        at react-stack-bottom-frame 
-        at renderWithHooks 
-        at updateFunctionComponent 
-        at beginWork 
-        at runWithFiberInDEV 
-        at performUnitOfWork 
-        at workLoopSync 
-        at renderRootSync 
-        at performWorkOnRoot 
-        at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
-      `)
+          "%o
+          %s Error: browser error
+          at useThrowError 
+          at useErrorHook 
+          at Page 
+          at react-stack-bottom-frame 
+          at renderWithHooks 
+          at updateFunctionComponent 
+          at beginWork 
+          at runWithFiberInDEV 
+          at performUnitOfWork 
+          at workLoopSync 
+          at renderRootSync 
+          at performWorkOnRoot 
+          at performWorkOnRootViaSchedulerTask 
+          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+        `)
     } else {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-        "%o
-        %s Error: browser error
-        at useThrowError 
-        at useErrorHook 
-        at Page 
-        at react-stack-bottom-frame 
-        at renderWithHooks 
-        at updateFunctionComponent 
-        at beginWork 
-        at runWithFiberInDEV 
-        at performUnitOfWork 
-        at workLoopSync 
-        at renderRootSync 
-        at performWorkOnRoot 
-        at performWorkOnRootViaSchedulerTask 
-        at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
+          "%o
+          %s Error: browser error
+          at useThrowError 
+          at useErrorHook 
+          at Page 
+          at react-stack-bottom-frame 
+          at renderWithHooks 
+          at updateFunctionComponent 
+          at beginWork 
+          at runWithFiberInDEV 
+          at performUnitOfWork 
+          at workLoopSync 
+          at renderRootSync 
+          at performWorkOnRoot 
+          at performWorkOnRootViaSchedulerTask 
+          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
       `)
     }
   })
@@ -127,21 +123,13 @@ describe('app-dir - owner-stack', () => {
 
     const stackFramesContent = await getStackFramesContent(browser)
 
-    if (process.env.TURBOPACK) {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useErrorHook (app/browser/caught/page.js (39:3))
-        at Thrower (app/browser/caught/page.js (29:3))
-        at Inner (app/browser/caught/page.js (23:7))
-        at Page (app/browser/caught/page.js (43:10))"
-      `)
-    } else {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useThrowError (app/browser/caught/page.js (39:3))
-        at useErrorHook (app/browser/caught/page.js (29:3))
-        at Thrower (app/browser/caught/page.js (23:8))
-        at Inner (app/browser/caught/page.js (43:11))"
-      `)
-    }
+    expect(stackFramesContent).toMatchInlineSnapshot(`
+     "at useThrowError (app/browser/caught/page.js (34:11))
+     at useErrorHook (app/browser/caught/page.js (39:3))
+     at Thrower (app/browser/caught/page.js (29:3))
+     at Inner (app/browser/caught/page.js (23:7))
+     at Page (app/browser/caught/page.js (43:10))"
+    `)
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
       "%o
@@ -169,17 +157,11 @@ describe('app-dir - owner-stack', () => {
     await assertHasRedbox(browser)
 
     const stackFramesContent = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useErrorHook (app/ssr/page.js (8:3))
-        at Page (app/ssr/page.js (12:3))"
-      `)
-    } else {
-      expect(stackFramesContent).toMatchInlineSnapshot(`
-        "at useThrowError (app/ssr/page.js (8:3))
-        at useErrorHook (app/ssr/page.js (12:3))"
-      `)
-    }
+    expect(stackFramesContent).toMatchInlineSnapshot(`
+     "at useThrowError (app/ssr/page.js (4:9))
+     at useErrorHook (app/ssr/page.js (8:3))
+     at Page (app/ssr/page.js (12:3))"
+    `)
 
     const logs = await browser.log()
     const errorLog = logs.find((log) => {
@@ -187,23 +169,23 @@ describe('app-dir - owner-stack', () => {
     }).message
 
     expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
-      "%o
-      %s Error: ssr error
-      at useThrowError 
-      at useErrorHook 
-      at Page 
-      at react-stack-bottom-frame 
-      at renderWithHooks 
-      at updateFunctionComponent 
-      at beginWork 
-      at runWithFiberInDEV 
-      at performUnitOfWork 
-      at workLoopSync 
-      at renderRootSync 
-      at performWorkOnRoot 
-      at performWorkOnRootViaSchedulerTask 
-      at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <ReactDevOverlay> error boundary."
-    `)
+       "%o
+       %s Error: ssr error
+       at useThrowError 
+       at useErrorHook 
+       at Page 
+       at react-stack-bottom-frame 
+       at renderWithHooks 
+       at updateFunctionComponent 
+       at beginWork 
+       at runWithFiberInDEV 
+       at performUnitOfWork 
+       at workLoopSync 
+       at renderRootSync 
+       at performWorkOnRoot 
+       at performWorkOnRootViaSchedulerTask 
+       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+      `)
   })
 
   it('should capture unhandled promise rejections', async () => {

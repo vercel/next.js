@@ -6,6 +6,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   check,
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -373,7 +374,9 @@ describe('required server files i18n', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=first',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -386,7 +389,9 @@ describe('required server files i18n', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=second',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -401,7 +406,9 @@ describe('required server files i18n', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/en/dynamic/first.json?nxtPslug=first`,
+      `/_next/data/${next.buildId}/en/dynamic/first.json?${createNowRouteMatches(
+        { slug: 'first' }
+      ).toString()}`,
       undefined,
       {
         headers: {
@@ -422,7 +429,9 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/fallback/[slug].json`,
-          'x-now-route-matches': '1=second',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second',
+          }).toString(),
         },
       }
     )
@@ -459,7 +468,9 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -478,7 +489,9 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -515,7 +528,9 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&nxtPrest=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -532,7 +547,9 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/en/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -585,7 +602,11 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/to-dynamic/%c0.%c0.',
-      '?path=%c0.%c0.',
+      Object.fromEntries(
+        createNowRouteMatches({
+          path: '%c0.%c0.',
+        })
+      ),
       {
         headers: {
           'x-matched-path': '/dynamic/[slug]',
@@ -654,7 +675,16 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssp',
-      { nxtPrest: '', another: 'value' },
+      Object.fromEntries(
+        createNowRouteMatches(
+          {
+            rest: '',
+          },
+          {
+            another: 'value',
+          }
+        )
+      ),
       {
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -677,7 +707,12 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': '/en/optional-ssg/[[...rest]]',
-          'x-now-route-matches': 'nextLocale=en&1=en',
+          'x-now-route-matches': createNowRouteMatches(
+            {},
+            {
+              nextLocale: 'en',
+            }
+          ).toString(),
         },
       }
     )
@@ -696,8 +731,10 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': '/en/[slug]/social/[[...rest]]',
-          'x-now-route-matches':
-            'nextLocale=en&1=en&2=user-123&nxtPslug=user-123',
+          'x-now-route-matches': createNowRouteMatches(
+            { slug: 'user-123' },
+            { nextLocale: 'en' }
+          ).toString(),
         },
       }
     )
@@ -719,8 +756,7 @@ describe('required server files i18n', () => {
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
+          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )
@@ -737,7 +773,16 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional',
-      { nxtPrest: '', another: 'value' },
+      Object.fromEntries(
+        createNowRouteMatches(
+          {
+            rest: '',
+          },
+          {
+            another: 'value',
+          }
+        )
+      ),
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -780,7 +825,14 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(appPort, '/en/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/en/fallback/[slug]',
-        'x-now-route-matches': '2=another&nxtPslug=another&1=en&nextLocale=en',
+        'x-now-route-matches': createNowRouteMatches(
+          {
+            slug: 'another',
+          },
+          {
+            nextLocale: 'en',
+          }
+        ).toString(),
       },
       redirect: 'manual',
     })
@@ -798,7 +850,14 @@ describe('required server files i18n', () => {
     const res = await fetchViaHTTP(appPort, '/fr/fallback/[slug]', undefined, {
       headers: {
         'x-matched-path': '/fr/fallback/[slug]',
-        'x-now-route-matches': '2=another&nxtPslug=another&1=fr&nextLocale=fr',
+        'x-now-route-matches': createNowRouteMatches(
+          {
+            slug: 'another',
+          },
+          {
+            nextLocale: 'fr',
+          }
+        ).toString(),
       },
       redirect: 'manual',
     })

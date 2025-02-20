@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -20,6 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_REQUIRE,
     utils::StringifyJs,
 };
 
@@ -67,11 +69,13 @@ impl ChunkableModule for HmrEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             HmrEntryChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -128,7 +132,7 @@ impl ValueToString for HmrEntryModuleReference {
 impl ModuleReference for HmrEntryModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 
@@ -139,6 +143,7 @@ impl ChunkableModuleReference for HmrEntryModuleReference {}
 #[turbo_tasks::value]
 struct HmrEntryChunkItem {
     module: ResolvedVc<HmrEntryModule>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -155,11 +160,6 @@ impl ChunkItem for HmrEntryChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<EcmascriptChunkType>::default())
     }
@@ -173,19 +173,14 @@ impl ChunkItem for HmrEntryChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.module.await?;
         let module = this.module;
-        let chunk_item = module.as_chunk_item(*self.chunking_context);
+        let chunk_item = module.as_chunk_item(*self.module_graph, *self.chunking_context);
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();
-        writeln!(code, "__turbopack_require__({});", StringifyJs(&id))?;
+        writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {

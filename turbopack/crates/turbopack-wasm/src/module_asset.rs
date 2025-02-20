@@ -4,19 +4,24 @@ use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        chunk_group::references_to_output_assets, AsyncModuleInfo, ChunkItem, ChunkType,
+        ChunkableModule, ChunkingContext,
+    },
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
-    reference::ModuleReferences,
+    module_graph::ModuleGraph,
+    output::OutputAssets,
+    reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
     references::async_module::OptionAsyncModule,
 };
@@ -104,6 +109,18 @@ impl WebAssemblyModuleAsset {
 
         Ok(esm_asset)
     }
+
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                Vc::upcast(self.loader()),
+                Vc::cell("wasm loader".into()),
+            )
+            .to_resolved()
+            .await?,
+        )]))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -120,6 +137,11 @@ impl Module for WebAssemblyModuleAsset {
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
+
+    #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -135,11 +157,13 @@ impl ChunkableModule for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             ModuleChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -182,6 +206,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 struct ModuleChunkItem {
     module: ResolvedVc<WebAssemblyModuleAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -192,13 +217,9 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        let loader = self
-            .module
-            .loader()
-            .as_chunk_item(Vc::upcast(*self.chunking_context));
-
-        loader.references()
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let loader_references = self.module.loader().references().await?;
+        references_to_output_assets(&*loader_references).await
     }
 
     #[turbo_tasks::function]
@@ -217,20 +238,10 @@ impl ChunkItem for ModuleChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
     }
-
-    #[turbo_tasks::function]
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
-    }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("content() should not be called");
@@ -242,23 +253,20 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let loader_asset = self.module.loader();
-        let item = loader_asset.as_chunk_item(Vc::upcast(*self.chunking_context));
+        let item =
+            loader_asset.as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context));
 
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        let chunk_item_content = ecmascript_item
+        let mut chunk_item_content = ecmascript_item
             .content_with_async_module_info(async_module_info)
+            .owned()
             .await?;
 
-        Ok(EcmascriptChunkItemContent {
-            options: EcmascriptChunkItemOptions {
-                wasm: true,
-                ..chunk_item_content.options.clone()
-            },
-            ..chunk_item_content.clone_value()
-        }
-        .into())
+        chunk_item_content.options.wasm = true;
+
+        Ok(chunk_item_content.cell())
     }
 }

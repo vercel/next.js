@@ -69,6 +69,15 @@ export async function middleware(request) {
     return res
   }
 
+  if (request.nextUrl.pathname === '/preloads') {
+    const res = NextResponse.next({
+      headers: {
+        link: '<https://example.com/page>; rel="alternate"; hreflang="en"',
+      },
+    })
+    return res
+  }
+
   return NextResponse.next({
     request: {
       headers: headersFromRequest,

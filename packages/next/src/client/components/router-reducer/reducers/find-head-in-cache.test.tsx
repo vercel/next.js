@@ -1,4 +1,3 @@
-import React from 'react'
 import type { FlightRouterState } from '../../../../server/app-render/types'
 import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { findHeadInCache } from './find-head-in-cache'
@@ -69,11 +68,7 @@ describe('findHeadInCache', () => {
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
-                                      <>
-                                        <title>About page!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),
@@ -107,11 +102,7 @@ describe('findHeadInCache', () => {
     expect(result).not.toBeNull()
 
     const [cacheNode, key] = result!
-    expect(cacheNode.head).toMatchObject(
-      <>
-        <title>About page!</title>
-      </>
-    )
+    expect(cacheNode.head).toBe(null)
     expect(key).toBe('/linking/about/')
   })
 })

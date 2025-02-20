@@ -45,9 +45,8 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import { onRecoverableError } from './react-client-callbacks/shared'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
-import reportToSocket from './tracing/report-to-socket'
 import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
@@ -189,10 +188,13 @@ class Container extends React.Component<{
 export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
-  tracer.onSpanEnd(reportToSocket)
-
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
+    tracer.onSpanEnd(
+      (
+        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+      ).default
+    )
     devClient = opts.devClient
   }
 

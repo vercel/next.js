@@ -56,3 +56,6 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+
+# Storybook
+*storybook.log

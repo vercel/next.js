@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  getRedboxSource,
+  hasRedboxCallStack,
+} from 'next-test-utils'
 import { outdent } from 'outdent'
 
 function normalizeStackTrace(trace) {
@@ -24,6 +28,7 @@ describe('app dir - dynamic error trace', () => {
       )
     ).resolves.toEqual(false)
 
+    await hasRedboxCallStack(browser)
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -35,25 +40,15 @@ describe('app dir - dynamic error trace', () => {
 
     // TODO: Show useful stack
     const normalizedStack = normalizeStackTrace(stackFramesContent)
-    expect(normalizedStack).toMatchInlineSnapshot(`""`)
+    expect(normalizedStack).toMatchInlineSnapshot(`
+     "Foo
+     app/lib.js"
+    `)
 
     const codeframe = await getRedboxSource(browser)
     expect(codeframe).toEqual(
-      process.env.TURBOPACK
-        ? outdent`
+      outdent`
             app/lib.js (4:13) @ Foo
-            
-              2 |
-              3 | export function Foo() {
-            > 4 |   useHeaders()
-                |             ^
-              5 |   return 'foo'
-              6 | }
-              7 |
-          `
-        : // TODO: should be "@ Foo" since that's where we put the codeframe and print the source location
-          outdent`
-            app/lib.js (4:13) @ useHeaders
 
               2 |
               3 | export function Foo() {

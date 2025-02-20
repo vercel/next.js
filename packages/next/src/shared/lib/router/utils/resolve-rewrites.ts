@@ -17,7 +17,7 @@ export default function resolveRewrites(
   },
   query: ParsedUrlQuery,
   resolveHref: (path: string) => string,
-  locales?: string[]
+  locales?: readonly string[]
 ): {
   matchedPage: boolean
   parsedAs: ParsedRelativeUrl

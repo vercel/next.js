@@ -9,8 +9,14 @@ async function main() {
   const { owner, repo } = context.repo
   const issue = context.payload.issue
   const body = `
-    This issue has been closed due to the incorrect issue template being used. Please make sure to submit a new issue using the [correct issue template](https://github.com/vercel/next.js/issues/new?assignees=&labels=bug&projects=&template=1.bug_report.yml). This will ensure that we have all the necessary information to triage your issue. Thank you.
-    `
+
+This issue has been closed due to the incorrect issue template being used. Please make sure to submit a new issue using the [correct issue template](https://github.com/vercel/next.js/issues/new?assignees=&labels=bug&projects=&template=1.bug_report.yml). This will ensure that we have all the necessary information to triage your issue.
+
+Thank you for your understanding and contributions.
+
+Best regards,
+The Next.js Team
+  `
 
   try {
     await octokit.rest.issues.createComment({

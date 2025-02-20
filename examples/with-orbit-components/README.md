@@ -2,10 +2,6 @@
 
 [Orbit-components](https://orbit.kiwi) is a React component library which provides developers with the easiest possible way of building Kiwi.com’s products.
 
-For this purpose we are extending `<App />` of injected `<ThemeProvider/>`, and also adding `@kiwicom/babel-plugin-orbit-components`.
-
-This fork comes from [styled-components-example](https://github.com/vercel/next.js/tree/canary/examples/with-styled-components).
-
 ## Deploy your own
 
 Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-orbit-components)

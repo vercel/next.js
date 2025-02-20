@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css [test] (css module)"],"sourcesContent":["__turbopack_context__.v({\n  \"className\": \"index-module__H6xp9G__className\",\n  \"subClass\": \"index-module__H6xp9G__subClass\" + \" \" + \"index-module__H6xp9G__className\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA;AACA"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.js"],"sourcesContent":["import { subClass } from './index.module.css'\n"],"names":[],"mappings":";AAAA"}},
+    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

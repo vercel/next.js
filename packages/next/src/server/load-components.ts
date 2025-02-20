@@ -20,6 +20,7 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -31,7 +32,7 @@ import { wait } from '../lib/wait'
 import { setReferenceManifestsSingleton } from './app-render/encryption-utils'
 import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
+import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 
 export type ManifestItem = {
   id: number | string
@@ -98,6 +99,20 @@ export async function loadManifestWithRetries<T extends object>(
 }
 
 /**
+ * Load manifest file with retries, defaults to 3 attempts, or return undefined.
+ */
+export async function tryLoadManifestWithRetries<T extends object>(
+  manifestPath: string,
+  attempts = 3
+) {
+  try {
+    return await loadManifestWithRetries<T>(manifestPath, attempts)
+  } catch (err) {
+    return undefined
+  }
+}
+
+/**
  * Load manifest file with retries, defaults to 3 attempts.
  */
 export async function evalManifestWithRetries<T extends object>(
@@ -116,7 +131,7 @@ export async function evalManifestWithRetries<T extends object>(
   }
 }
 
-async function loadClientReferenceManifest(
+async function tryLoadClientReferenceManifest(
   manifestPath: string,
   entryName: string,
   attempts?: number
@@ -136,11 +151,13 @@ async function loadComponentsImpl<N = any>({
   page,
   isAppPath,
   isDev,
+  sriEnabled,
 }: {
   distDir: string
   page: string
   isAppPath: boolean
   isDev: boolean
+  sriEnabled: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
@@ -151,29 +168,52 @@ async function loadComponentsImpl<N = any>({
     ])
   }
 
-  // Make sure to avoid loading the manifest for metadata route handlers.
-  const hasClientManifest = isAppPath && !isMetadataRoute(page)
-
   // In dev mode we retry loading a manifest file to handle a race condition
   // that can occur while app and pages are compiling at the same time, and the
   // build-manifest is still being written to disk while an app path is
   // attempting to load.
   const manifestLoadAttempts = isDev ? 3 : 1
 
+  let reactLoadableManifestPath
+  if (!process.env.TURBOPACK) {
+    reactLoadableManifestPath = join(distDir, REACT_LOADABLE_MANIFEST)
+  } else if (isAppPath) {
+    reactLoadableManifestPath = join(
+      distDir,
+      'server',
+      'app',
+      page,
+      REACT_LOADABLE_MANIFEST
+    )
+  } else {
+    reactLoadableManifestPath = join(
+      distDir,
+      'server',
+      'pages',
+      normalizePagePath(page),
+      REACT_LOADABLE_MANIFEST
+    )
+  }
+
   // Load the manifest files first
+  //
+  // Loading page-specific manifests shouldn't throw an error if the manifest couldn't be found, so
+  // that the `requirePage` call below will throw the correct error in that case
+  // (a `PageNotFoundError`).
   const [
     buildManifest,
     reactLoadableManifest,
     dynamicCssManifest,
     clientReferenceManifest,
     serverActionsManifest,
+    subresourceIntegrityManifest,
   ] = await Promise.all([
     loadManifestWithRetries<BuildManifest>(
       join(distDir, BUILD_MANIFEST),
       manifestLoadAttempts
     ),
-    loadManifestWithRetries<ReactLoadableManifest>(
-      join(distDir, REACT_LOADABLE_MANIFEST),
+    tryLoadManifestWithRetries<ReactLoadableManifest>(
+      reactLoadableManifestPath,
       manifestLoadAttempts
     ),
     // This manifest will only exist in Pages dir && Production && Webpack.
@@ -183,8 +223,8 @@ async function loadComponentsImpl<N = any>({
           join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
           manifestLoadAttempts
         ).catch(() => undefined),
-    hasClientManifest
-      ? loadClientReferenceManifest(
+    isAppPath
+      ? tryLoadClientReferenceManifest(
           join(
             distDir,
             'server',
@@ -201,6 +241,11 @@ async function loadComponentsImpl<N = any>({
           manifestLoadAttempts
         ).catch(() => null)
       : null,
+    sriEnabled
+      ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
+          join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
+        ).catch(() => undefined)
+      : undefined,
   ])
 
   // Before requiring the actual page module, we have to set the reference
@@ -231,7 +276,8 @@ async function loadComponentsImpl<N = any>({
     Document,
     Component,
     buildManifest,
-    reactLoadableManifest,
+    subresourceIntegrityManifest,
+    reactLoadableManifest: reactLoadableManifest || {},
     dynamicCssManifest,
     pageConfig: ComponentMod.config || {},
     ComponentMod,

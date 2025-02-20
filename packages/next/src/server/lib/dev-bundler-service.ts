@@ -75,6 +75,7 @@ export class DevBundlerService {
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && revalidateOpts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
@@ -102,5 +103,9 @@ export class DevBundlerService {
       action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
       data: this.appIsrManifest,
     })
+  }
+
+  public close() {
+    this.bundler.hotReloader.close()
   }
 }

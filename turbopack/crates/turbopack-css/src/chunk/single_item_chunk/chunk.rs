@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkingContext},
@@ -11,7 +11,7 @@ use turbopack_core::{
     ident::AssetIdent,
     introspect::Introspectable,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
@@ -57,10 +57,7 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(
-            &content.inner_code,
-            content.source_map.map(ResolvedVc::upcast).map(|v| *v),
-        );
+        code.push_source(&content.inner_code, content.source_map.clone());
         write!(code, "{close}")?;
 
         if *this
@@ -87,7 +84,7 @@ impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        self_as_output_asset.ident()
+        AssetIdent::from_path(self_as_output_asset.path())
     }
 
     #[turbo_tasks::function]
@@ -104,14 +101,12 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(
-            self.chunking_context.chunk_path(
-                self.item
-                    .asset_ident()
-                    .with_modifier(single_item_modifier()),
-                ".css".into(),
-            ),
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.chunking_context.chunk_path(
+            self.item
+                .asset_ident()
+                .with_modifier(single_item_modifier()),
+            ".css".into(),
         )
     }
 
@@ -148,7 +143,7 @@ impl Asset for SingleItemCssChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

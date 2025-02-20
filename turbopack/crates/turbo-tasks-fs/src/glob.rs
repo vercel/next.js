@@ -407,13 +407,7 @@ impl Glob {
         }
         Ok(Self::cell(Glob {
             expression: vec![GlobPart::Alternatives(
-                globs
-                    .into_iter()
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .map(|g| g.clone_value())
-                    .collect(),
+                globs.into_iter().map(|g| g.owned()).try_join().await?,
             )],
         }))
     }

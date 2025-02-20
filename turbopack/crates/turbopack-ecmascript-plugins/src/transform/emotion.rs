@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
@@ -14,10 +15,12 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, OperationValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
     DevOnly,
@@ -27,7 +30,7 @@ pub enum EmotionLabelKind {
 
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
@@ -64,7 +67,7 @@ impl EmotionTransformer {
             // emotion transform.
             enabled: Some(true),
             sourcemap: config.sourcemap,
-            label_format: config.label_format.clone(),
+            label_format: config.label_format.as_deref().map(From::from),
             auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
                 match auto_label {
                     EmotionLabelKind::Always => Some(true),
@@ -96,13 +99,12 @@ impl CustomTransformer for EmotionTransformer {
         #[cfg(feature = "transform_emotion")]
         {
             let hash = {
-                #[allow(clippy::disallowed_types)]
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                let mut hasher = FxHasher::default();
                 program.hash(&mut hasher);
                 hasher.finish()
             };
             program.mutate(swc_emotion::emotion(
-                self.config.clone(),
+                &self.config,
                 Path::new(ctx.file_name_str),
                 hash as u32,
                 ctx.source_map.clone(),

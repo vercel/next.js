@@ -385,16 +385,16 @@ graph TD
     Export(
         "external1",
     ): 10,
-    Exports: 14,
+    Export(
+        "external2",
+    ): 11,
     Export(
         "foo",
     ): 13,
     Export(
         "foobar",
     ): 11,
-    Export(
-        "external2",
-    ): 11,
+    Exports: 14,
 }
 ```
 
@@ -612,16 +612,16 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "external1",
     ): 9,
-    Exports: 12,
+    Export(
+        "external2",
+    ): 10,
     Export(
         "foo",
     ): 3,
     Export(
         "foobar",
     ): 11,
-    Export(
-        "external2",
-    ): 10,
+    Exports: 12,
 }
 ```
 
@@ -814,16 +814,16 @@ console.log(foobarCopy);
     Export(
         "external1",
     ): 9,
-    Exports: 12,
+    Export(
+        "external2",
+    ): 10,
     Export(
         "foo",
     ): 3,
     Export(
         "foobar",
     ): 11,
-    Export(
-        "external2",
-    ): 10,
+    Exports: 12,
 }
 ```
 
@@ -863,16 +863,16 @@ export { external1 as g } from "__TURBOPACK_VAR__" assert {
     Export(
         "external1",
     ): 9,
-    Exports: 12,
+    Export(
+        "external2",
+    ): 10,
     Export(
         "foo",
     ): 3,
     Export(
         "foobar",
     ): 11,
-    Export(
-        "external2",
-    ): 10,
+    Exports: 12,
 }
 ```
 

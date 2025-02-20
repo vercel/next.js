@@ -15,6 +15,10 @@ pub(super) struct EcmascriptDevChunkListVersion {
     #[turbo_tasks(trace_ignore)]
     pub by_path: FxIndexMap<String, VersionTraitRef>,
     /// A map from chunk merger to the version of the merged contents of chunks.
+    //
+    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC!
+    // Version is also expected not to contain `Vc`/`ResolvedVc`/`OperationVc`, and
+    // `turbopack_core::version::TotalUpdate` assumes it doesn't.
     #[turbo_tasks(trace_ignore)]
     pub by_merger: FxIndexMap<ResolvedVc<Box<dyn VersionedContentMerger>>, VersionTraitRef>,
 }
@@ -28,7 +32,7 @@ impl Version for EcmascriptDevChunkListVersion {
                 .by_path
                 .iter()
                 .map(|(path, version)| async move {
-                    let id = TraitRef::cell(version.clone()).id().await?.clone_value();
+                    let id = TraitRef::cell(version.clone()).id().owned().await?;
                     Ok((path, id))
                 })
                 .try_join()
@@ -41,7 +45,7 @@ impl Version for EcmascriptDevChunkListVersion {
                 .by_merger
                 .iter()
                 .map(|(_merger, version)| async move {
-                    Ok(TraitRef::cell(version.clone()).id().await?.clone_value())
+                    TraitRef::cell(version.clone()).id().owned().await
                 })
                 .try_join()
                 .await?;

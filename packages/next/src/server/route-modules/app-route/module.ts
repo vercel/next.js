@@ -96,6 +96,10 @@ export class WrappedNextRouterError {
  */
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
+export type AppRouteSharedContext = {
+  buildId: string
+}
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -105,6 +109,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+  sharedContext: AppRouteSharedContext
 }
 
 type CollectedCacheInfo = {
@@ -359,6 +364,9 @@ export class AppRouteRouteModule extends RouteModule<
             (prerenderStore = {
               type: 'prerender',
               phase: 'action',
+              // This replicates prior behavior where rootParams is empty in routes
+              // TODO we need to make this have the proper rootParams for this route
+              rootParams: {},
               implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -445,6 +453,7 @@ export class AppRouteRouteModule extends RouteModule<
           const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
             type: 'prerender',
             phase: 'action',
+            rootParams: {},
             implicitTags: implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -524,6 +533,7 @@ export class AppRouteRouteModule extends RouteModule<
           prerenderStore = {
             type: 'prerender-legacy',
             phase: 'action',
+            rootParams: {},
             implicitTags: implicitTags,
             revalidate: defaultRevalidate,
             expire: INFINITE_CACHE,
@@ -559,7 +569,7 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // TODO leaving the gate here b/c it indicates that we might not actually want to do this
         // on every `do` call. During prerender there should be no mutableCookies because
         if (requestStore.type === 'request') {
           appendMutableCookies(headers, requestStore.mutableCookies)
@@ -597,7 +607,14 @@ export class AppRouteRouteModule extends RouteModule<
         workStore.revalidatedTags || []
       ),
       ...Object.values(workStore.pendingRevalidates || {}),
-    ])
+    ]).finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log(
+          'pending revalidates promise finished for:',
+          requestStore.url
+        )
+      }
+    })
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
@@ -637,6 +654,7 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      buildId: context.sharedContext.buildId,
     }
 
     // Add the fetchCache option to the renderOpts.

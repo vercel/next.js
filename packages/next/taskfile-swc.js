@@ -19,10 +19,15 @@ module.exports = function (task) {
       { stripExtension, interopClientDefaultExport = false, esm = false } = {}
     ) {
       // Don't compile .d.ts
-      if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
+      if (
+        file.base.endsWith('.d.ts') ||
+        file.base.endsWith('.json') ||
+        file.base.endsWith('.woff2')
+      )
+        return
 
       const plugins = [
-        ...(file.base.includes('.test.')
+        ...(file.base.includes('.test.') || file.base.includes('.stories.')
           ? []
           : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
       ]

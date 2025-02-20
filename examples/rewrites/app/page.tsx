@@ -11,7 +11,7 @@ export default function Index() {
         <p>
           The links below are{" "}
           <Link
-            href="https://nextjs.org/docs/app/api-reference/next-config-js/rewrites"
+            href="https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites"
             legacyBehavior
           >
             <span>

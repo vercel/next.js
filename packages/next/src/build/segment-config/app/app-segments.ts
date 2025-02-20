@@ -18,7 +18,7 @@ import {
   isAppRouteRouteModule,
   isAppPageRouteModule,
 } from '../../../server/route-modules/checks'
-import { isClientReference } from '../../../lib/client-reference'
+import { isClientReference } from '../../../lib/client-and-server-references'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
 import {
   getLayoutOrPageModule,
@@ -92,15 +92,15 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     // Process current node
     const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
     const isClientComponent = userland && isClientReference(userland)
-    const isDynamicSegment = /\[.*\]$/.test(name)
-    const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
+
+    const param = getSegmentParam(name)?.param
 
     const segment: AppSegment = {
       name,
       param,
       filePath,
       config: undefined,
-      isDynamicSegment,
+      isDynamicSegment: !!param,
       generateStaticParams: undefined,
     }
 
@@ -157,14 +157,13 @@ function collectAppRouteSegments(
 
   // Generate all the segments.
   const segments: AppSegment[] = parts.map((name) => {
-    const isDynamicSegment = /^\[.*\]$/.test(name)
-    const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
+    const param = getSegmentParam(name)?.param
 
     return {
       name,
       param,
       filePath: undefined,
-      isDynamicSegment,
+      isDynamicSegment: !!param,
       config: undefined,
       generateStaticParams: undefined,
     }

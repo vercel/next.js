@@ -1,5 +1,6 @@
-use super::{cell_mode::VcCellMode, read::VcRead};
-use crate::{ShrinkToFit, TraitTypeId, ValueTypeId};
+use crate::{
+    vc::cell_mode::VcCellMode, NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead,
+};
 
 /// A trait implemented on all values types that can be put into a Value Cell
 /// ([`Vc<T>`][crate::Vc]).
@@ -24,7 +25,7 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 
 /// A trait implemented on all values trait object references that can be put
 /// into a Value Cell ([`Vc<Box<dyn Trait>>`][crate::Vc]).
-pub trait VcValueTrait: Send + Sync + 'static {
+pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
     fn get_trait_type_id() -> TraitTypeId;
 }
 

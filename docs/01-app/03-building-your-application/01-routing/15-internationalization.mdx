@@ -69,10 +69,24 @@ export const config = {
 
 Finally, ensure all special files inside `app/` are nested under `app/[lang]`. This enables the Next.js router to dynamically handle different locales in the route, and forward the `lang` parameter to every layout and page. For example:
 
-```jsx filename="app/[lang]/page.js"
+```tsx filename="app/[lang]/page.tsx" switcher
 // You now have access to the current locale
 // e.g. /en-US/products -> `lang` is "en-US"
-export default async function Page({ params: { lang } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ lang: string }>
+}) {
+  const lang = (await params).lang;
+  return ...
+}
+```
+
+```jsx filename="app/[lang]/page.js" switcher
+// You now have access to the current locale
+// e.g. /en-US/products -> `lang` is "en-US"
+export default async function Page({ params }) {
+  const lang = (await params).lang;
   return ...
 }
 ```
@@ -103,7 +117,19 @@ Let’s assume we want to support both English and Dutch content inside our appl
 
 We can then create a `getDictionary` function to load the translations for the requested locale:
 
-```jsx filename="app/[lang]/dictionaries.js"
+```ts filename="app/[lang]/dictionaries.ts" switcher
+import 'server-only'
+
+const dictionaries = {
+  en: () => import('./dictionaries/en.json').then((module) => module.default),
+  nl: () => import('./dictionaries/nl.json').then((module) => module.default),
+}
+
+export const getDictionary = async (locale: 'en' | 'nl') =>
+  dictionaries[locale]()
+```
+
+```js filename="app/[lang]/dictionaries.js" switcher
 import 'server-only'
 
 const dictionaries = {
@@ -116,10 +142,25 @@ export const getDictionary = async (locale) => dictionaries[locale]()
 
 Given the currently selected language, we can fetch the dictionary inside of a layout or page.
 
-```jsx filename="app/[lang]/page.js"
+```tsx filename="app/[lang]/page.tsx" switcher
 import { getDictionary } from './dictionaries'
 
-export default async function Page({ params: { lang } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ lang: 'en' | 'nl' }>
+}) {
+  const lang = (await params).lang
+  const dict = await getDictionary(lang) // en
+  return <button>{dict.products.cart}</button> // Add to Cart
+}
+```
+
+```jsx filename="app/[lang]/page.js" switcher
+import { getDictionary } from './dictionaries'
+
+export default async function Page({ params }) {
+  const lang = (await params).lang
   const dict = await getDictionary(lang) // en
   return <button>{dict.products.cart}</button> // Add to Cart
 }
@@ -131,14 +172,34 @@ Because all layouts and pages in the `app/` directory default to [Server Compone
 
 To generate static routes for a given set of locales, we can use `generateStaticParams` with any page or layout. This can be global, for example, in the root layout:
 
-```jsx filename="app/[lang]/layout.js"
+```tsx filename="app/[lang]/layout.tsx" switcher
 export async function generateStaticParams() {
   return [{ lang: 'en-US' }, { lang: 'de' }]
 }
 
-export default function Root({ children, params }) {
+export default async function RootLayout({
+  children,
+  params,
+}: Readonly<{
+  children: React.ReactNode
+  params: Promise<{ lang: 'en-US' | 'de' }>
+}>) {
   return (
-    <html lang={params.lang}>
+    <html lang={(await params).lang}>
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/[lang]/layout.js" switcher
+export async function generateStaticParams() {
+  return [{ lang: 'en-US' }, { lang: 'de' }]
+}
+
+export default async function RootLayout({ children, params }) {
+  return (
+    <html lang={(await params).lang}>
       <body>{children}</body>
     </html>
   )

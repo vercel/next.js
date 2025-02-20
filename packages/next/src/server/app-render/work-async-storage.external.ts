@@ -69,6 +69,9 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+
+  dynamicIOEnabled: boolean
+  dev: boolean
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

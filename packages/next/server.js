@@ -13,6 +13,8 @@ const serverExports = {
     .URLPattern,
   after: require('next/dist/server/after').after,
   connection: require('next/dist/server/request/connection').connection,
+  unstable_rootParams: require('next/dist/server/request/root-params')
+    .unstable_rootParams,
 }
 
 // https://nodejs.org/api/esm.html#commonjs-namespaces
@@ -28,3 +30,4 @@ exports.userAgent = serverExports.userAgent
 exports.URLPattern = serverExports.URLPattern
 exports.after = serverExports.after
 exports.connection = serverExports.connection
+exports.unstable_rootParams = serverExports.unstable_rootParams

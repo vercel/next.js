@@ -41,6 +41,7 @@ import {
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -108,7 +109,8 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import DefaultCacheHandler from './lib/cache-handlers/default'
+import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export * from './base-server'
 
@@ -179,12 +181,14 @@ export default class NextNodeServer extends BaseServer<
   protected cleanupListeners = new AsyncCallbackSet()
   protected internalWaitUntil: WaitUntil | undefined
   private isDev: boolean
+  private sriEnabled: boolean
 
   constructor(options: Options) {
     // Initialize super class
     super(options)
 
     this.isDev = options.dev ?? false
+    this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -218,12 +222,14 @@ export default class NextNodeServer extends BaseServer<
         page: '/_document',
         isAppPath: false,
         isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
         isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
@@ -279,12 +285,15 @@ export default class NextNodeServer extends BaseServer<
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
+    await this.loadCustomCacheHandlers()
+
     for (const page of Object.keys(pagesManifest || {})) {
       await loadComponents({
         distDir: this.distDir,
         page,
         isAppPath: false,
         isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
@@ -294,6 +303,7 @@ export default class NextNodeServer extends BaseServer<
         page,
         isAppPath: true,
         isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       })
         .then(async ({ ComponentMod }) => {
           // we need to ensure fetch is patched before we require the page,
@@ -368,6 +378,28 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
+  private async loadCustomCacheHandlers() {
+    const { cacheHandlers } = this.nextConfig.experimental
+    if (!cacheHandlers) return
+
+    // If we've already initialized the cache handlers interface, don't do it
+    // again.
+    if (!initializeCacheHandlers()) return
+
+    for (const [kind, handler] of Object.entries(cacheHandlers)) {
+      if (!handler) continue
+
+      setCacheHandler(
+        kind,
+        interopDefault(
+          await dynamicImportEsmDefault(
+            formatDynamicImportPath(this.distDir, handler)
+          )
+        )
+      )
+    }
+  }
+
   protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
@@ -387,25 +419,7 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
-    const { cacheHandlers } = this.nextConfig.experimental
-
-    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
-      ;(globalThis as any).__nextCacheHandlers = {}
-
-      for (const key of Object.keys(cacheHandlers)) {
-        if (cacheHandlers[key]) {
-          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(this.distDir, cacheHandlers[key])
-            )
-          )
-        }
-      }
-
-      if (!cacheHandlers.default) {
-        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
-      }
-    }
+    await this.loadCustomCacheHandlers()
 
     // incremental-cache is request specific
     // although can have shared caches in module scope
@@ -415,7 +429,6 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -555,10 +568,6 @@ export default class NextNodeServer extends BaseServer<
 
     query = { ...query, ...match.params }
 
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
-    delete query.__nextInferredLocaleFromDefault
-
     await module.render(req.originalRequest, res.originalResponse, {
       previewProps: this.renderOpts.previewProps,
       revalidate: this.revalidate.bind(this),
@@ -619,7 +628,10 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false
+          false,
+          {
+            buildId: this.buildId,
+          }
         )
       }
 
@@ -631,7 +643,20 @@ export default class NextNodeServer extends BaseServer<
         res.originalResponse,
         pathname,
         query,
-        renderOpts
+        renderOpts,
+        {
+          buildId: this.buildId,
+          deploymentId: this.nextConfig.deploymentId,
+          customServer: this.serverOptions.customServer || undefined,
+        },
+        {
+          isFallback: false,
+          isDraftMode: renderOpts.isDraftMode,
+          developmentNotFoundSourcePage: getRequestMeta(
+            req,
+            'developmentNotFoundSourcePage'
+          ),
+        }
       )
     }
   }
@@ -733,12 +758,14 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async findPageComponents({
+    locale,
     page,
     query,
     params,
     isAppPath,
     url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -760,6 +787,7 @@ export default class NextNodeServer extends BaseServer<
       },
       () =>
         this.findPageComponentsImpl({
+          locale,
           page,
           query,
           params,
@@ -770,12 +798,14 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async findPageComponentsImpl({
+    locale,
     page,
     query,
     params,
     isAppPath,
     url: _url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -790,11 +820,9 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
-    if (query.__nextLocale) {
+    if (locale) {
       pagePaths.unshift(
-        ...pagePaths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        )
+        ...pagePaths.map((path) => `/${locale}${path === '/' ? '' : path}`)
       )
     }
 
@@ -805,12 +833,14 @@ export default class NextNodeServer extends BaseServer<
           page: pagePath,
           isAppPath,
           isDev: this.isDev,
+          sriEnabled: this.sriEnabled,
         })
 
         if (
-          query.__nextLocale &&
+          locale &&
           typeof components.Component === 'string' &&
-          !pagePath.startsWith(`/${query.__nextLocale}`)
+          !pagePath.startsWith(`/${locale}/`) &&
+          pagePath !== `/${locale}`
         ) {
           // if loading an static HTML file the locale is required
           // to be present since all HTML files are output under their locale
@@ -824,9 +854,6 @@ export default class NextNodeServer extends BaseServer<
             components.getStaticProps
               ? ({
                   amp: query.amp,
-                  __nextDataReq: query.__nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -856,6 +883,10 @@ export default class NextNodeServer extends BaseServer<
     parsedUrl
   ) => {
     if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
+      return false
+    }
+    // Ignore if its a middleware request
+    if (getRequestMeta(req, 'middlewareInvoke')) {
       return false
     }
 
@@ -981,14 +1012,14 @@ export default class NextNodeServer extends BaseServer<
 
     // This is a catch-all route, there should be no fallbacks so mark it as
     // such.
-    query._nextBubbleNoFallback = '1'
+    addRequestMeta(req, 'bubbleNoFallback', true)
 
     try {
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
       const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromQuery(pathname, query),
+        i18n: this.i18nProvider?.fromRequest(req, pathname),
       }
       const match = await this.matchers.match(pathname, options)
 
@@ -1013,7 +1044,6 @@ export default class NextNodeServer extends BaseServer<
           await this.render404(req, res, parsedUrl)
           return true
         }
-        delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
         // If we handled the request, we can return early.
@@ -1049,8 +1079,6 @@ export default class NextNodeServer extends BaseServer<
           await this.render404(req, res, parsedUrl)
           return true
         }
-
-        delete query._nextBubbleNoFallback
 
         const handled = await this.handleApiRequest(req, res, query, match)
         if (handled) return true
@@ -1185,6 +1213,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
@@ -1305,9 +1334,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-    return manifest
+    if (this.minimalMode) {
+      return null
+    } else {
+      const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+      return manifest
+    }
   }
 
   /** Returns the middleware routing item if there is one. */
@@ -1315,6 +1347,19 @@ export default class NextNodeServer extends BaseServer<
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
     if (!middleware) {
+      const middlewareModule = this.loadNodeMiddleware()
+
+      if (middlewareModule) {
+        return {
+          match: getMiddlewareRouteMatcher(
+            middlewareModule.config?.matchers || [
+              { regexp: '.*', originalSource: '/:path*' },
+            ]
+          ),
+          page: '/',
+        }
+      }
+
       return
     }
 
@@ -1392,6 +1437,30 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  private loadNodeMiddleware() {
+    if (!this.nextConfig.experimental.nodeMiddleware) {
+      return
+    }
+
+    try {
+      const functionsConfig = this.renderOpts.dev
+        ? {}
+        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
+        return require(join(this.distDir, 'server', 'middleware.js'))
+      }
+    } catch (err) {
+      if (
+        isError(err) &&
+        err.code !== 'ENOENT' &&
+        err.code !== 'MODULE_NOT_FOUND'
+      ) {
+        throw err
+      }
+    }
+  }
+
   /**
    * Checks if a middleware exists. This method is useful for the development
    * server where we need to check the filesystem. Here we just check the
@@ -1399,6 +1468,10 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+
+    if (!info && this.loadNodeMiddleware()) {
+      return true
+    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1450,7 +1523,7 @@ export default class NextNodeServer extends BaseServer<
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
       const query = urlQueryToSearchParams(params.parsed.query).toString()
-      const locale = params.parsed.query.__nextLocale
+      const locale = getRequestMeta(params.request, 'locale')
 
       url = `${getRequestMeta(params.request, 'initProtocol')}://${
         this.fetchHostname || 'localhost'
@@ -1484,36 +1557,63 @@ export default class NextNodeServer extends BaseServer<
       middleware: true,
     })
 
-    if (!middlewareInfo) {
-      throw new MiddlewareNotFoundError()
-    }
-
     const method = (params.request.method || 'GET').toUpperCase()
-    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
-
-    const result = await run({
-      distDir: this.distDir,
-      name: middlewareInfo.name,
-      paths: middlewareInfo.paths,
-      edgeFunctionEntry: middlewareInfo,
-      request: {
-        headers: params.request.headers,
-        method,
-        nextConfig: {
-          basePath: this.nextConfig.basePath,
-          i18n: this.nextConfig.i18n,
-          trailingSlash: this.nextConfig.trailingSlash,
-          experimental: this.nextConfig.experimental,
-        },
-        url: url,
-        page,
-        body: getRequestMeta(params.request, 'clonableBody'),
-        signal: signalFromNodeResponse(params.response.originalResponse),
-        waitUntil: this.getWaitUntil(),
+    const requestData = {
+      headers: params.request.headers,
+      method,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+        experimental: this.nextConfig.experimental,
       },
-      useCache: true,
-      onWarning: params.onWarning,
-    })
+      url: url,
+      page,
+      body:
+        method !== 'GET' && method !== 'HEAD'
+          ? (getRequestMeta(params.request, 'clonableBody') as any)
+          : undefined,
+
+      signal: signalFromNodeResponse(params.response.originalResponse),
+      waitUntil: this.getWaitUntil(),
+    }
+    let result:
+      | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
+      | undefined
+
+    // if no middleware info check for Node.js middleware
+    // this is not in the middleware-manifest as that historically
+    // has only included edge-functions, we need to do a breaking
+    // version bump for that manifest to write this info there if
+    // we decide we want to
+    if (!middlewareInfo) {
+      let middlewareModule
+      middlewareModule = this.loadNodeMiddleware()
+
+      if (!middlewareModule) {
+        throw new MiddlewareNotFoundError()
+      }
+      const adapterFn: typeof import('./web/adapter').adapter =
+        middlewareModule.default || middlewareModule
+
+      result = await adapterFn({
+        handler: middlewareModule.middleware || middlewareModule,
+        request: requestData,
+        page: 'middleware',
+      })
+    } else {
+      const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+
+      result = await run({
+        distDir: this.distDir,
+        name: middlewareInfo.name,
+        paths: middlewareInfo.paths,
+        edgeFunctionEntry: middlewareInfo,
+        request: requestData,
+        useCache: true,
+        onWarning: params.onWarning,
+      })
+    }
 
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
@@ -1769,7 +1869,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isNextDataRequest = !!query.__nextDataReq
+    const isNextDataRequest = getRequestMeta(params.req, 'isNextDataReq')
     const initialUrl = new URL(
       getRequestMeta(params.req, 'initURL') || '/',
       'http://n'

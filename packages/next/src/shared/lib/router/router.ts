@@ -348,9 +348,9 @@ export type BaseRouter = {
   asPath: string
   basePath: string
   locale?: string | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -498,7 +498,10 @@ function fetchNextData({
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {}
+        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
+        process.env.NEXT_DEPLOYMENT_ID
+          ? { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
+          : {}
       ),
       method: params?.method ?? 'GET',
     })
@@ -681,9 +684,9 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   _inFlightRoute?: string | undefined
   _shallow?: boolean | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
@@ -735,9 +738,9 @@ export default class Router implements BaseRouter {
       err?: Error
       isFallback: boolean
       locale?: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale?: string
-      domainLocales?: DomainLocale[]
+      domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
     }
   ) {

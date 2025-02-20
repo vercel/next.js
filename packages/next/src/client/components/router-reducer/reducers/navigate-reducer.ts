@@ -173,7 +173,7 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, href, pendingPush)
   }
 
-  if (process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+  if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
     // (Very Early Experimental Feature) Segment Cache
     //
     // Bypass the normal prefetch cache and use the new per-segment cache

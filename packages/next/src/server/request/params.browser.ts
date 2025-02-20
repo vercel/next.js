@@ -91,43 +91,29 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   return proxiedPromise
 }
 
-const noop = () => {}
+function warnForSyncAccess(expression: string) {
+  console.error(
+    `A param property was accessed directly with ${expression}. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.`
+  )
+}
 
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : function warnForSyncAccess(expression: string) {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
-      console.error(
-        `A param property was accessed directly with ${expression}. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.`
-      )
-    }
-
-const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : function warnForEnumeration(missingProperties: Array<string>) {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
-      if (missingProperties.length) {
-        const describedMissingProperties =
-          describeListOfPropertyNames(missingProperties)
-        console.error(
-          `params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-            `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      } else {
-        console.error(
-          `params are being enumerated. ` +
-            `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
-            `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      }
-    }
+function warnForEnumeration(missingProperties: Array<string>) {
+  if (missingProperties.length) {
+    const describedMissingProperties =
+      describeListOfPropertyNames(missingProperties)
+    console.error(
+      `params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
+        `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+    )
+  } else {
+    console.error(
+      `params are being enumerated. ` +
+        `\`params\` should be unwrapped with \`React.use()\` before using its value. ` +
+        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+    )
+  }
+}
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

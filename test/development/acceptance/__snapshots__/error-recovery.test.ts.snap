@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ReactRefreshLogBox default syntax > runtime error 1`] = `
-"index.js (5:9) @ Error
+"index.js (5:9) @ eval
 
   3 | setInterval(() => {
   4 |   i++

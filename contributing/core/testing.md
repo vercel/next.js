@@ -115,6 +115,12 @@ To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment
 TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
 ```
 
+If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
+
+```sh
+pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
+```
+
 ## Integration testing outside the repository with local builds
 
 You can locally generate tarballs for each package in this repository with:

@@ -5,7 +5,7 @@ use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleOutputAssetReference},
+    output::OutputAssets,
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -14,6 +14,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkType,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -37,11 +38,6 @@ impl ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks_data = self.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
@@ -52,7 +48,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({:#});
+                {TURBOPACK_EXPORT_VALUE}({:#});
             "#,
             StringifyJs(&chunks_data)
         };
@@ -78,28 +74,10 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let this = self.await?;
-        let mut references = this.manifest.references().await?.clone_value();
-
-        let key = Vc::cell("chunk data reference".into());
-
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let mut references = vec![];
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(
-                chunk_data
-                    .references()
-                    .await?
-                    .iter()
-                    .map(|&output_asset| async move {
-                        Ok(ResolvedVc::upcast(
-                            SingleOutputAssetReference::new(*output_asset, key)
-                                .to_resolved()
-                                .await?,
-                        ))
-                    })
-                    .try_join()
-                    .await?,
-            );
+            references.extend(chunk_data.references().await?.iter());
         }
 
         Ok(Vc::cell(references))

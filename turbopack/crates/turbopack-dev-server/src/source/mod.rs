@@ -19,8 +19,8 @@ use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, ResolvedVc, Upcast, Value,
-    ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, OperationVc, ResolvedVc,
+    Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -33,13 +33,14 @@ use self::{
 };
 
 /// The result of proxying a request to another HTTP server.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
+    #[turbo_tasks(trace_ignore)]
     pub body: Body,
 }
 
@@ -91,7 +92,7 @@ pub struct StaticContent {
 pub enum ContentSourceContent {
     NotFound,
     Static(ResolvedVc<StaticContent>),
-    HttpProxy(ResolvedVc<ProxyResult>),
+    HttpProxy(OperationVc<ProxyResult>),
     Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
@@ -474,33 +475,31 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum RewriteType {
     Location {
-        /// The new path and query used to lookup content. This _does not_ need
-        /// to be the original path or query.
+        /// The new path and query used to lookup content. This _does not_ need to be the original
+        /// path or query.
         path_and_query: RcStr,
     },
     ContentSource {
-        /// [Vc<Box<dyn ContentSource>>]s from which to restart the lookup
-        /// process. This _does not_ need to be the original content
-        /// source.
-        source: Vc<Box<dyn ContentSource>>,
+        /// [`ContentSource`]s from which to restart the lookup process. This _does not_ need to be
+        /// the original content source.
+        source: OperationVc<Box<dyn ContentSource>>,
         /// The new path and query used to lookup content. This _does not_ need
         /// to be the original path or query.
         path_and_query: RcStr,
     },
     Sources {
-        /// [GetContentSourceContent]s from which to restart the lookup
-        /// process. This _does not_ need to be the original content
-        /// source.
-        sources: Vc<GetContentSourceContents>,
+        /// [`GetContentSourceContent`]s from which to restart the lookup process. This _does not_
+        /// need to be the original content source.
+        sources: OperationVc<GetContentSourceContents>,
     },
 }
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information.
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct Rewrite {
     pub ty: RewriteType,
@@ -530,7 +529,7 @@ impl RewriteBuilder {
     }
 
     pub fn new_source_with_path_and_query(
-        source: Vc<Box<dyn ContentSource>>,
+        source: OperationVc<Box<dyn ContentSource>>,
         path_and_query: RcStr,
     ) -> Self {
         Self {
@@ -545,7 +544,7 @@ impl RewriteBuilder {
         }
     }
 
-    pub fn new_sources(sources: Vc<GetContentSourceContents>) -> Self {
+    pub fn new_sources(sources: OperationVc<GetContentSourceContents>) -> Self {
         Self {
             rewrite: Rewrite {
                 ty: RewriteType::Sources { sources },

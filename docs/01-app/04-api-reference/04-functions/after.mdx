@@ -9,7 +9,7 @@ It can be used in [Server Components](/docs/app/building-your-application/render
 
 The function accepts a callback that will be executed after the response (or prerender) is finished:
 
-```tsx filename="app/layout.tsx switcher
+```tsx filename="app/layout.tsx" switcher
 import { after } from 'next/server'
 // Custom logging function
 import { log } from '@/app/utils'
@@ -23,7 +23,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-```jsx filename="app/layout.js switcher
+```jsx filename="app/layout.jsx" switcher
 import { after } from 'next/server'
 // Custom logging function
 import { log } from '@/app/utils'

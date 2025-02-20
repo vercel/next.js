@@ -8,7 +8,7 @@ To inspect the GraphQL API, use its [web IDE](https://nextjs-graphql-with-prisma
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-apollo-and-redux)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-apollo-and-redux&project-name=with-apollo-and-redux&repository-name=with-apollo-and-redux)
 

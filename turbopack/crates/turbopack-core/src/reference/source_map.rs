@@ -8,7 +8,9 @@ use crate::{
     file_source::FileSource,
     raw_module::RawModule,
     resolve::ModuleResolveResult,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
 };
 
 #[turbo_tasks::value]
@@ -42,26 +44,28 @@ impl ModuleReference for SourceMapReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(file) = self.get_file().await {
-            return Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+            return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
                 RawModule::new(Vc::upcast(FileSource::new(file)))
                     .to_resolved()
                     .await?,
-            ))
-            .cell());
+            )));
         }
-        Ok(ModuleResolveResult::unresolvable().cell())
+        Ok(*ModuleResolveResult::unresolvable())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMapReference {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
         let Some(file) = self.get_file().await else {
             return Ok(Vc::cell(None));
         };
-        let source_map = SourceMap::new_from_file(file).await?;
-        Ok(Vc::cell(source_map.map(|m| m.resolved_cell())))
+
+        let content = file.read().await?;
+        let content = content.as_content().map(|file| file.content());
+        let source_map = resolve_source_map_sources(content, *self.from).await?;
+        Ok(Vc::cell(source_map))
     }
 }
 
