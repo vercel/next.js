@@ -1,7 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
     future::Future,
-    ops::Deref,
 };
 
 use anyhow::{bail, Context, Result};
@@ -14,9 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
-    trace::{TraceRawVcs, TraceRawVcsContext},
+    trace::TraceRawVcs,
     CollectiblesSource, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     ValueToString, Vc,
 };
@@ -28,12 +26,14 @@ use crate::{
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        traced_di_graph::TracedDiGraph,
     },
     reference::primary_chunkable_referenced_modules,
 };
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+mod traced_di_graph;
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
@@ -305,7 +305,7 @@ impl SingleModuleGraph {
         graph.shrink_to_fit();
 
         Ok(SingleModuleGraph {
-            graph: TracedDiGraph(graph),
+            graph: TracedDiGraph::new(graph),
             number_of_modules,
             modules,
             entries: entries.clone(),
@@ -542,9 +542,12 @@ impl SingleModuleGraph {
                 ReverseTopologicalPass::ExpandAndVisit => {
                     match graph.node_weight(current).unwrap() {
                         current_node @ SingleModuleGraphNode::Module(_) => {
-                            let action = visit_preorder(parent_arg, current_node, state);
+                            let action = visit_preorder(parent_arg, current_node, state)?;
+                            if action == GraphTraversalAction::Exclude {
+                                continue;
+                            }
                             stack.push((ReverseTopologicalPass::Visit, parent, current));
-                            if action? == GraphTraversalAction::Continue && expanded.insert(current)
+                            if action == GraphTraversalAction::Continue && expanded.insert(current)
                             {
                                 stack.extend(iter_neighbors(graph, current).map(
                                     |(edge, child)| {
@@ -603,9 +606,7 @@ impl ModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(self)
-            .instrument(tracing::info_span!("compute_chunk_group_info"))
-            .await
+        compute_chunk_group_info(self).await
     }
 
     #[turbo_tasks::function]
@@ -618,7 +619,7 @@ impl ModuleGraph {
             let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
             anyhow::Ok(*result_vc)
         }
-        .instrument(tracing::info_span!("compute_async_module_info"))
+        .instrument(tracing::info_span!("compute async module info"))
         .await
     }
 
@@ -940,9 +941,12 @@ impl ModuleGraph {
                     visit_postorder(parent_arg, current_node, state);
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
-                    let action = visit_preorder(parent_arg, current_node, state);
+                    let action = visit_preorder(parent_arg, current_node, state)?;
+                    if action == GraphTraversalAction::Exclude {
+                        continue;
+                    }
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
-                    if action? == GraphTraversalAction::Continue && expanded.insert(current) {
+                    if action == GraphTraversalAction::Continue && expanded.insert(current) {
                         let graph = &graphs[current.graph_idx].graph;
                         let (neighbors, current) =
                             match graph.node_weight(current.node_idx).unwrap() {
@@ -1027,49 +1031,14 @@ impl SingleModuleGraphNode {
     // }
 }
 
-#[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-struct TracedDiGraph<N, E>(DiGraph<N, E>);
-impl<N, E> Default for TracedDiGraph<N, E> {
-    fn default() -> Self {
-        Self(Default::default())
-    }
-}
-
-impl<N, E> TraceRawVcs for TracedDiGraph<N, E>
-where
-    N: TraceRawVcs,
-    E: TraceRawVcs,
-{
-    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        for node in self.0.node_weights() {
-            node.trace_raw_vcs(trace_context);
-        }
-        for edge in self.0.edge_weights() {
-            edge.trace_raw_vcs(trace_context);
-        }
-    }
-}
-
-impl<N, E> Deref for TracedDiGraph<N, E> {
-    type Target = DiGraph<N, E>;
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-unsafe impl<N, E> NonLocalValue for TracedDiGraph<N, E>
-where
-    N: NonLocalValue,
-    E: NonLocalValue,
-{
-}
-
 #[derive(PartialEq, Eq, Debug)]
 pub enum GraphTraversalAction {
     /// Continue visiting children
     Continue,
-    /// Skip the immediate children
+    /// Skip the immediate children, but visit the node in postorder
     Skip,
+    /// Skip the immediate children and the node in postorder
+    Exclude,
 }
 
 // These nodes are created while walking the Turbopack modules references, and are used to then
