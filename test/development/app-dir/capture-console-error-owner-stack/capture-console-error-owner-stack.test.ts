@@ -1,8 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { assertNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
 
-const isNewOverlay = process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY !== 'false'
-
 describe('app-dir - capture-console-error-owner-stack', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -109,8 +107,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
   it('should be able to capture rsc logged error', async () => {
     const browser = await next.browser('/rsc')
 
-    if (isNewOverlay) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayCollapsedRedbox(`
        {
          "count": 1,
          "description": "Error: boom",
@@ -126,24 +123,6 @@ describe('app-dir - capture-console-error-owner-stack', () => {
          ],
        }
       `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "count": 1,
-         "description": "[ Server ] Error: boom",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/rsc/page.js (2:17) @ Page
-       > 2 |   console.error(new Error('boom'))
-           |                 ^",
-         "stack": [
-           "Page app/rsc/page.js (2:17)",
-           "JSON.parse <anonymous> (0:0)",
-           "Page <anonymous> (0:0)",
-         ],
-       }
-      `)
-    }
   })
 
   it('should display the error message in error event when event.error is not present', async () => {
