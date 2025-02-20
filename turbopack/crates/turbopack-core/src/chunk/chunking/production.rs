@@ -156,6 +156,15 @@ pub async fn make_production_chunks(
                             if value <= 1 {
                                 continue;
                             }
+                            // If the candidate is already big enough, avoid shrinking the sharing
+                            if candidate.size > merge_threshold
+                                && value != candidate.chunk_groups_len()
+                            {
+                                continue;
+                            }
+                            if other.size > merge_threshold && value != other.chunk_groups_len() {
+                                continue;
+                            }
                             if let Some((best_i1, best_i2, best_value)) = best_combination.as_mut()
                             {
                                 if value > *best_value {
@@ -170,35 +179,44 @@ pub async fn make_production_chunks(
                         selection.push(candidate);
                     }
 
-                    if let Some((best_i1, best_i2, _)) = best_combination.as_ref() {
-                        let other = selection.swap_remove(*best_i2);
-                        let mut candidate = selection.swap_remove(*best_i1);
-                        for unused in selection {
-                            chunks_to_merge.push(unused);
-                        }
-                        // Merge other into candidate
-                        let MergeCandidate {
-                            size,
-                            chunk_items,
-                            chunk_groups,
-                        } = other;
-                        candidate.size += size;
-                        candidate.chunk_items.extend(chunk_items);
-                        candidate.chunk_groups =
-                            merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
+                    let best_value =
+                        if let Some((best_i1, best_i2, best_value)) = best_combination.as_ref() {
+                            let other = selection.swap_remove(*best_i2);
+                            let mut candidate = selection.swap_remove(*best_i1);
+                            // Merge other into candidate
+                            let MergeCandidate {
+                                size,
+                                chunk_items,
+                                chunk_groups,
+                            } = other;
+                            candidate.size += size;
+                            candidate.chunk_items.extend(chunk_items);
+                            candidate.chunk_groups =
+                                merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
 
-                        // Merged chunk either goes back to the heap or
-                        // is considered for merging again
-                        if candidate.size > merge_threshold {
+                            // Merged candidate is pushed back into the queue
+                            chunks_to_merge.push(candidate);
+
+                            *best_value
+                        } else {
+                            u64::MAX
+                        };
+                    for unused in selection {
+                        // Candiates from selection that are already big enough move into the
+                        // heap again when no more merges are expected.
+                        // Since we can only merge into big enough candates when overlap ==
+                        // chunk_groups_len we can use that as condition.
+                        if unused.size > merge_threshold && unused.chunk_groups_len() > best_value {
                             heap.push(ChunkCandidate {
-                                size: candidate.size,
-                                chunk_items: candidate.chunk_items,
-                                chunk_groups: candidate.chunk_groups,
+                                size: unused.size,
+                                chunk_items: unused.chunk_items,
+                                chunk_groups: unused.chunk_groups,
                             });
                         } else {
-                            chunks_to_merge.push(candidate);
+                            chunks_to_merge.push(unused);
                         }
-                    } else {
+                    }
+                    if best_combination.is_none() {
                         // No merges possible
                         for unused in selection {
                             chunks_to_merge.push(unused);
@@ -207,26 +225,32 @@ pub async fn make_production_chunks(
                     }
                 }
 
+                let mut remainer_size = 0;
+                let mut remainer_chunk_items = Vec::new();
+                for MergeCandidate {
+                    size,
+                    chunk_items,
+                    chunk_groups,
+                } in chunks_to_merge.into_iter()
+                {
+                    if size > merge_threshold {
+                        heap.push(ChunkCandidate {
+                            size,
+                            chunk_items,
+                            chunk_groups,
+                        });
+                    } else {
+                        remainer_size += size;
+                        remainer_chunk_items.extend(chunk_items);
+                    }
+                }
+
                 // Left-over chunks are merged together forming the remainer chunk, which includes
                 // all modules that are not sharable
-                if let Some(MergeCandidate {
-                    mut size,
-                    mut chunk_items,
-                    chunk_groups: _,
-                }) = chunks_to_merge.pop()
-                {
-                    for chunk in chunks_to_merge {
-                        let MergeCandidate {
-                            size: other_size,
-                            chunk_items: other_chunk_items,
-                            chunk_groups: _,
-                        } = chunk;
-                        size += other_size;
-                        chunk_items.extend(other_chunk_items);
-                    }
+                if !remainer_chunk_items.is_empty() {
                     heap.push(ChunkCandidate {
-                        size,
-                        chunk_items,
+                        size: remainer_size,
+                        chunk_items: remainer_chunk_items,
                         chunk_groups: None,
                     });
                 }
