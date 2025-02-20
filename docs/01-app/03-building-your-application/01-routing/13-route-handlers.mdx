@@ -322,31 +322,31 @@ Streaming is commonly used in combination with Large Language Models (LLMs), suc
 
 ```ts filename="app/api/chat/route.ts" switcher
 import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
+import { streamText } from 'ai'
 
 export async function POST(req: Request) {
   const { messages } = await req.json()
-  const result = await streamText({
+  const result = streamText({
     model: openai('gpt-4-turbo'),
     messages,
   })
 
-  return new StreamingTextResponse(result.toAIStream())
+  return result.toDataStreamResponse()
 }
 ```
 
 ```js filename="app/api/chat/route.js" switcher
 import { openai } from '@ai-sdk/openai'
-import { StreamingTextResponse, streamText } from 'ai'
+import { streamText } from 'ai'
 
 export async function POST(req) {
-  const { messages } = await req.json()
+  const { messages } = req.json()
   const result = await streamText({
     model: openai('gpt-4-turbo'),
     messages,
   })
 
-  return new StreamingTextResponse(result.toAIStream())
+  return result.toDataStreamResponse()
 }
 ```
 
