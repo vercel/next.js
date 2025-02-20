@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { CollapseIcon } from '../_experimental/internal/icons/collapse-icon'
+import { CollapseIcon } from '../_internal/icons/collapse-icon'
 /**
  *
  * Format component stack into pseudo HTML

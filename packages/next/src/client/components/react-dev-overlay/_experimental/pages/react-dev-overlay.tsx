@@ -1,18 +1,18 @@
 import * as React from 'react'
 
 import { useState } from 'react'
-import { ShadowPortal } from '../internal/components/shadow-portal'
-import { Base } from '../internal/styles/base'
-import { ComponentStyles } from '../internal/styles/component-styles'
-import { CssReset } from '../internal/styles/css-reset'
+import { ShadowPortal } from '../../_internal/components/shadow-portal'
+import { Base } from '../../_internal/styles/base'
+import { ComponentStyles } from '../../_internal/styles/component-styles'
+import { CssReset } from '../../_internal/styles/css-reset'
 
 import { DevOverlayErrorBoundary } from './error-boundary'
 import { usePagesReactDevOverlay } from '../../pages/hooks'
-import { Colors } from '../internal/styles/colors'
-import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
-import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
-import { RenderError } from '../internal/container/runtime-error/render-error'
-import { FontStyles } from '../font/font-styles'
+import { Colors } from '../../_internal/styles/colors'
+import { ErrorOverlay } from '../../_internal/components/errors/error-overlay/error-overlay'
+import { DevToolsIndicator } from '../../_internal/components/errors/dev-tools-indicator/dev-tools-indicator'
+import { RenderError } from '../../_internal/container/runtime-error/render-error'
+import { FontStyles } from '../../_internal/font/font-styles'
 
 export type ErrorType = 'runtime' | 'build'
 

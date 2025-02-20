@@ -2,8 +2,8 @@ import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './_experimental/internal/container/runtime-error/render-error'
-import type { ComponentStackFrame } from './_experimental/internal/helpers/parse-component-stack'
+import type { SupportedErrorEvent } from './_internal/container/runtime-error/render-error'
+import type { ComponentStackFrame } from './_internal/helpers/parse-component-stack'
 import type { DebugInfo } from './types'
 
 type FastRefreshState =

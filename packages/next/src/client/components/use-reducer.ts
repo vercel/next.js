@@ -7,7 +7,7 @@ import type {
   ReducerActions,
   ReducerState,
 } from './router-reducer/router-reducer-types'
-import { useSyncDevRenderIndicator } from './react-dev-overlay/_experimental/internal/components/errors/dev-tools-indicator/use-sync-dev-render-indicator'
+import { useSyncDevRenderIndicator } from './react-dev-overlay/_internal/components/errors/dev-tools-indicator/use-sync-dev-render-indicator'
 
 export function useUnwrapState(state: ReducerState): AppRouterState {
   // reducer actions can be async, so sometimes we need to suspend until the state is resolved

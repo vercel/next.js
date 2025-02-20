@@ -500,7 +500,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
+  "packages/next/src/client/components/react-dev-overlay/_internal/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
     "passed": [
       "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
       "ErrorOverlayLayout Component sends feedback when clicking helpful button",
@@ -512,7 +512,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/cx.test.ts": {
+  "packages/next/src/client/components/react-dev-overlay/_internal/helpers/cx.test.ts": {
     "passed": [
       "cx should filter out falsy values",
       "cx should handle all falsy values",
@@ -526,7 +526,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/parse-url-from-text.test.ts": {
+  "packages/next/src/client/components/react-dev-overlay/_internal/helpers/parse-url-from-text.test.ts": {
     "passed": [
       "parseUrlFromText should extract a URL from text",
       "parseUrlFromText should extract multiple URLs from text",
@@ -540,7 +540,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/webpack-module-path.test.ts": {
+  "packages/next/src/client/components/react-dev-overlay/_internal/helpers/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
       "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",

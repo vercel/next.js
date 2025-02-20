@@ -9,7 +9,7 @@ import { middlewareResponse } from './middleware-response'
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
 import url from 'url'
-import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
+import { launchEditor } from '../_internal/helpers/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
@@ -17,7 +17,7 @@ import {
   type NullableMappedPosition,
 } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
-import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
+import { getSourceMapFromFile } from '../_internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
