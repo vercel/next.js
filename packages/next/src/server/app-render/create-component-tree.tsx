@@ -723,6 +723,7 @@ async function createComponentTreeInternal({
           <MetadataOutlet ready={getMetadataReady} />
           {/* Streaming metadata outlet */}
           {metadataOutlet}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,

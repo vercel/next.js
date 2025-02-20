@@ -27,15 +27,15 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
     it('should contain async generated metadata in head for simple static page', async () => {
       const $ = await next.render$('/')
-      expect($('body title').text()).toBe('index page')
-      expect($('body meta[name="description"]').attr('content')).toBe(
+      expect($('head title').text()).toBe('index page')
+      expect($('head meta[name="description"]').attr('content')).toBe(
         'index page description'
       )
     })
 
     it('should contain async generated metadata in head static page with suspenseful content', async () => {
       const $ = await next.render$('/suspenseful/static')
-      expect($('body title').text()).toBe('suspenseful page - static')
+      expect($('head title').text()).toBe('suspenseful page - static')
     })
 
     it('should contain async generated metadata in body for dynamic page', async () => {

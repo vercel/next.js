@@ -3,6 +3,7 @@ import {
   createMultiDomMatcher,
   createMultiHtmlMatcher,
   getTitle,
+  retry,
 } from 'next-test-utils'
 
 describe('app dir - metadata navigation', () => {
@@ -79,7 +80,11 @@ describe('app dir - metadata navigation', () => {
       // metadata is suspended in SSR, it won't affect the response status
       expect(res.status).toBe(200)
       const browser = await next.browser('/async/redirect')
-      expect(await browser.elementByCss('p').text()).toBe('redirect dest page')
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'redirect dest page'
+        )
+      })
     })
 
     it('should show the index title', async () => {

@@ -5,5 +5,5 @@ export default function page() {
 }
 
 export async function generateMetadata() {
-  redirect('/redirect/dest')
+  redirect('/async/redirect/dest')
 }
