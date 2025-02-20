@@ -34,6 +34,15 @@ export const LongString: Story = {
   },
 }
 
+export const SuperLongString: Story = {
+  args: {
+    errorMessage:
+      'Lorem ipsum dolor sit, amet consectetur adipisicing elit. Praesentium molestiae, perspiciatis earum labore repudiandae aliquid atque soluta ullam. Quidem provident non at. Reprehenderit similique harum recusandae id est dolore temporibus!\n'.repeat(
+        30
+      ),
+  },
+}
+
 export const ReactNode: Story = {
   args: {
     errorMessage: (
