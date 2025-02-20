@@ -7,7 +7,7 @@ export const FontStyles = () => {
     style.textContent = css`
       /* latin-ext */
       @font-face {
-        font-family: 'Geist';
+        font-family: '__nextjs-Geist';
         font-style: normal;
         font-weight: 400 600;
         font-display: swap;
@@ -19,7 +19,7 @@ export const FontStyles = () => {
       }
       /* latin-ext */
       @font-face {
-        font-family: 'Geist Mono';
+        font-family: '__nextjs-Geist Mono';
         font-style: normal;
         font-weight: 400 600;
         font-display: swap;
@@ -31,7 +31,7 @@ export const FontStyles = () => {
       }
       /* latin */
       @font-face {
-        font-family: 'Geist';
+        font-family: '__nextjs-Geist';
         font-style: normal;
         font-weight: 400 600;
         font-display: swap;
@@ -42,7 +42,7 @@ export const FontStyles = () => {
       }
       /* latin */
       @font-face {
-        font-family: 'Geist Mono';
+        font-family: '__nextjs-Geist Mono';
         font-style: normal;
         font-weight: 400 600;
         font-display: swap;
