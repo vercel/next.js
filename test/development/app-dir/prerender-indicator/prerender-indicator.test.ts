@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { getRouteTypeFromDevToolsIndicator, retry } from 'next-test-utils'
 import { BrowserInterface } from 'next-webdriver'
 
+// TODO: Remove this when removing `appIsrStatus` option.
 describe('prerender indicator', () => {
   const { next } = nextTestSetup({
     files: __dirname,
