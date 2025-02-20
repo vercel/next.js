@@ -1,10 +1,10 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { OverlayState } from '../../../../../shared'
+import type { OverlayState } from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
-import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize'
+import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'

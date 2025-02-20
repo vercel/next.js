@@ -1,4 +1,4 @@
-import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
+import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
 import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'

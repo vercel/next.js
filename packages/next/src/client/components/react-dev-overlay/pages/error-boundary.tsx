@@ -1,14 +1,14 @@
 import * as React from 'react'
 
-type ErrorBoundaryProps = {
+type DevOverlayErrorBoundaryProps = {
   children?: React.ReactNode
   onError: (error: Error, componentStack: string | null) => void
 }
-type ErrorBoundaryState = { error: Error | null }
+type DevOverlayErrorBoundaryState = { error: Error | null }
 
-export class ErrorBoundary extends React.PureComponent<
-  ErrorBoundaryProps,
-  ErrorBoundaryState
+export class DevOverlayErrorBoundary extends React.PureComponent<
+  DevOverlayErrorBoundaryProps,
+  DevOverlayErrorBoundaryState
 > {
   state = { error: null }
 
