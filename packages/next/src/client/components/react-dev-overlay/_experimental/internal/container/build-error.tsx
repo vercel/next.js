@@ -1,4 +1,5 @@
-import * as React from 'react'
+import React, { useCallback, useMemo } from 'react'
+import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Terminal } from '../components/terminal'
 import { noop as css } from '../helpers/noop-template'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
@@ -8,7 +9,7 @@ export interface BuildErrorProps extends ErrorBaseProps {
   message: string
 }
 
-const getErrorMessageFromBuildErrorMessage = (multiLineMessage: string) => {
+const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   const lines = multiLineMessage.split('\n')
   // The multi-line build error message looks like:
   // <file path>:<line number>:<column number>
@@ -19,17 +20,19 @@ const getErrorMessageFromBuildErrorMessage = (multiLineMessage: string) => {
   // SyntaxError: ...
   // > 1 | con st foo =
   // ...
-  return lines[1]
+  return stripAnsi(lines[1] || '')
 }
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
   ...props
 }) {
-  const noop = React.useCallback(() => {}, [])
+  const noop = useCallback(() => {}, [])
   const error = new Error(message)
-  const formattedMessage =
-    getErrorMessageFromBuildErrorMessage(message) || 'Failed to compile'
+  const formattedMessage = useMemo(
+    () => getErrorTextFromBuildErrorMessage(message) || 'Failed to compile',
+    [message]
+  )
 
   return (
     <ErrorOverlayLayout

@@ -298,8 +298,7 @@ function processMessage(
     })
 
     // Only show the first error.
-    const buildErrorMessage = formatted.errors[0] || ''
-    dispatcher.onBuildError(stripAnsi(buildErrorMessage))
+    dispatcher.onBuildError(formatted.errors[0])
 
     // Also log them to the console.
     for (let i = 0; i < formatted.errors.length; i++) {
