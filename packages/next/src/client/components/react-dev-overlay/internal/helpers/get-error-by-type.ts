@@ -2,7 +2,7 @@ import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
 } from '../../shared'
-import type { SupportedErrorEvent } from '../container/Errors'
+import type { SupportedErrorEvent } from '../../_experimental/internal/container/runtime-error/render-error'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
 import type { ComponentStackFrame } from './parse-component-stack'
