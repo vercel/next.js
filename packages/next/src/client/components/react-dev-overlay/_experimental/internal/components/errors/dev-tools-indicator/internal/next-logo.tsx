@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { noop as css } from '../../../../../../internal/helpers/noop-template'
+import { noop as css } from '../../../../helpers/noop-template'
 import mergeRefs from '../../../../helpers/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 

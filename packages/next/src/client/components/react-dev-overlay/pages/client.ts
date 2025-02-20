@@ -1,6 +1,6 @@
 import * as Bus from './bus'
-import { parseStack } from '../internal/helpers/parse-stack'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+import { parseStack } from '../_experimental/internal/helpers/parse-stack'
+import { parseComponentStack } from '../_experimental/internal/helpers/parse-component-stack'
 import {
   hydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
@@ -138,6 +138,6 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../internal/helpers/get-error-by-type'
-export { getServerError } from '../internal/helpers/node-stack-frames'
+export { getErrorByType } from '../_experimental/internal/helpers/get-error-by-type'
+export { getServerError } from '../_experimental/internal/helpers/node-stack-frames'
 export { default as ReactDevOverlay } from './react-dev-overlay'
