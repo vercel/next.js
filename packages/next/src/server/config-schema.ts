@@ -230,7 +230,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     devIndicators: z
       .union([
         z.object({
-          buildActivity: z.boolean().optional(),
           buildActivityPosition: z
             .union([
               z.literal('bottom-left'),
