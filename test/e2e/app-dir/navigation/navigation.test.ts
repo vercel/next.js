@@ -880,7 +880,9 @@ describe('app dir - navigation', () => {
       const scrollPosition = await browser.eval('window.pageYOffset')
 
       await browser.elementByCss("[href='/scroll-restoration/other']").click()
-      await browser.elementById('back-button').click()
+      await retry(async () => {
+        await browser.elementById('back-button').click()
+      })
 
       const newScrollPosition = await browser.eval('window.pageYOffset')
 
