@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -1662,7 +1662,12 @@ impl AppEndpoint {
             NextRuntime::NodeJs => {
                 let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
 
+                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
+                    bail!("rsc_entry must be evaluatable");
+                };
+
                 evaluatable_assets.push(server_action_manifest_loader);
+                evaluatable_assets.push(rsc_entry);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1754,7 +1759,6 @@ impl AppEndpoint {
                                     )
                                     .into(),
                                 ),
-                                *app_entry.rsc_entry,
                                 Vc::cell(evaluatable_assets),
                                 module_graph,
                                 current_chunks,

@@ -1,5 +1,3 @@
-use std::iter::once;
-
 use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
@@ -378,12 +376,11 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     /// Generates an output chunk that:
     /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS default export.
+    /// * exports the result of evaluating the last module as a CommonJS default export.
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: Vc<FileSystemPath>,
-        module: ResolvedVc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
@@ -391,16 +388,16 @@ impl ChunkingContext for NodeJsChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let availability_info = availability_info.into_value();
 
+        let evaluatable_assets_ref = evaluatable_assets.await?;
+        let entries = evaluatable_assets_ref
+            .iter()
+            .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
+
         let MakeChunkGroupResult {
             chunks,
             availability_info,
         } = make_chunk_group(
-            once(module).chain(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .map(|&asset| ResolvedVc::upcast(asset)),
-            ),
+            entries,
             module_graph,
             ResolvedVc::upcast(self),
             availability_info,
@@ -420,7 +417,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .collect();
 
-        let Some(module) = ResolvedVc::try_downcast(module) else {
+        let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap()) else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 
