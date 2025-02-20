@@ -7,8 +7,8 @@ import {
   type BasicSourceMapConsumer,
 } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
-import { launchEditor } from '../internal/helpers/launchEditor'
+import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
+import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
 import {
   getOriginalCodeFrame,
   type OriginalStackFrameResponse,
@@ -16,8 +16,8 @@ import {
   type OriginalStackFramesResponse,
 } from './shared'
 import { middlewareResponse } from './middleware-response'
-export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parse-stack'
+export { getServerError } from '../_experimental/internal/helpers/node-stack-frames'
+export { parseStack } from '../_experimental/internal/helpers/parse-stack'
 export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -26,7 +26,7 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
+import { formatFrameSourceFile } from '../_experimental/internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
 

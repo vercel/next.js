@@ -5,7 +5,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
-import { getFrameSource } from '../../../../internal/helpers/stack-frame'
+import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 import { ExternalIcon } from '../../icons/external'
@@ -63,24 +63,31 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <button
-        aria-label="Open error location in editor"
-        className="code-frame-header"
-        onClick={open}
-      >
+      <div className="code-frame-header">
+        {/* TODO: This is <div> in `Terminal` component.
+        Changing now will require multiple test snapshots updates.
+        Leaving as <div> as is trivial and does not affect the UI.
+        Change when the new redbox matcher `toDisplayRedbox` is used.
+        */}
         <p className="code-frame-link">
-          <span className="code-frame-icon" data-icon="left">
+          <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
           </span>
           <span data-text>
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <span className="code-frame-icon" data-icon="right">
-            <ExternalIcon width={16} height={16} />
-          </span>
+          <button
+            aria-label="Open in editor"
+            data-with-open-in-editor-link-source-file
+            onClick={open}
+          >
+            <span className="code-frame-icon" data-icon="right">
+              <ExternalIcon width={16} height={16} />
+            </span>
+          </button>
         </p>
-      </button>
+      </div>
       <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
@@ -140,11 +147,16 @@ export const CODE_FRAME_STYLES = css`
 
   .code-frame-header {
     width: 100%;
-    cursor: pointer;
     transition: background 100ms ease-out;
     border-radius: 8px 8px 0 0;
     border-bottom: 1px solid var(--color-gray-400);
+  }
 
+  [data-with-open-in-editor-link-source-file] {
+    padding: 4px;
+    margin: -4px 0 -4px auto;
+    border-radius: var(--rounded-full);
+    margin-left: auto;
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: -2px;

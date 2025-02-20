@@ -242,7 +242,9 @@ pub async fn chunk_group_content(
                 };
 
                 Ok(match edge {
-                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
+                    ChunkingType::Parallel
+                    | ChunkingType::ParallelInheritAsync
+                    | ChunkingType::Shared { .. } => {
                         if is_available {
                             GraphTraversalAction::Skip
                         } else {

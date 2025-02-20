@@ -8,9 +8,6 @@ import {
   getVersionCheckerText,
 } from 'next-test-utils'
 
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
 describe('Error overlay - RSC runtime errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'rsc-runtime-errors')),
@@ -111,11 +108,7 @@ describe('Error overlay - RSC runtime errors', () => {
 
     await assertHasRedbox(browser)
     const versionText = await getVersionCheckerText(browser)
-    if (isNewDevOverlay) {
-      expect(versionText).toMatch(/Next.js [\w.-]+/)
-    } else {
-      expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
-    }
+    expect(versionText).toMatch(/Next.js [\w.-]+/)
   })
 
   it('should not show the bundle layer info in the file trace', async () => {

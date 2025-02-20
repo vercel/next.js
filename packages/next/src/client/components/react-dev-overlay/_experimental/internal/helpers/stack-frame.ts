@@ -3,7 +3,7 @@ import type {
   OriginalStackFrameResponse,
   OriginalStackFrameResponseResult,
   OriginalStackFramesRequest,
-} from '../../server/shared'
+} from '../../../server/shared'
 import {
   isWebpackInternalResource,
   formatFrameSourceFile,
