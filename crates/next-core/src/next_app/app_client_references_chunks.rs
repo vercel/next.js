@@ -169,6 +169,8 @@ pub async fn get_app_client_references_chunks(
                 list.extend(framework_reference_types);
             }
 
+            let chunk_group_info = module_graph.chunk_group_info();
+
             let mut current_client_availability_info = client_availability_info.into_value();
             let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
@@ -181,6 +183,12 @@ pub async fn get_app_client_references_chunks(
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
+                let parent_chunk_group = *chunk_group_info
+                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
+                        server_component.await?.module,
+                    )))
+                    .await?;
+
                 let base_ident = server_component.ident();
 
                 let server_path = server_component.server_path();
@@ -217,9 +225,8 @@ pub async fn get_app_client_references_chunks(
 
                         ssr_chunking_context.chunk_group(
                             base_ident.with_modifier(ssr_modules_modifier()),
-                            // TODO use correct parameters here, and sort the modules?
                             ChunkGroup::IsolatedMerged {
-                                parent: 0,
+                                parent: parent_chunk_group,
                                 merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
                                 entries: ssr_modules,
                             },
@@ -256,9 +263,8 @@ pub async fn get_app_client_references_chunks(
 
                     Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(client_modules_modifier()),
-                        // TODO use correct parameters here, and sort the modules?
                         ChunkGroup::IsolatedMerged {
-                            parent: 0,
+                            parent: parent_chunk_group,
                             merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
                             entries: client_modules,
                         },
