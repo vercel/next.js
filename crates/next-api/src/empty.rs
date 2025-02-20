@@ -33,7 +33,7 @@ impl Endpoint for EmptyEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn root_modules(self: Vc<Self>) -> Vc<GraphEntries> {
+    fn entries(self: Vc<Self>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
 }

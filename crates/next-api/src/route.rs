@@ -54,10 +54,10 @@ pub trait Endpoint {
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
-    fn root_modules(self: Vc<Self>) -> Vc<GraphEntries>;
+    fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
-    fn additional_root_modules(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
+    fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
 }

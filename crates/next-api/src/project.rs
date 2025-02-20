@@ -851,7 +851,7 @@ impl Project {
             .get_all_endpoints()
             .await?
             .iter()
-            .map(async |endpoint| Ok(endpoint.root_modules().owned().await?))
+            .map(async |endpoint| Ok(endpoint.entries().owned().await?))
             .try_flat_join()
             .await?;
         modules.extend(self.client_main_modules().await?.iter().cloned());
@@ -867,7 +867,7 @@ impl Project {
             .get_all_endpoints()
             .await?
             .iter()
-            .map(async |endpoint| Ok(endpoint.additional_root_modules(graphs).owned().await?))
+            .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
             .try_flat_join()
             .await?;
         Ok(Vc::cell(modules))

@@ -882,7 +882,7 @@ impl AppProject {
                 visited_modules = visited_modules.concatenate(graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
-                let additional_entries = endpoint.additional_root_modules(base);
+                let additional_entries = endpoint.additional_entries(base);
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
                     additional_entries.owned().await?,
                     visited_modules,
@@ -1882,7 +1882,7 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(Vc::cell(vec![(
             vec![self.app_endpoint_entry().await?.rsc_entry],
             ChunkGroupType::Entry,
@@ -1890,7 +1890,7 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn additional_root_modules(
+    async fn additional_entries(
         self: Vc<Self>,
         graph: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {

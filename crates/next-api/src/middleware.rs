@@ -330,7 +330,7 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         Ok(Vc::cell(vec![(
             vec![self.entry_module().to_resolved().await?],
             ChunkGroupType::Evaluated,

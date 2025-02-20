@@ -1466,7 +1466,7 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let mut modules = vec![];
 

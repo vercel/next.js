@@ -292,7 +292,7 @@ impl Endpoint for InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let core_modules = self.core_modules().await?;
         Ok(Vc::cell(vec![(
             vec![core_modules.edge_entry_module],
