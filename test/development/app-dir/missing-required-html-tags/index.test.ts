@@ -3,12 +3,24 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   getRedboxDescription,
+  getToastErrorCount,
+  hasErrorToast,
   retry,
 } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
+
+  it('should display correct error count in dev indicator', async () => {
+    const browser = await next.browser('/')
+
+    retry(async () => {
+      expect(await hasErrorToast(browser)).toBe(true)
+    })
+    // Dev indicator should show 1 error
+    expect(await getToastErrorCount(browser)).toBe(1)
+  })
 
   it('should show error overlay', async () => {
     const browser = await next.browser('/')

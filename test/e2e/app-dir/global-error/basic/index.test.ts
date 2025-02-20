@@ -6,9 +6,6 @@ describe('app dir - global error', () => {
     files: __dirname,
   })
 
-  const isNewOverlay =
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
   it('should trigger error component when an error happens during rendering', async () => {
     const browser = await next.browser('/client')
     await browser
@@ -33,13 +30,7 @@ describe('app dir - global error', () => {
     if (isNextDev) {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
-      if (isNewOverlay) {
-        expect(description).toMatchInlineSnapshot(`"Error: server page error"`)
-      } else {
-        expect(description).toMatchInlineSnapshot(
-          `"[ Server ] Error: server page error"`
-        )
-      }
+      expect(description).toMatchInlineSnapshot(`"Error: server page error"`)
     }
     // Show original error message in dev mode, but hide with the react fallback RSC error message in production mode
     expect(await browser.elementByCss('#error').text()).toBe(
@@ -81,13 +72,7 @@ describe('app dir - global error', () => {
     if (isNextDev) {
       await assertHasRedbox(browser)
       const description = await getRedboxDescription(browser)
-      if (isNewOverlay) {
-        expect(description).toMatchInlineSnapshot(`"Error: Metadata error"`)
-      } else {
-        expect(description).toMatchInlineSnapshot(
-          `"[ Server ] Error: Metadata error"`
-        )
-      }
+      expect(description).toMatchInlineSnapshot(`"Error: Metadata error"`)
     }
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
     expect(await browser.elementByCss('#error').text()).toBe(
