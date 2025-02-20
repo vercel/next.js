@@ -527,6 +527,7 @@ pub async fn compute_module_batches(
         span.record("edges", state.edges.len());
 
         // Add edges
+        graph.reserve_edges(state.edges.len());
         for (from, to, ty, module) in state.edges {
             graph.add_edge(
                 batch_indicies[from],
