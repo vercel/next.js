@@ -2179,10 +2179,6 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivity:
-      config.devIndicators === false
-        ? false
-        : config.devIndicators.buildActivity,
     buildActivityPosition:
       config.devIndicators === false
         ? undefined

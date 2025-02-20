@@ -262,7 +262,7 @@
   "261": "Route %s used %s without first calling \\`await connection()\\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request",
   "262": "%s %s",
   "263": "Invariant: static generation store missing in %s",
-  "264": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment. %s",
+  "264": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment. %s\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "265": "Farm is ended, no more calls can be done to it",
   "266": "Multiple children were passed to <Link> with \\`href\\` of \\`%s\\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children%s",
   "267": "Dynamic href \\`%s\\` found in <Link> while using the \\`/app\\` router, this is not supported. Read more: https://nextjs.org/docs/messages/app-dir-dynamic-href",
@@ -644,5 +644,9 @@
   "643": "Invalid \"devIndicator.position\" provided, expected one of %s, received %s",
   "644": "@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.",
   "645": "@rspack/plugin-react-refresh is not available. Please make sure the appropriate Next.js plugin is installed.",
-  "646": "No span found for compilation"
+  "646": "No span found for compilation",
+  "647": "@rspack/core is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
+  "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
+  "649": "Cache handlers not initialized",
+  "650": "experimental.nodeMiddleware"
 }

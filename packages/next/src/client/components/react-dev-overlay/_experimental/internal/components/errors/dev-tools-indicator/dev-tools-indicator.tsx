@@ -4,7 +4,7 @@ import type { OverlayState } from '../../../../../shared'
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
-import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
+import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize'
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { noop as css } from '../../../helpers/noop-template'
@@ -197,6 +197,7 @@ function DevToolsPopover({
 
     // Open with first item focused
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
@@ -206,6 +207,7 @@ function DevToolsPopover({
 
     // Open with last item focused
     if (e.key === 'ArrowUp') {
+      e.preventDefault()
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {

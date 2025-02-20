@@ -1,7 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/_experimental/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {

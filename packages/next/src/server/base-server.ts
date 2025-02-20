@@ -180,6 +180,7 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -730,7 +731,7 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = this.getMiddleware()
+      const middleware = await this.getMiddleware()
       const params = matchNextDataPathname(parsedUrl.pathname)
 
       // ignore for non-next data URLs
@@ -1433,24 +1434,20 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const _globalThis: typeof globalThis & {
-        __nextCacheHandlers?: Record<
-          string,
-          import('./lib/cache-handlers/types').CacheHandler
-        >
-      } = globalThis
+      // If the header is present, receive the expired tags from all the
+      // cache handlers.
+      const handlers = getCacheHandlers()
+      if (handlers) {
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] ?? ''
+        const expiredTags = typeof header === 'string' ? header.split(',') : []
 
-      if (_globalThis.__nextCacheHandlers) {
-        const expiredTags: string[] =
-          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-            ','
-          ) || []
-
-        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler?.receiveExpiredTags === 'function') {
-            await handler.receiveExpiredTags(...expiredTags)
-          }
+        const promises: Promise<void>[] = []
+        for (const handler of handlers) {
+          promises.push(handler.receiveExpiredTags(...expiredTags))
         }
+
+        // Only await if there are any promises to wait for.
+        if (promises.length > 0) await Promise.all(promises)
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -3757,7 +3754,7 @@ export default abstract class Server<
     )
   }
 
-  protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
+  protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
   ): Promise<LoadComponentsReturnType | null>
@@ -3874,8 +3871,9 @@ export default abstract class Server<
       return response
     }
 
+    const middleware = await this.getMiddleware()
     if (
-      this.getMiddleware() &&
+      middleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

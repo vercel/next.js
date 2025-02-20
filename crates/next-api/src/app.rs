@@ -53,8 +53,8 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkableModules, ChunkingContext,
-        ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModules, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -833,7 +833,7 @@ impl AppProject {
                     let graph = SingleModuleGraph::new_with_entries_visited(
                         server_utils
                             .iter()
-                            .map(|m| **m)
+                            .map(|m| Vc::upcast(**m))
                             .chain(extra_entries)
                             .collect(),
                         VisitedModules::empty(),
@@ -1663,10 +1663,7 @@ impl AppEndpoint {
                         let server_utils = client_references
                             .server_utils
                             .iter()
-                            .map(|m| async move {
-                                Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
-                                    .context("Expected server utils to be chunkable")?)
-                            })
+                            .map(async |m| Ok(Vc::upcast(*m.await?.module)))
                             .try_join()
                             .await?;
                         let chunk_group = chunking_context
@@ -1708,7 +1705,7 @@ impl AppEndpoint {
                             let chunk_group = chunking_context
                                 .chunk_group(
                                     server_component.ident(),
-                                    *ResolvedVc::upcast(server_component),
+                                    Vc::upcast(*server_component.await?.module),
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )

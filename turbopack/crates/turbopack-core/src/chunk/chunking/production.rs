@@ -37,7 +37,10 @@ pub async fn make_production_chunks(
         for chunk_item in chunk_items {
             let ChunkItemWithInfo { module, .. } = chunk_item;
             let chunk_groups = if let Some(module) = module {
-                match chunk_group_info.get(&ResolvedVc::upcast(module)) {
+                match chunk_group_info
+                    .module_chunk_groups
+                    .get(&ResolvedVc::upcast(module))
+                {
                     Some(chunk_group) => Some(chunk_group),
                     None => {
                         bail!(

@@ -1,9 +1,9 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrame } from '../../../../internal/helpers/stack-frame'
+import type { OriginalStackFrame } from '../../helpers/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
-import { getFrameSource } from '../../../../internal/helpers/stack-frame'
+import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 
@@ -38,34 +38,27 @@ export const CallStackFrame: React.FC<{
     return null
   }
 
-  const props = {
-    ...(hasSource && {
-      role: 'button',
-      tabIndex: 0,
-      'aria-label': 'Click to open in your editor',
-      title: 'Click to open in your editor',
-      onClick: open,
-    }),
-  }
-
   return (
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
-      {...props}
       style={
         {
           '--index': index,
         } as React.CSSProperties
       }
     >
-      <span
+      <div
         data-nextjs-frame-expanded={!frame.ignored}
         className="call-stack-frame-method-name"
       >
         <HotlinkedText text={formattedMethod} />
-        {hasSource && <ExternalIcon width={16} height={16} />}
-      </span>
+        {hasSource && (
+          <button onClick={open} className="open-in-editor-button">
+            <ExternalIcon width={16} height={16} />
+          </button>
+        )}
+      </div>
       <span
         className="call-stack-frame-file-source"
         data-has-source={hasSource}
@@ -101,20 +94,6 @@ export const CALL_STACK_FRAME_STYLES = css`
     padding: 6px 8px;
 
     border-radius: var(--rounded-lg);
-    transition: background 100ms ease-out;
-
-    &:not(:disabled)[role='button']:hover {
-      background: var(--color-gray-alpha-100);
-      cursor: pointer;
-    }
-
-    &:not(:disabled)[role='button']:active {
-      background: var(--color-gray-alpha-200);
-    }
-
-    &:focus-visible {
-      outline: var(--focus-ring);
-    }
   }
 
   .call-stack-frame-method-name {
@@ -129,6 +108,24 @@ export const CALL_STACK_FRAME_STYLES = css`
     font-size: var(--size-font-small);
     font-weight: 500;
     line-height: var(--size-5);
+  }
+
+  .open-in-editor-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--rounded-full);
+    padding: 4px;
+    color: var(--color-font);
+
+    &:focus-visible {
+      outline: var(--focus-ring);
+      outline-offset: -2px;
+    }
+
+    &:hover {
+      background: var(--color-gray-100);
+    }
   }
 
   .call-stack-frame-file-source {

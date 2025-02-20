@@ -16,7 +16,7 @@ import {
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
-import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
 export interface ErrorsProps extends ErrorBaseProps {

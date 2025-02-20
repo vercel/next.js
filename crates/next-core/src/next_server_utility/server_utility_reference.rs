@@ -2,7 +2,9 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::ChunkableModuleReference, module::Module, reference::ModuleReference,
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
+    module::Module,
+    reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
@@ -42,4 +44,12 @@ impl ModuleReference for NextServerUtilityModuleReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for NextServerUtilityModuleReference {}
+impl ChunkableModuleReference for NextServerUtilityModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Shared {
+            inherit_async: true,
+            merge_tag: Some("next-server-utility".into()),
+        }))
+    }
+}

@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../_experimental/internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
@@ -22,7 +22,7 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../internal/helpers/parse-stack'
+import { parseStack } from '../_experimental/internal/helpers/parse-stack'
 import ReactDevOverlay from './react-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
@@ -31,8 +31,8 @@ import {
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from '../internal/helpers/use-websocket'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+} from '../_experimental/internal/helpers/use-websocket'
+import { parseComponentStack } from '../_experimental/internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -341,10 +341,7 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
-      if (
-        process.env.__NEXT_APP_ISR_INDICATOR ||
-        process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
-      ) {
+      if (process.env.__NEXT_DEV_INDICATOR) {
         if (appIsrManifestRef) {
           appIsrManifestRef.current = obj.data
 
@@ -353,24 +350,7 @@ function processMessage(
           // as we'll receive the updated manifest before usePathname
           // triggers for new value
           if ((pathnameRef.current as string) in obj.data) {
-            if (process.env.__NEXT_APP_ISR_INDICATOR) {
-              // the indicator can be hidden for an hour.
-              // check if it's still hidden
-              const indicatorHiddenAt = Number(
-                localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-              )
-
-              const isHidden =
-                indicatorHiddenAt &&
-                !isNaN(indicatorHiddenAt) &&
-                Date.now() < indicatorHiddenAt
-
-              if (!isHidden) {
-                dispatcher.onStaticIndicator(true)
-              }
-            } else if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
-              dispatcher.onStaticIndicator(true)
-            }
+            dispatcher.onStaticIndicator(true)
           } else {
             dispatcher.onStaticIndicator(false)
           }
@@ -607,12 +587,11 @@ export default function HotReload({
       const componentStackTrace =
         (error as any)._componentStack || errorDetails?.componentStack
       const warning = errorDetails?.warning
-      const stitchedError = getReactStitchedError(error)
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
-        reason: stitchedError,
-        frames: parseStack(stitchedError.stack || ''),
+        reason: error,
+        frames: parseStack(error.stack || ''),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
@@ -651,10 +630,7 @@ export default function HotReload({
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
-  if (
-    process.env.__NEXT_APP_ISR_INDICATOR ||
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
-  ) {
+  if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which
     // isn't a runtime conditional only build-time so ignore hooks rule
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -666,22 +642,7 @@ export default function HotReload({
       if (appIsrManifest) {
         if (pathname && pathname in appIsrManifest) {
           try {
-            if (process.env.__NEXT_APP_ISR_INDICATOR) {
-              const indicatorHiddenAt = Number(
-                localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-              )
-
-              const isHidden =
-                indicatorHiddenAt &&
-                !isNaN(indicatorHiddenAt) &&
-                Date.now() < indicatorHiddenAt
-
-              if (!isHidden) {
-                dispatcher.onStaticIndicator(true)
-              }
-            } else if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
-              dispatcher.onStaticIndicator(true)
-            }
+            dispatcher.onStaticIndicator(true)
           } catch (reason) {
             let message = ''
 
@@ -743,11 +704,7 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay
-        state={state}
-        dispatcher={dispatcher}
-        globalError={globalError}
-      >
+      <ReactDevOverlay state={state} globalError={globalError}>
         {children}
       </ReactDevOverlay>
     )

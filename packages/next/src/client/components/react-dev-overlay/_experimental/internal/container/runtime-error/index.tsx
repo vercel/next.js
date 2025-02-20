@@ -6,7 +6,7 @@ import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 import {
   useFrames,
   type ReadyRuntimeError,
-} from '../../../../internal/helpers/get-error-by-type'
+} from '../../helpers/get-error-by-type'
 
 export type RuntimeErrorProps = {
   error: ReadyRuntimeError

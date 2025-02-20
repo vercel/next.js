@@ -39,11 +39,7 @@ describe('use-cache-standalone-search-params', () => {
         const errorSource = await getRedboxSource(browser)
         const expectedErrorMessage = getExpectedErrorMessage(route)
 
-        if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
-          expect(errorDescription).toBe(expectedErrorMessage)
-        } else {
-          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
-        }
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 

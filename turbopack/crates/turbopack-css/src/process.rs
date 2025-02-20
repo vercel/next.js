@@ -693,122 +693,127 @@ mod tests {
     fn css_module_pure_lint() {
         assert_lint_success(
             "html {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_success(
             "#id {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             "html.class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class > * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *, .root > *) {
-            color: red;
-        }",
+                color: red;
+            }",
+        );
+        assert_lint_success(
+            ".style {
+                background-image: var(--foo);
+            }",
         );
 
         assert_lint_failure(
             "div {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div > span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "* {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             "[data-foo] {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(.class) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(div) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":where(div > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             ":where(div) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
     }
 }

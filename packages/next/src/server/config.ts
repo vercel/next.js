@@ -255,6 +255,8 @@ function assignDefaults(
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    } else if (result.experimental?.nodeMiddleware) {
+      throw new CanaryOnlyError('experimental.nodeMiddleware')
     }
   }
 
@@ -469,14 +471,14 @@ function assignDefaults(
   warnOptionHasBeenDeprecated(
     result,
     'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
   warnOptionHasBeenDeprecated(
     result,
     'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
@@ -955,24 +957,8 @@ function assignDefaults(
     result.experimental = {}
   }
 
-  // TODO(jiwon): remove once we've made new UI default
-  if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'false') {
-    result.experimental.newDevOverlay = false
-  }
   // Preserve the default indicator options for old overlay.
   if (result.experimental.newDevOverlay !== true) {
-    result.devIndicators = {
-      ...result.devIndicators,
-      appIsrStatus:
-        result.devIndicators === false
-          ? false
-          : result.devIndicators?.appIsrStatus ?? true,
-      buildActivity:
-        result.devIndicators === false
-          ? false
-          : result.devIndicators?.buildActivity ?? true,
-    }
-
     // If the user didn't explicitly set `position` or `buildActivityPosition` option,
     // the default is going to be "bottom-left". However, the default position for the
     // old build activity indicator was "bottom-right" which becomes a breaking change.
@@ -980,9 +966,10 @@ function assignDefaults(
     if (!hasWarnedBuildActivityPosition) {
       result.devIndicators = {
         ...result.devIndicators,
-        position: userConfig.devIndicators?.position
-          ? result.devIndicators.position
-          : 'bottom-right',
+        position:
+          userConfig.devIndicators?.position && result.devIndicators !== false
+            ? result.devIndicators?.position
+            : 'bottom-right',
       }
     }
   }
