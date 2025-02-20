@@ -407,7 +407,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-middleware-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-middleware-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.middleware,
+    }
   }
 
   if (isAPIRoute(opts.page)) {
