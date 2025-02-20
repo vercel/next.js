@@ -227,7 +227,7 @@ enum ChunkSize {
 
 /// Determines the total size of the passed chunk items. Returns too small, too
 /// large or perfect fit.
-fn chunk_size<'l>(chunk_items: &[&'l ChunkItemWithInfo]) -> ChunkSize {
+fn chunk_size(chunk_items: &[&ChunkItemWithInfo]) -> ChunkSize {
     let mut total_size = 0;
     for ChunkItemWithInfo { size, .. } in chunk_items {
         total_size += size;

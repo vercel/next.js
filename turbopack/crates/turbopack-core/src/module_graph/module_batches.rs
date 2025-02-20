@@ -76,6 +76,8 @@ impl ModuleBatchesGraph {
         Ok(*self.graph.node_weight(entry).unwrap())
     }
 
+    // Clippy complains but there's a type error without the bound
+    #[allow(clippy::implied_bounds_in_impls)]
     /// Traverses all reachable edges in topological order. The preorder visitor can be used to
     /// forward state down the graph, and to skip subgraphs
     ///
@@ -210,15 +212,17 @@ impl ModuleBatchBuilder {
     }
 }
 
+type BatchIndex = usize;
+
 #[derive(Debug, Clone, Copy)]
 struct BatchAssignment {
-    batch_idx: usize,
+    batch_idx: BatchIndex,
     chunkable_module_for_adding: Option<Vc<Box<dyn ChunkableModule>>>,
-    next_child_batch: Option<usize>,
+    next_child_batch: Option<BatchIndex>,
 }
 
 impl BatchAssignment {
-    fn new(batch_idx: usize, chunkable_module: Vc<Box<dyn ChunkableModule>>) -> Self {
+    fn new(batch_idx: BatchIndex, chunkable_module: Vc<Box<dyn ChunkableModule>>) -> Self {
         Self {
             batch_idx,
             chunkable_module_for_adding: Some(chunkable_module),
@@ -226,7 +230,7 @@ impl BatchAssignment {
         }
     }
 
-    fn new_already_added(batch_idx: usize) -> Self {
+    fn new_already_added(batch_idx: BatchIndex) -> Self {
         Self {
             batch_idx,
             chunkable_module_for_adding: None,
@@ -235,14 +239,22 @@ impl BatchAssignment {
     }
 }
 
+/// Edge between two batchces: (from, to, ty, module)
+type BatchEdge = (
+    BatchIndex,
+    BatchIndex,
+    ChunkingType,
+    ResolvedVc<Box<dyn Module>>,
+);
+
 #[derive(Default)]
 struct TraversalState {
     /// Finished batches, filled in postorder
     batches: Vec<ModuleBatchBuilder>,
     /// Assigment of modules to batches, assigned in preorder
     batch_assignments: FxHashMap<ResolvedVc<Box<dyn Module>>, BatchAssignment>,
-    /// Edges between batches (from, to, ty)
-    edges: FxIndexSet<(usize, usize, ChunkingType, ResolvedVc<Box<dyn Module>>)>,
+    /// Edges between batches
+    edges: FxIndexSet<BatchEdge>,
 }
 
 impl TraversalState {
@@ -511,8 +523,8 @@ pub async fn compute_module_batches(
             .collect::<FxHashMap<_, _>>();
 
         span.record("batches", batches_len - result_modules);
-        span.record("modules", &result_modules);
-        span.record("edges", &state.edges.len());
+        span.record("modules", result_modules);
+        span.record("edges", state.edges.len());
 
         // Add edges
         for (from, to, ty, module) in state.edges {

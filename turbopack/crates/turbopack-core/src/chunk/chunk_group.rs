@@ -287,7 +287,7 @@ pub async fn chunk_group_content(
              result,
          }| {
             // Insert modules in topological order
-            if let Some(chunkable_module) = unsorted_items.get(&node).copied() {
+            if let Some(chunkable_module) = unsorted_items.get(node).copied() {
                 result.chunkable_items.insert(chunkable_module);
             }
         },

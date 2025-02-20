@@ -15,8 +15,8 @@ use crate::{
     module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
 };
 
-pub async fn make_production_chunks<'l>(
-    chunk_items: Vec<&'l ChunkItemWithInfo>,
+pub async fn make_production_chunks(
+    chunk_items: Vec<&ChunkItemWithInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
