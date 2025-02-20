@@ -28,6 +28,7 @@ mod production;
 
 #[turbo_tasks::value]
 struct ChunkItemsWithInfo {
+    #[allow(clippy::type_complexity)]
     by_type: SmallVec<
         [(
             ResolvedVc<Box<dyn ChunkType>>,
