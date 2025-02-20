@@ -104,7 +104,7 @@ pub async fn make_production_chunks(
                             smallest.size
                         };
                         let too_many_chunks = max_chunk_count_per_group != 0
-                            && heap.len() + chunks_to_merge_size / merge_threshold
+                            && heap.len() + chunks_to_merge_size / merge_threshold + 1
                                 > max_chunk_count_per_group;
                         let too_small_chunk = min_chunk_size != 0 && smallest.size < min_chunk_size;
                         if too_many_chunks || too_small_chunk {
@@ -152,6 +152,10 @@ pub async fn make_production_chunks(
                         // Check all combination with the new candidate
                         for (i, other) in selection.iter().enumerate() {
                             let value = overlap(&candidate.chunk_groups, &other.chunk_groups);
+                            // It need to have at least two chunk groups in common
+                            if value <= 1 {
+                                continue;
+                            }
                             if let Some((best_i1, best_i2, best_value)) = best_combination.as_mut()
                             {
                                 if value > *best_value {
@@ -194,15 +198,33 @@ pub async fn make_production_chunks(
                         } else {
                             chunks_to_merge.push(candidate);
                         }
+                    } else {
+                        // No merges possible
+                        break;
                     }
                 }
 
-                // Left-over chunks go back to the heap
-                for chunk in chunks_to_merge {
+                // Left-over chunks are merged together forming the remainer chunk, which includes
+                // all modules that are not sharable
+                if let Some(MergeCandidate {
+                    mut size,
+                    mut chunk_items,
+                    chunk_groups: _,
+                }) = chunks_to_merge.pop()
+                {
+                    for chunk in chunks_to_merge {
+                        let MergeCandidate {
+                            size: other_size,
+                            chunk_items: other_chunk_items,
+                            chunk_groups: _,
+                        } = chunk;
+                        size += other_size;
+                        chunk_items.extend(other_chunk_items);
+                    }
                     heap.push(ChunkCandidate {
-                        size: chunk.size,
-                        chunk_items: chunk.chunk_items,
-                        chunk_groups: chunk.chunk_groups,
+                        size,
+                        chunk_items,
+                        chunk_groups: None,
                     });
                 }
             }
