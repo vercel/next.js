@@ -18,7 +18,9 @@ describe('app-dir - server-component-next-dynamic-ssr-false', () => {
       source: await getRedboxSource(browser),
     }
 
-    expect(redbox.description).toBe('Failed to compile')
+    expect(redbox.description).toMatchInlineSnapshot(
+      `"Error:   x \`ssr: false\` is not allowed with \`next/dynamic\` in Server Components. Please move it into a client component."`
+    )
 
     if (process.env.TURBOPACK) {
       expect(redbox.source).toMatchInlineSnapshot(`
