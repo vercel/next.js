@@ -1197,6 +1197,24 @@ export const metadata = {
 }
 ```
 
+#### Streaming Metadata
+
+After v15.2, `generateMetadata` returned metadata will be streamed to client. This means Next.js will inject metadata into HTML once it's resolved.
+Since SEO purposed metadata target audience is crawler bots, we suspend the metadata rendering for human users and still keep it blocking rendering for certain HTML Limited bots.
+
+Bots that cannot execute JavaScript while crawling a web page are considered HTML Limited bots. For instance `Googlebot` can render the page like a headless browser, it's not a
+HTML Limited bot. However, `Twitterbot` is a HTML Limited bot, it can't execute JavaScript while crawling a web page. Next.js will determine the request user agent to decide
+whether to serve streaming metadata or not.
+
+For any special bots that can't be handled, you can specify the html limited bots user agent through `htmlLimitedBots` option in `next.config.js`.
+And Next.js will serve blocking metadata when it sees those bots requesting the web page.
+
+```js filename="next.config.js"
+module.exports = {
+  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+}
+```
+
 ## Version History
 
 | Version   | Changes                                                                                                                                                 |
