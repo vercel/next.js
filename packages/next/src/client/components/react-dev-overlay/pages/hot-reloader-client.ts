@@ -195,7 +195,8 @@ function handleErrors(errors: any) {
   })
 
   // Only show the first error.
-  onBuildError(formatted.errors[0])
+  const buildErrorMessage = formatted.errors[0] || ''
+  onBuildError(stripAnsi(buildErrorMessage))
 
   // Also log them to the console.
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
