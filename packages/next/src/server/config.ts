@@ -955,10 +955,6 @@ function assignDefaults(
     result.experimental = {}
   }
 
-  // TODO(jiwon): remove once we've made new UI default
-  if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'false') {
-    result.experimental.newDevOverlay = false
-  }
   // Preserve the default indicator options for old overlay.
   if (result.experimental.newDevOverlay !== true) {
     // If the user didn't explicitly set `position` or `buildActivityPosition` option,

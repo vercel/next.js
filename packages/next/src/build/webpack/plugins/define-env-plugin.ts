@@ -289,8 +289,6 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
-    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      config.experimental.newDevOverlay || false,
   }
 
   const userDefines = config.compiler?.define ?? {}
