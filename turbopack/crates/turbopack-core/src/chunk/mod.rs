@@ -168,6 +168,7 @@ pub enum ChunkingType {
     Parallel,
     /// Module is placed in the same chunk group and is loaded in parallel. It
     /// becomes an async module when the referenced module is async.
+    // TODO make inherit_async a separate field
     ParallelInheritAsync,
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
@@ -177,6 +178,13 @@ pub enum ChunkingType {
     // TODO this is currently skipped in chunking
     Isolated {
         _ty: ChunkGroupType,
+        merge_tag: Option<RcStr>,
+    },
+    /// Create a new chunk group in a separate context, merging references with the same tag into a
+    /// single chunk group. It provides available modules to the current chunk group. It's assumed
+    /// to be loaded before the current chunk group.
+    Shared {
+        inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
     // Module not placed in chunk group, but its references are still followed.
