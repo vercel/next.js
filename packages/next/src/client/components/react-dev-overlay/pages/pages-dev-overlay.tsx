@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { DevOverlayErrorBoundary } from './error-boundary'
+import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
 import { usePagesDevOverlay } from './hooks'
 import { DevOverlay } from '../_internal/dev-overlay'
 
@@ -18,9 +18,9 @@ export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
 
   return (
     <>
-      <DevOverlayErrorBoundary onError={onComponentError}>
+      <PagesDevOverlayErrorBoundary onError={onComponentError}>
         {children ?? null}
-      </DevOverlayErrorBoundary>
+      </PagesDevOverlayErrorBoundary>
 
       <DevOverlay
         state={state}
