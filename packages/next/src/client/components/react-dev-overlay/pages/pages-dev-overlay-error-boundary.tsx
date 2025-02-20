@@ -1,14 +1,14 @@
-import * as React from 'react'
+import React from 'react'
 
-type DevOverlayErrorBoundaryProps = {
+type PagesDevOverlayErrorBoundaryProps = {
   children?: React.ReactNode
   onError: (error: Error, componentStack: string | null) => void
 }
-type DevOverlayErrorBoundaryState = { error: Error | null }
+type PagesDevOverlayErrorBoundaryState = { error: Error | null }
 
-export class DevOverlayErrorBoundary extends React.PureComponent<
-  DevOverlayErrorBoundaryProps,
-  DevOverlayErrorBoundaryState
+export class PagesDevOverlayErrorBoundary extends React.PureComponent<
+  PagesDevOverlayErrorBoundaryProps,
+  PagesDevOverlayErrorBoundaryState
 > {
   state = { error: null }
 
