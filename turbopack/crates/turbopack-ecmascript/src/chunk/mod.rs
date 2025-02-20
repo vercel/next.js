@@ -173,11 +173,6 @@ impl EcmascriptChunk {
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
         *self.content
     }
-
-    #[turbo_tasks::function]
-    pub async fn chunk_items_count(&self) -> Result<Vc<usize>> {
-        Ok(Vc::cell(self.content.await?.chunk_items.len()))
-    }
 }
 
 #[turbo_tasks::function]

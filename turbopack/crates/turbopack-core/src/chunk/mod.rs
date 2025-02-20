@@ -179,9 +179,6 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
-    /// Module not placed in chunk group, but its references are still followed and placed into the
-    /// chunk group.
-    Passthrough,
     // Module not placed in chunk group, but its references are still followed.
     Traced,
 }
@@ -207,7 +204,6 @@ pub struct ChunkGroupContent {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-    pub passthrough_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
 }
 
 #[turbo_tasks::value_trait]
@@ -286,31 +282,10 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Copy,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-)]
-pub enum ChunkItemTy {
-    /// The ChunkItem should be included as content in the chunk.
-    Included,
-    /// The ChunkItem should be used to trace references but should not included in the chunk.
-    Passthrough,
-}
-
-#[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
 // #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
-    pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,

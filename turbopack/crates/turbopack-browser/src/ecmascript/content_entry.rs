@@ -2,7 +2,7 @@ use anyhow::Result;
 use tracing::{info_span, Instrument};
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ModuleId},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
     code_builder::Code,
 };
 use turbopack_ecmascript::chunk::{
@@ -49,45 +49,31 @@ impl EcmascriptDevChunkContentEntries {
     ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let included_chunk_items = chunk_content
+        let entries: FxIndexMap<_, _> = chunk_content
             .chunk_items
             .iter()
             .map(
-                async |EcmascriptChunkItemWithAsyncInfo {
-                           ty,
-                           chunk_item,
-                           async_info,
-                       }| {
-                    if matches!(ty, ChunkItemTy::Included) {
-                        Ok(Some((chunk_item, async_info)))
-                    } else {
-                        Ok(None)
+                |&EcmascriptChunkItemWithAsyncInfo {
+                     chunk_item,
+                     async_info,
+                 }| async move {
+                    async move {
+                        Ok((
+                            chunk_item.id().await?,
+                            EcmascriptDevChunkContentEntry::new(
+                                chunk_item,
+                                async_info.map(|info| *info),
+                            )
+                            .await?,
+                        ))
                     }
+                    .instrument(info_span!(
+                        "chunk item",
+                        name = display(chunk_item.asset_ident().to_string().await?)
+                    ))
+                    .await
                 },
             )
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten();
-
-        let entries: FxIndexMap<_, _> = included_chunk_items
-            .map(|(&chunk_item, &async_module_info)| async move {
-                async move {
-                    Ok((
-                        chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(
-                            chunk_item,
-                            async_module_info.map(|info| *info),
-                        )
-                        .await?,
-                    ))
-                }
-                .instrument(info_span!(
-                    "chunk item",
-                    name = display(chunk_item.asset_ident().to_string().await?)
-                ))
-                .await
-            })
             .try_join()
             .await?
             .into_iter()

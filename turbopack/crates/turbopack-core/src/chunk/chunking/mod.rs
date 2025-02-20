@@ -9,8 +9,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo, ChunkType,
-    ChunkingContext,
+    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
 };
 use crate::{
     chunk::{
@@ -88,7 +87,6 @@ pub async fn make_chunks(
                 .map(
                     async |(
                         ChunkItemWithAsyncModuleInfo {
-                            ty,
                             chunk_item,
                             module,
                             async_info,
@@ -96,7 +94,6 @@ pub async fn make_chunks(
                         chunk_item_info,
                     )| {
                         Ok(ChunkItemWithInfo {
-                            ty: *ty,
                             chunk_item: *chunk_item,
                             module: *module,
                             async_info: *async_info,
@@ -156,7 +153,6 @@ pub async fn make_chunks(
 }
 
 struct ChunkItemWithInfo {
-    ty: ChunkItemTy,
     chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     async_info: Option<ResolvedVc<AsyncModuleInfo>>,
@@ -186,13 +182,11 @@ async fn make_chunk(
                 .into_iter()
                 .map(
                     |ChunkItemWithInfo {
-                         ty,
                          chunk_item,
                          module,
                          async_info,
                          ..
                      }| ChunkItemWithAsyncModuleInfo {
-                        ty,
                         chunk_item,
                         module,
                         async_info,
