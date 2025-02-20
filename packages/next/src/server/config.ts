@@ -255,6 +255,8 @@ function assignDefaults(
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    } else if (result.experimental?.nodeMiddleware) {
+      throw new CanaryOnlyError('experimental.nodeMiddleware')
     }
   }
 
