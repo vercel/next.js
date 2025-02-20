@@ -1,5 +1,5 @@
 import React from 'react'
-import ReactDevOverlay from './react-dev-overlay'
+import { AppDevOverlay } from './app-dev-overlay'
 import { getSocketUrl } from '../_internal/helpers/get-socket-url'
 import { INITIAL_OVERLAY_STATE } from '../shared'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
@@ -41,12 +41,12 @@ export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
 
   return (
     <FallbackLayout>
-      <ReactDevOverlay
+      <AppDevOverlay
         state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
         globalError={[GlobalError, null]}
       >
         {reactEl}
-      </ReactDevOverlay>
+      </AppDevOverlay>
     </FallbackLayout>
   )
 }

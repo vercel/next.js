@@ -23,7 +23,7 @@ import {
   useErrorOverlayReducer,
 } from '../shared'
 import { parseStack } from '../_internal/helpers/parse-stack'
-import ReactDevOverlay from './react-dev-overlay'
+import { AppDevOverlay } from './app-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
@@ -704,9 +704,9 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay state={state} globalError={globalError}>
+      <AppDevOverlay state={state} globalError={globalError}>
         {children}
-      </ReactDevOverlay>
+      </AppDevOverlay>
     )
   }
 

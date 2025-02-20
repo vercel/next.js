@@ -31,7 +31,7 @@ export function DevToolsIndicator({
   state: OverlayState
   errorCount: number
   isBuildError: boolean
-  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
+  setIsErrorOverlayOpen: (isOverlayOpen: boolean) => void
   // Technically this prop isn't needed, but useful for testing.
   position?: DevToolsIndicatorPosition
 }) {
@@ -87,7 +87,7 @@ function DevToolsPopover({
   position: DevToolsIndicatorPosition
   isBuildError: boolean
   hide: () => void
-  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
+  setIsErrorOverlayOpen: (isOverlayOpen: boolean) => void
 }) {
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)

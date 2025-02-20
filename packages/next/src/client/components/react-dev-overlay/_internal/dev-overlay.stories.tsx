@@ -1,21 +1,18 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import type { OverlayState } from '../shared'
 
-import ReactDevOverlay from './react-dev-overlay'
+import { DevOverlay } from './dev-overlay'
 import { ACTION_UNHANDLED_ERROR } from '../shared'
 
-// @ts-expect-error
-import imgApp from '../_internal/storybook/app.png'
-
-const meta: Meta<typeof ReactDevOverlay> = {
-  component: ReactDevOverlay,
+const meta: Meta<typeof DevOverlay> = {
+  component: DevOverlay,
   parameters: {
     layout: 'fullscreen',
   },
 }
 
 export default meta
-type Story = StoryObj<typeof ReactDevOverlay>
+type Story = StoryObj<typeof DevOverlay>
 
 const state: OverlayState = {
   nextId: 0,
@@ -84,17 +81,7 @@ const state: OverlayState = {
 export const Default: Story = {
   args: {
     state,
-    children: (
-      <div>
-        <img
-          src={imgApp}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-          }}
-        />
-      </div>
-    ),
+    isErrorOverlayOpen: true,
+    setIsErrorOverlayOpen: () => {},
   },
 }
