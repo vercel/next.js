@@ -7,6 +7,11 @@ export const config = {
   runtime: 'nodejs',
 }
 
+// When there is a top level await, requiring middleware.js will return a Promise
+await new Promise((resolve) => {
+  setTimeout(resolve, 100)
+})
+
 const PATTERNS = []
 
 const params = (url) => {
