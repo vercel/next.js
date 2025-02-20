@@ -1,4 +1,4 @@
-import type { OverlayState } from '../../../../../shared'
+import type { OverlayState } from '../../../../shared'
 
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'

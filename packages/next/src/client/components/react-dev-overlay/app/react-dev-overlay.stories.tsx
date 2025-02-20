@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { OverlayState } from '../../shared'
+import type { OverlayState } from '../shared'
 
 import ReactDevOverlay from './react-dev-overlay'
-import { ACTION_UNHANDLED_ERROR } from '../../shared'
+import { ACTION_UNHANDLED_ERROR } from '../shared'
 
 // @ts-expect-error
-import imgApp from './app.png'
+import imgApp from '../_internal/storybook/app.png'
 
 const meta: Meta<typeof ReactDevOverlay> = {
   component: ReactDevOverlay,

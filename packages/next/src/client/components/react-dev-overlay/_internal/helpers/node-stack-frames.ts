@@ -3,7 +3,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   decorateServerError,
   type ErrorSourceType,
-} from '../../../../../../shared/lib/error-source'
+} from '../../../../../shared/lib/error-source'
 
 export function getFilesystemFrame(frame: StackFrame): StackFrame {
   const f: StackFrame = { ...frame }

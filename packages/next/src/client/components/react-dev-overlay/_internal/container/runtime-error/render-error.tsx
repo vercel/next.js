@@ -2,13 +2,13 @@ import type {
   OverlayState,
   UnhandledErrorAction,
   UnhandledRejectionAction,
-} from '../../../../shared'
+} from '../../../shared'
 
 import { useMemo, useState, useEffect } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../../../shared'
+} from '../../../shared'
 import {
   getErrorByType,
   type ReadyRuntimeError,

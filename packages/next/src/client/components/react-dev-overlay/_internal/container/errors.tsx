@@ -1,20 +1,20 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
-import type { DebugInfo } from '../../../types'
+import type { DebugInfo } from '../../types'
 import { Overlay } from '../components/overlay'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
-import { getErrorSource } from '../../../../../../shared/lib/error-source'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
   getHydrationWarningType,
-} from '../../../../errors/hydration-error-info'
+} from '../../../errors/hydration-error-info'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
-} from '../../../../errors/console-error'
-import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
+} from '../../../errors/console-error'
+import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'

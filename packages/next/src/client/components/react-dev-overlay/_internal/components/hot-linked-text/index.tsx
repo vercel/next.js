@@ -2,7 +2,7 @@ import React from 'react'
 import {
   decodeMagicIdentifier,
   MAGIC_IDENTIFIER_REGEX,
-} from '../../../../../../../shared/lib/magic-identifier'
+} from '../../../../../../shared/lib/magic-identifier'
 
 const linkRegex = /https?:\/\/[^\s/$.?#].[^\s)'"]*/i
 

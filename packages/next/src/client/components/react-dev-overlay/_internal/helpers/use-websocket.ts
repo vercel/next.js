@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useRef } from 'react'
-import { GlobalLayoutRouterContext } from '../../../../../../shared/lib/app-router-context.shared-runtime'
+import { GlobalLayoutRouterContext } from '../../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from './get-socket-url'
-import type { TurbopackMsgToBrowser } from '../../../../../../server/dev/hot-reloader-types'
+import type { TurbopackMsgToBrowser } from '../../../../../server/dev/hot-reloader-types'
 
 export function useWebsocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>(undefined)

@@ -1,4 +1,4 @@
-import { normalizedAssetPrefix } from '../../../../../../shared/lib/normalized-asset-prefix'
+import { normalizedAssetPrefix } from '../../../../../shared/lib/normalized-asset-prefix'
 
 function getSocketProtocol(assetPrefix: string): string {
   let protocol = window.location.protocol

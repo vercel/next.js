@@ -1,4 +1,4 @@
-import type { DebugInfo } from '../../../../../types'
+import type { DebugInfo } from '../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { noop as css } from '../../../helpers/noop-template'
 import { CopyStackTraceButton } from './copy-stack-trace-button'

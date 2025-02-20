@@ -1,4 +1,4 @@
-import type { DebugInfo } from '../../../../../types'
+import type { DebugInfo } from '../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
