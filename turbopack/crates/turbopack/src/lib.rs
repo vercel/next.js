@@ -60,7 +60,7 @@ use turbopack_ecmascript::{
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
 use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
-use turbopack_static::StaticModuleAsset;
+use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
@@ -249,8 +249,11 @@ async fn apply_module_type(
             .to_resolved()
             .await?,
         ),
-        ModuleType::Static => {
-            ResolvedVc::upcast(StaticModuleAsset::new(*source).to_resolved().await?)
+        ModuleType::StaticUrlJs => {
+            ResolvedVc::upcast(StaticUrlJsModule::new(*source).to_resolved().await?)
+        }
+        ModuleType::StaticUrlCss => {
+            ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
         }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(

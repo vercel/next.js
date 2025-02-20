@@ -10,10 +10,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{
-        ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-        ChunkingTypeOption,
-    },
+    chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     ident::AssetIdent,
     issue::IssueSource,
     module_graph::ModuleGraph,
@@ -97,13 +94,7 @@ impl ModuleReference for UrlAssetReference {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        // Since this chunk item is embedded, we don't want to put it in the chunk group
-        Vc::cell(Some(ChunkingType::Passthrough))
-    }
-}
+impl ChunkableModuleReference for UrlAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl ValueToString for UrlAssetReference {

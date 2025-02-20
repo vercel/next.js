@@ -1,6 +1,6 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_import-meta_url_input_7615cd._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_import-meta_url_input_617676._.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)": ((__turbopack_context__) => {
 
 var { g: global, d: __dirname } = __turbopack_context__;
 {
@@ -16,7 +16,7 @@ const __TURBOPACK__import$2e$meta__ = {
         return `file://${__turbopack_context__.P("turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/mod.mjs")}`;
     }
 };
-const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static)"));
+const assetUrl = new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/url/input/asset.txt (static in ecmascript)"));
 console.log(assetUrl);
 fetch(assetUrl).then((res)=>res.text()).then(console.log);
 }}),
@@ -31,4 +31,4 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 }}),
 }]);
 
-//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_import-meta_url_input_7615cd._.js.map
+//# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_import-meta_url_input_617676._.js.map
