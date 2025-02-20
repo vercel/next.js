@@ -341,17 +341,19 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
-      if (appIsrManifestRef) {
-        appIsrManifestRef.current = obj.data
+      if (process.env.__NEXT_DEV_INDICATOR) {
+        if (appIsrManifestRef) {
+          appIsrManifestRef.current = obj.data
 
-        // handle initial status on receiving manifest
-        // navigation is handled in useEffect for pathname changes
-        // as we'll receive the updated manifest before usePathname
-        // triggers for new value
-        if ((pathnameRef.current as string) in obj.data) {
-          dispatcher.onStaticIndicator(true)
-        } else {
-          dispatcher.onStaticIndicator(false)
+          // handle initial status on receiving manifest
+          // navigation is handled in useEffect for pathname changes
+          // as we'll receive the updated manifest before usePathname
+          // triggers for new value
+          if ((pathnameRef.current as string) in obj.data) {
+            dispatcher.onStaticIndicator(true)
+          } else {
+            dispatcher.onStaticIndicator(false)
+          }
         }
       }
       break
@@ -628,37 +630,39 @@ export default function HotReload({
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
-  // this conditional is only for dead-code elimination which
-  // isn't a runtime conditional only build-time so ignore hooks rule
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    pathnameRef.current = pathname
+  if (process.env.__NEXT_DEV_INDICATOR) {
+    // this conditional is only for dead-code elimination which
+    // isn't a runtime conditional only build-time so ignore hooks rule
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      pathnameRef.current = pathname
 
-    const appIsrManifest = appIsrManifestRef.current
+      const appIsrManifest = appIsrManifestRef.current
 
-    if (appIsrManifest) {
-      if (pathname && pathname in appIsrManifest) {
-        try {
-          dispatcher.onStaticIndicator(true)
-        } catch (reason) {
-          let message = ''
+      if (appIsrManifest) {
+        if (pathname && pathname in appIsrManifest) {
+          try {
+            dispatcher.onStaticIndicator(true)
+          } catch (reason) {
+            let message = ''
 
-          if (reason instanceof DOMException) {
-            // Most likely a SecurityError, because of an unavailable localStorage
-            message = reason.stack ?? reason.message
-          } else if (reason instanceof Error) {
-            message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
-          } else {
-            message = 'Unexpected Exception: ' + reason
+            if (reason instanceof DOMException) {
+              // Most likely a SecurityError, because of an unavailable localStorage
+              message = reason.stack ?? reason.message
+            } else if (reason instanceof Error) {
+              message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
+            } else {
+              message = 'Unexpected Exception: ' + reason
+            }
+
+            console.warn('[HMR] ' + message)
           }
-
-          console.warn('[HMR] ' + message)
+        } else {
+          dispatcher.onStaticIndicator(false)
         }
-      } else {
-        dispatcher.onStaticIndicator(false)
       }
-    }
-  }, [pathname, dispatcher])
+    }, [pathname, dispatcher])
+  }
 
   useEffect(() => {
     const websocket = webSocketRef.current
