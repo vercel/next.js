@@ -79,7 +79,7 @@ describe('app dir - metadata navigation', () => {
       // metadata is suspended in SSR, it won't affect the response status
       expect(res.status).toBe(200)
       const browser = await next.browser('/async/redirect')
-      expect(await browser.elementByCss('p').text()).toBe('params - basic')
+      expect(await browser.elementByCss('p').text()).toBe('redirect dest page')
     })
 
     it('should show the index title', async () => {

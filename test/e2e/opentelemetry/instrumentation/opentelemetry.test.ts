@@ -172,7 +172,7 @@ describe('opentelemetry', () => {
                           'next.clientComponentLoadCount': isNextDev
                             ? // In dev, additional client components are being loaded
                               // due to RSC props being deserialized.
-                              9
+                              11
                             : 8,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',

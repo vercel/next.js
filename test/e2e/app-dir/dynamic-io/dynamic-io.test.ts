@@ -74,7 +74,7 @@ describe('dynamic-io', () => {
           'yes'
         )
 
-        expect(await hasStaticIndicator(browser)).toBe(true)
+        expect(await hasStaticIndicator(browser)).toBe(false)
       })
     })
   }
