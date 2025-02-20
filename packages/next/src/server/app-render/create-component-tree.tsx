@@ -522,7 +522,11 @@ async function createComponentTreeInternal({
             preloadCallbacks,
             authInterrupts,
             StreamingMetadata,
-            StreamingMetadataOutlet,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : () => null,
           })
 
           childCacheNodeSeedData = seedData
@@ -709,8 +713,12 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
-          <StreamingMetadataOutlet />
+          {/* Streaming metadata outlet */}
+          {actualSegment !== DEFAULT_SEGMENT_KEY ? (
+            <StreamingMetadataOutlet />
+          ) : undefined}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
