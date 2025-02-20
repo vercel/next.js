@@ -742,11 +742,7 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay
-        state={state}
-        dispatcher={dispatcher}
-        globalError={globalError}
-      >
+      <ReactDevOverlay state={state} globalError={globalError}>
         {children}
       </ReactDevOverlay>
     )
