@@ -97,7 +97,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -163,7 +163,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -294,7 +294,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -347,7 +347,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -397,7 +397,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -450,7 +450,7 @@ describe('Error overlay for hydration errors in App router', () => {
      "...
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+             <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                <LoadingBoundary loading={null}>
                  <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -498,7 +498,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -546,7 +546,7 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(pseudoHtml).toMatchInlineSnapshot(`
      "...
          <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-           <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+           <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
              <LoadingBoundary loading={null}>
                <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                  <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} unauthorized={undefined} ...>
@@ -645,7 +645,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -703,7 +703,7 @@ describe('Error overlay for hydration errors in App router', () => {
      "...
          <ScrollAndFocusHandler segmentPath={[...]}>
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-             <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+             <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                <LoadingBoundary loading={null}>
                  <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                    <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -756,7 +756,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
@@ -808,7 +808,7 @@ describe('Error overlay for hydration errors in App router', () => {
          <RenderFromTemplateContext>
            <ScrollAndFocusHandler segmentPath={[...]}>
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
-               <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+               <AppDevOverlayErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
                    <HTTPAccessFallbackBoundary notFound={[...]} forbidden={undefined} unauthorized={undefined}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={[...]} forbidden={undefined} ...>
