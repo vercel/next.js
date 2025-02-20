@@ -3362,6 +3362,9 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error("Cache cannot be refreshed during server rendering.");
 }
+function unsupportedStartGesture() {
+  throw Error("startGesture cannot be called during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3457,6 +3460,10 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
+    },
+    useSwipeTransition: function (previous, current) {
+      resolveCurrentlyRenderingComponent();
+      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -6361,13 +6368,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_810 = React.version;
 if (
-  "19.1.0-experimental-32b0cad8-20250213" !==
+  "19.1.0-experimental-fcb4e0f1-20250219" !==
   isomorphicReactPackageVersion$jscomp$inline_810
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_810 +
-        "\n  - react-dom:  19.1.0-experimental-32b0cad8-20250213\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.1.0-experimental-fcb4e0f1-20250219\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6458,4 +6465,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-32b0cad8-20250213";
+exports.version = "19.1.0-experimental-fcb4e0f1-20250219";
