@@ -3,10 +3,10 @@ import type { VersionInfo } from '../../../../../../../../server/dev/parse-versi
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
 import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 import { noop as css } from '../../../helpers/noop-template'
-import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 
 type ErrorOverlayNavProps = {
-  readyErrors?: ReadyRuntimeError[]
+  runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   versionInfo?: VersionInfo
@@ -14,7 +14,7 @@ type ErrorOverlayNavProps = {
 }
 
 export function ErrorOverlayNav({
-  readyErrors,
+  runtimeErrors,
   activeIdx,
   setActiveIndex,
   versionInfo,
@@ -25,7 +25,7 @@ export function ErrorOverlayNav({
       <Notch side="left">
         {/* TODO: better passing data instead of nullish coalescing */}
         <ErrorOverlayPagination
-          readyErrors={readyErrors ?? []}
+          runtimeErrors={runtimeErrors ?? []}
           activeIdx={activeIdx ?? 0}
           onActiveIndexChange={setActiveIndex ?? (() => {})}
         />

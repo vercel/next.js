@@ -83,7 +83,7 @@ describe('hydration-error-count', () => {
            ">",
          ],
        ],
-       "notes": undefined,
+       "notes": null,
      }
     `)
 

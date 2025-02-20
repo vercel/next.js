@@ -123,7 +123,7 @@ pub fn log_internal_error_and_inform(err_info: &str) {
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
     writeln!(log_file, "{}\n{}", LOG_DIVIDER, err_info).unwrap();
-    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {}, along with a description of what you were doing when the error occurred, to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {}, along with a description of what you were doing when the error occurred, to https://github.com/vercel/next.js/issues/new?template=1.bug_report.yml", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
 }
 
 #[napi]

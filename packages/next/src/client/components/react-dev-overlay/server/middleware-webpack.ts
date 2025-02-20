@@ -7,21 +7,17 @@ import {
   type BasicSourceMapConsumer,
 } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
-import { launchEditor } from '../internal/helpers/launchEditor'
+import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
+import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
 import {
-  badRequest,
   getOriginalCodeFrame,
-  internalServerError,
-  json,
-  noContent,
-  notFound,
   type OriginalStackFrameResponse,
   type OriginalStackFramesRequest,
   type OriginalStackFramesResponse,
 } from './shared'
-export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parse-stack'
+import { middlewareResponse } from './middleware-response'
+export { getServerError } from '../_experimental/internal/helpers/node-stack-frames'
+export { parseStack } from '../_experimental/internal/helpers/parse-stack'
 export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -30,7 +26,7 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
+import { formatFrameSourceFile } from '../_experimental/internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
 
@@ -90,9 +86,12 @@ function getSourcePath(source: string) {
   return source.replace(/^(webpack:\/\/\/|webpack:\/\/|webpack:\/\/_N_E\/)/, '')
 }
 
+/**
+ * @returns 1-based lines and 0-based columns
+ */
 async function findOriginalSourcePositionAndContent(
   sourceMap: RawSourceMap,
-  position: { line: number; column: number | null }
+  position: { lineNumber: number | null; column: number | null }
 ): Promise<SourceAttributes | null> {
   let consumer: BasicSourceMapConsumer
   try {
@@ -106,8 +105,9 @@ async function findOriginalSourcePositionAndContent(
 
   try {
     const sourcePosition = consumer.originalPositionFor({
-      line: position.line,
-      column: position.column ?? 0,
+      line: position.lineNumber ?? 1,
+      // 0-based columns out requires 0-based columns in.
+      column: (position.column ?? 1) - 1,
     })
 
     if (!sourcePosition.source) {
@@ -191,7 +191,6 @@ export async function createOriginalStackFrame({
   frame: StackFrame
   errorMessage?: string
 }): Promise<OriginalStackFrameResponse | null> {
-  const { lineNumber, column } = frame
   const moduleNotFound = findModuleNotFoundFromError(errorMessage)
   const result = await (() => {
     if (moduleNotFound) {
@@ -205,11 +204,7 @@ export async function createOriginalStackFrame({
         source.compilation
       )
     }
-    // This returns 1-based lines and 0-based columns
-    return findOriginalSourcePositionAndContent(source.sourceMap, {
-      line: lineNumber ?? 1,
-      column,
-    })
+    return findOriginalSourcePositionAndContent(source.sourceMap, frame)
   })()
 
   if (!result) {
@@ -523,7 +518,7 @@ export function getOverlayMiddleware(options: {
 
     if (pathname === '/__nextjs_original-stack-frames') {
       if (req.method !== 'POST') {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
 
       const body = await new Promise<string>((resolve, reject) => {
@@ -540,7 +535,7 @@ export function getOverlayMiddleware(options: {
           body
         ) as OriginalStackFramesRequest
 
-        return json(
+        return middlewareResponse.json(
           res,
           await getOriginalStackFrames({
             isServer,
@@ -558,7 +553,7 @@ export function getOverlayMiddleware(options: {
           })
         )
       } catch (err) {
-        return badRequest(res)
+        return middlewareResponse.badRequest(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = {
@@ -569,7 +564,7 @@ export function getOverlayMiddleware(options: {
         arguments: searchParams.getAll('arguments').filter(Boolean),
       } satisfies StackFrame
 
-      if (!frame.file) return badRequest(res)
+      if (!frame.file) return middlewareResponse.badRequest(res)
 
       // frame files may start with their webpack layer, like (middleware)/middleware.js
       const filePath = path.resolve(
@@ -580,16 +575,16 @@ export function getOverlayMiddleware(options: {
         () => true,
         () => false
       )
-      if (!fileExists) return notFound(res)
+      if (!fileExists) return middlewareResponse.notFound(res)
 
       try {
         launchEditor(filePath, frame.lineNumber, frame.column ?? 1)
       } catch (err) {
         console.log('Failed to launch editor:', err)
-        return internalServerError(res)
+        return middlewareResponse.internalServerError(res)
       }
 
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
     return next()
@@ -617,7 +612,7 @@ export function getSourceMapMiddleware(options: {
     const filename = searchParams.get('filename')
 
     if (!filename) {
-      return badRequest(res)
+      return middlewareResponse.badRequest(res)
     }
 
     let source: Source | undefined
@@ -641,13 +636,13 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      return internalServerError(res, error)
+      return middlewareResponse.internalServerError(res, error)
     }
 
     if (!source) {
-      return noContent(res)
+      return middlewareResponse.noContent(res)
     }
 
-    return json(res, source.sourceMap)
+    return middlewareResponse.json(res, source.sourceMap)
   }
 }

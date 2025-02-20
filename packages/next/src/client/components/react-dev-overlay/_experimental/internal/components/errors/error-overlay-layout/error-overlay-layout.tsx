@@ -32,19 +32,20 @@ import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
-import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 
 interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
   errorCode?: string
-  error: Error
+  error: ReadyRuntimeError['error']
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
   // TODO: better handle receiving
-  readyErrors?: ReadyRuntimeError[]
+  runtimeErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
@@ -61,7 +62,7 @@ export function ErrorOverlayLayout({
   isBuildError,
   onClose,
   versionInfo,
-  readyErrors,
+  runtimeErrors,
   activeIdx,
   setActiveIndex,
   footerMessage,
@@ -97,7 +98,14 @@ export function ErrorOverlayLayout({
                 // allow assertion in tests before error rating is implemented
                 data-nextjs-error-code={errorCode}
               >
-                <ErrorTypeLabel errorType={errorType} />
+                <span data-nextjs-error-label-group>
+                  <ErrorTypeLabel errorType={errorType} />
+                  {error.environmentName && (
+                    <EnvironmentNameLabel
+                      environmentName={error.environmentName}
+                    />
+                  )}
+                </span>
                 <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
               </div>
               <ErrorMessage errorMessage={errorMessage} />
@@ -114,12 +122,12 @@ export function ErrorOverlayLayout({
             </DialogFooter>
           )}
           <ErrorOverlayBottomStack
-            count={readyErrors?.length ?? 0}
+            count={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
         <ErrorOverlayNav
-          readyErrors={readyErrors}
+          runtimeErrors={runtimeErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           versionInfo={versionInfo}
@@ -141,4 +149,10 @@ export const styles = css`
   ${errorMessageStyles}
   ${toolbarStyles}
   ${CALL_STACK_STYLES}
+
+  [data-nextjs-error-label-group] {
+    display: flex;
+    align-items: center;
+    gap: var(--size-2);
+  }
 `

@@ -94,6 +94,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/_experimental/font/get-dev-overlay-font-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -106,7 +107,7 @@ const isTestMode = !!(
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
 /**
- * Replaces turbopack://[project] with the specified project in the `source` field.
+ * Replaces turbopack:///[project] with the specified project in the `source` field.
  */
 function rewriteTurbopackSources(
   projectRoot: string,
@@ -121,7 +122,7 @@ function rewriteTurbopackSources(
       sourceMap.sources[i] = pathToFileURL(
         join(
           projectRoot,
-          sourceMap.sources[i].replace(/turbopack:\/\/\[project\]/, '')
+          sourceMap.sources[i].replace(/turbopack:\/\/\/\[project\]/, '')
         )
       ).toString()
     }
@@ -634,6 +635,7 @@ export async function createHotReloaderTurbopack(
     getOverlayMiddleware(project),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
+    getDevOverlayFontMiddleware(),
   ]
 
   const versionInfoPromise = getVersionInfo()

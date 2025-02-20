@@ -154,6 +154,7 @@ export class PagesAPIRouteModule extends RouteModule<
         allowedRevalidateHeaderKeys: context.allowedRevalidateHeaderKeys,
         hostname: context.hostname,
         multiZoneDraftMode: context.multiZoneDraftMode,
+        dev: context.dev,
       },
       context.minimalMode,
       context.dev,

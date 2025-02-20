@@ -310,7 +310,7 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..6];
+            let truncated_hash = &hash[..8];
             write!(name, "_{}", truncated_hash)?;
         }
 

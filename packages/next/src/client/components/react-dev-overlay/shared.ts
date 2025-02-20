@@ -2,8 +2,8 @@ import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './internal/container/Errors'
-import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'
+import type { SupportedErrorEvent } from './_experimental/internal/container/runtime-error/render-error'
+import type { ComponentStackFrame } from './_experimental/internal/helpers/parse-component-stack'
 import type { DebugInfo } from './types'
 
 type FastRefreshState =
@@ -21,6 +21,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
+  disableDevIndicator: boolean
   debugInfo: DebugInfo
 }
 
@@ -106,6 +107,7 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   errors: [],
   notFound: false,
   staticIndicator: false,
+  disableDevIndicator: process.env.__NEXT_DEV_INDICATOR?.toString() === 'false',
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },

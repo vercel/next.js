@@ -53,8 +53,8 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkableModules, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModules, ChunkingContext, ChunkingContextExt,
+        EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -833,7 +833,7 @@ impl AppProject {
                     let graph = SingleModuleGraph::new_with_entries_visited(
                         server_utils
                             .iter()
-                            .map(|m| **m)
+                            .map(|m| Vc::upcast(**m))
                             .chain(extra_entries)
                             .collect(),
                         VisitedModules::empty(),
@@ -1336,7 +1336,7 @@ impl AppEndpoint {
 
         let server_action_manifest_loader = server_action_manifest.loader;
 
-        let (app_entry_chunks, app_entry_chunks_availability) = &*self
+        let app_entry_chunks = self
             .app_entry_chunks(
                 client_references,
                 *server_action_manifest_loader,
@@ -1344,6 +1344,7 @@ impl AppEndpoint {
                 process_client_assets,
                 *module_graphs.full,
             )
+            .to_resolved()
             .await?;
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
@@ -1363,11 +1364,10 @@ impl AppEndpoint {
                     entry_name: app_entry.original_name.clone(),
                     client_references,
                     client_references_chunks,
-                    rsc_app_entry_chunks: **app_entry_chunks,
-                    rsc_app_entry_chunks_availability: Value::new(*app_entry_chunks_availability),
-                    module_graph: *module_graphs.full,
+                    rsc_app_entry_chunks: *app_entry_chunks,
                     client_chunking_context,
                     ssr_chunking_context,
+                    async_module_info: module_graphs.full.async_module_info(),
                     next_config: project.next_config(),
                     runtime,
                     mode: project.next_mode(),
@@ -1415,7 +1415,7 @@ impl AppEndpoint {
                 file_paths_from_root
                     .extend(get_js_paths_from_root(&node_root_value, &app_entry_chunks_ref).await?);
 
-                let all_output_assets = all_assets_from_entries(**app_entry_chunks).await?;
+                let all_output_assets = all_assets_from_entries(*app_entry_chunks).await?;
 
                 wasm_paths_from_root
                     .extend(get_wasm_paths_from_root(&node_root_value, &middleware_assets).await?);
@@ -1515,7 +1515,7 @@ impl AppEndpoint {
                 }
 
                 AppEndpointOutput::Edge {
-                    files: *app_entry_chunks,
+                    files: app_entry_chunks,
                     server_assets: ResolvedVc::cell(
                         server_assets.iter().cloned().collect::<Vec<_>>(),
                     ),
@@ -1618,7 +1618,7 @@ impl AppEndpoint {
         server_path: Vc<FileSystemPath>,
         process_client_assets: bool,
         module_graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<OutputAssetsWithAvailability>> {
+    ) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         let project = this.app_project.project();
         let app_entry = self.app_endpoint_entry().await?;
@@ -1637,18 +1637,15 @@ impl AppEndpoint {
 
                 {
                     let _span = tracing::info_span!("Server Components");
-                    Vc::cell((
-                        chunking_context
-                            .evaluated_chunk_group_assets(
-                                app_entry.rsc_entry.ident(),
-                                Vc::cell(evaluatable_assets.clone()),
-                                module_graph,
-                                Value::new(AvailabilityInfo::Root),
-                            )
-                            .to_resolved()
-                            .await?,
-                        AvailabilityInfo::Untracked,
-                    ))
+                    chunking_context
+                        .evaluated_chunk_group_assets(
+                            app_entry.rsc_entry.ident(),
+                            Vc::cell(evaluatable_assets.clone()),
+                            module_graph,
+                            Value::new(AvailabilityInfo::Root),
+                        )
+                        .resolve()
+                        .await?
                 }
             }
             NextRuntime::NodeJs => {
@@ -1656,10 +1653,7 @@ impl AppEndpoint {
 
                 evaluatable_assets.push(server_action_manifest_loader);
 
-                let EntryChunkGroupResult {
-                    asset: rsc_chunk,
-                    availability_info,
-                } = *(async {
+                async {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
 
@@ -1669,10 +1663,7 @@ impl AppEndpoint {
                         let server_utils = client_references
                             .server_utils
                             .iter()
-                            .map(|m| async move {
-                                Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
-                                    .context("Expected server utils to be chunkable")?)
-                            })
+                            .map(async |m| Ok(Vc::upcast(*m.await?.module)))
                             .try_join()
                             .await?;
                         let chunk_group = chunking_context
@@ -1714,7 +1705,7 @@ impl AppEndpoint {
                             let chunk_group = chunking_context
                                 .chunk_group(
                                     server_component.ident(),
-                                    *ResolvedVc::upcast(server_component),
+                                    Vc::upcast(*server_component.await?.module),
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )
@@ -1732,26 +1723,28 @@ impl AppEndpoint {
                         .await?;
                     }
 
-                    chunking_context
-                        .entry_chunk_group(
-                            server_path.join(
-                                format!(
-                                    "app{original_name}.js",
-                                    original_name = app_entry.original_name
-                                )
-                                .into(),
-                            ),
-                            *app_entry.rsc_entry,
-                            Vc::cell(evaluatable_assets),
-                            module_graph,
-                            current_chunks,
-                            Value::new(current_availability_info),
-                        )
-                        .await
+                    anyhow::Ok(Vc::cell(vec![
+                        chunking_context
+                            .entry_chunk_group_asset(
+                                server_path.join(
+                                    format!(
+                                        "app{original_name}.js",
+                                        original_name = app_entry.original_name
+                                    )
+                                    .into(),
+                                ),
+                                *app_entry.rsc_entry,
+                                Vc::cell(evaluatable_assets),
+                                module_graph,
+                                current_chunks,
+                                Value::new(current_availability_info),
+                            )
+                            .to_resolved()
+                            .await?,
+                    ]))
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
-                .await?);
-                Vc::cell((ResolvedVc::cell(vec![rsc_chunk]), availability_info))
+                .await?
             }
         })
     }

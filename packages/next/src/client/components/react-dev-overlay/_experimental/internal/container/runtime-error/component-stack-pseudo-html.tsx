@@ -4,6 +4,7 @@ export { PseudoHtmlDiff } from '../../../../hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html] {
+    padding: var(--size-2) 0;
     margin: var(--size-2) 0;
     border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);

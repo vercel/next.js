@@ -373,26 +373,12 @@ impl ModuleOptions {
                 )],
             ),
             ModuleRule::new(
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".apng".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".avif".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".gif".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".ico".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".png".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".svg".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".webp".to_string()),
-                    RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
-                ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
-            ),
-            ModuleRule::new(
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".node".to_string(),
                 )]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)],
             ),
+            // WebAssembly
             ModuleRule::new(
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".wasm".to_string(),
@@ -409,6 +395,7 @@ impl ModuleOptions {
                     source_ty: WebAssemblySourceType::Text,
                 })],
             ),
+            // Fallback to ecmascript without extension (this is node.js behavior)
             ModuleRule::new(
                 RuleCondition::ResourcePathHasNoExtension,
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
@@ -416,9 +403,29 @@ impl ModuleOptions {
                     options: ecmascript_options_vc,
                 })],
             ),
+            // Static assets
+            ModuleRule::new(
+                RuleCondition::any(vec![
+                    RuleCondition::ResourcePathEndsWith(".apng".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".avif".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".gif".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".ico".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".jpeg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".png".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".svg".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".webp".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".woff2".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+            ),
             ModuleRule::new(
                 RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::Undefined)),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Static)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlJs)],
+            ),
+            ModuleRule::new(
+                RuleCondition::ReferenceType(ReferenceType::Url(UrlReferenceSubType::CssUrl)),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss)],
             ),
         ];
 

@@ -4,7 +4,7 @@ import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
-import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 
 const transitionDurationMs = 200
 
@@ -17,12 +17,12 @@ export interface ErrorBaseProps {
 
 export function ErrorOverlay({
   state,
-  readyErrors,
+  runtimeErrors,
   isErrorOverlayOpen,
   setIsErrorOverlayOpen,
 }: {
   state: OverlayState
-  readyErrors: ReadyRuntimeError[]
+  runtimeErrors: ReadyRuntimeError[]
   isErrorOverlayOpen: boolean
   setIsErrorOverlayOpen: (value: boolean) => void
 }) {
@@ -63,7 +63,7 @@ export function ErrorOverlay({
   }
 
   // No Runtime Errors.
-  if (!readyErrors.length) {
+  if (!runtimeErrors.length) {
     return null
   }
 
@@ -75,7 +75,7 @@ export function ErrorOverlay({
     <Errors
       {...commonProps}
       debugInfo={state.debugInfo}
-      readyErrors={readyErrors}
+      runtimeErrors={runtimeErrors}
       onClose={() => {
         setIsErrorOverlayOpen(false)
       }}

@@ -2,7 +2,8 @@ import type { Meta, StoryObj } from '@storybook/react'
 
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
-import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
+import { lorem } from '../utils/lorem'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
@@ -69,7 +70,7 @@ const ignoredFrame = {
   ignored: true,
 }
 
-const readyErrors: ReadyRuntimeError[] = [
+const runtimeErrors: ReadyRuntimeError[] = [
   {
     id: 1,
     runtime: true,
@@ -151,7 +152,7 @@ const readyErrors: ReadyRuntimeError[] = [
 
 export const Default: Story = {
   args: {
-    readyErrors,
+    runtimeErrors,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
@@ -169,15 +170,21 @@ export const Turbopack: Story = {
   },
 }
 
-export const Minimized: Story = {
+export const VeryLongErrorMessage: Story = {
   args: {
     ...Default.args,
+    runtimeErrors: [
+      {
+        ...runtimeErrors[0],
+        error: Object.assign(new Error(lorem)),
+      },
+    ],
   },
 }
 
 export const WithHydrationWarning: Story = {
   args: {
-    readyErrors: [
+    runtimeErrors: [
       {
         id: 1,
         runtime: true,

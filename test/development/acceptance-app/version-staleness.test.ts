@@ -11,9 +11,6 @@ function getStaleness(browser: BrowserInterface) {
     .text()
 }
 
-const isNewDevOverlay =
-  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
 describe('Error Overlay version staleness', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
@@ -50,28 +47,15 @@ describe('Error Overlay version staleness', () => {
 
     await session.openRedbox()
 
-    if (isNewDevOverlay) {
-      if (process.env.TURBOPACK) {
-        expect(await getStaleness(browser)).toMatchInlineSnapshot(`
+    if (process.env.TURBOPACK) {
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(`
          "Next.js 1.0.0 (outdated)
          Turbopack"
         `)
-      } else {
-        expect(await getStaleness(browser)).toMatchInlineSnapshot(
-          `"Next.js 1.0.0 (outdated)"`
-        )
-      }
     } else {
-      if (process.env.TURBOPACK) {
-        expect(await getStaleness(browser)).toMatchInlineSnapshot(`
-         "Next.js 1.0.0 (outdated)
-         Turbopack"
-        `)
-      } else {
-        expect(await getStaleness(browser)).toMatchInlineSnapshot(
-          `"Next.js 1.0.0 (outdated)"`
-        )
-      }
+      expect(await getStaleness(browser)).toMatchInlineSnapshot(
+        `"Next.js 1.0.0 (outdated)"`
+      )
     }
   })
 

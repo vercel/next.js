@@ -39,7 +39,7 @@ describe('use-cache-standalone-search-params', () => {
         const errorSource = await getRedboxSource(browser)
         const expectedErrorMessage = getExpectedErrorMessage(route)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -52,12 +52,12 @@ describe('use-cache-standalone-search-params', () => {
     at Page (file:/`)
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
-           "app/search-params-used/page.tsx (8:18) @ Page
+           "app/search-params-used/page.tsx (8:17) @ Page
 
               6 |   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
               7 | }) {
            >  8 |   const param = (await searchParams).foo
-                |                  ^
+                |                 ^
               9 |
              10 |   return <p>param: {param}</p>
              11 | }"

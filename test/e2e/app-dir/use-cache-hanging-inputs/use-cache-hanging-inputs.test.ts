@@ -41,7 +41,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -100,7 +100,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -146,7 +146,7 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+        expect(errorDescription).toBe(expectedErrorMessage)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -203,14 +203,14 @@ describe('use-cache-hanging-inputs', () => {
           const expectedErrorMessagePpr =
             'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
 
-          expect(errorDescription).toBe(`[ Server ] ${expectedErrorMessagePpr}`)
+          expect(errorDescription).toBe(expectedErrorMessagePpr)
 
           expect(cliOutput).toContain(
             `${expectedErrorMessagePpr}
     at Page [Server] (<anonymous>)`
           )
         } else {
-          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+          expect(errorDescription).toBe(expectedErrorMessage)
 
           if (isTurbopack) {
             // TODO(veil): For Turbopack, a fix in the React Flight Client, where
@@ -253,8 +253,8 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          title: 'Unhandled Runtime Error',
-          description: '[ Cache ] Error: kaputt!',
+          title: 'Unhandled Runtime Error\nCache',
+          description: 'Error: kaputt!',
         })
       })
     })

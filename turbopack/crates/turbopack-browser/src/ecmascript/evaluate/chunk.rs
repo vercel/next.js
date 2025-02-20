@@ -9,8 +9,8 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        MinifyType, ModuleId,
+        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, MinifyType,
+        ModuleChunkItemIdExt, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -104,15 +104,13 @@ impl EcmascriptDevEvaluateChunk {
             .iter()
             .map({
                 let chunking_context = this.chunking_context;
-                let module_graph = this.module_graph;
                 move |entry| async move {
                     if let Some(placeable) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
                     {
                         Ok(Some(
                             placeable
-                                .as_chunk_item(*module_graph, Vc::upcast(*chunking_context))
-                                .id()
+                                .chunk_item_id(Vc::upcast(*chunking_context))
                                 .await?,
                         ))
                     } else {

@@ -99,7 +99,7 @@ import { getRequiredScripts } from './required-scripts'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import { makeGetServerInsertedHTML } from './make-get-server-inserted-html'
 import { walkTreeWithFlightRouterState } from './walk-tree-with-flight-router-state'
-import { createComponentTree } from './create-component-tree'
+import { createComponentTree, getRootParams } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
@@ -321,14 +321,13 @@ function createDivergedMetadataComponents(
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
 } {
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
-    ? Metadata
-    : EmptyMetadata
+  const StreamingMetadata: React.ComponentType<{}> | null =
+    serveStreamingMetadata ? Metadata : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -490,23 +489,28 @@ async function generateDynamicRSCPayload(
     const preloadCallbacks: PreloadCallbacks = []
 
     const searchParams = createServerSearchParamsForMetadata(query, workStore)
-    const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-      createMetadataComponents({
-        tree: loaderTree,
-        searchParams,
-        metadataContext: createTrackedMetadataContext(
-          url.pathname,
-          ctx.renderOpts,
-          workStore
-        ),
-        getDynamicParamFromSegment,
-        appUsingSizeAdjustment,
-        createServerParamsForMetadata,
-        workStore,
-        MetadataBoundary,
-        ViewportBoundary,
-        serveStreamingMetadata,
-      })
+    const {
+      ViewportTree,
+      MetadataTree,
+      getViewportReady,
+      getMetadataReady,
+      StreamingMetadataOutlet,
+    } = createMetadataComponents({
+      tree: loaderTree,
+      searchParams,
+      metadataContext: createTrackedMetadataContext(
+        url.pathname,
+        ctx.renderOpts,
+        workStore
+      ),
+      getDynamicParamFromSegment,
+      appUsingSizeAdjustment,
+      createServerParamsForMetadata,
+      workStore,
+      MetadataBoundary,
+      ViewportBoundary,
+      serveStreamingMetadata,
+    })
 
     const { StreamingMetadata, StaticMetadata } =
       createDivergedMetadataComponents(() => {
@@ -540,6 +544,7 @@ async function generateDynamicRSCPayload(
         getMetadataReady,
         preloadCallbacks,
         StreamingMetadata,
+        StreamingMetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -673,6 +678,11 @@ async function warmupDevRender(
     )
   }
 
+  const rootParams = getRootParams(
+    ctx.componentMod.tree,
+    ctx.getDynamicParamFromSegment
+  )
+
   function onFlightDataRenderError(err: DigestedError) {
     return renderOpts.onInstrumentationRequestError?.(
       err,
@@ -696,6 +706,7 @@ async function warmupDevRender(
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
+    rootParams,
     implicitTags: [],
     renderSignal: renderController.signal,
     controller: prerenderController,
@@ -795,24 +806,29 @@ async function getRSCPayload(
   const serveStreamingMetadata = getServeStreamingMetadata(ctx)
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-    createMetadataComponents({
-      tree,
-      errorType: is404 ? 'not-found' : undefined,
-      searchParams,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
-      getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
-      createServerParamsForMetadata,
-      workStore,
-      MetadataBoundary,
-      ViewportBoundary,
-      serveStreamingMetadata: serveStreamingMetadata,
-    })
+  const {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+    StreamingMetadataOutlet,
+  } = createMetadataComponents({
+    tree,
+    errorType: is404 ? 'not-found' : undefined,
+    searchParams,
+    metadataContext: createTrackedMetadataContext(
+      url.pathname,
+      ctx.renderOpts,
+      workStore
+    ),
+    getDynamicParamFromSegment,
+    appUsingSizeAdjustment,
+    createServerParamsForMetadata,
+    workStore,
+    MetadataBoundary,
+    ViewportBoundary,
+    serveStreamingMetadata,
+  })
 
   const preloadCallbacks: PreloadCallbacks = []
 
@@ -838,6 +854,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     StreamingMetadata,
+    StreamingMetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -981,13 +998,12 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>
-        <StreamingMetadata />
-      </head>
+      <head>{StreamingMetadata ? <StreamingMetadata /> : null}</head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
             data-next-error-message={err.message}
+            data-next-error-digest={'digest' in err ? err.digest : ''}
             data-next-error-stack={err.stack}
           />
         ) : null}
@@ -1441,10 +1457,12 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.devRenderResumeDataCache ??
       postponedState?.renderResumeDataCache
 
+    const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const requestStore = createRequestStoreForRender(
       req,
       res,
       url,
+      rootParams,
       implicitTags,
       renderOpts.onUpdateCookies,
       renderOpts.previewProps,
@@ -2175,6 +2193,10 @@ async function spawnDynamicValidationInDev(
   requestStore: RequestStore
 ): Promise<void> {
   const { componentMod: ComponentMod } = ctx
+  const rootParams = getRootParams(
+    ComponentMod.tree,
+    ctx.getDynamicParamFromSegment
+  )
 
   // Prerender controller represents the lifetime of the prerender.
   // It will be aborted when a Task is complete or a synchronously aborting
@@ -2192,6 +2214,7 @@ async function spawnDynamicValidationInDev(
   const initialServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
+    rootParams,
     implicitTags: [],
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
@@ -2208,6 +2231,7 @@ async function spawnDynamicValidationInDev(
   const initialClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
+    rootParams,
     implicitTags: [],
     renderSignal: initialClientController.signal,
     controller: initialClientController,
@@ -2353,6 +2377,7 @@ async function spawnDynamicValidationInDev(
   const finalServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
+    rootParams,
     implicitTags: [],
     renderSignal: finalServerController.signal,
     controller: finalServerController,
@@ -2373,6 +2398,7 @@ async function spawnDynamicValidationInDev(
   const finalClientPrerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
+    rootParams,
     implicitTags: [],
     renderSignal: finalClientController.signal,
     controller: finalClientController,
@@ -2543,6 +2569,7 @@ async function prerenderToStream(
   // because some shared APIs expect a formState value and this is slightly
   // more explicit than making it an optional function argument
   const formState = null
+  const rootParams = getRootParams(tree, ctx.getDynamicParamFromSegment)
 
   const renderOpts = ctx.renderOpts
   const ComponentMod = renderOpts.ComponentMod
@@ -2691,6 +2718,7 @@ async function prerenderToStream(
         const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
@@ -2784,6 +2812,7 @@ async function prerenderToStream(
           const initialClientPrerenderStore: PrerenderStore = {
             type: 'prerender',
             phase: 'render',
+            rootParams,
             implicitTags: implicitTags,
             renderSignal: initialClientController.signal,
             controller: initialClientController,
@@ -2868,6 +2897,7 @@ async function prerenderToStream(
         const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
@@ -2936,6 +2966,7 @@ async function prerenderToStream(
         const finalClientPrerenderStore: PrerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
@@ -3170,6 +3201,7 @@ async function prerenderToStream(
         const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: initialServerRenderController.signal,
           controller: initialServerPrerenderController,
@@ -3186,6 +3218,7 @@ async function prerenderToStream(
         const initialClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: initialClientController.signal,
           controller: initialClientController,
@@ -3337,6 +3370,7 @@ async function prerenderToStream(
         const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: finalServerController.signal,
           controller: finalServerController,
@@ -3360,6 +3394,7 @@ async function prerenderToStream(
         const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
           type: 'prerender',
           phase: 'render',
+          rootParams,
           implicitTags: implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
@@ -3554,6 +3589,7 @@ async function prerenderToStream(
       const reactServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
+        rootParams,
         implicitTags: implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
@@ -3586,6 +3622,7 @@ async function prerenderToStream(
       const ssrPrerenderStore: PrerenderStore = {
         type: 'prerender-ppr',
         phase: 'render',
+        rootParams,
         implicitTags: implicitTags,
         dynamicTracking,
         revalidate: INFINITE_CACHE,
@@ -3775,6 +3812,7 @@ async function prerenderToStream(
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
         phase: 'render',
+        rootParams,
         implicitTags: implicitTags,
         revalidate: INFINITE_CACHE,
         expire: INFINITE_CACHE,
@@ -3934,6 +3972,7 @@ async function prerenderToStream(
     const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
       type: 'prerender-legacy',
       phase: 'render',
+      rootParams,
       implicitTags: implicitTags,
       revalidate:
         typeof prerenderStore?.revalidate !== 'undefined'

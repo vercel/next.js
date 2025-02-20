@@ -180,6 +180,7 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1198,25 +1199,30 @@ export default abstract class Server<
           }
 
           const pathnameBeforeRewrite = parsedUrl.pathname
-          const rewriteParams = utils.handleRewrites(req, parsedUrl)
-          const rewriteParamKeys = Object.keys(rewriteParams)
+          const rewriteParamKeys = Object.keys(
+            utils.handleRewrites(req, parsedUrl)
+          )
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Normalize all the query params to remove the prefixes.
-          const routeParamKeys = new Set<string>()
-          for (const [key, value] of Object.entries(parsedUrl.query)) {
-            if (typeof value === 'undefined') continue
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
 
+          for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
-            if (normalizedKey) {
-              parsedUrl.query[normalizedKey] = value
-              routeParamKeys.add(normalizedKey)
-              delete parsedUrl.query[key]
-            }
+            if (!normalizedKey) continue
+
+            // Remove the prefixed key from the query params because we want
+            // to consume it for the dynamic route matcher.
+            delete parsedUrl.query[key]
+
+            if (typeof value === 'undefined') continue
+            queryParams[normalizedKey] = value
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1224,7 +1230,7 @@ export default abstract class Server<
             let params: ParsedUrlQuery | false = {}
 
             let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query,
+              queryParams,
               false
             )
 
@@ -1303,7 +1309,7 @@ export default abstract class Server<
             // from the route matches but ignore missing optional params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                parsedUrl.query,
+                queryParams,
                 true
               )
 
@@ -1363,9 +1369,6 @@ export default abstract class Server<
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
-          }
-          for (const key of routeParamKeys) {
-            delete parsedUrl.query[key]
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
@@ -1431,24 +1434,20 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const _globalThis: typeof globalThis & {
-        __nextCacheHandlers?: Record<
-          string,
-          import('./lib/cache-handlers/types').CacheHandler
-        >
-      } = globalThis
+      // If the header is present, receive the expired tags from all the
+      // cache handlers.
+      const handlers = getCacheHandlers()
+      if (handlers) {
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] ?? ''
+        const expiredTags = typeof header === 'string' ? header.split(',') : []
 
-      if (_globalThis.__nextCacheHandlers) {
-        const expiredTags: string[] =
-          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-            ','
-          ) || []
-
-        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler?.receiveExpiredTags === 'function') {
-            await handler.receiveExpiredTags(...expiredTags)
-          }
+        const promises: Promise<void>[] = []
+        for (const handler of handlers) {
+          promises.push(handler.receiveExpiredTags(...expiredTags))
         }
+
+        // Only await if there are any promises to wait for.
+        if (promises.length > 0) await Promise.all(promises)
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -2166,8 +2165,7 @@ export default abstract class Server<
     const couldSupportPPR: boolean =
       this.isAppPPREnabled &&
       typeof routeModule !== 'undefined' &&
-      isAppPageRouteModule(routeModule) &&
-      !isHtmlBot
+      isAppPageRouteModule(routeModule)
 
     // When enabled, this will allow the use of the `?__nextppronly` query to
     // enable debugging of the static shell.
@@ -2329,13 +2327,8 @@ export default abstract class Server<
       stripFlightHeaders(req.headers)
     }
 
-    let isOnDemandRevalidate = false
-    let revalidateOnlyGenerated = false
-
-    if (isSSG) {
-      ;({ isOnDemandRevalidate, revalidateOnlyGenerated } =
-        checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
-    }
+    let { isOnDemandRevalidate, revalidateOnlyGenerated } =
+      checkIsOnDemandRevalidate(req, this.renderOpts.previewProps)
 
     if (isSSG && this.minimalMode && req.headers[MATCHED_PATH_HEADER]) {
       // the url value is already correct when the matched-path header is set
@@ -3228,8 +3221,7 @@ export default abstract class Server<
 
     const didPostpone =
       cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-      typeof cacheEntry.value.postponed === 'string' &&
-      !isHtmlBot
+      typeof cacheEntry.value.postponed === 'string'
 
     if (
       isSSG &&

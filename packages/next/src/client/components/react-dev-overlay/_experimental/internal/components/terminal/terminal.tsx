@@ -4,7 +4,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
 import { ExternalIcon } from '../../icons/external'
 import { noop as css } from '../../helpers/noop-template'
-import { getFrameSource } from '../../../../internal/helpers/stack-frame'
+import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
@@ -93,21 +93,26 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   return (
     <div data-nextjs-codeframe>
-      <button
-        aria-label="Open in editor"
-        className="code-frame-header"
-        data-with-open-in-editor-link-source-file
-        onClick={open}
-      >
+      <div className="code-frame-header">
         <div className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
-            {getFrameSource(stackFrame)}
-            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
           </span>
-          <ExternalIcon width={16} height={16} />
+          <span data-text>
+            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
+            {getFrameSource(stackFrame)}
+          </span>
+          <button
+            aria-label="Open in editor"
+            data-with-open-in-editor-link-source-file
+            onClick={open}
+          >
+            <span className="code-frame-icon" data-icon="right">
+              <ExternalIcon width={16} height={16} />
+            </span>
+          </button>
         </div>
-      </button>
+      </div>
       <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
@@ -115,7 +120,10 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             style={{
               color: entry.fg ? `var(--color-${entry.fg})` : undefined,
               ...(entry.decoration === 'bold'
-                ? { fontWeight: 800 }
+                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                  // having longer width than expected on Geist Mono font-weight
+                  // above 600, hence a temporary fix is to use 500 for bold.
+                  { fontWeight: 500 }
                 : entry.decoration === 'italic'
                   ? { fontStyle: 'italic' }
                   : undefined),

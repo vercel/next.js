@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs"],"sourcesContent":["module.exports = \"turbopack\";\n"],"names":[],"mappings":"AAAA,OAAO,OAAO,GAAG"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 27, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js"],"sourcesContent":["import(\"./vercel.mjs\").then(console.log);\nimport(/* webpackIgnore: false */ \"./vercel.mjs\").then(console.log);\nconsole.log(require(\"./vercel.cjs\"));\nnew Worker(/* turbopackIgnore: false */ new URL(\"./vercel.cjs\", import.meta.url));\n\n// turbopack shouldn't attempt to bundle these, and they should be preserved in the output\nimport(/* webpackIgnore: true */ \"./ignore.mjs\");\nimport(/* turbopackIgnore: true */ \"./ignore.mjs\");\n\n// this should work for cjs requires too\nrequire(/* webpackIgnore: true */ \"./ignore.cjs\");\nrequire(/* turbopackIgnore: true */ \"./ignore.cjs\");\n\n// and for workers\nnew Worker(/* webpackIgnore: true */ \"./ignore.mjs\");\nnew Worker(/* turbopackIgnore: true */ \"./ignore.cjs\");\n\nexport function foo(plugin) {\n  return require(/* turbopackIgnore: true */ plugin)\n}\n"],"names":[],"mappings":";;;;;;;;AAAA,yLAAuB,IAAI,CAAC,QAAQ,GAAG;AACvC,yLAAkD,IAAI,CAAC,QAAQ,GAAG;AAClE,QAAQ,GAAG;AACX,IAAI;AAEJ,0FAA0F;AAC1F,MAAM,CAAC,uBAAuB,GAAG;AACjC,MAAM,CAAC,yBAAyB,GAAG;AAEnC,wCAAwC;AACxC,QAAQ,uBAAuB,GAAG;AAClC,QAAQ,yBAAyB,GAAG;AAEpC,kBAAkB;AAClB,IAAI,OAAO,uBAAuB,GAAG;AACrC,IAAI,OAAO,yBAAyB,GAAG;AAEhC,SAAS,IAAI,MAAM;IACxB,OAAO,QAAQ,yBAAyB,GAAG;AAC7C"}},
+    {"offset": {"line": 51, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

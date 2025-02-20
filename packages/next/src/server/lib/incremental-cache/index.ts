@@ -26,6 +26,7 @@ import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
 } from '../../app-render/work-unit-async-storage.external'
+import { getCacheHandlers } from '../../use-cache/handlers'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -245,22 +246,21 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
-    const _globalThis: typeof globalThis & {
-      __nextCacheHandlers?: Record<
-        string,
-        import('../cache-handlers/types').CacheHandler
-      >
-    } = globalThis
+    const promises: Promise<void>[] = []
 
-    return Promise.all([
-      // call expireTags on all configured cache handlers
-      Object.values(_globalThis.__nextCacheHandlers || {}).map(
-        (cacheHandler) =>
-          typeof cacheHandler.expireTags === 'function' &&
-          cacheHandler.expireTags(...(Array.isArray(tags) ? tags : [tags]))
-      ),
-      this.cacheHandler?.revalidateTag?.(tags),
-    ]).then(() => {})
+    if (this.cacheHandler?.revalidateTag) {
+      promises.push(this.cacheHandler.revalidateTag(tags))
+    }
+
+    const handlers = getCacheHandlers()
+    if (handlers) {
+      tags = Array.isArray(tags) ? tags : [tags]
+      for (const handler of handlers) {
+        promises.push(handler.expireTags(...tags))
+      }
+    }
+
+    await Promise.all(promises)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -354,7 +354,10 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({}, init.headers)
 
+    // w3c trace context headers can break request caching and deduplication
+    // so we remove them from the cache key
     if ('traceparent' in headers) delete headers['traceparent']
+    if ('tracestate' in headers) delete headers['tracestate']
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
