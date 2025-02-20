@@ -541,6 +541,7 @@ fn next_font_loaders_fixture(input: PathBuf) {
 fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let is_development = input.iter().any(|s| s.to_str() == Some("development"));
     test_fixture(
         syntax(),
         &|_tr| {
@@ -550,6 +551,7 @@ fn server_actions_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer,
+                        is_development,
                         use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
