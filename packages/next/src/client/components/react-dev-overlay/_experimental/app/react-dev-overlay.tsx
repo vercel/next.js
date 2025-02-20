@@ -12,7 +12,7 @@ import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-
 import { DevToolsIndicator } from '../internal/components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from '../internal/container/runtime-error/render-error'
 
-import { FontStyles } from '../font/font-styles'
+import { FontStyles } from '../../_internal/font/font-styles'
 
 export default function ReactDevOverlay({
   state,

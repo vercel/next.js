@@ -1,12 +1,12 @@
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-} from '../../../shared'
+} from '../../shared'
 import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
 import type { ComponentStackFrame } from './parse-component-stack'
-import { getErrorSource } from '../../../../../../shared/lib/error-source'
+import { getErrorSource } from '../../../../../shared/lib/error-source'
 import React from 'react'
 
 export type ReadyRuntimeError = {

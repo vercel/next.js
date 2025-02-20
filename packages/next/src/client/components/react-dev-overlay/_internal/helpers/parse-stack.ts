@@ -3,7 +3,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   getHydrationErrorStackInfo,
   isReactHydrationErrorMessage,
-} from '../../../../is-hydration-error'
+} from '../../../is-hydration-error'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 

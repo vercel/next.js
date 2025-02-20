@@ -2,7 +2,7 @@ import {
   HMR_ACTIONS_SENT_TO_BROWSER,
   type HMR_ACTION_TYPES,
 } from '../../../../server/dev/hot-reloader-types'
-import { getSocketUrl } from '../_experimental/internal/helpers/get-socket-url'
+import { getSocketUrl } from '../_internal/helpers/get-socket-url'
 
 let source: WebSocket
 
