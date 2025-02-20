@@ -93,12 +93,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   return (
     <div data-nextjs-codeframe>
-      <button
-        aria-label="Open in editor"
-        className="code-frame-header"
-        data-with-open-in-editor-link-source-file
-        onClick={open}
-      >
+      <div className="code-frame-header">
         <div className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
@@ -107,11 +102,17 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
             {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
             {getFrameSource(stackFrame)}
           </span>
-          <span className="code-frame-icon" data-icon="right">
-            <ExternalIcon width={16} height={16} />
-          </span>
+          <button
+            aria-label="Open in editor"
+            data-with-open-in-editor-link-source-file
+            onClick={open}
+          >
+            <span className="code-frame-icon" data-icon="right">
+              <ExternalIcon width={16} height={16} />
+            </span>
+          </button>
         </div>
-      </button>
+      </div>
       <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
