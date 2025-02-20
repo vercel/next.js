@@ -109,8 +109,7 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import DefaultCacheHandler from './lib/cache-handlers/default'
-import { cacheHandlerGlobal, cacheHandlersSymbol } from './use-cache/constants'
+import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export * from './base-server'
@@ -379,35 +378,25 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
-  protected async loadCustomCacheHandlers() {
+  private async loadCustomCacheHandlers() {
     const { cacheHandlers } = this.nextConfig.experimental
+    if (!cacheHandlers) return
 
-    if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
-      cacheHandlerGlobal.__nextCacheHandlers = {}
+    // If we've already initialized the cache handlers interface, don't do it
+    // again.
+    if (!initializeCacheHandlers()) return
 
-      for (const key of Object.keys(cacheHandlers)) {
-        if (cacheHandlers[key]) {
-          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(this.distDir, cacheHandlers[key])
-            )
+    for (const [kind, handler] of Object.entries(cacheHandlers)) {
+      if (!handler) continue
+
+      setCacheHandler(
+        kind,
+        interopDefault(
+          await dynamicImportEsmDefault(
+            formatDynamicImportPath(this.distDir, handler)
           )
-        }
-      }
-
-      if (!cacheHandlers.default) {
-        cacheHandlerGlobal.__nextCacheHandlers.default =
-          cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
-          DefaultCacheHandler
-      }
-
-      if (
-        !cacheHandlers.remote &&
-        cacheHandlerGlobal[cacheHandlersSymbol]?.RemoteCache
-      ) {
-        cacheHandlerGlobal.__nextCacheHandlers.remote =
-          cacheHandlerGlobal[cacheHandlersSymbol].RemoteCache
-      }
+        )
+      )
     }
   }
 
