@@ -42,7 +42,7 @@ impl AsyncLoaderChunkItem {
         }
         Ok(self.chunking_context.chunk_group_assets(
             module.inner.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(module.inner)).cell(),
+            ChunkGroup::Async(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             Value::new(module.availability_info),
         ))

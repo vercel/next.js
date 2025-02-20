@@ -197,7 +197,7 @@ pub async fn get_app_client_references_chunks(
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
 
-                                Some(*ResolvedVc::upcast(
+                                Some(ResolvedVc::upcast(
                                     ecmascript_client_reference_ref.ssr_module,
                                 ))
                             }
@@ -218,11 +218,11 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunking_context.chunk_group(
                             base_ident.with_modifier(ssr_modules_modifier()),
                             // TODO use correct parameters here, and sort the modules?
-                            ChunkGroup::isolated_merged_interned(
-                                0,
-                                ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
-                                ssr_modules,
-                            ),
+                            ChunkGroup::IsolatedMerged {
+                                parent: 0,
+                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                                entries: ssr_modules,
+                            },
                             module_graph,
                             Value::new(current_ssr_availability_info),
                         )
@@ -237,11 +237,11 @@ pub async fn get_app_client_references_chunks(
                         Ok(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
-                            ) => *ResolvedVc::upcast(
-                                ecmascript_client_reference.await?.client_module,
-                            ),
+                            ) => {
+                                ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
+                            }
                             ClientReferenceType::CssClientReference(css_client_reference) => {
-                                *ResolvedVc::upcast(*css_client_reference)
+                                ResolvedVc::upcast(*css_client_reference)
                             }
                         })
                     })
@@ -257,11 +257,11 @@ pub async fn get_app_client_references_chunks(
                     Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(client_modules_modifier()),
                         // TODO use correct parameters here, and sort the modules?
-                        ChunkGroup::isolated_merged_interned(
-                            0,
-                            ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
-                            client_modules,
-                        ),
+                        ChunkGroup::IsolatedMerged {
+                            parent: 0,
+                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                            entries: client_modules,
+                        },
                         module_graph,
                         Value::new(current_client_availability_info),
                     ))

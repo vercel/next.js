@@ -166,8 +166,7 @@ impl DevHtmlAsset {
                         ChunkGroup::Entry {
                             entries: vec![ResolvedVc::upcast(chunkable_module)],
                             ty: ChunkGroupType::Evaluated,
-                        }
-                        .cell(),
+                        },
                         *module_graph,
                     )
                 };

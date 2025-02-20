@@ -184,7 +184,7 @@ pub trait ChunkingContext {
     fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<ChunkGroupResult>;
@@ -228,7 +228,7 @@ pub trait ChunkingContextExt {
     fn root_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult>
     where
@@ -237,7 +237,7 @@ pub trait ChunkingContextExt {
     fn root_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssets>
     where
@@ -290,7 +290,7 @@ pub trait ChunkingContextExt {
     fn chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets>
@@ -302,7 +302,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
         self.chunk_group(
@@ -316,7 +316,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssets> {
         root_chunk_group_assets(Vc::upcast(self), ident, chunk_group, module_graph)
@@ -398,7 +398,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        chunk_group: Vc<ChunkGroup>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets> {
@@ -416,7 +416,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
 async fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    chunk_group: Vc<ChunkGroup>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
@@ -466,7 +466,7 @@ async fn entry_chunk_group_asset(
 async fn chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    chunk_group: Vc<ChunkGroup>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {

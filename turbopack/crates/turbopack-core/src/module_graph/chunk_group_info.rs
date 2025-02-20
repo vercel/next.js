@@ -91,8 +91,7 @@ pub struct ChunkGroupInfo {
     pub chunk_groups: Vec<ChunkGroup>,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChunkGroup {
     /// e.g. a page
     Entry {
@@ -117,23 +116,6 @@ pub enum ChunkGroup {
         merge_tag: RcStr,
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
     },
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkGroup {
-    #[turbo_tasks::function]
-    pub fn isolated_merged_interned(
-        parent: usize,
-        merge_tag: RcStr,
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
-    ) -> Vc<Self> {
-        ChunkGroup::IsolatedMerged {
-            parent,
-            merge_tag,
-            entries,
-        }
-        .cell()
-    }
 }
 
 impl ChunkGroup {

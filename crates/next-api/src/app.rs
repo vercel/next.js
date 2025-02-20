@@ -1681,8 +1681,7 @@ impl AppEndpoint {
                                 ChunkGroup::Entry {
                                     entries: server_utils,
                                     ty: ChunkGroupType::Entry,
-                                }
-                                .cell(),
+                                },
                                 module_graph,
                                 Value::new(current_availability_info),
                             )
@@ -1723,8 +1722,7 @@ impl AppEndpoint {
                                             server_component.await?.module,
                                         )],
                                         ty: ChunkGroupType::Entry,
-                                    }
-                                    .cell(),
+                                    },
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )
