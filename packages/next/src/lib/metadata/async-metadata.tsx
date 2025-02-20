@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, use } from 'react'
+import React, { Suspense, use } from 'react'
 import { useServerInsertedMetadata } from '../../server/app-render/metadata-insertion/use-server-inserted-metadata'
 
 export type StreamingMetadataResolvedState = {
