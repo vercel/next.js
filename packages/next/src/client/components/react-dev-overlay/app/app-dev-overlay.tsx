@@ -2,7 +2,7 @@ import type { OverlayState } from '../shared'
 import type { GlobalErrorComponent } from '../../error-boundary'
 
 import { useState } from 'react'
-import { DevOverlayErrorBoundary } from './error-boundary'
+import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { DevOverlay } from '../_internal/dev-overlay'
 
 export function AppDevOverlay({
@@ -24,12 +24,12 @@ export function AppDevOverlay({
   )
 
   return (
-    <DevOverlayErrorBoundary
+    <AppDevOverlayErrorBoundary
       devOverlay={devOverlay}
       globalError={globalError}
       onError={setIsErrorOverlayOpen}
     >
       {children}
-    </DevOverlayErrorBoundary>
+    </AppDevOverlayErrorBoundary>
   )
 }
