@@ -93,7 +93,7 @@ async function createComponentTreeInternal({
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   StreamingMetadata: React.ComponentType<{}> | null
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -397,9 +397,15 @@ async function createComponentTreeInternal({
 
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
+  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
+
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY && StreamingMetadata ? (
-      <StreamingMetadata />
+    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet =
+    isNotDefaultSegment && StreamingMetadataOutlet ? (
+      <StreamingMetadataOutlet />
     ) : undefined
 
   const notFoundElement = NotFound ? (
@@ -522,7 +528,11 @@ async function createComponentTreeInternal({
             preloadCallbacks,
             authInterrupts,
             StreamingMetadata,
-            StreamingMetadataOutlet,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -709,8 +719,10 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
-          <StreamingMetadataOutlet />
+          {/* Streaming metadata outlet */}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
