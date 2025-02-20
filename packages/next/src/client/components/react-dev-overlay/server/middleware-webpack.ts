@@ -17,7 +17,7 @@ import {
 } from './shared'
 import { middlewareResponse } from './middleware-response'
 export { getServerError } from '../internal/helpers/node-stack-frames'
-export { parseStack } from '../internal/helpers/parse-stack'
+export { parseStack, type StackFrame } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
