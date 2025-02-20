@@ -46,9 +46,9 @@ export function Base() {
           --color-text-color-red-1: #ff5555;
           --color-text-background-red-1: #fff9f9;
 
-          --font-stack-monospace: 'Geist Mono', 'SFMono-Regular', Consolas,
-            'Liberation Mono', Menlo, Courier, monospace;
-          --font-stack-sans: 'Geist', -apple-system, 'Source Sans Pro',
+          --font-stack-monospace: '__nextjs-Geist Mono', 'SFMono-Regular',
+            Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+          --font-stack-sans: '__nextjs-Geist', -apple-system, 'Source Sans Pro',
             sans-serif;
 
           font-family: var(--font-stack-sans);

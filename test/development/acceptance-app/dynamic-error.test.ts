@@ -32,14 +32,8 @@ describe('dynamic = "error" in devmode', () => {
     const { session } = sandbox
     await session.assertHasRedbox()
     const description = await session.getRedboxDescription()
-    if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true') {
-      expect(description).toMatchInlineSnapshot(
-        `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
-      )
-    } else {
-      expect(description).toMatchInlineSnapshot(
-        `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
-      )
-    }
+    expect(description).toMatchInlineSnapshot(
+      `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
+    )
   })
 })
