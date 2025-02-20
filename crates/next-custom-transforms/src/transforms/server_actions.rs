@@ -1860,7 +1860,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: if self.config.is_react_server_layer {
+                                    // In development we generate these spans for sourcemapping with
+                                    // better logs/errors
+                                    // For production this is not generated because it would leak
+                                    // server code when available from the browser.
+                                    span: if self.config.is_react_server_layer
+                                        || self.config.is_development
+                                    {
                                         ident.span
                                     } else {
                                         DUMMY_SP
@@ -1895,7 +1901,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         name: Pat::Ident(
                                             IdentName::new(
                                                 export_name.clone(),
-                                                if self.config.is_react_server_layer {
+                                                // In development we generate these spans for
+                                                // sourcemapping with better logs/errors
+                                                // For production this is not generated because it
+                                                // would leak server code when available from the
+                                                // browser.
+                                                if self.config.is_react_server_layer
+                                                    || self.config.is_development
+                                                {
                                                     ident.span
                                                 } else {
                                                     DUMMY_SP
@@ -1904,7 +1917,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: if self.config.is_react_server_layer {
+                                            // In development we generate these spans for
+                                            // sourcemapping with better logs/errors
+                                            // For production this is not generated because it would
+                                            // leak server code when available from the browser.
+                                            span: if self.config.is_react_server_layer
+                                                || self.config.is_development
+                                            {
                                                 call_expr_span
                                             } else {
                                                 DUMMY_SP
