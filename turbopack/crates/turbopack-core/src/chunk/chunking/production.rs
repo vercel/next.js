@@ -1,4 +1,4 @@
-use std::{collections::BinaryHeap, hash::BuildHasherDefault};
+use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault};
 
 use anyhow::{bail, Result};
 use rustc_hash::FxHasher;
@@ -12,7 +12,7 @@ use crate::{
         ChunkingConfig,
     },
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
 };
 
 pub async fn make_production_chunks(
@@ -70,53 +70,150 @@ pub async fn make_production_chunks(
             }
         } else {
             let mut heap = grouped_chunk_items
-                .into_values()
-                .map(|chunk_items| {
+                .into_iter()
+                .map(|(key, chunk_items)| {
                     let size = chunk_items
                         .iter()
                         .map(|chunk_item| chunk_item.size)
                         .sum::<usize>();
-                    ChunkCandidate { size, chunk_items }
+                    ChunkCandidate {
+                        size,
+                        chunk_items,
+                        chunk_groups: key.map(Cow::Borrowed),
+                    }
                 })
                 .collect::<BinaryHeap<_>>();
 
             span.record("chunks_before_limits", heap.len());
 
-            loop {
-                if let Some(smallest) = heap.peek() {
-                    let chunk_over_limit =
-                        max_merge_chunk_size != 0 && smallest.size > max_merge_chunk_size;
-                    if chunk_over_limit {
-                        break;
+            if min_chunk_size != 0 || max_chunk_count_per_group != 0 {
+                let mut chunks_to_merge = BinaryHeap::new();
+                let mut chunks_to_merge_size = 0;
+
+                // Determine chunk to merge
+                loop {
+                    if let Some(smallest) = heap.peek() {
+                        let chunk_over_limit =
+                            max_merge_chunk_size != 0 && smallest.size > max_merge_chunk_size;
+                        if chunk_over_limit {
+                            break;
+                        }
+                        let merge_threshold = if min_chunk_size != 0 {
+                            min_chunk_size
+                        } else {
+                            smallest.size
+                        };
+                        let too_many_chunks = max_chunk_count_per_group != 0
+                            && heap.len() + chunks_to_merge_size / merge_threshold
+                                > max_chunk_count_per_group;
+                        let too_small_chunk = min_chunk_size != 0 && smallest.size < min_chunk_size;
+                        if too_many_chunks || too_small_chunk {
+                            let ChunkCandidate {
+                                size,
+                                chunk_items,
+                                chunk_groups,
+                            } = heap.pop().unwrap();
+                            chunks_to_merge_size += size;
+                            chunks_to_merge.push(MergeCandidate {
+                                size,
+                                chunk_items,
+                                chunk_groups,
+                            });
+                            continue;
+                        }
                     }
-                    let too_many_chunks = max_chunk_count_per_group != 0
-                        && heap.len() + 1 > max_chunk_count_per_group;
-                    let too_small_chunk = min_chunk_size != 0 && smallest.size < min_chunk_size;
-                    if too_many_chunks || too_small_chunk {
-                        let ChunkCandidate { size, chunk_items } = heap.pop().unwrap();
-                        // TODO find a small chunk with the biggest overlap in chunk groups
-                        if let Some(mut item) = heap.peek_mut() {
-                            let chunk_over_limit =
-                                max_merge_chunk_size != 0 && item.size > max_merge_chunk_size;
-                            let too_small_chunk = min_chunk_size != 0 && item.size < min_chunk_size;
-                            if !chunk_over_limit && (too_many_chunks || too_small_chunk) {
-                                // Merge them
-                                item.size += size;
-                                item.chunk_items.extend(chunk_items);
-                                continue;
+                    break;
+                }
+
+                let merge_threshold = if min_chunk_size != 0 {
+                    min_chunk_size
+                } else if let Some(smallest) = heap.peek() {
+                    smallest.size
+                } else if max_chunk_count_per_group != 0 {
+                    chunks_to_merge_size / max_chunk_count_per_group
+                } else {
+                    unreachable!();
+                };
+
+                while chunks_to_merge.len() > 1 {
+                    // Find best candidate
+                    let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
+                    let mut best_combination = None;
+                    while let Some(candidate) = chunks_to_merge.pop() {
+                        // Exist early when no better overlaps are possible
+                        if let Some((_, _, best_value)) = best_combination.as_ref() {
+                            let candiate_best_possible_value = candidate.chunk_groups_len();
+                            if *best_value >= candiate_best_possible_value {
+                                chunks_to_merge.push(candidate);
+                                break;
                             }
                         }
-                        // Couldn't be merged, reinsert
-                        heap.push(ChunkCandidate { size, chunk_items });
+
+                        // Check all combination with the new candidate
+                        for (i, other) in selection.iter().enumerate() {
+                            let value = overlap(&candidate.chunk_groups, &other.chunk_groups);
+                            if let Some((best_i1, best_i2, best_value)) = best_combination.as_mut()
+                            {
+                                if value > *best_value {
+                                    *best_i1 = i;
+                                    *best_i2 = selection.len();
+                                    *best_value = value;
+                                }
+                            } else {
+                                best_combination = Some((i, selection.len(), value));
+                            }
+                        }
+                        selection.push(candidate);
+                    }
+
+                    if let Some((best_i1, best_i2, _)) = best_combination.as_ref() {
+                        let other = selection.swap_remove(*best_i2);
+                        let mut candidate = selection.swap_remove(*best_i1);
+                        for unused in selection {
+                            chunks_to_merge.push(unused);
+                        }
+                        // Merge other into candidate
+                        let MergeCandidate {
+                            size,
+                            chunk_items,
+                            chunk_groups,
+                        } = other;
+                        candidate.size += size;
+                        candidate.chunk_items.extend(chunk_items);
+                        candidate.chunk_groups =
+                            merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
+
+                        // Merged chunk either goes back to the heap or
+                        // is considered for merging again
+                        if candidate.size > merge_threshold {
+                            heap.push(ChunkCandidate {
+                                size: candidate.size,
+                                chunk_items: candidate.chunk_items,
+                                chunk_groups: candidate.chunk_groups,
+                            });
+                        } else {
+                            chunks_to_merge.push(candidate);
+                        }
                     }
                 }
-                break;
+
+                // Left-over chunks go back to the heap
+                for chunk in chunks_to_merge {
+                    heap.push(ChunkCandidate {
+                        size: chunk.size,
+                        chunk_items: chunk.chunk_items,
+                        chunk_groups: chunk.chunk_groups,
+                    });
+                }
             }
 
             span.record("chunks", heap.len());
 
             let mut total_size = 0;
-            for ChunkCandidate { chunk_items, size } in heap.into_iter() {
+            for ChunkCandidate {
+                chunk_items, size, ..
+            } in heap.into_iter()
+            {
                 total_size += size;
                 make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
             }
@@ -129,27 +226,88 @@ pub async fn make_production_chunks(
     .await
 }
 
-struct ChunkCandidate {
+struct ChunkCandidate<'l> {
     size: usize,
     chunk_items: Vec<ChunkItemWithInfo>,
+    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 
-impl Ord for ChunkCandidate {
+impl Ord for ChunkCandidate<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.size.cmp(&other.size).reverse()
     }
 }
 
-impl PartialOrd for ChunkCandidate {
+impl PartialOrd for ChunkCandidate<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Eq for ChunkCandidate {}
+impl Eq for ChunkCandidate<'_> {}
 
-impl PartialEq for ChunkCandidate {
+impl PartialEq for ChunkCandidate<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
+    }
+}
+
+struct MergeCandidate<'l> {
+    size: usize,
+    chunk_items: Vec<ChunkItemWithInfo>,
+    chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+}
+
+impl MergeCandidate<'_> {
+    fn chunk_groups_len(&self) -> u64 {
+        self.chunk_groups
+            .as_ref()
+            .map_or(0, |chunk_groups| chunk_groups.len())
+    }
+}
+
+impl Ord for MergeCandidate<'_> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.chunk_groups_len()
+            .cmp(&other.chunk_groups_len())
+            .then_with(|| self.size.cmp(&other.size).reverse())
+    }
+}
+
+impl PartialOrd for MergeCandidate<'_> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Eq for MergeCandidate<'_> {}
+
+impl PartialEq for MergeCandidate<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.size == other.size
+    }
+}
+
+fn overlap(
+    chunk_groups: &Option<Cow<'_, RoaringBitmapWrapper>>,
+    chunk_groups2: &Option<Cow<'_, RoaringBitmapWrapper>>,
+) -> u64 {
+    if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
+        chunk_groups.intersection_len(&**chunk_groups2)
+    } else {
+        0
+    }
+}
+
+fn merge_chunk_groups<'l>(
+    chunk_groups: &Option<Cow<'l, RoaringBitmapWrapper>>,
+    chunk_groups2: &Option<Cow<'l, RoaringBitmapWrapper>>,
+) -> Option<Cow<'l, RoaringBitmapWrapper>> {
+    if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
+        let l = &**chunk_groups.as_ref();
+        let r = &**chunk_groups2.as_ref();
+        Some(Cow::Owned(RoaringBitmapWrapper(l & r)))
+    } else {
+        None
     }
 }
