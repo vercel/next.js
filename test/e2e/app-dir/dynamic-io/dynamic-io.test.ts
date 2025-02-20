@@ -66,7 +66,7 @@ describe('dynamic-io', () => {
       expect(await hasStaticIndicator(browser)).toBe(true)
     })
 
-    it('should have static indicator on not-found route', async () => {
+    it('should not have static indicator on not-found route', async () => {
       const browser = await next.browser('/cases/not-found')
 
       await retry(async () => {
