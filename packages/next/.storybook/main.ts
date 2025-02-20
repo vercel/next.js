@@ -13,7 +13,7 @@ const config: StorybookConfig = {
   stories: [
     // Could to '../src/**/*.stories.@(ts|tsx)', but not sure how much it'll affect perf.
     // Scoped to experimental dev overlay for now.
-    '../src/client/components/react-dev-overlay/_experimental/**/*.stories.@(ts|tsx)',
+    '../src/client/components/react-dev-overlay/_internal/**/*.stories.tsx',
   ],
   addons: [
     getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),

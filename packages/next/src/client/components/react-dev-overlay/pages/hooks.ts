@@ -19,12 +19,7 @@ export const usePagesReactDevOverlay = () => {
     []
   )
 
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-
   return {
-    hasBuildError,
-    hasRuntimeErrors,
     state,
     onComponentError,
   }

@@ -178,9 +178,10 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
-        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      const {
+        PagesDevOverlay,
+      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
+      return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
 }

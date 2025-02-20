@@ -69,14 +69,15 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
-import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/react-dev-overlay'
+import type { PagesDevOverlayType } from '../../client/components/react-dev-overlay/pages/pages-dev-overlay'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: ReactDevOverlayType
-const ReactDevOverlay: ReactDevOverlayType = (props) => {
+let ReactDevOverlayImpl: PagesDevOverlayType
+const ReactDevOverlay: PagesDevOverlayType = (props) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
-      require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
+      require('../../client/components/react-dev-overlay/pages/pages-dev-overlay')
+        .PagesDevOverlay as PagesDevOverlayType
   }
   return ReactDevOverlayImpl(props)
 }
