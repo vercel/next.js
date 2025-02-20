@@ -38,10 +38,7 @@ describe('error-ignored-frames', () => {
        at processFullBinaryRow ()
        at progress ()
        at InnerLayoutRouter ()
-       at OuterLayoutRouter ()
-       at Router ()
-       at AppRouter ()
-       at ServerRoot ()"
+       at OuterLayoutRouter ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
@@ -51,10 +48,7 @@ describe('error-ignored-frames', () => {
        at processFullBinaryRow ()
        at progress ()
        at InnerLayoutRouter (../src/client/components/layout-router.tsx (408:5))
-       at OuterLayoutRouter (../src/client/components/layout-router.tsx (607:19))
-       at Router (../src/client/components/app-router.tsx (633:7))
-       at AppRouter (../src/client/components/app-router.tsx (679:7))
-       at ServerRoot (../src/client/app-index.tsx (201:5))"
+       at OuterLayoutRouter (../src/client/components/layout-router.tsx (607:19))"
       `)
     }
   })
@@ -74,18 +68,12 @@ describe('error-ignored-frames', () => {
     if (isTurbopack) {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at Page (app/client/page.tsx (4:9))
-       at ClientPageRoot ()
-       at Router ()
-       at AppRouter ()
-       at ServerRoot ()"
+       at ClientPageRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at Page (app/client/page.tsx (4:9))
-       at ClientPageRoot (../src/client/components/client-page.tsx (60:12))
-       at Router (../src/client/components/app-router.tsx (633:7))
-       at AppRouter (../src/client/components/app-router.tsx (679:7))
-       at ServerRoot (../src/client/app-index.tsx (201:5))"
+       at ClientPageRoot (../src/client/components/client-page.tsx (60:12))"
       `)
     }
   })
@@ -115,20 +103,14 @@ describe('error-ignored-frames', () => {
        "at <unknown> (app/interleaved/page.tsx (7:11))
        at Page (app/interleaved/page.tsx (6:35))
        at invokeCallback ()
-       at ClientPageRoot ()
-       at Router ()
-       at AppRouter ()
-       at ServerRoot ()"
+       at ClientPageRoot ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
        "at eval (app/interleaved/page.tsx (7:11))
        at invokeCallback (node_modules/interleave/index.js (2:1))
        at Page (app/interleaved/page.tsx (6:36))
-       at ClientPageRoot (../src/client/components/client-page.tsx (60:12))
-       at Router (../src/client/components/app-router.tsx (633:7))
-       at AppRouter (../src/client/components/app-router.tsx (679:7))
-       at ServerRoot (../src/client/app-index.tsx (201:5))"
+       at ClientPageRoot (../src/client/components/client-page.tsx (60:12))"
       `)
     }
   })

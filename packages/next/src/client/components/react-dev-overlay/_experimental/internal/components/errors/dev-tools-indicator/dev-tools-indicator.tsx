@@ -197,6 +197,7 @@ function DevToolsPopover({
 
     // Open with first item focused
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
@@ -206,6 +207,7 @@ function DevToolsPopover({
 
     // Open with last item focused
     if (e.key === 'ArrowUp') {
+      e.preventDefault()
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {

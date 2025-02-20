@@ -8,6 +8,7 @@ const { linkPackages } =
   require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
+const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
 
 async function installDependencies(cwd, tmpDir) {
   const args = [
@@ -122,6 +123,7 @@ async function createNextInstall({
             })
           )
       }
+
       const combinedDependencies = {
         next: pkgPaths.get('next'),
         ...Object.keys(dependencies).reduce((prev, pkg) => {
@@ -129,6 +131,12 @@ async function createNextInstall({
           prev[pkg] = pkgPath || dependencies[pkg]
           return prev
         }, {}),
+      }
+
+      if (useRspack) {
+        combinedDependencies['@next/plugin-rspack'] = pkgPaths = pkgPaths.get(
+          '@next/plugin-rspack'
+        )
       }
 
       const scripts = {
@@ -181,6 +189,15 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
+      }
+
+      if (useRspack) {
+        // This is what the @next/plugin-rspack plugin does.
+        // TODO: Load the plugin properly during test
+        process.env.NEXT_RSPACK = 'true'
+        process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN = 'true'
+        process.env.BUILTIN_APP_LOADER = 'true'
+        process.env.BUILTIN_SWC_LOADER = 'true'
       }
 
       return {
