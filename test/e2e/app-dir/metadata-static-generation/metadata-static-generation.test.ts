@@ -5,7 +5,7 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 ;(isPPREnabled ? describe.skip : describe)(
   'app-dir - metadata-static-generation',
   () => {
-    const { next, isNextStart } = nextTestSetup({
+    const { next, isNextDev, isNextStart } = nextTestSetup({
       files: __dirname,
     })
 
@@ -27,10 +27,13 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
     it('should contain async generated metadata in head for simple static page', async () => {
       const $ = await next.render$('/')
-      expect($('head title').text()).toBe('index page')
-      expect($('head meta[name="description"]').attr('content')).toBe(
-        'index page description'
-      )
+      // In dev, it suspenses as dynamic rendering so it's inserted into body;
+      // In build, it's resolved as static rendering so it's inserted into head.
+      const rootSelector = isNextDev ? 'body' : 'head'
+      expect($(`${rootSelector} title`).text()).toBe('index page')
+      expect(
+        $(`${rootSelector} meta[name="description"]`).attr('content')
+      ).toBe('index page description')
     })
 
     it('should contain async generated metadata in head static page with suspenseful content', async () => {
