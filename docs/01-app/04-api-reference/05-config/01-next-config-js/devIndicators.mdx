@@ -11,50 +11,12 @@ description: Optimized pages include an indicator to let you know if it's being 
 
 ```ts filename="Types"
   devIndicators: {
-    appIsrStatus?: boolean, // defaults to true
     buildActivity?: boolean, // defaults to true
     buildActivityPosition?: 'bottom-right'
     | 'bottom-left'
     | 'top-right'
     | 'top-left', // defaults to 'bottom-right'
   },
-```
-
-## `appIsrStatus` (Static Indicator)
-
-Next.js displays a static indicator in the bottom corner of the screen that signals if a route will be prerendered at build time. This makes it easier to understand whether a route is static or dynamic, and for you to identify if a route [opts out of static rendering](#static-route-not-showing-the-indicator).
-
-<Image
-  alt="App Folder Structure"
-  srcLight="/docs/light/static-indicator.png"
-  srcDark="/docs/dark/static-indicator.png"
-  width="1600"
-  height="208"
-/>
-
-You can temporarily hide the indicator by clicking the close indicator which will remember your preference in `localStorage` for 1 hour. To permanently disable it, you can use the config option in `next.config.js`:
-
-```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  devIndicators: {
-    appIsrStatus: false,
-  },
-}
-
-export default nextConfig
-```
-
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  devIndicators: {
-    appIsrStatus: false,
-  },
-}
-
-module.exports = nextConfig
 ```
 
 ## `buildActivity` (Compilation Indicator)
