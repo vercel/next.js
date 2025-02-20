@@ -469,14 +469,14 @@ function assignDefaults(
   warnOptionHasBeenDeprecated(
     result,
     'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
   warnOptionHasBeenDeprecated(
     result,
     'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is no longer needed and is enabled by default. You can remove it from ${configFileName}.`,
+    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
