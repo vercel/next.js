@@ -1631,6 +1631,15 @@ importers:
         specifier: ^0.7.0
         version: 0.7.3
 
+  packages/next-plugin-rspack:
+    dependencies:
+      '@rspack/core':
+        specifier: npm:@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050
+        version: '@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15)'
+      '@rspack/plugin-react-refresh':
+        specifier: 1.0.1
+        version: 1.0.1(react-refresh@0.12.0)
+
   packages/next-plugin-storybook: {}
 
   packages/next-polyfill-module:

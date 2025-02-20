@@ -5,7 +5,7 @@ export function getRspackCore() {
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        '@rspack/core is not available. Please make sure the appropriate Next.js plugin is installed.'
+        '@rspack/core is not available. Please make sure `@next/plugin-rspack` is correctly installed.'
       )
     }
 
@@ -20,7 +20,7 @@ export function getRspackReactRefresh() {
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
-        '@rspack/plugin-react-refresh is not available. Please make sure the appropriate Next.js plugin is installed.'
+        '@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.'
       )
     }
 
