@@ -93,7 +93,7 @@ async function createComponentTreeInternal({
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   StreamingMetadata: React.ComponentType<{}> | null
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -397,9 +397,15 @@ async function createComponentTreeInternal({
 
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
+  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
+
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY && StreamingMetadata ? (
-      <StreamingMetadata />
+    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet =
+    isNotDefaultSegment && StreamingMetadataOutlet ? (
+      <StreamingMetadataOutlet />
     ) : undefined
 
   const notFoundElement = NotFound ? (
@@ -526,7 +532,7 @@ async function createComponentTreeInternal({
             // but we only want to throw on the first one.
             StreamingMetadataOutlet: isChildrenRouteKey
               ? StreamingMetadataOutlet
-              : () => null,
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -716,9 +722,7 @@ async function createComponentTreeInternal({
           {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
           {/* Streaming metadata outlet */}
-          {actualSegment !== DEFAULT_SEGMENT_KEY ? (
-            <StreamingMetadataOutlet />
-          ) : undefined}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
