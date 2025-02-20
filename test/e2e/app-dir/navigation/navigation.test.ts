@@ -2,9 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 
-// the scrolling test is slow on CI, which requires longer timeout
-jest.setTimeout(240 * 1000)
-
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
