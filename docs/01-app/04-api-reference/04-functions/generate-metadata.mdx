@@ -46,7 +46,6 @@ export async function generateMetadata({ params }) {
 >
 > - The `metadata` object and `generateMetadata` function exports are **only supported in Server Components**.
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
-> - On the initial load, streaming is blocked until `generateMetadata` has fully resolved, including any content from `loading.js`.
 
 ## The `metadata` object
 
@@ -1202,5 +1201,6 @@ export const metadata = {
 
 | Version   | Changes                                                                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v15.2.0` | `generateMetadata` becomes non-blocking during initial rendering and navigation.                                                                        |
 | `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
 | `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |
