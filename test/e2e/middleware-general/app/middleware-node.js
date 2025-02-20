@@ -1,5 +1,6 @@
 /* global globalThis */
 import { NextRequest, NextResponse } from 'next/server'
+import { getSomeData } from './lib/some-data'
 import magicValue from 'shared-package'
 
 export const config = {
@@ -29,6 +30,8 @@ const params = (url) => {
 }
 
 export async function middleware(request) {
+  getSomeData()
+
   const url = request.nextUrl
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {
