@@ -963,10 +963,6 @@ function assignDefaults(
   if (result.experimental.newDevOverlay !== true) {
     result.devIndicators = {
       ...result.devIndicators,
-      appIsrStatus:
-        result.devIndicators === false
-          ? false
-          : result.devIndicators?.appIsrStatus ?? true,
       buildActivity:
         result.devIndicators === false
           ? false

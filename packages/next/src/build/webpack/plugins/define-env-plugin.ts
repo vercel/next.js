@@ -185,9 +185,6 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
-      config.devIndicators === false ? false : config.devIndicators.appIsrStatus
-    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,

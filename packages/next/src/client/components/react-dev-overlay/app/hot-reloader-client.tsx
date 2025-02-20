@@ -341,39 +341,17 @@ function processMessage(
 
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
-      if (
-        process.env.__NEXT_APP_ISR_INDICATOR ||
-        process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
-      ) {
-        if (appIsrManifestRef) {
-          appIsrManifestRef.current = obj.data
+      if (appIsrManifestRef) {
+        appIsrManifestRef.current = obj.data
 
-          // handle initial status on receiving manifest
-          // navigation is handled in useEffect for pathname changes
-          // as we'll receive the updated manifest before usePathname
-          // triggers for new value
-          if ((pathnameRef.current as string) in obj.data) {
-            if (process.env.__NEXT_APP_ISR_INDICATOR) {
-              // the indicator can be hidden for an hour.
-              // check if it's still hidden
-              const indicatorHiddenAt = Number(
-                localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-              )
-
-              const isHidden =
-                indicatorHiddenAt &&
-                !isNaN(indicatorHiddenAt) &&
-                Date.now() < indicatorHiddenAt
-
-              if (!isHidden) {
-                dispatcher.onStaticIndicator(true)
-              }
-            } else if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
-              dispatcher.onStaticIndicator(true)
-            }
-          } else {
-            dispatcher.onStaticIndicator(false)
-          }
+        // handle initial status on receiving manifest
+        // navigation is handled in useEffect for pathname changes
+        // as we'll receive the updated manifest before usePathname
+        // triggers for new value
+        if ((pathnameRef.current as string) in obj.data) {
+          dispatcher.onStaticIndicator(true)
+        } else {
+          dispatcher.onStaticIndicator(false)
         }
       }
       break
@@ -650,57 +628,37 @@ export default function HotReload({
   const appIsrManifestRef = useRef<Record<string, false | number>>({})
   const pathnameRef = useRef(pathname)
 
-  if (
-    process.env.__NEXT_APP_ISR_INDICATOR ||
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY
-  ) {
-    // this conditional is only for dead-code elimination which
-    // isn't a runtime conditional only build-time so ignore hooks rule
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      pathnameRef.current = pathname
+  // this conditional is only for dead-code elimination which
+  // isn't a runtime conditional only build-time so ignore hooks rule
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    pathnameRef.current = pathname
 
-      const appIsrManifest = appIsrManifestRef.current
+    const appIsrManifest = appIsrManifestRef.current
 
-      if (appIsrManifest) {
-        if (pathname && pathname in appIsrManifest) {
-          try {
-            if (process.env.__NEXT_APP_ISR_INDICATOR) {
-              const indicatorHiddenAt = Number(
-                localStorage?.getItem('__NEXT_DISMISS_PRERENDER_INDICATOR')
-              )
+    if (appIsrManifest) {
+      if (pathname && pathname in appIsrManifest) {
+        try {
+          dispatcher.onStaticIndicator(true)
+        } catch (reason) {
+          let message = ''
 
-              const isHidden =
-                indicatorHiddenAt &&
-                !isNaN(indicatorHiddenAt) &&
-                Date.now() < indicatorHiddenAt
-
-              if (!isHidden) {
-                dispatcher.onStaticIndicator(true)
-              }
-            } else if (process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY) {
-              dispatcher.onStaticIndicator(true)
-            }
-          } catch (reason) {
-            let message = ''
-
-            if (reason instanceof DOMException) {
-              // Most likely a SecurityError, because of an unavailable localStorage
-              message = reason.stack ?? reason.message
-            } else if (reason instanceof Error) {
-              message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
-            } else {
-              message = 'Unexpected Exception: ' + reason
-            }
-
-            console.warn('[HMR] ' + message)
+          if (reason instanceof DOMException) {
+            // Most likely a SecurityError, because of an unavailable localStorage
+            message = reason.stack ?? reason.message
+          } else if (reason instanceof Error) {
+            message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
+          } else {
+            message = 'Unexpected Exception: ' + reason
           }
-        } else {
-          dispatcher.onStaticIndicator(false)
+
+          console.warn('[HMR] ' + message)
         }
+      } else {
+        dispatcher.onStaticIndicator(false)
       }
-    }, [pathname, dispatcher])
-  }
+    }
+  }, [pathname, dispatcher])
 
   useEffect(() => {
     const websocket = webSocketRef.current
