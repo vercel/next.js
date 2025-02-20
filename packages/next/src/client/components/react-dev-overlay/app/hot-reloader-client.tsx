@@ -8,7 +8,7 @@ import {
   useSyncExternalStore,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../_experimental/internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
@@ -22,7 +22,7 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../internal/helpers/parse-stack'
+import { parseStack } from '../_experimental/internal/helpers/parse-stack'
 import ReactDevOverlay from './react-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
@@ -31,8 +31,8 @@ import {
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from '../internal/helpers/use-websocket'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+} from '../_experimental/internal/helpers/use-websocket'
+import { parseComponentStack } from '../_experimental/internal/helpers/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
