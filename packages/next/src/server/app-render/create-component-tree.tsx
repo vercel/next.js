@@ -178,7 +178,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -347,10 +347,10 @@ async function createComponentTreeInternal({
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof MaybeComponent !== 'undefined') &&
+      typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'page')
+      errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
     if (
