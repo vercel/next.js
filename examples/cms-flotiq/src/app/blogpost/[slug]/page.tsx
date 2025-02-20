@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
+import Image from "next/image";
 
 import { flotiqApiClient } from "@/flotiq-api-client";
-
-import PageSummary from "@/app/_components/PageSummary/PageSummary";
 
 export default async function PostPage({
   params,
@@ -24,19 +23,25 @@ export default async function PostPage({
   const blogpost = content.data[0];
 
   return (
-    <article className="space-y-10">
-      <PageSummary
-        title={blogpost.title}
-        description={blogpost.excerpt}
-        {...(blogpost.headerImage?.length
-          ? {
-              imageUrl: flotiqApiClient.helpers.getMediaUrl(
-                blogpost.headerImage[0],
-              ),
-              imageAlt: blogpost.headerImage[0].alt,
-            }
-          : {})}
-      />
+    <article>
+      <div
+        className="flex flex-col md:flex-row items-start md:items-center
+                  my-9 lg:mt-16 lg:mb-10 gap-4 md:gap-8"
+      >
+        {blogpost.headerImage?.length && (
+          <Image
+            className="h-auto w-60 m-auto"
+            alt={blogpost.headerImage[0].alt || ""}
+            src={flotiqApiClient.helpers.getMediaUrl(blogpost.headerImage[0])}
+            width={240}
+            height={240}
+          />
+        )}
+        <div className="my-auto">
+          <h1>{blogpost.title}</h1>
+          <p>{blogpost.excerpt}</p>
+        </div>
+      </div>
 
       <div dangerouslySetInnerHTML={{ __html: blogpost.content }} />
     </article>

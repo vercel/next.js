@@ -14,7 +14,7 @@ export default function BlogPostCard({
 }: BlogpostHydrated) {
   return (
     <div
-      className="relative flex flex-col sm:flex-row sm:gap-4 bg-gray-100  
+      className="relative flex flex-col sm:flex-row bg-gray-100  
                 rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
     >
       <Link
@@ -24,17 +24,17 @@ export default function BlogPostCard({
       />
       {headerImage?.length && (
         <Image
-          className="w-full sm:w-52 xl:w-80 h-fit"
+          className="w-full sm:w-60 xl:w-80 h-fit"
           alt={headerImage[0].alt || ""}
           src={flotiqApiClient.helpers.getMediaUrl(headerImage[0])}
           width={640}
           height={640}
         />
       )}
-      <div className="flex flex-col p-4">
+      <div className="flex flex-col px-8 py-5 lg:pb-7 lg:pt-10">
         <h2>{title}</h2>
-        <p className="line-clamp-3">{excerpt}</p>
-        <span className="italic text-sm mt-2 sm:mt-auto">
+        <p className="sm:line-clamp-3 lg:line-clamp-none">{excerpt}</p>
+        <span className="italic text-sm mt-16 sm:mt-auto">
           {moment(internal.createdAt).format("Do MMMM yyyy")}
         </span>
       </div>

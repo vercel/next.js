@@ -7,10 +7,10 @@ body {
 }
 
 h1 {
-  font-size: 2.25rem;
-  line-height: 2.5rem;
+  font-size: 1.875rem;
+  line-height: 2.25rem;
   font-weight: 700;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 h2 {
@@ -29,7 +29,7 @@ h3 {
 
 ol,
 ul {
-  margin-left: 2.5rem;
+  margin-left: 1rem;
   margin-top: 1rem;
   margin-bottom: 1rem;
 }
@@ -69,22 +69,4 @@ a:hover {
 
 p {
   text-align: justify;
-}
-
-@media (max-width: 1024px) {
-  h1 {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
-  }
-
-  h2 {
-    font-size: 1.5rem;
-    line-height: 2rem;
-    margin-bottom: 1rem;
-  }
-
-  h3 {
-    font-size: 1.125rem;
-    margin-bottom: 0.5rem;
-  }
 }
