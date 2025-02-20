@@ -193,9 +193,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let chunk_groups =
                     if let Some((parent, chunking_type)) = parent_info {
                         match chunking_type {
-                            ChunkingType::Parallel
-                            | ChunkingType::ParallelInheritAsync
-                            | ChunkingType::Passthrough => {
+                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
                                 ChunkGroupInheritance::Inherit(parent.module)
                             }
                             ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(

@@ -1,14 +1,12 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use futures::future::Either;
 use rustc_hash::FxHashMap;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, AsyncModuleInfo, Chunk,
-    ChunkGroupContent, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo, ChunkableModule,
-    ChunkingContext,
+    ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
 };
 use crate::{
     chunk::ChunkingType,
@@ -42,7 +40,6 @@ pub async fn make_chunk_group(
         chunkable_modules,
         async_modules,
         traced_modules,
-        passthrough_modules,
     } = chunk_group_content(
         &*module_graph.await?,
         chunk_group_entries,
@@ -98,7 +95,6 @@ pub async fn make_chunk_group(
         async_loaders
             .iter()
             .map(|&chunk_item| ChunkItemWithAsyncModuleInfo {
-                ty: ChunkItemTy::Included,
                 chunk_item,
                 module: None,
                 async_info: None,
@@ -123,37 +119,26 @@ pub async fn make_chunk_group(
 
     let mut chunk_items = all_modules
         .iter()
-        .map(|(module, async_info)| {
-            Either::Left(async move {
-                Ok(ChunkItemWithAsyncModuleInfo {
-                    ty: ChunkItemTy::Included,
-                    chunk_item: module
-                        .as_chunk_item(module_graph, *chunking_context)
-                        .to_resolved()
-                        .await?,
-                    module: Some(*module),
-                    async_info: *async_info,
-                })
+        .map(|(module, async_info)| async move {
+            Ok(ChunkItemWithAsyncModuleInfo {
+                chunk_item: module
+                    .as_chunk_item(module_graph, *chunking_context)
+                    .to_resolved()
+                    .await?,
+                module: Some(*module),
+                async_info: *async_info,
             })
         })
-        .chain(passthrough_modules.into_iter().map(|module| {
-            Either::Right(async move {
-                Ok(ChunkItemWithAsyncModuleInfo {
-                    ty: ChunkItemTy::Passthrough,
-                    chunk_item: module
-                        .as_chunk_item(module_graph, *chunking_context)
-                        .to_resolved()
-                        .await?,
-                    module: Some(module),
-                    async_info: None,
-                })
-            })
-        }))
         .try_join()
         .await?;
 
     chunk_items.extend(async_loader_chunk_items);
-    referenced_output_assets.reserve(async_loader_references.iter().map(|r| r.len()).sum());
+    referenced_output_assets.reserve(
+        async_loader_references
+            .iter()
+            .map(|r| r.len())
+            .sum::<usize>(),
+    );
     referenced_output_assets.extend(async_loader_references.into_iter().flatten());
 
     // Pass chunk items to chunking algorithm
@@ -212,7 +197,6 @@ pub async fn chunk_group_content(
             chunkable_modules: FxIndexSet::default(),
             async_modules: FxIndexSet::default(),
             traced_modules: FxIndexSet::default(),
-            passthrough_modules: FxIndexSet::default(),
         },
     };
 
@@ -258,10 +242,6 @@ pub async fn chunk_group_content(
                 };
 
                 Ok(match edge {
-                    ChunkingType::Passthrough => {
-                        result.passthrough_modules.insert(chunkable_module);
-                        GraphTraversalAction::Continue
-                    }
                     ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {
                         if is_available {
                             GraphTraversalAction::Skip
