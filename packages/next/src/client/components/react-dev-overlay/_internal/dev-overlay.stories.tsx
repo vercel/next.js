@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import type { OverlayState } from '../shared'
 
+import { useState } from 'react'
 import { DevOverlay } from './dev-overlay'
 import { ACTION_UNHANDLED_ERROR } from '../shared'
 
@@ -73,15 +74,20 @@ const state: OverlayState = {
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
   versionInfo: {
-    installed: '14.2.0',
+    installed: '15.2.0',
     staleness: 'fresh',
   },
 }
 
 export const Default: Story = {
-  args: {
-    state,
-    isErrorOverlayOpen: true,
-    setIsErrorOverlayOpen: () => {},
+  render: function DevOverlayStory() {
+    const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
+    return (
+      <DevOverlay
+        state={state}
+        isErrorOverlayOpen={isErrorOverlayOpen}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+      />
+    )
   },
 }
