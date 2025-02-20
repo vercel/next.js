@@ -16,6 +16,7 @@ use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        source_map::PURE_SP,
         util::take::Take,
         BytePos, FileName, Mark, Span, SyntaxContext, DUMMY_SP,
     },
@@ -1869,7 +1870,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     {
                                         ident.span
                                     } else {
-                                        DUMMY_SP
+                                        PURE_SP
                                     },
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
@@ -1911,7 +1912,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 {
                                                     ident.span
                                                 } else {
-                                                    DUMMY_SP
+                                                    PURE_SP
                                                 },
                                             )
                                             .into(),
@@ -1926,7 +1927,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             {
                                                 call_expr_span
                                             } else {
-                                                DUMMY_SP
+                                                PURE_SP
                                             },
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
