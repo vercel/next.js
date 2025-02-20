@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { DevOverlayErrorBoundary } from './error-boundary'
-import { usePagesReactDevOverlay } from './hooks'
+import { usePagesDevOverlay } from './hooks'
 import { DevOverlay } from '../_internal/dev-overlay'
 
 export type ErrorType = 'runtime' | 'build'
@@ -12,7 +12,7 @@ interface PagesDevOverlayProps {
 }
 
 export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
-  const { state, onComponentError } = usePagesReactDevOverlay()
+  const { state, onComponentError } = usePagesDevOverlay()
 
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
 
