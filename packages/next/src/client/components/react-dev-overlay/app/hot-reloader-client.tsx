@@ -607,12 +607,11 @@ export default function HotReload({
       const componentStackTrace =
         (error as any)._componentStack || errorDetails?.componentStack
       const warning = errorDetails?.warning
-      const stitchedError = getReactStitchedError(error)
 
       dispatch({
         type: ACTION_UNHANDLED_ERROR,
-        reason: stitchedError,
-        frames: parseStack(stitchedError.stack || ''),
+        reason: error,
+        frames: parseStack(error.stack || ''),
         componentStackFrames:
           typeof componentStackTrace === 'string'
             ? parseComponentStack(componentStackTrace)
