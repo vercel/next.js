@@ -64,7 +64,12 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   return (
     <div data-nextjs-codeframe>
       <div className="code-frame-header">
-        <div className="code-frame-link">
+        {/* TODO: This is <div> in `Terminal` component.
+        Changing now will require multiple test snapshots updates.
+        Leaving as <div> as is trivial and does not affect the UI.
+        Change when the new redbox matcher `toDisplayRedbox` is used.
+        */}
+        <p className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
           </span>
@@ -81,7 +86,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
               <ExternalIcon width={16} height={16} />
             </span>
           </button>
-        </div>
+        </p>
       </div>
       <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
