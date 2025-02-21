@@ -9,12 +9,18 @@ import {
 } from './hydration-error-info'
 
 export function attachHydrationErrorState(error: Error) {
-  const reactHydrationDiffSegments = getReactHydrationDiffSegments(
-    error.message
-  )
   let parsedHydrationErrorState: typeof hydrationErrorState = {}
   const isHydrationWarning = testReactHydrationWarning(error.message)
   const isHydrationRuntimeError = isHydrationError(error)
+
+  // If it's not hydration warnings or errors, skip
+  if (!(isHydrationRuntimeError || isHydrationWarning)) {
+    return
+  }
+
+  const reactHydrationDiffSegments = getReactHydrationDiffSegments(
+    error.message
+  )
   // If the reactHydrationDiffSegments exists
   // and the diff (reactHydrationDiffSegments[1]) exists
   // e.g. the hydration diff log error.
@@ -73,7 +79,5 @@ export function attachHydrationErrorState(error: Error) {
     }
   }
   // If it's a hydration error, store the hydration error state into the error object
-  if (isHydrationRuntimeError || isHydrationWarning) {
-    ;(error as any).details = parsedHydrationErrorState
-  }
+  ;(error as any).details = parsedHydrationErrorState
 }
