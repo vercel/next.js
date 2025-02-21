@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, primitives::HashableHashSet, trace::TraceRawVcs, FxIndexMap,
+    FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -154,7 +154,7 @@ impl ChunkGroupEntry {
 #[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 pub enum ChunkGroup {
     /// e.g. a page
-    Entry(Vec<ResolvedVc<Box<dyn Module>>>),
+    Entry(HashableHashSet<ResolvedVc<Box<dyn Module>>>),
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming non-merged isolated edge
@@ -163,7 +163,7 @@ pub enum ChunkGroup {
     IsolatedMerged {
         parent: usize,
         merge_tag: RcStr,
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: HashableHashSet<ResolvedVc<Box<dyn Module>>>,
     },
     /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
@@ -171,7 +171,7 @@ pub enum ChunkGroup {
     SharedMerged {
         parent: usize,
         merge_tag: RcStr,
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: HashableHashSet<ResolvedVc<Box<dyn Module>>>,
     },
 }
 
@@ -655,7 +655,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, merged_entries))| match k {
-                    ChunkGroupKey::Entry(entries) => ChunkGroup::Entry(entries),
+                    ChunkGroupKey::Entry(entries) => {
+                        ChunkGroup::Entry(entries.into_iter().collect())
+                    }
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
                     ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {

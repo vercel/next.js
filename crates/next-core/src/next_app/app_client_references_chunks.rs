@@ -1,10 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString,
-    Vc,
-};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext},
@@ -198,7 +195,7 @@ pub async fn get_app_client_references_chunks(
                         ChunkGroup::SharedMerged {
                             parent: *chunk_group_info
                                 .get_index_of(ChunkGroup::Entry {
-                                    entries: vec![rsc_entry],
+                                    entries: [rsc_entry].into_iter().collect(),
                                     ty: ChunkGroupType::Entry,
                                 })
                                 .await?,
@@ -208,7 +205,9 @@ pub async fn get_app_client_references_chunks(
                                 .iter()
                                 .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                                 .try_join()
-                                .await?,
+                                .await?
+                                .into_iter()
+                                .collect(),
                         }
                     })
                     .await?;
@@ -229,7 +228,7 @@ pub async fn get_app_client_references_chunks(
                         )
                     };
 
-                let mut ssr_modules = client_reference_types
+                let ssr_modules: HashableHashSet<_> = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
                         Ok(match client_reference_ty {
@@ -247,18 +246,9 @@ pub async fn get_app_client_references_chunks(
                         })
                     })
                     .try_flat_join()
-                    .await?;
-                if server_component.is_none() {
-                    // client_reference_types contains every client reference proxy twice
-                    // (<evaluation> and the regular module), so mapping this into ssr_module leads
-                    // to duplicates.
-                    ssr_modules = ssr_modules
-                        .into_iter()
-                        .collect::<FxIndexSet<_>>()
-                        .into_iter()
-                        .collect();
-                }
-
+                    .await?
+                    .into_iter()
+                    .collect();
                 let ssr_chunk_group = if !ssr_modules.is_empty() {
                     ssr_chunking_context.map(|ssr_chunking_context| {
                         let _span = tracing::info_span!(
@@ -282,7 +272,7 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                let mut client_modules = client_reference_types
+                let client_modules: HashableHashSet<_> = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
                         Ok(match client_reference_ty {
@@ -297,17 +287,9 @@ pub async fn get_app_client_references_chunks(
                         })
                     })
                     .try_join()
-                    .await?;
-                if server_component.is_none() {
-                    // client_reference_types contains every client reference proxy twice
-                    // (<evaluation> and the regular module), so mapping this into client_modules
-                    // leads to duplicates.
-                    client_modules = client_modules
-                        .into_iter()
-                        .collect::<FxIndexSet<_>>()
-                        .into_iter()
-                        .collect();
-                }
+                    .await?
+                    .into_iter()
+                    .collect();
                 let client_chunk_group = if !client_modules.is_empty() {
                     let _span = tracing::info_span!(
                         "client side rendering",
