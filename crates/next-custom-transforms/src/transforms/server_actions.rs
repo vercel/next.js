@@ -1922,13 +1922,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             // sourcemapping with better logs/errors
                                             // For production this is not generated because it would
                                             // leak server code when available from the browser.
-                                            span: if self.config.is_react_server_layer
-                                                || self.config.is_development
-                                            {
-                                                call_expr_span
-                                            } else {
-                                                PURE_SP
-                                            },
+                                            span: call_expr_span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
