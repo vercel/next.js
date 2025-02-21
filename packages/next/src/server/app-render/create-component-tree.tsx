@@ -78,6 +78,7 @@ function errorMissingDefaultExportDEV(
       `\n//# sourceMappingURL=${sourceMappingURL}` +
       `\n//# sourceURL=${pathToFileURL(filePath)}`
     // TODO: Remove the "eval" method name from the stack.
+    // TODO: Switch to `vm.runInThisContext` once is https://github.com/nodejs/node/issues/52102 resolved.
     // eslint-disable-next-line no-eval
     eval(source)
   }
