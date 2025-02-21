@@ -1,7 +1,10 @@
-import type { GlobalErrorComponent } from '../../error-boundary'
-
 import { PureComponent } from 'react'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import {
+  ErrorBoundary,
+  type GlobalErrorComponent,
+  GlobalError as DefaultGlobalError,
+} from '../../error-boundary'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
@@ -30,10 +33,10 @@ function ErroredHtml({
     )
   }
   return (
-    <>
+    <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
       <GlobalError error={error} />
-    </>
+    </ErrorBoundary>
   )
 }
 
