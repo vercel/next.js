@@ -2739,36 +2739,46 @@ export async function bundle_dev_overlay(task, opts) {
 
 export async function bundle_dev_overlay_cjs(task, opts) {
   const internalDir = 'dist/client/components/react-dev-overlay/_internal'
-  await task.source(`${internalDir}/dev-overlay.js`).webpack({
-    config: require('./bundle.webpack-config')({
+  const filename = 'dev-overlay.js'
+
+  await task.source(`${internalDir}/${filename}`).webpack({
+    config: require('./next-runtime.webpack-config')({
+      bundleType: 'pages',
       dev: true,
-      mangle: true,
       entry: {
-        'dev-overlay': join(__dirname, `${internalDir}/dev-overlay.js`),
+        [filename]: join(__dirname, internalDir, filename),
       },
       output: {
         path: join(__dirname, internalDir),
-        filename: 'dev-overlay.js',
+        filename,
         libraryTarget: 'commonjs2',
       },
     }),
-    name: 'bundle-dev-overlay',
+    name: 'bundle-dev-overlay-cjs',
   })
 }
 
 export async function bundle_dev_overlay_esm(task, opts) {
   const internalDir = 'dist/esm/client/components/react-dev-overlay/_internal'
-  await task.source(`${internalDir}/dev-overlay.js`).webpack({
-    config: require('./bundle.webpack-config')({
+  const filename = 'dev-overlay.js'
+
+  await task.source(`${internalDir}/${filename}`).webpack({
+    config: require('./next-runtime.webpack-config')({
+      bundleType: 'pages',
       dev: true,
-      mangle: true,
       entry: {
-        'dev-overlay': join(__dirname, `${internalDir}/dev-overlay.js`),
+        [filename]: join(__dirname, internalDir, filename),
       },
       output: {
         path: join(__dirname, internalDir),
-        filename: 'dev-overlay.js',
+        filename,
         libraryTarget: 'module',
+      },
+      experimental: {
+        // Pulled from next-runtime.webpack-config.js to not overwrite.
+        layers: true,
+        // This is needed for the output to be a module.
+        outputModule: true,
       },
     }),
     name: 'bundle-dev-overlay-esm',
