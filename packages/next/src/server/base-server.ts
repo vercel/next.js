@@ -602,7 +602,10 @@ export default abstract class Server<
 
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      htmlLimitedBots: this.nextConfig.htmlLimitedBots.source,
+      // `htmlLimitedBots` is passed to server as serialized config in string format
+      htmlLimitedBots: this.nextConfig.htmlLimitedBots as unknown as
+        | string
+        | undefined,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
