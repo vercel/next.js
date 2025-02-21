@@ -2984,3 +2984,12 @@ function rmrf(path, options) {
 function readJson(path) {
   return fs.readFile(path, 'utf8').then((content) => JSON.parse(content))
 }
+
+function getFilenameAndExtension(resourcePath) {
+  const filename = basename(resourcePath)
+  const [name, ext] = filename.split('.', 2)
+  return {
+    name,
+    ext,
+  }
+}

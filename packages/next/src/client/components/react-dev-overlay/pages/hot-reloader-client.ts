@@ -38,7 +38,7 @@ import {
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from '../_internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../utils/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
