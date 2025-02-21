@@ -11,6 +11,9 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           htmlLimitedBots: /MyBot/i,
+            experimental: {
+            ppr: 'incremental',
+          }
         }
       `,
     },

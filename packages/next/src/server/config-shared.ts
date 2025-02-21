@@ -21,6 +21,9 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  // override NextConfigComplete.experimental.htmlLimitedBots to string
+  // because it's not defined in NextConfigComplete.experimental
+  htmlLimitedBots: string | undefined
   experimental: ExperimentalConfig
 }
 
