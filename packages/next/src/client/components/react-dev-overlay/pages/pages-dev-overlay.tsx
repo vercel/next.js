@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
 import { usePagesDevOverlay } from './hooks'
-import { DevOverlay } from '../_internal/dev-overlay'
+import { DevOverlay } from '../src/dev-overlay'
 
 export type ErrorType = 'runtime' | 'build'
 
