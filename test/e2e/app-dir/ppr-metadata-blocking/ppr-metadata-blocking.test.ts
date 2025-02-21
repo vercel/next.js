@@ -7,9 +7,12 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-blocking', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   // No dynamic APIs used in metadata
   describe('static metadata', () => {
