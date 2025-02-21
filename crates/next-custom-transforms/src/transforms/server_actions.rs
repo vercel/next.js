@@ -1918,10 +1918,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            // In development we generate these spans for
-                                            // sourcemapping with better logs/errors
-                                            // For production this is not generated because it would
-                                            // leak server code when available from the browser.
                                             span: call_expr_span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
