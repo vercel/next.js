@@ -84,6 +84,8 @@ const COMMON_EDITORS_MACOS = {
     '/Applications/GoLand.app/Contents/MacOS/goland',
   '/Applications/Rider.app/Contents/MacOS/rider':
     '/Applications/Rider.app/Contents/MacOS/rider',
+  '/Applications/Cursor.app/Contents/MacOS/Cursor':
+    '/Applications/Cursor.app/Contents/MacOS/Cursor',
 }
 
 const COMMON_EDITORS_LINUX = {
