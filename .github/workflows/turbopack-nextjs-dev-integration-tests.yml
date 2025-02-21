@@ -14,5 +14,4 @@ jobs:
       test_type: development
       run_before_test: |
         export TURBOPACK=1
-      datadog_args: --tags test.type:turbopack.daily --service Turbopack
     secrets: inherit

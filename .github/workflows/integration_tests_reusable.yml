@@ -33,11 +33,6 @@ on:
       integration_timeout_minutes:
         type: number
         default: 30
-      datadog_args:
-        description: >
-          Unescaped arguments to pass to the datadog CLI's `junit upload`
-          subcommand
-        type: string
 
 jobs:
   # First, build Next.js to execute across tests.
@@ -173,24 +168,3 @@ jobs:
             nextjs-test-results.json
             failed-test-path-list.json
             passed-test-path-list.json
-
-  upload_test_report:
-    needs: [test-e2e, test-integration]
-    name: Upload test report to datadog
-    runs-on: [self-hosted, linux, x64, metal]
-    if: ${{ !cancelled() }}
-    steps:
-      - name: Download test report artifacts
-        id: download-test-reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-reports-*
-          path: test/reports
-          merge-multiple: true
-
-      - name: Upload to datadog
-        env:
-          DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
-          DD_ENV: 'ci'
-        run: |
-          pnpm dlx @datadog/datadog-ci@2.23.1 junit upload ${{ inputs.datadog_args }} ./test/reports
