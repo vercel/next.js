@@ -602,6 +602,7 @@ export default abstract class Server<
 
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      htmlLimitedBots: this.nextConfig.htmlLimitedBots.source,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
@@ -610,8 +611,6 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
-        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1766,7 +1765,7 @@ export default abstract class Server<
         botType: getBotType(ua),
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
-          this.renderOpts.experimental
+          this.renderOpts.htmlLimitedBots
         ),
       },
     }

@@ -380,6 +380,7 @@ async function exportAppImpl(
       : {}),
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
+    htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -387,8 +388,6 @@ async function exportAppImpl(
       clientSegmentCache: nextConfig.experimental.clientSegmentCache ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
-      streamingMetadata: !!nextConfig.experimental.streamingMetadata,
-      htmlLimitedBots: nextConfig.experimental.htmlLimitedBots,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

@@ -2757,7 +2757,8 @@ export default async function build(
                 : undefined
 
             const htmlBotsRegexString =
-              config.experimental.htmlLimitedBots ||
+              // The htmlLimitedBots has been converted to a string during loadConfig
+              (config.htmlLimitedBots as unknown as string) ||
               HTML_LIMITED_BOT_UA_RE_STRING
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
@@ -2774,8 +2775,7 @@ export default async function build(
               ...(isRoutePPREnabled &&
               // Disable streaming metadata for PPR on deployment where we don't have the special env.
               // TODO: enable streaming metadata in PPR mode by default once it's ready.
-              process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-              config.experimental.streamingMetadata
+              process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
                 ? [
                     {
                       type: 'header',

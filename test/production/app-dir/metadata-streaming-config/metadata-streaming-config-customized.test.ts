@@ -10,11 +10,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
     overrideFiles: {
       'next.config.js': `
         module.exports = {
-          experimental: {
-            ppr: 'incremental',
-            streamingMetadata: true,
-            htmlLimitedBots: /MyBot/i,
-          }
+          htmlLimitedBots: /MyBot/i,
         }
       `,
     },
