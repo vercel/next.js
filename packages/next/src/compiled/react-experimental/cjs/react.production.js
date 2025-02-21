@@ -510,6 +510,9 @@ exports.unstable_postpone = function (reason) {
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
 };
+exports.unstable_useSwipeTransition = function (previous, current, next) {
+  return ReactSharedInternals.H.useSwipeTransition(previous, current, next);
+};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -573,4 +576,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-32b0cad8-20250213";
+exports.version = "19.1.0-experimental-662957cc-20250221";

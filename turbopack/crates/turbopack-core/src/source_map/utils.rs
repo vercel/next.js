@@ -41,6 +41,8 @@ struct SourceMapSectionItemJson {
     map: SourceMapJson,
 }
 
+// TODO this could be made (much) more efficient by not even de- and serializing other fields
+// (apart from `sources`) and just keep storing them as strings.
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceMapJson {
@@ -137,7 +139,10 @@ pub async fn resolve_source_map_sources(
         return Ok(None);
     };
 
-    let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
+    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
+        // Silently ignore invalid sourcemaps
+        return Ok(None);
+    };
 
     resolve_map(&mut map, origin).await?;
     for section in map.sections.iter_mut().flatten() {
@@ -158,16 +163,17 @@ pub async fn fileify_source_map(
         return Ok(None);
     };
 
+    let Ok(mut map): serde_json::Result<SourceMapJson> = serde_json::from_reader(map.read()) else {
+        // Silently ignore invalid sourcemaps
+        return Ok(None);
+    };
+
     let context_fs = context_path.fs();
     let context_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(context_fs)
         .await?
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());
-
-    // TODO this could be made (much) more efficient by not even de- and serializing other fields
-    // (apart from `sources`) and just keep storing them as strings.
-    let mut map: SourceMapJson = serde_json::from_reader(map.read())?;
 
     let transform_source = async |src: &mut Option<String>| {
         if let Some(src) = src {

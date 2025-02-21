@@ -41,8 +41,8 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducer, useUnwrapState } from './use-reducer'
 import {
+  default as DefaultGlobalError,
   ErrorBoundary,
-  type ErrorComponent,
   type GlobalErrorComponent,
 } from './error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
@@ -617,6 +617,12 @@ function Router({
   )
 
   if (process.env.NODE_ENV !== 'production') {
+    // In development, we apply few error boundaries and hot-reloader:
+    // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
+    // - HotReloader:
+    //  - hot-reload the app when the code changes
+    //  - render dev overlay
+    //  - catch runtime errors and display global-error when necessary
     if (typeof window !== 'undefined') {
       const { DevRootHTTPAccessFallbackBoundary } =
         require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
@@ -633,6 +639,16 @@ function Router({
       <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
         {content}
       </HotReloader>
+    )
+  } else {
+    // In production, we only apply the user-customized global error boundary.
+    content = (
+      <ErrorBoundary
+        errorComponent={globalError[0]}
+        errorStyles={globalError[1]}
+      >
+        {content}
+      </ErrorBoundary>
     )
   }
 
@@ -672,9 +688,9 @@ export default function AppRouter({
 
   return (
     <ErrorBoundary
-      // globalErrorComponent doesn't need `reset`, we do a type cast here to fit the ErrorBoundary type
-      errorComponent={globalErrorComponent as ErrorComponent}
-      errorStyles={globalErrorStyles}
+      // At the very top level, use the default GlobalError component as the final fallback.
+      // When the app router itself fails, which means the framework itself fails, we show the default error.
+      errorComponent={DefaultGlobalError}
     >
       <Router
         actionQueue={actionQueue}

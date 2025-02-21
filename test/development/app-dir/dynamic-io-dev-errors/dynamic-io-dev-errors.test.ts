@@ -142,7 +142,7 @@ describe('Dynamic IO Dev Errors', () => {
       await expect(browser).toDisplayRedbox(`
          {
            "count": 1,
-           "description": "Failed to compile",
+           "description": "Ecmascript file had an error",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/page.tsx (1:14)
@@ -156,7 +156,7 @@ describe('Dynamic IO Dev Errors', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "count": 1,
-         "description": "Failed to compile",
+         "description": "Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.tsx

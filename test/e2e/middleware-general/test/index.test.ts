@@ -37,6 +37,7 @@ describe('Middleware Runtime', () => {
               isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
             )
           ),
+          lib: new FileRef(join(__dirname, '../app/lib')),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')

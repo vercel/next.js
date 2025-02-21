@@ -2,6 +2,7 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   check,
+  getRedboxDescription,
   getRedboxSource,
   retry,
 } from 'next-test-utils'
@@ -330,9 +331,16 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
-      expect(
-        await browser.elementByCss('#nextjs__container_errors_desc').text()
-      ).toEqual('Failed to compile')
+      const description = await getRedboxDescription(browser)
+      if (isTurbopack) {
+        expect(description).toMatchInlineSnapshot(
+          `"Parsing ecmascript source code failed"`
+        )
+      } else {
+        expect(description).toMatchInlineSnapshot(
+          `"Error:   x Expected '{', got '}'"`
+        )
+      }
       await next.patchFile('middleware.js', `export default function () {}`)
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()
