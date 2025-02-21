@@ -293,7 +293,7 @@ fn overlap(
     chunk_groups2: &Option<Cow<'_, RoaringBitmapWrapper>>,
 ) -> u64 {
     if let (Some(chunk_groups), Some(chunk_groups2)) = (chunk_groups, chunk_groups2) {
-        chunk_groups.intersection_len(&**chunk_groups2)
+        chunk_groups.intersection_len(chunk_groups2)
     } else {
         0
     }
