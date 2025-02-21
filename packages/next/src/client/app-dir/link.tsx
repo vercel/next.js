@@ -245,9 +245,6 @@ function mountLinkInstance(
   router: AppRouterInstance,
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 ) {
-  // element can be falsy which can break WeakMap and observing
-  if (!element) return
-
   let prefetchUrl: URL | null = null
   try {
     prefetchUrl = createPrefetchURL(href)

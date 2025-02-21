@@ -5,10 +5,14 @@ import { createSandbox } from 'development-sandbox'
 const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('app-root-params - cache - at runtime', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
     skipStart: true,
+    // this test asserts on build failure logs, which aren't currently observable in `next.cliOutput`.
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   if (isNextDev) {
     it('should error when using rootParams within a "use cache" - dev', async () => {

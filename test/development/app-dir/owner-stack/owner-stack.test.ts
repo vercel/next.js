@@ -85,7 +85,7 @@ describe('app-dir - owner-stack', () => {
           at renderRootSync 
           at performWorkOnRoot 
           at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
         `)
     } else {
       expect(normalizeStackTrace(errorLog)).toMatchInlineSnapshot(`
@@ -104,7 +104,7 @@ describe('app-dir - owner-stack', () => {
           at renderRootSync 
           at performWorkOnRoot 
           at performWorkOnRootViaSchedulerTask 
-          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+          at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
       `)
     }
   })
@@ -184,7 +184,7 @@ describe('app-dir - owner-stack', () => {
        at renderRootSync 
        at performWorkOnRoot 
        at performWorkOnRootViaSchedulerTask 
-       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <DevOverlayErrorBoundary> error boundary."
+       at MessagePort.performWorkUntilDeadline  The above error occurred in the <Page> component. It was handled by the <AppDevOverlayErrorBoundary> error boundary."
       `)
   })
 

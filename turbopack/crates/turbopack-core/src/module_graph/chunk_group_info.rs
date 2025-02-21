@@ -30,7 +30,7 @@ use crate::{
 #[derive(
     Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
 )]
-pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] RoaringBitmap);
+pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 
 impl TaskInput for RoaringBitmapWrapper {
     fn is_transient(&self) -> bool {

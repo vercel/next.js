@@ -2,7 +2,7 @@ import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
 
-export const usePagesReactDevOverlay = () => {
+export const usePagesDevOverlay = () => {
   const [state, dispatch] = useErrorOverlayReducer()
 
   React.useEffect(() => {
@@ -19,12 +19,7 @@ export const usePagesReactDevOverlay = () => {
     []
   )
 
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-
   return {
-    hasBuildError,
-    hasRuntimeErrors,
     state,
     onComponentError,
   }
