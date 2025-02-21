@@ -348,13 +348,18 @@ pub async fn compute_module_batches(
                             let Some(assignment) = state.batch_assignments.get(&node.module) else {
                                 unreachable!();
                             };
-                            // Add self edge
-                            state.add_edge(
-                                assignment.batch_idx,
-                                assignment.batch_idx,
-                                ty.clone(),
-                                node.module,
-                            );
+                            if !matches!(
+                                ty,
+                                ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                            ) {
+                                // Add self edge
+                                state.add_edge(
+                                    assignment.batch_idx,
+                                    assignment.batch_idx,
+                                    ty.clone(),
+                                    node.module,
+                                );
+                            }
                             return Ok(GraphTraversalAction::Exclude);
                         }
                         // Get batch assignments for parent and current node
@@ -377,10 +382,12 @@ pub async fn compute_module_batches(
                             current_assignment
                         {
                             // Already assigned and processed, but we still need to add an edge
-                            state.add_edge(batch_idx, idx, ty.clone(), node.module);
-                            return Ok(GraphTraversalAction::Skip);
+                            if batch_idx != idx {
+                                state.add_edge(batch_idx, idx, ty.clone(), node.module);
+                            }
+                            return Ok(GraphTraversalAction::Exclude);
                         }
-                        let mut in_same_batch = match ty {
+                        let is_parallel = match ty {
                             ChunkingType::Traced => {
                                 // Traced module are alone in a batch
                                 let idx = state.batches.len();
@@ -390,13 +397,14 @@ pub async fn compute_module_batches(
                                 state
                                     .batch_assignments
                                     .insert(node.module, BatchAssignment::new_already_added(idx));
-                                return Ok(GraphTraversalAction::Skip);
+                                return Ok(GraphTraversalAction::Exclude);
                             }
                             ChunkingType::Async
                             | ChunkingType::Isolated { .. }
                             | ChunkingType::Shared { .. } => false,
                             ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => true,
                         };
+                        let mut in_same_batch = is_parallel;
 
                         // Get the chunk groups of the module
                         let chunk_groups = chunk_group_info
@@ -475,6 +483,10 @@ pub async fn compute_module_batches(
 
                             // Add an edge to the parent batch
                             state.add_edge(batch_idx, idx, ty.clone(), node.module);
+                        }
+                        if !is_parallel {
+                            // We don't want to visit that in this pass. It's already in `entries`.
+                            return Ok(GraphTraversalAction::Exclude);
                         }
                     }
                     Ok(GraphTraversalAction::Continue)
