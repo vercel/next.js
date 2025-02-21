@@ -16,11 +16,21 @@ describe('Undefined default export', () => {
       ]),
       '/specific-path/server'
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/specific-path/server/page"'
-    )
+    const { browser } = sandbox
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: The default export is not a React Component.",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/(group)/specific-path/server/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/(group)/specific-path/server/page.js (1:1)",
+       ],
+     }
+    `)
   })
 
   it('should error if layout component does not have default export', async () => {
@@ -35,11 +45,22 @@ describe('Undefined default export', () => {
       ]),
       '/specific-path/server'
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/specific-path/server/layout"'
-    )
+
+    const { browser } = sandbox
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: The default export is not a React Component.",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/(group)/specific-path/server/layout.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/(group)/specific-path/server/layout.js (1:1)",
+       ],
+     }
+    `)
   })
 
   it('should error if not-found component does not have default export when trigger not-found boundary', async () => {
@@ -57,16 +78,26 @@ describe('Undefined default export', () => {
       ]),
       '/will-not-found'
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/will-not-found/not-found"'
-    )
+    const { browser } = sandbox
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: The default export is not a React Component.",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/will-not-found/not-found.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/will-not-found/not-found.js (1:1)",
+       ],
+     }
+    `)
   })
 
   it('should error when page component export is not valid', async () => {
     await using sandbox = await createSandbox(next, undefined, '/')
-    const { session, browser } = sandbox
+    const { browser } = sandbox
 
     await next.patchFile('app/page.js', 'const a = 123')
 
@@ -74,10 +105,20 @@ describe('Undefined default export', () => {
     // Wait for the DOM node #__next to be present
     await browser.waitForElementByCss('#__next')
 
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/page"'
-    )
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: The default export is not a React Component.",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/page.js (1:1)",
+       ],
+     }
+    `)
   })
 
   it('should error when page component export is not valid on initial load', async () => {
@@ -91,10 +132,21 @@ describe('Undefined default export', () => {
       ]),
       '/server-with-errors/page-export-initial-error'
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toInclude(
-      'The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"'
-    )
+
+    const { browser } = sandbox
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: The default export is not a React Component.",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "app/server-with-errors/page-export-initial-error/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/server-with-errors/page-export-initial-error/page.js (1:1)",
+       ],
+     }
+    `)
   })
 })

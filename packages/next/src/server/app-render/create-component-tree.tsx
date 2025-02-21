@@ -1,5 +1,6 @@
 import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
+import { pathToFileURL } from 'url'
 import {
   isClientReference,
   isUseCacheFunction,
@@ -54,8 +55,32 @@ export function createComponentTree(props: {
 
 function errorMissingDefaultExport(
   pagePath: string,
+  filePath: string | undefined,
   convention: string
 ): never {
+  if (filePath !== undefined) {
+    const sourcemap = {
+      version: 3,
+      names: [],
+      sources: [pathToFileURL(filePath)],
+      sourcesContent: [
+        // TODO: Would the actual source here be more helpful?
+        // Would only need to read the first lines to get a codeframe.
+        '// Check the content of this module for missing export.',
+      ],
+      mappings: 'AAAA',
+    }
+    const sourceMappingURL = `data:application/json;charset=utf-8;base64,${Buffer.from(
+      JSON.stringify(sourcemap)
+    ).toString('base64')}`
+    const source =
+      'throw new Error("The default export is not a React Component.")' +
+      `\n//# sourceMappingURL=${sourceMappingURL}` +
+      `\n//# sourceURL=${pathToFileURL(filePath)}`
+    // TODO: Remove the "eval" method name from the stack.
+    // eslint-disable-next-line no-eval
+    eval(source)
+  }
   const normalizedPagePath = pagePath === '/' ? '' : pagePath
   throw new Error(
     `The default export is not a React Component in "${normalizedPagePath}/${convention}"`
@@ -350,33 +375,33 @@ async function createComponentTreeInternal({
       typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, modType ?? 'page')
+      errorMissingDefaultExport(pagePath, layoutOrPagePath, modType ?? 'page')
     }
 
     if (
       typeof ErrorComponent !== 'undefined' &&
       !isValidElementType(ErrorComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'error')
+      errorMissingDefaultExport(pagePath, error?.[1], 'error')
     }
 
     if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
-      errorMissingDefaultExport(pagePath, 'loading')
+      errorMissingDefaultExport(pagePath, loading?.[1], 'loading')
     }
 
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
-      errorMissingDefaultExport(pagePath, 'not-found')
+      errorMissingDefaultExport(pagePath, notFound?.[1], 'not-found')
     }
 
     if (typeof Forbidden !== 'undefined' && !isValidElementType(Forbidden)) {
-      errorMissingDefaultExport(pagePath, 'forbidden')
+      errorMissingDefaultExport(pagePath, forbidden?.[1], 'forbidden')
     }
 
     if (
       typeof Unauthorized !== 'undefined' &&
       !isValidElementType(Unauthorized)
     ) {
-      errorMissingDefaultExport(pagePath, 'unauthorized')
+      errorMissingDefaultExport(pagePath, unauthorized?.[1], 'unauthorized')
     }
   }
 
