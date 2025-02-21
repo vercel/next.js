@@ -8,8 +8,7 @@ import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from './container/runtime-error/render-error'
-
-import { FontStyles } from './font/font-styles'
+import { FontStyles } from '../font/font-styles'
 
 export function DevOverlay({
   state,
