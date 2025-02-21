@@ -218,9 +218,6 @@ pub async fn make_production_chunks(
                     }
                     if best_combination.is_none() {
                         // No merges possible
-                        for unused in selection {
-                            chunks_to_merge.push(unused);
-                        }
                         break;
                     }
                 }
