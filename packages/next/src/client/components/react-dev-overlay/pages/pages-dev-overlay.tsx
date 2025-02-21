@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
 import { usePagesDevOverlay } from './hooks'
 import { FontStyles } from '../font/font-styles'
-import { DevOverlay } from '../src/dev-overlay'
+import { DevOverlay } from '../ui/dev-overlay'
 
 export type ErrorType = 'runtime' | 'build'
 

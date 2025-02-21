@@ -4,7 +4,7 @@ import type { GlobalErrorComponent } from '../../error-boundary'
 import { useState } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { FontStyles } from '../font/font-styles'
-import { DevOverlay } from '../src/dev-overlay'
+import { DevOverlay } from '../ui/dev-overlay'
 
 export function AppDevOverlay({
   state,
