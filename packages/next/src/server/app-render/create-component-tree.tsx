@@ -53,7 +53,7 @@ export function createComponentTree(props: {
   )
 }
 
-function errorMissingDefaultExport(
+function errorMissingDefaultExportDEV(
   pagePath: string,
   filePath: string | undefined,
   convention: string
@@ -375,33 +375,37 @@ async function createComponentTreeInternal({
       typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, layoutOrPagePath, modType ?? 'page')
+      errorMissingDefaultExportDEV(
+        pagePath,
+        layoutOrPagePath,
+        modType ?? 'page'
+      )
     }
 
     if (
       typeof ErrorComponent !== 'undefined' &&
       !isValidElementType(ErrorComponent)
     ) {
-      errorMissingDefaultExport(pagePath, error?.[1], 'error')
+      errorMissingDefaultExportDEV(pagePath, error?.[1], 'error')
     }
 
     if (typeof Loading !== 'undefined' && !isValidElementType(Loading)) {
-      errorMissingDefaultExport(pagePath, loading?.[1], 'loading')
+      errorMissingDefaultExportDEV(pagePath, loading?.[1], 'loading')
     }
 
     if (typeof NotFound !== 'undefined' && !isValidElementType(NotFound)) {
-      errorMissingDefaultExport(pagePath, notFound?.[1], 'not-found')
+      errorMissingDefaultExportDEV(pagePath, notFound?.[1], 'not-found')
     }
 
     if (typeof Forbidden !== 'undefined' && !isValidElementType(Forbidden)) {
-      errorMissingDefaultExport(pagePath, forbidden?.[1], 'forbidden')
+      errorMissingDefaultExportDEV(pagePath, forbidden?.[1], 'forbidden')
     }
 
     if (
       typeof Unauthorized !== 'undefined' &&
       !isValidElementType(Unauthorized)
     ) {
-      errorMissingDefaultExport(pagePath, unauthorized?.[1], 'unauthorized')
+      errorMissingDefaultExportDEV(pagePath, unauthorized?.[1], 'unauthorized')
     }
   }
 
