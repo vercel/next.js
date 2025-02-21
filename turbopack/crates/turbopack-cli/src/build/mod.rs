@@ -476,7 +476,11 @@ async fn build_internal(
                                                         .unwrap(),
                                                 )?
                                                 .with_extension("entry.js"),
-                                            ChunkGroup::Entry(vec![ResolvedVc::upcast(ecmascript)]),
+                                            ChunkGroup::Entry(
+                                                [ResolvedVc::upcast(ecmascript)]
+                                                    .into_iter()
+                                                    .collect(),
+                                            ),
                                             module_graph,
                                             OutputAssets::empty(),
                                             OutputAssets::empty(),

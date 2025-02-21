@@ -115,7 +115,7 @@ impl MiddlewareEndpoint {
         let edge_chunking_context = this.project.edge_chunking_context(false);
         let edge_chunk_grou = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(vec![module]),
+            ChunkGroup::Entry([module].into_iter().collect()),
             module_graph,
             AvailabilityInfo::root(),
         );
@@ -137,7 +137,7 @@ impl MiddlewareEndpoint {
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                ChunkGroup::Entry(vec![userland_module]),
+                ChunkGroup::Entry([userland_module].into_iter().collect()),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),

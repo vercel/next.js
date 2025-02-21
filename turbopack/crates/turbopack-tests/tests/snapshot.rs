@@ -603,7 +603,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().path().await?.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            ChunkGroup::Entry(entry_modules),
+                            ChunkGroup::Entry(entry_modules.into_iter().collect()),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
