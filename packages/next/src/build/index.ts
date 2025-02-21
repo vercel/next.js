@@ -281,6 +281,11 @@ export interface DynamicPrerenderManifestRoute {
   fallbackRevalidate: Revalidate | undefined
 
   /**
+   * When defined, it describes the expire configuration for the fallback route.
+   */
+  fallbackExpire: Revalidate | undefined
+
+  /**
    * The headers that should used when serving the fallback.
    */
   fallbackHeaders?: Record<string, string>
@@ -3038,12 +3043,13 @@ export default async function build(
                 const fallbackMode =
                   route.fallbackMode ?? FallbackMode.NOT_FOUND
 
-                // When we're configured to serve a prerender, we should use the
-                // fallback revalidate from the export result. If it can't be
-                // found, mark that we should keep the shell forever (`false`).
-                let fallbackRevalidate: Revalidate | undefined =
+                // When the route is configured to serve a prerender, we should
+                // use the cache control from the export result. If it can't be
+                // found, mark that we should keep the shell forever
+                // (revalidate: `false` via `getCacheControl()`).
+                const fallbackCacheControl =
                   isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? cacheControl.revalidate
+                    ? cacheControl
                     : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
@@ -3073,7 +3079,8 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
-                  fallbackRevalidate,
+                  fallbackRevalidate: fallbackCacheControl?.revalidate,
+                  fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
                   fallbackRootParams: route.fallbackRootParams,
@@ -3522,6 +3529,7 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackExpire: undefined,
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(

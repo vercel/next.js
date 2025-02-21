@@ -7,6 +7,7 @@ import {
   createRenderResumeDataCache,
   RenderResumeDataCache,
 } from 'next/dist/server/resume-data-cache/resume-data-cache'
+import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -371,29 +372,28 @@ describe('use-cache', () => {
     })
 
     it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
-      const prerenderManifest = JSON.parse(
+      const { version, routes, dynamicRoutes } = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
-      )
+      ) as PrerenderManifest
 
-      expect(prerenderManifest.version).toBe(4)
+      expect(version).toBe(4)
 
-      expect(
-        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-      ).toBe(100)
+      // custom cache life profile "frequent"
+      expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
+      expect(routes['/cache-life'].initialExpireSeconds).toBe(250)
 
-      expect(prerenderManifest.routes['/cache-life'].initialExpireSeconds).toBe(
-        250
-      )
-
-      expect(
-        prerenderManifest.routes['/cache-fetch'].initialExpireSeconds
-      ).toBe(31536000) // default expireTime
+      // default expireTime
+      expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
-      expect(
-        prerenderManifest.routes['/cache-tag'].initialRevalidateSeconds
-      ).toBe(42)
+      expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // cache life profile "weeks"
+        expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
+        expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
+      }
     })
 
     it('should match the expected stale config in the page header', async () => {
