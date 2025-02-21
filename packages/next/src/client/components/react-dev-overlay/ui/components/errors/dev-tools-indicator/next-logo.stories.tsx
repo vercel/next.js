@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
-import { withShadowPortal } from '../../../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,

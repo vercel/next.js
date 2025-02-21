@@ -2,7 +2,7 @@ import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './src/container/runtime-error/render-error'
+import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
 import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
 

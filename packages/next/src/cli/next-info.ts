@@ -8,7 +8,7 @@ import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { getRegistry } from '../lib/helpers/get-registry'
 import { parseVersionInfo } from '../server/dev/parse-version-info'
-import { getStaleness } from '../client/components/react-dev-overlay/src/components/version-staleness-info/version-staleness-info'
+import { getStaleness } from '../client/components/react-dev-overlay/ui/components/version-staleness-info/version-staleness-info'
 import { warn } from '../build/output/log'
 
 export type NextInfoOptions = {
