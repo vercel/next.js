@@ -7,7 +7,7 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-blocking', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
@@ -99,7 +99,7 @@ describe('ppr-metadata-blocking', () => {
     })
   })
 
-  if (isNextStart) {
+  if (!isNextDev) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
       it('should serve partial static shell when normal UA requests the page', async () => {
