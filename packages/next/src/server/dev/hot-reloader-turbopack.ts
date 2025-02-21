@@ -94,7 +94,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
-import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/_internal/font/get-dev-overlay-font-middleware'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/src/font/get-dev-overlay-font-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })

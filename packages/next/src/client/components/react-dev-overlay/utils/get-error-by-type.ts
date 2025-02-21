@@ -1,5 +1,5 @@
 import { ACTION_UNHANDLED_ERROR, ACTION_UNHANDLED_REJECTION } from '../shared'
-import type { SupportedErrorEvent } from '../_internal/container/runtime-error/render-error'
+import type { SupportedErrorEvent } from '../src/container/runtime-error/render-error'
 import { getOriginalStackFrames } from './stack-frame'
 import type { OriginalStackFrame } from './stack-frame'
 import type { ComponentStackFrame } from './parse-component-stack'

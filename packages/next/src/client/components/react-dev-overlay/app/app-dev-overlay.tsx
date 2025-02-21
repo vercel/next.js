@@ -3,7 +3,7 @@ import type { GlobalErrorComponent } from '../../error-boundary'
 
 import { useState } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
-import { DevOverlay } from '../_internal/dev-overlay'
+import { DevOverlay } from '../src/dev-overlay'
 
 export function AppDevOverlay({
   state,
