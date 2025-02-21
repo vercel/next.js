@@ -1888,8 +1888,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
-                        let call_expr_span = Span::dummy_with_cmt();
-                        self.comments.add_pure_comment(call_expr_span.lo);
+                        let dummy_pure_span = Span::dummy_with_cmt();
+                        self.comments.add_pure_comment(dummy_pure_span.lo);
 
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -1918,7 +1918,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: call_expr_span,
+                                            span: dummy_pure_span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
