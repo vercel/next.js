@@ -33,8 +33,8 @@ describe('app dir - global-error - error-in-global-error', () => {
   it('should render fallback UI when error occurs in global-error', async () => {
     const browser = await next.browser('/?error-in-global-error=1')
     const text = await browser.elementByCss('h2').text()
-    expect(text).toBe(
-      'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
+    expect(text).toMatch(
+      /Application error: a client-side exception has occurred while loading [\w.-]+ \(see the browser console for more information\)./
     )
 
     if (isNextDev) {
