@@ -73,7 +73,7 @@ export function attachHydrationErrorState(error: Error) {
     }
   }
   // If it's a hydration error, store the hydration error state into the error object
-  if (isHydrationRuntimeError) {
+  if (isHydrationRuntimeError || isHydrationWarning) {
     ;(error as any).details = parsedHydrationErrorState
   }
 }
