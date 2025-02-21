@@ -1108,16 +1108,6 @@ export default async function loadConfig(
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
   }
 
-  // For the render worker, we directly return the serialized config from the
-  // parent worker (router worker) to avoid loading it again.
-  // This is because loading the config might be expensive especiall when people
-  // have Webpack plugins added.
-  // Because of this change, unserializable fields like `.webpack` won't be
-  // existing here but the render worker shouldn't use these as well.
-  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
-    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
-  }
-
   const curLog = silent
     ? {
         warn: () => {},
