@@ -2731,13 +2731,6 @@ export async function check_error_codes(task, opts) {
 }
 
 export async function bundle_dev_overlay(task, opts) {
-  await task.parallel(
-    ['bundle_dev_overlay_cjs', 'bundle_dev_overlay_esm'],
-    opts
-  )
-}
-
-export async function bundle_dev_overlay_cjs(task, opts) {
   const internalDir = 'dist/client/components/react-dev-overlay/_internal'
   const filename = 'dev-overlay.js'
 
@@ -2755,33 +2748,6 @@ export async function bundle_dev_overlay_cjs(task, opts) {
       },
     }),
     name: 'bundle-dev-overlay-cjs',
-  })
-}
-
-export async function bundle_dev_overlay_esm(task, opts) {
-  const internalDir = 'dist/esm/client/components/react-dev-overlay/_internal'
-  const filename = 'dev-overlay.js'
-
-  await task.source(`${internalDir}/${filename}`).webpack({
-    config: require('./next-runtime.webpack-config')({
-      bundleType: 'pages',
-      dev: true,
-      entry: {
-        [filename]: join(__dirname, internalDir, filename),
-      },
-      output: {
-        path: join(__dirname, internalDir),
-        filename,
-        libraryTarget: 'module',
-      },
-      experimental: {
-        // Pulled from next-runtime.webpack-config.js to not overwrite.
-        layers: true,
-        // This is needed for the output to be a module.
-        outputModule: true,
-      },
-    }),
-    name: 'bundle-dev-overlay-esm',
   })
 }
 
