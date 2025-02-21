@@ -483,12 +483,16 @@ describe('Error overlay for hydration errors in Pages router', () => {
     )
     const { browser } = sandbox
 
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
+
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
          "componentStack": "<Page>
        >   <table>",
-         "count": 2,
+         "count": 3,
          "description": "Expected server HTML to contain a matching <table> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -548,6 +552,11 @@ describe('Error overlay for hydration errors in Pages router', () => {
       ])
     )
     const { browser } = sandbox
+
+    await retry(async () => {
+      expect(await getRedboxTotalErrorCount(browser)).toBe(isReact18 ? 3 : 1)
+    })
+
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
@@ -555,7 +564,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        >   <div>
              <Suspense>
        >       <main>",
-         "count": 2,
+         "count": 3,
          "description": "Expected server HTML to contain a matching <main> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
