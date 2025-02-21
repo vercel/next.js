@@ -343,6 +343,10 @@ export class IncrementalCache implements IncrementalCacheType {
         const arrayBuffer = await blob.arrayBuffer()
         bodyChunks.push(await blob.text())
         ;(init as any)._ogBody = new Blob([arrayBuffer], { type: blob.type })
+        // handle ArrayBuffer body
+      } else if (init.body instanceof ArrayBuffer) {
+        bodyChunks.push(decoder.decode(init.body))
+        ;(init as any)._ogBody = init.body
       } else if (typeof init.body === 'string') {
         bodyChunks.push(init.body)
         ;(init as any)._ogBody = init.body

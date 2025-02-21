@@ -3356,10 +3356,13 @@ describe('app-dir static/dynamic handling', () => {
       const dataBody2 = $('#data-body2').text()
       const dataBody3 = $('#data-body3').text()
       const dataBody4 = $('#data-body4').text()
+      const dataBody5 = $('#data-body5').text()
+      const dataBody6 = $('#data-body6').text()
 
       expect(dataBody1).not.toBe(dataBody2)
       expect(dataBody2).not.toBe(dataBody3)
       expect(dataBody3).not.toBe(dataBody4)
+      expect(dataBody5).not.toBe(dataBody6)
 
       const res2 = await fetchViaHTTP(
         next.url,
@@ -3374,6 +3377,7 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body1').text()).toBe(dataBody1)
       expect($2('#data-body2').text()).toBe(dataBody2)
       expect($2('#data-body3').text()).toBe(dataBody3)
+      expect($2('#data-body5').text()).toBe(dataBody5)
       return 'success'
     }, 'success')
   })
@@ -3394,6 +3398,8 @@ describe('app-dir static/dynamic handling', () => {
       const dataBody2 = $('#data-body2').text()
       const dataBody3 = $('#data-body3').text()
       const dataBody4 = $('#data-body4').text()
+      const dataBody5 = $('#data-body5').text()
+      const dataBody6 = $('#data-body6').text()
 
       const res2 = await fetchViaHTTP(
         next.url,
@@ -3409,6 +3415,8 @@ describe('app-dir static/dynamic handling', () => {
       expect($2('#data-body2').text()).toBe(dataBody2)
       expect($2('#data-body3').text()).toBe(dataBody3)
       expect($2('#data-body4').text()).toBe(dataBody4)
+      expect($2('#data-body5').text()).toBe(dataBody5)
+      expect($2('#data-body6').text()).toBe(dataBody6)
       return 'success'
     }, 'success')
   })
