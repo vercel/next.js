@@ -257,7 +257,7 @@ async function exportPageImpl(
   // when it's available. When we're building the PPR rendering result, we don't need to rely
   // on the user agent. The result can be determined to serve streaming on infrastructure level.
   const serveStreamingMetadata = Boolean(
-    isRoutePPREnabled && input.streamingMetadata
+    isRoutePPREnabled && input.renderOpts.serveStreamingMetadata
   )
 
   const renderOpts: WorkerRenderOpts = {
@@ -429,8 +429,7 @@ export async function exportPages(
               // Disable streaming metadata when dynamic IO is enabled.
               // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
               // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
-              !nextConfig.experimental.dynamicIO &&
-              !!nextConfig.experimental.streamingMetadata,
+              !nextConfig.experimental.dynamicIO,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {
