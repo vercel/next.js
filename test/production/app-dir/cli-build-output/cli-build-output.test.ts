@@ -3,7 +3,7 @@ import path from 'path'
 
 describe('cli-build-output', () => {
   describe('with mixed static and dynamic pages and app router routes', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
       skipStart: true,
       env: {
@@ -21,45 +21,82 @@ describe('cli-build-output', () => {
 
       // TODO: Fix double-listing of the /ppr/[slug] fallback.
 
-      expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                               Size     First Load JS
-       ┌ ○ /_not-found                           ·····           ······
-       ├ ƒ /api                                  ·····           ······
-       ├ ○ /api/force-static                     ·····           ······
-       ├ ○ /app-static                           ·····           ······
-       ├ ○ /cache-life                           ·····           ······
-       ├ ƒ /dynamic                              ·····           ······
-       ├ ◐ /ppr/[slug]                           ·····           ······
-       ├   ├ /ppr/[slug]
-       ├   ├ /ppr/[slug]
-       ├   ├ /ppr/days
-       ├   └ /ppr/weeks
-       └ ○ /revalidate                           ·····           ······
-       + First Load JS shared by all             ······
-         ├ chunks/main-app-················.js   ······
-         └ other shared chunks (total)           ·······
+      if (isTurbopack) {
+        expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)                             Size     First Load JS
+         ┌ ○ /_not-found                         ···             ······
+         ├ ƒ /api                                ···                ···
+         ├ ○ /api/force-static                   ···                ···
+         ├ ○ /app-static                         ···             ······
+         ├ ○ /cache-life                         ···             ······
+         ├ ƒ /dynamic                            ···             ······
+         ├ ◐ /ppr/[slug]                         ···             ······
+         ├   ├ /ppr/[slug]
+         ├   ├ /ppr/[slug]
+         ├   ├ /ppr/days
+         ├   └ /ppr/weeks
+         └ ○ /revalidate                         ···             ······
+         + First Load JS shared by all           ······
+           ├ chunks/_······._.js                 ·····
+           ├ chunks/_······._.js                 ·······
+           └ other shared chunks (total)         ·······
 
-       Route (pages)                             Size     First Load JS
-       ┌ ƒ /api/hello                            ···            ·······
-       ├ ● /gsp-revalidate (ISR: 300 Seconds)    ·····          ·······
-       ├ ƒ /gssp                                 ·····          ·······
-       └ ○ /static                               ·····          ·······
-       + First Load JS shared by all             ·······
-         ├ chunks/framework-················.js  ·······
-         ├ chunks/main-················.js       ·······
-         └ other shared chunks (total)           ·······
+         Route (pages)                           Size     First Load JS
+         ┌ ƒ /api/hello                          ···            ·······
+         ├ ● /gsp-revalidate (ISR: 300 Seconds)  ·······         ······
+         ├ ƒ /gssp                               ·······         ······
+         └ ○ /static                             ·······         ······
+         + First Load JS shared by all           ·······
+           └ chunks/_······._.js                 ·····
+           └ other shared chunks (total)         ·······
 
-       ○  (Static)             prerendered as static content
-       ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
-          (ISR)                incremental static regeneration (uses revalidate in generateStaticParams)
-       ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
-       ƒ  (Dynamic)            server-rendered on demand"
-      `)
+         ○  (Static)             prerendered as static content
+         ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
+            (ISR)                incremental static regeneration (uses revalidate in generateStaticParams)
+         ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+         ƒ  (Dynamic)            server-rendered on demand"
+        `)
+      } else {
+        expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)                               Size     First Load JS
+         ┌ ○ /_not-found                           ·····           ······
+         ├ ƒ /api                                  ·····           ······
+         ├ ○ /api/force-static                     ·····           ······
+         ├ ○ /app-static                           ·····           ······
+         ├ ○ /cache-life                           ·····           ······
+         ├ ƒ /dynamic                              ·····           ······
+         ├ ◐ /ppr/[slug]                           ·····           ······
+         ├   ├ /ppr/[slug]
+         ├   ├ /ppr/[slug]
+         ├   ├ /ppr/days
+         ├   └ /ppr/weeks
+         └ ○ /revalidate                           ·····           ······
+         + First Load JS shared by all             ······
+           ├ chunks/main-app-················.js   ······
+           └ other shared chunks (total)           ·······
+
+         Route (pages)                             Size     First Load JS
+         ┌ ƒ /api/hello                            ···            ·······
+         ├ ● /gsp-revalidate (ISR: 300 Seconds)    ·····          ·······
+         ├ ƒ /gssp                                 ·····          ·······
+         └ ○ /static                               ·····          ·······
+         + First Load JS shared by all             ·······
+           ├ chunks/framework-················.js  ·······
+           ├ chunks/main-················.js       ·······
+           └ other shared chunks (total)           ·······
+
+         ○  (Static)             prerendered as static content
+         ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
+            (ISR)                incremental static regeneration (uses revalidate in generateStaticParams)
+         ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+         ƒ  (Dynamic)            server-rendered on demand"
+        `)
+      }
     })
   })
 
   describe('with only a few static routes', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/minimal-static'),
       skipStart: true,
       env: {
@@ -72,23 +109,43 @@ describe('cli-build-output', () => {
     beforeAll(() => next.build())
 
     it('should show info about prerendered routes in a compact tree view', async () => {
-      expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                               Size     First Load JS
-       ┌ ○ /                                     ·····           ······
-       └ ○ /_not-found                           ·····           ······
-       + First Load JS shared by all             ······
-         ├ chunks/main-app-················.js   ······
-         └ other shared chunks (total)           ·······
+      if (isTurbopack) {
+        expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)                      Size     First Load JS
+         ┌ ○ /                            ···             ······
+         └ ○ /_not-found                  ···             ······
+         + First Load JS shared by all    ······
+           ├ chunks/_······._.js          ·······
+           ├ chunks/_······._.js          ·······
+           └ other shared chunks (total)  ·······
 
-       Route (pages)                             Size     First Load JS
-       ─ ○ /static                               ·····          ·······
-       + First Load JS shared by all             ·······
-         ├ chunks/framework-················.js  ·······
-         ├ chunks/main-················.js       ·······
-         └ other shared chunks (total)           ·······
+         Route (pages)                    Size     First Load JS
+         ─ ○ /static                      ·······         ······
+         + First Load JS shared by all    ·······
+           └ chunks/_······._.js          ·······
+           └ other shared chunks (total)  ·······
 
-       ○  (Static)  prerendered as static content"
-      `)
+         ○  (Static)  prerendered as static content"
+        `)
+      } else {
+        expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
+         "Route (app)                               Size     First Load JS
+         ┌ ○ /                                     ·····           ······
+         └ ○ /_not-found                           ·····           ······
+         + First Load JS shared by all             ······
+           ├ chunks/main-app-················.js   ······
+           └ other shared chunks (total)           ·······
+
+         Route (pages)                             Size     First Load JS
+         ─ ○ /static                               ·····          ·······
+         + First Load JS shared by all             ·······
+           ├ chunks/framework-················.js  ·······
+           ├ chunks/main-················.js       ·······
+           └ other shared chunks (total)           ·······
+
+         ○  (Static)  prerendered as static content"
+        `)
+      }
     })
   })
 })
@@ -118,10 +175,16 @@ function normalizeCliOutputLine(line: string): string {
     (match) => '·'.repeat(match.length)
   )
 
-  // Replace file hashes with a placeholder.
+  // Replace Webpack file hashes (main-4e582c6ad2d38ddc.js) with a placeholder.
   line = line.replace(
     /-([a-f0-9]{8,})(\.js)/g,
     (match, p1, p2) => '-' + '·'.repeat(p1.length) + p2
+  )
+
+  // Replace Turbopack file hashes (chunks/_4d77e8._.js) with a placeholder.
+  line = line.replace(
+    /_([a-f0-9]{6,})(\._\.js)/g,
+    (match, p1, p2) => '_' + '·'.repeat(p1.length) + p2
   )
 
   return line
