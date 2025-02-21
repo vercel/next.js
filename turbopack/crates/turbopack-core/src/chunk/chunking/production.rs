@@ -200,6 +200,9 @@ pub async fn make_production_chunks(
                         }
                     } else {
                         // No merges possible
+                        for unused in selection {
+                            chunks_to_merge.push(unused);
+                        }
                         break;
                     }
                 }
