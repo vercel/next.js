@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import type { Request, Response } from 'playwright'
 
+console.log(`i am so high - rick`)
+
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
