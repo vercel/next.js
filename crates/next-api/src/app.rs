@@ -1232,6 +1232,8 @@ impl AppEndpoint {
             *client_chunking_context,
             Value::new(client_shared_availability_info),
             ssr_chunking_context.map(|ctx| *ctx),
+            *rsc_entry,
+            project.project_path(),
         )
         .to_resolved()
         .await?;
@@ -1722,49 +1724,61 @@ impl AppEndpoint {
                 )
             }
             NextRuntime::NodeJs => {
-                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
-
                 let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(server_action_manifest_loader);
+                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
                 evaluatable_assets.push(rsc_entry);
+
+                let entry_chunk_group_idx = *module_graph
+                    .chunk_group_info()
+                    .get_index_of(ChunkGroup::Entry {
+                        entries: vec![ResolvedVc::upcast(rsc_entry)],
+                        ty: ChunkGroupType::Entry,
+                    })
+                    .await?;
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
 
                     let client_references = client_references.await?;
-                    let span = tracing::trace_span!("server utils");
-                    async {
-                        let server_utils = client_references
-                            .server_utils
-                            .iter()
-                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                            .try_join()
-                            .await?;
-                        let chunk_group = chunking_context
-                            .chunk_group(
-                                AssetIdent::from_path(this.app_project.project().project_path())
+                    if !client_references.server_utils.is_empty() {
+                        let span = tracing::trace_span!("server utils");
+                        async {
+                            let server_utils = client_references
+                                .server_utils
+                                .iter()
+                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                .try_join()
+                                .await?;
+                            let chunk_group = chunking_context
+                                .chunk_group(
+                                    AssetIdent::from_path(
+                                        this.app_project.project().project_path(),
+                                    )
                                     .with_modifier(server_utils_modifier()),
-                                // TODO this should be ChunkGroup::Shared
-                                ChunkGroup::Entry(server_utils),
-                                module_graph,
-                                Value::new(current_availability_info),
-                            )
-                            .await?;
+                                    ChunkGroup::SharedMerged {
+                                        parent: entry_chunk_group_idx,
+                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                        entries: server_utils,
+                                    },
+                                    module_graph,
+                                    Value::new(current_availability_info),
+                                )
+                                .await?;
 
-                        current_chunks = current_chunks
-                            .concatenate(*chunk_group.assets)
-                            .resolve()
-                            .await?;
-                        current_availability_info = chunk_group.availability_info;
-
-                        anyhow::Ok(())
+                            current_chunks = current_chunks
+                                .concatenate(*chunk_group.assets)
+                                .resolve()
+                                .await?;
+                            current_availability_info = chunk_group.availability_info;
+                            anyhow::Ok(())
+                        }
+                        .instrument(span)
+                        .await?;
                     }
-                    .instrument(span)
-                    .await?;
                     for server_component in client_references
                         .server_component_entries
                         .iter()
@@ -1784,10 +1798,9 @@ impl AppEndpoint {
                             let chunk_group = chunking_context
                                 .chunk_group(
                                     server_component.ident(),
-                                    // TODO this should be ChunkGroup::Shared
-                                    ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                    ChunkGroup::Shared(ResolvedVc::upcast(
                                         server_component.await?.module,
-                                    )]),
+                                    )),
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )
@@ -1804,6 +1817,22 @@ impl AppEndpoint {
                         .instrument(span)
                         .await?;
                     }
+
+                    current_chunks = current_chunks
+                        .concatenate(
+                            chunking_context.chunk_group_assets(
+                                server_action_manifest_loader.ident(),
+                                ChunkGroup::Entry(
+                                    [ResolvedVc::upcast(server_action_manifest_loader)]
+                                        .into_iter()
+                                        .collect(),
+                                ),
+                                module_graph,
+                                Value::new(current_availability_info),
+                            ),
+                        )
+                        .resolve()
+                        .await?;
 
                     anyhow::Ok(Vc::cell(vec![
                         chunking_context

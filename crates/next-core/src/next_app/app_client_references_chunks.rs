@@ -2,10 +2,13 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString,
+    Vc,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext},
+    ident::AssetIdent,
     module::Module,
     module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
@@ -20,6 +23,7 @@ use crate::{
         ClientReferenceType,
     },
     next_server_component::server_component_module::NextServerComponentModule,
+    next_server_utility::NEXT_SERVER_UTILITY_MERGE_TAG,
 };
 
 #[turbo_tasks::function]
@@ -39,7 +43,7 @@ pub struct ClientReferencesChunks {
     pub client_component_ssr_chunks:
         FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub layout_segment_client_chunks:
-        FxIndexMap<ResolvedVc<NextServerComponentModule>, ResolvedVc<OutputAssets>>,
+        FxIndexMap<Option<ResolvedVc<NextServerComponentModule>>, ResolvedVc<OutputAssets>>,
 }
 
 /// Computes all client references chunks.
@@ -53,6 +57,8 @@ pub async fn get_app_client_references_chunks(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_availability_info: Value<AvailabilityInfo>,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
+    rsc_entry: ResolvedVc<Box<dyn Module>>,
+    project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
         // TODO Reconsider this. Maybe it need to be true in production.
@@ -146,27 +152,24 @@ pub async fn get_app_client_references_chunks(
             // }
             // .cell())
         } else {
+            // First None = server utils / "framework refernces", and then all layout segment server
+            // components (in order)
             let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
-                FxIndexMap::default();
-            let mut framework_reference_types = Vec::new();
-            for &server_component in app_client_references.server_component_entries.iter() {
-                client_references_by_server_component
-                    .entry(server_component)
-                    .or_default();
-            }
+                FxIndexMap::from_iter(
+                    std::iter::once(None)
+                        .chain(
+                            app_client_references
+                                .server_component_entries
+                                .iter()
+                                .map(Some),
+                        )
+                        .map(|server_component| (server_component.cloned(), vec![])),
+                );
             for client_reference in app_client_references.client_references.iter() {
-                if let Some(server_component) = client_reference.server_component() {
-                    client_references_by_server_component
-                        .entry(server_component)
-                        .or_default()
-                        .push(client_reference.ty());
-                } else {
-                    framework_reference_types.push(client_reference.ty());
-                }
-            }
-            // Framework components need to go into first layout segment
-            if let Some((_, list)) = client_references_by_server_component.first_mut() {
-                list.extend(framework_reference_types);
+                client_references_by_server_component
+                    .entry(client_reference.server_component())
+                    .or_default()
+                    .push(client_reference.ty());
             }
 
             let chunk_group_info = module_graph.chunk_group_info();
@@ -183,19 +186,50 @@ pub async fn get_app_client_references_chunks(
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
+                if server_component.is_none() && client_reference_types.is_empty() {
+                    // Skip if there are no references from server utilites, there is no
+                    // corresponding ChunkGroup in the graph in this case.
+                    continue;
+                }
                 let parent_chunk_group = *chunk_group_info
-                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
-                        server_component.await?.module,
-                    )))
+                    .get_index_of(if let Some(server_component) = server_component {
+                        ChunkGroup::Shared(ResolvedVc::upcast(server_component.await?.module))
+                    } else {
+                        ChunkGroup::SharedMerged {
+                            parent: *chunk_group_info
+                                .get_index_of(ChunkGroup::Entry {
+                                    entries: vec![rsc_entry],
+                                    ty: ChunkGroupType::Entry,
+                                })
+                                .await?,
+                            merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                            entries: app_client_references
+                                .server_utils
+                                .iter()
+                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                .try_join()
+                                .await?,
+                        }
+                    })
                     .await?;
 
-                let base_ident = server_component.ident();
+                let (base_ident, server_component_path, is_layout) =
+                    if let Some(server_component) = server_component {
+                        let server_path = server_component.server_path();
+                        (
+                            server_component.ident(),
+                            &*server_path.to_string().await?,
+                            server_path.file_stem().await?.as_deref() == Some("layout"),
+                        )
+                    } else {
+                        (
+                            AssetIdent::from_path(project_path),
+                            &*NEXT_SERVER_UTILITY_MERGE_TAG,
+                            false,
+                        )
+                    };
 
-                let server_path = server_component.server_path();
-                let is_layout = server_path.file_stem().await?.as_deref() == Some("layout");
-                let server_component_path = server_path.to_string().await?;
-
-                let ssr_modules = client_reference_types
+                let mut ssr_modules = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
                         Ok(match client_reference_ty {
@@ -214,6 +248,16 @@ pub async fn get_app_client_references_chunks(
                     })
                     .try_flat_join()
                     .await?;
+                if server_component.is_none() {
+                    // client_reference_types contains every client reference proxy twice
+                    // (<evaluation> and the regular module), so mapping this into ssr_module leads
+                    // to duplicates.
+                    ssr_modules = ssr_modules
+                        .into_iter()
+                        .collect::<FxIndexSet<_>>()
+                        .into_iter()
+                        .collect();
+                }
 
                 let ssr_chunk_group = if !ssr_modules.is_empty() {
                     ssr_chunking_context.map(|ssr_chunking_context| {
@@ -238,7 +282,7 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                let client_modules = client_reference_types
+                let mut client_modules = client_reference_types
                     .iter()
                     .map(|client_reference_ty| async move {
                         Ok(match client_reference_ty {
@@ -254,6 +298,16 @@ pub async fn get_app_client_references_chunks(
                     })
                     .try_join()
                     .await?;
+                if server_component.is_none() {
+                    // client_reference_types contains every client reference proxy twice
+                    // (<evaluation> and the regular module), so mapping this into client_modules
+                    // leads to duplicates.
+                    client_modules = client_modules
+                        .into_iter()
+                        .collect::<FxIndexSet<_>>()
+                        .into_iter()
+                        .collect();
+                }
                 let client_chunk_group = if !client_modules.is_empty() {
                     let _span = tracing::info_span!(
                         "client side rendering",
