@@ -10,11 +10,7 @@ function getAbsolutePath(value: string): any {
   return dirname(require.resolve(join(value, 'package.json')))
 }
 const config: StorybookConfig = {
-  stories: [
-    // Could to '../src/**/*.stories.@(ts|tsx)', but not sure how much it'll affect perf.
-    // Scoped to experimental dev overlay for now.
-    '../src/client/components/react-dev-overlay/_internal/**/*.stories.tsx',
-  ],
+  stories: ['../src/client/components/react-dev-overlay/ui/**/*.stories.tsx'],
   addons: [
     getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
     getAbsolutePath('@storybook/addon-essentials'),
