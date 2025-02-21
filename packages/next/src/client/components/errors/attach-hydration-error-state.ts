@@ -72,5 +72,8 @@ export function attachHydrationErrorState(error: Error) {
         hydrationErrorState.reactOutputComponentDiff
     }
   }
-  ;(error as any).details = parsedHydrationErrorState
+  // If it's a hydration error, store the hydration error state into the error object
+  if (isHydrationRuntimeError) {
+    ;(error as any).details = parsedHydrationErrorState
+  }
 }
