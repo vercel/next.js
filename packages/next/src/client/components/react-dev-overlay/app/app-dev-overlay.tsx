@@ -3,6 +3,7 @@ import type { GlobalErrorComponent } from '../../error-boundary'
 
 import { useState } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
+import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../src/dev-overlay'
 
 export function AppDevOverlay({
@@ -16,11 +17,15 @@ export function AppDevOverlay({
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
   const devOverlay = (
-    <DevOverlay
-      state={state}
-      isErrorOverlayOpen={isErrorOverlayOpen}
-      setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-    />
+    <>
+      {/* Fonts can only be loaded outside the Shadow DOM. */}
+      <FontStyles />
+      <DevOverlay
+        state={state}
+        isErrorOverlayOpen={isErrorOverlayOpen}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+      />
+    </>
   )
 
   return (
