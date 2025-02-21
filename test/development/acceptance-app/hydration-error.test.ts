@@ -216,7 +216,7 @@ describe('Error overlay for hydration errors in App router', () => {
        "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-               <AppDevOverlayErrorBoundary devOverlay={<Fragment>} globalError={[...]} onError={function bound dispatchSetState}>
+               <AppDevOverlayErrorBoundary devOverlay={<DevOverlay>} globalError={[...]} ...>
                  <DevRootHTTPAccessFallbackBoundary>
                    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
