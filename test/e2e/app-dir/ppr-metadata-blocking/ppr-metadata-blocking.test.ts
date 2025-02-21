@@ -99,7 +99,6 @@ describe('ppr-metadata-blocking', () => {
     })
   })
 
-  // Disable deployment until we support it on infra
   if (isNextStart) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
