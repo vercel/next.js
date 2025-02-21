@@ -1,7 +1,7 @@
 import { dirname } from 'path'
 import findUp from 'next/dist/compiled/find-up'
 
-function findRootLockFile(cwd: string) {
+function findWorkRoot(cwd: string) {
   // Find-up evaluates the list of files at each level.
   // For pnpm-workspace.yaml we first want to look up before searching for lockfiles as those can be included in the application directory by accident.
   const pnpmWorkspaceFile = findUp.sync(
@@ -31,6 +31,6 @@ function findRootLockFile(cwd: string) {
 }
 
 export function findRootDir(cwd: string) {
-  const lockFile = findRootLockFile(cwd)
+  const lockFile = findWorkRoot(cwd)
   return lockFile ? dirname(lockFile) : undefined
 }
