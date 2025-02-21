@@ -121,8 +121,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -191,8 +191,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -256,8 +256,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
        "...
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -317,8 +317,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -384,8 +384,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Mismatch>
@@ -452,8 +452,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
@@ -512,8 +512,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
              <Head>
              <AppContainer>
                <Container fn={function fn}>
-                 <ReactDevOverlay>
-                   <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                 <PagesDevOverlay>
+                   <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                      <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                        <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                          <Page>
@@ -528,8 +528,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
              <Head>
              <AppContainer>
                <Container fn={function fn}>
-                 <ReactDevOverlay>
-                   <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                 <PagesDevOverlay>
+                   <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                      <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                        <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                          <Page>
@@ -580,8 +580,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "...
-           <ReactDevOverlay>
-             <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+           <PagesDevOverlay>
+             <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                  <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                    <Mismatch>
@@ -691,8 +691,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
@@ -758,8 +758,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "...
            <Container fn={function fn}>
-             <ReactDevOverlay>
-               <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+             <PagesDevOverlay>
+               <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                  <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                    <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                      <Page>
@@ -819,8 +819,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
@@ -884,8 +884,8 @@ describe('Error overlay for hydration errors in Pages router', () => {
            <Head>
            <AppContainer>
              <Container fn={function fn}>
-               <ReactDevOverlay>
-                 <DevOverlayErrorBoundary onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+               <PagesDevOverlay>
+                 <PagesDevOverlayErrorBoundary onError={function usePagesDevOverlay.useCallback[onComponentError]}>
                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
                        <Page>
