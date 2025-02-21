@@ -2731,23 +2731,23 @@ export async function check_error_codes(task, opts) {
 }
 
 export async function bundle_dev_overlay(task, opts) {
-  const internalDir = 'dist/client/components/react-dev-overlay/_internal'
+  const uiDir = 'dist/client/components/react-dev-overlay/ui'
   const filename = 'dev-overlay.js'
 
-  await task.source(`${internalDir}/${filename}`).webpack({
+  await task.source(`${uiDir}/${filename}`).webpack({
     config: require('./next-runtime.webpack-config')({
       bundleType: 'pages',
       dev: true,
       entry: {
-        [filename]: join(__dirname, internalDir, filename),
+        [filename]: join(__dirname, uiDir, filename),
       },
       output: {
-        path: join(__dirname, internalDir),
+        path: join(__dirname, uiDir),
         filename,
         libraryTarget: 'commonjs2',
       },
     }),
-    name: 'bundle-dev-overlay-cjs',
+    name: 'bundle-dev-overlay',
   })
 }
 
@@ -3010,13 +3010,4 @@ function rmrf(path, options) {
 
 function readJson(path) {
   return fs.readFile(path, 'utf8').then((content) => JSON.parse(content))
-}
-
-function getFilenameAndExtension(resourcePath) {
-  const filename = basename(resourcePath)
-  const [name, ext] = filename.split('.', 2)
-  return {
-    name,
-    ext,
-  }
 }
