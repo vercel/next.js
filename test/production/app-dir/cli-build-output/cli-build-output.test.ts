@@ -6,6 +6,11 @@ describe('cli-build-output', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
       skipStart: true,
+      env: {
+        // Omit fluctuating build duration output. We can't just blank it out
+        // because it affects column size.
+        __NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION: '100000',
+      },
     })
 
     beforeAll(() => next.build())
@@ -57,6 +62,11 @@ describe('cli-build-output', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/minimal-static'),
       skipStart: true,
+      env: {
+        // Omit fluctuating build duration output. We can't just blank it out
+        // because it affects column size.
+        __NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION: '100000',
+      },
     })
 
     beforeAll(() => next.build())

@@ -407,7 +407,11 @@ export async function printTreeView(
     return white(bold(size))
   }
 
-  const MIN_DURATION = 300
+  // Can be overridden for test purposes to omit the build duration output.
+  const MIN_DURATION = process.env.__NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION
+    ? parseInt(process.env.__NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION, 10)
+    : 300
+
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
