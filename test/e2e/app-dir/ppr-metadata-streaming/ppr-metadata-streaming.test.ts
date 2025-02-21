@@ -96,7 +96,8 @@ describe('ppr-metadata-streaming', () => {
     })
   })
 
-  if (!isNextDev && isNextDeploy) {
+  // Skip the deployment tests for html limited bots
+  if (!isNextDev && !isNextDeploy) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
       it('should serve partial static shell when normal UA requests the page', async () => {
