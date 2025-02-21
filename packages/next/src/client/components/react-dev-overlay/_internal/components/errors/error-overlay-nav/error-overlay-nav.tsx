@@ -3,7 +3,7 @@ import type { VersionInfo } from '../../../../../../../server/dev/parse-version-
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
 import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
 import { noop as css } from '../../../helpers/noop-template'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 
 type ErrorOverlayNavProps = {
   runtimeErrors?: ReadyRuntimeError[]

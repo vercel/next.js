@@ -12,7 +12,7 @@ import {
 import {
   getErrorByType,
   type ReadyRuntimeError,
-} from '../../helpers/get-error-by-type'
+} from '../../../utils/get-error-by-type'
 
 export type SupportedErrorEvent = {
   id: number

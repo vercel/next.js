@@ -1,6 +1,6 @@
 import * as Bus from './bus'
-import { parseStack } from '../_internal/helpers/parse-stack'
-import { parseComponentStack } from '../_internal/helpers/parse-component-stack'
+import { parseStack } from '../utils/parse-stack'
+import { parseComponentStack } from '../utils/parse-component-stack'
 import {
   hydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
@@ -138,5 +138,5 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../_internal/helpers/get-error-by-type'
-export { getServerError } from '../_internal/helpers/node-stack-frames'
+export { getErrorByType } from '../utils/get-error-by-type'
+export { getServerError } from '../utils/node-stack-frames'

@@ -32,7 +32,7 @@ import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 
 interface ErrorOverlayLayoutProps extends ErrorBaseProps {
