@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
@@ -8,7 +9,10 @@ use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::TaskDataCategory;
+use crate::{
+    backend::TaskDataCategory,
+    data_storage::{AutoMapStorage, OptionStorage, Storage},
+};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -300,18 +304,22 @@ pub enum RootType {
 }
 
 #[derive(Debug)]
+pub struct InProgressStateInner {
+    pub stale: bool,
+    #[allow(dead_code)]
+    pub once_task: bool,
+    pub session_dependent: bool,
+    pub marked_as_completed: bool,
+    pub done_event: Event,
+    /// Children that should be connected to the task and have their active_count decremented
+    /// once the task completes.
+    pub new_children: FxHashSet<TaskId>,
+}
+
+#[derive(Debug)]
 pub enum InProgressState {
-    Scheduled {
-        done_event: Event,
-    },
-    InProgress {
-        stale: bool,
-        #[allow(dead_code)]
-        once_task: bool,
-        session_dependent: bool,
-        marked_as_completed: bool,
-        done_event: Event,
-    },
+    Scheduled { done_event: Event },
+    InProgress(Box<InProgressStateInner>),
 }
 
 transient_traits!(InProgressState);
@@ -418,10 +426,6 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
-    PersistentUpperCount {
-        // Only counting persistent tasks
-        value: u32,
-    },
 
     // Aggregated Data
     AggregatedDirtyContainer {
@@ -434,6 +438,11 @@ pub enum CachedDataItem {
     },
     AggregatedDirtyContainerCount {
         value: DirtyContainerCount,
+    },
+
+    // Flags
+    Stateful {
+        value: (),
     },
 
     // Transient Root Type
@@ -472,11 +481,6 @@ pub enum CachedDataItem {
         target: CollectiblesRef,
         value: (),
     },
-    #[serde(skip)]
-    OutdatedChild {
-        task: TaskId,
-        value: (),
-    },
 
     // Transient Error State
     #[serde(skip)]
@@ -505,12 +509,12 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
-            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItem::Stateful { .. } => true,
             CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
@@ -518,7 +522,6 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
     }
@@ -563,16 +566,15 @@ impl CachedDataItem {
             | Self::Dirty { .. }
             | Self::Follower { .. }
             | Self::Upper { .. }
-            | Self::PersistentUpperCount { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
@@ -601,12 +603,12 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
-            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
+            CachedDataItemKey::Stateful { .. } => true,
             CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
@@ -614,7 +616,6 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
     }
@@ -647,16 +648,15 @@ impl CachedDataItemType {
             | Self::Dirty { .. }
             | Self::Follower { .. }
             | Self::Upper { .. }
-            | Self::PersistentUpperCount { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
-            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+            | Self::AggregatedDirtyContainerCount { .. }
+            | Self::Stateful { .. } => TaskDataCategory::Meta,
 
             Self::OutdatedCollectible { .. }
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
@@ -702,6 +702,7 @@ pub enum CachedDataUpdate {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
     fn test_sizes() {
         assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);

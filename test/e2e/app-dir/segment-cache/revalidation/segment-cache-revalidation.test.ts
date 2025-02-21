@@ -6,6 +6,11 @@ import { createTestLog } from 'test-log'
 import { findPort } from 'next-test-utils'
 
 describe('segment cache (revalidation)', () => {
+  if (isNextDev || isNextDeploy) {
+    test('disabled in development / deployment', () => {})
+    return
+  }
+
   let port = -1
   let server
   let pendingRequests = new Map()
@@ -44,11 +49,6 @@ describe('segment cache (revalidation)', () => {
     await next?.destroy()
     server?.close()
   })
-
-  if (isNextDev || isNextDeploy) {
-    test('disabled in development / deployment', () => {})
-    return
-  }
 
   it('evict client cache when Server Action calls revalidatePath', async () => {
     let act: ReturnType<typeof createRouterAct>

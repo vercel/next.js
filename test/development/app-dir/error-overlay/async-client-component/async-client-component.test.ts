@@ -11,13 +11,6 @@ describe('app-dir - async-client-component', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
-  it('app router server component async module', async () => {
-    const browser = await next.browser('/server')
-
-    await assertNoRedbox(browser)
-
-    expect(await browser.elementByCss('#app-router-value').text()).toBe('hello')
-  })
 
   it('app router client component async module', async () => {
     const browser = await next.browser('/client')
@@ -31,12 +24,20 @@ describe('app-dir - async-client-component', () => {
       componentStack,
     }
 
-    // TODO(error): display component stack when react owner stack is available
+    // TODO(error): display component stack
     expect(result).toMatchInlineSnapshot(`
      {
        "componentStack": "",
        "description": "async/await is not yet supported in Client Components, only Server Components. This error is often caused by accidentally adding \`'use client'\` to a module that was originally written for the server.",
      }
     `)
+  })
+
+  it('app router server component async module', async () => {
+    const browser = await next.browser('/server')
+
+    await assertNoRedbox(browser)
+
+    expect(await browser.elementByCss('#app-router-value').text()).toBe('hello')
   })
 })

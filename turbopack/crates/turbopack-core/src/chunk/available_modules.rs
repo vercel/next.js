@@ -1,38 +1,13 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use super::ChunkableModule;
 use crate::module::Module;
 
-#[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    TraceRawVcs,
-    Copy,
-    Clone,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
-)]
-pub struct AvailableModulesInfo {
-    pub is_async: bool,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionAvailableModulesInfo(Option<AvailableModulesInfo>);
-
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
-pub struct AvailableModuleInfoMap(
-    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
-);
+pub struct AvailableModuleInfoMap(FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>);
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
@@ -59,17 +34,9 @@ impl AvailableModules {
         self: ResolvedVc<Self>,
         modules: ResolvedVc<AvailableModuleInfoMap>,
     ) -> Result<Vc<Self>> {
-        let modules = modules
-            .await?
-            .into_iter()
-            .map(|(&module, &info)| async move {
-                Ok(self.get(*module).await?.is_none().then_some((module, info)))
-            })
-            .try_flat_join()
-            .await?;
         Ok(AvailableModules {
             parent: Some(self),
-            modules: ResolvedVc::cell(modules.into_iter().collect()),
+            modules,
         }
         .cell())
     }
@@ -86,7 +53,7 @@ impl AvailableModules {
             .modules
             .await?
             .iter()
-            .map(|(&module, _)| module.ident().to_string())
+            .map(|module| module.ident().to_string())
             .try_join()
             .await?;
         for ident in item_idents {
@@ -96,17 +63,14 @@ impl AvailableModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Result<Vc<OptionAvailableModulesInfo>> {
-        if let Some(&info) = self.modules.await?.get(&module) {
-            return Ok(Vc::cell(Some(info)));
+    pub async fn get(&self, module: ResolvedVc<Box<dyn ChunkableModule>>) -> Result<Vc<bool>> {
+        if self.modules.await?.contains(&module) {
+            return Ok(Vc::cell(true));
         };
         if let Some(parent) = self.parent {
             return Ok(parent.get(*module));
         }
-        Ok(Vc::cell(None))
+        Ok(Vc::cell(false))
     }
 
     #[turbo_tasks::function]
@@ -130,16 +94,11 @@ pub struct AvailableModulesSnapshot {
 }
 
 impl AvailableModulesSnapshot {
-    pub fn get(
-        &self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Option<AvailableModulesInfo> {
-        if let Some(&info) = self.modules.get(&module) {
-            return Some(info);
-        };
-        if let Some(parent) = &self.parent {
-            return parent.get(module);
-        }
-        None
+    pub fn get(&self, module: ResolvedVc<Box<dyn ChunkableModule>>) -> bool {
+        self.modules.contains(&module)
+            || self
+                .parent
+                .as_ref()
+                .is_some_and(|parent| parent.get(module))
     }
 }

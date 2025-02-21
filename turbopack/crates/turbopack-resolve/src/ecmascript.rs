@@ -59,7 +59,7 @@ async fn apply_esm_specific_options_internal(
     options: Vc<ResolveOptions>,
     clear_extensions: bool,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut options: ResolveOptions = options.await?.clone_value();
+    let mut options: ResolveOptions = options.owned().await?;
     // TODO set fully_specified when in strict ESM mode
     // options.fully_specified = true;
     for conditions in get_condition_maps(&mut options) {
@@ -76,7 +76,7 @@ async fn apply_esm_specific_options_internal(
 
 #[turbo_tasks::function]
 pub async fn apply_cjs_specific_options(options: Vc<ResolveOptions>) -> Result<Vc<ResolveOptions>> {
-    let mut options: ResolveOptions = options.await?.clone_value();
+    let mut options: ResolveOptions = options.owned().await?;
     for conditions in get_condition_maps(&mut options) {
         conditions.insert("import".into(), ConditionValue::Unset);
         conditions.insert("require".into(), ConditionValue::Set);
@@ -89,7 +89,7 @@ pub async fn esm_resolve(
     request: Vc<Request>,
     ty: Value<EcmaScriptModulesReferenceSubType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let ty = Value::new(ReferenceType::EcmaScriptModules(ty.into_value()));
     let options = apply_esm_specific_options(origin.resolve_options(ty.clone()), ty.clone())
@@ -102,7 +102,7 @@ pub async fn esm_resolve(
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -117,7 +117,7 @@ pub async fn cjs_resolve(
 pub async fn cjs_resolve_source(
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
     is_optional: bool,
 ) -> Result<Vc<ResolveResult>> {
     // TODO pass CommonJsReferenceSubType
@@ -150,7 +150,7 @@ async fn specific_resolve(
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
     is_optional: bool,
-    issue_source: Option<Vc<IssueSource>>,
+    issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin
         .resolve_asset(request, options, reference_type.clone())

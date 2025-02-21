@@ -2,7 +2,7 @@
 name = "turbopack-bench"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -29,6 +29,7 @@ parking_lot = { workspace = true }
 portpicker = "0.1.1"
 rand = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

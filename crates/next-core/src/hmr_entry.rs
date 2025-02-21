@@ -21,6 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_REQUIRE,
     utils::StringifyJs,
 };
 
@@ -131,7 +132,7 @@ impl ValueToString for HmrEntryModuleReference {
 impl ModuleReference for HmrEntryModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 
@@ -172,11 +173,6 @@ impl ChunkItem for HmrEntryChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.module.await?;
         let module = this.module;
@@ -184,7 +180,7 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();
-        writeln!(code, "__turbopack_require__({});", StringifyJs(&id))?;
+        writeln!(code, "{TURBOPACK_REQUIRE}({});", StringifyJs(&id))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {

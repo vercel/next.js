@@ -5,11 +5,13 @@ import {
   describeVariants as describe,
   getStackFramesContent,
   toggleCollapseCallStackFrames,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
+describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', (mode) => {
+  const isTurbopack = mode === 'turbo'
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
@@ -212,14 +214,14 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = next.normalizeTestDirContent(await session.getRedboxSource())
     if (process.env.TURBOPACK) {
       expect(source).toMatchInlineSnapshot(`
-        "./index.js:7:1
-        Parsing ecmascript source code failed
-          5 |     div
-          6 |   )
-        > 7 | }
-            | ^
+       "./index.js (7:1)
+       Parsing ecmascript source code failed
+         5 |     div
+         6 |   )
+       > 7 | }
+           | ^
 
-        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
+       Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?"
       `)
     } else {
       expect(source).toMatchInlineSnapshot(`
@@ -344,8 +346,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const source = await session.getRedboxSource()
     expect(source).toMatch(
       process.env.TURBOPACK
-        ? './index.module.css:1:9'
-        : './index.module.css:1:1'
+        ? './index.module.css (1:9)'
+        : './index.module.css (1:1)'
     )
     if (!process.env.TURBOPACK) {
       expect(source).toMatch('Syntax error: ')
@@ -764,6 +766,7 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
+    await hasRedboxCallStack(browser)
     const callStackFrames = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -787,16 +790,42 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
         ],
       ])
     )
-
-    const { session, browser } = sandbox
-
-    await session.assertHasRedbox()
-
-    const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(`
-     "at Array.map ()
-     at Page (pages/index.js (2:13))"
-    `)
+    const { browser } = sandbox
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: anonymous error!",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (3:11) @ <unknown>
+       > 3 |     throw new Error("anonymous error!");
+           |           ^",
+         "stack": [
+           "<unknown> pages/index.js (3:11)",
+           "Array.map <anonymous> (0:0)",
+           "Page pages/index.js (2:13)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: anonymous error!",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "pages/index.js (3:11) @ eval
+       > 3 |     throw new Error("anonymous error!");
+           |           ^",
+         "stack": [
+           "eval pages/index.js (3:11)",
+           "Array.map <anonymous> (0:0)",
+           "Page pages/index.js (2:13)",
+         ],
+       }
+      `)
+    }
   })
 
   test('should collapse nodejs internal stack frames from stack trace', async () => {
@@ -820,13 +849,23 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
       ])
     )
 
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
+    const { browser } = sandbox
 
-    const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(
-      `"at getServerSideProps (pages/index.js (8:3))"`
-    )
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "TypeError: Invalid URL",
+       "environmentLabel": null,
+       "label": "Runtime Error",
+       "source": "pages/index.js (4:3) @ createURL
+     > 4 |   new URL("/", "invalid")
+         |   ^",
+       "stack": [
+         "createURL pages/index.js (4:3)",
+         "getServerSideProps pages/index.js (8:3)",
+       ],
+     }
+    `)
 
     await toggleCollapseCallStackFrames(browser)
     const stackCollapsed = await getStackFramesContent(browser)

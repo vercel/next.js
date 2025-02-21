@@ -26,6 +26,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
 
@@ -136,7 +137,7 @@ impl EcmascriptClientReferenceModule {
                 r#"
                     const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
 
-                    __turbopack_export_namespace__(createClientModuleProxy({server_module_path}));
+                    {TURBOPACK_EXPORT_NAMESPACE}(createClientModuleProxy({server_module_path}));
                 "#,
                 server_module_path = StringifyJs(server_module_path)
             )?;
@@ -335,11 +336,6 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
         self.inner_chunk_item
             .content_with_async_module_info(async_module_info)
     }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        EcmascriptChunkItem::chunking_context(*self.inner_chunk_item)
-    }
 }
 
 #[turbo_tasks::value]
@@ -383,7 +379,7 @@ impl ChunkableModuleReference for EcmascriptClientReference {
 impl ModuleReference for EcmascriptClientReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 

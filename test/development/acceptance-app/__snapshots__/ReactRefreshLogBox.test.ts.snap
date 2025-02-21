@@ -1,7 +1,7 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`ReactRefreshLogBox app default Import trace when module not found in layout 1`] = `
-"./app/module.js:1:1
+"./app/module.js (1:1)
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
     | ^
@@ -43,7 +43,7 @@ exports[`ReactRefreshLogBox app default conversion to class component (1) 1`] = 
 `;
 
 exports[`ReactRefreshLogBox app default css syntax errors 1`] = `
-"./index.module.css:1:1
+"./index.module.css (1:1)
 Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
 
 > 1 | button {}
@@ -110,7 +110,7 @@ exports[`ReactRefreshLogBox app default should strip whitespace correctly with n
 `;
 
 exports[`ReactRefreshLogBox app turbo Import trace when module not found in layout 1`] = `
-"./app/module.js:1:1
+"./app/module.js (1:1)
 Module not found: Can't resolve 'non-existing-module'
 > 1 | import "non-existing-module"
     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -119,7 +119,8 @@ https://nextjs.org/docs/messages/module-not-found"
 `;
 
 exports[`ReactRefreshLogBox app turbo Should not show __webpack_exports__ when exporting anonymous arrow function 1`] = `
-"index.js (3:11) @ {default export}
+"index.js (3:11) @
+{default export}
 
   1 | export default () => {
   2 |   if (typeof window !== 'undefined') {

@@ -45,6 +45,12 @@ type GetNamedRouteRegexOptions = {
    * Whether to exclude the optional trailing slash from the route regex.
    */
   excludeOptionalTrailingSlash?: boolean
+
+  /**
+   * Whether to backtrack duplicate keys. This is only relevant when creating
+   * the routes-manifest during the build.
+   */
+  backreferenceDuplicateKeys?: boolean
 }
 
 type GetRouteRegexOptions = {
@@ -232,12 +238,14 @@ function getSafeKeyFromSegment({
   segment,
   routeKeys,
   keyPrefix,
+  backreferenceDuplicateKeys,
 }: {
   interceptionMarker?: string
   getSafeRouteKey: () => string
   segment: string
   routeKeys: Record<string, string>
   keyPrefix?: string
+  backreferenceDuplicateKeys: boolean
 }) {
   const { key, optional, repeat } = parseMatchedParameter(segment)
 
@@ -263,6 +271,8 @@ function getSafeKeyFromSegment({
     cleanedKey = getSafeRouteKey()
   }
 
+  const duplicateKey = cleanedKey in routeKeys
+
   if (keyPrefix) {
     routeKeys[cleanedKey] = `${keyPrefix}${key}`
   } else {
@@ -276,18 +286,28 @@ function getSafeKeyFromSegment({
     ? escapeStringRegexp(interceptionMarker)
     : ''
 
-  return repeat
-    ? optional
-      ? `(?:/${interceptionPrefix}(?<${cleanedKey}>.+?))?`
-      : `/${interceptionPrefix}(?<${cleanedKey}>.+?)`
-    : `/${interceptionPrefix}(?<${cleanedKey}>[^/]+?)`
+  let pattern: string
+  if (duplicateKey && backreferenceDuplicateKeys) {
+    // Use a backreference to the key to ensure that the key is the same value
+    // in each of the placeholders.
+    pattern = `\\k<${cleanedKey}>`
+  } else if (repeat) {
+    pattern = `(?<${cleanedKey}>.+?)`
+  } else {
+    pattern = `(?<${cleanedKey}>[^/]+?)`
+  }
+
+  return optional
+    ? `(?:/${interceptionPrefix}${pattern})?`
+    : `/${interceptionPrefix}${pattern}`
 }
 
 function getNamedParametrizedRoute(
   route: string,
   prefixRouteKeys: boolean,
   includeSuffix: boolean,
-  includePrefix: boolean
+  includePrefix: boolean,
+  backreferenceDuplicateKeys: boolean
 ) {
   const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
@@ -311,6 +331,7 @@ function getNamedParametrizedRoute(
           keyPrefix: prefixRouteKeys
             ? NEXT_INTERCEPTION_MARKER_PREFIX
             : undefined,
+          backreferenceDuplicateKeys,
         })
       )
     } else if (paramMatches && paramMatches[2]) {
@@ -324,6 +345,7 @@ function getNamedParametrizedRoute(
         segment: paramMatches[2],
         routeKeys,
         keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
+        backreferenceDuplicateKeys,
       })
 
       // Remove the leading slash if includePrefix already added it.
@@ -364,7 +386,8 @@ export function getNamedRouteRegex(
     normalizedRoute,
     options.prefixRouteKeys,
     options.includeSuffix ?? false,
-    options.includePrefix ?? false
+    options.includePrefix ?? false,
+    options.backreferenceDuplicateKeys ?? false
   )
 
   let namedRegex = result.namedParameterizedRoute
@@ -404,6 +427,7 @@ export function getNamedMiddlewareRegex(
 
   const { namedParameterizedRoute } = getNamedParametrizedRoute(
     normalizedRoute,
+    false,
     false,
     false,
     false

@@ -27,6 +27,7 @@ import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runt
 import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
 import { handleClientError } from './components/errors/use-error-handler'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -304,7 +305,15 @@ function devQueueSsrError(): Error | undefined {
       'data-next-error-message'
     )!
     const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
+    const digest = ssrErrorTemplateTag.getAttribute('data-next-error-digest')
     const error = new Error(message)
+    if (digest) {
+      ;(error as any).digest = digest
+    }
+    // Skip Next.js SSR'd internal errors that which will be handled by the error boundaries.
+    if (isNextRouterError(error)) {
+      return
+    }
     error.stack = stack || ''
     return error
   }

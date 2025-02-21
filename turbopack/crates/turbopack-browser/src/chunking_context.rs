@@ -210,6 +210,11 @@ impl BrowserChunkingContext {
     }
 
     /// Returns the minify type.
+    pub fn source_maps_type(&self) -> SourceMapsType {
+        self.source_maps_type
+    }
+
+    /// Returns the minify type.
     pub fn minify_type(&self) -> MinifyType {
         self.minify_type
     }
@@ -316,22 +321,24 @@ impl ChunkingContext for BrowserChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let name = ident.output_name(*self.root_path, extension).await?;
-        Ok(root_path.join(name.clone_value()))
+        let name = ident
+            .output_name(*self.root_path, extension)
+            .owned()
+            .await?;
+        Ok(root_path.join(name))
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let asset_path = ident.await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.await?.path))
             .context("expected asset_path to contain client_root")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_base_path
+                self.asset_base_path
                     .await?
                     .as_ref()
                     .map(|s| s.as_str())

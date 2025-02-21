@@ -1612,17 +1612,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "ReactRefreshLogBox app <Link> component props errors",
-      "ReactRefreshLogBox app <Link> with multiple children",
-      "ReactRefreshLogBox app server-side only compilation errors"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/acceptance-app/ReactRefreshModule.test.ts": {
     "passed": ["ReactRefreshModule app should allow any variable names"],
     "failed": [],
@@ -3231,7 +3220,7 @@
       "Client Navigation with 404 pages should should not contain a page script in a 404 page",
       "Client Navigation with <Link/> should call mouse handlers with an absolute url",
       "Client Navigation with <Link/> should error when calling onClick without event",
-      "Client Navigation with <Link/> should have proper error when no children are provided",
+      "Client Navigation with <Link/> should have a redbox when no children are provided",
       "Client Navigation with <Link/> should navigate an absolute local url",
       "Client Navigation with <Link/> should navigate an absolute local url with as",
       "Client Navigation with <Link/> should navigate an absolute url",
@@ -3261,7 +3250,7 @@
       "Client Navigation with different types of urls should work with / page",
       "Client Navigation with different types of urls should work with dir/ page",
       "Client Navigation with different types of urls should work with normal page",
-      "Client Navigation with empty getInitialProps() should render an error",
+      "Client Navigation with empty getInitialProps() should render a redbox",
       "Client Navigation with getInitialProp redirect should redirect the page via client side",
       "Client Navigation with getInitialProp redirect should redirect the page when loading",
       "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
@@ -3770,10 +3759,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-compilation/index.test.ts": {
-    "passed": ["app dir HMR should not cause error when removing loading.js"],
+    "passed": [],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["app dir HMR should not cause error when removing loading.js"],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
@@ -8228,10 +8217,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-without-dynamic-io/use-cache-without-dynamic-io.test.ts": {
+  "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
     "passed": [
-      "use-cache-without-dynamic-io should recover from the build error if dynamicIO flag is set",
-      "use-cache-without-dynamic-io should show a build error"
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
     "failed": [],
     "pending": [],
@@ -18641,6 +18630,9 @@
       "Required Server Files production mode should render dynamic SSR page correctly",
       "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
       "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
       "Required Server Files production mode should render fallback page correctly",
       "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
       "Required Server Files production mode should return data correctly with x-matched-path",

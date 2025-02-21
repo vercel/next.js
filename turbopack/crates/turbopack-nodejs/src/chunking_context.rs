@@ -249,17 +249,16 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let asset_path = ident.await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.await?.path))
             .context("expected client root to contain asset path")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_prefix
+                self.asset_prefix
                     .await?
                     .as_ref()
                     .map(|s| s.clone())
@@ -277,8 +276,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = *self.chunk_root_path;
-        let name = ident.output_name(*self.root_path, extension).await?;
-        Ok(root_path.join(name.clone_value()))
+        let name = ident
+            .output_name(*self.root_path, extension)
+            .owned()
+            .await?;
+        Ok(root_path.join(name))
     }
 
     #[turbo_tasks::function]
@@ -434,7 +436,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .collect();
 
-        let Some(module) = ResolvedVc::try_downcast(module).await? else {
+        let Some(module) = ResolvedVc::try_downcast(module) else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 

@@ -227,7 +227,7 @@ async function run(): Promise<void> {
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
-      eslint: true,
+      eslint: false,
       tailwind: true,
       app: true,
       srcDir: false,

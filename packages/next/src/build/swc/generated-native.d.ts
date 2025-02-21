@@ -128,6 +128,12 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -166,6 +172,12 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiEnvVar>
@@ -177,6 +189,8 @@ export interface NapiTurboEngineOptions {
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
+  /** Track dependencies between tasks. If false, any change during build will error. */
+  dependencyTracking?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,

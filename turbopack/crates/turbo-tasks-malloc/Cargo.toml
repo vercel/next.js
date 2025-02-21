@@ -2,7 +2,7 @@
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 description = "A wrapper around mimalloc or the system allocator that tracks allocations"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 

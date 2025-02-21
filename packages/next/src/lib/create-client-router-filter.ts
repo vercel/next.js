@@ -31,7 +31,7 @@ export function createClientRouterFilter(
 
       // start at 1 since we split on '/' and the path starts
       // with this so the first entry is an empty string
-      for (let i = 1; i < pathParts.length + 1; i++) {
+      for (let i = 1; i < pathParts.length; i++) {
         const curPart = pathParts[i]
 
         if (curPart.startsWith('[')) {

@@ -15,7 +15,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
@@ -306,7 +306,7 @@ impl EvalContext {
         unresolved_mark: Mark,
         top_level_mark: Mark,
         comments: Option<&dyn Comments>,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,

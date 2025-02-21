@@ -24,6 +24,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -142,7 +143,7 @@ impl ChunkGroupFilesChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module)
         {
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),
@@ -167,11 +168,6 @@ impl ChunkGroupFilesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks = self.chunks();
         let this = self.await?;
@@ -180,7 +176,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         let chunks_paths = chunks
             .await?
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|chunk| chunk.path())
             .try_join()
             .await?;
         let chunks_paths: Vec<_> = chunks_paths
@@ -189,7 +185,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             .collect();
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({:#});\n",
+                "{TURBOPACK_EXPORT_VALUE}({:#});\n",
                 StringifyJs(&chunks_paths)
             )
             .into(),

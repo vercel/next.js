@@ -9,7 +9,7 @@ use turbopack_core::{
     chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{
@@ -76,7 +76,7 @@ impl EcmascriptBuildNodeChunkContent {
         let source_maps = this
             .chunking_context
             .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
-        let chunk_path_vc = this.chunk.ident().path();
+        let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
 
         let mut code = CodeBuilder::default();
@@ -107,11 +107,9 @@ impl EcmascriptBuildNodeChunkContent {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code, source_maps));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)
@@ -121,7 +119,7 @@ impl EcmascriptBuildNodeChunkContent {
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root(),
-            self.chunk.ident().path(),
+            self.chunk.path(),
             *self.content,
             self.chunking_context.await?.minify_type(),
         ))
@@ -131,7 +129,7 @@ impl EcmascriptBuildNodeChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

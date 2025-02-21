@@ -125,7 +125,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         U: relativeURL,
         R: createResolvePathFromModule(r),
         b: getWorkerBlobURL,
-        __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
+        d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
       })
     );
   } catch (error) {

@@ -38,8 +38,7 @@ impl StaticEcmascriptCode {
             .module()
             .to_resolved()
             .await?;
-        let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
-        else {
+        let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module) else {
             bail!("asset is not an Ecmascript module")
         };
         Ok(Self::cell(StaticEcmascriptCode {
@@ -60,7 +59,7 @@ impl StaticEcmascriptCode {
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map,
+            runtime_base_content.source_map.clone(),
         );
         Ok(Code::cell(code.build()))
     }

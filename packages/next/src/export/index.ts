@@ -33,6 +33,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -54,6 +55,8 @@ import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
+import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -299,11 +302,11 @@ async function exportAppImpl(
     }
   }
 
-  let serverActionsManifest
+  let serverActionsManifest: ActionManifest | undefined
   if (enabledDirectories.app) {
     serverActionsManifest = require(
       join(distDir, SERVER_DIRECTORY, SERVER_REFERENCE_MANIFEST + '.json')
-    )
+    ) as ActionManifest
 
     if (nextConfig.output === 'export') {
       const routesManifest = require(join(distDir, ROUTES_MANIFEST))
@@ -321,9 +324,16 @@ async function exportAppImpl(
         }
       }
 
+      const actionIds = [
+        ...Object.keys(serverActionsManifest.node),
+        ...Object.keys(serverActionsManifest.edge),
+      ]
+
       if (
-        Object.keys(serverActionsManifest.node).length > 0 ||
-        Object.keys(serverActionsManifest.edge).length > 0
+        actionIds.some(
+          (actionId) =>
+            extractInfoFromServerReferenceId(actionId).type === 'server-action'
+        )
       ) {
         throw new ExportError(
           `Server Actions are not supported with static export.\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features`
@@ -476,7 +486,13 @@ async function exportAppImpl(
         join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       ) as MiddlewareManifest
 
-      hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
+      const functionsConfigManifest = require(
+        join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST)
+      )
+
+      hasMiddleware =
+        Object.keys(middlewareManifest.middleware).length > 0 ||
+        Boolean(functionsConfigManifest.functions?.['/_middleware'])
     } catch {}
 
     // Warn if the user defines a path for an API page

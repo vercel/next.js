@@ -55,7 +55,8 @@ export function warnOptionHasBeenDeprecated(
   nestedPropertyKey: string,
   reason: string,
   silent: boolean
-) {
+): boolean {
+  let hasWarned = false
   if (!silent) {
     let current = config
     let found = true
@@ -69,9 +70,11 @@ export function warnOptionHasBeenDeprecated(
       }
     }
     if (found) {
-      Log.warn(reason)
+      Log.warnOnce(reason)
+      hasWarned = true
     }
   }
+  return hasWarned
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -252,6 +255,8 @@ function assignDefaults(
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    } else if (result.experimental?.nodeMiddleware) {
+      throw new CanaryOnlyError('experimental.nodeMiddleware')
     }
   }
 
@@ -462,6 +467,38 @@ function assignDefaults(
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.appIsrStatus',
+    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivity',
+    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
+    result,
+    'devIndicators.buildActivityPosition',
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
+    silent
+  )
+  if (
+    hasWarnedBuildActivityPosition &&
+    result.devIndicators !== false &&
+    result.devIndicators?.buildActivityPosition &&
+    result.devIndicators.buildActivityPosition !== result.devIndicators.position
+  ) {
+    Log.warnOnce(
+      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
+    )
+    result.devIndicators.position = result.devIndicators.buildActivityPosition
+  }
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,
@@ -801,8 +838,8 @@ function assignDefaults(
     }
   }
 
-  if (result.devIndicators?.buildActivityPosition) {
-    const { buildActivityPosition } = result.devIndicators
+  if (result.devIndicators !== false && result.devIndicators?.position) {
+    const { position } = result.devIndicators
     const allowedValues = [
       'top-left',
       'top-right',
@@ -810,11 +847,11 @@ function assignDefaults(
       'bottom-right',
     ]
 
-    if (!allowedValues.includes(buildActivityPosition)) {
+    if (!allowedValues.includes(position)) {
       throw new Error(
-        `Invalid "devIndicator.buildActivityPosition" provided, expected one of ${allowedValues.join(
+        `Invalid "devIndicator.position" provided, expected one of ${allowedValues.join(
           ', '
-        )}, received ${buildActivityPosition}`
+        )}, received ${position}`
       )
     }
   }
@@ -919,6 +956,24 @@ function assignDefaults(
   if (!result.experimental) {
     result.experimental = {}
   }
+
+  // Preserve the default indicator options for old overlay.
+  if (result.experimental.newDevOverlay !== true) {
+    // If the user didn't explicitly set `position` or `buildActivityPosition` option,
+    // the default is going to be "bottom-left". However, the default position for the
+    // old build activity indicator was "bottom-right" which becomes a breaking change.
+    // Therefore, set to "bottom-right" if the user didn't explicitly set the option.
+    if (!hasWarnedBuildActivityPosition) {
+      result.devIndicators = {
+        ...result.devIndicators,
+        position:
+          userConfig.devIndicators?.position && result.devIndicators !== false
+            ? result.devIndicators?.position
+            : 'bottom-right',
+      }
+    }
+  }
+
   result.experimental.optimizePackageImports = [
     ...new Set([
       ...userProvidedOptimizePackageImports,
@@ -1010,6 +1065,13 @@ function assignDefaults(
     result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  // "use cache" was originally implicitly enabled with the dynamicIO flag, so
+  // we transfer the value for dynamicIO to the explicit useCache flag to ensure
+  // backwards compatibility.
+  if (result.experimental.useCache === undefined) {
+    result.experimental.useCache = result.experimental.dynamicIO
+  }
+
   return result
 }
 
@@ -1044,16 +1106,6 @@ export default async function loadConfig(
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
-  }
-
-  // For the render worker, we directly return the serialized config from the
-  // parent worker (router worker) to avoid loading it again.
-  // This is because loading the config might be expensive especiall when people
-  // have Webpack plugins added.
-  // Because of this change, unserializable fields like `.webpack` won't be
-  // existing here but the render worker shouldn't use these as well.
-  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
-    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
   const curLog = silent
@@ -1301,6 +1353,11 @@ export function getConfiguredExperimentalFeatures(
       userNextConfigExperimental
     ) as (keyof ExperimentalConfig)[]) {
       const value = userNextConfigExperimental[name]
+
+      if (name === 'turbo' && !process.env.TURBOPACK) {
+        // Ignore any Turbopack config if Turbopack is not enabled
+        continue
+      }
 
       if (
         name in defaultConfig.experimental &&

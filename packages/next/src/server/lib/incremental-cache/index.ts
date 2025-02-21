@@ -26,6 +26,7 @@ import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
 } from '../../app-render/work-unit-async-storage.external'
+import { getCacheHandlers } from '../../use-cache/handlers'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -80,7 +81,6 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly fetchCacheKeyPrefix?: string
   readonly revalidatedTags?: string[]
   readonly isOnDemandRevalidate?: boolean
-  readonly hasDynamicIO?: boolean
 
   private readonly locks = new Map<string, Promise<void>>()
 
@@ -93,7 +93,6 @@ export class IncrementalCache implements IncrementalCacheType {
   constructor({
     fs,
     dev,
-    dynamicIO,
     flushToDisk,
     minimalMode,
     serverDistDir,
@@ -107,7 +106,6 @@ export class IncrementalCache implements IncrementalCacheType {
   }: {
     fs?: CacheFs
     dev: boolean
-    dynamicIO: boolean
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
@@ -152,7 +150,6 @@ export class IncrementalCache implements IncrementalCacheType {
       maxMemoryCacheSize = parseInt(process.env.__NEXT_TEST_MAX_ISR_CACHE, 10)
     }
     this.dev = dev
-    this.hasDynamicIO = dynamicIO
     this.disableForTestmode = process.env.NEXT_PRIVATE_TEST_PROXY === 'true'
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
     // because we replace this.minimalMode to true in production bundles.
@@ -249,22 +246,21 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
-    const _globalThis: typeof globalThis & {
-      __nextCacheHandlers?: Record<
-        string,
-        import('../cache-handlers/types').CacheHandler
-      >
-    } = globalThis
+    const promises: Promise<void>[] = []
 
-    return Promise.all([
-      // call expireTags on all configured cache handlers
-      Object.values(_globalThis.__nextCacheHandlers || {}).map(
-        (cacheHandler) =>
-          typeof cacheHandler.expireTags === 'function' &&
-          cacheHandler.expireTags(...(Array.isArray(tags) ? tags : [tags]))
-      ),
-      this.cacheHandler?.revalidateTag?.(tags),
-    ]).then(() => {})
+    if (this.cacheHandler?.revalidateTag) {
+      promises.push(this.cacheHandler.revalidateTag(tags))
+    }
+
+    const handlers = getCacheHandlers()
+    if (handlers) {
+      tags = Array.isArray(tags) ? tags : [tags]
+      for (const handler of handlers) {
+        promises.push(handler.expireTags(...tags))
+      }
+    }
+
+    await Promise.all(promises)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -358,7 +354,10 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({}, init.headers)
 
+    // w3c trace context headers can break request caching and deduplication
+    // so we remove them from the cache key
     if ('traceparent' in headers) delete headers['traceparent']
+    if ('tracestate' in headers) delete headers['tracestate']
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
@@ -404,9 +403,9 @@ export class IncrementalCache implements IncrementalCacheType {
       isFallback: boolean | undefined
     }
   ): Promise<IncrementalCacheEntry | null> {
-    // unlike other caches if we have a cacheScope we use it even if
+    // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
-    if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
+    if (ctx.kind === IncrementalCacheKind.FETCH) {
       const workUnitStore = workUnitAsyncStorageInstance.getStore()
       const resumeDataCache = workUnitStore
         ? getRenderResumeDataCache(workUnitStore)
@@ -547,11 +546,12 @@ export class IncrementalCache implements IncrementalCacheType {
       isFallback?: boolean
     }
   ) {
-    // Even if we otherwise disable caching for testMode or if no fetchCache is configured
-    // we still always stash results in the cacheScope if one exists. This is because this
-    // is a transient in memory cache that populates caches ahead of a dynamic render in dev mode
-    // to allow the RSC debug info to have the right environment associated to it.
-    if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
+    // Even if we otherwise disable caching for testMode or if no fetchCache is
+    // configured we still always stash results in the resume data cache if one
+    // exists. This is because this is a transient in memory cache that
+    // populates caches ahead of a dynamic render in dev mode to allow the RSC
+    // debug info to have the right environment associated to it.
+    if (data?.kind === CachedRouteKind.FETCH) {
       const workUnitStore = workUnitAsyncStorageInstance.getStore()
       const prerenderResumeDataCache = workUnitStore
         ? getPrerenderResumeDataCache(workUnitStore)

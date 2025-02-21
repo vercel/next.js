@@ -1,12 +1,12 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
+};
 use turbopack_core::{
-    chunk::{
-        ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
-        ChunkingTypeOption,
-    },
+    chunk::{ChunkableModuleReference, ChunkingContext, ChunkingTypeOption, ModuleChunkItemIdExt},
     module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
@@ -14,7 +14,7 @@ use turbopack_core::{
 
 use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::AstPath,
     utils::module_id_to_lit,
@@ -24,14 +24,11 @@ use crate::{
 #[derive(Hash, Debug)]
 pub struct EsmModuleIdAssetReference {
     inner: ResolvedVc<EsmAssetReference>,
-    ast_path: ResolvedVc<AstPath>,
 }
 
-#[turbo_tasks::value_impl]
 impl EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(inner: ResolvedVc<EsmAssetReference>, ast_path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(EsmModuleIdAssetReference { inner, ast_path })
+    pub fn new(inner: ResolvedVc<EsmAssetReference>) -> Self {
+        EsmModuleIdAssetReference { inner }
     }
 }
 
@@ -61,36 +58,51 @@ impl ChunkableModuleReference for EsmModuleIdAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmModuleIdAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for EsmModuleIdAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::EsmModuleIdAssetReferenceCodeGen(EsmModuleIdAssetReferenceCodeGen {
+                reference,
+                path,
+            }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct EsmModuleIdAssetReferenceCodeGen {
+    path: AstPath,
+    reference: ResolvedVc<EsmModuleIdAssetReference>,
+}
+
+impl EsmModuleIdAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
-        module_graph: Vc<ModuleGraph>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
-        if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
-            let id = asset
-                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                .id()
-                .await?;
+        if let ReferencedAsset::Some(asset) =
+            &*self.reference.await?.inner.get_referenced_asset().await?
+        {
+            let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
             let id = module_id_to_lit(&id);
-            visitors.push(
-                create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
-                    *expr = id.clone()
-                }),
-            );
+            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+                *expr = id.clone()
+            }));
         } else {
             // If the referenced asset can't be found, replace the expression with null.
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
-            visitors.push(
-                create_visitor!(self.ast_path.await?, visit_mut_expr(expr: &mut Expr) {
-                    *expr = quote!("null" as Expr);
-                }),
-            );
+            visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
+                *expr = quote!("null" as Expr);
+            }));
         }
 
         Ok(CodeGeneration::visitors(visitors))

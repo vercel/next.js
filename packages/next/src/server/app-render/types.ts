@@ -177,6 +177,7 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
+  botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
@@ -221,16 +222,16 @@ export interface RenderOptsPartial {
   postponed?: string
 
   /**
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
+   */
+  shouldWaitOnAllReady?: boolean
+
+  /**
    * The resume data cache that was generated for this partially prerendered
    * page during dev warmup.
    */
   devRenderResumeDataCache?: RenderResumeDataCache
-
-  /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
-   */
-  isDebugStaticShell?: boolean
 
   /**
    * When true, the page will be rendered using the static rendering to detect

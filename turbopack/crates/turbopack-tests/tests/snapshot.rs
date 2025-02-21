@@ -3,14 +3,11 @@
 
 mod util;
 
-use std::{
-    collections::{HashSet, VecDeque},
-    fs,
-    path::PathBuf,
-};
+use std::{collections::VecDeque, fs, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
@@ -18,12 +15,12 @@ use turbo_tasks::{
     apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
     ValueToString, Vc,
 };
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
     FileSystemPath,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
@@ -156,7 +153,13 @@ fn test(resource: PathBuf) {
 async fn run(resource: PathBuf) -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
     let task = tt.spawn_once_task(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
         emit_op.read_strongly_consistent().await?;
@@ -445,7 +448,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
 
     let output_path = project_path.await?;
@@ -454,11 +457,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .await
             .context(format!(
                 "Failed to walk asset {}",
-                asset
-                    .ident()
-                    .to_string()
-                    .await
-                    .context("to_string failed")?
+                asset.path().to_string().await.context("to_string failed")?
             ))?;
     }
 
@@ -472,10 +471,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 async fn walk_asset(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     output_path: &ReadRef<FileSystemPath>,
-    seen: &mut HashSet<Vc<FileSystemPath>>,
+    seen: &mut FxHashSet<Vc<FileSystemPath>>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
-    let path = asset.ident().path().resolve().await?;
+    let path = asset.path().resolve().await?;
 
     if !seen.insert(path) {
         return Ok(());
@@ -492,9 +491,7 @@ async fn walk_asset(
             .await?
             .iter()
             .copied()
-            .map(|asset| async move {
-                Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset).await?)
-            })
+            .map(|asset| async move { Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset)) })
             .try_join()
             .await?
             .into_iter()

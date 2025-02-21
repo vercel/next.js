@@ -73,7 +73,7 @@ describe('app-dir - metadata-streaming', () => {
     })
   })
 
-  it('should not insert metadata twice or inject into body', async () => {
+  it('should only insert metadata once into head or body', async () => {
     const browser = await next.browser('/slow')
 
     // each metadata should be inserted only once
@@ -102,6 +102,55 @@ describe('app-dir - metadata-streaming', () => {
           /Dynamic api \d+/
         )
       })
+    })
+  })
+
+  describe('navigation API', () => {
+    it('should trigger not-found boundary when call notFound', async () => {
+      const browser = await next.browser('/notfound')
+
+      // Show 404 page
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('404')
+      })
+    })
+
+    it('should trigger redirection when call redirect', async () => {
+      const browser = await next.browser('/redirect')
+      // Redirect to home page
+      expect(await browser.elementByCss('p').text()).toBe('index page')
+    })
+
+    it('should trigger custom not-found in the boundary', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      expect(await browser.elementByCss('h1').text()).toBe('Custom Not Found')
+    })
+
+    it('should not duplicate metadata with navigation API', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      const titleTags = await browser.elementsByCss('title')
+      expect(titleTags.length).toBe(1)
+    })
+
+    it('should render blocking 404 response status when html limited bots access notFound', async () => {
+      const { status } = await next.fetch('/notfound', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+      expect(status).toBe(404)
+    })
+
+    it('should render blocking 307 response status when html limited bots access redirect', async () => {
+      const { status } = await next.fetch('/redirect', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+        redirect: 'manual',
+      })
+      expect(status).toBe(307)
     })
   })
 })

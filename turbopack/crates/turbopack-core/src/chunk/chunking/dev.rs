@@ -39,15 +39,28 @@ pub async fn app_vendors_split(
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
+    let mut chunk_group_specific_chunk_items = Vec::new();
     let mut app_chunk_items = Vec::new();
     let mut vendors_chunk_items = Vec::new();
     for item in chunk_items {
-        let ChunkItemWithInfo { asset_ident, .. } = &item;
-        if is_app_code(asset_ident) {
+        let ChunkItemWithInfo {
+            asset_ident,
+            module,
+            ..
+        } = &item;
+        if module.is_none() {
+            // This happens for async module loaders.
+            // We want them to be in a separate chunk.
+            chunk_group_specific_chunk_items.push(item);
+        } else if is_app_code(asset_ident) {
             app_chunk_items.push(item);
         } else {
             vendors_chunk_items.push(item);
         }
+    }
+    if !chunk_group_specific_chunk_items.is_empty() {
+        let mut name = format!("{}-specific", name);
+        make_chunk(chunk_group_specific_chunk_items, &mut name, split_context).await?;
     }
     let mut remaining = Vec::new();
     let mut key = format!("{}-app", name);

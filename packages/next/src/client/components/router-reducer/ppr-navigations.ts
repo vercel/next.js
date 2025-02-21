@@ -797,9 +797,6 @@ function finishPendingCacheNode(
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
   const head = cacheNode.head
-  // TODO: change head back to ReactNode when metadata
-  // is stably rendered in body
-  // Handle head[0] - viewport
   if (isDeferredRsc(head)) {
     head.resolve(dynamicHead)
   }

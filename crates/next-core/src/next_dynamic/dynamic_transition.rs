@@ -71,7 +71,6 @@ impl Transition for NextDynamicTransition {
             Some(client_module) => {
                 let Some(client_module) =
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*client_module)
-                        .await?
                 else {
                     bail!("not an ecmascript client_module");
                 };
