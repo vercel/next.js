@@ -152,14 +152,14 @@ enum ChunkGroupKey {
     },
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merged isolated edge
+    /// a module with an incoming non-merging isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
-    /// a module with an incoming merging shared edge
+    /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging shared edge
     SharedMerged {
@@ -353,20 +353,23 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
                             let len = chunk_groups_map.len();
-                            let is_isolated_merged =
-                                matches!(chunk_group, ChunkGroupKey::IsolatedMerged { .. });
+                            let is_merged = matches!(
+                                chunk_group,
+                                ChunkGroupKey::IsolatedMerged { .. }
+                                    | ChunkGroupKey::SharedMerged { .. }
+                            );
                             match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
-                                    let (id, isolated_merged_entries) = e.get_mut();
-                                    if is_isolated_merged {
-                                        isolated_merged_entries.insert(node.module);
+                                    let (id, merged_entries) = e.get_mut();
+                                    if is_merged {
+                                        merged_entries.insert(node.module);
                                     }
                                     **id
                                 }
                                 Entry::Vacant(e) => {
                                     let chunk_group_id = len as u32;
                                     let mut set = FxIndexSet::default();
-                                    if is_isolated_merged {
+                                    if is_merged {
                                         set.insert(node.module);
                                     }
                                     e.insert((ChunkGroupId(chunk_group_id), set));
@@ -483,7 +486,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             module_chunk_groups,
             chunk_groups: chunk_groups_map
                 .into_iter()
-                .map(|(k, (_, isolated_merged_entries))| match k {
+                .map(|(k, (_, merged_entries))| match k {
                     ChunkGroupKey::Entry { entries, ty } => ChunkGroup::Entry { entries, ty },
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
@@ -491,14 +494,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         ChunkGroup::IsolatedMerged {
                             parent: parent.0 as usize,
                             merge_tag,
-                            entries: isolated_merged_entries.into_iter().collect(),
+                            entries: merged_entries.into_iter().collect(),
                         }
                     }
                     ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
                     ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
                         parent: parent.0 as usize,
                         merge_tag,
-                        entries: isolated_merged_entries.into_iter().collect(),
+                        entries: merged_entries.into_iter().collect(),
                     },
                 })
                 .collect(),
