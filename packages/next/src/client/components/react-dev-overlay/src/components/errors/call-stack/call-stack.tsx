@@ -1,7 +1,7 @@
-import type { OriginalStackFrame } from '../../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../../../utils/stack-frame'
 import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
-import { noop as css } from '../../../helpers/noop-template'
+import { noop as css } from '../../../../utils/noop-template'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]

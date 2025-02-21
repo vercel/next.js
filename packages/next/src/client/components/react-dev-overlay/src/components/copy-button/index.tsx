@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { noop as css } from '../../helpers/noop-template'
-import { cx } from '../../helpers/cx'
+import { noop as css } from '../../../utils/noop-template'
+import { cx } from '../../utils/cx'
 
 function useCopyLegacy(content: string) {
   type CopyState =

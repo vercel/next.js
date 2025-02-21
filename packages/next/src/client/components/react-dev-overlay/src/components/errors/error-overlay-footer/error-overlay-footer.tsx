@@ -1,6 +1,6 @@
 import { ErrorFeedback } from './error-feedback/error-feedback'
 import { styles as feedbackStyles } from './error-feedback/error-feedback'
-import { noop as css } from '../../../helpers/noop-template'
+import { noop as css } from '../../../../utils/noop-template'
 
 export type ErrorOverlayFooterProps = {
   errorCode: string | undefined

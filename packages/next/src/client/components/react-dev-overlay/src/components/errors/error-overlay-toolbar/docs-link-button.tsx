@@ -1,4 +1,4 @@
-import { parseUrlFromText } from '../../../helpers/parse-url-from-text'
+import { parseUrlFromText } from '../../../utils/parse-url-from-text'
 
 const docsURLAllowlist = ['https://nextjs.org', 'https://react.dev']
 
