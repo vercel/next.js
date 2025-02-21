@@ -3,7 +3,7 @@ import type { OverlayState } from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
-import { NextLogo } from './internal/next-logo'
+import { NextLogo } from './next-logo'
 import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
 import { useIsDevRendering } from '../../../../utils/dev-indicator/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'

@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { noop as css } from '../../../../../utils/noop-template'
-import mergeRefs from '../../../../utils/merge-refs'
+import { noop as css } from '../../../../utils/noop-template'
+import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
 interface Props extends React.ComponentProps<'button'> {
