@@ -2694,13 +2694,7 @@ export async function diagnostics(task, opts) {
 
 export async function build(task, opts) {
   await task.serial(
-    [
-      'precompile',
-      'compile',
-      'check_error_codes',
-      'generate_types',
-      'bundle_dev_overlay',
-    ],
+    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
     opts
   )
 }
@@ -2728,27 +2722,6 @@ export async function check_error_codes(task, opts) {
     }
     await task.start('compile', opts)
   }
-}
-
-export async function bundle_dev_overlay(task, opts) {
-  const uiDir = 'dist/client/components/react-dev-overlay/ui'
-  const filename = 'dev-overlay.js'
-
-  await task.source(`${uiDir}/${filename}`).webpack({
-    config: require('./next-runtime.webpack-config')({
-      bundleType: 'pages',
-      dev: true,
-      entry: {
-        [filename]: join(__dirname, uiDir, filename),
-      },
-      output: {
-        path: join(__dirname, uiDir),
-        filename,
-        libraryTarget: 'commonjs2',
-      },
-    }),
-    name: 'bundle-dev-overlay',
-  })
 }
 
 export default async function (task) {
