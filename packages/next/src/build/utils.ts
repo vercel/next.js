@@ -51,7 +51,7 @@ import {
   MODERN_BROWSERSLIST_TARGET,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
-import prettyBytes from '../lib/pretty-bytes'
+import prettyBytes from './output/pretty-bytes'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { findPageFile } from '../server/lib/find-page-file'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
@@ -408,8 +408,8 @@ export async function printTreeView(
   }
 
   // Can be overridden for test purposes to omit the build duration output.
-  const MIN_DURATION = process.env.__NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION
-    ? parseInt(process.env.__NEXT_PRIVATE_BUILD_OUTPUT_MIN_DURATION, 10)
+  const MIN_DURATION = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+    ? Infinity // Don't ever log build durations.
     : 300
 
   const getPrettyDuration = (_duration: number): string => {
@@ -632,7 +632,10 @@ export async function printTreeView(
     })
 
     const sharedFilesSize = stats.router[routerType]?.common.size.total
-    const sharedFiles = stats.router[routerType]?.common.files ?? []
+
+    const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+      ? []
+      : stats.router[routerType]?.common.files ?? []
 
     messages.push([
       '+ First Load JS shared by all',

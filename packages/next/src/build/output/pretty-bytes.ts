@@ -30,6 +30,11 @@ const toLocaleString = (number: number, locale: any) => {
 }
 
 export default function prettyBytes(number: number, options?: any): string {
+  if (process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT) {
+    // Use a fake fixed size to enforce a deterministic build output.
+    return '42 kB'
+  }
+
   if (!Number.isFinite(number)) {
     throw new TypeError(
       `Expected a finite number, got ${typeof number}: ${number}`
