@@ -2694,7 +2694,13 @@ export async function diagnostics(task, opts) {
 
 export async function build(task, opts) {
   await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
+    [
+      'precompile',
+      'compile',
+      'check_error_codes',
+      'generate_types',
+      'bundle_dev_overlay',
+    ],
     opts
   )
 }
@@ -2722,6 +2728,51 @@ export async function check_error_codes(task, opts) {
     }
     await task.start('compile', opts)
   }
+}
+
+export async function bundle_dev_overlay(task, opts) {
+  await task.parallel(
+    ['bundle_dev_overlay_cjs', 'bundle_dev_overlay_esm'],
+    opts
+  )
+}
+
+export async function bundle_dev_overlay_cjs(task, opts) {
+  const internalDir = 'dist/client/components/react-dev-overlay/_internal'
+  await task.source(`${internalDir}/dev-overlay.js`).webpack({
+    config: require('./bundle.webpack-config')({
+      dev: true,
+      mangle: true,
+      entry: {
+        'dev-overlay': join(__dirname, `${internalDir}/dev-overlay.js`),
+      },
+      output: {
+        path: join(__dirname, internalDir),
+        filename: 'dev-overlay.js',
+        libraryTarget: 'commonjs2',
+      },
+    }),
+    name: 'bundle-dev-overlay',
+  })
+}
+
+export async function bundle_dev_overlay_esm(task, opts) {
+  const internalDir = 'dist/esm/client/components/react-dev-overlay/_internal'
+  await task.source(`${internalDir}/dev-overlay.js`).webpack({
+    config: require('./bundle.webpack-config')({
+      dev: true,
+      mangle: true,
+      entry: {
+        'dev-overlay': join(__dirname, `${internalDir}/dev-overlay.js`),
+      },
+      output: {
+        path: join(__dirname, internalDir),
+        filename: 'dev-overlay.js',
+        libraryTarget: 'module',
+      },
+    }),
+    name: 'bundle-dev-overlay-esm',
+  })
 }
 
 export default async function (task) {
