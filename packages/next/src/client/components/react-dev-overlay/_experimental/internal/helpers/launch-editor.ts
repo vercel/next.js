@@ -85,7 +85,7 @@ const COMMON_EDITORS_MACOS = {
   '/Applications/Rider.app/Contents/MacOS/rider':
     '/Applications/Rider.app/Contents/MacOS/rider',
   '/Applications/Cursor.app/Contents/MacOS/Cursor':
-  '/Applications/Cursor.app/Contents/MacOS/Cursor',
+    '/Applications/Cursor.app/Contents/MacOS/Cursor',
 }
 
 const COMMON_EDITORS_LINUX = {
