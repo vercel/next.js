@@ -1085,7 +1085,7 @@ function getActionModIdOrError(
     throw new Error(
       `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
         err instanceof Error ? `Original error: ${err.message}` : ''
-      }`
+      }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
 }
