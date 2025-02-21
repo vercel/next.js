@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
@@ -198,6 +198,8 @@ pub async fn chunk_group_content(
         entries.push(module_batches_graph.get_entry_index(entry).await?);
     }
 
+    let mut log = Vec::new();
+
     module_batches_graph.traverse_edges_from_entries_topological(
         entries,
         &mut state,
@@ -207,6 +209,7 @@ pub async fn chunk_group_content(
              unsorted_items,
              result,
          }| {
+            log.push((parent_info.map(|(a, b)| (*a, b.clone())), node));
             // Traced modules need to have a special handling
             if let Some((
                 _,
@@ -292,6 +295,28 @@ pub async fn chunk_group_content(
             }
         },
     )?;
+
+    async fn batch_to_string(batch: &ModuleOrBatch) -> Result<String> {
+        Ok(match batch {
+            ModuleOrBatch::Module(module) => module.ident().to_string().await?.to_string(),
+            ModuleOrBatch::Batch(batch) => format!("{:#?}", batch.ident_strings().await?),
+        })
+    }
+
+    println!("chunking:");
+    for (parent_info, node) in log {
+        if let Some((parent, edge)) = parent_info {
+            println!(
+                "step {} {:?} {} -> {}",
+                batch_to_string(&parent).await?,
+                edge.ty,
+                edge.module.ident().to_string().await?,
+                batch_to_string(&node).await?
+            );
+        } else {
+            println!("step 0 -> {}", batch_to_string(&node).await?);
+        }
+    }
 
     Ok(state.result)
 }
