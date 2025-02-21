@@ -2,8 +2,8 @@ import type { ServerResponse, IncomingMessage } from 'http'
 import path from 'path'
 import * as fs from 'fs/promises'
 import { constants } from 'fs'
-import * as Log from '../../../../../build/output/log'
-import { middlewareResponse } from '../../server/middleware-response'
+import * as Log from '../../../../build/output/log'
+import { middlewareResponse } from '../server/middleware-response'
 
 const FONT_PREFIX = '/__nextjs_font/'
 

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
 import { usePagesDevOverlay } from './hooks'
+import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../_internal/dev-overlay'
 
 export type ErrorType = 'runtime' | 'build'
@@ -22,6 +23,8 @@ export function PagesDevOverlay({ children }: PagesDevOverlayProps) {
         {children ?? null}
       </PagesDevOverlayErrorBoundary>
 
+      {/* Fonts can only be loaded outside the Shadow DOM. */}
+      <FontStyles />
       <DevOverlay
         state={state}
         isErrorOverlayOpen={isErrorOverlayOpen}
