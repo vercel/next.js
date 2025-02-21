@@ -1,5 +1,5 @@
 import { DevToolsInfo } from './dev-tools-info'
-import { noop as css } from '../../../../helpers/noop-template'
+import { noop as css } from '../../../../../utils/noop-template'
 
 function StaticRouteContent() {
   return (

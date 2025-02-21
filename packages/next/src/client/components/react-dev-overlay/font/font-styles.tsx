@@ -1,5 +1,5 @@
-import { noop as css } from '../helpers/noop-template'
 import { useInsertionEffect } from 'react'
+import { noop as css } from '../utils/noop-template'
 
 export const FontStyles = () => {
   useInsertionEffect(() => {

@@ -1,11 +1,11 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrame } from '../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../../utils/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
-import { getFrameSource } from '../../helpers/stack-frame'
-import { useOpenInEditor } from '../../helpers/use-open-in-editor'
-import { noop as css } from '../../helpers/noop-template'
+import { getFrameSource } from '../../../utils/stack-frame'
+import { useOpenInEditor } from '../../utils/use-open-in-editor'
+import { noop as css } from '../../../utils/noop-template'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame

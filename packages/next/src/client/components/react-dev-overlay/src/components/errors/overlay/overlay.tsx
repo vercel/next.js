@@ -1,4 +1,4 @@
-import { noop as css } from '../../../helpers/noop-template'
+import { noop as css } from '../../../../utils/noop-template'
 import { Overlay, type OverlayProps } from '../../overlay/overlay'
 
 export function ErrorOverlayOverlay({ children, ...props }: OverlayProps) {

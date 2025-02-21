@@ -1,6 +1,6 @@
 import { DevToolsInfo } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
-import { noop as css } from '../../../../helpers/noop-template'
+import { noop as css } from '../../../../../utils/noop-template'
 
 export function TurbopackInfo({
   isOpen,
