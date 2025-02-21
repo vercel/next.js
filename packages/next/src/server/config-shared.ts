@@ -588,11 +588,6 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * Enables the new dev overlay.
-   */
-  newDevOverlay?: boolean
-
-  /**
    * When enabled will cause async metadata calls to stream rather than block the render.
    */
   streamingMetadata?: boolean
@@ -1263,7 +1258,6 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: true,
     streamingMetadata: false,
     htmlLimitedBots: undefined,
     useCache: undefined,
