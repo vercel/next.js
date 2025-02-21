@@ -16,8 +16,16 @@ export function AppDevOverlay({
   children: React.ReactNode
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
-  const devOverlay = (
+
+  return (
     <>
+      <AppDevOverlayErrorBoundary
+        globalError={globalError}
+        onError={setIsErrorOverlayOpen}
+      >
+        {children}
+      </AppDevOverlayErrorBoundary>
+
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
       <DevOverlay
@@ -26,15 +34,5 @@ export function AppDevOverlay({
         setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       />
     </>
-  )
-
-  return (
-    <AppDevOverlayErrorBoundary
-      devOverlay={devOverlay}
-      globalError={globalError}
-      onError={setIsErrorOverlayOpen}
-    >
-      {children}
-    </AppDevOverlayErrorBoundary>
   )
 }

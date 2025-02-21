@@ -1,5 +1,6 @@
 import type { OverlayState } from '../../../../shared'
 
+import { Suspense } from 'react'
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
@@ -64,11 +65,15 @@ export function ErrorOverlay({
 
   // No Runtime Errors.
   if (!runtimeErrors.length) {
-    return null
+    // Workaround React quirk that triggers "Switch to client-side rendering" if
+    // we return no Suspense boundary here.
+    return <Suspense />
   }
 
   if (!mounted) {
-    return null
+    // Workaround React quirk that triggers "Switch to client-side rendering" if
+    // we return no Suspense boundary here.
+    return <Suspense />
   }
 
   return (
