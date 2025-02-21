@@ -195,6 +195,7 @@ function handleErrors(errors: any) {
   })
 
   // Only show the first error.
+
   onBuildError(formatted.errors[0])
 
   // Also log them to the console.
