@@ -2749,6 +2749,13 @@ export async function bundle_dev_overlay(task, opts) {
     }),
     name: 'bundle-dev-overlay-cjs',
   })
+
+  const files = await fs.readdir(internalDir)
+  await Promise.all(
+    files
+      .filter((file) => getFilenameAndExtension(file).name !== 'dev-overlay')
+      .map((file) => rmrf(join(__dirname, internalDir, file)))
+  )
 }
 
 export default async function (task) {
@@ -3010,4 +3017,13 @@ function rmrf(path, options) {
 
 function readJson(path) {
   return fs.readFile(path, 'utf8').then((content) => JSON.parse(content))
+}
+
+function getFilenameAndExtension(resourcePath) {
+  const filename = basename(resourcePath)
+  const [name, ext] = filename.split('.', 2)
+  return {
+    name,
+    ext,
+  }
 }

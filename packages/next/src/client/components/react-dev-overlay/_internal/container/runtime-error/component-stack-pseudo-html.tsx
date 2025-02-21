@@ -1,6 +1,6 @@
 import { noop as css } from '../../helpers/noop-template'
 
-export { PseudoHtmlDiff } from '../../../hydration-diff/diff-view'
+export { PseudoHtmlDiff } from '../../components/hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html] {

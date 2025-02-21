@@ -7,7 +7,7 @@ import type {
 import {
   isWebpackInternalResource,
   formatFrameSourceFile,
-} from './webpack-module-path'
+} from '../../utils/webpack-module-path'
 export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
