@@ -14,39 +14,36 @@ describe('build-output-tree-view', () => {
     beforeAll(() => next.build())
 
     it('should show info about prerendered and dynamic routes in a tree view', async () => {
-      // TODO: Show cache info (revalidate/expire) for app router, and use the
-      // same for pages router instead of the ISR addendum.
-
       // TODO: Fix double-listing of the /ppr/[slug] fallback.
 
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                             Size    First Load JS
-       ┌ ○ /_not-found                         N/A kB         N/A kB
-       ├ ƒ /api                                N/A kB         N/A kB
-       ├ ○ /api/force-static                   N/A kB         N/A kB
-       ├ ○ /app-static                         N/A kB         N/A kB
-       ├ ○ /cache-life                         N/A kB         N/A kB
-       ├ ƒ /dynamic                            N/A kB         N/A kB
-       ├ ◐ /ppr/[slug]                         N/A kB         N/A kB
-       ├   ├ /ppr/[slug]
-       ├   ├ /ppr/[slug]
-       ├   ├ /ppr/days
-       ├   └ /ppr/weeks
-       └ ○ /revalidate                         N/A kB         N/A kB
-       + First Load JS shared by all           N/A kB
+       "Route (app)                      Size  First Load JS    Cache Life
+       ┌ ○ /_not-found                N/A kB         N/A kB
+       ├ ƒ /api                       N/A kB         N/A kB
+       ├ ○ /api/force-static          N/A kB         N/A kB
+       ├ ○ /app-static                N/A kB         N/A kB
+       ├ ○ /cache-life                N/A kB         N/A kB     1 h / 1 d
+       ├ ƒ /dynamic                   N/A kB         N/A kB
+       ├ ◐ /ppr/[slug]                N/A kB         N/A kB    1 w / 30 d
+       ├   ├ /ppr/[slug]                                       1 w / 30 d
+       ├   ├ /ppr/[slug]                                       1 w / 30 d
+       ├   ├ /ppr/days                                          1 d / 1 w
+       ├   └ /ppr/weeks                                        1 w / 30 d
+       └ ○ /revalidate                N/A kB         N/A kB  15 min / 1 y
+       + First Load JS shared by all  N/A kB
 
-       Route (pages)                           Size    First Load JS
-       ┌ ƒ /api/hello                          N/A kB         N/A kB
-       ├ ● /gsp-revalidate (ISR: 300 Seconds)  N/A kB         N/A kB
-       ├ ƒ /gssp                               N/A kB         N/A kB
-       └ ○ /static                             N/A kB         N/A kB
-       + First Load JS shared by all           N/A kB
+       Route (pages)                    Size  First Load JS    Cache Life
+       ┌ ƒ /api/hello                 N/A kB         N/A kB
+       ├ ● /gsp-revalidate            N/A kB         N/A kB   5 min / 1 y
+       ├ ƒ /gssp                      N/A kB         N/A kB
+       └ ○ /static                    N/A kB         N/A kB
+       + First Load JS shared by all  N/A kB
 
        ○  (Static)             prerendered as static content
        ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
-          (ISR)                incremental static regeneration (uses revalidate in generateStaticParams)
        ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
-       ƒ  (Dynamic)            server-rendered on demand"
+       ƒ  (Dynamic)            server-rendered on demand
+          (Cache Life)         revalidate / expire"
       `)
     })
   })
@@ -64,12 +61,12 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered routes in a compact tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                    Size    First Load JS
+       "Route (app)                      Size  First Load JS
        ┌ ○ /                          N/A kB         N/A kB
        └ ○ /_not-found                N/A kB         N/A kB
        + First Load JS shared by all  N/A kB
 
-       Route (pages)                  Size    First Load JS
+       Route (pages)                    Size  First Load JS
        ─ ○ /static                    N/A kB         N/A kB
        + First Load JS shared by all  N/A kB
 

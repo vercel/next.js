@@ -2909,11 +2909,7 @@ export default async function build(
                 ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
-                // TODO: Enable the following line to show "ISR" status in build
-                // output. Requires different presentation to also work for app
-                // router routes.
-                // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
-                // initialCacheControl: cacheControl,
+                initialCacheControl: cacheControl,
               })
 
               // update the page (eg /blog/[slug]) to also have the postpone metadata
@@ -2921,11 +2917,7 @@ export default async function build(
                 ...(pageInfos.get(page) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
-                // TODO: Enable the following line to show "ISR" status in build
-                // output. Requires different presentation to also work for app
-                // router routes.
-                // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
-                // initialCacheControl: cacheControl,
+                initialCacheControl: cacheControl,
               })
 
               if (cacheControl.revalidate !== 0) {
