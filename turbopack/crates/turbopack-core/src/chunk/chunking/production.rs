@@ -141,9 +141,9 @@ pub async fn make_production_chunks(
                     let mut best_combination = None;
                     while let Some(candidate) = chunks_to_merge.pop() {
                         // Exist early when no better overlaps are possible
-                        if let Some((_, _, best_value)) = best_combination.as_ref() {
+                        if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
                             let candiate_best_possible_value = candidate.chunk_groups_len();
-                            if *best_value >= candiate_best_possible_value {
+                            if *best_overlap >= candiate_best_possible_value {
                                 chunks_to_merge.push(candidate);
                                 break;
                             }
@@ -151,62 +151,250 @@ pub async fn make_production_chunks(
 
                         // Check all combination with the new candidate
                         for (i, other) in selection.iter().enumerate() {
-                            let value = overlap(&candidate.chunk_groups, &other.chunk_groups);
+                            let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
                             // It need to have at least two chunk groups in common
-                            if value <= 1 {
+                            if overlap <= 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
                             if candidate.size > merge_threshold
-                                && value != candidate.chunk_groups_len()
+                                && overlap != candidate.chunk_groups_len()
                             {
                                 continue;
                             }
-                            if other.size > merge_threshold && value != other.chunk_groups_len() {
+                            if other.size > merge_threshold && overlap != other.chunk_groups_len() {
                                 continue;
                             }
-                            if let Some((best_i1, best_i2, best_value)) = best_combination.as_mut()
+                            let a_groups = candidate.chunk_groups_len() as i64;
+                            let a_size = candidate.size as i64;
+                            let b_groups = other.chunk_groups_len() as i64;
+                            let b_size = other.size as i64;
+                            let o_groups = overlap as i64;
+                            let groups = a_groups.max(b_groups);
+                            let a_rem = a_groups - o_groups;
+                            let b_rem = b_groups - o_groups;
+
+                            /*
+                                UNMERGED CASE
+
+                                from the total of `groups` chunk groups
+                                - `a_groups` chunk groups request a `a_size` chunk
+                                - `b_groups` chunk groups request a `b_size` chunk
+                                but there is an overlapy of `o_groups` between them, which request both chunks.
+
+                                MERGED CASE
+
+                                from the total of `groups` chunk groups
+                                - `a_rem` chunk groups request a `a_size` chunk
+                                - `b_rem` chunk groups request a `b_size` chunk
+                                - `o_groups` chunk groups request the merged chunk of size `(a_size + b_size)`
+                            */
+
+                            /*
+                                For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
+                                and a probability of 2/3 that we request 2 chunk groups (`N = 2`).
+                                This is a simplification, but it should be good enough for our purposes.
+
+                                We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
+
+                                To compute that we compute the two cases `N = 1` and `N = 2` and combine them
+                                e_size = 2/3 * e_size(N = 1) + 1/3 * e_size(N = 2)
+                                e_req = 2/3 * e_req(N = 1) + 1/3 * e_req(N = 2)
+
+                                We combine `e_size` with `e_req` using this formula:
+                                e_cost = e_req * c_req + e_size
+
+                                The constant `c_req` is the cost of a single request in transferred bytes. We have to choose a good value for that since there is no real value of that.
+                                This way we can compute a cost for both cases (`e_cost_unmerged` and `e_cost_merged`).
+
+                                With both costs we can compute the cost benefit `d` of merging the two chunks:
+                                d = e_cost_unmerged - e_cost_merged
+
+                                We can also split the formula into two parts:
+                                d = d_req * c_req + d_size
+                                d_size = e_size_unmerged - e_size_merged
+                                d_req = e_req_unmerged - e_req_merged
+
+                                And we can split it further for every N:
+                                d_size = 2/3 * d_size(N = 1) + 1/3 * d_size(N = 2)
+                                d_req = 2/3 * d_req(N = 1) + 1/3 * d_req(N = 2)
+                            */
+
+                            /*
+                                To compute `e_size` and `e_req` we need to determine all cases and there probabilities.
+
+                                UNMERGED CASE (N = 1):
+
+                                case X (p = a_rem/groups): size = b_size, requests = 1
+                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 2
+
+                                MERGED CASE (N = 1):
+
+                                case X (p = a_rem/groups): size = b_size, requests = 1
+                                case Y (p = r_rem/groups): size = a_size, requests = 1
+                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 1
+                            */
+
+                            /*
+                                There is no difference in the sizes at all, so that means:
+
+                                d_size(N = 1) = 0
+
+                                The only difference is in case Z in the request count. That case has `p = o_groups/groups`:
+
+                                d_req(N = 1) = o_groups / groups * (2 - 1)
+                                d_req(N = 1) = o_groups / groups
+
+                                d(N = 1) = d_req(N = 1) * c_req + d_size(N = 1)
+                                         = o_groups / groups * c_req
+                            */
+
+                            /*
+                                The N = 2 case is more complicated, since we have to consider all possible combinations of the cases X, Y and Z for the two chunk groups:
+
+                                p_x = a_rem/groups
+                                p_y = r_rem/groups
+                                p_z = o_groups/groups
+
+                                The chunk groups remaining after the first one has been picked
+                                rem_g = groups - 1
+
+                                UNMERGED CASE (N = 2):
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = a_size + b_size, requests = 2
+                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
+                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
+                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + b_size, requests = 2
+
+                                MERGED CASE (N = 2):
+                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
+                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
+                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = (a_size + b_size), requests = 1
+                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
+                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = b_size + (a_size + b_size), requests = 3
+                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + (a_size + b_size), requests = 3
+
+                                Request count is different in these cases: Z + Z (better), X + Z (worse), Y + Z (worse)
+                                Requests size is different (worse) in these cases: X + Z, Y + Z
+
+                                d_req_z_z = ((o_groups/groups) * (o_groups - 1)/rem_g) * (2 - 1)
+                                          = o_groups * (o_groups - 1) / (groups * rem_g)
+                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 3)
+                                          = -2 * o_groups * a_rem / (groups * rem_g)
+                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 3)
+                                          = -2 * o_groups * b_rem / (groups * rem_g)
+
+                                d_req(N = 2) = o_groups * (o_groups - 1 - 2 * a_rem - 2 * b_rem) / (groups * rem_g)
+                                             = o_groups * (o_groups - 1 - 2 * (a_groups - o_groups) - 2 * (b_groups - o_groups)) / (groups * rem_g)
+                                             = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)
+
+                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (b_size + (a_size + b_size)))
+                                           = (2 * a_rem * o_groups / groups / rem_g)) * (-b_size)
+                                           = -2 * a_rem * b_size * o_groups / (groups * rem_g)
+                                d_size_y_z = -2 * b_rem * a_size * o_groups / (groups * rem_g)
+
+                                d_size(N = 2) = -2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+
+
+                                d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
+                                         = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g) * c_req + 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
+                                         = ((o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups)) / (groups * rem_g)
+                            */
+
+                            /*
+                                d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
+                                3d = 2 * o_groups / groups * c_req + (o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
+                                   = c_req * (2 * o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+                                   = c_req * (o_groups / groups) * (2 + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
+
+                                We pull out some factors:
+                                3d = (c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (a_rem * b_size + b_rem * a_size)) * o_groups / (rem_g * groups)
+                            */
+
+                            /*
+                               Note that d_size < 0. So we can make a quick check if d_req is positive.
+
+                               c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
+                               o_groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g > 0
+                               o_groups + o_groups * 5 * o_groups / rem_g - o_groups * (2 * a_groups + 2 * b_groups + 1) / rem_g > 0
+                               o_groups * rem_g + o_groups * 5 * o_groups - o_groups * (2 * a_groups + 2 * b_groups + 1) > 0
+                               o_groups * rem_g + o_groups * 5 * o_groups > o_groups * (2 * a_groups + 2 * b_groups + 1)
+                               rem_g + 5 * o_groups > 2 * a_groups + 2 * b_groups + 1
+                               rem_g + 5 * o_groups > 2 * (a_rem + o_groups) + 2 * (b_rem + o_groups) + 1
+                               rem_g + 5 * o_groups > 2 * a_rem + 2 * b_rem + 4 * o_groups + 1
+                               rem_g + o_groups > 2 * a_rem + 2 * b_rem + 1
+                               rem_g + o_groups > 2 * (a_rem + b_rem) + 1
+                               groups - 1 + o_groups > 2 * (a_rem + b_rem) + 1
+                               groups + o_groups > 2 * (a_rem + b_rem) + 2
+                            */
+
+                            // It need to have some request count benefit
+                            if groups + o_groups <= 2 * (a_rem + b_rem) + 2 {
+                                continue;
+                            }
+                            let rem_g = groups - 1;
+                            let c_req = 200000;
+                            // d3 = 3 * d
+                            let pre_d3 = c_req
+                                * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
+                                - 2 * (a_rem * b_size + b_rem * a_size);
+                            // It need to have some runtime benefit of merging the chunks
+                            if pre_d3 < 0 {
+                                continue;
+                            }
+                            let d3 = pre_d3 * o_groups / (rem_g * groups);
+                            let value = d3;
+
+                            if let Some((best_i1, best_i2, best_overlap, best_value)) =
+                                best_combination.as_mut()
                             {
-                                if value > *best_value {
+                                if (overlap.cmp(best_overlap)).then_with(|| value.cmp(best_value))
+                                    == std::cmp::Ordering::Greater
+                                {
                                     *best_i1 = i;
                                     *best_i2 = selection.len();
+                                    *best_overlap = overlap;
                                     *best_value = value;
                                 }
                             } else {
-                                best_combination = Some((i, selection.len(), value));
+                                best_combination = Some((i, selection.len(), overlap, value));
                             }
                         }
                         selection.push(candidate);
                     }
 
-                    let best_value =
-                        if let Some((best_i1, best_i2, best_value)) = best_combination.as_ref() {
-                            let other = selection.swap_remove(*best_i2);
-                            let mut candidate = selection.swap_remove(*best_i1);
-                            // Merge other into candidate
-                            let MergeCandidate {
-                                size,
-                                chunk_items,
-                                chunk_groups,
-                            } = other;
-                            candidate.size += size;
-                            candidate.chunk_items.extend(chunk_items);
-                            candidate.chunk_groups =
-                                merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
+                    let best_overlap = if let Some((best_i1, best_i2, best_overlap, _)) =
+                        best_combination.as_ref()
+                    {
+                        let other = selection.swap_remove(*best_i2);
+                        let mut candidate = selection.swap_remove(*best_i1);
+                        // Merge other into candidate
+                        let MergeCandidate {
+                            size,
+                            chunk_items,
+                            chunk_groups,
+                        } = other;
+                        candidate.size += size;
+                        candidate.chunk_items.extend(chunk_items);
+                        candidate.chunk_groups =
+                            merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
 
-                            // Merged candidate is pushed back into the queue
-                            chunks_to_merge.push(candidate);
+                        // Merged candidate is pushed back into the queue
+                        chunks_to_merge.push(candidate);
 
-                            *best_value
-                        } else {
-                            u64::MAX
-                        };
+                        *best_overlap
+                    } else {
+                        u64::MAX
+                    };
                     for unused in selection {
                         // Candiates from selection that are already big enough move into the
                         // heap again when no more merges are expected.
                         // Since we can only merge into big enough candates when overlap ==
                         // chunk_groups_len we can use that as condition.
-                        if unused.size > merge_threshold && unused.chunk_groups_len() > best_value {
+                        if unused.size > merge_threshold && unused.chunk_groups_len() > best_overlap
+                        {
                             heap.push(ChunkCandidate {
                                 size: unused.size,
                                 chunk_items: unused.chunk_items,
