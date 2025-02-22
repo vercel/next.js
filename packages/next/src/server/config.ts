@@ -957,23 +957,6 @@ function assignDefaults(
     result.experimental = {}
   }
 
-  // Preserve the default indicator options for old overlay.
-  if (result.experimental.newDevOverlay !== true) {
-    // If the user didn't explicitly set `position` or `buildActivityPosition` option,
-    // the default is going to be "bottom-left". However, the default position for the
-    // old build activity indicator was "bottom-right" which becomes a breaking change.
-    // Therefore, set to "bottom-right" if the user didn't explicitly set the option.
-    if (!hasWarnedBuildActivityPosition) {
-      result.devIndicators = {
-        ...result.devIndicators,
-        position:
-          userConfig.devIndicators?.position && result.devIndicators !== false
-            ? result.devIndicators?.position
-            : 'bottom-right',
-      }
-    }
-  }
-
   result.experimental.optimizePackageImports = [
     ...new Set([
       ...userProvidedOptimizePackageImports,
@@ -1106,16 +1089,6 @@ export default async function loadConfig(
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
-  }
-
-  // For the render worker, we directly return the serialized config from the
-  // parent worker (router worker) to avoid loading it again.
-  // This is because loading the config might be expensive especiall when people
-  // have Webpack plugins added.
-  // Because of this change, unserializable fields like `.webpack` won't be
-  // existing here but the render worker shouldn't use these as well.
-  if (process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG) {
-    return JSON.parse(process.env.__NEXT_PRIVATE_RENDER_WORKER_CONFIG)
   }
 
   const curLog = silent

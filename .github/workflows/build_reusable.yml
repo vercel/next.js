@@ -249,14 +249,14 @@ jobs:
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           # Add a `nextjs.test_session.name` tag to help identify the job
           if [ -d ./test/test-junit-report ]; then
-            npx @datadog/datadog-ci@2.45.1 junit upload \
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:nextjs \
               --tags test_session.name:"${{ inputs.stepName }}" \
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
-            npx @datadog/datadog-ci@2.45.1 junit upload \
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
               --service nextjs \
               --tags test.type:turbopack \
               --tags test_session.name:"${{ inputs.stepName }}" \
