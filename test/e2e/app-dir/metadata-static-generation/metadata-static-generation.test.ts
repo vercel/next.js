@@ -9,6 +9,8 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       files: __dirname,
     })
 
+    // In dev, it suspenses as dynamic rendering so it's inserted into body;
+    // In build, it's resolved as static rendering so it's inserted into head.
     const rootSelector = isNextDev ? 'body' : 'head'
 
     if (isNextStart) {
@@ -29,8 +31,6 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
     it('should contain async generated metadata in head for simple static page', async () => {
       const $ = await next.render$('/')
-      // In dev, it suspenses as dynamic rendering so it's inserted into body;
-      // In build, it's resolved as static rendering so it's inserted into head.
       expect($(`${rootSelector} title`).text()).toBe('index page')
       expect(
         $(`${rootSelector} meta[name="description"]`).attr('content')
