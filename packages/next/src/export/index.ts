@@ -387,7 +387,12 @@ async function exportAppImpl(
       clientSegmentCache: nextConfig.experimental.clientSegmentCache ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
-      streamingMetadata: !!nextConfig.experimental.streamingMetadata,
+      streamingMetadata:
+        // Disable streaming metadata when dynamic IO is enabled.
+        // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
+        // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
+        !nextConfig.experimental.dynamicIO &&
+        !!nextConfig.experimental.streamingMetadata,
       htmlLimitedBots: nextConfig.experimental.htmlLimitedBots,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,

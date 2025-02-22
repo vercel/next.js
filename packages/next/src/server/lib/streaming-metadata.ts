@@ -7,14 +7,19 @@ import type { BaseNextRequest } from '../base-http'
 export function shouldServeStreamingMetadata(
   userAgent: string,
   {
+    dynamicIO,
     streamingMetadata,
     htmlLimitedBots,
   }: {
+    dynamicIO: boolean
     streamingMetadata: boolean
     htmlLimitedBots: string | undefined
   }
 ): boolean {
-  if (!streamingMetadata) {
+  // Disable streaming metadata when dynamic IO is enabled.
+  // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
+  // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
+  if (!streamingMetadata || dynamicIO) {
     return false
   }
 
