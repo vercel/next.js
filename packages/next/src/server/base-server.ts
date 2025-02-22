@@ -2082,11 +2082,6 @@ export default abstract class Server<
       isSSG = true
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
-      if (isHtmlBot) {
-        // When it's html limited bots request, disable SSG
-        // and perform the full blocking & dynamic rendering.
-        isSSG = false
-      }
     }
 
     // Toggle whether or not this is a Data request
@@ -2483,7 +2478,12 @@ export default abstract class Server<
         query: origQuery,
       })
 
-      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBot
+      const shouldWaitOnAllReady =
+        !supportsDynamicResponse ||
+        // When it's html limited bots request for PPR page,
+        // perform the full blocking & dynamic rendering.
+        (isHtmlBot && isRoutePPREnabled)
+
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
