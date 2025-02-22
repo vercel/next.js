@@ -35,7 +35,6 @@ export function Base() {
           --color-title-color: #1f1f1f;
           --color-stack-notes: #777;
 
-          /* TODO: Unsure if these are used in code frame. Remove if not. */
           --color-accents-1: #808080;
           --color-accents-2: #222222;
           --color-accents-3: #404040;
