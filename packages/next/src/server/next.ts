@@ -466,7 +466,10 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    return require('./next-typescript').createTSPlugin(options)
+    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    return pluginMod.createTSPlugin(
+      options as any
+    ) as unknown as NextWrapperServer
   }
 
   if (options == null) {

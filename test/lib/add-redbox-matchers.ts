@@ -3,6 +3,7 @@ import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
   assertHasRedbox,
   getRedboxCallStack,
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
   getRedboxSource,
@@ -51,6 +52,7 @@ interface RedboxSnapshot {
   environmentLabel: string
   label: string
   description: string
+  componentStack?: string
   source: string
   stack: string[]
   count: number
@@ -59,15 +61,23 @@ interface RedboxSnapshot {
 async function createRedboxSnapshot(
   browser: BrowserInterface
 ): Promise<RedboxSnapshot> {
-  const [label, environmentLabel, description, source, stack, count] =
-    await Promise.all([
-      getRedboxLabel(browser),
-      getRedboxEnvironmentLabel(browser),
-      getRedboxDescription(browser),
-      getRedboxSource(browser),
-      getRedboxCallStack(browser),
-      getRedboxTotalErrorCount(browser),
-    ])
+  const [
+    label,
+    environmentLabel,
+    description,
+    source,
+    stack,
+    componentStack,
+    count,
+  ] = await Promise.all([
+    getRedboxLabel(browser),
+    getRedboxEnvironmentLabel(browser),
+    getRedboxDescription(browser),
+    getRedboxSource(browser),
+    getRedboxCallStack(browser),
+    getRedboxComponentStack(browser),
+    getRedboxTotalErrorCount(browser),
+  ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -111,7 +121,7 @@ async function createRedboxSnapshot(
     }
   }
 
-  return {
+  const snapshot: RedboxSnapshot = {
     environmentLabel,
     label,
     description,
@@ -120,6 +130,14 @@ async function createRedboxSnapshot(
     // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
     count: label === 'Build Error' && count === -1 ? 1 : count,
   }
+
+  // Hydration diffs are only relevant to some specific errors
+  // so we hide them from the snapshots unless they are present.
+  if (componentStack !== null) {
+    snapshot.componentStack = componentStack
+  }
+
+  return snapshot
 }
 
 expect.extend({

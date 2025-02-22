@@ -105,6 +105,7 @@ impl PagesProject {
             app: _,
             document: _,
             error: _,
+            error_500: _,
         } = &*pages_structure.await?;
         let mut routes = FxIndexMap::default();
 
@@ -711,7 +712,7 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<Box<dyn Source>> {
-        Vc::upcast(FileSource::new(self.page.project_path()))
+        Vc::upcast(FileSource::new(self.page.file_path()))
     }
 
     #[turbo_tasks::function]

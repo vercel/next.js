@@ -30,9 +30,6 @@ describe('use-cache-unknown-cache-kind', () => {
     return
   }
 
-  const isNewDevOverlay =
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
   if (isNextStart) {
     beforeAll(async () => {
       await next.build()
@@ -103,12 +100,18 @@ describe('use-cache-unknown-cache-kind', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toBe('Failed to compile')
+      if (isTurbopack) {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
+      } else {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."`
+        )
+      }
 
-      // TODO(new-dev-overlay): Remove this once old dev overlay fork is removed
-      if (isNewDevOverlay) {
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
+      if (isTurbopack) {
+        expect(errorSource).toMatchInlineSnapshot(`
            "./app/page.tsx (1:1)
            Ecmascript file had an error
            > 1 | 'use cache: custom'
@@ -119,8 +122,8 @@ describe('use-cache-unknown-cache-kind', () => {
 
            Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."
           `)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
+      } else {
+        expect(errorSource).toMatchInlineSnapshot(`
            "./app/page.tsx
            Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
              | 
@@ -132,34 +135,6 @@ describe('use-cache-unknown-cache-kind', () => {
             4 |   return <p>hello world</p>
               \`----"
           `)
-        }
-      } else {
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx (1:1)
-           Ecmascript file had an error
-           > 1 | 'use cache: custom'
-               | ^^^^^^^^^^^^^^^^^^^
-             2 |
-             3 | export default async function Page() {
-             4 |   return <p>hello world</p>
-
-           Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."
-          `)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-            "./app/page.tsx
-            Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config.
-              | 
-               ,-[1:1]
-             1 | 'use cache: custom'
-               : ^^^^^^^^^^^^^^^^^^^
-             2 | 
-             3 | export default async function Page() {
-             4 |   return <p>hello world</p>
-               \`----"
-          `)
-        }
       }
     })
 

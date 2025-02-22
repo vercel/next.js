@@ -168,6 +168,7 @@ pub enum ChunkingType {
     Parallel,
     /// Module is placed in the same chunk group and is loaded in parallel. It
     /// becomes an async module when the referenced module is async.
+    // TODO make inherit_async a separate field
     ParallelInheritAsync,
     /// An async loader is placed into the referencing chunk and loads the
     /// separate chunk group in which the module is placed.
@@ -179,9 +180,13 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
-    /// Module not placed in chunk group, but its references are still followed and placed into the
-    /// chunk group.
-    Passthrough,
+    /// Create a new chunk group in a separate context, merging references with the same tag into a
+    /// single chunk group. It provides available modules to the current chunk group. It's assumed
+    /// to be loaded before the current chunk group.
+    Shared {
+        inherit_async: bool,
+        merge_tag: Option<RcStr>,
+    },
     // Module not placed in chunk group, but its references are still followed.
     Traced,
 }
@@ -207,7 +212,6 @@ pub struct ChunkGroupContent {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-    pub passthrough_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
 }
 
 #[turbo_tasks::value_trait]
@@ -286,31 +290,10 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Copy,
-    Debug,
-    Clone,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-)]
-pub enum ChunkItemTy {
-    /// The ChunkItem should be included as content in the chunk.
-    Included,
-    /// The ChunkItem should be used to trace references but should not included in the chunk.
-    Passthrough,
-}
-
-#[derive(
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
 // #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
-    pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,

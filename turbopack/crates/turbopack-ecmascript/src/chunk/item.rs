@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemTy, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -188,7 +188,6 @@ pub struct EcmascriptChunkItemOptions {
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
-    pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }

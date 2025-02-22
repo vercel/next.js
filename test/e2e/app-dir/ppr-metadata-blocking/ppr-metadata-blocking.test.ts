@@ -7,9 +7,12 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-blocking', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) return
 
   // No dynamic APIs used in metadata
   describe('static metadata', () => {
@@ -99,8 +102,7 @@ describe('ppr-metadata-blocking', () => {
     })
   })
 
-  // Disable deployment until we support it on infra
-  if (isNextStart) {
+  if (!isNextDev) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
       it('should serve partial static shell when normal UA requests the page', async () => {

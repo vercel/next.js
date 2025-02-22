@@ -185,9 +185,6 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
-      config.devIndicators === false ? false : config.devIndicators.appIsrStatus
-    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
@@ -237,10 +234,6 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
-    'process.env.__NEXT_BUILD_INDICATOR':
-      config.devIndicators === false
-        ? false
-        : config.devIndicators.buildActivity ?? true,
     'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators === false
@@ -296,8 +289,6 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
-    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      config.experimental.newDevOverlay || false,
   }
 
   const userDefines = config.compiler?.define ?? {}

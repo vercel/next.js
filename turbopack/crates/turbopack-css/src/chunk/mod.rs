@@ -5,7 +5,10 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
+    Vc,
+};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -310,12 +313,18 @@ impl OutputAsset for CssChunk {
                 .chunk_items
                 .iter()
                 .map(|item| async {
-                    SingleItemCssChunk::new(*this.chunking_context, **item)
-                        .to_resolved()
-                        .await
-                        .map(ResolvedVc::upcast)
+                    Ok(item
+                        .references()
+                        .await?
+                        .into_iter()
+                        .copied()
+                        .chain(std::iter::once(ResolvedVc::upcast(
+                            SingleItemCssChunk::new(*this.chunking_context, **item)
+                                .to_resolved()
+                                .await?,
+                        ))))
                 })
-                .try_join()
+                .try_flat_join()
                 .await?,
         );
         if *this

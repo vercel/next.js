@@ -9,14 +9,10 @@ describe('Dynamic IO Dev Errors', () => {
     files: __dirname,
   })
 
-  const isNewOverlay =
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY !== 'false'
-
   it('should show a red box error on the SSR render', async () => {
     const browser = await next.browser('/error')
 
-    if (isNewOverlay) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayCollapsedRedbox(`
        {
          "count": 1,
          "description": "Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
@@ -32,24 +28,6 @@ describe('Dynamic IO Dev Errors', () => {
          ],
        }
       `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "count": 1,
-         "description": "[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/error/page.tsx (2:23) @ Page
-       > 2 |   const random = Math.random()
-           |                       ^",
-         "stack": [
-           "Page app/error/page.tsx (2:23)",
-           "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
-         ],
-       }
-      `)
-    }
   })
 
   it('should show a red box error on client navigations', async () => {
@@ -61,8 +39,7 @@ describe('Dynamic IO Dev Errors', () => {
 
     await browser.elementByCss("[href='/error']").click()
 
-    if (isNewOverlay) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayCollapsedRedbox(`
        {
          "count": 1,
          "description": "Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
@@ -78,24 +55,6 @@ describe('Dynamic IO Dev Errors', () => {
          ],
        }
       `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "count": 1,
-         "description": "[ Server ] Error: Route "/error" used \`Math.random()\` outside of \`"use cache"\` and without explicitly calling \`await connection()\` beforehand. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": "app/error/page.tsx (2:23) @ Page
-       > 2 |   const random = Math.random()
-           |                       ^",
-         "stack": [
-           "Page app/error/page.tsx (2:23)",
-           "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
-         ],
-       }
-      `)
-    }
   })
 
   it('should not log unhandled rejections for persistently thrown top-level errors', async () => {
@@ -141,8 +100,7 @@ describe('Dynamic IO Dev Errors', () => {
             '\n    at InnerLayoutRouter (..')
     )
 
-    if (isNewOverlay) {
-      await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayCollapsedRedbox(`
        {
          "count": 1,
          "description": "Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
@@ -160,26 +118,6 @@ describe('Dynamic IO Dev Errors', () => {
          ],
        }
       `)
-    } else {
-      await expect(browser).toDisplayCollapsedRedbox(`
-       {
-         "count": 1,
-         "description": "[ Server ] Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
-         "environmentLabel": null,
-         "label": "Console Error",
-         "source": undefined,
-         "stack": [
-           "Page [Server] <anonymous> (2:1)",
-           "main <anonymous> (2:1)",
-           "body <anonymous> (2:1)",
-           "html <anonymous> (2:1)",
-           "Root [Server] <anonymous> (2:1)",
-           "JSON.parse <anonymous> (0:0)",
-           "<unknown> <anonymous> (0:0)",
-         ],
-       }
-      `)
-    }
   })
 
   it('should clear segment errors after correcting them', async () => {
@@ -201,11 +139,10 @@ describe('Dynamic IO Dev Errors', () => {
     )
     const { browser, session } = sandbox
     if (isTurbopack) {
-      if (isNewOverlay) {
-        await expect(browser).toDisplayRedbox(`
+      await expect(browser).toDisplayRedbox(`
          {
            "count": 1,
-           "description": "Failed to compile",
+           "description": "Ecmascript file had an error",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/page.tsx (1:14)
@@ -215,26 +152,11 @@ describe('Dynamic IO Dev Errors', () => {
            "stack": [],
          }
         `)
-      } else {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "count": 1,
-           "description": "Failed to compile",
-           "environmentLabel": null,
-           "label": "Build Error",
-           "source": "./app/page.tsx:1:14
-         Ecmascript file had an error
-         > 1 | export const revalidate = 10
-             |              ^^^^^^^^^^",
-           "stack": [],
-         }
-        `)
-      }
     } else {
       await expect(browser).toDisplayRedbox(`
        {
          "count": 1,
-         "description": "Failed to compile",
+         "description": "Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.tsx
