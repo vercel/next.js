@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  // Copied from tsconfig.json to not overwrite.
+  "exclude": [
+    "dist",
+    "./*.d.ts",
+    "future/*.d.ts",
+    "image-types/global.d.ts",
+    "compat/*.d.ts",
+    "legacy/*.d.ts",
+    "types/compiled.d.ts",
+    "navigation-types/*.d.ts",
+    "navigation-types/compat/*.d.ts",
+    "experimental/**/*.d.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.stories.tsx"
+  ]
+}
