@@ -39,10 +39,11 @@ export function Base() {
           --color-accents-2: #222222;
           --color-accents-3: #404040;
 
-          --font-stack-monospace: '__nextjs-Geist Mono', 'SFMono-Regular',
-            Consolas, 'Liberation Mono', Menlo, Courier, monospace;
-          --font-stack-sans: '__nextjs-Geist', -apple-system, 'Source Sans Pro',
-            sans-serif;
+          --font-stack-monospace: '__nextjs-Geist Mono', 'Geist Mono',
+            'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier,
+            monospace;
+          --font-stack-sans: '__nextjs-Geist', 'Geist', -apple-system,
+            'Source Sans Pro', sans-serif;
 
           font-family: var(--font-stack-sans);
 
