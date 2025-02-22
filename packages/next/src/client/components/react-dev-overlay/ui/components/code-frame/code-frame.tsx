@@ -7,7 +7,6 @@ import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { css } from '../../../utils/css'
 import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
 
@@ -112,7 +111,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   )
 }
 
-export const CODE_FRAME_STYLES = css`
+export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
     background-color: var(--color-background-200);
     overflow: hidden;

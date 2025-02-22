@@ -1,5 +1,4 @@
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { css } from '../../../utils/css'
 
 type EditorLinkProps = {
   file: string
@@ -44,7 +43,7 @@ export function EditorLink({ file, location }: EditorLinkProps) {
   )
 }
 
-export const EDITOR_LINK_STYLES = css`
+export const EDITOR_LINK_STYLES = `
   [data-with-open-in-editor-link] svg {
     width: auto;
     height: var(--size-font-small);

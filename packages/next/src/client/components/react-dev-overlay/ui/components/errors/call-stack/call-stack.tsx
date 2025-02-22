@@ -1,7 +1,6 @@
 import type { OriginalStackFrame } from '../../../../utils/stack-frame'
 import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
-import { css } from '../../../../utils/css'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]
@@ -119,7 +118,7 @@ function ChevronUpDown() {
   )
 }
 
-export const CALL_STACK_STYLES = css`
+export const CALL_STACK_STYLES = `
   .error-overlay-call-stack-container {
     position: relative;
     margin-top: var(--size-2);

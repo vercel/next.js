@@ -1,6 +1,5 @@
 import { DevToolsInfo } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
-import { css } from '../../../../../utils/css'
 
 export function TurbopackInfo({
   isOpen,
@@ -111,7 +110,7 @@ export function TurbopackInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = css`
+export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   .dev-tools-info-code {
     background: var(--color-gray-400);
     color: var(--color-gray-1000);

@@ -1,6 +1,4 @@
-import { css } from '../../../utils/css'
-
-const styles = css`
+const styles = `
   .nextjs-toast {
     position: fixed;
     bottom: var(--size-gap-double);

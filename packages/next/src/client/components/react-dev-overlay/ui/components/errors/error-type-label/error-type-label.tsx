@@ -1,5 +1,3 @@
-import { css } from '../../../../utils/css'
-
 export type ErrorType =
   | 'Build Error'
   | 'Runtime Error'
@@ -22,7 +20,7 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
   )
 }
 
-export const styles = css`
+export const styles = `
   .nextjs__container_errors_label {
     padding: var(--size-0_5) var(--size-1_5);
     margin: 0;

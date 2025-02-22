@@ -7,7 +7,6 @@ import { NextLogo } from './next-logo'
 import { useIsDevBuilding } from '../../../../../../dev/dev-build-indicator/internal/initialize'
 import { useIsDevRendering } from '../../../../utils/dev-indicator/dev-render-indicator'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
-import { css } from '../../../../utils/css'
 import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
 import { StopIcon } from '../../../icons/stop-icon'
@@ -538,7 +537,7 @@ function useClickOutside(
 
 //////////////////////////////////////////////////////////////////////////////////////
 
-export const DEV_TOOLS_INDICATOR_STYLES = css`
+export const DEV_TOOLS_INDICATOR_STYLES = `
   .dev-tools-indicator-menu {
     -webkit-font-smoothing: antialiased;
     display: flex;

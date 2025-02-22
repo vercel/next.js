@@ -3,7 +3,6 @@ import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
 import { ExternalIcon } from '../../icons/external'
-import { css } from '../../../utils/css'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
@@ -144,7 +143,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
   )
 }
 
-export const TERMINAL_STYLES = css`
+export const TERMINAL_STYLES = `
   [data-nextjs-terminal]::selection,
   [data-nextjs-terminal] *::selection {
     background-color: var(--color-ansi-selection);

@@ -1,5 +1,3 @@
-import { css } from '../../../../utils/css'
-
 export function ErrorOverlayBottomStack({
   count,
   activeIdx,
@@ -35,7 +33,7 @@ export function ErrorOverlayBottomStack({
   )
 }
 
-export const styles = css`
+export const styles = `
   .layer {
     width: 100%;
     height: var(--stack-layer-height);

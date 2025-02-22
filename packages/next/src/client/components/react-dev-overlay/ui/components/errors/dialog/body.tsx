@@ -1,4 +1,3 @@
-import { css } from '../../../../utils/css'
 import { DialogBody } from '../../dialog'
 
 type ErrorOverlayDialogBodyProps = {
@@ -14,4 +13,4 @@ export function ErrorOverlayDialogBody({
   )
 }
 
-export const DIALOG_BODY_STYLES = css``
+export const DIALOG_BODY_STYLES = ``

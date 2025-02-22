@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { CallStack } from '../../components/errors/call-stack/call-stack'
-import { css } from '../../../utils/css'
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 import {
   useFrames,
@@ -43,6 +42,6 @@ export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
   )
 }
 
-export const styles = css`
+export const styles = `
   ${PSEUDO_HTML_DIFF_STYLES}
 `

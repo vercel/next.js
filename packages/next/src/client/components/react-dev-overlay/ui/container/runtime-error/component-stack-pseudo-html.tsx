@@ -1,8 +1,6 @@
-import { css } from '../../../utils/css'
-
 export { PseudoHtmlDiff } from '../../components/hydration-diff/diff-view'
 
-export const PSEUDO_HTML_DIFF_STYLES = css`
+export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html] {
     padding: var(--size-2) 0;
     margin: var(--size-2) 0;

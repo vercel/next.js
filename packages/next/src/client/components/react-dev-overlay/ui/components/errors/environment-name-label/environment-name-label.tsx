@@ -1,5 +1,3 @@
-import { css } from '../../../../utils/css'
-
 export function EnvironmentNameLabel({
   environmentName,
 }: {
@@ -8,7 +6,7 @@ export function EnvironmentNameLabel({
   return <span data-nextjs-environment-name-label>{environmentName}</span>
 }
 
-export const ENVIRONMENT_NAME_LABEL_STYLES = css`
+export const ENVIRONMENT_NAME_LABEL_STYLES = `
   [data-nextjs-environment-name-label] {
     padding: var(--size-0_5) var(--size-1_5);
     margin: 0;

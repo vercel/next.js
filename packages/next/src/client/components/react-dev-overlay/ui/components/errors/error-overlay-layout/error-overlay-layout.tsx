@@ -8,7 +8,6 @@ import {
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
-import { css } from '../../../../utils/css'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
@@ -138,7 +137,7 @@ export function ErrorOverlayLayout({
   )
 }
 
-export const styles = css`
+export const styles = `
   ${OVERLAY_STYLES}
   ${DIALOG_STYLES}
   ${DIALOG_HEADER_STYLES}

@@ -1,5 +1,4 @@
 import { DialogHeader } from '../../dialog/dialog-header'
-import { css } from '../../../../utils/css'
 
 type ErrorOverlayDialogHeaderProps = {
   children?: React.ReactNode
@@ -15,7 +14,7 @@ export function ErrorOverlayDialogHeader({
   )
 }
 
-export const DIALOG_HEADER_STYLES = css`
+export const DIALOG_HEADER_STYLES = `
   .nextjs-container-errors-header {
     position: relative;
   }

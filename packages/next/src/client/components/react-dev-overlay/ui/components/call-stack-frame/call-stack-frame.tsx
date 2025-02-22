@@ -5,7 +5,6 @@ import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { css } from '../../../utils/css'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
@@ -69,7 +68,7 @@ export const CallStackFrame: React.FC<{
   )
 }
 
-export const CALL_STACK_FRAME_STYLES = css`
+export const CALL_STACK_FRAME_STYLES = `
   [data-nextjs-call-stack-frame-ignored] {
     padding: var(--size-1_5) var(--size-2);
     margin-bottom: var(--size-1);
