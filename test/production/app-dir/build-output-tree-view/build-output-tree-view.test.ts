@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
-describe('cli-build-output', () => {
+describe('build-output-tree-view', () => {
   describe('with mixed static and dynamic pages and app router routes', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
