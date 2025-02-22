@@ -216,7 +216,7 @@ describe('Error overlay for hydration errors in App router', () => {
        "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-               <AppDevOverlayErrorBoundary devOverlay={<Fragment>} globalError={[...]} onError={function bound dispatchSetState}>
+               <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
                  <DevRootHTTPAccessFallbackBoundary>
                    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
@@ -232,14 +232,14 @@ describe('Error overlay for hydration errors in App router', () => {
        -                         className="server-html"
                                >
                            ...
-                 ..."
+               ..."
       `)
     } else {
       expect(pseudoHtml).toMatchInlineSnapshot(`
        "...
            <HotReload assetPrefix="" globalError={[...]}>
              <AppDevOverlay state={{nextId:1, ...}} globalError={[...]}>
-               <AppDevOverlayErrorBoundary devOverlay={<Fragment>} globalError={[...]} onError={function bound dispatchSetState}>
+               <AppDevOverlayErrorBoundary globalError={[...]} onError={function bound dispatchSetState}>
                  <DevRootHTTPAccessFallbackBoundary>
                    <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
                      <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
@@ -252,7 +252,7 @@ describe('Error overlay for hydration errors in App router', () => {
        -                         className="server-html"
                                >
                            ...
-                 ..."
+               ..."
       `)
     }
 
