@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
+import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
@@ -102,7 +103,7 @@ export const NextLogo = forwardRef(function NextLogo(
     >
       {/* Styles */}
       <style>
-        {`
+        {css`
           [data-next-badge-root] {
             --timing: cubic-bezier(0.23, 0.88, 0.26, 0.92);
             --duration-long: 250ms;
@@ -225,9 +226,9 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: var(--padding);
             align-items: center;
             padding-left: 8px;
-            padding-right: ${
-              disabled || isBuildError ? '8px' : 'calc(var(--padding) * 2)'
-            };
+            padding-right: ${disabled || isBuildError
+              ? '8px'
+              : 'calc(var(--padding) * 2)'};
             height: 32px;
             margin: 0 var(--padding);
             border-radius: 9999px;
