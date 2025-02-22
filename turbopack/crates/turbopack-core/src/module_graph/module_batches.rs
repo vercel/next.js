@@ -380,6 +380,7 @@ pub async fn compute_module_batches(
                                 state
                                     .batch_assignments
                                     .insert(node.module, BatchAssignment::new_already_added(idx));
+                                state.add_edge(batch_idx, idx, ty.clone(), node.module);
                                 return Ok(GraphTraversalAction::Exclude);
                             }
                             ChunkingType::Async
