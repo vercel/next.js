@@ -121,7 +121,7 @@ export function ErrorOverlayLayout({
             </DialogFooter>
           )}
           <ErrorOverlayBottomStack
-            count={runtimeErrors?.length ?? 0}
+            errorCount={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
