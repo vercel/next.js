@@ -181,6 +181,7 @@ function getArgumentsForLineNumber(
     }
     case 'code':
     case 'Code':
+    case 'Cursor':
     case 'code-insiders':
     case 'Code - Insiders':
     case 'vscodium':
