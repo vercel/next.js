@@ -1,5 +1,4 @@
 import { DevToolsInfo } from './dev-tools-info'
-import { noop as css } from '../../../../../utils/noop-template'
 
 function StaticRouteContent() {
   return (
@@ -105,7 +104,7 @@ export function RouteInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = css`
+export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = `
   .dev-tools-info-link {
   }
 `

@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { noop as css } from '../../../utils/noop-template'
 import { cx } from '../../utils/cx'
 
 function useCopyLegacy(content: string) {
@@ -246,7 +245,7 @@ function CopySuccessIcon() {
   )
 }
 
-export const COPY_BUTTON_STYLES = css`
+export const COPY_BUTTON_STYLES = `
   .nextjs-data-copy-button {
     color: inherit;
   }

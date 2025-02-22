@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react'
 import { ThumbsUp } from '../../../../icons/thumbs/thumbs-up'
 import { ThumbsDown } from '../../../../icons/thumbs/thumbs-down'
-import { noop as css } from '../../../../../utils/noop-template'
 import { cx } from '../../../../utils/cx'
 
 interface ErrorFeedbackProps {
@@ -83,7 +82,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   )
 }
 
-export const styles = css`
+export const styles = `
   .error-feedback {
     display: flex;
     align-items: center;

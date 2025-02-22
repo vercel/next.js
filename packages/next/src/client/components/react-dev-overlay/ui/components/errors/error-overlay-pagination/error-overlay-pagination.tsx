@@ -5,7 +5,6 @@ import {
   useRef,
   useState,
 } from 'react'
-import { noop as css } from '../../../../utils/noop-template'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
@@ -152,7 +151,7 @@ export function ErrorOverlayPagination({
   )
 }
 
-export const styles = css`
+export const styles = `
   .error-overlay-pagination {
     -webkit-font-smoothing: antialiased;
     display: flex;

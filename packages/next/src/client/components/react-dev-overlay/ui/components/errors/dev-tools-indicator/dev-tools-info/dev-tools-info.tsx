@@ -1,5 +1,3 @@
-import { noop as css } from '../../../../../utils/noop-template'
-
 export function DevToolsInfo({
   title,
   children,
@@ -43,7 +41,7 @@ export function DevToolsInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_STYLES = css`
+export const DEV_TOOLS_INFO_STYLES = `
   [data-info-popover] {
     -webkit-font-smoothing: antialiased;
     display: flex;

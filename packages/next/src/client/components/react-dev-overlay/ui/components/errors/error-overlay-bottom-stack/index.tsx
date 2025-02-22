@@ -1,5 +1,3 @@
-import { noop as css } from '../../../../utils/noop-template'
-
 export function ErrorOverlayBottomStack({
   count,
   activeIdx,
@@ -35,7 +33,7 @@ export function ErrorOverlayBottomStack({
   )
 }
 
-export const styles = css`
+export const styles = `
   .layer {
     width: 100%;
     height: var(--stack-layer-height);

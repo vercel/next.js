@@ -1,6 +1,4 @@
-import { noop as css } from '../../../utils/noop-template'
-
-const styles = css`
+const styles = `
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-footer-height: 48px;
