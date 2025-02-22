@@ -24,7 +24,9 @@ Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor i
   4 | }
   5 |
 
-Expected identError: Failed to resolve import "./missing-module"`,
+Expected identError: Failed to resolve import "./missing-module"
+
+https://nextjs.org/docs/messages/module-not-found`,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',

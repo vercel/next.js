@@ -153,6 +153,12 @@ export function Base() {
           font-weight: 500;
           line-height: 1.5;
         }
+
+        a {
+          &:focus {
+            outline: var(--focus-ring);
+          }
+        }
       `}
     </style>
   )
