@@ -12,8 +12,9 @@
     "navigation-types/*.d.ts",
     "navigation-types/compat/*.d.ts",
     "experimental/**/*.d.ts",
-    "**/*.test.ts",
-    "**/*.test.tsx",
-    "**/*.stories.tsx"
+    // Don't generate types for internal files.
+    "./**/*.test.ts",
+    "./**/*.test.tsx",
+    "./**/*.stories.tsx"
   ]
 }
