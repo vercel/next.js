@@ -1,12 +1,10 @@
 'use client'
 import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { usePathname, useRouter, useSearchParams } from './navigation'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
   children: React.ReactNode
 }
 
@@ -82,8 +80,5 @@ export class RedirectErrorBoundary extends React.Component<
 }
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
+  return <RedirectErrorBoundary>{children}</RedirectErrorBoundary>
 }
