@@ -26,7 +26,6 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
-  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
 } from '../constants'
 import { join, posix } from 'path'
@@ -481,26 +480,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  private async writeClientMiddlewareManifest(): Promise<void> {
-    const middlewareManifest = this.mergeMiddlewareManifests(
-      this.middlewareManifests.values()
-    )
-
-    const matchers = middlewareManifest?.middleware['/']?.matchers || []
-
-    const clientMiddlewareManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
-    )
-    deleteCache(clientMiddlewareManifestPath)
-    await writeFileAtomic(
-      clientMiddlewareManifestPath,
-      JSON.stringify(matchers, null, 2)
-    )
-  }
-
   private async writeFallbackBuildManifest(): Promise<void> {
     const fallbackBuildManifest = this.mergeBuildManifests(
       [
@@ -724,7 +703,6 @@ export class TurbopackManifestLoader {
     await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeMiddlewareManifest()
-    await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
 

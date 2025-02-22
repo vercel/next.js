@@ -843,7 +843,7 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_config_from_source(ssr_module).await?;
+        let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         let ssr_module = if is_edge {
