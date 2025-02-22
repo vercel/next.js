@@ -33,6 +33,9 @@ on:
       integration_timeout_minutes:
         type: number
         default: 30
+      num_retries:
+        type: number
+        default: 2
 
 jobs:
   # First, build Next.js to execute across tests.
@@ -97,8 +100,9 @@ jobs:
         ${{ inputs.run_before_test }}
 
         node run-tests.js \
-          -g ${{ matrix.group }}/${{ inputs.e2e_groups }} \
-          -c $TEST_CONCURRENCY \
+          --group ${{ matrix.group }}/${{ inputs.e2e_groups }} \
+          --concurrency $TEST_CONCURRENCY \
+          --retries ${{ inputs.num_retries }} \
           --type ${{ inputs.test_type }}
       stepName: test-${{ inputs.name }}-${{ matrix.group }}
       timeout_minutes: ${{ inputs.e2e_timeout_minutes }}
@@ -135,8 +139,9 @@ jobs:
         ${{ inputs.run_before_test }}
 
         node run-tests.js \
-          -g ${{ matrix.group }}/${{ inputs.integration_groups }} \
-          -c $TEST_CONCURRENCY \
+          --group ${{ matrix.group }}/${{ inputs.integration_groups }} \
+          --concurrency $TEST_CONCURRENCY \
+          --retries ${{ inputs.num_retries }} \
           --type integration
       stepName: test-${{ inputs.name }}-integration-${{ matrix.group }}
       timeout_minutes: ${{ inputs.integration_timeout_minutes }}
