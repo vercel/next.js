@@ -1,6 +1,6 @@
 import type { DebugInfo } from '../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
 

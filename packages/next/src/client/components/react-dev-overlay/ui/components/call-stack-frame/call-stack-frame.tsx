@@ -5,7 +5,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { noop as css } from '../../../utils/noop-template'
+import { css } from '../../../utils/css'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame

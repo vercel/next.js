@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Terminal } from '../components/terminal'
-import { noop as css } from '../../utils/noop-template'
+import { css } from '../../utils/css'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 

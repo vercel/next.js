@@ -1,5 +1,5 @@
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
-import { noop as css } from '../../../utils/noop-template'
+import { css } from '../../../utils/css'
 
 type EditorLinkProps = {
   file: string

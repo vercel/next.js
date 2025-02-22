@@ -1,4 +1,4 @@
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import { DialogBody } from '../../dialog'
 
 type ErrorOverlayDialogBodyProps = {

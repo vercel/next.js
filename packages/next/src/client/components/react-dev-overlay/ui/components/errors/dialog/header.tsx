@@ -1,5 +1,5 @@
 import { DialogHeader } from '../../dialog/dialog-header'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 
 type ErrorOverlayDialogHeaderProps = {
   children?: React.ReactNode

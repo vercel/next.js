@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { noop as css } from '../../../utils/noop-template'
+import { css } from '../../../utils/css'
 import { cx } from '../../utils/cx'
 
 function useCopyLegacy(content: string) {

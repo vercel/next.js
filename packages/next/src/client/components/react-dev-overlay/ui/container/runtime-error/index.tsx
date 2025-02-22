@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { CallStack } from '../../components/errors/call-stack/call-stack'
-import { noop as css } from '../../../utils/noop-template'
+import { css } from '../../../utils/css'
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 import {
   useFrames,

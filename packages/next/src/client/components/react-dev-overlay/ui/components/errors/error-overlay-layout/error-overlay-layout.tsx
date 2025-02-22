@@ -8,7 +8,7 @@ import {
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import {
   ErrorMessage,
   styles as errorMessageStyles,

@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react'
 import { ThumbsUp } from '../../../../icons/thumbs/thumbs-up'
 import { ThumbsDown } from '../../../../icons/thumbs/thumbs-down'
-import { noop as css } from '../../../../../utils/noop-template'
+import { css } from '../../../../../utils/css'
 import { cx } from '../../../../utils/cx'
 
 interface ErrorFeedbackProps {

@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
