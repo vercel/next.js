@@ -28,23 +28,17 @@ export function Base() {
           --size-font-big: 20px;
           --size-font-bigger: 24px;
 
-          --color-background: white;
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
           --color-border-shadow: rgba(0, 0, 0, 0.145);
 
           --color-title-color: #1f1f1f;
-          --color-stack-h6: #222;
-          --color-stack-headline: #666;
-          --color-stack-subline: #999;
           --color-stack-notes: #777;
 
+          /* TODO: Unsure if these are used in code frame. Remove if not. */
           --color-accents-1: #808080;
           --color-accents-2: #222222;
           --color-accents-3: #404040;
-
-          --color-text-color-red-1: #ff5555;
-          --color-text-background-red-1: #fff9f9;
 
           --font-stack-monospace: '__nextjs-Geist Mono', 'SFMono-Regular',
             Consolas, 'Liberation Mono', Menlo, Courier, monospace;
@@ -122,25 +116,13 @@ export function Base() {
 
         @media (prefers-color-scheme: dark) {
           :host {
-            --color-background: rgb(28, 28, 30);
             --color-font: white;
             --color-backdrop: rgb(0, 0, 0, 0.8);
             --color-border-shadow: rgba(255, 255, 255, 0.145);
 
             --color-title-color: #fafafa;
-            --color-stack-h6: rgb(200, 200, 204);
-            --color-stack-headline: rgb(99, 99, 102);
             --color-stack-notes: #a9a9a9;
-            --color-stack-subline: rgb(121, 121, 121);
-
-            --color-accents-3: rgb(118, 118, 118);
-
-            --color-text-background-red-1: #2a1e1e;
           }
-        }
-
-        .mono {
-          font-family: var(--font-stack-monospace);
         }
 
         h1,
