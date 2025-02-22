@@ -91,6 +91,7 @@ function getTreeView(cliOutput: string): string {
     foundBuildTracesLine ||= line.includes('Collecting build traces')
   }
 
+  // Remove leading and trailing empty newlines.
   while (lines.at(0) === '') lines.shift()
   while (lines.at(-1) === '') lines.pop()
 
