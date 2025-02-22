@@ -142,6 +142,22 @@ describe('hydration-error-count', () => {
     await goToNextErrorView(browser)
     expect(browser).toDisplayRedbox(`
      {
+       "componentStack": "...
+         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/hydration..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
+     >                           <p>
+     >                             <p>
+                             ...",
        "count": 3,
        "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
