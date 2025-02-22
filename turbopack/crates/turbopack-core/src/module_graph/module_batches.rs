@@ -287,8 +287,8 @@ pub async fn compute_module_batches(
         // Find all chunk group entries and assign them to batches
         let chunk_group_info = module_graph.chunk_group_info().await?;
         for chunk_group in &chunk_group_info.chunk_groups {
-            let start_index = state.batches.len();
-            // All entries with the same chunk groups bitmap are in the same batch.
+            // Each entry need to be in a separate batch since we don't know the postorder of them.
+            // The postorder might also be different depending on the parents.
             for entry in chunk_group.entries() {
                 if state.batch_assignments.contains_key(&entry) {
                     // Already assigned
@@ -306,23 +306,10 @@ pub async fn compute_module_batches(
                     .module_chunk_groups
                     .get(&entry)
                     .expect("all entries need to have chunk group info");
-                let idx = state.batches[start_index..]
-                    .iter()
-                    .position(|batch| {
-                        if let ModuleBatchBuilder::Batch { chunk_groups, .. } = batch {
-                            chunk_groups == entry_chunk_groups
-                        } else {
-                            false
-                        }
-                    })
-                    .map(|idx| start_index + idx)
-                    .unwrap_or_else(|| {
-                        let idx = state.batches.len();
-                        state
-                            .batches
-                            .push(ModuleBatchBuilder::new_batch(entry_chunk_groups.clone()));
-                        idx
-                    });
+                let idx = state.batches.len();
+                state
+                    .batches
+                    .push(ModuleBatchBuilder::new_batch(entry_chunk_groups.clone()));
                 state
                     .batch_assignments
                     .insert(entry, BatchAssignment::new(idx, *chunkable_module));
