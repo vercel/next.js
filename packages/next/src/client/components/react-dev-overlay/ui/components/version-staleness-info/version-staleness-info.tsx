@@ -1,6 +1,5 @@
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { cx } from '../../utils/cx'
-import { noop as css } from '../../../utils/noop-template'
 
 export function VersionStalenessInfo({
   versionInfo,
@@ -88,7 +87,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
   return { text, indicatorClass, title }
 }
 
-export const styles = css`
+export const styles = `
   .nextjs-container-build-error-version-status {
     -webkit-font-smoothing: antialiased;
     display: flex;

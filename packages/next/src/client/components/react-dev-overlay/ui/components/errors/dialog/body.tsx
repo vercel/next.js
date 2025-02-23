@@ -1,4 +1,3 @@
-import { noop as css } from '../../../../utils/noop-template'
 import { DialogBody } from '../../dialog'
 
 type ErrorOverlayDialogBodyProps = {
@@ -14,4 +13,4 @@ export function ErrorOverlayDialogBody({
   )
 }
 
-export const DIALOG_BODY_STYLES = css``
+export const DIALOG_BODY_STYLES = ``

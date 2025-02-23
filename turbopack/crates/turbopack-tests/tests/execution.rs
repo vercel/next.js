@@ -417,7 +417,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         RuntimeType::Development,
     )
     .ecmascript_chunking_config(ChunkingConfig {
-        min_chunk_size: 20_000,
+        min_chunk_size: 10_000,
         ..Default::default()
     })
     .build();

@@ -14,7 +14,7 @@ import { styles as containerRuntimeErrorStyles } from '../container/runtime-erro
 import { COPY_BUTTON_STYLES } from '../components/copy-button'
 import { CALL_STACK_FRAME_STYLES } from '../components/call-stack-frame/call-stack-frame'
 import { DEV_TOOLS_INDICATOR_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-indicator'
-import { noop as css } from '../../utils/noop-template'
+import { css } from '../../utils/css'
 import { EDITOR_LINK_STYLES } from '../components/terminal/editor-link'
 import { ENVIRONMENT_NAME_LABEL_STYLES } from '../components/errors/environment-name-label/environment-name-label'
 import { DEV_TOOLS_INFO_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-info'

@@ -16,12 +16,12 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContextExt, EvaluatableAsset,
     },
     context::AssetContext,
-    module::{Module, Modules},
-    output::{OutputAsset, OutputAssets},
+    module::Module,
+    module_graph::GraphEntries,
+    output::OutputAssets,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -127,7 +127,9 @@ impl MiddlewareEndpoint {
         evaluatable_assets.push(evaluatable.to_resolved().await?);
 
         let evaluatable_assets = Vc::cell(evaluatable_assets);
-        let module_graph = this.project.module_graph_for_entries(evaluatable_assets);
+        let module_graph = this
+            .project
+            .module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated);
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
 
@@ -441,7 +443,10 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.entry_module().to_resolved().await?]))
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        Ok(Vc::cell(vec![(
+            vec![self.entry_module().to_resolved().await?],
+            ChunkGroupType::Evaluated,
+        )]))
     }
 }

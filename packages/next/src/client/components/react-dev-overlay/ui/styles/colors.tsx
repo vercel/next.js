@@ -1,4 +1,4 @@
-import { noop as css } from '../../utils/noop-template'
+import { css } from '../../utils/css'
 
 // TODO: Replace the existing colors in Base.tsx.
 export function Colors() {

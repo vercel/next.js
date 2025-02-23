@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../types'
 import { Overlay } from '../components/overlay'
-import { noop as css } from '../../utils/noop-template'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
@@ -208,7 +207,7 @@ export function Errors({
   )
 }
 
-export const styles = css`
+export const styles = `
   .nextjs-error-with-static {
     bottom: calc(var(--size-gap-double) * 4.5);
   }

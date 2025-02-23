@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
@@ -434,7 +434,7 @@ export const NextLogo = forwardRef(function NextLogo(
               onClick={onTriggerClick}
               {...props}
             >
-              <NextMark isLoading={isLoading} />
+              <NextMark isLoading={isLoading} isDevBuilding={isDevBuilding} />
             </button>
           )}
           {isErrorExpanded && (
@@ -530,7 +530,14 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
   return width
 }
 
-function NextMark({ isLoading }: { isLoading?: boolean }) {
+function NextMark({
+  isLoading,
+  isDevBuilding,
+}: {
+  isLoading?: boolean
+  isDevBuilding?: boolean
+}) {
+  const strokeColor = isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'
   return (
     <svg
       width="40"
@@ -568,9 +575,9 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
           y2="17.9671"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="white" />
-          <stop offset="0.604072" stopColor="white" stopOpacity="0" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
+          <stop stopColor={strokeColor} />
+          <stop offset="0.604072" stopColor={strokeColor} stopOpacity="0" />
+          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
         <linearGradient
           id="paint1_linear_1357_10853"
@@ -580,8 +587,8 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
           y2="9.62542"
           gradientUnits="userSpaceOnUse"
         >
-          <stop stopColor="white" />
-          <stop offset="1" stopColor="white" stopOpacity="0" />
+          <stop stopColor={strokeColor} />
+          <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
         <mask id="mask0">
           <rect width="100%" height="100%" fill="white" />

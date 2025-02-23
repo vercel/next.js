@@ -1740,3 +1740,10 @@ export async function getHighlightedDiffLines(
     ])
   )
 }
+
+export function trimEndMultiline(str: string) {
+  return str
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
+}

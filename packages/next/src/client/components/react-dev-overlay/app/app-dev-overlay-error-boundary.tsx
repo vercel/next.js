@@ -1,11 +1,13 @@
-import type { GlobalErrorComponent } from '../../error-boundary'
-
 import { PureComponent } from 'react'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import {
+  ErrorBoundary,
+  type GlobalErrorComponent,
+  GlobalError as DefaultGlobalError,
+} from '../../error-boundary'
 
 type AppDevOverlayErrorBoundaryProps = {
   children: React.ReactNode
-  devOverlay: React.ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
   onError: (value: boolean) => void
 }
@@ -31,10 +33,10 @@ function ErroredHtml({
     )
   }
   return (
-    <>
+    <ErrorBoundary errorComponent={DefaultGlobalError}>
       {globalErrorStyles}
       <GlobalError error={error} />
-    </>
+    </ErrorBoundary>
   )
 }
 
@@ -62,18 +64,13 @@ export class AppDevOverlayErrorBoundary extends PureComponent<
   }
 
   render() {
-    const { children, globalError, devOverlay } = this.props
+    const { children, globalError } = this.props
     const { isReactError, reactError } = this.state
 
     const fallback = (
       <ErroredHtml globalError={globalError} error={reactError} />
     )
 
-    return (
-      <>
-        {isReactError ? fallback : children}
-        {devOverlay}
-      </>
-    )
+    return isReactError ? fallback : children
   }
 }
