@@ -45,14 +45,14 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkGroupType, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    module::{Module, Modules},
-    module_graph::ModuleGraph,
+    module::Module,
+    module_graph::{GraphEntries, ModuleGraph},
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -769,7 +769,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets))
+        Ok(project.module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated))
     }
 
     #[turbo_tasks::function]
@@ -780,9 +780,9 @@ impl PageEndpoint {
             let project = this.pages_project.project();
             let client_chunking_context = project.client_chunking_context();
 
-            let evaluatable_assets = self.client_evaluatable_assets();
-            let module_graph = project.module_graph_for_entries(evaluatable_assets);
+            let module_graph = self.client_module_graph();
 
+            let evaluatable_assets = self.client_evaluatable_assets();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
                 evaluatable_assets,
@@ -906,7 +906,7 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
-            let module_graph = project.module_graph(*ssr_module);
+            let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 // The SSR and Client Graphs are not connected in Pages Router.
@@ -1466,15 +1466,18 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push(ssr_chunk_module.ssr_module);
+        modules.push((vec![ssr_chunk_module.ssr_module], ChunkGroupType::Entry));
 
         if let PageEndpointType::Html = this.ty {
-            modules.push(self.client_module().to_resolved().await?);
+            modules.push((
+                vec![self.client_module().to_resolved().await?],
+                ChunkGroupType::Evaluated,
+            ));
         }
 
         Ok(Vc::cell(modules))

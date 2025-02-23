@@ -20,9 +20,9 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkGroupType, ChunkingType},
     issue::Issue,
-    module::{Module, Modules},
+    module::Module,
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
@@ -139,6 +139,18 @@ impl VisitedModules {
     }
 }
 
+pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>;
+
+#[turbo_tasks::value(transparent)]
+pub struct GraphEntries(GraphEntriesT);
+#[turbo_tasks::value_impl]
+impl GraphEntries {
+    #[turbo_tasks::function]
+    pub fn empty() -> Vc<Self> {
+        Vc::cell(Vec::new())
+    }
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
@@ -157,7 +169,7 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub entries: GraphEntriesT,
 }
 
 impl SingleModuleGraph {
@@ -165,14 +177,15 @@ impl SingleModuleGraph {
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
     async fn new_inner(
-        entries: &Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: &GraphEntriesT,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
         let root_edges = entries
             .iter()
+            .flat_map(|(e, _)| e.clone())
             .map(|e| async move {
                 Ok(SingleModuleGraphBuilderEdge {
-                    to: SingleModuleGraphBuilderNode::new_module(*e).await?,
+                    to: SingleModuleGraphBuilderNode::new_module(e).await?,
                 })
             })
             .try_join()
@@ -328,6 +341,11 @@ impl SingleModuleGraph {
         })
     }
 
+    /// Iterate over all nodes in the graph
+    pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+        self.entries.iter().flat_map(|(e, _)| e).copied()
+    }
+
     /// Enumerate all nodes in the graph
     pub fn enumerate_nodes(
         &self,
@@ -366,14 +384,14 @@ impl SingleModuleGraph {
     ///    - Can return [GraphTraversalAction]s to control the traversal
     pub fn traverse_edges_from_entries<'a>(
         &'a self,
-        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
             &'a SingleModuleGraphModuleNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
-        let entries = entries.into_iter().map(|e| self.get_module(*e).unwrap());
+        let entries = entries.into_iter().map(|e| self.get_module(e).unwrap());
 
         let mut stack = entries.collect::<Vec<_>>();
         let mut discovered = graph.visit_map();
@@ -437,6 +455,7 @@ impl SingleModuleGraph {
         let mut stack: Vec<NodeIndex> = self
             .entries
             .iter()
+            .flat_map(|(e, _)| e)
             .map(|e| *self.modules.get(e).unwrap())
             .collect();
         let mut discovered = graph.visit_map();
@@ -493,7 +512,7 @@ impl SingleModuleGraph {
     ///    - Can return [GraphTraversalAction]s to control the traversal
     pub fn traverse_edges_from_entries_topological<'a, S>(
         &'a self,
-        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
@@ -507,7 +526,7 @@ impl SingleModuleGraph {
         ),
     ) -> Result<()> {
         let graph = &self.graph;
-        let entries = entries.into_iter().map(|e| self.get_module(*e).unwrap());
+        let entries = entries.into_iter().map(|e| self.get_module(e).unwrap());
 
         enum ReverseTopologicalPass {
             Visit,
@@ -595,12 +614,15 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![module])))
+    pub fn from_module(module: ResolvedVc<Box<dyn Module>>, ty: ChunkGroupType) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![(
+            vec![module],
+            ty,
+        )])))
     }
 
     #[turbo_tasks::function]
-    pub fn from_modules(modules: Vc<Modules>) -> Vc<Self> {
+    pub fn from_modules(modules: Vc<GraphEntries>) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
     }
 
@@ -714,6 +736,7 @@ impl ModuleGraph {
                 graphs
                     .iter()
                     .flat_map(|g| g.entries.iter())
+                    .flat_map(|(e, _)| e)
                     .map(|e| e.ident().to_string())
                     .try_join()
                     .await?
@@ -738,9 +761,9 @@ impl ModuleGraph {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_bfs<'a>(
+    pub async fn traverse_edges_from_entries_bfs(
         &self,
-        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
@@ -748,11 +771,13 @@ impl ModuleGraph {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
-        let entries = entries.into_iter();
-        let mut queue = VecDeque::with_capacity(entries.size_hint().0);
-        for e in entries {
-            queue.push_back(ModuleGraph::get_entry(&graphs, *e).await?);
-        }
+        let mut queue = VecDeque::from(
+            entries
+                .into_iter()
+                .map(|e| ModuleGraph::get_entry(&graphs, e))
+                .try_join()
+                .await?,
+        );
         let mut visited = HashSet::new();
         for entry_node in &queue {
             visitor(None, get_node!(graphs, entry_node)?);
@@ -981,14 +1006,14 @@ impl ModuleGraph {
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
-    pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
+    pub async fn new_with_entries(entries: Vc<GraphEntries>) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
     }
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await

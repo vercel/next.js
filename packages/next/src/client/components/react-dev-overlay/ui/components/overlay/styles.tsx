@@ -1,6 +1,4 @@
-import { noop as css } from '../../../utils/noop-template'
-
-const styles = css`
+const styles = `
   [data-nextjs-dialog-overlay] {
     position: fixed;
     top: 0;

@@ -8,11 +8,11 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
-    chunk::{ChunkItem, ChunkType, ChunkableModules, ModuleId},
+    chunk::{ChunkItem, ChunkType, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 
@@ -184,15 +184,7 @@ pub trait ChunkingContext {
     fn chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        module: Vc<Box<dyn ChunkableModule>>,
-        module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<ChunkGroupResult>;
-
-    fn chunk_group_multiple(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-        modules: Vc<ChunkableModules>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<ChunkGroupResult>;
@@ -235,7 +227,8 @@ pub trait ChunkingContext {
 pub trait ChunkingContextExt {
     fn root_chunk_group(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult>
     where
@@ -243,7 +236,8 @@ pub trait ChunkingContextExt {
 
     fn root_chunk_group_assets(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssets>
     where
@@ -295,7 +289,8 @@ pub trait ChunkingContextExt {
 
     fn chunk_group_assets(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets>
@@ -306,12 +301,13 @@ pub trait ChunkingContextExt {
 impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingContextExt for T {
     fn root_chunk_group(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<ChunkGroupResult> {
         self.chunk_group(
-            module.ident(),
-            module,
+            ident,
+            chunk_group,
             module_graph,
             Value::new(AvailabilityInfo::Root),
         )
@@ -319,10 +315,11 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
 
     fn root_chunk_group_assets(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssets> {
-        root_chunk_group_assets(Vc::upcast(self), module, module_graph)
+        root_chunk_group_assets(Vc::upcast(self), ident, chunk_group, module_graph)
     }
 
     fn evaluated_chunk_group_assets(
@@ -400,22 +397,30 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
 
     fn chunk_group_assets(
         self: Vc<Self>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        ident: Vc<AssetIdent>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets> {
-        chunk_group_assets(Vc::upcast(self), module, module_graph, availability_info)
+        chunk_group_assets(
+            Vc::upcast(self),
+            ident,
+            chunk_group,
+            module_graph,
+            availability_info,
+        )
     }
 }
 
 #[turbo_tasks::function]
 async fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module: Vc<Box<dyn ChunkableModule>>,
+    ident: Vc<AssetIdent>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
-        .root_chunk_group(module, module_graph)
+        .root_chunk_group(ident, chunk_group, module_graph)
         .await?
         .assets)
 }
@@ -460,12 +465,13 @@ async fn entry_chunk_group_asset(
 #[turbo_tasks::function]
 async fn chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    module: Vc<Box<dyn ChunkableModule>>,
+    ident: Vc<AssetIdent>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
-        .chunk_group(module.ident(), module, module_graph, availability_info)
+        .chunk_group(ident, chunk_group, module_graph, availability_info)
         .await?
         .assets)
 }

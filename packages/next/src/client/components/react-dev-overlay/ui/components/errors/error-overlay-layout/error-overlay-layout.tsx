@@ -8,7 +8,6 @@ import {
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
-import { noop as css } from '../../../../utils/noop-template'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
@@ -122,7 +121,7 @@ export function ErrorOverlayLayout({
             </DialogFooter>
           )}
           <ErrorOverlayBottomStack
-            count={runtimeErrors?.length ?? 0}
+            errorCount={runtimeErrors?.length ?? 0}
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
@@ -138,7 +137,7 @@ export function ErrorOverlayLayout({
   )
 }
 
-export const styles = css`
+export const styles = `
   ${OVERLAY_STYLES}
   ${DIALOG_STYLES}
   ${DIALOG_HEADER_STYLES}

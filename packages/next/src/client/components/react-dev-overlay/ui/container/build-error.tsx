@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { Terminal } from '../components/terminal'
-import { noop as css } from '../../utils/noop-template'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
@@ -48,4 +47,4 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   )
 }
 
-export const styles = css``
+export const styles = ``

@@ -1,6 +1,4 @@
-import { noop as css } from '../../../utils/noop-template'
-
-const styles = css`
+const styles = `
   .nextjs-toast {
     position: fixed;
     bottom: var(--size-gap-double);
