@@ -7,7 +7,6 @@ export function createDefaultViewport(): ResolvedViewport {
   return {
     // name=viewport
     width: 'device-width',
-    initialScale: 1,
     // visual metadata
     themeColor: null,
     colorScheme: null,
