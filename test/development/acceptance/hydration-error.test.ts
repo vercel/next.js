@@ -86,7 +86,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Text content did not match. Server: "server" Client: "client"",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -111,7 +111,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -170,7 +170,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <main> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -193,7 +193,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -238,7 +238,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching text node for "second" in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -264,7 +264,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -301,7 +301,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Did not expect server HTML to contain a <main> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -325,7 +325,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -360,7 +360,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Did not expect server HTML to contain the text node "only" in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -384,7 +384,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -431,7 +431,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <table> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -455,7 +455,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -496,7 +496,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <table> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -520,7 +520,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -568,7 +568,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <main> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -593,7 +593,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -667,7 +667,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <p> in <p>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -692,7 +692,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -739,7 +739,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <div> in <p>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -764,7 +764,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -801,7 +801,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <tr> in <div>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -826,7 +826,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -869,7 +869,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
          "description": "Expected server HTML to contain a matching <p> in <span>.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
@@ -898,7 +898,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        This will cause a hydration error.",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
-         "source": undefined,
+         "source": null,
          "stack": [],
        }
       `)
