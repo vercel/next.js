@@ -257,7 +257,7 @@ async function exportPageImpl(
   // when it's available. When we're building the PPR rendering result, we don't need to rely
   // on the user agent. The result can be determined to serve streaming on infrastructure level.
   const serveStreamingMetadata = Boolean(
-    isRoutePPREnabled && input.renderOpts.serveStreamingMetadata
+    isRoutePPREnabled && input.streamingMetadata
   )
 
   const renderOpts: WorkerRenderOpts = {
