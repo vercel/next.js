@@ -1,0 +1,6 @@
+{
+  "name": "hello-world",
+  "dependencies": {
+    "babel-plugin-react-compiler": "0.0.0-experimental-e1e972c-20250221"
+  }
+}
