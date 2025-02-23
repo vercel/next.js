@@ -1417,6 +1417,8 @@ export async function getRedboxCallStack(
             stack.push('<FIXME-internal-frame>')
           }
           foundInternalFrame = true
+        } else if (frame.includes('file://')) {
+          stack.push('<FIXME-file-protocol>')
         } else {
           stack.push(frame)
         }
