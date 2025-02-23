@@ -160,12 +160,10 @@ impl MiddlewareEndpoint {
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
-                this.project
-                    .node_root()
-                    .join("server/instrumentation.js".into()),
+                this.project.node_root().join("server/middleware.js".into()),
                 *module,
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Instrumentation {
+                    Value::new(ServerContextType::Middleware {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name,
