@@ -746,7 +746,6 @@ async function startWatcher(opts: SetupOpts) {
         : undefined
 
       await propagateServerField(opts, 'middleware', serverFields.middleware)
-
       serverFields.hasAppNotFound = hasRootAppNotFound
 
       opts.fsChecker.middlewareMatcher = serverFields.middleware?.matchers

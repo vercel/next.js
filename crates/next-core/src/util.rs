@@ -542,7 +542,12 @@ pub async fn parse_config_from_source(
             }
         }
     }
-    Ok(Default::default())
+    let config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
+
+    Ok(config.cell())
 }
 
 async fn parse_config_from_js_value(
@@ -550,8 +555,10 @@ async fn parse_config_from_js_value(
     value: &JsValue,
     default_runtime: NextRuntime,
 ) -> Result<NextSourceConfig> {
-    let mut config = NextSourceConfig::default();
-    config.runtime = default_runtime;
+    let mut config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
