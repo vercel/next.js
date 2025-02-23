@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
@@ -30,8 +30,7 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send
-        + Clone,
+        + Send,
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -49,35 +48,13 @@ pub async fn make_chunk_group(
         traced_modules,
     } = chunk_group_content(
         module_graph,
-        chunk_group_entries.clone(),
+        chunk_group_entries,
         availability_info,
         can_split_async,
         should_trace,
         batching_config,
     )
     .await?;
-
-    let mut info = String::new();
-    for entry in chunk_group_entries {
-        use std::fmt::Write;
-        writeln!(info, "ENTRY {}", entry.ident().to_string().await?)?;
-    }
-    for item in &chunkable_items {
-        use std::fmt::Write;
-        match item {
-            ChunkableModuleOrBatch::Module(module) => {
-                writeln!(info, "- {}", module.ident().to_string().await?)?;
-            }
-            ChunkableModuleOrBatch::Batch(batch) => {
-                writeln!(info, "[")?;
-                for ident in batch.ident_strings().await? {
-                    writeln!(info, "- {}", ident)?;
-                }
-                writeln!(info, "]")?;
-            }
-        }
-    }
-    println!("Chunking:\n{}", info);
 
     let async_modules_info = module_graph.async_module_info().await?;
 
