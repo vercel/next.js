@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use either::Either;
 use indexmap::map::Entry;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -88,11 +88,22 @@ impl Hash for RoaringBitmapWrapper {
 pub struct ChunkGroupInfo {
     pub module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
     #[turbo_tasks(trace_ignore)]
-    pub chunk_groups: Vec<ChunkGroup>,
+    pub chunk_groups: FxIndexSet<ChunkGroup>,
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash)]
+#[turbo_tasks::value_impl]
+impl ChunkGroupInfo {
+    #[turbo_tasks::function]
+    pub fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
+        if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
+            Ok(Vc::cell(idx))
+        } else {
+            bail!("Couldn't find chunk group index");
+        }
+    }
+}
+
+#[derive(Debug, Clone, Hash, TaskInput, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ChunkGroup {
     /// e.g. a page
     Entry {
