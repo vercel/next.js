@@ -16,12 +16,13 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContextExt, EvaluatableAsset,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset,
     },
     context::AssetContext,
     module::Module,
     module_graph::GraphEntries,
-    output::OutputAssets,
+    output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -149,7 +150,9 @@ impl MiddlewareEndpoint {
         let chunking_context = this.project.server_chunking_context(false);
 
         let userland_module = self.entry_module().to_resolved().await?;
-        let module_graph = this.project.module_graph(*userland_module);
+        let module_graph = this
+            .project
+            .module_graph(*userland_module, ChunkGroupType::Entry);
 
         let Some(module) = ResolvedVc::try_downcast(userland_module) else {
             bail!("Entry module must be evaluatable");
@@ -157,10 +160,12 @@ impl MiddlewareEndpoint {
 
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
-                this.project.node_root().join("server/middleware.js".into()),
+                this.project
+                    .node_root()
+                    .join("server/instrumentation.js".into()),
                 *module,
                 get_server_runtime_entries(
-                    Value::new(ServerContextType::Middleware {
+                    Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
                         ecmascript_client_reference_transition_name: this
                             .ecmascript_client_reference_transition_name,
