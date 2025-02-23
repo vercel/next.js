@@ -84,7 +84,7 @@
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
-    "types": "tsc --project tsconfig.declaration.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
+    "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "taskr ncc",
     "storybook": "storybook dev -p 6006",
