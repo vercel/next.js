@@ -5,18 +5,8 @@ export function ErrorOverlayBottomStack({
   errorCount: number
   activeIdx: number
 }) {
-  let stackCount = errorCount
-
-  // Add one since the `activeIdx` is 0-based, but
-  // the `stackCount` (number of errors) is 1-based.
-  stackCount -= activeIdx + 1
-
-  // If there are more than 2 errors to navigate,
-  // the stack should remain at 2.
-  if (stackCount > 2) {
-    stackCount = 2
-  }
-
+  // If there are more than 2 errors to navigate, the stack count should remain at 2.
+  const stackCount = Math.min(errorCount - activeIdx - 1, 2)
   return (
     <div aria-hidden className="error-overlay-bottom-stack">
       <div
