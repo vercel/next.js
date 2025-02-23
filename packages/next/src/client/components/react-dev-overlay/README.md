@@ -32,19 +32,19 @@ Next.js direcly injects CSS into the DOM via `<style>` tag. The styles will not 
 > [!TIP]
 > While Shadow DOM provides style encapsulation, the root element (i.e., `<nextjs-portal>`) can still inherit styles from parent elements like `<body>` or `<html>`. Direct styling on these parent elements (e.g., `body { contain: layout; }`) will affect the dev overlay.
 
-Use CSS inside a template literals of the components. It is recommended to have the styles together with the component to make it easier to maintain. The class names are recommended to be used, ensure they're unique within the dev overlay to avoid conflicts.
+Write CSS in template literals alongside your components. It is recommended to use the class names that are unique within the dev overlay to avoid conflicts. You can use `data-nextjs-` data attributes to target the elements in the dev overlay.
 
 ```tsx
 export function Component() {
   return (
-    <div data-nextjs-some-component>
+    <div className="some-unique-class-name">
       <h1>Hello, Next.js!</h1>
     </div>
   )
 }
 
 export const COMPONENT_NAME_STYLES = `
-  [data-nextjs-some-component] {
+  .some-unique-class-name {
     background-color: red;
   }
 `
