@@ -1770,7 +1770,6 @@ export default abstract class Server<
         supportsDynamicResponse: !isBotRequest,
         botType: getBotType(ua),
         serveStreamingMetadata: shouldServeStreamingMetadata(ua, {
-          dynamicIO: !!this.nextConfig.experimental.dynamicIO,
           streamingMetadata: !!this.renderOpts.streamingMetadata,
           htmlLimitedBots: this.nextConfig.htmlLimitedBots,
         }),
