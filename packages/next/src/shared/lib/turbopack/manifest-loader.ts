@@ -26,6 +26,7 @@ import {
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
 } from '../constants'
 import { join, posix } from 'path'
@@ -661,6 +662,19 @@ export class TurbopackManifestLoader {
       middlewareManifestPath,
       JSON.stringify(middlewareManifest, null, 2)
     )
+
+    const clientManifestPath = join(
+      this.distDir,
+      'static',
+      this.buildId,
+      TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+    )
+
+    // if we didn't generate middleware output we need to
+    // create an empty manifest still
+    if (!existsSync(clientManifestPath)) {
+      await writeFileAtomic(clientManifestPath, JSON.stringify([]))
+    }
   }
 
   async loadPagesManifest(pageName: string): Promise<void> {
