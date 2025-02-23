@@ -20,27 +20,27 @@ describe('build-output-tree-view', () => {
       // TODO: Fix double-listing of the /ppr/[slug] fallback.
 
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                             Size   First Load JS
-       ┌ ○ /_not-found                         42 kB          42 kB
-       ├ ƒ /api                                42 kB          42 kB
-       ├ ○ /api/force-static                   42 kB          42 kB
-       ├ ○ /app-static                         42 kB          42 kB
-       ├ ○ /cache-life                         42 kB          42 kB
-       ├ ƒ /dynamic                            42 kB          42 kB
-       ├ ◐ /ppr/[slug]                         42 kB          42 kB
+       "Route (app)                             Size    First Load JS
+       ┌ ○ /_not-found                         N/A kB         N/A kB
+       ├ ƒ /api                                N/A kB         N/A kB
+       ├ ○ /api/force-static                   N/A kB         N/A kB
+       ├ ○ /app-static                         N/A kB         N/A kB
+       ├ ○ /cache-life                         N/A kB         N/A kB
+       ├ ƒ /dynamic                            N/A kB         N/A kB
+       ├ ◐ /ppr/[slug]                         N/A kB         N/A kB
        ├   ├ /ppr/[slug]
        ├   ├ /ppr/[slug]
        ├   ├ /ppr/days
        ├   └ /ppr/weeks
-       └ ○ /revalidate                         42 kB          42 kB
-       + First Load JS shared by all           42 kB
+       └ ○ /revalidate                         N/A kB         N/A kB
+       + First Load JS shared by all           N/A kB
 
-       Route (pages)                           Size   First Load JS
-       ┌ ƒ /api/hello                          42 kB          42 kB
-       ├ ● /gsp-revalidate (ISR: 300 Seconds)  42 kB          42 kB
-       ├ ƒ /gssp                               42 kB          42 kB
-       └ ○ /static                             42 kB          42 kB
-       + First Load JS shared by all           42 kB
+       Route (pages)                           Size    First Load JS
+       ┌ ƒ /api/hello                          N/A kB         N/A kB
+       ├ ● /gsp-revalidate (ISR: 300 Seconds)  N/A kB         N/A kB
+       ├ ƒ /gssp                               N/A kB         N/A kB
+       └ ○ /static                             N/A kB         N/A kB
+       + First Load JS shared by all           N/A kB
 
        ○  (Static)             prerendered as static content
        ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
@@ -64,14 +64,14 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered routes in a compact tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                    Size   First Load JS
-       ┌ ○ /                          42 kB          42 kB
-       └ ○ /_not-found                42 kB          42 kB
-       + First Load JS shared by all  42 kB
+       "Route (app)                    Size    First Load JS
+       ┌ ○ /                          N/A kB         N/A kB
+       └ ○ /_not-found                N/A kB         N/A kB
+       + First Load JS shared by all  N/A kB
 
-       Route (pages)                  Size   First Load JS
-       ─ ○ /static                    42 kB          42 kB
-       + First Load JS shared by all  42 kB
+       Route (pages)                  Size    First Load JS
+       ─ ○ /static                    N/A kB         N/A kB
+       + First Load JS shared by all  N/A kB
 
        ○  (Static)  prerendered as static content"
       `)
@@ -91,9 +91,5 @@ function getTreeView(cliOutput: string): string {
     foundBuildTracesLine ||= line.includes('Collecting build traces')
   }
 
-  // Remove leading and trailing empty newlines.
-  while (lines.at(0) === '') lines.shift()
-  while (lines.at(-1) === '') lines.pop()
-
-  return lines.join('\n')
+  return lines.join('\n').trim()
 }

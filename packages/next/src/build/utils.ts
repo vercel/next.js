@@ -407,7 +407,7 @@ export async function printTreeView(
     { strong }: { strong?: boolean } = {}
   ): string => {
     const size = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
-      ? '42 kB' // Use a fake fixed size to enforce deterministic build output.
+      ? 'N/A kB'
       : prettyBytes(_size)
 
     return strong ? white(bold(size)) : size
