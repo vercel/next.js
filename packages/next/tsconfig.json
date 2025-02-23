@@ -11,7 +11,7 @@
     "moduleResolution": "node"
   },
   // When changing `exclude`, also update
-  // `tsconfig.declaration.json`.
+  // `tsconfig.build.json`.
   "exclude": [
     "dist",
     "./*.d.ts",
