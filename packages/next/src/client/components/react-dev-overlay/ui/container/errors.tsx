@@ -275,7 +275,7 @@ export const styles = `
     margin-bottom: var(--rem-px-14);
   }
   .error-overlay-notes-container {
-    margin: var(--rem-px-8) var(--size-0_5);
+    margin: var(--rem-px-8) var(--rem-px-2);
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;

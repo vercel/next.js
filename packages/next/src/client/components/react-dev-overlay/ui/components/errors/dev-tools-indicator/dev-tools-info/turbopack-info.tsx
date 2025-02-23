@@ -115,7 +115,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
     background: var(--color-gray-400);
     color: var(--color-gray-1000);
     font-family: var(--font-stack-mono);
-    padding: var(--size-0_5) var(--rem-px-4);
+    padding: var(--rem-px-2) var(--rem-px-4);
     margin: 0;
     font-size: 13px;
     white-space: break-spaces;

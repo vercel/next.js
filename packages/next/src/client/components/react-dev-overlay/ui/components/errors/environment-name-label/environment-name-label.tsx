@@ -8,7 +8,7 @@ export function EnvironmentNameLabel({
 
 export const ENVIRONMENT_NAME_LABEL_STYLES = `
   [data-nextjs-environment-name-label] {
-    padding: var(--size-0_5) var(--rem-px-6);
+    padding: var(--rem-px-2) var(--rem-px-6);
     margin: 0;
     /* used --size instead of --rounded because --rounded is missing 6px */
     border-radius: var(--rem-px-6);

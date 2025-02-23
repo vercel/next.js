@@ -22,7 +22,7 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
 
 export const styles = `
   .nextjs__container_errors_label {
-    padding: var(--size-0_5) var(--rem-px-6);
+    padding: var(--rem-px-2) var(--rem-px-6);
     margin: 0;
     /* used --size instead of --rounded because --rounded is missing 6px */
     border-radius: var(--rem-px-6);
