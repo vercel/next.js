@@ -220,6 +220,7 @@ describe('app-dir - server source maps', () => {
        {
          "count": 1,
          "description": "Error: Boom",
+         "docs": null,
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
          "source": "app/ssr-throw/Thrower.js (4:9) @ throwError

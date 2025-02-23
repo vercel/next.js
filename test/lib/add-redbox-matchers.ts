@@ -6,6 +6,7 @@ import {
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
+  getRedboxErrorLink,
   getRedboxSource,
   getRedboxLabel,
   getRedboxTotalErrorCount,
@@ -66,6 +67,7 @@ interface RedboxSnapshot {
   source: string
   stack: string[]
   count: number
+  docs: string | null
 }
 
 async function createRedboxSnapshot(
@@ -80,6 +82,7 @@ async function createRedboxSnapshot(
     stack,
     componentStack,
     count,
+    docs,
   ] = await Promise.all([
     getRedboxLabel(browser),
     getRedboxEnvironmentLabel(browser),
@@ -88,6 +91,7 @@ async function createRedboxSnapshot(
     getRedboxCallStack(browser),
     getRedboxComponentStack(browser),
     getRedboxTotalErrorCount(browser),
+    getRedboxErrorLink(browser),
   ])
 
   // We don't need to test the codeframe logic everywhere.
@@ -152,6 +156,7 @@ async function createRedboxSnapshot(
     stack,
     // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
     count: label === 'Build Error' && count === -1 ? 1 : count,
+    docs,
   }
 
   // Hydration diffs are only relevant to some specific errors

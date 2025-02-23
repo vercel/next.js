@@ -14,6 +14,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
      {
        "count": 1,
        "description": "trigger an console <error>",
+       "docs": null,
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/browser/event/page.js (7:17) @ onClick
@@ -35,6 +36,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
      {
        "count": 1,
        "description": "trigger an console.error in render",
+       "docs": null,
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/browser/render/page.js (4:11) @ Page
@@ -54,6 +56,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
      {
        "count": 1,
        "description": "trigger an console.error in render",
+       "docs": null,
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/browser/render/page.js (4:11) @ Page
@@ -73,6 +76,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
      {
        "count": 1,
        "description": "ssr console error:client",
+       "docs": null,
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/ssr/page.js (4:11) @ Page
@@ -92,6 +96,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
      {
        "count": 1,
        "description": "Error: page error",
+       "docs": null,
        "environmentLabel": null,
        "label": "Console Error",
        "source": "app/ssr-error-instance/page.js (4:17) @ Page
@@ -111,6 +116,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
        {
          "count": 1,
          "description": "Error: boom",
+         "docs": null,
          "environmentLabel": "Server",
          "label": "Console Error",
          "source": "app/rsc/page.js (2:17) @ Page

@@ -17,6 +17,7 @@ describe('app dir - global-error - error-in-global-error', () => {
        {
          "count": 1,
          "description": "Error: error in page",
+         "docs": null,
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
          "source": "app/page.js (7:11) @ Page.useEffect
@@ -43,6 +44,7 @@ describe('app dir - global-error - error-in-global-error', () => {
        {
          "count": 2,
          "description": "Error: error in global error",
+         "docs": null,
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
          "source": "app/global-error.js (10:11) @ InnerGlobalError

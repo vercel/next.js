@@ -161,6 +161,7 @@ describe('hydration-error-count', () => {
        "count": 3,
        "description": "In HTML, <p> cannot be a descendant of <p>.
      This will cause a hydration error.",
+       "docs": null,
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",
        "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
@@ -178,6 +179,7 @@ describe('hydration-error-count', () => {
      {
        "count": 3,
        "description": "Error: runtime error",
+       "docs": null,
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",
        "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect

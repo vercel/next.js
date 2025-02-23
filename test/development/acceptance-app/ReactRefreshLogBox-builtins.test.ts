@@ -50,6 +50,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./node_modules/my-package/index.js (1:13)
@@ -64,6 +65,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'dns'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./node_modules/my-package/index.js (1:1)
@@ -99,6 +101,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'b'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:1)
@@ -113,6 +116,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'b'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:1)
@@ -149,6 +153,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'b'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
@@ -163,6 +168,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve 'b'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
@@ -197,6 +203,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
@@ -211,6 +218,7 @@ describe('ReactRefreshLogBox-builtins app', () => {
        {
          "count": 1,
          "description": "Module not found: Can't resolve './non-existent.css'",
+         "docs": null,
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (2:1)
