@@ -2,20 +2,20 @@ export { PseudoHtmlDiff } from '../../components/hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html] {
-    padding: var(--size-8) 0;
-    margin: var(--size-8) 0;
+    padding: 8px 0;
+    margin: 8px 0;
     border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-12);
-    line-height: var(--size-16);
-    border-radius: var(--size-8);
+    font-size: var(--rem-px-12);
+    line-height: 1.33em; /* 16px in 12px font size */
+    border-radius: var(--rounded-md-2);
   }
   [data-nextjs-container-errors-pseudo-html-line] {
     display: inline-block;
     width: 100%;
-    padding-left: var(--size-40);
+    padding-left: 40px;
     line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html--diff='error'] {

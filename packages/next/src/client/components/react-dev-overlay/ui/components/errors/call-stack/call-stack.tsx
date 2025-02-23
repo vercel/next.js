@@ -121,7 +121,7 @@ function ChevronUpDown() {
 export const CALL_STACK_STYLES = `
   .error-overlay-call-stack-container {
     position: relative;
-    margin-top: var(--size-8);
+    margin-top: 8px;
   }
 
   .error-overlay-call-stack-header {
@@ -129,7 +129,7 @@ export const CALL_STACK_STYLES = `
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    padding: var(--size-8) var(--size-8) var(--size-12) var(--size-4);
+    padding: 8px 8px 12px 4px;
     width: 100%;
   }
 
@@ -137,7 +137,7 @@ export const CALL_STACK_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--size-8);
+    gap: 8px;
 
     margin: 0;
 

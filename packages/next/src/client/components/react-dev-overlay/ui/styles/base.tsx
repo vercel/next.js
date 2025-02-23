@@ -66,7 +66,6 @@ export function Base() {
           --rounded-xl: 12px;
           --rounded-2xl: 16px;
           --rounded-3xl: 24px;
-          --rounded-4xl: 32px;
           --rounded-full: 9999px;
 
           /* 

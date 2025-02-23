@@ -22,15 +22,15 @@ export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
 
 export const styles = `
   .nextjs__container_errors_label {
-    padding: var(--size-2) var(--size-6);
+    padding: 2px 6px;
     margin: 0;
     /* used --size instead of --rounded because --rounded is missing 6px */
-    border-radius: var(--size-6);
+    border-radius: var(--rounded-md-2);
     background: var(--color-red-100);
     font-weight: 600;
-    font-size: var(--size-11);
+    font-size: var(--rem-px-11);
     color: var(--color-red-900);
     font-family: var(--font-stack-monospace);
-    line-height: var(--size-20);
+    line-height: 1.82em; /* 20px in 11px font size */
   }
 `

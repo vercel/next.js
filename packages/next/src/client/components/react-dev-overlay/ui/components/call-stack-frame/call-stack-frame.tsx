@@ -70,8 +70,8 @@ export const CallStackFrame: React.FC<{
 
 export const CALL_STACK_FRAME_STYLES = `
   [data-nextjs-call-stack-frame-ignored] {
-    padding: var(--size-6) var(--size-8);
-    margin-bottom: var(--size-4);
+    padding: 6px 8px;
+    margin-bottom: 4px;
 
     border-radius: var(--rounded-lg);
   }

@@ -29,7 +29,7 @@ export const styles = `
     justify-content: space-between;
 
     gap: 8px;
-    padding: var(--size-12);
+    padding: 12px;
     background: var(--color-background-200);
     border-top: 1px solid var(--color-gray-400);
   }
@@ -38,7 +38,7 @@ export const styles = `
     margin-left: auto;
 
     p {
-      font-size: 14px;
+      font-size: var(--rem-px-14);
       font-weight: 500;
       margin: 0;
     }
@@ -47,9 +47,9 @@ export const styles = `
   .error-overlay-footer-message {
     color: var(--color-gray-900);
     margin: 0;
-    font-size: 14px;
+    font-size: var(--rem-px-14);
     font-weight: 400;
-    line-height: var(--size-20);
+    line-height: 1.43em; /* 20px in 14px font size */
   }
 
   ${feedbackStyles}

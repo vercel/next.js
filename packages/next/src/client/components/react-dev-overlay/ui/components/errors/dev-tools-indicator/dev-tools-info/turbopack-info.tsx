@@ -115,7 +115,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
     background: var(--color-gray-400);
     color: var(--color-gray-1000);
     font-family: var(--font-stack-mono);
-    padding: var(--size-2) var(--size-4);
+    padding: 2px 4px;
     margin: 0;
     font-size: 13px;
     white-space: break-spaces;
@@ -123,7 +123,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   }
 
   .dev-tools-info-code-block-container {
-    padding: var(--size-6);
+    padding: 6px;
   }
 
   .dev-tools-info-code-block {
@@ -146,11 +146,11 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
     display: flex;
     justify-content: center;
     align-items: center;
-    right: var(--size-8);
-    top: var(--size-8);
-    padding: var(--size-4);
-    height: var(--size-24);
-    width: var(--size-24);
+    right: 8px;
+    top: 8px;
+    padding: 4px;
+    height: var(--rem-px-24);
+    width: var(--rem-px-24);
     border-radius: var(--rounded-md-2);
     border: 1px solid var(--color-gray-alpha-400);
     background: var(--color-background-100);
@@ -159,7 +159,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   .dev-tools-info-code-block-line {
     display: block;
     line-height: 1.5;
-    padding: 0 1rem;
+    padding: 0 16px;
   }
 
   .dev-tools-info-code-block-line.dev-tools-info-highlight {
