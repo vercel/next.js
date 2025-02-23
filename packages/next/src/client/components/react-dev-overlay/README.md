@@ -2,12 +2,12 @@
 
 ## Project Structure
 
-- `app/` - This directory contains the main entrypoint of the dev overlay for the App Router and it's related source files.
+- `app/` - Main entrypoint and related files for App Router dev overlay.
 - `font/` - Includes Geist fonts that will be served to the client via the internal `/__nextjs_font/...` route.
-- `pages/` - This directory contains the main entrypoint of the dev overlay for the Pages Router and it's related source files.
-- `server/` - This directory contains the source files that are related to the dev overlay, but are to run on the server and not sent to the client.
-- `ui/` - This directory contains the main UI components that are used to build the dev overlay. It is recommended to keep this directory isolated from the rest of the codebase to make it easier to be excluded from compiliation and be bundled in the future.
-- `utils/` - Utils are utils, but unlike the ones inside the `ui/` directory, they can also be used outside of this project.
+- `pages/` - Main entrypoint and related files for Pages Router dev overlay.
+- `server/` - Source files related to the dev overlay that are to run on the server and not sent to the client.
+- `ui/` - Main source files that build the UI of the dev overlay. It is recommended to keep this directory isolated from the rest of the codebase to make it easier to be excluded from compiliation and be bundled in the future.
+- `utils/` - Utils that can also be used outside of this project unlike the ones inside the `ui/` directory.
 
 ## Development
 
@@ -50,7 +50,10 @@ export const COMPONENT_NAME_STYLES = `
 `
 ```
 
-The exported `COMPONENT_NAME_STYLES` can be used in the entrypoint (i.e., `ComponentStyles`) of the dev overlay to inject into the `<style>` tag.
+> [!IMPORTANT]
+> Use the `css()` util that minifies and removes the comments before injecting to the `<style>` tag.
+
+The exported `COMPONENT_NAME_STYLES` can be used in the styles entrypoint (i.e., `ComponentStyles`) of the dev overlay to inject into the `<style>` tag.
 
 ```tsx
 import { COMPONENT_NAME_STYLES } from './component'
@@ -62,10 +65,7 @@ export function ComponentStyles() {
         // ...
         ${COMPONENT_NAME_STYLES}
       `}
-    </style>
+    </style
   )
 }
 ```
-
-> [!NOTE]
-> The entry points of the dev overlay (which are using the `<style>` tag) should use the `css` util that minifies and removes the comments from the styles.
