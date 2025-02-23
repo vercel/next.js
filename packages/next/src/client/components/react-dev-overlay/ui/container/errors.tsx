@@ -215,11 +215,11 @@ export const styles = `
     bottom: calc(16px * 4.5);
   }
   p.nextjs__container_errors__link {
-    font-size: 14px;
+    font-size: var(--size-font-small);
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-size: 14px;
+    font-size: var(--size-font-small);
     line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
@@ -262,7 +262,7 @@ export const styles = `
     background: none;
     border: none;
     color: var(--color-ansi-bright-white);
-    font-size: 1.5rem;
+    font-size: var(--rem-px-24);
     padding: 0;
     margin: 0;
     margin-left: 8px;

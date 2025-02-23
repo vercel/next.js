@@ -52,7 +52,7 @@ const styles = `
   }
 
   .nextjs-static-indicator-toast-text {
-    font-size: 14px;
+    font-size: var(--size-font-small);
     display: flex;
     align-items: center;
     justify-content: center;

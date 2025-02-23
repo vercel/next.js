@@ -646,7 +646,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     color: var(--color-gray-1000);
     border-radius: 128px;
     font-weight: 500;
-    font-size: 13px;
+    font-size: var(--size-font-13);
     font-variant-numeric: tabular-nums;
 
     &[data-has-issues='true'] {

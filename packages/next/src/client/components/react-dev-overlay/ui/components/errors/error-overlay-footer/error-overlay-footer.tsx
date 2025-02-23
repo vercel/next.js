@@ -38,7 +38,7 @@ export const styles = `
     margin-left: auto;
 
     p {
-      font-size: var(--rem-px-14);
+      font-size: var(--size-font-small);
       font-weight: 500;
       margin: 0;
     }
@@ -47,7 +47,7 @@ export const styles = `
   .error-overlay-footer-message {
     color: var(--color-gray-900);
     margin: 0;
-    font-size: var(--rem-px-14);
+    font-size: var(--size-font-small);
     font-weight: 400;
     line-height: 1.43em; /* 20px in 14px font size */
   }

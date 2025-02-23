@@ -243,7 +243,7 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-open] {
-            font-size: 13px;
+            font-size: var(--size-font-13);
             color: white;
             width: fit-content;
             height: 100%;

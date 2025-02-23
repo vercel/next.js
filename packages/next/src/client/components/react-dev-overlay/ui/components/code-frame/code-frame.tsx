@@ -120,7 +120,7 @@ export const CODE_FRAME_STYLES = `
     border: 1px solid var(--color-gray-400);
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
-    font-size: 12px;
+    font-size: var(--size-font-smaller);
     line-height: 16px;
     margin: 8px 0;
   }
