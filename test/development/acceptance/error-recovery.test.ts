@@ -56,6 +56,31 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(
+        `
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Unexpected eof
+         │     │    ,-[<FIXME-project-root>/index.js:1:1]
+         │     │  1 | export default () => <div/
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
+         "stack": [],
+       }
+      `
+      )
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -335,6 +360,35 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Expected '{', got 'return'
+         │     │    ,-[<FIXME-project-root>/index.js:5:1]
+         │     │  2 |
+         │     │  3 | class ClassDefault extends React.Component {
+         │     │  4 |   render()
+         │     │  5 |     return <h1>Default Export</h1>;
+         │     │    :     ^^^^^^
+         │     │  6 |   }
+         │     │  7 | }
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -345,7 +399,7 @@ describe('pages/ error recovery', () => {
          "source": "./index.js
        Error:   x Expected '{', got 'return'
           ,-[5:1]
-        2 | 
+        2 |
         3 | class ClassDefault extends React.Component {
         4 |   render()
         5 |     return <h1>Default Export</h1>;
@@ -394,6 +448,36 @@ describe('pages/ error recovery', () => {
          "stack": [],
        }
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Expected '{', got 'throw'
+         │     │    ,-[<FIXME-project-root>/index.js:5:1]
+         │     │  2 |
+         │     │  3 | class ClassDefault extends React.Component {
+         │     │  4 |   render()
+         │     │  5 |     throw new Error('nooo');
+         │     │    :     ^^^^^
+         │     │  6 |     return <h1>Default Export</h1>;
+         │     │  7 |   }
+         │     │  8 | }
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -404,7 +488,7 @@ describe('pages/ error recovery', () => {
          "source": "./index.js
        Error:   x Expected '{', got 'throw'
           ,-[5:1]
-        2 | 
+        2 |
         3 | class ClassDefault extends React.Component {
         4 |   render()
         5 |     throw new Error('nooo');
@@ -470,15 +554,12 @@ describe('pages/ error recovery', () => {
          "count": 1,
          "description": "Error: nooo",
          "environmentLabel": null,
-         "label": "Unhandled Runtime Error",
+         "label": "Runtime Error",
          "source": "index.js (5:11) @ ClassDefault.render
        > 5 |     throw new Error('nooo');
            |           ^",
          "stack": [
            "ClassDefault.render index.js (5:11)",
-           "Set.forEach <anonymous> (0:0)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
          ],
        }
       `)
@@ -616,21 +697,37 @@ describe('pages/ error recovery', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    await expect(browser).toDisplayRedbox(`
-     {
-       "count": 1,
-       "description": "Error: no 1",
-       "environmentLabel": null,
-       "label": "Unhandled Runtime Error",
-       "source": "index.js (5:9) @ eval
-     > 5 |   throw Error('no ' + i)
-         |         ^",
-       "stack": [
-         "eval index.js (5:9)",
-       ],
-     }
-    `)
-
+    if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: no 1",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "index.js (5:9) @ <unknown>
+       > 5 |   throw Error('no ' + i)
+           |         ^",
+         "stack": [
+           "<unknown> index.js (5:9)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+            {
+              "count": 1,
+              "description": "Error: no 1",
+              "environmentLabel": null,
+              "label": "Unhandled Runtime Error",
+              "source": "index.js (5:9) @ eval
+            > 5 |   throw Error('no ' + i)
+                |         ^",
+              "stack": [
+                "eval index.js (5:9)",
+              ],
+            }
+          `)
+    }
     // Make a syntax error.
     await session.patch(
       'index.js',
@@ -659,6 +756,33 @@ describe('pages/ error recovery', () => {
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
            |                                         ^",
+         "stack": [],
+       }
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Expected '}', got '<eof>'
+         │     │    ,-[<FIXME-project-root>/index.js:7:1]
+         │     │  4 |   i++
+         │     │  5 |   throw Error('no ' + i)
+         │     │  6 | }, 1000)
+         │     │  7 | export default function FunctionNamed() {
+         │     │    :                                         ^
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
          "stack": [],
        }
       `)
@@ -703,6 +827,33 @@ describe('pages/ error recovery', () => {
        Parsing ecmascript source code failed
        > 7 | export default function FunctionNamed() {
            |                                         ^",
+         "stack": [],
+       }
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ├─▶   ×
+         │     │   x Expected '}', got '<eof>'
+         │     │    ,-[<FIXME-project-root>/index.js:7:1]
+         │     │  4 |   i++
+         │     │  5 |   throw Error('no ' + i)
+         │     │  6 | }, 1000)
+         │     │  7 | export default function FunctionNamed() {
+         │     │    :                                         ^
+         │     │    \`----
+         │     │
+         │
+         ╰─▶ Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
          "stack": [],
        }
       `)
