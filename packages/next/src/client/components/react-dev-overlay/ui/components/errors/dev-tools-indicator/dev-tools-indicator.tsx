@@ -30,7 +30,9 @@ export function DevToolsIndicator({
   state: OverlayState
   errorCount: number
   isBuildError: boolean
-  setIsErrorOverlayOpen: () => void
+  setIsErrorOverlayOpen: (
+    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
+  ) => void
   // Technically this prop isn't needed, but useful for testing.
   position?: DevToolsIndicatorPosition
 }) {
