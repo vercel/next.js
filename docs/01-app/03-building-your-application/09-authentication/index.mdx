@@ -674,6 +674,8 @@ export async function createSession(userId) {
 Back in your Server Action, you can invoke the `createSession()` function, and use the [`redirect()`](/docs/app/building-your-application/routing/redirecting) API to redirect the user to the appropriate page:
 
 ```ts filename="app/actions/auth.ts" switcher
+'use server'
+
 import { createSession } from '@/app/lib/session'
 
 export async function signup(state: FormState, formData: FormData) {
@@ -691,6 +693,8 @@ export async function signup(state: FormState, formData: FormData) {
 ```
 
 ```js filename="app/actions/auth.js" switcher
+'use server'
+
 import { createSession } from '@/app/lib/session'
 
 export async function signup(state, formData) {
