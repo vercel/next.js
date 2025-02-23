@@ -9,7 +9,7 @@ pnpm build
 > [!TIP]
 > Next.js uses [taskr](https://www.npmjs.com/package/taskr) to parallelize the build tasks.
 > The tasks can be found in the [`taskfile.js`](../../packages/next/taskfile.js) file, and each task name refers to the name of the function to execute.
-> For example, `taskr release` will execute the `release` function in the `taskfile.js` file.
+> For example, `taskr release` will execute the `release()` function in the `taskfile.js` file.
 
 The build process consists of the three main tasks:
 
@@ -19,7 +19,7 @@ The build process consists of the three main tasks:
 
 ### Compile the TypeScript Sources with SWC
 
-By default, the latest canary of the `next-swc` binaries will be installed and used to compile the TypeScript sources of the project. These sources are meant to be built inside the `packages/next/dist/...` directory.
+By default, the latest canary of the `next-swc` binaries will be installed and used to compile the TypeScript sources of the project. These sources are meant to be built inside the `packages/next/dist/...` directory. The outputs will include compiled JavaScript files and source maps.
 
 ### Bundle the Project with Webpack
 
