@@ -82,10 +82,7 @@ export function Base() {
           --rounded-3xl: 1.5rem; /* 24px */
           --rounded-full: 9999px;
 
-          /* 
-            Values to be used where responsive behavior is desirable.        
-            E.g. we generally want to scale font sizes, but not radii or padding which would make things feel more cramped.
-          */
+          /* --rem-px-N: rem value of Npx in base font size 16px. */
           --rem-px-1: 0.0625rem;
           --rem-px-2: 0.125rem;
           --rem-px-3: 0.1875rem;
