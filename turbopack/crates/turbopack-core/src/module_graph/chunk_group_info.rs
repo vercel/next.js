@@ -19,7 +19,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::ChunkingType,
+    chunk::{ChunkGroupType, ChunkingType},
     module::Module,
     module_graph::{
         get_node, GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
@@ -91,12 +91,14 @@ pub struct ChunkGroupInfo {
     pub chunk_groups: Vec<ChunkGroup>,
 }
 
-#[derive(
-    Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
-)]
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Hash)]
 pub enum ChunkGroup {
     /// e.g. a page
-    Entry(ResolvedVc<Box<dyn Module>>),
+    Entry {
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        ty: ChunkGroupType,
+    },
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming non-merged isolated edge
@@ -120,11 +122,11 @@ pub enum ChunkGroup {
 impl ChunkGroup {
     pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         match self {
-            ChunkGroup::Entry(e)
-            | ChunkGroup::Async(e)
-            | ChunkGroup::Isolated(e)
-            | ChunkGroup::Shared(e) => Either::Left(std::iter::once(*e)),
-            ChunkGroup::IsolatedMerged { entries, .. }
+            ChunkGroup::Async(e) | ChunkGroup::Isolated(e) | ChunkGroup::Shared(e) => {
+                Either::Left(std::iter::once(*e))
+            }
+            ChunkGroup::Entry { entries, .. }
+            | ChunkGroup::IsolatedMerged { entries, .. }
             | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
         }
     }
@@ -133,7 +135,10 @@ impl ChunkGroup {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroupKey {
     /// e.g. a page
-    Entry(ResolvedVc<Box<dyn Module>>),
+    Entry {
+        entries: Vec<ResolvedVc<Box<dyn Module>>>,
+        ty: ChunkGroupType,
+    },
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming non-merged isolated edge
@@ -225,25 +230,43 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         // use all entries from all graphs
         let entries = graphs
             .iter()
-            .flat_map(|g| g.entries.iter().copied())
+            .flat_map(|g| g.entries.iter())
             .collect::<Vec<_>>();
-        let entries = &entries;
         graph
-            .traverse_edges_from_entries_bfs(entries, |parent, node| {
-                if let Some((parent, _)) = parent {
-                    let parent_depth = *module_depth.get(&parent.module).unwrap();
-                    module_depth.entry(node.module).or_insert(parent_depth + 1);
-                } else {
-                    module_depth.insert(node.module, 0);
-                };
+            .traverse_edges_from_entries_bfs(
+                entries.iter().flat_map(|(e, _)| e).copied(),
+                |parent, node| {
+                    if let Some((parent, _)) = parent {
+                        let parent_depth = *module_depth.get(&parent.module).unwrap();
+                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                    } else {
+                        module_depth.insert(node.module, 0);
+                    };
 
-                module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
+                    module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
 
-                GraphTraversalAction::Continue
-            })
+                    GraphTraversalAction::Continue
+                },
+            )
             .await?;
 
         // ----
+
+        let entry_chunk_group_keys = graphs
+            .iter()
+            .flat_map(|g| g.entries.iter())
+            .flat_map(|(entries, ty)| {
+                entries.iter().map(|e| {
+                    (
+                        *e,
+                        ChunkGroupKey::Entry {
+                            entries: entries.clone(),
+                            ty: *ty,
+                        },
+                    )
+                })
+            })
+            .collect::<FxHashMap<_, _>>();
 
         let mut visitor =
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
@@ -310,7 +333,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     }
                 } else {
                     ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                        ChunkGroupKey::Entry(node.module),
+                        entry_chunk_group_keys.get(&node.module).unwrap().clone(),
                     )))
                 };
 
@@ -393,7 +416,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         {
             let mut queue_set = FxHashSet::default();
             let mut queue = BinaryHeap::with_capacity(entries.len());
-            for e in entries {
+            for e in entries.iter().flat_map(|(e, _)| e) {
                 queue.push(NodeWithPriority {
                     depth: *module_depth.get(e).unwrap(),
                     chunk_group_len: 0,
@@ -450,7 +473,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             chunk_groups: chunk_groups_map
                 .into_iter()
                 .map(|(k, (_, isolated_merged_entries))| match k {
-                    ChunkGroupKey::Entry(module) => ChunkGroup::Entry(module),
+                    ChunkGroupKey::Entry { entries, ty } => ChunkGroup::Entry { entries, ty },
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
                     ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
