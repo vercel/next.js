@@ -38,11 +38,11 @@ export const styles = `
   }
 
   .error-overlay-bottom-stack-layer-1 {
-    width: calc(100% - var(--size-6));
+    width: calc(100% - var(--rem-px-24));
   }
 
   .error-overlay-bottom-stack-layer-2 {
-    width: calc(100% - var(--size-12));
+    width: calc(100% - var(--rem-px-48));
     z-index: -1;
   }
 

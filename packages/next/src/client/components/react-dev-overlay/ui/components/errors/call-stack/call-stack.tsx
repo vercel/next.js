@@ -121,7 +121,7 @@ function ChevronUpDown() {
 export const CALL_STACK_STYLES = `
   .error-overlay-call-stack-container {
     position: relative;
-    margin-top: var(--size-2);
+    margin-top: var(--rem-px-8);
   }
 
   .error-overlay-call-stack-header {
@@ -129,7 +129,7 @@ export const CALL_STACK_STYLES = `
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    padding: var(--size-2) var(--size-2) var(--size-3) var(--size-1);
+    padding: var(--rem-px-8) var(--rem-px-8) var(--rem-px-12) var(--rem-px-4);
     width: 100%;
   }
 
@@ -137,14 +137,14 @@ export const CALL_STACK_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: var(--size-2);
+    gap: var(--rem-px-8);
 
     margin: 0;
 
     color: var(--color-gray-1000);
     font-size: var(--size-font);
     font-weight: 500;
-    line-height: var(--size-5);
+    line-height: var(--rem-px-20);
   }
 
   .error-overlay-call-stack-count {
@@ -154,13 +154,13 @@ export const CALL_STACK_STYLES = `
 
     width: 20px;
     height: 20px;
-    gap: var(--size-1);
+    gap: var(--rem-px-4);
 
     color: var(--color-gray-1000);
     text-align: center;
     font-size: var(--size-font-11);
     font-weight: 500;
-    line-height: var(--size-4);
+    line-height: var(--rem-px-16);
 
     border-radius: var(--rounded-full);
     background: var(--color-gray-300);
@@ -173,7 +173,7 @@ export const CALL_STACK_STYLES = `
     gap: 6px;
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    line-height: var(--rem-px-20);
     border-radius: 6px;
     padding: 4px 6px;
     margin-right: -6px;

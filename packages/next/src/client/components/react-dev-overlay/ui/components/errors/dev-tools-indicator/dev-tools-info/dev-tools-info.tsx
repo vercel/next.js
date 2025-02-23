@@ -69,11 +69,11 @@ export const DEV_TOOLS_INFO_STYLES = `
   }
 
   .dev-tools-info-container {
-    padding: var(--size-1_5);
+    padding: var(--rem-px-6);
   }
 
   .dev-tools-info-title {
-    padding: var(--size-2) var(--size-1_5);
+    padding: var(--rem-px-8) var(--rem-px-6);
     color: var(--color-gray-1000);
     font-size: 14px;
     font-weight: 500;
@@ -82,7 +82,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   }
 
   .dev-tools-info-article {
-    padding: var(--size-2) var(--size-1_5);
+    padding: var(--rem-px-8) var(--rem-px-6);
     color: var(--color-gray-1000);
     font-size: 14px;
     line-height: 20px;
@@ -98,11 +98,11 @@ export const DEV_TOOLS_INFO_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--size-2) var(--size-1_5);
+    padding: var(--rem-px-8) var(--rem-px-6);
   }
 
   .dev-tools-info-close-button {
-    padding: 0 var(--size-2);
+    padding: 0 var(--rem-px-8);
     height: 28px;
     font-size: 14px;
     font-weight: 500;
@@ -120,7 +120,7 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-learn-more-button {
     align-content: center;
-    padding: 0 var(--size-2);
+    padding: 0 var(--rem-px-8);
     height: 28px;
     font-size: 14px;
     font-weight: 500;

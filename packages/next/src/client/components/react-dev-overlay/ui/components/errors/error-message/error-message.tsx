@@ -50,12 +50,12 @@ export const styles = `
 
   .nextjs__container_errors_desc {
     margin: 0;
-    margin-left: var(--size-1);
+    margin-left: var(--rem-px-4);
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-font);
     letter-spacing: -0.32px;
-    line-height: var(--size-6);
+    line-height: var(--rem-px-24);
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }

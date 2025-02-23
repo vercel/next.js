@@ -93,7 +93,7 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--size-1);
+    gap: var(--rem-px-4);
 
     height: 26px;
     padding: 6px 8px 6px 6px;
@@ -106,7 +106,7 @@ export const styles = `
     color: var(--color-gray-900);
     font-size: 12px;
     font-weight: 500;
-    line-height: var(--size-4);
+    line-height: var(--rem-px-16);
   }
 
   a.nextjs-container-build-error-version-status {

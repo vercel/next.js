@@ -29,7 +29,7 @@ export const styles = `
     justify-content: space-between;
 
     gap: var(--size-gap);
-    padding: var(--size-3);
+    padding: var(--rem-px-12);
     background: var(--color-background-200);
     border-top: 1px solid var(--color-gray-400);
   }

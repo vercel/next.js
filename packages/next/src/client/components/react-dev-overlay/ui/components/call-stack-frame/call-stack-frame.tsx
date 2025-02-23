@@ -70,8 +70,8 @@ export const CallStackFrame: React.FC<{
 
 export const CALL_STACK_FRAME_STYLES = `
   [data-nextjs-call-stack-frame-ignored] {
-    padding: var(--size-1_5) var(--size-2);
-    margin-bottom: var(--size-1);
+    padding: var(--rem-px-6) var(--rem-px-8);
+    margin-bottom: var(--rem-px-4);
 
     border-radius: var(--rounded-lg);
   }
@@ -98,15 +98,15 @@ export const CALL_STACK_FRAME_STYLES = `
   .call-stack-frame-method-name {
     display: flex;
     align-items: center;
-    gap: var(--size-1);
+    gap: var(--rem-px-4);
 
-    margin-bottom: var(--size-1);
+    margin-bottom: var(--rem-px-4);
     font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
     font-size: var(--size-font-small);
     font-weight: 500;
-    line-height: var(--size-5);
+    line-height: var(--rem-px-20);
   }
 
   .open-in-editor-button {
@@ -130,6 +130,6 @@ export const CALL_STACK_FRAME_STYLES = `
   .call-stack-frame-file-source {
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    line-height: var(--rem-px-20);
   }
 `

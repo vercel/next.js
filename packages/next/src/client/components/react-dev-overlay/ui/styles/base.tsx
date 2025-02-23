@@ -82,32 +82,43 @@ export function Base() {
           --rounded-3xl: 1.5rem; /* 24px */
           --rounded-full: 9999px;
 
-          --size-0: 0px;
-          --size-px: 1px;
-          --size-0_5: 0.125rem; /* 2px */
-          --size-1: 0.25rem; /* 4px */
-          --size-1_5: 0.375rem; /* 6px */
-          --size-2: 0.5rem; /* 8px */
-          --size-2_5: 0.625rem; /* 10px */
-          --size-3: 0.75rem; /* 12px */
-          --size-3_5: 0.875rem; /* 14px */
-          --size-4: 1rem; /* 16px */
-          --size-4_5: 1.125rem; /* 18px */
-          --size-5: 1.25rem; /* 20px */
-          --size-5_5: 1.375rem; /* 22px */
-          --size-6: 1.5rem; /* 24px */
-          --size-6_5: 1.625rem; /* 26px */
-          --size-7: 1.75rem; /* 28px */
-          --size-7_5: 1.875rem; /* 30px */
-          --size-8: 2rem; /* 32px */
-          --size-8_5: 2.125rem; /* 34px */
-          --size-9: 2.25rem; /* 36px */
-          --size-9_5: 2.375rem; /* 38px */
-          --size-10: 2.5rem; /* 40px */
-          --size-10_5: 2.625rem; /* 42px */
-          --size-11: 2.75rem; /* 44px */
-          --size-11_5: 2.875rem; /* 46px */
-          --size-12: 3rem; /* 48px */
+          /* 
+            Values to be used where responsive behavior is desirable.        
+            E.g. we generally want to scale font sizes, but not radii or padding which would make things feel more cramped.
+          */
+          --rem-px-1: 0.0625rem;
+          --rem-px-2: 0.125rem;
+          --rem-px-3: 0.1875rem;
+          --rem-px-4: 0.25rem;
+          --rem-px-5: 0.3125rem;
+          --rem-px-6: 0.375rem;
+          --rem-px-7: 0.4375rem;
+          --rem-px-8: 0.5rem;
+          --rem-px-9: 0.5625rem;
+          --rem-px-10: 0.625rem;
+          --rem-px-11: 0.6875rem;
+          --rem-px-12: 0.75rem;
+          --rem-px-13: 0.8125rem;
+          --rem-px-14: 0.875rem;
+          --rem-px-15: 0.9375rem;
+          --rem-px-16: 1rem;
+          --rem-px-17: 1.0625rem;
+          --rem-px-18: 1.125rem;
+          --rem-px-20: 1.25rem;
+          --rem-px-22: 1.375rem;
+          --rem-px-24: 1.5rem;
+          --rem-px-26: 1.625rem;
+          --rem-px-28: 1.75rem;
+          --rem-px-30: 1.875rem;
+          --rem-px-32: 2rem;
+          --rem-px-34: 2.125rem;
+          --rem-px-36: 2.25rem;
+          --rem-px-38: 2.375rem;
+          --rem-px-40: 2.5rem;
+          --rem-px-42: 2.625rem;
+          --rem-px-44: 2.75rem;
+          --rem-px-46: 2.875rem;
+          --rem-px-48: 3rem;
 
           @media print {
             display: none;
