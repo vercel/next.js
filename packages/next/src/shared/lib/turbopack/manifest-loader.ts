@@ -481,6 +481,26 @@ export class TurbopackManifestLoader {
     )
   }
 
+  private async writeClientMiddlewareManifest(): Promise<void> {
+    const middlewareManifest = this.mergeMiddlewareManifests(
+      this.middlewareManifests.values()
+    )
+
+    const matchers = middlewareManifest?.middleware['/']?.matchers || []
+
+    const clientMiddlewareManifestPath = join(
+      this.distDir,
+      'static',
+      this.buildId,
+      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+    )
+    deleteCache(clientMiddlewareManifestPath)
+    await writeFileAtomic(
+      clientMiddlewareManifestPath,
+      JSON.stringify(matchers, null, 2)
+    )
+  }
+
   private async writeFallbackBuildManifest(): Promise<void> {
     const fallbackBuildManifest = this.mergeBuildManifests(
       [
@@ -662,19 +682,6 @@ export class TurbopackManifestLoader {
       middlewareManifestPath,
       JSON.stringify(middlewareManifest, null, 2)
     )
-
-    const clientManifestPath = join(
-      this.distDir,
-      'static',
-      this.buildId,
-      TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
-    )
-
-    // if we didn't generate middleware output we need to
-    // create an empty manifest still
-    if (!existsSync(clientManifestPath)) {
-      await writeFileAtomic(clientManifestPath, JSON.stringify([]))
-    }
   }
 
   async loadPagesManifest(pageName: string): Promise<void> {
@@ -717,6 +724,7 @@ export class TurbopackManifestLoader {
     await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
     await this.writeMiddlewareManifest()
+    await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
 

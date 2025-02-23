@@ -282,25 +282,6 @@ impl MiddlewareEndpoint {
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
-            let middleware_client_manifest = VirtualOutputAsset::new(
-                this.project.node_root().join(
-                    format!(
-                        "static/{}/_clientMiddlewareManifest.json",
-                        this.build_id.clone()
-                    )
-                    .into(),
-                ),
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &matchers.clone(),
-                    )?))
-                    .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
-            output_assets.push(ResolvedVc::upcast(middleware_client_manifest));
-
             Ok(Vc::cell(output_assets))
         } else {
             let edge_files = self.edge_files();
@@ -360,25 +341,6 @@ impl MiddlewareEndpoint {
             .to_resolved()
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
-
-            let middleware_client_manifest = VirtualOutputAsset::new(
-                this.project.node_root().join(
-                    format!(
-                        "static/{}/_clientMiddlewareManifest.json",
-                        this.build_id.clone()
-                    )
-                    .into(),
-                ),
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(
-                        &matchers.clone(),
-                    )?))
-                    .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
-            output_assets.push(ResolvedVc::upcast(middleware_client_manifest));
 
             Ok(Vc::cell(output_assets))
         }

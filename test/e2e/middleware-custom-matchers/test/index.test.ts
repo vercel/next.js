@@ -16,6 +16,13 @@ describe('Middleware custom matchers', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(join(__dirname, '../app')),
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(
+              join(__dirname, '../app/middleware-node.js')
+            ),
+          }
+        : {},
     })
   })
   afterAll(() => next.destroy())
