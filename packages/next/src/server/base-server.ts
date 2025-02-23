@@ -2067,11 +2067,6 @@ export default abstract class Server<
       }
     }
 
-    const isHtmlBot = isHtmlBotRequest(req)
-    if (isHtmlBot) {
-      this.renderOpts.serveStreamingMetadata = false
-    }
-
     if (
       hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
@@ -2082,11 +2077,6 @@ export default abstract class Server<
       isSSG = true
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
-      if (isHtmlBot) {
-        // When it's html limited bots request, disable SSG
-        // and perform the full blocking & dynamic rendering.
-        isSSG = false
-      }
     }
 
     // Toggle whether or not this is a Data request
@@ -2226,6 +2216,12 @@ export default abstract class Server<
       req,
       'segmentPrefetchRSCRequest'
     )
+
+    const isHtmlBot = isHtmlBotRequest(req)
+    if (isHtmlBot && isRoutePPREnabled) {
+      isSSG = false
+      this.renderOpts.serveStreamingMetadata = false
+    }
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -2483,7 +2479,11 @@ export default abstract class Server<
         query: origQuery,
       })
 
-      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBot
+      const shouldWaitOnAllReady =
+        !supportsDynamicResponse ||
+        // When html bots request PPR page, perform the full dynamic rendering.
+        (isHtmlBot && isRoutePPREnabled)
+
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
