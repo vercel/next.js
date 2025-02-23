@@ -122,7 +122,7 @@ export const CODE_FRAME_STYLES = `
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
-    margin: var(--size-8) 0;
+    margin: 8px 0;
   }
 
   .code-frame-link,

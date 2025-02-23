@@ -93,7 +93,7 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--size-4);
+    gap: 4px;
 
     height: 26px;
     padding: 6px 8px 6px 6px;

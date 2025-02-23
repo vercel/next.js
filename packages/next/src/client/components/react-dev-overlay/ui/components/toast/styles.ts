@@ -18,7 +18,7 @@ const styles = `
 
   .nextjs-toast-errors-parent {
     padding: 16px;
-    border-radius: 32px;
+    border-radius: var(--rounded-4xl);
     font-weight: 500;
     color: var(--color-ansi-bright-white);
     background-color: var(--color-ansi-red);
@@ -29,7 +29,7 @@ const styles = `
     height: 30px;
     overflow: hidden;
     border: 0;
-    border-radius: 24px;
+    border-radius: var(--rounded-3xl);
     background: var(--color-background);
     color: var(--color-font);
     transition: all 0.3s ease-in-out;

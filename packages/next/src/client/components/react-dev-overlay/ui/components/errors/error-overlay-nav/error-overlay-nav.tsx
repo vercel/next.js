@@ -68,7 +68,7 @@ export const styles = `
 
       &[data-side='left'] {
         padding-right: 0;
-        border-radius: var(--next-dialog-radius) 0 0 0;
+        border-radius: var(--rounded-xl) 0 0 0;
 
         .error-overlay-notch-tail {
           right: -54px;
@@ -81,7 +81,7 @@ export const styles = `
 
       &[data-side='right'] {
         padding-left: 0;
-        border-radius: 0 var(--next-dialog-radius) 0 0;
+        border-radius: 0 var(--rounded-xl) 0 0;
 
         .error-overlay-notch-tail {
           left: -54px;

@@ -665,7 +665,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-shortcut {
     display: flex;
-    gap: var(--size-4);
+    gap: 4px;
 
     kbd {
       width: var(--size-20);

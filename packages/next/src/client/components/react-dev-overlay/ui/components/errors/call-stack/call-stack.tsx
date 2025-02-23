@@ -154,7 +154,7 @@ export const CALL_STACK_STYLES = `
 
     width: 20px;
     height: 20px;
-    gap: var(--size-4);
+    gap: 4px;
 
     color: var(--color-gray-1000);
     text-align: center;

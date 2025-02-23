@@ -24,7 +24,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
-    margin-left: var(--size-12);
+    margin-left: 12px;
     &:focus {
       outline: none;
     }
@@ -33,8 +33,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     background: var(--color-green-300);
   }
   [data-nextjs-container-errors-pseudo-html-line-sign] {
-    margin-left: calc(var(--size-24) * -1);
-    margin-right: var(--size-24);
+    margin-left: calc(24px * -1);
+    margin-right: 24px;
   }
   [data-nextjs-container-errors-pseudo-html--diff='add']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
@@ -46,8 +46,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html--diff='remove']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
     color: var(--color-red-900);
-    margin-left: calc(var(--size-24) * -1);
-    margin-right: var(--size-24);
+    margin-left: calc(24px * -1);
+    margin-right: 24px;
   }
   [data-nextjs-container-errors-pseudo-html--diff='error']
     [data-nextjs-container-errors-pseudo-html-line-sign] {

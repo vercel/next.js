@@ -14,6 +14,13 @@ export function Base() {
           */
           position: absolute;
 
+          --size-font-11: 11px;
+          --size-font-smaller: 12px;
+          --size-font-small: 14px;
+          --size-font: 16px;
+          --size-font-big: 20px;
+          --size-font-bigger: 24px;
+
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
           --color-border-shadow: rgba(0, 0, 0, 0.145);
@@ -66,6 +73,7 @@ export function Base() {
           --rounded-xl: 12px;
           --rounded-2xl: 16px;
           --rounded-3xl: 24px;
+          --rounded-4xl: 32px;
           --rounded-full: 9999px;
 
           /* 

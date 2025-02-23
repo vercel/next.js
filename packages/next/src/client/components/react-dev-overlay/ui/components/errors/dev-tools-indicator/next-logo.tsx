@@ -222,14 +222,14 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-issues] {
             display: flex;
-            gap: var(--rem-px-2);
+            gap: 2px;
             align-items: center;
             padding-left: 8px;
             padding-right: ${disabled || isBuildError
               ? '8px'
-              : 'calc(var(--rem-px-2) * 2)'};
+              : 'calc(2px * 2)'};
             height: 32px;
-            margin: 0 var(--rem-px-2);
+            margin: 0 2px;
             border-radius: 9999px;
             transition: background var(--duration-short) ease;
 
@@ -279,7 +279,7 @@ export const NextLogo = forwardRef(function NextLogo(
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: var(--rem-px-2);
+            margin-left: 2px;
             display: flex;
             align-items: center;
             border-radius: 9999px;

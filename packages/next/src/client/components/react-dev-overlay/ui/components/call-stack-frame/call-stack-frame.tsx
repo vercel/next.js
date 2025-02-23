@@ -98,9 +98,9 @@ export const CALL_STACK_FRAME_STYLES = `
   .call-stack-frame-method-name {
     display: flex;
     align-items: center;
-    gap: var(--size-4);
+    gap: 4px;
 
-    margin-bottom: var(--size-4);
+    margin-bottom: 4px;
     font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
