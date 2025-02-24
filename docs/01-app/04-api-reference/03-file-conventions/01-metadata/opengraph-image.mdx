@@ -411,7 +411,7 @@ import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+  const base64Image = `data:image/png;base64,${Buffer.from(logoData).toString('base64')}`
 
   return new ImageResponse(
     (
@@ -422,7 +422,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
-        <img src={logoSrc} height="100" />
+        <img src={base64Image} height={100} />
       </div>
     )
   )
@@ -436,7 +436,7 @@ import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  const logoSrc = Uint8Array.from(logoData).buffer
+  const base64Image = `data:image/png;base64,${Buffer.from(logoData).toString('base64')}`
 
   return new ImageResponse(
     (
@@ -447,7 +447,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
-        <img src={logoSrc} height="100" />
+        <img src={base64Image} height="100" />
       </div>
     )
   )
