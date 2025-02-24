@@ -495,8 +495,8 @@ impl ProjectContainer {
         self.project().hmr_identifiers()
     }
 
-    /// Gets a source map for a particular `file_path`. If `dev` mode is
-    /// disabled, this will always return [`OptionSourceMap::none`].
+    /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
+    /// return [`OptionStringifiedSourceMap::none`].
     #[turbo_tasks::function]
     pub fn get_source_map(
         &self,
