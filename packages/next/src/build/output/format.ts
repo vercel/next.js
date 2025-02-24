@@ -38,7 +38,7 @@ function humanReadableTimeRounded(seconds: number): string {
     return `${value} ${candidate.label}`
   }
 
-  return `~${Math.round(value)} ${candidate.label}`
+  return `≈${Math.round(value)} ${candidate.label}`
 }
 
 export function formatCacheControl(cacheControl: CacheControl): string {
