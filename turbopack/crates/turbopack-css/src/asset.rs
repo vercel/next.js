@@ -77,9 +77,7 @@ impl ParseCss for CssModuleAsset {
         Ok(parse_css(
             *this.source,
             Vc::upcast(self),
-            this.import_context
-                .map(|v| *v)
-                .unwrap_or_else(|| ImportContext::new(vec![], vec![], vec![])),
+            this.import_context.map(|v| *v),
             this.ty,
         ))
     }
