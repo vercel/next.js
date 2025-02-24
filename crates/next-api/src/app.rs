@@ -1735,13 +1735,6 @@ impl AppEndpoint {
                 let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
                 evaluatable_assets.push(rsc_entry);
 
-                let entry_chunk_group_idx = *module_graph
-                    .chunk_group_info()
-                    .get_index_of(ChunkGroup::Entry(
-                        [ResolvedVc::upcast(rsc_entry)].into_iter().collect(),
-                    ))
-                    .await?;
-
                 async {
                     let mut current_chunks = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
@@ -1750,14 +1743,18 @@ impl AppEndpoint {
                     if !client_references.server_utils.is_empty() {
                         let span = tracing::trace_span!("server utils");
                         async {
-                            let server_utils = client_references
-                                .server_utils
-                                .iter()
-                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                                .try_join()
+                            let server_utils_chunk_group = module_graph
+                                .chunk_group_info()
+                                .get_merged_group(
+                                    ChunkGroup::Entry(
+                                        [ResolvedVc::upcast(rsc_entry)].into_iter().collect(),
+                                    ),
+                                    NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                                )
                                 .await?
-                                .into_iter()
-                                .collect();
+                                .first()
+                                .cloned()
+                                .unwrap();
 
                             let chunk_group = chunking_context
                                 .chunk_group(
@@ -1765,16 +1762,11 @@ impl AppEndpoint {
                                         this.app_project.project().project_path(),
                                     )
                                     .with_modifier(server_utils_modifier()),
-                                    ChunkGroup::SharedMerged {
-                                        parent: entry_chunk_group_idx as usize,
-                                        merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                        entries: server_utils,
-                                    },
+                                    server_utils_chunk_group,
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )
                                 .await?;
-
                             current_chunks = current_chunks
                                 .concatenate(*chunk_group.assets)
                                 .resolve()
