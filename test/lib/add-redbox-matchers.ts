@@ -151,7 +151,12 @@ async function createRedboxSnapshot(
         ? description.replace(next.testDir, '<FIXME-project-root>')
         : description,
     source: focusedSource,
-    stack,
+    stack:
+      next !== null
+        ? stack.map((stackframe) => {
+            return stackframe.replace(next.testDir, '<FIXME-project-root>')
+          })
+        : stack,
     // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
     count: label === 'Build Error' && count === -1 ? 1 : count,
   }
