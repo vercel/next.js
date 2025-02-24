@@ -113,7 +113,7 @@ async function createRedboxSnapshot(
     focusedSource = ''
     const sourceFrameLines = source.split('\n')
     for (let i = 0; i < sourceFrameLines.length; i++) {
-      const sourceFrameLine = sourceFrameLines[i]
+      const sourceFrameLine = sourceFrameLines[i].trimEnd()
       if (sourceFrameLine === '') {
         continue
       }

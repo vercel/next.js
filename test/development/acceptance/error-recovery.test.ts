@@ -345,7 +345,7 @@ describe('pages/ error recovery', () => {
          "source": "./index.js
        Error:   x Expected '{', got 'return'
           ,-[5:1]
-        2 | 
+        2 |
         3 | class ClassDefault extends React.Component {
         4 |   render()
         5 |     return <h1>Default Export</h1>;
@@ -404,7 +404,7 @@ describe('pages/ error recovery', () => {
          "source": "./index.js
        Error:   x Expected '{', got 'throw'
           ,-[5:1]
-        2 | 
+        2 |
         3 | class ClassDefault extends React.Component {
         4 |   render()
         5 |     throw new Error('nooo');

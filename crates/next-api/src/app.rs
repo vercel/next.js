@@ -813,13 +813,14 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
-        extra_entries: Vc<EvaluatableAssets>,
+        client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
-        let extra_entries = extra_entries
+        let client_shared_entries = client_shared_entries
             .await?
             .into_iter()
-            .map(|m| ResolvedVc::upcast(*m));
+            .map(|m| ResolvedVc::upcast(*m))
+            .collect();
 
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
@@ -833,14 +834,17 @@ impl AppProject {
                     } = &*find_server_entries(*rsc_entry).await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited(
-                        vec![(
-                            server_utils
-                                .iter()
-                                .map(|m| ResolvedVc::upcast(*m))
-                                .chain(extra_entries)
-                                .collect(),
-                            ChunkGroupType::Entry,
-                        )],
+                        vec![
+                            (
+                                server_utils
+                                    .iter()
+                                    .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                    .try_join()
+                                    .await?,
+                                ChunkGroupType::Entry,
+                            ),
+                            (client_shared_entries, ChunkGroupType::Evaluated),
+                        ],
                         VisitedModules::empty(),
                     );
                     graphs.push(graph);
@@ -869,7 +873,7 @@ impl AppProject {
                     visited_modules
                 } else {
                     let graph = SingleModuleGraph::new_with_entries_visited(
-                        vec![(extra_entries.collect(), ChunkGroupType::Entry)],
+                        vec![(client_shared_entries, ChunkGroupType::Evaluated)],
                         VisitedModules::empty(),
                     );
                     graphs.push(graph);
