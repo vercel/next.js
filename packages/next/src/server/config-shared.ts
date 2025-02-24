@@ -587,11 +587,6 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * Enables the new dev overlay.
-   */
-  newDevOverlay?: boolean
-
-  /**
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
@@ -1257,7 +1252,6 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: true,
     useCache: undefined,
     slowModuleDetection: undefined,
   },
