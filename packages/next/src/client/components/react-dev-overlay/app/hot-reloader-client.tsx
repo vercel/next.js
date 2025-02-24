@@ -340,7 +340,7 @@ function processMessage(
   }
 
   switch (obj.action) {
-    case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
       if (process.env.__NEXT_DEV_INDICATOR) {
         if (appIsrManifestRef) {
           appIsrManifestRef.current = obj.data
