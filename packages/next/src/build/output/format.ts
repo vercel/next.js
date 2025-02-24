@@ -5,7 +5,7 @@ const timeUnits = [
   { label: 'w', seconds: 604800 },
   { label: 'd', seconds: 86400 },
   { label: 'h', seconds: 3600 },
-  { label: 'min', seconds: 60 },
+  { label: 'm', seconds: 60 },
   { label: 's', seconds: 1 },
 ]
 
@@ -30,26 +30,25 @@ function humanReadableTimeRounded(seconds: number): string {
     const nextValue = seconds / nextUnit.seconds
 
     if (Number.isInteger(nextValue)) {
-      return `${nextValue} ${nextUnit.label}`
+      return `${nextValue}${nextUnit.label}`
     }
   }
 
   if (isExact) {
-    return `${value} ${candidate.label}`
+    return `${value}${candidate.label}`
   }
 
-  return `≈${Math.round(value)} ${candidate.label}`
+  return `≈${Math.round(value)}${candidate.label}`
 }
 
-export function formatCacheControl(cacheControl: CacheControl): string {
-  const { revalidate, expire } = cacheControl
+export function formatRevalidate(cacheControl: CacheControl): string {
+  const { revalidate } = cacheControl
 
-  if (!revalidate) {
-    return ''
-  }
+  return revalidate ? humanReadableTimeRounded(revalidate) : ''
+}
 
-  const readableRevalidate = humanReadableTimeRounded(revalidate)
-  const readableExpire = expire ? humanReadableTimeRounded(expire) : '∞'
+export function formatExpire(cacheControl: CacheControl): string {
+  const { expire } = cacheControl
 
-  return `${readableRevalidate} / ${readableExpire}`
+  return expire ? humanReadableTimeRounded(expire) : ''
 }

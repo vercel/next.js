@@ -17,24 +17,24 @@ describe('build-output-tree-view', () => {
       // TODO: Fix double-listing of the /ppr/[slug] fallback.
 
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                      Size  First Load JS    Cache Life
+       "Route (app)                      Size  First Load JS  Revalidate  Expire
        ┌ ○ /_not-found                N/A kB         N/A kB
        ├ ƒ /api                       N/A kB         N/A kB
        ├ ○ /api/force-static          N/A kB         N/A kB
        ├ ○ /app-static                N/A kB         N/A kB
-       ├ ○ /cache-life                N/A kB         N/A kB     1 h / 1 d
+       ├ ○ /cache-life                N/A kB         N/A kB          1h      1d
        ├ ƒ /dynamic                   N/A kB         N/A kB
-       ├ ◐ /ppr/[slug]                N/A kB         N/A kB    1 w / 30 d
-       ├   ├ /ppr/[slug]                                       1 w / 30 d
-       ├   ├ /ppr/[slug]                                       1 w / 30 d
-       ├   ├ /ppr/days                                          1 d / 1 w
-       ├   └ /ppr/weeks                                        1 w / 30 d
-       └ ○ /revalidate                N/A kB         N/A kB  15 min / 1 y
+       ├ ◐ /ppr/[slug]                N/A kB         N/A kB          1w     30d
+       ├   ├ /ppr/[slug]                                             1w     30d
+       ├   ├ /ppr/[slug]                                             1w     30d
+       ├   ├ /ppr/days                                               1d      1w
+       ├   └ /ppr/weeks                                              1w     30d
+       └ ○ /revalidate                N/A kB         N/A kB         15m      1y
        + First Load JS shared by all  N/A kB
 
-       Route (pages)                    Size  First Load JS    Cache Life
+       Route (pages)                    Size  First Load JS  Revalidate  Expire
        ┌ ƒ /api/hello                 N/A kB         N/A kB
-       ├ ● /gsp-revalidate            N/A kB         N/A kB   5 min / 1 y
+       ├ ● /gsp-revalidate            N/A kB         N/A kB          5m      1y
        ├ ƒ /gssp                      N/A kB         N/A kB
        └ ○ /static                    N/A kB         N/A kB
        + First Load JS shared by all  N/A kB
@@ -42,8 +42,7 @@ describe('build-output-tree-view', () => {
        ○  (Static)             prerendered as static content
        ●  (SSG)                prerendered as static HTML (uses generateStaticParams)
        ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
-       ƒ  (Dynamic)            server-rendered on demand
-          (Cache Life)         revalidate / expire"
+       ƒ  (Dynamic)            server-rendered on demand"
       `)
     })
   })
