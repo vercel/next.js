@@ -68,8 +68,8 @@
   // Enable file nesting for unit test files.
   "explorer.fileNesting.enabled": true,
   "explorer.fileNesting.patterns": {
-    "*.ts": "$(capture).test.ts, $(capture).test.tsx",
-    "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
+    "*.ts": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx",
+    "*.tsx": "$(capture).test.ts, $(capture).test.tsx, $(capture).stories.tsx"
   },
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
   "rust-analyzer.cargo.targetDir": true,

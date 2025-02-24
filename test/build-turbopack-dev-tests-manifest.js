@@ -81,7 +81,10 @@ async function fetchLatestTestArtifact() {
   const { stdout } = await exec(
     'Getting latest test artifacts from GitHub actions',
     'gh',
-    ['api', '/repos/vercel/next.js/actions/artifacts?name=test-results']
+    [
+      'api',
+      '/repos/vercel/next.js/actions/artifacts?name=test-results-turbopack-development',
+    ]
   )
 
   /** @type {ListArtifactsResponse} */
@@ -95,7 +98,9 @@ async function fetchLatestTestArtifact() {
     return artifact
   }
 
-  throw new Error('no valid test-results artifact was found for branch canary')
+  throw new Error(
+    'no valid test-results-turbopack-development artifact was found for branch canary'
+  )
 }
 
 /**

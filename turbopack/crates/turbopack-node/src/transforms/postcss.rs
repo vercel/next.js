@@ -22,10 +22,11 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use super::{
     util::{emitted_assets_to_virtual_sources, EmittedAsset},
@@ -108,6 +109,7 @@ pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -117,11 +119,13 @@ impl PostCssTransform {
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
+        source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
             execution_context,
             config_location,
+            source_maps,
         }
         .cell()
     }
@@ -137,6 +141,7 @@ impl SourceTransform for PostCssTransform {
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                source_map: self.source_maps,
             }
             .cell(),
         )
@@ -149,6 +154,7 @@ struct PostCssTransformedAsset {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    source_map: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -376,7 +382,7 @@ pub(crate) async fn config_loader_source(
             // https://github.com/nodejs/node/issues/31710
             // convert it to a file:// URL, which works on all platforms
             const configUrl = pathToFileURL(configPath).toString();
-            const mod = await __turbopack_external_import__(configUrl);
+            const mod = await {TURBOPACK_EXTERNAL_IMPORT}(configUrl);
 
             export default mod.default ?? mod;
         "#,
@@ -453,7 +459,7 @@ async fn find_config_in_location(
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
         let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
         match source {
             Some(source) => Ok(source.generate_source_map()),
@@ -506,6 +512,7 @@ impl PostCssTransformedAsset {
         };
         let content = content.content().to_str()?;
         let evaluate_context = self.evaluate_context;
+        let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
         let config_changed = config_changed(*evaluate_context, config_path)
@@ -541,6 +548,7 @@ impl PostCssTransformedAsset {
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),
+                ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
         })

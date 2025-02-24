@@ -122,32 +122,18 @@ function makeUntrackedExoticSearchParams(
   return promise
 }
 
-const noop = () => {}
+function warnForSyncAccess(expression: string) {
+  console.error(
+    `A searchParam property was accessed directly with ${expression}. ` +
+      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
 
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : function warnForSyncAccess(expression: string) {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
-      console.error(
-        `A searchParam property was accessed directly with ${expression}. ` +
-          `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    }
-
-const warnForSyncSpread = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : function warnForSyncSpread() {
-      if (process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS) {
-        return
-      }
-
-      console.error(
-        `The keys of \`searchParams\` were accessed directly. ` +
-          `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    }
+function warnForSyncSpread() {
+  console.error(
+    `The keys of \`searchParams\` were accessed directly. ` +
+      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}

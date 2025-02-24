@@ -23,6 +23,7 @@ var REACT_CONSUMER_TYPE = Symbol.for("react.consumer"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
 function typeOf(object) {
   if ("object" === typeof object && null !== object) {
@@ -35,6 +36,7 @@ function typeOf(object) {
           case REACT_STRICT_MODE_TYPE:
           case REACT_SUSPENSE_TYPE:
           case REACT_SUSPENSE_LIST_TYPE:
+          case REACT_VIEW_TRANSITION_TYPE:
             return object;
           default:
             switch (((object = object && object.$$typeof), object)) {

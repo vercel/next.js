@@ -1,6 +1,6 @@
 import os from 'os'
 import path from 'path'
-import { existsSync, promises as fs, rmSync } from 'fs'
+import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
 import treeKill from 'tree-kill'
 import type { NextConfig } from 'next'
 import { FileRef, isNextDeploy } from '../e2e-utils'
@@ -23,15 +23,21 @@ export type PackageJson = {
   dependencies?: { [key: string]: string }
   [key: string]: unknown
 }
+
+type ResolvedFileConfig = FileRef | { [filename: string]: string | FileRef }
+type FilesConfig = ResolvedFileConfig | string
 export interface NextInstanceOpts {
-  files: FileRef | string | { [filename: string]: string | FileRef }
+  files: FilesConfig
+  overrideFiles?: FilesConfig
   dependencies?: { [name: string]: string }
   resolutions?: { [name: string]: string }
   packageJson?: PackageJson
   nextConfig?: NextConfig
   installCommand?: InstallCommand
   buildCommand?: string
+  buildOptions?: string[]
   startCommand?: string
+  startOptions?: string[]
   env?: Record<string, string>
   dirSuffix?: string
   turbo?: boolean
@@ -55,11 +61,14 @@ type OmitFirstArgument<F> = F extends (
 const nextjsReactPeerVersion = "^19.0.0";
 
 export class NextInstance {
-  protected files: FileRef | { [filename: string]: string | FileRef }
+  protected files: ResolvedFileConfig
+  protected overrideFiles: ResolvedFileConfig
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
   protected buildCommand?: string
+  protected buildOptions?: string
   protected startCommand?: string
+  protected startOptions?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
@@ -96,10 +105,10 @@ export class NextInstance {
     }
   }
 
-  protected async writeInitialFiles() {
+  private async writeFiles(filesConfig: FilesConfig, testDir: string) {
     // Handle case where files is a directory string
     const files =
-      typeof this.files === 'string' ? new FileRef(this.files) : this.files
+      typeof filesConfig === 'string' ? new FileRef(filesConfig) : filesConfig
     if (files instanceof FileRef) {
       // if a FileRef is passed directly to `files` we copy the
       // entire folder to the test directory
@@ -111,7 +120,7 @@ export class NextInstance {
         )
       }
 
-      await fs.cp(files.fsPath, this.testDir, {
+      await fs.cp(files.fsPath, testDir, {
         recursive: true,
         filter(source) {
           // we don't copy a package.json as it's manually written
@@ -125,7 +134,7 @@ export class NextInstance {
     } else {
       for (const filename of Object.keys(files)) {
         const item = files[filename]
-        const outputFilename = path.join(this.testDir, filename)
+        const outputFilename = path.join(testDir, filename)
 
         if (typeof item === 'string') {
           await fs.mkdir(path.dirname(outputFilename), { recursive: true })
@@ -135,6 +144,26 @@ export class NextInstance {
         }
       }
     }
+  }
+
+  protected async writeInitialFiles() {
+    return this.writeFiles(this.files, this.testDir)
+  }
+
+  protected async writeOverrideFiles() {
+    if (this.overrideFiles) {
+      return this.writeFiles(this.overrideFiles, this.testDir)
+    }
+  }
+
+  protected async beforeInstall(parentSpan: Span) {
+    await parentSpan.traceChild('writeInitialFiles').traceAsyncFn(async () => {
+      await this.writeInitialFiles()
+    })
+
+    await parentSpan.traceChild('writeOverrideFiles').traceAsyncFn(async () => {
+      await this.writeOverrideFiles()
+    })
   }
 
   protected async createTestDir({
@@ -209,6 +238,8 @@ export class NextInstance {
               2
             )
           )
+
+          await this.beforeInstall(parentSpan)
         } else {
           if (
             process.env.NEXT_TEST_STARTER &&
@@ -220,8 +251,13 @@ export class NextInstance {
             await fs.cp(process.env.NEXT_TEST_STARTER, this.testDir, {
               recursive: true,
             })
+
+            require('console').log(
+              'created next.js install, writing test files'
+            )
+            await this.beforeInstall(parentSpan)
           } else {
-            const { installDir, tmpRepoDir } = await createNextInstall({
+            const { tmpRepoDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
@@ -229,18 +265,17 @@ export class NextInstance {
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
               keepRepoDir: true,
+              beforeInstall: async (span, installDir) => {
+                this.testDir = installDir
+                require('console').log(
+                  'created next.js install, writing test files'
+                )
+                await this.beforeInstall(span)
+              },
             })
-            this.testDir = installDir
             this.tmpRepoDir = tmpRepoDir
           }
-          require('console').log('created next.js install, writing test files')
         }
-
-        await rootSpan
-          .traceChild('writeInitialFiles')
-          .traceAsyncFn(async () => {
-            await this.writeInitialFiles()
-          })
 
         const testDirFiles = await fs.readdir(this.testDir)
 
@@ -498,6 +533,10 @@ export class NextInstance {
 
   public async readFile(filename: string) {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
+  }
+
+  public readFileSync(filename: string) {
+    return readFileSync(path.join(this.testDir, filename), 'utf8')
   }
 
   public async readJSON(filename: string) {

@@ -1,0 +1,212 @@
+# Reusable workflow to execute certain version of Next.js integration tests
+# with Rspack.
+#
+# Refer test.yml for how this workflow is being initialized
+# - Workflow can specify `inputs.version` to specify which version of next.js to use, otherwise will use latest release version.
+name: Rspack Next.js production integration tests
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      # Allow to specify Next.js version to run integration test against.
+      # If not specified, will use latest release version including canary.
+      version:
+        description: Next.js version, sha, branch to test
+        type: string
+        default: 'canary'
+      # The base of the test results to compare against. If not specified, will try to compare with latest main branch's test results.
+      diff_base:
+        type: string
+        default: 'none'
+
+# Workflow-common env variables
+env:
+  # Enabling backtrace will makes snapshot tests fail
+  RUST_BACKTRACE: 0
+  NEXT_TELEMETRY_DISABLED: 1
+  TEST_CONCURRENCY: 6
+  NEXT_JUNIT_TEST_REPORT: 'true'
+  __INTERNAL_CUSTOM_TURBOPACK_BINDINGS: ${{ github.workspace }}/packages/next-swc/native/next-swc.linux-x64-gnu.node
+  NEXT_TEST_SKIP_RETRY_MANIFEST: ${{ github.workspace }}/integration-test-data/test-results/main/failed-test-path-list.json
+  NEXT_TEST_CONTINUE_ON_ERROR: TRUE
+  NEXT_E2E_TEST_TIMEOUT: 240000
+  NEXT_TEST_JOB: 1
+
+jobs:
+  # First, build Next.js to execute across tests.
+  setup_nextjs:
+    name: Setup Next.js build
+    uses: ./.github/workflows/setup-nextjs-build.yml
+    with:
+      nodeVersion: 18.18.2
+      version: ${{ inputs.version || 'canary' }}
+
+  # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
+  # which we do allow some of duplications to make it easier to update if upstream changes.
+  # Refer build_and_test.yml in the Next.js repo for more details.
+  test-production:
+    # This job name is being used in github action to collect test results. Do not change it, or should update
+    # ./.github/actions/next-integration-stat to match the new name.
+    name: Next.js integration test (Production)
+    # Currently it is possible test grouping puts large number of failing tests suites in a single group,
+    # which ends up job timeouts. Temporarily relieve the timeout until we make progresses on the failing suites.
+    # ref: https://github.com/vercel/turbo/pull/5668
+    # timeout-minutes: 180
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    needs: [setup_nextjs]
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.18.2
+          check-latest: true
+      - uses: actions/cache/restore@v3
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}
+          fail-on-cache-miss: true
+
+      - name: Enable corepack and install yarn
+        run: |
+          corepack enable
+          corepack prepare --activate yarn@1.22.19
+
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
+      - name: Run test/production
+        run: |
+          NEXT_TEST_MODE=start NEXT_RSPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type production
+        # It is currently expected to fail some of next.js integration test, do not fail CI check.
+        continue-on-error: true
+
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-start-${{ matrix.group }}
+          if-no-files-found: 'error'
+          path: |
+            test/rspack-test-junit-report
+
+  test-integration-production:
+    name: Next.js integration test (Integration)
+    needs: [setup_nextjs]
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.18.2
+          check-latest: true
+      - uses: actions/cache/restore@v3
+        id: restore-build
+        with:
+          path: ./*
+          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Enable corepack and install yarn
+        run: |
+          corepack enable
+          corepack prepare --activate yarn@1.22.19
+
+      - name: Setup playwright
+        run: |
+          pnpm playwright install
+
+      - name: Run test/integration
+        run: |
+          NEXT_RSPACK=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
+        continue-on-error: true
+
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-build-integration-${{ matrix.group }}
+          if-no-files-found: 'error'
+          path: |
+            test/rspack-test-junit-report
+
+  # Collect integration test results from execute_tests,
+  # Store it as github artifact for next step to consume.
+  collect_nextjs_production_integration_stat:
+    needs: [test-production, test-integration-production]
+    name: Next.js integration test production status report
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    if: always()
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Collect integration test stat
+        uses: ./.github/actions/next-integration-stat
+        with:
+          diff_base: ${{ inputs.diff_base || 'none' }}
+
+      - name: Store artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-rspack-production
+          path: |
+            nextjs-test-results.json
+            failed-test-path-list.json
+            passed-test-path-list.json
+
+  upload_test_report:
+    needs: [test-production, test-integration-production]
+    name: Upload test report to datadog
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
+
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Download test report artifacts
+        id: download-test-reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-reports-*
+          path: test/reports
+          merge-multiple: true
+
+      - name: Upload to datadog
+        env:
+          DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
+          DD_ENV: 'ci'
+        run: |
+          # We'll tag this to the "rspack" datadog service, not "nextjs"
+          npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:rspack-build.daily --service rspack-build ./test/reports

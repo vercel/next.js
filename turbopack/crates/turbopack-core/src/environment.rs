@@ -6,7 +6,7 @@ use std::{
 use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;
@@ -14,7 +14,7 @@ use crate::target::CompileTarget;
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Clone, Copy, Default, Hash, TaskInput, Debug)]
 pub enum Rendering {
     #[default]
     None,

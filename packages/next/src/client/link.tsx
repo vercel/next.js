@@ -293,7 +293,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         return new Error(
           `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
             (typeof window !== 'undefined'
-              ? "\nOpen your browser's console to view the Component stack trace."
+              ? // TODO: Remove this addendum if Owner Stacks are available
+                "\nOpen your browser's console to view the Component stack trace."
               : '')
         )
       }
@@ -466,7 +467,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     })
 
     const setIntersectionWithResetRef = React.useCallback(
-      (el: Element) => {
+      (el: Element | null) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()

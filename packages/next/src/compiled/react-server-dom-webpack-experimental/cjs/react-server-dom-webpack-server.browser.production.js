@@ -434,6 +434,7 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -507,40 +508,42 @@ function getThenableStateAfterSuspending() {
   return state;
 }
 var HooksDispatcher = {
-  useMemo: function (nextCreate) {
-    return nextCreate();
-  },
+  readContext: unsupportedContext,
+  use: use,
   useCallback: function (callback) {
     return callback;
   },
-  useDebugValue: function () {},
-  useDeferredValue: unsupportedHook,
-  useTransition: unsupportedHook,
-  readContext: unsupportedContext,
   useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo: function (nextCreate) {
+    return nextCreate();
+  },
   useReducer: unsupportedHook,
   useRef: unsupportedHook,
   useState: unsupportedHook,
-  useInsertionEffect: unsupportedHook,
-  useLayoutEffect: unsupportedHook,
-  useImperativeHandle: unsupportedHook,
-  useEffect: unsupportedHook,
+  useDebugValue: function () {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
+  useSyncExternalStore: unsupportedHook,
   useId: useId,
   useHostTransitionStatus: unsupportedHook,
-  useOptimistic: unsupportedHook,
   useFormState: unsupportedHook,
   useActionState: unsupportedHook,
-  useSyncExternalStore: unsupportedHook,
-  useCacheRefresh: function () {
-    return unsupportedRefresh;
-  },
+  useOptimistic: unsupportedHook,
   useMemoCache: function (size) {
     for (var data = Array(size), i = 0; i < size; i++)
       data[i] = REACT_MEMO_CACHE_SENTINEL;
     return data;
   },
-  use: use
+  useCacheRefresh: function () {
+    return unsupportedRefresh;
+  }
 };
+HooksDispatcher.useEffectEvent = unsupportedHook;
+HooksDispatcher.useSwipeTransition = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }
@@ -634,6 +637,8 @@ function describeElementType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_VIEW_TRANSITION_TYPE:
+      return "ViewTransition";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {

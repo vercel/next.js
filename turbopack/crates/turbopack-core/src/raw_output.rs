@@ -3,7 +3,6 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::OutputAsset,
     source::Source,
 };
@@ -19,8 +18,8 @@ pub struct RawOutput {
 #[turbo_tasks::value_impl]
 impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 }
 

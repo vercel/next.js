@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css"],"sourcesContent":[".module-style {\n  color: magenta;\n  > h1,\n  + .inner {\n    background: purple;\n  }\n}\n\n.composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: green;\n}\n\n.another-composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: yellow;\n}"],"names":[],"mappings":"AAAA,+CAEE,0HAMF,0DAKA"}},
+    {"offset": {"line": 1, "column": 292}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

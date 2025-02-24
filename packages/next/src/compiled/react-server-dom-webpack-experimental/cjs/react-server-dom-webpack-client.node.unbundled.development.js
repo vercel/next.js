@@ -184,6 +184,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -1046,6 +1048,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -2022,7 +2026,8 @@
         response.reason.close("" === row ? '"$undefined"' : row);
     }
     function resolveErrorDev(response, errorInfo) {
-      var env = errorInfo.env;
+      var name = errorInfo.name,
+        env = errorInfo.env;
       errorInfo = buildFakeCallStack(
         response,
         errorInfo.stack,
@@ -2035,6 +2040,7 @@
       );
       response = getRootTask(response, env);
       response = null != response ? response.run(errorInfo) : errorInfo();
+      response.name = name;
       response.environmentName = env;
       return response;
     }
@@ -2375,124 +2381,166 @@
     ) {
       if (!isArrayImpl(root._children)) {
         response = root._children;
-        var previousEndTime = response.endTime;
+        root = response.endTime;
         if (
           -Infinity < parentEndTime &&
-          parentEndTime < previousEndTime &&
+          parentEndTime < root &&
           null !== response.component
         ) {
-          var trackIdx = trackIdx$jscomp$0;
-          root = parentEndTime;
-          supportsUserTiming &&
-            0 <= previousEndTime &&
-            10 > trackIdx &&
-            ((parentEndTime = response.component.name),
-            (reusableComponentDevToolDetails.color = "tertiary-light"),
-            (reusableComponentDevToolDetails.track = trackNames[trackIdx]),
-            (reusableComponentOptions.start = 0 > root ? 0 : root),
-            (reusableComponentOptions.end = previousEndTime),
-            performance.measure(
-              parentEndTime + " [deduped]",
-              reusableComponentOptions
-            ));
+          var trackIdx = trackIdx$jscomp$0,
+            startTime = parentEndTime;
+          if (supportsUserTiming && 0 <= root && 10 > trackIdx) {
+            var name = response.component.name;
+            reusableComponentDevToolDetails.color = "tertiary-light";
+            reusableComponentDevToolDetails.track = trackNames[trackIdx];
+            reusableComponentOptions.start = 0 > startTime ? 0 : startTime;
+            reusableComponentOptions.end = root;
+            performance.measure(name + " [deduped]", reusableComponentOptions);
+          }
         }
         response.track = trackIdx$jscomp$0;
         return response;
       }
       var children = root._children;
       "resolved_model" === root.status && initializeModelChunk(root);
-      if ((previousEndTime = root._debugInfo)) {
-        for (trackIdx = 1; trackIdx < previousEndTime.length; trackIdx++)
-          if ("string" === typeof previousEndTime[trackIdx].name) {
-            var startTimeInfo = previousEndTime[trackIdx - 1];
-            if ("number" === typeof startTimeInfo.time) {
-              trackIdx = startTimeInfo.time;
-              trackIdx < trackTime && trackIdx$jscomp$0++;
-              trackTime = trackIdx;
-              break;
-            }
+      if ((trackIdx = root._debugInfo)) {
+        for (startTime = 1; startTime < trackIdx.length; startTime++)
+          if (
+            "string" === typeof trackIdx[startTime].name &&
+            ((name = trackIdx[startTime - 1]), "number" === typeof name.time)
+          ) {
+            startTime = name.time;
+            startTime < trackTime && trackIdx$jscomp$0++;
+            trackTime = startTime;
+            break;
           }
-        for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
-          (startTimeInfo = previousEndTime[trackIdx]),
-            "number" === typeof startTimeInfo.time &&
-              startTimeInfo.time > parentEndTime &&
-              (parentEndTime = startTimeInfo.time);
+        for (startTime = trackIdx.length - 1; 0 <= startTime; startTime--)
+          (name = trackIdx[startTime]),
+            "number" === typeof name.time &&
+              name.time > parentEndTime &&
+              (parentEndTime = name.time);
       }
-      trackIdx = {
+      startTime = {
         track: trackIdx$jscomp$0,
         endTime: -Infinity,
         component: null
       };
-      root._children = trackIdx;
-      root = -Infinity;
-      startTimeInfo = trackIdx$jscomp$0;
-      var childTrackTime = trackTime;
+      root._children = startTime;
+      name = -Infinity;
+      var childTrackIdx = trackIdx$jscomp$0,
+        childTrackTime = trackTime;
       for (trackTime = 0; trackTime < children.length; trackTime++) {
         childTrackTime = flushComponentPerformance(
           response,
           children[trackTime],
-          startTimeInfo,
+          childTrackIdx,
           childTrackTime,
           parentEndTime
         );
         null !== childTrackTime.component &&
-          (trackIdx.component = childTrackTime.component);
-        startTimeInfo = childTrackTime.track;
+          (startTime.component = childTrackTime.component);
+        childTrackIdx = childTrackTime.track;
         var childEndTime = childTrackTime.endTime;
         childTrackTime = childEndTime;
-        childEndTime > root && (root = childEndTime);
+        childEndTime > name && (name = childEndTime);
       }
-      if (previousEndTime)
+      if (trackIdx)
         for (
-          parentEndTime = 0, children = previousEndTime.length - 1;
+          parentEndTime = 0, childTrackIdx = !0, children = trackIdx.length - 1;
           0 <= children;
           children--
         )
           if (
-            ((trackTime = previousEndTime[children]),
+            ((trackTime = trackIdx[children]),
             "number" === typeof trackTime.time &&
               ((parentEndTime = trackTime.time),
-              parentEndTime > root && (root = parentEndTime)),
-            "string" === typeof trackTime.name &&
-              0 < children &&
-              ((childTrackTime = previousEndTime[children - 1]),
-              "number" === typeof childTrackTime.time))
+              parentEndTime > name && (name = parentEndTime)),
+            "string" === typeof trackTime.name && 0 < children)
           ) {
-            startTimeInfo = trackIdx$jscomp$0;
-            childTrackTime = childTrackTime.time;
-            childEndTime = root;
-            if (supportsUserTiming && 0 <= childEndTime && 10 > startTimeInfo) {
-              var env = trackTime.env,
-                name = trackTime.name,
-                isPrimaryEnv = env === response._rootEnvironmentName,
-                selfTime = parentEndTime - childTrackTime;
-              reusableComponentDevToolDetails.color =
-                0.5 > selfTime
-                  ? isPrimaryEnv
-                    ? "primary-light"
-                    : "secondary-light"
-                  : 50 > selfTime
-                    ? isPrimaryEnv
-                      ? "primary"
-                      : "secondary"
-                    : 500 > selfTime
-                      ? isPrimaryEnv
-                        ? "primary-dark"
-                        : "secondary-dark"
-                      : "error";
-              reusableComponentDevToolDetails.track = trackNames[startTimeInfo];
-              reusableComponentOptions.start =
-                0 > childTrackTime ? 0 : childTrackTime;
-              reusableComponentOptions.end = childEndTime;
-              performance.measure(
-                isPrimaryEnv || void 0 === env ? name : name + " [" + env + "]",
-                reusableComponentOptions
-              );
+            childTrackTime = trackIdx[children - 1];
+            if ("number" === typeof childTrackTime.time) {
+              childTrackTime = childTrackTime.time;
+              if (
+                childTrackIdx &&
+                "rejected" === root.status &&
+                root.reason !== response._closedReason
+              ) {
+                var componentInfo = trackTime;
+                childTrackIdx = trackIdx$jscomp$0;
+                childEndTime = name;
+                var rootEnv = response._rootEnvironmentName,
+                  error = root.reason;
+                if (supportsUserTiming) {
+                  var properties = [];
+                  properties.push([
+                    "Error",
+                    "object" === typeof error &&
+                    null !== error &&
+                    "string" === typeof error.message
+                      ? String(error.message)
+                      : String(error)
+                  ]);
+                  error = componentInfo.env;
+                  componentInfo = componentInfo.name;
+                  componentInfo =
+                    error === rootEnv || void 0 === error
+                      ? componentInfo
+                      : componentInfo + " [" + error + "]";
+                  performance.measure(componentInfo, {
+                    start: 0 > childTrackTime ? 0 : childTrackTime,
+                    end: childEndTime,
+                    detail: {
+                      devtools: {
+                        color: "error",
+                        track: trackNames[childTrackIdx],
+                        trackGroup: "Server Components \u269b",
+                        tooltipText: componentInfo + " Errored",
+                        properties: properties
+                      }
+                    }
+                  });
+                }
+              } else
+                (childTrackIdx = trackIdx$jscomp$0),
+                  (childEndTime = name),
+                  supportsUserTiming &&
+                    0 <= childEndTime &&
+                    10 > childTrackIdx &&
+                    ((properties = trackTime.env),
+                    (componentInfo = trackTime.name),
+                    (rootEnv = properties === response._rootEnvironmentName),
+                    (error = parentEndTime - childTrackTime),
+                    (reusableComponentDevToolDetails.color =
+                      0.5 > error
+                        ? rootEnv
+                          ? "primary-light"
+                          : "secondary-light"
+                        : 50 > error
+                          ? rootEnv
+                            ? "primary"
+                            : "secondary"
+                          : 500 > error
+                            ? rootEnv
+                              ? "primary-dark"
+                              : "secondary-dark"
+                            : "error"),
+                    (reusableComponentDevToolDetails.track =
+                      trackNames[childTrackIdx]),
+                    (reusableComponentOptions.start =
+                      0 > childTrackTime ? 0 : childTrackTime),
+                    (reusableComponentOptions.end = childEndTime),
+                    performance.measure(
+                      rootEnv || void 0 === properties
+                        ? componentInfo
+                        : componentInfo + " [" + properties + "]",
+                      reusableComponentOptions
+                    ));
+              startTime.component = trackTime;
             }
-            trackIdx.component = trackTime;
+            childTrackIdx = !1;
           }
-      trackIdx.endTime = root;
-      return trackIdx;
+      startTime.endTime = name;
+      return startTime;
     }
     function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {
@@ -2737,6 +2785,7 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,

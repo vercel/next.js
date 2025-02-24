@@ -45,6 +45,7 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.forceSwcTransforms',
   'experimental.fullySpecified',
   'experimental.urlImports',
+  'experimental.slowModuleDetection',
 ]
 
 // The following will need to be supported by `next build --turbopack`

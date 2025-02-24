@@ -1,21 +1,8 @@
-import type { ErrorType } from './OldReactDevOverlay'
 import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'
 
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
-}
-
-export const usePagesReactDevOverlay = (
-  preventDisplay: ErrorType[] | undefined
-) => {
+export const usePagesDevOverlay = () => {
   const [state, dispatch] = useErrorOverlayReducer()
 
   React.useEffect(() => {
@@ -32,21 +19,7 @@ export const usePagesReactDevOverlay = (
     []
   )
 
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-  const errorType = hasBuildError
-    ? 'build'
-    : hasRuntimeErrors
-      ? 'runtime'
-      : null
-  const isMounted = errorType !== null
-
-  const displayPrevented = shouldPreventDisplay(errorType, preventDisplay)
   return {
-    isMounted,
-    displayPrevented,
-    hasBuildError,
-    hasRuntimeErrors,
     state,
     onComponentError,
   }

@@ -228,7 +228,7 @@ module.exports = class CacheHandler {
 
   // If you want to have temporary in memory cache for a single request that is reset
   // before the next request you can leverage this method
-  public resetRequestCache() {}
+  resetRequestCache() {}
 }
 ```
 
@@ -322,7 +322,7 @@ When `after` is called, Next.js will access `waitUntil` like this:
 ```jsx
 const RequestContext = globalThis[Symbol.for('@next/request-context')]
 const contextValue = RequestContext?.get()
-const waitUntil = context?.waitUntil
+const waitUntil = contextValue?.waitUntil
 ```
 
 Which means that `globalThis[Symbol.for('@next/request-context')]` is expected to contain an object like this:
