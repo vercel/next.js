@@ -290,10 +290,10 @@ async fn build_internal(
 
     let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
         entries.clone(),
-        match target {
+        Some(match target {
             Target::Browser => ChunkGroupType::Evaluated,
             Target::Node => ChunkGroupType::Entry,
-        },
+        }),
     )]));
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)

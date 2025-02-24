@@ -327,16 +327,19 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .iter()
             .flat_map(|g| g.entries.iter())
             .flat_map(|(entries, ty)| {
-                entries.iter().map(|e| {
-                    (
-                        *e,
-                        ChunkGroupKey::Entry {
-                            entries: entries.clone(),
-                            ty: *ty,
-                        },
-                    )
+                ty.as_ref().map(|ty| {
+                    entries.iter().map(|e| {
+                        (
+                            *e,
+                            ChunkGroupKey::Entry {
+                                entries: entries.clone(),
+                                ty: *ty,
+                            },
+                        )
+                    })
                 })
             })
+            .flatten()
             .collect::<FxHashMap<_, _>>();
 
         let mut visitor =
@@ -402,10 +405,15 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             return GraphTraversalAction::Skip;
                         }
                     }
-                } else {
+                } else if let Some(entry_chunk_group) = entry_chunk_group_keys.get(&node.module) {
                     ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                        entry_chunk_group_keys.get(&node.module).unwrap().clone(),
+                        entry_chunk_group.clone(),
                     )))
+                } else {
+                    // We create entries with no chunk type during layout segment optimization.
+                    // Ignore these entries, they will still be revisited via their proper
+                    // references later.
+                    return GraphTraversalAction::Exclude;
                 };
 
                 match chunk_groups {

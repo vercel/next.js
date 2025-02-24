@@ -886,7 +886,7 @@ impl Project {
         chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_module(*entry, chunk_group_type)
+            ModuleGraph::from_module(*entry, Some(chunk_group_type))
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -905,7 +905,7 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![(entries, chunk_group_type)]))
+            ModuleGraph::from_modules(Vc::cell(vec![(entries, Some(chunk_group_type))]))
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1683,13 +1683,13 @@ impl Project {
         let pages_project = self.pages_project();
         let mut modules = vec![(
             vec![pages_project.client_main_module().to_resolved().await?],
-            ChunkGroupType::Evaluated,
+            Some(ChunkGroupType::Evaluated),
         )];
 
         if let Some(app_project) = *self.app_project().await? {
             modules.push((
                 vec![app_project.client_main_module().to_resolved().await?],
-                ChunkGroupType::Evaluated,
+                Some(ChunkGroupType::Evaluated),
             ));
         }
 

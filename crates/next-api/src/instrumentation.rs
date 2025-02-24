@@ -296,7 +296,7 @@ impl Endpoint for InstrumentationEndpoint {
         let core_modules = self.core_modules().await?;
         Ok(Vc::cell(vec![(
             vec![core_modules.edge_entry_module],
-            ChunkGroupType::Evaluated,
+            Some(ChunkGroupType::Evaluated),
         )]))
     }
 }

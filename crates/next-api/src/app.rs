@@ -841,9 +841,9 @@ impl AppProject {
                                     .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                                     .try_join()
                                     .await?,
-                                ChunkGroupType::Entry,
+                                None,
                             ),
-                            (client_shared_entries, ChunkGroupType::Evaluated),
+                            (client_shared_entries, Some(ChunkGroupType::Evaluated)),
                         ],
                         VisitedModules::empty(),
                     );
@@ -852,7 +852,7 @@ impl AppProject {
 
                     for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                            vec![(vec![ResolvedVc::upcast(*module)], ChunkGroupType::Entry)],
+                            vec![(vec![ResolvedVc::upcast(*module)], None)],
                             visited_modules,
                         );
                         graphs.push(graph);
@@ -873,7 +873,7 @@ impl AppProject {
                     visited_modules
                 } else {
                     let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                        vec![(client_shared_entries, ChunkGroupType::Evaluated)],
+                        vec![(client_shared_entries, Some(ChunkGroupType::Evaluated))],
                         VisitedModules::empty(),
                     );
                     graphs.push(graph);
@@ -881,7 +881,10 @@ impl AppProject {
                 };
 
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
-                    vec![(vec![ResolvedVc::upcast(rsc_entry)], ChunkGroupType::Entry)],
+                    vec![(
+                        vec![ResolvedVc::upcast(rsc_entry)],
+                        Some(ChunkGroupType::Entry),
+                    )],
                     visited_modules,
                 );
                 graphs.push(graph);
@@ -1932,7 +1935,7 @@ impl Endpoint for AppEndpoint {
         Ok(Vc::cell(vec![
             (
                 vec![self.app_endpoint_entry().await?.rsc_entry],
-                ChunkGroupType::Entry,
+                Some(ChunkGroupType::Entry),
             ),
             (
                 this.app_project
@@ -1942,7 +1945,7 @@ impl Endpoint for AppEndpoint {
                     .copied()
                     .map(ResolvedVc::upcast)
                     .collect(),
-                ChunkGroupType::Entry,
+                Some(ChunkGroupType::Entry),
             ),
         ]))
     }
@@ -1985,7 +1988,7 @@ impl Endpoint for AppEndpoint {
 
         Ok(Vc::cell(vec![(
             vec![server_actions_loader],
-            ChunkGroupType::Entry,
+            Some(ChunkGroupType::Entry),
         )]))
     }
 }

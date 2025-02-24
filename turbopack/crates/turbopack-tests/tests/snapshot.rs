@@ -399,10 +399,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .collect();
         let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
             all_modules,
-            match options.runtime {
+            Some(match options.runtime {
                 Runtime::Browser => ChunkGroupType::Evaluated,
                 Runtime::NodeJs => ChunkGroupType::Entry,
-            },
+            }),
         )]));
         // TODO: Load runtime entries from snapshots
         match options.runtime {

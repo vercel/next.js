@@ -268,7 +268,7 @@ pub async fn get_intermediate_asset(
                     .chain(std::iter::once(main_entry))
                     .map(ResolvedVc::upcast)
                     .collect(),
-                ChunkGroupType::Entry,
+                Some(ChunkGroupType::Entry)
             )])),
         OutputAssets::empty(),
     )))

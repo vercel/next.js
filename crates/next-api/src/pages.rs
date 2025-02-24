@@ -1457,7 +1457,10 @@ impl Endpoint for PageEndpoint {
         let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push((vec![ssr_chunk_module.ssr_module], ChunkGroupType::Entry));
+        modules.push((
+            vec![ssr_chunk_module.ssr_module],
+            Some(ChunkGroupType::Entry),
+        ));
 
         if let PageEndpointType::Html = this.ty {
             modules.push((
@@ -1466,7 +1469,7 @@ impl Endpoint for PageEndpoint {
                     .iter()
                     .map(|m| ResolvedVc::upcast(*m))
                     .collect(),
-                ChunkGroupType::Evaluated,
+                Some(ChunkGroupType::Evaluated),
             ));
         }
 
