@@ -1069,8 +1069,8 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
-   * User agent of bots that should opt-out streaming metadata.
-   * User agents that pass this regex will block rendering until metadata has resolved, to ensure it's available in the `head` of the document.
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    */
   htmlLimitedBots?: RegExp
 }
