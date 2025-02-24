@@ -36,7 +36,14 @@ describe('required server files', () => {
       files: {
         pages: new FileRef(join(__dirname, 'pages')),
         lib: new FileRef(join(__dirname, 'lib')),
-        'middleware.js': new FileRef(join(__dirname, 'middleware.js')),
+        'middleware.js': new FileRef(
+          join(
+            __dirname,
+            process.env.TEST_NODE_MIDDLEWARE
+              ? 'middleware-node.js'
+              : 'middleware.js'
+          )
+        ),
         'cache-handler.js': new FileRef(join(__dirname, 'cache-handler.js')),
         'data.txt': new FileRef(join(__dirname, 'data.txt')),
         '.env': new FileRef(join(__dirname, '.env')),
@@ -48,6 +55,9 @@ describe('required server files', () => {
         cacheMaxMemorySize: 0,
         eslint: {
           ignoreDuringBuilds: true,
+        },
+        experimental: {
+          nodeMiddleware: Boolean(process.env.TEST_NODE_MIDDLEWARE),
         },
         output: 'standalone',
         async rewrites() {
@@ -244,6 +254,42 @@ describe('required server files', () => {
     }
   )
 
+  it('should handle data routes with optional catch-all params', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    let json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: undefined,
+    })
+
+    res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all/next.js.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/next.js.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: ['next.js'],
+    })
+  })
+
   it.each([
     {
       case: 'notFound no revalidate',
@@ -341,12 +387,17 @@ describe('required server files', () => {
   ;(process.env.TURBOPACK ? it.skip : it)(
     'should output middleware correctly',
     async () => {
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(
-        await fs.pathExists(
-          join(next.testDir, 'standalone/.next/server/edge-runtime-webpack.js')
-        )
-      ).toBe(true)
+      if (!process.env.TEST_NODE_MIDDLEWARE) {
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(
+          await fs.pathExists(
+            join(
+              next.testDir,
+              'standalone/.next/server/edge-runtime-webpack.js'
+            )
+          )
+        ).toBe(true)
+      }
       // eslint-disable-next-line jest/no-standalone-expect
       expect(
         await fs.pathExists(
@@ -1053,7 +1104,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssp',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -1072,7 +1123,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/optional-ssg',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
@@ -1193,7 +1244,7 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/api/optional',
-      { rest: '', another: 'value' },
+      { nxtPrest: '', another: 'value' },
       {
         headers: {
           'x-matched-path': '/api/optional/[[...rest]]',
@@ -1331,14 +1382,16 @@ describe('required server files', () => {
       expect(res.status).toBe(200)
       expect(await res.text()).toContain('index page')
 
-      if (process.env.TURBOPACK) {
-        expect(
-          fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
-        ).toBe(true)
-      } else {
-        expect(
-          fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
-        ).toBe(true)
+      if (!process.env.TEST_NODE_MIDDLEWARE) {
+        if (process.env.TURBOPACK) {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
+          ).toBe(true)
+        } else {
+          expect(
+            fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+          ).toBe(true)
+        }
       }
 
       const resImageResponse = await fetchViaHTTP(

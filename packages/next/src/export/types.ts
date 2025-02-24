@@ -1,4 +1,3 @@
-import type { WriteFileOptions } from 'fs'
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type { LoadComponentsReturnType } from '../server/load-components'
@@ -12,6 +11,7 @@ import type {
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
 import type { FetchMetrics } from '../server/base-http'
+import type { RouteMetadata } from './routes/types'
 
 export interface AmpValidation {
   page: string
@@ -20,20 +20,6 @@ export interface AmpValidation {
     warnings: AmpHtmlValidator.ValidationError[]
   }
 }
-
-/**
- * Writes a file to the filesystem (and also records the file that was written).
- */
-export type FileWriter = (
-  type: string,
-  path: string,
-  content:
-    | string
-    | NodeJS.ArrayBufferView
-    | Iterable<string | NodeJS.ArrayBufferView>
-    | AsyncIterable<string | NodeJS.ArrayBufferView>,
-  encodingOptions?: WriteFileOptions
-) => Promise<void>
 
 type PathMap = ExportPathMap[keyof ExportPathMap]
 
@@ -76,21 +62,14 @@ export interface ExportPageInput {
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
   sriEnabled: boolean
-}
-
-export type ExportedPageFile = {
-  type: string
-  path: string
+  streamingMetadata: boolean | undefined
 }
 
 export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
       revalidate: Revalidate
-      metadata?: {
-        status?: number
-        headers?: OutgoingHttpHeaders
-      }
+      metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
@@ -101,7 +80,6 @@ export type ExportRouteResult =
     }
 
 export type ExportPageResult = ExportRouteResult & {
-  files: ExportedPageFile[]
   duration: number
   turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
 }
@@ -156,7 +134,7 @@ export type ExportAppResult = {
       /**
        * The metadata for the page.
        */
-      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      metadata?: Partial<RouteMetadata>
       /**
        * If the page has an empty prelude when using PPR.
        */

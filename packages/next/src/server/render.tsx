@@ -103,7 +103,7 @@ import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import type { ReactDevOverlayType } from '../client/components/react-dev-overlay/pages/ReactDevOverlay'
+import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn
@@ -241,7 +241,7 @@ export type RenderOptsPartial = {
   nextExport?: boolean
   dev?: boolean
   ampPath?: string
-  ErrorDebug?: ReactDevOverlayType
+  ErrorDebug?: PagesDevOverlayType
   ampValidator?: (html: string, pathname: string) => Promise<void>
   ampSkipValidation?: boolean
   ampOptimizerConfig?: { [key: string]: any }
@@ -266,6 +266,7 @@ export type RenderOptsPartial = {
   domainLocales?: readonly DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicResponse: boolean
+  botType?: 'dom' | 'html' | undefined
   serveStreamingMetadata?: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean

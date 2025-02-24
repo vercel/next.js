@@ -90,6 +90,7 @@ pub fn handle_db_versioning(base_path: &Path, version_info: &str) -> Result<Path
         }
     } else {
         path = base_path.join("temp");
+        let _ = remove_dir_all(&path);
     }
 
     Ok(path)

@@ -897,7 +897,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "####",
                         ),
                     ),
@@ -1874,7 +1874,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "",
                         ),
                     ),

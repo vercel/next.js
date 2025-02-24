@@ -69,7 +69,8 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
 
     let storage = key_fields
         .iter()
-        .zip(value_fields.iter()).zip(variant_names.iter())
+        .zip(value_fields.iter())
+        .zip(variant_names.iter())
         .map(|((key_fields, value_fields), variant_name)| {
             let value_types = value_fields
                 .iter()
@@ -108,250 +109,57 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 })
                 .collect::<Vec<_>>();
             match (key_types.len(), value_types.len()) {
-                (0, 1) => {
-                    StorageDecl {
-                        decl: quote! {
-                            storage: Option<#(#value_types)*>,
-                        },
-                        add: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#value_fields)* }) => {
-                                if storage.is_none() {
-                                    *storage = Some(#(#value_fields)*);
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
-                        },
-                        insert: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#value_fields)* }) => {
-                                std::mem::replace(storage, Some(#(#value_fields)*))
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        remove: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name {}) => {
-                                storage.take()
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        contains_key: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name {}) => {
-                                storage.is_some()
-                            }
-                        },
-                        get: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name {}) => {
-                                storage.as_ref()
-                                    .map(|#(#value_fields)*| #value_ref_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        get_mut: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name {}) => {
-                                storage.as_mut()
-                                    .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        shrink_to_fit: quote! {
-                            #storage_name::#variant_name { .. } => {
-                                // nothing to do
-                            }
-                        },
-                        is_empty: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                storage.is_none()
-                            }
-                        },
-                        iter: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                #iter_name::#variant_name(storage.iter())
-                            }
-                        },
-                        iterator: quote! {
-                            std::option::Iter<'l, #(#value_types)*>
-                        },
-                        iterator_next: quote! {
-                            iter.next().map(|#(#value_fields)*| (#key_name::#variant_name {}, #value_ref_name::#variant_name { #(#value_fields)* }))
-                        },
-                    }
-                }
-                (1, 1) => {
-                    StorageDecl {
-                        decl: quote! {
-                            storage: auto_hash_map::AutoMap<#(#key_types)*, #(#value_types)*, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>,
-                        },
-                        add: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#key_fields)*, #(#value_fields)* }) => {
-                                match storage.entry(#(#key_fields)*) {
-                                    auto_hash_map::map::Entry::Occupied(_) => false,
-                                    auto_hash_map::map::Entry::Vacant(e) => {
-                                        e.insert(#(#value_fields)*);
-                                        true
-                                    }
-                                }
-                            }
-                        },
-                        insert: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#key_fields)*, #(#value_fields)* }) => {
-                                storage.insert(#(#key_fields)*, #(#value_fields)*)
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        remove: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
-                                let result = storage.remove(#(#key_fields)*)
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* });
-                                if result.is_some() {
-                                    storage.shrink_amortized();
-                                }
-                                result
-                            }
-                        },
-                        contains_key: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
-                                storage.contains_key(#(#key_fields)*)
-                            }
-                        },
-                        get: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
-                                storage.get(#(#key_fields)*)
-                                    .map(|#(#value_fields)*| #value_ref_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        get_mut: quote! {
-                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
-                                storage.get_mut(#(#key_fields)*)
-                                    .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        shrink_to_fit: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                storage.shrink_to_fit()
-                            }
-                        },
-                        is_empty: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                storage.is_empty()
-                            }
-                        },
-                        iter: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                #iter_name::#variant_name(storage.iter())
-                            }
-                        },
-                        iterator: quote! {
-                            auto_hash_map::map::Iter<'l, #(#key_types)*, #(#value_types)*>
-                        },
-                        iterator_next: quote! {
-                            iter.next()
-                            .map(|(#(#key_fields)*, #(#value_fields)*)| (#key_name::#variant_name { #(#key_fields: *#key_fields)* }, #value_ref_name::#variant_name { #(#value_fields)* }))
-                        },
-                    }
-                }
-                (_, 1) => {
-                    StorageDecl {
-                        decl: quote! {
-                            storage: auto_hash_map::AutoMap<(#(#key_types),*), #(#value_types)*, std::hash::BuildHasherDefault<rustc_hash::FxHasher>, 1>,
-                        },
-                        add: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#key_fields),*, #(#value_fields)* }) => {
-                                match storage.entry((#(#key_fields),*)) {
-                                    auto_hash_map::map::Entry::Occupied(_) => false,
-                                    auto_hash_map::map::Entry::Vacant(e) => {
-                                        e.insert(#(#value_fields)*);
-                                        true
-                                    }
-                                }
-                            }
-                        },
-                        insert: quote! {
-                            (#storage_name::#variant_name { storage }, #ident::#variant_name { #(#key_fields),*, #(#value_fields)* }) => {
-                                storage.insert((#(#key_fields),*), #(#value_fields)*)
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        remove: quote! {
-                            (#storage_name::#variant_name { storage }, &#key_name::#variant_name { #(#key_fields),* }) => {
-                                let result = storage.remove(&(#(#key_fields),*))
-                                    .map(|#(#value_fields)*| #value_name::#variant_name { #(#value_fields)* });
-                                if result.is_some() {
-                                    storage.shrink_amortized();
-                                }
-                                result
-                            }
-                        },
-                        contains_key: quote! {
-                            (#storage_name::#variant_name { storage }, &#key_name::#variant_name { #(#key_fields),* }) => {
-                                storage.contains_key(&(#(#key_fields),*))
-                            }
-                        },
-                        get: quote! {
-                            (#storage_name::#variant_name { storage }, &#key_name::#variant_name { #(#key_fields),* }) => {
-                                storage.get(&(#(#key_fields),*))
-                                    .map(|#(#value_fields)*| #value_ref_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        get_mut: quote! {
-                            (#storage_name::#variant_name { storage }, &#key_name::#variant_name { #(#key_fields),* }) => {
-                                storage.get_mut(&(#(#key_fields),*))
-                                    .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
-                            }
-                        },
-                        shrink_to_fit: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                storage.shrink_to_fit()
-                            }
-                        },
-                        is_empty: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                storage.is_empty()
-                            }
-                        },
-                        iter: quote! {
-                            #storage_name::#variant_name { storage } => {
-                                #iter_name::#variant_name(storage.iter())
-                            }
-                        },
-                        iterator: quote! {
-                            auto_hash_map::map::Iter<'l, (#(#key_types),*), #(#value_types)*>
-                        },
-                        iterator_next: quote! {
-                            iter.next()
-                                .map(|((#(#key_fields),*), #(#value_fields)*)| (#key_name::#variant_name { #(#key_fields: *#key_fields),* }, #value_ref_name::#variant_name { #(#value_fields)* }))
-                        },
-                    }
-                }
-                _ => unreachable!()
+                (0, 1) => StorageDecl {
+                    decl: quote! {
+                        OptionStorage<#(#value_types)*>
+                    },
+                    key: quote! {
+                        ()
+                    },
+                    pattern: quote! {
+                        #ident::#variant_name { #(#value_fields)* }
+                    },
+                    key_pattern: quote! {},
+                },
+                (1, 1) => StorageDecl {
+                    decl: quote! {
+                        AutoMapStorage<#(#key_types)*, #(#value_types)*>
+                    },
+                    key: quote! {
+                        #(#key_fields)*
+                    },
+                    pattern: quote! {
+                        #ident::#variant_name { #(#key_fields)*, #(#value_fields)* }
+                    },
+                    key_pattern: quote! {
+                        #(#key_fields)*
+                    },
+                },
+                (_, 1) => StorageDecl {
+                    decl: quote! {
+                        AutoMapStorage<(#(#key_types),*), #(#value_types)*>
+                    },
+                    key: quote! {
+                        (#(#key_fields),*)
+                    },
+                    pattern: quote! {
+                        #ident::#variant_name { #(#key_fields),*, #(#value_fields)* }
+                    },
+                    key_pattern: quote! {
+                        #(#key_fields),*
+                    },
+                },
+                _ => unreachable!(),
             }
         })
         .collect::<Vec<_>>();
 
     let storage_decl = storage.iter().map(|decl| &decl.decl).collect::<Vec<_>>();
-    let storage_add = storage.iter().map(|decl| &decl.add).collect::<Vec<_>>();
-    let storage_insert = storage.iter().map(|decl| &decl.insert).collect::<Vec<_>>();
-    let storage_remove = storage.iter().map(|decl| &decl.remove).collect::<Vec<_>>();
-    let storage_contains_key = storage
+    let storage_key = storage.iter().map(|decl| &decl.key).collect::<Vec<_>>();
+    let storage_pattern = storage.iter().map(|decl| &decl.pattern).collect::<Vec<_>>();
+    let storage_key_pattern = storage
         .iter()
-        .map(|decl| &decl.contains_key)
-        .collect::<Vec<_>>();
-    let storage_get = storage.iter().map(|decl| &decl.get).collect::<Vec<_>>();
-    let storage_get_mut = storage.iter().map(|decl| &decl.get_mut).collect::<Vec<_>>();
-    let storage_shrink_to_fit = storage
-        .iter()
-        .map(|decl| &decl.shrink_to_fit)
-        .collect::<Vec<_>>();
-    let storage_is_empty = storage
-        .iter()
-        .map(|decl| &decl.is_empty)
-        .collect::<Vec<_>>();
-    let storage_iter = storage.iter().map(|decl| &decl.iter).collect::<Vec<_>>();
-    let storage_iterator = storage
-        .iter()
-        .map(|decl| &decl.iterator)
-        .collect::<Vec<_>>();
-    let storage_iterator_next = storage
-        .iter()
-        .map(|decl| &decl.iterator_next)
+        .map(|decl| &decl.key_pattern)
         .collect::<Vec<_>>();
 
     quote! {
@@ -498,7 +306,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
         #vis enum #storage_name {
             #(
                 #variant_names {
-                    #storage_decl
+                    storage: #storage_decl
                 },
             )*
         }
@@ -523,7 +331,9 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             pub fn add(&mut self, item: #ident) -> bool {
                 match (self, item) {
                     #(
-                        #storage_add
+                        (#storage_name::#variant_names { storage }, #storage_pattern) => {
+                            storage.add(#storage_key, value)
+                        }
                     )*
                     _ => unreachable!(),
                 }
@@ -532,43 +342,89 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             pub fn insert(&mut self, item: #ident) -> Option<#value_name> {
                 match (self, item) {
                     #(
-                        #storage_insert
+                        (#storage_name::#variant_names { storage }, #storage_pattern) => {
+                            storage.insert(#storage_key, value).map(|value| #value_name::#variant_names { value })
+                        }
                     )*
                     _ => unreachable!(),
                 }
             }
 
             pub fn remove(&mut self, key: &#key_name) -> Option<#value_name> {
-                match (self, key) {
+                match (self, *key) {
                     #(
-                        #storage_remove
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.remove(&#storage_key).map(|value| #value_name::#variant_names { value })
+                        }
                     )*
                     _ => unreachable!(),
                 }
             }
 
             pub fn contains_key(&self, key: &#key_name) -> bool {
-                match (self, key) {
+                match (self, *key) {
                     #(
-                        #storage_contains_key
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.contains_key(&#storage_key)
+                        }
                     )*
                     _ => unreachable!(),
                 }
             }
 
             pub fn get(&self, key: &#key_name) -> Option<#value_ref_name> {
-                match (self, key) {
+                match (self, *key) {
                     #(
-                        #storage_get
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.get(&#storage_key).map(|value| #value_ref_name::#variant_names { value })
+                        }
                     )*
                     _ => unreachable!(),
                 }
             }
 
             pub fn get_mut(&mut self, key: &#key_name) -> Option<#value_ref_mut_name> {
+                match (self, *key) {
+                    #(
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.get_mut(&#storage_key).map(|value| #value_ref_mut_name::#variant_names { value })
+                        }
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+
+            pub fn get_mut_or_insert_with(&mut self, key: #key_name, insert_with: impl FnOnce() -> #value_name) -> #value_ref_mut_name {
                 match (self, key) {
                     #(
-                        #storage_get_mut
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            #value_ref_mut_name::#variant_names { value: storage
+                                .get_mut_or_insert_with(#storage_key, || {
+                                    let #value_name::#variant_names { value } = insert_with() else {
+                                        unreachable!();
+                                    };
+                                    value
+                                })
+                            }
+                        }
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+
+            pub fn update(&mut self, key: #key_name, update: impl FnOnce(Option<#value_name>) -> Option<#value_name>) {
+                match (self, key) {
+                    #(
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.update(#storage_key, |old| {
+                                let old = old.map(|value| #value_name::#variant_names { value });
+                                if let Some(#value_name::#variant_names { value }) = update(old) {
+                                    Some(value)
+                                } else {
+                                    None
+                                }
+                            })
+                        }
                     )*
                     _ => unreachable!(),
                 }
@@ -577,7 +433,9 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             pub fn shrink_to_fit(&mut self) {
                 match self {
                     #(
-                        #storage_shrink_to_fit
+                        #storage_name::#variant_names { storage } => {
+                            storage.shrink_to_fit();
+                        }
                     )*
                 }
             }
@@ -585,7 +443,19 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             pub fn is_empty(&self) -> bool {
                 match self {
                     #(
-                        #storage_is_empty
+                        #storage_name::#variant_names { storage } => {
+                            storage.is_empty()
+                        }
+                    )*
+                }
+            }
+
+            pub fn len(&self) -> usize {
+                match self {
+                    #(
+                        #storage_name::#variant_names { storage } => {
+                            storage.len()
+                        }
                     )*
                 }
             }
@@ -593,7 +463,9 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             pub fn iter(&self) -> #iter_name {
                 match self {
                     #(
-                        #storage_iter
+                        #storage_name::#variant_names { storage } => {
+                            #iter_name::#variant_names(storage.iter())
+                        }
                     )*
                 }
             }
@@ -601,7 +473,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
 
         #vis enum #iter_name<'l> {
             #(
-                #variant_names(#storage_iterator),
+                #variant_names(<#storage_decl as Storage>::Iterator<'l>),
             )*
         }
 
@@ -612,7 +484,11 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match self {
                     #(
                         #iter_name::#variant_names(iter) => {
-                            #storage_iterator_next
+                            iter.next()
+                                .map(|(&#storage_key, value)| (
+                                    #key_name::#variant_names { #storage_key_pattern },
+                                    #value_ref_name::#variant_names { value }
+                                ))
                         }
                     )*
                 }
@@ -756,16 +632,7 @@ fn mut_ref_field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::T
 
 struct StorageDecl {
     decl: proc_macro2::TokenStream,
-    add: proc_macro2::TokenStream,
-    insert: proc_macro2::TokenStream,
-    remove: proc_macro2::TokenStream,
-    contains_key: proc_macro2::TokenStream,
-    get: proc_macro2::TokenStream,
-    get_mut: proc_macro2::TokenStream,
-    shrink_to_fit: proc_macro2::TokenStream,
-    is_empty: proc_macro2::TokenStream,
-    iter: proc_macro2::TokenStream,
-
-    iterator: proc_macro2::TokenStream,
-    iterator_next: proc_macro2::TokenStream,
+    key: proc_macro2::TokenStream,
+    pattern: proc_macro2::TokenStream,
+    key_pattern: proc_macro2::TokenStream,
 }

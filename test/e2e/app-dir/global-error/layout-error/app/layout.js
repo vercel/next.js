@@ -1,5 +1,5 @@
 export default function layout() {
-  throw new Error('Global error: layout error')
+  throw new Error('layout error')
 }
 
 export const revalidate = 0

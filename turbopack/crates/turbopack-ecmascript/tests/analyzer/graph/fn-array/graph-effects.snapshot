@@ -10,7 +10,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "1",
                         ),
                     ),
@@ -19,7 +19,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "2",
                         ),
                     ),

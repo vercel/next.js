@@ -1,18 +1,21 @@
 use std::collections::HashSet;
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
-use futures::future::Either;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
+use rustc_hash::FxHashMap;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
 
 use super::{
-    availability_info::AvailabilityInfo, available_modules::AvailableModulesInfo, chunk_content,
-    chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem, ChunkItemTy,
-    ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
+    availability_info::AvailabilityInfo, chunking::make_chunks, AsyncModuleInfo, Chunk,
+    ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
 };
 use crate::{
-    environment::ChunkLoading, module::Module, output::OutputAssets, rebase::RebasedAsset,
+    chunk::ChunkingType,
+    environment::ChunkLoading,
+    module::Module,
+    module_graph::{GraphTraversalAction, ModuleGraph},
+    output::OutputAssets,
     reference::ModuleReference,
+    traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
@@ -22,8 +25,9 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let can_split_async = !matches!(
@@ -32,15 +36,12 @@ pub async fn make_chunk_group(
     );
     let should_trace = *chunking_context.is_tracing_enabled().await?;
 
-    let ChunkContentResult {
+    let ChunkGroupContent {
         chunkable_modules,
         async_modules,
         traced_modules,
-        passthrough_modules,
-        forward_edges_inherit_async,
-        local_back_edges_inherit_async,
-        available_async_modules_back_edges_inherit_async,
-    } = chunk_content(
+    } = chunk_group_content(
+        &*module_graph.await?,
         chunk_group_entries,
         availability_info,
         can_split_async,
@@ -48,118 +49,54 @@ pub async fn make_chunk_group(
     )
     .await?;
 
-    // Find all local chunk items that are self async
-    let self_async_children = chunkable_modules
-        .iter()
-        .copied()
-        .map(|m| async move {
-            let is_self_async = *m.is_self_async().await?;
-            Ok(is_self_async.then_some(m))
-        })
-        .try_flat_join()
-        .await?;
-
-    // Get all available async modules and concatenate with local async modules
-    let mut all_async_modules = available_async_modules_back_edges_inherit_async
-        .keys()
-        .copied()
-        .chain(self_async_children.into_iter())
-        .map(|m| (m, AutoSet::<ResolvedVc<Box<dyn ChunkableModule>>>::new()))
-        .collect::<FxIndexMap<_, _>>();
-
-    // Propagate async inheritance
-    let mut i = 0;
-    loop {
-        let Some((&async_module, _)) = all_async_modules.get_index(i) else {
-            break;
-        };
-        // The first few entries are from
-        // available_async_modules_back_edges_inherit_async and need to use that map,
-        // all other entries are local
-        let map = if i < available_async_modules_back_edges_inherit_async.len() {
-            &available_async_modules_back_edges_inherit_async
-        } else {
-            &local_back_edges_inherit_async
-        };
-        if let Some(parents) = map.get(&async_module) {
-            for &parent in parents.iter() {
-                // Add item, it will be iterated by this loop too
-                all_async_modules
-                    .entry(parent)
-                    .or_default()
-                    .insert(async_module);
-            }
-        }
-        i += 1;
-    }
+    let async_modules_info = module_graph.async_module_info().await?;
 
     // Create map for chunk items with empty [Option<Vc<AsyncModuleInfo>>]
-    let mut all_modules = chunkable_modules
+    let all_modules = chunkable_modules
+        .iter()
+        .copied()
+        .map(async |m| {
+            if async_modules_info.contains(&ResolvedVc::upcast(m)) {
+                anyhow::Ok((
+                    m,
+                    Some(
+                        module_graph
+                            .referenced_async_modules(*ResolvedVc::upcast(m))
+                            .to_resolved()
+                            .await?,
+                    ),
+                ))
+            } else {
+                anyhow::Ok((m, None))
+            }
+        })
+        .try_join()
+        .await?
         .into_iter()
-        .map(|m| (m, None))
         .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
 
-    // Insert AsyncModuleInfo for every async module
-    for (async_item, referenced_async_modules) in all_async_modules {
-        let referenced_async_modules =
-            if let Some(references) = forward_edges_inherit_async.get(&async_item) {
-                references
-                    .iter()
-                    .copied()
-                    .filter(|item| referenced_async_modules.contains(item))
-                    .map(|item| *item)
-                    .collect()
-            } else {
-                Default::default()
-            };
-        all_modules.insert(
-            async_item,
-            Some(
-                AsyncModuleInfo::new(referenced_async_modules)
-                    .to_resolved()
-                    .await?,
-            ),
-        );
-    }
-
     // Compute new [AvailabilityInfo]
-    let availability_info = {
-        let map = all_modules
-            .iter()
-            .map(|(&module, async_info)| async move {
-                Ok((
-                    module,
-                    AvailableModulesInfo {
-                        is_async: async_info.is_some(),
-                    },
-                ))
-            })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect();
-        let map = Vc::cell(map);
-        availability_info.with_modules(map).await?
-    };
+    let availability_info = availability_info
+        .with_modules(Vc::cell(chunkable_modules))
+        .await?;
 
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
         .into_iter()
         .map(async |module| {
             chunking_context
-                .async_loader_chunk_item(*module, Value::new(availability_info))
+                .async_loader_chunk_item(*module, module_graph, Value::new(availability_info))
                 .to_resolved()
                 .await
         })
         .try_join()
         .await?;
-    let has_async_loaders = !async_loaders.is_empty();
     let async_loader_chunk_items =
         async_loaders
             .iter()
             .map(|&chunk_item| ChunkItemWithAsyncModuleInfo {
-                ty: ChunkItemTy::Included,
                 chunk_item,
+                module: None,
                 async_info: None,
             });
 
@@ -169,77 +106,50 @@ pub async fn make_chunk_group(
         .map(|&loader| loader.references())
         .try_join()
         .await?;
-    let async_loader_external_module_references = Vc::cell(
-        async_loader_references
-            .iter()
-            .flat_map(|references| references.iter().copied())
-            .collect(),
-    );
 
-    let traced_output_assets = traced_modules
+    let mut referenced_output_assets = traced_modules
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
-                RebasedAsset::new(
-                    *module,
-                    module.ident().path().root(),
-                    module.ident().path().root(),
-                )
-                .to_resolved()
-                .await?,
+                TracedAsset::new(*module).to_resolved().await?,
             ))
         })
         .try_join()
         .await?;
 
-    let chunk_items = all_modules
+    let mut chunk_items = all_modules
         .iter()
-        .map(|(m, async_info)| {
-            Either::Left(async move {
-                Ok(ChunkItemWithAsyncModuleInfo {
-                    ty: ChunkItemTy::Included,
-                    chunk_item: m.as_chunk_item(*chunking_context).to_resolved().await?,
-                    async_info: *async_info,
-                })
+        .map(|(module, async_info)| async move {
+            Ok(ChunkItemWithAsyncModuleInfo {
+                chunk_item: module
+                    .as_chunk_item(module_graph, *chunking_context)
+                    .to_resolved()
+                    .await?,
+                module: Some(*module),
+                async_info: *async_info,
             })
         })
-        .chain(passthrough_modules.into_iter().map(|m| {
-            Either::Right(async move {
-                Ok(ChunkItemWithAsyncModuleInfo {
-                    ty: ChunkItemTy::Passthrough,
-                    chunk_item: m.as_chunk_item(*chunking_context).to_resolved().await?,
-                    async_info: None,
-                })
-            })
-        }))
         .try_join()
         .await?;
 
+    chunk_items.extend(async_loader_chunk_items);
+    referenced_output_assets.reserve(
+        async_loader_references
+            .iter()
+            .map(|r| r.len())
+            .sum::<usize>(),
+    );
+    referenced_output_assets.extend(async_loader_references.into_iter().flatten());
+
     // Pass chunk items to chunking algorithm
-    let mut chunks = make_chunks(
+    let chunks = make_chunks(
+        module_graph,
         *chunking_context,
-        Vc::cell(chunk_items),
+        chunk_items,
         "".into(),
-        Vc::cell(traced_output_assets),
+        Vc::cell(referenced_output_assets),
     )
-    .await?
-    .clone_value();
-
-    if has_async_loaders {
-        // Pass async chunk loaders to chunking algorithm
-        // We want them to be separate since they are specific to this chunk group due
-        // to available chunk items differing
-        let async_loader_chunks = make_chunks(
-            *chunking_context,
-            Vc::cell(async_loader_chunk_items.into_iter().collect()),
-            "async-loader-".into(),
-            async_loader_external_module_references,
-        )
-        .await?;
-
-        // concatenate chunks
-        chunks.extend(async_loader_chunks.iter().copied());
-    }
+    .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,
@@ -264,4 +174,120 @@ pub async fn references_to_output_assets(
         .map(|asset| *asset)
         .collect::<Vec<_>>();
     Ok(OutputAssets::new(output_assets))
+}
+
+pub async fn chunk_group_content(
+    module_graph: &ModuleGraph,
+    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    availability_info: AvailabilityInfo,
+    can_split_async: bool,
+    should_trace: bool,
+) -> Result<ChunkGroupContent> {
+    type ModuleToChunkableMap =
+        FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>;
+
+    struct TraverseState {
+        unsorted_chunkable_modules: ModuleToChunkableMap,
+        result: ChunkGroupContent,
+    }
+
+    let mut state = TraverseState {
+        unsorted_chunkable_modules: FxHashMap::default(),
+        result: ChunkGroupContent {
+            chunkable_modules: FxIndexSet::default(),
+            async_modules: FxIndexSet::default(),
+            traced_modules: FxIndexSet::default(),
+        },
+    };
+
+    let available_modules = match availability_info.available_modules() {
+        Some(available_modules) => Some(available_modules.snapshot().await?),
+        None => None,
+    };
+
+    module_graph
+        .traverse_edges_from_entries_topological(
+            chunk_group_entries,
+            &mut state,
+            |parent_info,
+             node,
+             TraverseState {
+                 unsorted_chunkable_modules,
+                 result,
+             }| {
+                if let Some((_, ChunkingType::Traced)) = parent_info {
+                    if should_trace {
+                        result.traced_modules.insert(node.module);
+                    }
+                    return Ok(GraphTraversalAction::Skip);
+                }
+
+                let Some(chunkable_module) =
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
+                else {
+                    return Ok(GraphTraversalAction::Skip);
+                };
+
+                let is_available = available_modules
+                    .as_ref()
+                    .is_some_and(|available_modules| available_modules.get(chunkable_module));
+
+                let Some((_, edge)) = parent_info else {
+                    return Ok(if is_available {
+                        GraphTraversalAction::Skip
+                    } else {
+                        unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                        GraphTraversalAction::Continue
+                    });
+                };
+
+                Ok(match edge {
+                    ChunkingType::Parallel
+                    | ChunkingType::ParallelInheritAsync
+                    | ChunkingType::Shared { .. } => {
+                        if is_available {
+                            GraphTraversalAction::Skip
+                        } else {
+                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                            GraphTraversalAction::Continue
+                        }
+                    }
+                    ChunkingType::Async => {
+                        if can_split_async {
+                            result.async_modules.insert(chunkable_module);
+                            GraphTraversalAction::Skip
+                        } else if is_available {
+                            GraphTraversalAction::Skip
+                        } else {
+                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                            GraphTraversalAction::Continue
+                        }
+                    }
+                    ChunkingType::Traced => {
+                        // handled above before the sidecast
+                        unreachable!();
+                    }
+                    ChunkingType::Isolated { .. } => {
+                        // TODO currently not implemented
+                        GraphTraversalAction::Skip
+                    }
+                })
+            },
+            |_,
+             node,
+             TraverseState {
+                 unsorted_chunkable_modules,
+                 result,
+             }| {
+                // Insert modules in topological order
+                if let Some(chunkable_module) =
+                    unsorted_chunkable_modules.get(&node.module).copied()
+                {
+                    result.chunkable_modules.insert(chunkable_module);
+                }
+            },
+        )
+        .await?;
+
+    Ok(state.result)
 }

@@ -19,7 +19,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -116,6 +116,7 @@ export interface BuildTraceContext {
     outputPath: string
     depModArray: string[]
     entryNameMap: Record<string, string>
+    absolutePathByEntryName: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
@@ -173,11 +174,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   // Here we output all traced assets and webpack chunks to a
   // ${page}.js.nft.json file
-  async createTraceAssets(
-    compilation: webpack.Compilation,
-    assets: any,
-    span: Span
-  ) {
+  async createTraceAssets(compilation: webpack.Compilation, span: Span) {
     const outputPath = compilation.outputOptions.path || ''
 
     await span.traceChild('create-trace-assets').traceAsyncFn(async () => {
@@ -193,9 +190,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
 
-        for (const chunk of entrypoint
-          .getEntrypointChunk()
-          .getAllReferencedChunks()) {
+        for (const chunk of process.env.NEXT_RSPACK
+          ? entrypoint.chunks
+          : entrypoint.getEntrypointChunk().getAllReferencedChunks()) {
           for (const file of chunk.files) {
             if (isTraceable(file)) {
               const filePath = nodePath.join(outputPath, file)
@@ -242,12 +239,21 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
         )
 
-        if (entrypoint.name.startsWith('app/')) {
-          // Include the client reference manifest for pages and route handlers,
-          // excluding metadata route handlers.
-          const clientManifestsForEntrypoint = isMetadataRoute(entrypoint.name)
-            ? null
-            : nodePath.join(
+        if (entrypoint.name.startsWith('app/') && this.appDir) {
+          const appDirRelativeEntryPath =
+            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
+              entrypoint.name
+            ]?.replace(this.appDir, '')
+
+          const entryIsStaticMetadataRoute =
+            appDirRelativeEntryPath &&
+            isStaticMetadataRoute(appDirRelativeEntryPath)
+
+          // Include the client reference manifest in the trace, but not for
+          // static metadata routes, for which we don't generate those.
+          if (!entryIsStaticMetadataRoute) {
+            entryFiles.add(
+              nodePath.join(
                 outputPath,
                 outputPrefix,
                 entrypoint.name.replace(/%5F/g, '_') +
@@ -255,9 +261,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   CLIENT_REFERENCE_MANIFEST +
                   '.js'
               )
-
-          if (clientManifestsForEntrypoint !== null) {
-            entryFiles.add(clientManifestsForEntrypoint)
+            )
           }
         }
 
@@ -284,11 +288,14 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           })
         )
 
-        assets[traceOutputName] = new sources.RawSource(
-          JSON.stringify({
-            version: TRACE_OUTPUT_VERSION,
-            files: finalFiles,
-          })
+        compilation.emitAsset(
+          traceOutputName,
+          new sources.RawSource(
+            JSON.stringify({
+              version: TRACE_OUTPUT_VERSION,
+              files: finalFiles,
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       }
     })
@@ -319,6 +326,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             const entryNameMap = new Map<string, string>()
             const entryModMap = new Map<string, any>()
             const additionalEntries = new Map<string, Map<string, any>>()
+            const absolutePathByEntryName = new Map<string, string>()
 
             const depModMap = new Map<string, any>()
 
@@ -360,6 +368,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           ) {
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+                            absolutePathByEntryName.set(name, absolutePath)
                           }
                         }
 
@@ -445,6 +454,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
               entryNameMap: Object.fromEntries(entryNameMap),
+              absolutePathByEntryName: Object.fromEntries(
+                absolutePathByEntryName
+              ),
               outputPath: compilation.outputOptions.path!,
             }
 
@@ -568,6 +580,23 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tapAsync(
+        {
+          name: PLUGIN_NAME,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+        },
+        (_assets: any, callback: any) => {
+          this.createTraceAssets(compilation, traceEntrypointsPluginSpan)
+            .then(() => callback())
+            .catch((err) => callback(err))
+        }
+      )
+
+      // rspack doesn't support all API below so only create trace assets
+      if (process.env.NEXT_RSPACK) {
+        return
+      }
+
       const readlink = async (path: string): Promise<string | null> => {
         try {
           return await new Promise((resolve, reject) => {
@@ -618,12 +647,8 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             name: PLUGIN_NAME,
             stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
           },
-          (assets: any, callback: any) => {
-            this.createTraceAssets(
-              compilation,
-              assets,
-              traceEntrypointsPluginSpan
-            )
+          (_, callback: any) => {
+            this.createTraceAssets(compilation, traceEntrypointsPluginSpan)
               .then(() => callback())
               .catch((err) => callback(err))
           }

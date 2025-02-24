@@ -9,7 +9,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "exported_t_r",
                         ),
                     ),
@@ -27,7 +27,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_i",
                         ),
                     ),
@@ -48,7 +48,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_i_f",
                                 ),
                             ),
@@ -63,7 +63,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_i_f",
                                 ),
                             ),
@@ -78,7 +78,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_r_t",
                                 ),
                             ),
@@ -93,7 +93,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "t_r_f",
                                 ),
                             ),
@@ -114,7 +114,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_i",
                         ),
                     ),
@@ -135,7 +135,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_r_t",
                                 ),
                             ),
@@ -150,7 +150,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "w_r_f",
                                 ),
                             ),

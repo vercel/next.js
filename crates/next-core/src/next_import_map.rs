@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
@@ -1051,7 +1052,7 @@ fn export_value_to_import_mapping(
     value.add_results(
         conditions,
         &ConditionValue::Unset,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
         &mut result,
     );
     if result.is_empty() {

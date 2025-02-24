@@ -4,7 +4,7 @@ import type {
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { stringify } from 'querystring'
+import { parse, stringify } from 'querystring'
 import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -13,7 +13,10 @@ import {
   EntryTypes,
   getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
-import { WEBPACK_LAYERS } from '../../../lib/constants'
+import {
+  WEBPACK_LAYERS,
+  WEBPACK_RESOURCE_QUERIES,
+} from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
   BARREL_OPTIMIZATION_PREFIX,
@@ -24,7 +27,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../../shared/lib/constants'
 import {
-  getActionsFromBuildInfo,
   isClientComponentEntryModule,
   isCSSMod,
   regexCSS,
@@ -41,6 +43,9 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
+import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 
 interface Options {
   dev: boolean
@@ -63,7 +68,7 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = [id: string, name: string]
+type ActionIdNamePair = { id: string; exportedName: string }
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -258,7 +263,7 @@ export class FlightClientEntryPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        (assets) => this.createActionAssets(compilation, assets)
+        () => this.createActionAssets(compilation)
       )
     })
   }
@@ -296,9 +301,18 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryRequest = (
+        let entryRequest = (
           connection.dependency as unknown as webpack.NormalModule
         ).request
+
+        if (entryRequest.endsWith(WEBPACK_RESOURCE_QUERIES.metadataRoute)) {
+          const { filePath, isDynamicRouteExtension } =
+            getMetadataRouteResource(entryRequest)
+
+          if (isDynamicRouteExtension === '1') {
+            entryRequest = filePath
+          }
+        }
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
@@ -332,9 +346,15 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = normalizePathSep(
+        let bundlePath = normalizePathSep(
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
+
+        // For metadata routes, the entry name can be used as the bundle path,
+        // as it has been normalized already.
+        if (isMetadataRoute(bundlePath)) {
+          bundlePath = name
+        }
 
         Object.assign(mergedCSSimports, cssImports)
         clientEntriesToInject.push({
@@ -498,8 +518,7 @@ export class FlightClientEntryPlugin {
       for (const [dep, actions] of actionEntryImports) {
         const remainingActionNames = []
         for (const action of actions) {
-          // `action` is a [id, name] pair.
-          if (!createdActionIds.has(entryName + '@' + action[0])) {
+          if (!createdActionIds.has(entryName + '@' + action.id)) {
             remainingActionNames.push(action)
           }
         }
@@ -558,9 +577,15 @@ export class FlightClientEntryPlugin {
         if (visitedModule.has(modResource)) return
         visitedModule.add(modResource)
 
-        const actions = getActionsFromBuildInfo(mod)
-        if (actions) {
-          collectedActions.set(modResource, Object.entries(actions))
+        const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+        if (actionIds) {
+          collectedActions.set(
+            modResource,
+            Object.entries(actionIds).map(([id, exportedName]) => ({
+              id,
+              exportedName,
+            }))
+          )
         }
 
         // Collect used exported actions transversely.
@@ -652,9 +677,15 @@ export class FlightClientEntryPlugin {
       }
       visitedOfClientComponentsTraverse.add(modResource)
 
-      const actions = getActionsFromBuildInfo(mod)
-      if (actions) {
-        actionImports.push([modResource, Object.entries(actions)])
+      const actionIds = getModuleBuildInfo(mod).rsc?.actionIds
+      if (actionIds) {
+        actionImports.push([
+          modResource,
+          Object.entries(actionIds).map(([id, exportedName]) => ({
+            id,
+            exportedName,
+          })),
+        ])
       }
 
       if (isCSSMod(mod)) {
@@ -851,7 +882,7 @@ export class FlightClientEntryPlugin {
   }) {
     const actionsArray = Array.from(actions.entries())
     for (const [, actionsFromModule] of actions) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         createdActionIds.add(entryName + '@' + id)
       }
     }
@@ -861,7 +892,9 @@ export class FlightClientEntryPlugin {
     }
 
     const actionLoader = `next-flight-action-entry-loader?${stringify({
-      actions: JSON.stringify(actionsArray),
+      actions: JSON.stringify(
+        actionsArray satisfies FlightActionEntryLoaderActions
+      ),
       __client_imported__: fromClient,
     })}!`
 
@@ -870,7 +903,7 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const [id] of actionsFromModule) {
+      for (const { id } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
@@ -908,45 +941,59 @@ export class FlightClientEntryPlugin {
   }
 
   addEntry(
-    compilation: any,
+    compilation: webpack.Compilation,
     context: string,
     dependency: webpack.Dependency,
     options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      const entry = compilation.entries.get(options.name)
-      entry.includeDependencies.push(dependency)
-      compilation.hooks.addEntry.call(entry, options)
-      compilation.addModuleTree(
-        {
-          context,
-          dependency,
-          contextInfo: { issuerLayer: options.layer },
-        },
-        (err: Error | undefined, module: any) => {
+      if ('rspack' in compilation.compiler) {
+        compilation.addInclude(context, dependency, options, (err, module) => {
           if (err) {
-            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(dependency, options, module)
-
           compilation.moduleGraph
-            .getExportsInfo(module)
+            .getExportsInfo(module!)
             .setUsedInUnknownWay(
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
             )
-
           return resolve(module)
-        }
-      )
+        })
+      } else {
+        const entry = compilation.entries.get(options.name!)!
+        entry.includeDependencies.push(dependency)
+        compilation.hooks.addEntry.call(entry as any, options)
+        compilation.addModuleTree(
+          {
+            context,
+            dependency,
+            contextInfo: { issuerLayer: options.layer },
+          },
+          (err: any, module: any) => {
+            if (err) {
+              compilation.hooks.failedEntry.call(dependency, options, err)
+              return reject(err)
+            }
+
+            compilation.hooks.succeedEntry.call(dependency, options, module)
+
+            compilation.moduleGraph
+              .getExportsInfo(module)
+              .setUsedInUnknownWay(
+                this.isEdgeServer
+                  ? EDGE_RUNTIME_WEBPACK
+                  : DEFAULT_RUNTIME_WEBPACK
+              )
+
+            return resolve(module)
+          }
+        )
+      }
     })
   }
 
-  async createActionAssets(
-    compilation: webpack.Compilation,
-    assets: webpack.Compilation['assets']
-  ) {
+  async createActionAssets(compilation: webpack.Compilation) {
     const serverActions: ActionManifest['node'] = {}
     const edgeServerActions: ActionManifest['edge'] = {}
 
@@ -1019,12 +1066,16 @@ export class FlightClientEntryPlugin {
       this.dev ? 2 : undefined
     )
 
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`] =
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.js`,
       new sources.RawSource(
         `self.__RSC_SERVER_MANIFEST=${JSON.stringify(edgeJson)}`
       ) as unknown as webpack.sources.RawSource
-    assets[`${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`] =
+    )
+    compilation.emitAsset(
+      `${this.assetPrefix}${SERVER_REFERENCE_MANIFEST}.json`,
       new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    )
   }
 }
 
@@ -1094,5 +1145,17 @@ function getModuleResource(mod: webpack.NormalModule): string {
   if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
     modResource = mod.matchResource + ':' + modResource
   }
+
+  if (mod.resource === `?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`) {
+    return getMetadataRouteResource(mod.rawRequest).filePath
+  }
+
   return modResource
+}
+
+function getMetadataRouteResource(request: string): MetadataRouteLoaderOptions {
+  // e.g. next-metadata-route-loader?filePath=<some-url-encoded-path>&isDynamicRouteExtension=1!?__next_metadata_route__
+  const query = request.split('!')[0].split('next-metadata-route-loader?')[1]
+
+  return parse(query) as MetadataRouteLoaderOptions
 }

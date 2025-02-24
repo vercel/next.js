@@ -662,7 +662,7 @@ impl Request {
                 requests
                     .iter()
                     .map(async |r: &ResolvedVc<Request>| -> Result<Pattern> {
-                        Ok(r.request_pattern().await?.clone_value())
+                        Ok(r.request_pattern().owned().await?)
                     })
                     .try_join()
                     .await?,

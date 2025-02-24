@@ -13,6 +13,10 @@ export default function Root({ children }: { children: ReactNode }) {
           <Link href="/" id="to-home">
             {`to /`}
           </Link>
+          <br />
+          <Link href="/dynamic-api" id="to-dynamic-api">
+            {`to /dynamic-api`}
+          </Link>
         </div>
         {children}
       </body>

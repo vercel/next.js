@@ -1,0 +1,82 @@
+# A recurring workflow which updates the passing/failing/skipped integration tests for Turbopack.
+name: Update Rspack test manifest
+
+on:
+  schedule:
+    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  update_dev_manifest:
+    name: Update and upload Rspack development test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: rspack-manifest
+          SCRIPT: test/build-rspack-dev-tests-manifest.js
+          PR_TITLE: Update bundler development test manifest
+          PR_BODY: This auto-generated PR updates the development integration test manifest used when testing alternative bundlers.
+  update_build_manifest:
+    name: Update and upload Rspack production test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: rspack-manifest
+          SCRIPT: test/build-rspack-build-tests-manifest.js
+          PR_TITLE: Update bundler production test manifest
+          PR_BODY: This auto-generated PR updates the production integration test manifest used when testing alternative bundlers.

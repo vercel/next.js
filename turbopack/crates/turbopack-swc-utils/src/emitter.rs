@@ -14,6 +14,7 @@ use turbopack_core::{
     source::Source,
 };
 
+#[must_use]
 pub struct IssueCollector {
     inner: Arc<Mutex<IssueCollectorInner>>,
 }
@@ -22,10 +23,6 @@ impl IssueCollector {
     pub async fn emit(self) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
-            if inner.emitted {
-                return Ok(());
-            }
-            inner.emitted = true;
             take(&mut inner.emitted_issues)
         };
 
@@ -43,18 +40,6 @@ impl IssueCollector {
 
 struct IssueCollectorInner {
     emitted_issues: Vec<Vc<AnalyzeIssue>>,
-    emitted: bool,
-}
-
-impl Drop for IssueCollectorInner {
-    fn drop(&mut self) {
-        if !self.emitted {
-            panic!(
-                "IssueCollector and IssueEmitter were dropped without calling \
-                 `collector.emit().await?`"
-            );
-        }
-    }
 }
 
 pub struct IssueEmitter {
@@ -72,7 +57,6 @@ impl IssueEmitter {
     ) -> (Self, IssueCollector) {
         let inner = Arc::new(Mutex::new(IssueCollectorInner {
             emitted_issues: vec![],
-            emitted: false,
         }));
         (
             Self {
@@ -130,7 +114,7 @@ impl Emitter for IssueEmitter {
         }
 
         let source = db.span.primary_span().map(|span| {
-            IssueSource::from_swc_offsets(*self.source, span.lo.to_usize(), span.hi.to_usize())
+            IssueSource::from_swc_offsets(self.source, span.lo.to_u32(), span.hi.to_u32())
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
@@ -144,7 +128,6 @@ impl Emitter for IssueEmitter {
         );
 
         let mut inner = self.inner.lock();
-        inner.emitted = false;
         inner.emitted_issues.push(issue);
     }
 }

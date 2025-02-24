@@ -164,7 +164,7 @@ export async function verifyTypeScriptSetup({
      */
 
     // we are in a worker, print the error message and exit the process
-    if (process.env.JEST_WORKER_ID) {
+    if (process.env.IS_NEXT_WORKER) {
       if (err instanceof Error) {
         console.error(err.message)
       } else {

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js"],"sourcesContent":["import child_process from \"node:child_process\";\nimport fs, { readFileSync } from \"node:fs\";\n\nconst unknown = Math.random();\n\nchild_process.spawnSync(unknown);\nchild_process.spawnSync(\"node\", unknown);\nchild_process.spawnSync(\"node\", [unknown, unknown]);\n\nrequire(unknown);\n\nimport(unknown);\n\nfs.readFileSync(unknown);\nreadFileSync(unknown);\n\nnew URL(unknown, import.meta.url);\n"],"names":[],"mappings":";AAAA;AACA;;;;;;;;AAEA,MAAM,UAAU,KAAK,MAAM;AAE3B,mDAAA,CAAA,UAAa,CAAC,SAAS,CAAC;AACxB,mDAAA,CAAA,UAAa,CAAC,SAAS,CAAC,QAAQ;AAChC,mDAAA,CAAA,UAAa,CAAC,SAAS,CAAC,QAAQ;IAAC;IAAS;CAAQ;;;;;;;;;;;AAMlD,wCAAA,CAAA,UAAE,CAAC,YAAY,CAAC;AAChB,CAAA,GAAA,wCAAA,CAAA,eAAY,AAAD,EAAE;AAEb,IAAI,IAAI,SAAS,8BAAY,GAAG"}},
+    {"offset": {"line": 37, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

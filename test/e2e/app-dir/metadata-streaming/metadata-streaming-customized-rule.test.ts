@@ -6,10 +6,7 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
     overrideFiles: {
       'next.config.js': `
         module.exports = {
-          experimental: {
-            streamingMetadata: true,
-            htmlLimitedBots: /Minibot/i,
-          }
+          htmlLimitedBots: /Minibot/i,
         }
       `,
     },
@@ -25,7 +22,8 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
         },
       }
     )
-    expect(await $('title').text()).toBe('index page')
+    expect(await $('head title').text()).toBe('index page')
+    expect(await $('body title').length).toBe(0)
   })
 
   it('should send streaming response for headless browser bots', async () => {
@@ -38,6 +36,7 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
         },
       }
     )
-    expect(await $('title').length).toBe(0)
+    expect(await $('head title').length).toBe(0)
+    expect(await $('body title').length).toBe(1)
   })
 })
