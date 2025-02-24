@@ -3,8 +3,6 @@ use std::{fmt, hash::Hash};
 use petgraph::{
     algo::{condensation, has_path_connecting},
     graph::NodeIndex,
-    graphmap::GraphMap,
-    prelude::DiGraphMap,
     visit::EdgeRef,
     Direction, Graph,
 };
@@ -27,6 +25,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 use super::{
+    fast::{FastDiGraphMap, FastGraphMap},
     util::{
         collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested, Vars,
     },
@@ -174,7 +173,7 @@ pub struct InternedGraph<T>
 where
     T: Eq + Hash + Clone,
 {
-    pub(super) idx_graph: DiGraphMap<u32, Dependency>,
+    pub(super) idx_graph: FastDiGraphMap<u32, Dependency>,
     pub(super) graph_ix: FxIndexSet<T>,
 }
 
@@ -758,7 +757,7 @@ impl DepGraph {
             |_, edge| *edge,
         );
 
-        let map = GraphMap::from_graph(mapped);
+        let map = FastGraphMap::from_graph(mapped);
 
         // Insert nodes without any edges
 
