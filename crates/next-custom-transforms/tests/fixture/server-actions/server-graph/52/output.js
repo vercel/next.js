@@ -1,6 +1,7 @@
 /* __next_internal_action_entry_do_not_use__ {"409651a98a9dccd7ffbe72ff5cf0f38546ca1252ab":"$$RSC_SERVER_ACTION_5","60a9b2939c1f39073a6bed227fd20233064c8b7869":"$$RSC_SERVER_ACTION_4","c069348c79fce073bae2f70f139565a2fda1c74c74":"$$RSC_SERVER_CACHE_2","e03128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
+import { Client } from 'components';
 export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, async function([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 });
