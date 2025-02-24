@@ -1208,12 +1208,16 @@ Some bots, like `Googlebot`, can execute JavaScript and are able to inspect the 
 Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
 
 If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
+`htmlLimitedBots` config will override the default list of HTML-limited bots of Next.js, which allows you opt-out any default ones and add new ones flexibly.
 
 ```js filename="next.config.js"
 module.exports = {
   htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
 }
 ```
+
+> **Note:** The default html bots list is:
+> `Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview`
 
 ## Version History
 
