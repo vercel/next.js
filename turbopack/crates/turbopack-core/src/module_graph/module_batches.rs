@@ -505,6 +505,27 @@ pub async fn compute_module_batches(
         let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
             petgraph::graph::DiGraph::with_capacity(state.batches.len(), state.edges.len());
 
+        for (i, batch) in state.batches.iter().enumerate() {
+            match batch {
+                ModuleBatchBuilder::Batch {
+                    modules,
+                    chunk_groups: _,
+                } => {
+                    println!(
+                        "batch {i}: {:#?}",
+                        modules
+                            .iter()
+                            .map(|e| e.ident().to_string())
+                            .try_join()
+                            .await?
+                    )
+                }
+                ModuleBatchBuilder::Module { module } => {
+                    println!("batch {i}: {}", module.ident().to_string().await?)
+                }
+            }
+        }
+
         // Add nodes and store node index
         let batch_indicies = state
             .batches
