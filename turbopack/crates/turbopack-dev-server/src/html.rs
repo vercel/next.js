@@ -10,8 +10,8 @@ use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        EvaluatableAssets,
     },
     module::Module,
     module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
@@ -163,10 +163,7 @@ impl DevHtmlAsset {
                 } else {
                     chunking_context.root_chunk_group_assets(
                         chunkable_module.ident(),
-                        ChunkGroup::Entry {
-                            entries: vec![ResolvedVc::upcast(chunkable_module)],
-                            ty: ChunkGroupType::Evaluated,
-                        },
+                        ChunkGroup::Entry(vec![ResolvedVc::upcast(chunkable_module)]),
                         *module_graph,
                     )
                 };

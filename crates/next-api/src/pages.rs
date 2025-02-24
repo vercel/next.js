@@ -45,8 +45,8 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkGroupType, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -769,7 +769,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated))
+        Ok(project.module_graph_for_entries(evaluatable_assets))
     }
 
     #[turbo_tasks::function]
@@ -909,7 +909,7 @@ impl PageEndpoint {
             // The SSR and Client Graphs are not connected in Pages Router.
             // We are only interested in get_next_dynamic_imports_for_endpoint at the
             // moment, which only needs the client graph anyway.
-            let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
+            let module_graph = project.module_graph(*ssr_module);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 let client_availability_info = self.client_chunks().await?.availability_info;
@@ -1454,13 +1454,9 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
-        let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push((
-            vec![ssr_chunk_module.ssr_module],
-            Some(ChunkGroupType::Entry),
-        ));
+        let mut modules = vec![(vec![ssr_chunk_module.ssr_module], true)];
 
         if let PageEndpointType::Html = this.ty {
             modules.push((
@@ -1469,7 +1465,7 @@ impl Endpoint for PageEndpoint {
                     .iter()
                     .map(|m| ResolvedVc::upcast(*m))
                     .collect(),
-                Some(ChunkGroupType::Evaluated),
+                true,
             ));
         }
 

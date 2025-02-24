@@ -20,7 +20,7 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkGroupType, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingType},
     issue::Issue,
     module::Module,
     module_graph::{
@@ -144,7 +144,7 @@ impl VisitedModules {
     }
 }
 
-pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, Option<ChunkGroupType>)>;
+pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, bool)>;
 
 #[turbo_tasks::value(transparent)]
 pub struct GraphEntries(GraphEntriesT);
@@ -708,13 +708,10 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_module(
-        module: ResolvedVc<Box<dyn Module>>,
-        ty: Option<ChunkGroupType>,
-    ) -> Vc<Self> {
+    pub fn from_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![(
             vec![module],
-            ty,
+            true,
         )])))
     }
 

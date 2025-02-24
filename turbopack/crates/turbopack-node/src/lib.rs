@@ -18,9 +18,7 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{
-        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-    },
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
@@ -268,7 +266,7 @@ pub async fn get_intermediate_asset(
                     .chain(std::iter::once(main_entry))
                     .map(ResolvedVc::upcast)
                     .collect(),
-                Some(ChunkGroupType::Entry)
+                true
             )])),
         OutputAssets::empty(),
     )))
