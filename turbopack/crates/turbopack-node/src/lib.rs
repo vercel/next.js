@@ -166,7 +166,7 @@ async fn separate_assets_operation(
     let mut internal_assets = FxIndexSet::default();
     let mut external_asset_entrypoints = FxIndexSet::default();
 
-    for item in graph.into_reverse_topological() {
+    for item in graph.into_postorder_topological() {
         match item {
             Type::Internal(asset) => {
                 internal_assets.insert(asset);

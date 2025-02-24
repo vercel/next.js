@@ -1678,7 +1678,7 @@ async fn any_output_changed(
         .await
         .completed()?
         .into_inner()
-        .into_reverse_topological()
+        .into_postorder_topological()
         .map(|m| async move {
             let asset_path = m.path().await?;
             if !asset_path.path.ends_with(".map")

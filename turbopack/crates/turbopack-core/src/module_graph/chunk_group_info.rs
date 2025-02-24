@@ -7,7 +7,6 @@ use std::{
 use anyhow::{bail, Result};
 use either::Either;
 use indexmap::map::Entry;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -22,8 +21,8 @@ use crate::{
     chunk::{ChunkGroupType, ChunkingType},
     module::Module,
     module_graph::{
-        get_node, get_node_idx, GraphNodeIndex, GraphTraversalAction, ModuleGraph,
-        SingleModuleGraphModuleNode, SingleModuleGraphNode,
+        get_node, get_node_idx, traced_di_graph::iter_neighbors_rev, GraphNodeIndex,
+        GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode,
     },
 };
 
@@ -176,14 +175,6 @@ impl Deref for ChunkGroupId {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-fn iter_neighbors<N, E>(
-    graph: &DiGraph<N, E>,
-    node: NodeIndex,
-) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
-    let mut walker = graph.neighbors(node).detach();
-    std::iter::from_fn(move || walker.next(graph))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -448,7 +439,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 queue_set.remove(&node);
                 let (node_weight, node) = get_node_idx!(graphs, node)?;
                 let graph = &graphs[node.graph_idx].graph;
-                let neighbors = iter_neighbors(graph, node.node_idx);
+                let neighbors = iter_neighbors_rev(graph, node.node_idx);
 
                 visit_count += 1;
 

@@ -26,7 +26,7 @@ use crate::{
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
-        traced_di_graph::TracedDiGraph,
+        traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
     reference::primary_chunkable_referenced_modules,
 };
@@ -528,18 +528,14 @@ impl SingleModuleGraph {
         let graph = &self.graph;
         let entries = entries.into_iter().map(|e| self.get_module(e).unwrap());
 
-        enum ReverseTopologicalPass {
+        enum TopologicalPass {
             Visit,
             ExpandAndVisit,
         }
 
         #[allow(clippy::type_complexity)] // This is a temporary internal structure
-        let mut stack: Vec<(
-            ReverseTopologicalPass,
-            Option<(NodeIndex, EdgeIndex)>,
-            NodeIndex,
-        )> = entries
-            .map(|e| (ReverseTopologicalPass::ExpandAndVisit, None, e))
+        let mut stack: Vec<(TopologicalPass, Option<(NodeIndex, EdgeIndex)>, NodeIndex)> = entries
+            .map(|e| (TopologicalPass::ExpandAndVisit, None, e))
             .collect();
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
@@ -555,36 +551,33 @@ impl SingleModuleGraph {
                 )
             });
             match pass {
-                ReverseTopologicalPass::Visit => {
+                TopologicalPass::Visit => {
                     visit_postorder(parent_arg, graph.node_weight(current).unwrap(), state);
                 }
-                ReverseTopologicalPass::ExpandAndVisit => {
-                    match graph.node_weight(current).unwrap() {
-                        current_node @ SingleModuleGraphNode::Module(_) => {
-                            let action = visit_preorder(parent_arg, current_node, state)?;
-                            if action == GraphTraversalAction::Exclude {
-                                continue;
-                            }
-                            stack.push((ReverseTopologicalPass::Visit, parent, current));
-                            if action == GraphTraversalAction::Continue && expanded.insert(current)
-                            {
-                                stack.extend(iter_neighbors(graph, current).map(
-                                    |(edge, child)| {
-                                        (
-                                            ReverseTopologicalPass::ExpandAndVisit,
-                                            Some((current, edge)),
-                                            child,
-                                        )
-                                    },
-                                ));
-                            }
+                TopologicalPass::ExpandAndVisit => match graph.node_weight(current).unwrap() {
+                    current_node @ SingleModuleGraphNode::Module(_) => {
+                        let action = visit_preorder(parent_arg, current_node, state)?;
+                        if action == GraphTraversalAction::Exclude {
+                            continue;
                         }
-                        current_node @ SingleModuleGraphNode::VisitedModule { .. } => {
-                            visit_preorder(parent_arg, current_node, state)?;
-                            visit_postorder(parent_arg, current_node, state);
+                        stack.push((TopologicalPass::Visit, parent, current));
+                        if action == GraphTraversalAction::Continue && expanded.insert(current) {
+                            stack.extend(iter_neighbors_rev(graph, current).map(
+                                |(edge, child)| {
+                                    (
+                                        TopologicalPass::ExpandAndVisit,
+                                        Some((current, edge)),
+                                        child,
+                                    )
+                                },
+                            ));
                         }
                     }
-                }
+                    current_node @ SingleModuleGraphNode::VisitedModule { .. } => {
+                        visit_preorder(parent_arg, current_node, state)?;
+                        visit_postorder(parent_arg, current_node, state);
+                    }
+                },
             }
         }
 
@@ -655,7 +648,14 @@ impl ModuleGraph {
         let async_modules_info = self.async_module_info().await?;
 
         let entry = ModuleGraph::get_entry(&graphs, module).await?;
-        let referenced_modules = iter_neighbors(&graphs[entry.graph_idx].graph, entry.node_idx)
+        let referenced_modules = iter_neighbors_rev(&graphs[entry.graph_idx].graph, entry.node_idx)
+            .filter(|(edge_idx, _)| {
+                let ty = graphs[entry.graph_idx]
+                    .graph
+                    .edge_weight(*edge_idx)
+                    .unwrap();
+                ty.is_inherit_async()
+            })
             .map(|(_, child_idx)| {
                 anyhow::Ok(
                     get_node!(
@@ -670,6 +670,7 @@ impl ModuleGraph {
             })
             .collect::<Result<Vec<_>>>()?
             .into_iter()
+            .rev()
             .filter(|m| async_modules_info.contains(m))
             .map(|m| *m)
             .collect();
@@ -808,7 +809,7 @@ impl ModuleGraph {
             let graph = &graphs[node.graph_idx].graph;
             let node_weight = get_node!(graphs, node)?;
             if visited.insert(node) {
-                let neighbors = iter_neighbors(graph, node.node_idx);
+                let neighbors = iter_neighbors_rev(graph, node.node_idx);
 
                 for (edge, succ) in neighbors {
                     let succ = GraphNodeIndex {
@@ -861,7 +862,7 @@ impl ModuleGraph {
             let graph = &graphs[node.graph_idx].graph;
             let node_weight = get_node!(graphs, node)?;
             if visited.insert(node) {
-                let neighbors = iter_neighbors(graph, node.node_idx);
+                let neighbors = iter_neighbors_rev(graph, node.node_idx);
 
                 for (edge, succ) in neighbors {
                     let succ = GraphNodeIndex {
@@ -953,19 +954,19 @@ impl ModuleGraph {
 
         let entries = entries.into_iter().collect::<Vec<_>>();
 
-        enum ReverseTopologicalPass {
+        enum TopologicalPass {
             Visit,
             ExpandAndVisit,
         }
         #[allow(clippy::type_complexity)] // This is a temporary internal structure
         let mut stack: Vec<(
-            ReverseTopologicalPass,
+            TopologicalPass,
             Option<(GraphNodeIndex, EdgeIndex)>,
             GraphNodeIndex,
         )> = Vec::with_capacity(entries.len());
         for entry in entries.into_iter().rev() {
             stack.push((
-                ReverseTopologicalPass::ExpandAndVisit,
+                TopologicalPass::ExpandAndVisit,
                 None,
                 ModuleGraph::get_entry(&graphs, entry).await?,
             ));
@@ -984,31 +985,31 @@ impl ModuleGraph {
             };
             let current_node = get_node!(graphs, current)?;
             match pass {
-                ReverseTopologicalPass::Visit => {
+                TopologicalPass::Visit => {
                     visit_postorder(parent_arg, current_node, state);
                 }
-                ReverseTopologicalPass::ExpandAndVisit => {
+                TopologicalPass::ExpandAndVisit => {
                     let action = visit_preorder(parent_arg, current_node, state)?;
                     if action == GraphTraversalAction::Exclude {
                         continue;
                     }
-                    stack.push((ReverseTopologicalPass::Visit, parent, current));
+                    stack.push((TopologicalPass::Visit, parent, current));
                     if action == GraphTraversalAction::Continue && expanded.insert(current) {
                         let graph = &graphs[current.graph_idx].graph;
-                        let (neighbors, current) =
+                        let (neighbors_rev, current) =
                             match graph.node_weight(current.node_idx).unwrap() {
                                 SingleModuleGraphNode::Module(_) => {
-                                    (iter_neighbors(graph, current.node_idx), current)
+                                    (iter_neighbors_rev(graph, current.node_idx), current)
                                 }
                                 SingleModuleGraphNode::VisitedModule { idx, .. } => (
                                     // We switch graphs
-                                    iter_neighbors(&graphs[idx.graph_idx].graph, idx.node_idx),
+                                    iter_neighbors_rev(&graphs[idx.graph_idx].graph, idx.node_idx),
                                     *idx,
                                 ),
                             };
-                        stack.extend(neighbors.map(|(edge, child)| {
+                        stack.extend(neighbors_rev.map(|(edge, child)| {
                             (
-                                ReverseTopologicalPass::ExpandAndVisit,
+                                TopologicalPass::ExpandAndVisit,
                                 Some((current, edge)),
                                 GraphNodeIndex {
                                     graph_idx: current.graph_idx,
@@ -1276,12 +1277,4 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             }
         }
     }
-}
-
-fn iter_neighbors<N, E>(
-    graph: &DiGraph<N, E>,
-    node: NodeIndex,
-) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
-    let mut walker = graph.neighbors(node).detach();
-    std::iter::from_fn(move || walker.next(graph))
 }
