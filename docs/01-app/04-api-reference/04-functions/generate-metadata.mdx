@@ -1201,13 +1201,13 @@ export const metadata = {
 
 Starting from v15.2, metadata returned by `generateMetadata` will be streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
 
-Since SEO-focused metadata primarily targets crawler bots, we suspend metadata rendering for human users while keeping it blocking for certain **HTML-limited bots**.
+Since page metadata often primarily targets bots & crawlers, Next.js will continue to block the render until the metadata is resolved for **HTML-limited bots**.
 
-Some bots, like `Googlebot`, can render pages like headless browser and execute JavaScript, meaning they **don't** require blocking metadata. However, bots like `Twitterbot` **cannot** execute JavaScript while crawling a page—they fall into the **HTML-limited** category.
+Some bots, like `Googlebot`, can execute JavaScript and are able to inspect the full page DOM, meaning they **don't** require blocking metadata. However, bots like `Twitterbot` **cannot** execute JavaScript while crawling a page—they fall into the **HTML-limited** category.
 
 Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
 
-If you need to accommodate additional bots, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure these specified bots receive blocking metadata when requesting your web page.
+If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -1219,6 +1219,6 @@ module.exports = {
 
 | Version   | Changes                                                                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.2.0` | `generateMetadata` becomes non-blocking during initial rendering and navigation.                                                                        |
+| `v15.2.0` | introduced streaming support to `generateMetadata`.                                                                                                     |
 | `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
 | `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |
