@@ -24,6 +24,7 @@ use crate::{analyzer::graph::EvalContext, parse::ParseResult, EcmascriptModuleAs
 
 pub mod asset;
 pub mod chunk_item;
+mod fast;
 mod graph;
 pub mod merge;
 mod optimizations;

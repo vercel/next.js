@@ -1,0 +1,1 @@
+//! Fast fork of petgraph.
