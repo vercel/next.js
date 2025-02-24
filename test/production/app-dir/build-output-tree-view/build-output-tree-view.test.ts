@@ -22,7 +22,8 @@ describe('build-output-tree-view', () => {
        ├ ƒ /api                       N/A kB         N/A kB
        ├ ○ /api/force-static          N/A kB         N/A kB
        ├ ○ /app-static                N/A kB         N/A kB
-       ├ ○ /cache-life                N/A kB         N/A kB          1h      1d
+       ├ ○ /cache-life-custom         N/A kB         N/A kB         ≈7m     ≈2h
+       ├ ○ /cache-life-hours          N/A kB         N/A kB          1h      1d
        ├ ƒ /dynamic                   N/A kB         N/A kB
        ├ ◐ /ppr/[slug]                N/A kB         N/A kB          1w     30d
        ├   ├ /ppr/[slug]                                             1w     30d
