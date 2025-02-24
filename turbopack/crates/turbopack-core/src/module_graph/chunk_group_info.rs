@@ -21,7 +21,7 @@ use crate::{
     chunk::{ChunkGroupType, ChunkingType},
     module::Module,
     module_graph::{
-        get_node, get_node_idx, traced_di_graph::iter_neighbors, GraphNodeIndex,
+        get_node, get_node_idx, traced_di_graph::iter_neighbors_rev, GraphNodeIndex,
         GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode,
     },
 };
@@ -439,7 +439,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 queue_set.remove(&node);
                 let (node_weight, node) = get_node_idx!(graphs, node)?;
                 let graph = &graphs[node.graph_idx].graph;
-                let neighbors = iter_neighbors(graph, node.node_idx);
+                let neighbors = iter_neighbors_rev(graph, node.node_idx);
 
                 visit_count += 1;
 

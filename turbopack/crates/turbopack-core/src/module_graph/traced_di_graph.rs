@@ -51,7 +51,8 @@ where
 {
 }
 
-pub fn iter_neighbors<N, E>(
+/// Iterate the edges of a node REVERSED!
+pub fn iter_neighbors_rev<N, E>(
     graph: &DiGraph<N, E>,
     node: NodeIndex,
 ) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
