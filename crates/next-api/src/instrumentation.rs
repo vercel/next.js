@@ -96,15 +96,6 @@ impl InstrumentationEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn entry_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        if self.await?.is_edge {
-            Ok(*self.core_modules().await?.edge_entry_module)
-        } else {
-            Ok(*self.core_modules().await?.userland_module)
-        }
-    }
-
-    #[turbo_tasks::function]
     async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
@@ -290,8 +281,12 @@ impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let core_modules = self.core_modules().await?;
-        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            core_modules.edge_entry_module,
-        ])]))
+        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(
+            if self.await?.is_edge {
+                vec![core_modules.edge_entry_module]
+            } else {
+                vec![core_modules.userland_module]
+            },
+        )]))
     }
 }
