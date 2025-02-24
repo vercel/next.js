@@ -266,6 +266,42 @@ struct TraversalState {
     edges: FxIndexSet<BatchEdge>,
 }
 
+impl TraversalState {
+    fn split_batch(&mut self, batch_idx: BatchIndex) {
+        // We move all already added modules into a new batch.
+        if let ModuleBatchBuilderType::Batch {
+            modules,
+            chunk_groups,
+            ..
+        } = &self.batches[batch_idx].ty
+        {
+            // We only need to do that if the batch is not empty.
+            if !modules.is_empty() {
+                let idx = self.batches.len();
+                let first_module = modules[0];
+                for &module in modules {
+                    let BatchAssignment { batch_idx, .. } = self
+                        .batch_assignments
+                        .get_mut(&ResolvedVc::upcast(module))
+                        .unwrap();
+                    *batch_idx = idx;
+                }
+                let mut new_batch = ModuleBatchBuilder::new_batch(chunk_groups.clone());
+                new_batch.add_edge(
+                    idx,
+                    ChunkingType::Parallel,
+                    ResolvedVc::upcast(first_module),
+                );
+                let existing_batch = replace(&mut self.batches[batch_idx], new_batch);
+                self.batches.push(existing_batch);
+                // All modules that are assigned to the current batch that have
+                // not been visited in postorder do point to the `new_batch`
+                // now. And we point from the `new_batch` to `existing_batch`.
+            }
+        }
+    }
+}
+
 pub async fn compute_module_batches(
     module_graph: Vc<ModuleGraph>,
     _config: &BatchingConfig,
@@ -361,6 +397,15 @@ pub async fn compute_module_batches(
                         {
                             // Already assigned and processed, but we still need to add an edge
                             if batch_idx != idx {
+                                if matches!(
+                                    ty,
+                                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                                ) {
+                                    // Since we have a parallel edge here, order is important. So we
+                                    // need to split the current batch to avoid breaking the
+                                    // ordering.
+                                    state.split_batch(batch_idx);
+                                }
                                 state.batches[batch_idx].add_edge(
                                     idx,
                                     ty.without_inherit_async(),
@@ -431,43 +476,10 @@ pub async fn compute_module_batches(
                                 None
                             };
 
-                        // Since we create a new batch here, we might also need to split the
-                        // current batch to avoid breaking
-                        // the ordering. To do that we move all already added modules into a
-                        // new batch.
-                        {
-                            if let ModuleBatchBuilderType::Batch {
-                                modules,
-                                chunk_groups,
-                                ..
-                            } = &state.batches[batch_idx].ty
-                            {
-                                // We only need to do that if the batch is not empty.
-                                if !modules.is_empty() {
-                                    let idx = state.batches.len();
-                                    let first_module = modules[0];
-                                    for &module in modules {
-                                        let BatchAssignment { batch_idx, .. } = state
-                                            .batch_assignments
-                                            .get_mut(&ResolvedVc::upcast(module))
-                                            .unwrap();
-                                        *batch_idx = idx;
-                                    }
-                                    let mut new_batch =
-                                        ModuleBatchBuilder::new_batch(chunk_groups.clone());
-                                    new_batch.add_edge(
-                                        idx,
-                                        ChunkingType::Parallel,
-                                        ResolvedVc::upcast(first_module),
-                                    );
-                                    let existing_batch =
-                                        replace(&mut state.batches[batch_idx], new_batch);
-                                    state.batches.push(existing_batch);
-                                    // All modules that are assigned to the current batch that have
-                                    // not been visited in postorder do point to the `new_batch`
-                                    // now. And we point from the `new_batch` to `existing_batch`.
-                                }
-                            }
+                        if is_parallel {
+                            // Since we create a new batch here, we might also need to split the
+                            // current batch to avoid breaking the ordering.
+                            state.split_batch(batch_idx);
                         }
 
                         // Assign the module to a new batch
