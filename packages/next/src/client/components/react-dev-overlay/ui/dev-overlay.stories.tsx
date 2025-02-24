@@ -19,7 +19,9 @@ const state: OverlayState = {
   nextId: 0,
   routerType: 'app',
   buildError: null,
-  disableDevIndicator: false,
+  devIndicator: {
+    isDisabled: false,
+  },
   errors: [
     {
       id: 1,
