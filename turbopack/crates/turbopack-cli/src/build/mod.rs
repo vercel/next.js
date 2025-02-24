@@ -29,7 +29,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -288,7 +288,8 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(entries.clone(), true)]));
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()

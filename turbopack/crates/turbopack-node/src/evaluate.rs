@@ -29,7 +29,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -156,11 +156,10 @@ async fn emit_evaluate_pool_assets_operation(
         entries
     };
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
+    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(
         iter::once(entry_module)
             .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
             .collect(),
-        true,
     )]));
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(

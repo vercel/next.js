@@ -52,7 +52,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph},
+    module_graph::{chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph},
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -1456,16 +1456,15 @@ impl Endpoint for PageEndpoint {
         let this = self.await?;
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        let mut modules = vec![(vec![ssr_chunk_module.ssr_module], true)];
+        let mut modules = vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])];
 
         if let PageEndpointType::Html = this.ty {
-            modules.push((
+            modules.push(ChunkGroupEntry::Entry(
                 self.client_evaluatable_assets()
                     .await?
                     .iter()
                     .map(|m| ResolvedVc::upcast(*m))
                     .collect(),
-                true,
             ));
         }
 
