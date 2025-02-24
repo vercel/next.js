@@ -837,9 +837,10 @@ export async function fetchRouteOnCacheMiss(
   }
 
   // In output: "export" mode, we need to add the segment path to the URL.
+  const url = new URL(href)
   const requestUrl = isOutputExportMode
-    ? addSegmentPathToUrlInOutputExportMode(href, segmentPath)
-    : href
+    ? addSegmentPathToUrlInOutputExportMode(url, segmentPath)
+    : url
 
   try {
     const response = await fetchPrefetchResponse(requestUrl, headers)
@@ -858,19 +859,30 @@ export async function fetchRouteOnCacheMiss(
       return null
     }
 
-    // This is a bit convoluted but it's taken from router-reducer and
-    // fetch-server-response
-    const canonicalUrl = response.redirected
-      ? createHrefFromUrl(
-          new URL(
-            removeSegmentPathFromURLInOutputExportMode(
+    // TODO: The canonical URL is the href without the origin. I think
+    // historically the reason for this is because the initial canonical URL
+    // gets passed as a prop to the top-level React component, which means it
+    // needs to be computed during SSR. If it were to include the origin, it
+    // would need to always be same as location.origin on the client, to prevent
+    // a hydration mismatch. To sidestep this complexity, we omit the origin.
+    //
+    // However, since this is neither a native URL object nor a fully qualified
+    // URL string, we need to be careful about how we use it. To prevent subtle
+    // mistakes, we should create a special type for it, instead of just string.
+    // Or, we should just use a (readonly) URL object instead. The type of the
+    // prop that we pass to seed the initial state does not need to be the same
+    // type as the state itself.
+    const canonicalUrl = createHrefFromUrl(
+      new URL(
+        response.redirected
+          ? removeSegmentPathFromURLInOutputExportMode(
               href,
-              requestUrl,
+              requestUrl.href,
               response.url
             )
-          )
-        )
-      : href
+          : href
+      )
+    )
 
     // Check whether the response varies based on the Next-Url header.
     const varyHeader = response.headers.get('vary')
@@ -997,21 +1009,12 @@ export async function fetchSegmentOnCacheMiss(
   //
   // Segment fetches are non-blocking so we don't need to ping the scheduler
   // on completion.
-  const href =
-    route.canonicalUrl !== routeKey.href
-      ? // The route was redirected. If we request the segment data using the
-        // same URL, that request will be redirected, too. To avoid an extra
-        // waterfall on every segment request, pass the redirected URL instead
-        // of the original one.
-        //
-        // Since the redirected URL might be a relative path, we need to resolve
-        // it against the original href, which is a fully qualified URL.
-        //
-        // TODO: We should just store the fully qualified URL as canonical URL.
-        // There are other parts of the router that currently expect a relative
-        // path, so need to update those, too.
-        new URL(route.canonicalUrl, routeKey.href).href
-      : routeKey.href
+
+  // Use the canonical URL to request the segment, not the original URL. These
+  // are usually the same, but the canonical URL will be different if the route
+  // tree response was redirected. To avoid an extra waterfall on every segment
+  // request, we pass the redirected URL instead of the original one.
+  const url = new URL(route.canonicalUrl, routeKey.href)
   const nextUrl = routeKey.nextUrl
 
   const normalizedSegmentPath =
@@ -1034,11 +1037,10 @@ export async function fetchSegmentOnCacheMiss(
     headers[NEXT_URL] = nextUrl
   }
 
-  // In output: "export" mode, we need to add the segment path to the URL.
   const requestUrl = isOutputExportMode
-    ? addSegmentPathToUrlInOutputExportMode(href, normalizedSegmentPath)
-    : href
-
+    ? // In output: "export" mode, we need to add the segment path to the URL.
+      addSegmentPathToUrlInOutputExportMode(url, normalizedSegmentPath)
+    : url
   try {
     const response = await fetchPrefetchResponse(requestUrl, headers)
     if (
@@ -1116,7 +1118,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
-  const href = task.key.href
+  const url = new URL(route.canonicalUrl, task.key.href)
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
@@ -1135,7 +1137,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
   try {
-    const response = await fetchPrefetchResponse(href, headers)
+    const response = await fetchPrefetchResponse(url, headers)
     if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
@@ -1403,11 +1405,11 @@ function writeSeedDataIntoCache(
 }
 
 async function fetchPrefetchResponse(
-  href: string,
+  url: URL,
   headers: RequestHeaders
 ): Promise<Response | null> {
   const fetchPriority = 'low'
-  const response = await createFetch(new URL(href), headers, fetchPriority)
+  const response = await createFetch(url, headers, fetchPriority)
   if (!response.ok) {
     return null
   }
@@ -1477,9 +1479,9 @@ function createPrefetchResponseStream(
 }
 
 function addSegmentPathToUrlInOutputExportMode(
-  url: string,
+  url: URL,
   segmentPath: string
-) {
+): URL {
   if (isOutputExportMode) {
     // In output: "export" mode, we cannot use a header to encode the segment
     // path. Instead, we append it to the end of the pathname.
@@ -1490,7 +1492,7 @@ function addSegmentPathToUrlInOutputExportMode(
     const staticExportFilename =
       convertSegmentPathToStaticExportFilename(segmentPath)
     staticUrl.pathname = `${routeDir}/${staticExportFilename}`
-    return staticUrl.href
+    return staticUrl
   }
   return url
 }
