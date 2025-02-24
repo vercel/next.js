@@ -655,7 +655,14 @@ impl ModuleGraph {
         let async_modules_info = self.async_module_info().await?;
 
         let entry = ModuleGraph::get_entry(&graphs, module).await?;
-        let referenced_modules = iter_neighbors(&graphs[entry.graph_idx].graph, entry.node_idx)
+        let referenced_modules = iter_neighbors_rev(&graphs[entry.graph_idx].graph, entry.node_idx)
+            .filter(|(edge_idx, _)| {
+                let ty = graphs[entry.graph_idx]
+                    .graph
+                    .edge_weight(*edge_idx)
+                    .unwrap();
+                ty.is_inherit_async()
+            })
             .map(|(_, child_idx)| {
                 anyhow::Ok(
                     get_node!(

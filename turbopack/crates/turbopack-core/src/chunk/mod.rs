@@ -191,6 +191,19 @@ pub enum ChunkingType {
     Traced,
 }
 
+impl ChunkingType {
+    pub fn is_inherit_async(&self) -> bool {
+        match self {
+            ChunkingType::Parallel => false,
+            ChunkingType::ParallelInheritAsync => true,
+            ChunkingType::Async => true,
+            ChunkingType::Isolated { .. } => false,
+            ChunkingType::Shared { inherit_async, .. } => *inherit_async,
+            ChunkingType::Traced => false,
+        }
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingTypeOption(Option<ChunkingType>);
 
