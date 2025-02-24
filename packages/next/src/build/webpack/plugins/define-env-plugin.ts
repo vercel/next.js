@@ -275,6 +275,9 @@ export function getDefineEnv({
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
+    'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
+      process.env.NEXT_TELEMETRY_DISABLED
+    ),
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

@@ -9,7 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
 };
 
@@ -41,7 +41,8 @@ impl AsyncLoaderChunkItem {
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
-            *ResolvedVc::upcast(module.inner),
+            module.inner.ident(),
+            ChunkGroup::Async(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             Value::new(module.availability_info),
         ))

@@ -16,7 +16,9 @@ export function DevOverlay({
 }: {
   state: OverlayState
   isErrorOverlayOpen: boolean
-  setIsErrorOverlayOpen: (isErrorOverlayOpen: boolean) => void
+  setIsErrorOverlayOpen: (
+    isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
+  ) => void
 }) {
   return (
     <ShadowPortal>

@@ -42,7 +42,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkGroupType, ChunkingContext, EvaluatableAssets, SourceMapsType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -52,8 +52,8 @@ use turbopack_core::{
         Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
         StyledString,
     },
-    module::{Module, Modules},
-    module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
+    module::Module,
+    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionStringifiedSourceMap,
@@ -846,18 +846,15 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let mut modules: Vec<ResolvedVc<Box<dyn Module>>> = self
+    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        let mut modules = self
             .get_all_endpoints()
             .await?
             .iter()
-            .map(|endpoint| endpoint.root_modules())
+            .map(async |endpoint| Ok(endpoint.entries().owned().await?))
             .try_flat_join()
-            .await?
-            .into_iter()
-            .copied()
-            .collect();
-        modules.extend(self.client_main_modules().await?.iter().copied());
+            .await?;
+        modules.extend(self.client_main_modules().await?.iter().cloned());
         Ok(Vc::cell(modules))
     }
 
@@ -865,18 +862,14 @@ impl Project {
     pub async fn get_all_additional_entries(
         self: Vc<Self>,
         graphs: Vc<ModuleGraph>,
-    ) -> Result<Vc<Modules>> {
-        let mut modules: Vec<ResolvedVc<Box<dyn Module>>> = self
+    ) -> Result<Vc<GraphEntries>> {
+        let modules = self
             .get_all_endpoints()
             .await?
             .iter()
-            .map(|endpoint| endpoint.additional_root_modules(graphs))
+            .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
             .try_flat_join()
-            .await?
-            .into_iter()
-            .copied()
-            .collect();
-        modules.extend(self.client_main_modules().await?.iter().copied());
+            .await?;
         Ok(Vc::cell(modules))
     }
 
@@ -884,9 +877,10 @@ impl Project {
     pub async fn module_graph(
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
+        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_module(*entry)
+            ModuleGraph::from_module(*entry, chunk_group_type)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -896,17 +890,16 @@ impl Project {
     pub async fn module_graph_for_entries(
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            let entries = Vc::cell(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .copied()
-                    .map(ResolvedVc::upcast)
-                    .collect(),
-            );
-            ModuleGraph::from_modules(entries)
+            let entries = evaluatable_assets
+                .await?
+                .iter()
+                .copied()
+                .map(ResolvedVc::upcast)
+                .collect();
+            ModuleGraph::from_modules(Vc::cell(vec![(entries, chunk_group_type)]))
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1597,12 +1590,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+    pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![pages_project.client_main_module().to_resolved().await?];
+        let mut modules = vec![(
+            vec![pages_project.client_main_module().to_resolved().await?],
+            ChunkGroupType::Evaluated,
+        )];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push(app_project.client_main_module().to_resolved().await?);
+            modules.push((
+                vec![app_project.client_main_module().to_resolved().await?],
+                ChunkGroupType::Evaluated,
+            ));
         }
 
         Ok(Vc::cell(modules))
@@ -1648,7 +1647,7 @@ async fn whole_app_module_graph_operation(
     let additional_entries = project.get_all_additional_entries(base);
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries.await?.into_iter().map(|m| **m).collect(),
+        additional_entries.owned().await?,
         base_visited_modules,
     );
 
@@ -1679,7 +1678,7 @@ async fn any_output_changed(
         .await
         .completed()?
         .into_inner()
-        .into_reverse_topological()
+        .into_postorder_topological()
         .map(|m| async move {
             let asset_path = m.path().await?;
             if !asset_path.path.ends_with(".map")

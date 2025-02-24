@@ -957,23 +957,6 @@ function assignDefaults(
     result.experimental = {}
   }
 
-  // Preserve the default indicator options for old overlay.
-  if (result.experimental.newDevOverlay !== true) {
-    // If the user didn't explicitly set `position` or `buildActivityPosition` option,
-    // the default is going to be "bottom-left". However, the default position for the
-    // old build activity indicator was "bottom-right" which becomes a breaking change.
-    // Therefore, set to "bottom-right" if the user didn't explicitly set the option.
-    if (!hasWarnedBuildActivityPosition) {
-      result.devIndicators = {
-        ...result.devIndicators,
-        position:
-          userConfig.devIndicators?.position && result.devIndicators !== false
-            ? result.devIndicators?.position
-            : 'bottom-right',
-      }
-    }
-  }
-
   result.experimental.optimizePackageImports = [
     ...new Set([
       ...userProvidedOptimizePackageImports,
@@ -1060,9 +1043,9 @@ function assignDefaults(
     ]),
   ]
 
-  if (!result.experimental.htmlLimitedBots) {
+  if (!result.htmlLimitedBots) {
     // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
-    result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
+    result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
   // "use cache" was originally implicitly enabled with the dynamicIO flag, so
@@ -1186,10 +1169,10 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = await normalizeConfig(
+    const userConfig = (await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
-    )
+    )) as NextConfig
 
     if (!process.env.NEXT_MINIMAL) {
       // We only validate the config against schema in non minimal mode
@@ -1238,7 +1221,7 @@ export default async function loadConfig(
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
+        (canonicalBase?.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
     }
@@ -1281,9 +1264,9 @@ export default async function loadConfig(
     }
 
     // serialize the regex config into string
-    if (userConfig.experimental?.htmlLimitedBots instanceof RegExp) {
-      userConfig.experimental.htmlLimitedBots =
-        userConfig.experimental.htmlLimitedBots.source
+    if (userConfig?.htmlLimitedBots instanceof RegExp) {
+      // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
+      userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
     onLoadUserConfig?.(userConfig)

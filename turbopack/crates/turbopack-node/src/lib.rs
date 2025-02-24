@@ -18,7 +18,7 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
+    chunk::{ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
@@ -166,7 +166,7 @@ async fn separate_assets_operation(
     let mut internal_assets = FxIndexSet::default();
     let mut external_asset_entrypoints = FxIndexSet::default();
 
-    for item in graph.into_reverse_topological() {
+    for item in graph.into_postorder_topological() {
         match item {
             Type::Internal(asset) => {
                 internal_assets.insert(asset);
@@ -258,7 +258,7 @@ pub fn get_intermediate_asset(
     Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
-        ModuleGraph::from_module(main_entry),
+        ModuleGraph::from_module(main_entry, ChunkGroupType::Entry),
         OutputAssets::empty(),
         other_entries,
     ))

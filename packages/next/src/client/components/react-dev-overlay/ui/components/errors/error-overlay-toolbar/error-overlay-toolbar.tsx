@@ -1,6 +1,5 @@
 import type { DebugInfo } from '../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { noop as css } from '../../../../utils/noop-template'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 import { DocsLinkButton } from './docs-link-button'
 
@@ -24,7 +23,7 @@ export function ErrorOverlayToolbar({
   )
 }
 
-export const styles = css`
+export const styles = `
   .error-overlay-toolbar {
     display: flex;
     gap: var(--size-1_5);

@@ -1,6 +1,5 @@
 import { ErrorFeedback } from './error-feedback/error-feedback'
 import { styles as feedbackStyles } from './error-feedback/error-feedback'
-import { noop as css } from '../../../../utils/noop-template'
 
 export type ErrorOverlayFooterProps = {
   errorCode: string | undefined
@@ -23,7 +22,7 @@ export function ErrorOverlayFooter({
   )
 }
 
-export const styles = css`
+export const styles = `
   .error-overlay-footer {
     display: flex;
     flex-direction: row;

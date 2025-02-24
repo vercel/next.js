@@ -244,11 +244,11 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-const reactRootOptions = {
+const reactRootOptions: ReactDOMClient.RootOptions = {
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
-} satisfies ReactDOMClient.RootOptions
+}
 
 export function hydrate() {
   const reactEl = (

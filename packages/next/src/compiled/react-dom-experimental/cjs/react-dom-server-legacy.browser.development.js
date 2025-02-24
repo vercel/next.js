@@ -2635,6 +2635,7 @@
                 header;
               headers &&
               0 < headers.remainingCapacity &&
+              "string" !== typeof props.srcSet &&
               ("high" === props.fetchPriority ||
                 500 > headers.highImagePreloads.length) &&
               ((header = getPreloadAsHeader(src, "image", {
@@ -8956,6 +8957,7 @@
                 var header;
                 resumableState &&
                 0 < resumableState.remainingCapacity &&
+                "string" !== typeof imageSrcSet &&
                 "high" === fetchPriority &&
                 ((header = getPreloadAsHeader(href, as, options)),
                 0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -9598,5 +9600,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-experimental-662957cc-20250221";
+    exports.version = "19.1.0-experimental-25677265-20250224";
   })();
