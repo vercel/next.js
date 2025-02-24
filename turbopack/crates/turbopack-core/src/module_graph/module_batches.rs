@@ -379,162 +379,159 @@ pub async fn compute_module_batches(
                 entries.iter().map(|&(module, _)| module),
                 &mut state,
                 |parent_info, node, state| {
-                    if let Some((parent_node, ty)) = parent_info {
-                        if parent_node.module == node.module {
-                            let Some(assignment) = state.batch_assignments.get_mut(&node.module)
-                            else {
-                                unreachable!();
-                            };
-                            if !matches!(
-                                ty,
-                                ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                            ) {
-                                // Add self edge
-                                assignment.add_edge(
-                                    assignment.batch_idx,
-                                    ty.without_inherit_async(),
-                                    node.module,
-                                );
-                            }
-                            return Ok(GraphTraversalAction::Exclude);
-                        }
-                        // Get batch assignments for parent and current node
-                        // Safety: We checked if they are equal above.
-                        let [parent_assignment, current_assignment] = unsafe {
-                            state
-                                .batch_assignments
-                                .get_disjoint_unchecked_mut([&parent_node.module, &node.module])
-                        };
-                        // The parent was already visited, so it has a batch assigned
-                        let Some(parent_assignment) = parent_assignment else {
+                    let Some((parent_node, ty)) = parent_info else {
+                        return Ok(GraphTraversalAction::Continue);
+                    };
+
+                    // Handle self edges
+                    if parent_node.module == node.module {
+                        let Some(assignment) = state.batch_assignments.get_mut(&node.module) else {
                             unreachable!();
                         };
-                        let &mut BatchAssignment { batch_idx, .. } = parent_assignment;
-                        if let Some(&mut BatchAssignment { batch_idx: idx, .. }) =
-                            current_assignment
-                        {
-                            // Already assigned and processed, but we still need to add an edge
-                            if batch_idx != idx {
-                                if matches!(
-                                    ty,
-                                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
-                                ) {
-                                    // Since we have a parallel edge here, order is important. So we
-                                    // need to split the current batch to avoid breaking the
-                                    // ordering.
-                                    state.split_batch(parent_node.module);
-                                }
-                                let parent_assignment = state
-                                    .batch_assignments
-                                    .get_mut(&parent_node.module)
-                                    .unwrap();
-                                parent_assignment.add_edge(
-                                    idx,
-                                    ty.without_inherit_async(),
-                                    node.module,
-                                );
-                            }
-                            return Ok(GraphTraversalAction::Exclude);
+                        if !matches!(
+                            ty,
+                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                        ) {
+                            // Add self edge
+                            assignment.add_edge(
+                                assignment.batch_idx,
+                                ty.without_inherit_async(),
+                                node.module,
+                            );
                         }
-                        let is_parallel = match ty {
-                            ChunkingType::Traced => {
-                                // Traced module are alone in a batch
-                                let idx = state.batches.len();
-                                state
-                                    .batches
-                                    .push(ModuleBatchBuilder::new_module(node.module));
-                                state
-                                    .batch_assignments
-                                    .insert(node.module, BatchAssignment::new_already_added(idx));
-                                state.batches[batch_idx].add_edge(
-                                    idx,
-                                    ty.without_inherit_async(),
-                                    node.module,
-                                );
-                                return Ok(GraphTraversalAction::Exclude);
-                            }
-                            ChunkingType::Async
-                            | ChunkingType::Isolated { .. }
-                            | ChunkingType::Shared { .. } => false,
-                            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => true,
-                        };
-                        let mut in_same_batch = is_parallel;
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
 
-                        // Get the chunk groups of the module
-                        let chunk_groups = chunk_group_info
-                            .module_chunk_groups
-                            .get(&node.module)
-                            .expect("all modules need to have chunk group info");
-
-                        if in_same_batch {
-                            // Get the chunk groups of the parent batch
-                            if let ModuleBatchBuilderType::Batch {
-                                chunk_groups: batch_chunk_groups,
-                                ..
-                            } = &mut state.batches[batch_idx].ty
-                            {
-                                // When chunk groups are different, we want to create a new batch
-                                // since this is shared with other
-                                // chunk groups.
-                                in_same_batch = chunk_groups == batch_chunk_groups;
-                            } else {
-                                // When the current batch isn't a batch, we can't place it there.
-                                in_same_batch = false;
-                            }
-                        }
-
-                        let chunkable_module =
-                            if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) {
-                                if in_same_batch {
-                                    // Place it in the same batch
-                                    state.batch_assignments.insert(
-                                        node.module,
-                                        BatchAssignment::new(batch_idx, chunkable_module),
-                                    );
-                                    return Ok(GraphTraversalAction::Continue);
-                                }
-                                Some(chunkable_module)
-                            } else {
-                                None
-                            };
-
-                        if is_parallel {
-                            // Since we create a new batch here, we might also need to split the
-                            // current batch to avoid breaking the ordering.
+                    // Get batch assignments for parent and current node
+                    // Safety: We checked if they are equal above.
+                    let [parent_assignment, current_assignment] = unsafe {
+                        state
+                            .batch_assignments
+                            .get_disjoint_unchecked_mut([&parent_node.module, &node.module])
+                    };
+                    // The parent was already visited, so it has a batch assigned
+                    let Some(parent_assignment) = parent_assignment else {
+                        unreachable!();
+                    };
+                    let &mut BatchAssignment { batch_idx, .. } = parent_assignment;
+                    if let Some(&mut BatchAssignment { batch_idx: idx, .. }) = current_assignment {
+                        // Already assigned and processed, but we still need to add an edge
+                        if batch_idx != idx {
+                            // Since we have a parallel edge here, order is important. So we
+                            // need to split the current batch to avoid breaking the
+                            // ordering.
                             state.split_batch(parent_node.module);
-                        }
-
-                        // Assign the module to a new batch
-                        let idx = state.batches.len();
-                        if let Some(chunkable_module) = chunkable_module {
-                            state
-                                .batches
-                                .push(ModuleBatchBuilder::new_batch(chunk_groups.clone()));
-                            state
+                            let parent_assignment = state
                                 .batch_assignments
-                                .insert(node.module, BatchAssignment::new(idx, chunkable_module));
-                        } else {
+                                .get_mut(&parent_node.module)
+                                .unwrap();
+                            parent_assignment.add_edge(
+                                idx,
+                                ty.without_inherit_async(),
+                                node.module,
+                            );
+                        }
+                        return Ok(GraphTraversalAction::Exclude);
+                    }
+                    let is_parallel = match ty {
+                        ChunkingType::Traced => {
+                            // Traced are special edges. We add an edge to the target module.
+                            // These edges do not influence the batching.
+                            let idx = state.batches.len();
                             state
                                 .batches
                                 .push(ModuleBatchBuilder::new_module(node.module));
                             state
                                 .batch_assignments
                                 .insert(node.module, BatchAssignment::new_already_added(idx));
-                        }
-
-                        // Add an edge to the parent batch
-                        let parent_assignment = state
-                            .batch_assignments
-                            .get_mut(&parent_node.module)
-                            .unwrap();
-                        parent_assignment.add_edge(idx, ty.without_inherit_async(), node.module);
-
-                        if !is_parallel {
-                            // We don't want to visit that in this pass. It's already in `entries`.
+                            state.batches[batch_idx].add_edge(
+                                idx,
+                                ChunkingType::Traced,
+                                node.module,
+                            );
                             return Ok(GraphTraversalAction::Exclude);
                         }
+                        ChunkingType::Async
+                        | ChunkingType::Isolated { .. }
+                        | ChunkingType::Shared { .. } => false,
+                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => true,
+                    };
+                    let mut in_same_batch = is_parallel;
+
+                    // Get the chunk groups of the module
+                    let chunk_groups = chunk_group_info
+                        .module_chunk_groups
+                        .get(&node.module)
+                        .expect("all modules need to have chunk group info");
+
+                    if in_same_batch {
+                        // Get the chunk groups of the parent batch
+                        if let ModuleBatchBuilderType::Batch {
+                            chunk_groups: batch_chunk_groups,
+                            ..
+                        } = &mut state.batches[batch_idx].ty
+                        {
+                            // When chunk groups are different, we want to create a new batch
+                            // since this is shared with other
+                            // chunk groups.
+                            in_same_batch = chunk_groups == batch_chunk_groups;
+                        } else {
+                            // When the current batch isn't a batch, we can't place it there.
+                            in_same_batch = false;
+                        }
                     }
-                    Ok(GraphTraversalAction::Continue)
+
+                    let chunkable_module =
+                        if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) {
+                            if in_same_batch {
+                                // Place it in the same batch
+                                state.batch_assignments.insert(
+                                    node.module,
+                                    BatchAssignment::new(batch_idx, chunkable_module),
+                                );
+                                return Ok(GraphTraversalAction::Continue);
+                            }
+                            Some(chunkable_module)
+                        } else {
+                            None
+                        };
+
+                    // Since we create a new batch here, we might also need to split the
+                    // current batch to avoid breaking the ordering.
+                    state.split_batch(parent_node.module);
+
+                    // Assign the module to a new batch
+                    let idx = state.batches.len();
+                    if let Some(chunkable_module) = chunkable_module {
+                        state
+                            .batches
+                            .push(ModuleBatchBuilder::new_batch(chunk_groups.clone()));
+                        state
+                            .batch_assignments
+                            .insert(node.module, BatchAssignment::new(idx, chunkable_module));
+                    } else {
+                        state
+                            .batches
+                            .push(ModuleBatchBuilder::new_module(node.module));
+                        state
+                            .batch_assignments
+                            .insert(node.module, BatchAssignment::new_already_added(idx));
+                    }
+
+                    // Add an edge to the parent batch
+                    let parent_assignment = state
+                        .batch_assignments
+                        .get_mut(&parent_node.module)
+                        .unwrap();
+                    parent_assignment.add_edge(idx, ty.without_inherit_async(), node.module);
+
+                    if is_parallel {
+                        // We want to visit parallel edges
+                        Ok(GraphTraversalAction::Continue)
+                    } else {
+                        // We don't want to visit that in this pass. It's already in `entries`.
+                        Ok(GraphTraversalAction::Exclude)
+                    }
                 },
                 |_, node, state| {
                     let BatchAssignment {
