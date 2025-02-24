@@ -11,6 +11,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
   const voted = votedMap[errorCode]
   const hasVoted = voted !== undefined
+  const disabled = process.env.__NEXT_TELEMETRY_DISABLED
 
   const handleFeedback = useCallback(
     async (wasHelpful: boolean) => {
@@ -63,17 +64,29 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
             </a>
           </p>
           <button
+            aria-disabled={disabled ? 'true' : undefined}
             aria-label="Mark as helpful"
-            onClick={() => handleFeedback(true)}
+            onClick={disabled ? undefined : () => handleFeedback(true)}
             className={cx('feedback-button', voted === true && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsUp aria-hidden="true" />
           </button>
           <button
+            aria-disabled={disabled ? 'true' : undefined}
             aria-label="Mark as not helpful"
-            onClick={() => handleFeedback(false)}
+            onClick={disabled ? undefined : () => handleFeedback(false)}
             className={cx('feedback-button', voted === false && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsDown
@@ -130,7 +143,7 @@ export const styles = `
     }
   }
 
-  .feedback-button:disabled {
+  .feedback-button[aria-disabled='true'] {
     opacity: 0.7;
     cursor: not-allowed;
   }
