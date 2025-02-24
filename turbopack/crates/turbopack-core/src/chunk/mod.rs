@@ -207,6 +207,25 @@ impl ChunkingType {
             ChunkingType::Traced => false,
         }
     }
+
+    pub fn without_inherit_async(&self) -> Self {
+        match self {
+            ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => ChunkingType::Parallel,
+            ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
+                _ty: *_ty,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Shared {
+                inherit_async: _,
+                merge_tag,
+            } => ChunkingType::Shared {
+                inherit_async: false,
+                merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Traced => ChunkingType::Traced,
+        }
+    }
 }
 
 #[turbo_tasks::value(transparent)]
