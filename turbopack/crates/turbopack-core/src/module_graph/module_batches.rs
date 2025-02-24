@@ -339,7 +339,8 @@ pub async fn compute_module_batches(
 
         // Find all chunk group entries and assign them to batches
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        for chunk_group in &chunk_group_info.chunk_groups {
+        for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+            println!("chunk_group {i}: {}", chunk_group.to_string().await?);
             // Each entry need to be in a separate batch since we don't know the postorder of them.
             // The postorder might also be different depending on the parents.
             for entry in chunk_group.entries() {
@@ -563,6 +564,36 @@ pub async fn compute_module_batches(
         // Create a petgraph from the collected data
         let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
             petgraph::graph::DiGraph::with_capacity(state.batches.len(), state.edges.len());
+
+        for (i, batch) in state.batches.iter().enumerate() {
+            match &batch.ty {
+                ModuleBatchBuilderType::Batch {
+                    modules,
+                    chunk_groups: _,
+                } => {
+                    println!(
+                        "batch {i}: {:#?}",
+                        modules
+                            .iter()
+                            .map(|e| e.ident().to_string())
+                            .try_join()
+                            .await?
+                    )
+                }
+                ModuleBatchBuilderType::Module { module } => {
+                    println!("batch {i}: {}", module.ident().to_string().await?)
+                }
+            }
+            for edge in batch.edges.iter() {
+                println!(
+                    "  {} -> {} ({:?}): {}",
+                    i,
+                    edge.0,
+                    edge.1,
+                    edge.2.ident().to_string().await?,
+                );
+            }
+        }
 
         // Add nodes and store node index
         let mut batch_indicies_and_edges: Vec<(
