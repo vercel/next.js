@@ -196,7 +196,7 @@ impl ChunkingType {
         match self {
             ChunkingType::Parallel => false,
             ChunkingType::ParallelInheritAsync => true,
-            ChunkingType::Async => true,
+            ChunkingType::Async => false,
             ChunkingType::Isolated { .. } => false,
             ChunkingType::Shared { inherit_async, .. } => *inherit_async,
             ChunkingType::Traced => false,
