@@ -54,7 +54,7 @@ pub async fn get_app_client_references_chunks(
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_availability_info: Value<AvailabilityInfo>,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
-    rsc_entry: ResolvedVc<Box<dyn Module>>,
+    entry_chunk_group: ChunkGroup,
     project_path: Vc<FileSystemPath>,
 ) -> Result<Vc<ClientReferencesChunks>> {
     async move {
@@ -180,6 +180,17 @@ pub async fn get_app_client_references_chunks(
             let mut client_component_ssr_chunks = FxIndexMap::default();
             let mut client_component_client_chunks = FxIndexMap::default();
 
+            let server_utils_chunk_group = chunk_group_info
+                .get_merged_group(
+                    entry_chunk_group.clone(),
+                    NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
+                )
+                .owned()
+                .await?
+                // Some entypoints have server utilites that aren't marked as such, fall back to
+                // page chunk group in that case.
+                .unwrap_or(entry_chunk_group);
+
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
@@ -191,16 +202,7 @@ pub async fn get_app_client_references_chunks(
                 let parent_chunk_group = if let Some(server_component) = server_component {
                     ChunkGroup::Shared(ResolvedVc::upcast(server_component.await?.module))
                 } else {
-                    let page_chunk_group = ChunkGroup::Entry {
-                        entries: [rsc_entry].into_iter().collect(),
-                        ty: ChunkGroupType::Entry,
-                    };
-
-                    chunk_group_info
-                        .get_merged_group(page_chunk_group, NEXT_SERVER_UTILITY_MERGE_TAG.clone())
-                        .owned()
-                        .await?
-                        .unwrap()
+                    server_utils_chunk_group.clone()
                 };
 
                 let client_chunk_group = chunk_group_info
