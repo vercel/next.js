@@ -213,7 +213,6 @@ pub enum BuildActivityPositions {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DevIndicatorsOptions {
-    pub build_activity: Option<bool>,
     pub build_activity_position: Option<BuildActivityPositions>,
     pub position: Option<BuildActivityPositions>,
 }

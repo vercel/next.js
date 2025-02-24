@@ -7,6 +7,7 @@ import type {
   ModuleGraph,
 } from 'webpack'
 import type { ModuleGraphConnection } from 'webpack'
+import { getAppLoader } from '../entries'
 
 export function traverseModules(
   compilation: Compilation,
@@ -61,7 +62,7 @@ export function forEachEntryModule(
     if (
       !request.startsWith('next-edge-ssr-loader?') &&
       !request.startsWith('next-edge-app-route-loader?') &&
-      !request.startsWith('next-app-loader?')
+      !request.startsWith(`${getAppLoader()}?`)
     )
       continue
 
@@ -74,7 +75,7 @@ export function forEachEntryModule(
     ) {
       entryModule.dependencies.forEach((dependency) => {
         const modRequest: string | undefined = (dependency as any).request
-        if (modRequest?.includes('next-app-loader')) {
+        if (modRequest?.includes(getAppLoader())) {
           entryModule = compilation.moduleGraph.getResolvedModule(dependency)
         }
       })
@@ -95,6 +96,12 @@ export function getModuleReferencesInOrder(
   module: Module,
   moduleGraph: ModuleGraph
 ): ModuleGraphConnection[] {
+  if (
+    'getOutgoingConnectionsInOrder' in moduleGraph &&
+    typeof moduleGraph.getOutgoingConnectionsInOrder === 'function'
+  ) {
+    return moduleGraph.getOutgoingConnectionsInOrder(module)
+  }
   const connections = []
   for (const connection of moduleGraph.getOutgoingConnections(module)) {
     if (connection.dependency && connection.module) {

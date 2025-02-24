@@ -434,12 +434,12 @@ async fn import_mapping_to_result(
             traced: *traced,
             lookup_dir: *lookup_dir,
         },
-        ReplacedImportMapping::Ignore => ImportMapResult::Result(
-            ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
-        ),
-        ReplacedImportMapping::Empty => ImportMapResult::Result(
-            ResolveResult::primary(ResolveResultItem::Empty).resolved_cell(),
-        ),
+        ReplacedImportMapping::Ignore => {
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore))
+        }
+        ReplacedImportMapping::Empty => {
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
+        }
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
             let request = Request::parse(Value::new(name.clone()))
                 .to_resolved()

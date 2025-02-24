@@ -56,27 +56,6 @@ describe('Client Navigation', () => {
       await browser.close()
     })
 
-    it('should have a redbox when no children are provided', async () => {
-      const pageErrors: unknown[] = []
-      const browser = await webdriver(next.appPort, '/link-no-child', {
-        beforePageLoad: (page) => {
-          page.on('pageerror', (error: unknown) => {
-            pageErrors.push(error)
-          })
-        },
-      })
-      await assertHasRedbox(browser)
-      expect(await getRedboxHeader(browser)).toContain(
-        'No children were passed to <Link> with `href` of `/about` but one child is required'
-      )
-      expect(pageErrors).toEqual([
-        expect.objectContaining({
-          message:
-            'No children were passed to <Link> with `href` of `/about` but one child is required https://nextjs.org/docs/messages/link-no-children',
-        }),
-      ])
-    })
-
     it('should not throw error when one number type child is provided', async () => {
       const browser = await webdriver(next.appPort, '/link-number-child')
       await assertNoRedbox(browser)

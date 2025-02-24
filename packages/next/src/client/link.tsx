@@ -293,7 +293,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         return new Error(
           `Failed prop type: The prop \`${args.key}\` expects a ${args.expected} in \`<Link>\`, but got \`${args.actual}\` instead.` +
             (typeof window !== 'undefined'
-              ? "\nOpen your browser's console to view the Component stack trace."
+              ? // TODO: Remove this addendum if Owner Stacks are available
+                "\nOpen your browser's console to view the Component stack trace."
               : '')
         )
       }

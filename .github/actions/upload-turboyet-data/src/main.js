@@ -134,47 +134,65 @@ async function collectResults(manifestFile) {
   }
 }
 
+async function collectAndUpload(kv, { jsonPrefix, kvPrefix }) {
+  const developmentResult = await collectResults(
+    `test/${jsonPrefix}dev-tests-manifest.json`
+  )
+  const productionResult = await collectResults(
+    `test/${jsonPrefix}build-tests-manifest.json`
+  )
+  const developmentExamplesResult = await collectExamplesResult(
+    `test/${jsonPrefix}dev-examples-manifest.json`
+  )
+
+  console.log('TEST RESULT DEVELOPMENT')
+  console.log(developmentResult.testRun)
+
+  console.log('TEST RESULT PRODUCTION')
+  console.log(productionResult.testRun)
+
+  console.log('EXAMPLES RESULT')
+  console.log(developmentExamplesResult.status)
+
+  await kv.rpush(`${kvPrefix}test-runs`, developmentResult.testRun)
+  await kv.rpush(`${kvPrefix}test-runs-production`, productionResult.testRun)
+  await kv.rpush(`${kvPrefix}examples-runs`, developmentExamplesResult.status)
+  console.log('SUCCESSFULLY SAVED RUNS')
+
+  await kv.set(`${kvPrefix}passing-tests`, developmentResult.passingTests)
+  await kv.set(
+    `${kvPrefix}passing-tests-production`,
+    productionResult.passingTests
+  )
+  console.log('SUCCESSFULLY SAVED PASSING')
+
+  await kv.set(`${kvPrefix}failing-tests`, developmentResult.failingTests)
+  await kv.set(
+    `${kvPrefix}failing-tests-production`,
+    productionResult.failingTests
+  )
+  console.log('SUCCESSFULLY SAVED FAILING')
+
+  await kv.set(`${kvPrefix}examples-data`, developmentExamplesResult.data)
+  console.log('SUCCESSFULLY SAVED EXAMPLES')
+}
+
 async function main() {
   try {
-    const developmentResult = await collectResults(
-      'test/turbopack-dev-tests-manifest.json'
-    )
-    const productionResult = await collectResults(
-      'test/turbopack-build-tests-manifest.json'
-    )
-    const developmentExamplesResult = await collectExamplesResult(
-      'test/turbopack-dev-examples-manifest.json'
-    )
-
     const kv = createClient({
       url: process.env.TURBOYET_KV_REST_API_URL,
       token: process.env.TURBOYET_KV_REST_API_TOKEN,
     })
-
-    console.log('TEST RESULT DEVELOPMENT')
-    console.log(developmentResult.testRun)
-
-    console.log('TEST RESULT PRODUCTION')
-    console.log(productionResult.testRun)
-
-    console.log('EXAMPLES RESULT')
-    console.log(developmentExamplesResult.status)
-
-    await kv.rpush('test-runs', developmentResult.testRun)
-    await kv.rpush('test-runs-production', productionResult.testRun)
-    await kv.rpush('examples-runs', developmentExamplesResult.status)
-    console.log('SUCCESSFULLY SAVED RUNS')
-
-    await kv.set('passing-tests', developmentResult.passingTests)
-    await kv.set('passing-tests-production', productionResult.passingTests)
-    console.log('SUCCESSFULLY SAVED PASSING')
-
-    await kv.set('failing-tests', developmentResult.failingTests)
-    await kv.set('failing-tests-production', productionResult.failingTests)
-    console.log('SUCCESSFULLY SAVED FAILING')
-
-    await kv.set('examples-data', developmentExamplesResult.data)
-    console.log('SUCCESSFULLY SAVED EXAMPLES')
+    console.log('### UPLOADING TURBOPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'turbopack-',
+      kvPrefix: '',
+    })
+    console.log('### UPLOADING RSPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'rspack-',
+      kvPrefix: 'rspack-',
+    })
   } catch (error) {
     console.log(error)
   }

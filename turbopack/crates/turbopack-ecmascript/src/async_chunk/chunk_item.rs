@@ -9,7 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
 };
 
@@ -36,12 +36,13 @@ impl AsyncLoaderChunkItem {
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
         if let Some(chunk_items) = module.availability_info.available_modules() {
-            if chunk_items.get(*module.inner).await?.is_some() {
+            if *chunk_items.get(*module.inner).await? {
                 return Ok(Vc::cell(vec![]));
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
-            *ResolvedVc::upcast(module.inner),
+            module.inner.ident(),
+            ChunkGroup::Async(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             Value::new(module.availability_info),
         ))

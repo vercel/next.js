@@ -35,12 +35,13 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
+import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
-import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
+import { DYNAMIC_EXPIRE } from './constants'
+import { getCacheHandler } from './handlers'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 import {
@@ -64,8 +65,6 @@ export interface UseCachePageComponentProps {
 }
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-
-const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -507,13 +506,7 @@ export function cache(
   boundArgsLength: number,
   fn: (...args: unknown[]) => Promise<unknown>
 ) {
-  for (const [key, value] of Object.entries(
-    cacheHandlerGlobal.__nextCacheHandlers || {}
-  )) {
-    cacheHandlerMap.set(key, value as CacheHandler)
-  }
-  const cacheHandler = cacheHandlerMap.get(kind)
-
+  const cacheHandler = getCacheHandler(kind)
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }

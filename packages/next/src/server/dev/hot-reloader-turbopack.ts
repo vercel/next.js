@@ -94,6 +94,7 @@ import {
   type EntryIssuesMap,
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -634,6 +635,7 @@ export async function createHotReloaderTurbopack(
     getOverlayMiddleware(project),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
+    getDevOverlayFontMiddleware(),
   ]
 
   const versionInfoPromise = getVersionInfo()

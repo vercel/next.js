@@ -100,7 +100,8 @@
       "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
       "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts",
       "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts",
-      "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts"
+      "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts",
+      "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts"
     ]
   }
 }

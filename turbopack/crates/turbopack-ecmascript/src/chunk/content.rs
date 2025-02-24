@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkItemTy, ChunkItems},
+    chunk::{ChunkItem, ChunkItems},
     output::OutputAsset,
 };
 
@@ -20,13 +20,7 @@ impl EcmascriptChunkContent {
         Ok(ChunkItems(
             self.chunk_items
                 .iter()
-                .filter_map(|EcmascriptChunkItemWithAsyncInfo { ty, chunk_item, .. }| {
-                    if matches!(ty, ChunkItemTy::Included) {
-                        Some(chunk_item)
-                    } else {
-                        None
-                    }
-                })
+                .map(|EcmascriptChunkItemWithAsyncInfo { chunk_item, .. }| chunk_item)
                 .map(|item| ResolvedVc::upcast::<Box<dyn ChunkItem>>(*item))
                 .collect(),
         )

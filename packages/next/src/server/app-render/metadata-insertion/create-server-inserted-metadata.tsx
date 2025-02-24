@@ -1,4 +1,4 @@
-import React, { type JSX } from 'react'
+import React from 'react'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import {
   ServerInsertedMetadataContext,
@@ -8,7 +8,7 @@ import { renderToString } from '../render-to-string'
 
 export function createServerInsertedMetadata() {
   let metadataResolver: MetadataResolver | null = null
-  let metadataToFlush: JSX.Element | null = null
+  let metadataToFlush: React.ReactNode = null
   const setMetadataResolver = (resolver: MetadataResolver): void => {
     metadataResolver = resolver
   }

@@ -378,10 +378,10 @@ export default class NextWebServer extends BaseServer<
     return undefined
   }
 
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     // The web server does not need to handle middleware. This is done by the
     // upstream proxy (edge runtime or node server).
-    return undefined
+    return Promise.resolve(undefined)
   }
 
   protected getFilesystemPaths() {

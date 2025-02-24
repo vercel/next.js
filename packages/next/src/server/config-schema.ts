@@ -230,8 +230,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     devIndicators: z
       .union([
         z.object({
-          appIsrStatus: z.boolean().optional(),
-          buildActivity: z.boolean().optional(),
           buildActivityPosition: z
             .union([
               z.literal('bottom-left'),
@@ -266,7 +264,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
-        appIsrStatus: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -451,7 +448,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
         authInterrupts: z.boolean().optional(),
-        newDevOverlay: z.boolean().optional(),
         streamingMetadata: z.boolean().optional(),
         htmlLimitedBots: z.instanceof(RegExp).optional(),
         useCache: z.boolean().optional(),

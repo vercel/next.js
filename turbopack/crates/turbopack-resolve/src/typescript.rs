@@ -466,8 +466,7 @@ pub async fn type_resolve(
 #[turbo_tasks::function]
 pub async fn as_typings_result(result: Vc<ModuleResolveResult>) -> Result<Vc<ModuleResolveResult>> {
     let mut result = result.owned().await?;
-    result.primary = take(&mut result.primary)
-        .into_iter()
+    result.primary = IntoIterator::into_iter(take(&mut result.primary))
         .map(|(mut k, v)| {
             k.conditions.insert("types".to_string(), true);
             (k, v)
