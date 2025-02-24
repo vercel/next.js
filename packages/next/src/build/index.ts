@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -2347,6 +2348,18 @@ export default async function build(
                 originalSource: '/:path*',
               },
             ],
+          }
+
+          if (turboNextBuild) {
+            await writeManifest(
+              path.join(
+                distDir,
+                'static',
+                buildId,
+                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+              ),
+              functionsConfigManifest.functions['/_middleware'].matchers || []
+            )
           }
         }
       }

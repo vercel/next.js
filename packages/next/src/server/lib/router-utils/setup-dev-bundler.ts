@@ -49,6 +49,7 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -902,6 +903,9 @@ async function startWatcher(opts: SetupOpts) {
   const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
+  const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+  opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
 
@@ -918,7 +922,10 @@ async function startWatcher(opts: SetupOpts) {
       return { finished: true }
     }
 
-    if (parsedUrl.pathname?.includes(devMiddlewareManifestPath)) {
+    if (
+      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
+      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+    ) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
