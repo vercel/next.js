@@ -1,6 +1,12 @@
 /* eslint-env jest */
 
-import { assertNoRedbox, fetchViaHTTP, waitFor, check } from 'next-test-utils'
+import {
+  assertNoRedbox,
+  fetchViaHTTP,
+  waitFor,
+  check,
+  retry,
+} from 'next-test-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
@@ -331,13 +337,11 @@ describe('Client Navigation', () => {
       const defaultCount = await browser.elementByCss('p').text()
       expect(defaultCount).toBe('COUNT: 0')
 
-      const countAfterClicked = await browser
-        .elementByCss('#self-reload-link')
-        .click()
-        .elementByCss('p')
-        .text()
+      await browser.elementByCss('#self-reload-link').click()
 
-      expect(countAfterClicked).toBe('COUNT: 1')
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('COUNT: 1')
+      })
       await browser.close()
     })
 
