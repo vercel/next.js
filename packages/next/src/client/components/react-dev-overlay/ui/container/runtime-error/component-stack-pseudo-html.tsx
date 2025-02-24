@@ -68,8 +68,9 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html-collapse='true']
     .nextjs__container_errors__component-stack
     code {
-    max-height: 100px;
-    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, black 50%);
+    max-height: 120px;
+    mask-image: linear-gradient(to bottom,rgba(0,0,0,0) 0%,black 10%);
+    padding-bottom: 40px;
   }
   .nextjs__container_errors__component-stack code {
     display: block;
@@ -78,8 +79,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     scroll-snap-type: y mandatory;
     overflow-y: hidden;
   }
-  [data-nextjs-container-errors-pseudo-html--diff],
-  [data-nextjs-container-errors-pseudo-html--diff='error'] {
+  [data-nextjs-container-errors-pseudo-html--diff] {
     scroll-snap-align: center;
   }
   .error-overlay-hydration-error-diff-plus-icon {
