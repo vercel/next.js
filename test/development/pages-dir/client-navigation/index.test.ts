@@ -1393,7 +1393,7 @@ describe('Client Navigation', () => {
         })
         await expect(browser).toDisplayRedbox(`
          {
-           "count": 1,
+           "count": ${isReact18 ? 3 : 1},
            "description": "Error: An Expected error occurred",
            "environmentLabel": null,
            "label": "Unhandled Runtime Error",
