@@ -188,28 +188,32 @@ pub async fn get_app_client_references_chunks(
                     // corresponding ChunkGroup in the graph in this case.
                     continue;
                 }
-                let parent_chunk_group = *chunk_group_info
-                    .get_index_of(if let Some(server_component) = server_component {
-                        ChunkGroup::Shared(ResolvedVc::upcast(server_component.await?.module))
-                    } else {
-                        ChunkGroup::SharedMerged {
-                            parent: *chunk_group_info
-                                .get_index_of(ChunkGroup::Entry {
-                                    entries: [rsc_entry].into_iter().collect(),
-                                    ty: ChunkGroupType::Entry,
-                                })
-                                .await?,
-                            merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                            entries: app_client_references
-                                .server_utils
-                                .iter()
-                                .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
-                                .try_join()
-                                .await?
-                                .into_iter()
-                                .collect(),
-                        }
-                    })
+                let parent_chunk_group = if let Some(server_component) = server_component {
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_component.await?.module))
+                } else {
+                    let page_chunk_group = ChunkGroup::Entry {
+                        entries: [rsc_entry].into_iter().collect(),
+                        ty: ChunkGroupType::Entry,
+                    };
+
+                    chunk_group_info
+                        .get_merged_group(page_chunk_group, NEXT_SERVER_UTILITY_MERGE_TAG.clone())
+                        .owned()
+                        .await?
+                        .unwrap()
+                };
+
+                let client_chunk_group = chunk_group_info
+                    .get_merged_group(
+                        parent_chunk_group.clone(),
+                        ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                    )
+                    .await?;
+                let ssr_chunk_group = chunk_group_info
+                    .get_merged_group(
+                        parent_chunk_group,
+                        ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                    )
                     .await?;
 
                 let (base_ident, server_component_path, is_layout) =
@@ -228,28 +232,7 @@ pub async fn get_app_client_references_chunks(
                         )
                     };
 
-                let ssr_modules: HashableHashSet<_> = client_reference_types
-                    .iter()
-                    .map(|client_reference_ty| async move {
-                        Ok(match client_reference_ty {
-                            ClientReferenceType::EcmascriptClientReference(
-                                ecmascript_client_reference,
-                            ) => {
-                                let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
-
-                                Some(ResolvedVc::upcast(
-                                    ecmascript_client_reference_ref.ssr_module,
-                                ))
-                            }
-                            _ => None,
-                        })
-                    })
-                    .try_flat_join()
-                    .await?
-                    .into_iter()
-                    .collect();
-                let ssr_chunk_group = if !ssr_modules.is_empty() {
+                let ssr_chunk_group = if let Some(ssr_chunk_group) = &*ssr_chunk_group {
                     ssr_chunking_context.map(|ssr_chunking_context| {
                         let _span = tracing::info_span!(
                             "server side rendering",
@@ -259,11 +242,7 @@ pub async fn get_app_client_references_chunks(
 
                         ssr_chunking_context.chunk_group(
                             base_ident.with_modifier(ssr_modules_modifier()),
-                            ChunkGroup::IsolatedMerged {
-                                parent: parent_chunk_group,
-                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
-                                entries: ssr_modules,
-                            },
+                            ssr_chunk_group.clone(),
                             module_graph,
                             Value::new(current_ssr_availability_info),
                         )
@@ -272,25 +251,7 @@ pub async fn get_app_client_references_chunks(
                     None
                 };
 
-                let client_modules: HashableHashSet<_> = client_reference_types
-                    .iter()
-                    .map(|client_reference_ty| async move {
-                        Ok(match client_reference_ty {
-                            ClientReferenceType::EcmascriptClientReference(
-                                ecmascript_client_reference,
-                            ) => {
-                                ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
-                            }
-                            ClientReferenceType::CssClientReference(css_client_reference) => {
-                                ResolvedVc::upcast(*css_client_reference)
-                            }
-                        })
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect();
-                let client_chunk_group = if !client_modules.is_empty() {
+                let client_chunk_group = if let Some(client_chunk_group) = &*client_chunk_group {
                     let _span = tracing::info_span!(
                         "client side rendering",
                         layout_segment = display(&server_component_path),
@@ -299,11 +260,7 @@ pub async fn get_app_client_references_chunks(
 
                     Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(client_modules_modifier()),
-                        ChunkGroup::IsolatedMerged {
-                            parent: parent_chunk_group,
-                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
-                            entries: client_modules,
-                        },
+                        client_chunk_group.clone(),
                         module_graph,
                         Value::new(current_client_availability_info),
                     ))

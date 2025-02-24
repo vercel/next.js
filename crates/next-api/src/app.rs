@@ -1762,7 +1762,7 @@ impl AppEndpoint {
                                     )
                                     .with_modifier(server_utils_modifier()),
                                     ChunkGroup::SharedMerged {
-                                        parent: entry_chunk_group_idx,
+                                        parent: entry_chunk_group_idx as usize,
                                         merge_tag: NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
                                         entries: server_utils,
                                     },
