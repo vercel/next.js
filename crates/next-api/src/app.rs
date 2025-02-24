@@ -838,8 +838,9 @@ impl AppProject {
                             (
                                 server_utils
                                     .iter()
-                                    .map(|m| ResolvedVc::upcast(*m))
-                                    .collect(),
+                                    .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                    .try_join()
+                                    .await?,
                                 ChunkGroupType::Entry,
                             ),
                             (client_shared_entries, ChunkGroupType::Evaluated),
