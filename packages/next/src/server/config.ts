@@ -1043,9 +1043,9 @@ function assignDefaults(
     ]),
   ]
 
-  if (!result.experimental.htmlLimitedBots) {
+  if (!result.htmlLimitedBots) {
     // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
-    result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
+    result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
   // "use cache" was originally implicitly enabled with the dynamicIO flag, so
@@ -1169,10 +1169,10 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = await normalizeConfig(
+    const userConfig = (await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
-    )
+    )) as NextConfig
 
     if (!process.env.NEXT_MINIMAL) {
       // We only validate the config against schema in non minimal mode
@@ -1221,7 +1221,7 @@ export default async function loadConfig(
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
+        (canonicalBase?.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
     }
@@ -1264,9 +1264,9 @@ export default async function loadConfig(
     }
 
     // serialize the regex config into string
-    if (userConfig.experimental?.htmlLimitedBots instanceof RegExp) {
-      userConfig.experimental.htmlLimitedBots =
-        userConfig.experimental.htmlLimitedBots.source
+    if (userConfig?.htmlLimitedBots instanceof RegExp) {
+      // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
+      userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
     onLoadUserConfig?.(userConfig)

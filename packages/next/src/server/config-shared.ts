@@ -23,9 +23,8 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
-  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
-    htmlLimitedBots: string | undefined
-  }
+  htmlLimitedBots: string | undefined
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -588,17 +587,6 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * When enabled will cause async metadata calls to stream rather than block the render.
-   */
-  streamingMetadata?: boolean
-
-  /**
-   * User Agent of bots that can handle streaming metadata.
-   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
-   */
-  htmlLimitedBots?: RegExp
-
-  /**
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
@@ -1079,6 +1067,12 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * User agent of bots that should opt-out streaming metadata.
+   * User agents that pass this regex will block rendering until metadata has resolved, to ensure it's available in the `head` of the document.
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export const defaultConfig: NextConfig = {
@@ -1258,11 +1252,10 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    streamingMetadata: true,
-    htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
   },
+  htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 }
 
