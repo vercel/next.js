@@ -22,8 +22,8 @@ use crate::{
     chunk::{ChunkGroupType, ChunkingType},
     module::Module,
     module_graph::{
-        get_node, GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
-        SingleModuleGraphNode,
+        get_node, get_node_idx, GraphNodeIndex, GraphTraversalAction, ModuleGraph,
+        SingleModuleGraphModuleNode, SingleModuleGraphNode,
     },
 };
 
@@ -152,14 +152,14 @@ enum ChunkGroupKey {
     },
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merged isolated edge
+    /// a module with an incoming non-merging isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
-    /// a module with an incoming merging shared edge
+    /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging shared edge
     SharedMerged {
@@ -353,20 +353,23 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
                             let len = chunk_groups_map.len();
-                            let is_isolated_merged =
-                                matches!(chunk_group, ChunkGroupKey::IsolatedMerged { .. });
+                            let is_merged = matches!(
+                                chunk_group,
+                                ChunkGroupKey::IsolatedMerged { .. }
+                                    | ChunkGroupKey::SharedMerged { .. }
+                            );
                             match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
-                                    let (id, isolated_merged_entries) = e.get_mut();
-                                    if is_isolated_merged {
-                                        isolated_merged_entries.insert(node.module);
+                                    let (id, merged_entries) = e.get_mut();
+                                    if is_merged {
+                                        merged_entries.insert(node.module);
                                     }
                                     **id
                                 }
                                 Entry::Vacant(e) => {
                                     let chunk_group_id = len as u32;
                                     let mut set = FxIndexSet::default();
-                                    if is_isolated_merged {
+                                    if is_merged {
                                         set.insert(node.module);
                                     }
                                     e.insert((ChunkGroupId(chunk_group_id), set));
@@ -443,8 +446,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
             while let Some(NodeWithPriority { node, .. }) = queue.pop() {
                 queue_set.remove(&node);
+                let (node_weight, node) = get_node_idx!(graphs, node)?;
                 let graph = &graphs[node.graph_idx].graph;
-                let node_weight = get_node!(graphs, node)?;
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
                 visit_count += 1;
@@ -454,7 +457,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ)?;
+                    let (succ_weight, succ) = get_node_idx!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight, edge_weight)),
@@ -483,7 +486,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             module_chunk_groups,
             chunk_groups: chunk_groups_map
                 .into_iter()
-                .map(|(k, (_, isolated_merged_entries))| match k {
+                .map(|(k, (_, merged_entries))| match k {
                     ChunkGroupKey::Entry { entries, ty } => ChunkGroup::Entry { entries, ty },
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
@@ -491,14 +494,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         ChunkGroup::IsolatedMerged {
                             parent: parent.0 as usize,
                             merge_tag,
-                            entries: isolated_merged_entries.into_iter().collect(),
+                            entries: merged_entries.into_iter().collect(),
                         }
                     }
                     ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
                     ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
                         parent: parent.0 as usize,
                         merge_tag,
-                        entries: isolated_merged_entries.into_iter().collect(),
+                        entries: merged_entries.into_iter().collect(),
                     },
                 })
                 .collect(),

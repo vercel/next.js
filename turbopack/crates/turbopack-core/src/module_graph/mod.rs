@@ -692,7 +692,7 @@ macro_rules! get_node {
             Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok(node),
             Some(SingleModuleGraphNode::VisitedModule { idx, .. }) => {
                 match $graphs[idx.graph_idx].graph.node_weight(idx.node_idx) {
-                    Some(SingleModuleGraphNode::Module(node)) => anyhow::Ok(node),
+                    Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok(node),
                     Some(SingleModuleGraphNode::VisitedModule { .. }) => Err(::anyhow::anyhow!(
                         "Expected visited target node to be module"
                     )),
@@ -704,6 +704,28 @@ macro_rules! get_node {
     }};
 }
 pub(crate) use get_node;
+macro_rules! get_node_idx {
+    ($graphs:expr, $node:expr) => {{
+        let node_idx = $node;
+        match $graphs[node_idx.graph_idx]
+            .graph
+            .node_weight(node_idx.node_idx)
+        {
+            Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok((node, node_idx)),
+            Some(SingleModuleGraphNode::VisitedModule { idx, .. }) => {
+                match $graphs[idx.graph_idx].graph.node_weight(idx.node_idx) {
+                    Some(SingleModuleGraphNode::Module(node)) => ::anyhow::Ok((node, *idx)),
+                    Some(SingleModuleGraphNode::VisitedModule { .. }) => Err(::anyhow::anyhow!(
+                        "Expected visited target node to be module"
+                    )),
+                    None => Err(::anyhow::anyhow!("Expected visited target node")),
+                }
+            }
+            None => Err(::anyhow::anyhow!("Expected graph node")),
+        }
+    }};
+}
+pub(crate) use get_node_idx;
 
 // pub struct AllNodesIterator {
 //     inner: Vec<ReadRef<SingleModuleGraph>>,
