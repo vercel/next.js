@@ -402,7 +402,7 @@ export default async function Image({ params }) {
 
 #### Using Node.js runtime with local assets
 
-This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
+This example uses the Node.js runtime to fetch a local image on the file system and passes it as a `base64-encoded data URL` to the `src` attribute of an <img> element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
