@@ -234,7 +234,6 @@ type BatchIndex = usize;
 #[derive(Debug, Clone)]
 struct PostorderAction {
     chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
-    edges: FxIndexSet<BatchEdge>,
 }
 
 #[derive(Debug, Clone)]
@@ -247,10 +246,7 @@ impl BatchAssignment {
     fn new(batch_idx: BatchIndex, chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>) -> Self {
         Self {
             batch_idx,
-            postorder_action: Some(PostorderAction {
-                chunkable_module,
-                edges: Default::default(),
-            }),
+            postorder_action: Some(PostorderAction { chunkable_module }),
         }
     }
 
@@ -259,13 +255,6 @@ impl BatchAssignment {
             batch_idx,
             postorder_action: None,
         }
-    }
-
-    fn add_edge(&mut self, to: BatchIndex, ty: ChunkingType, module: ResolvedVc<Box<dyn Module>>) {
-        let Some(postorder_action) = &mut self.postorder_action else {
-            unreachable!();
-        };
-        postorder_action.edges.insert((to, ty, module));
     }
 }
 
@@ -299,11 +288,6 @@ impl TraversalState {
             if !modules.is_empty() {
                 let idx = self.batches.len();
                 let first_module = modules[0];
-                assignment.add_edge(
-                    idx,
-                    ChunkingType::ParallelInheritAsync,
-                    ResolvedVc::upcast(first_module),
-                );
                 for &module in modules {
                     let BatchAssignment { batch_idx, .. } = self
                         .batch_assignments
@@ -311,7 +295,12 @@ impl TraversalState {
                         .unwrap();
                     *batch_idx = idx;
                 }
-                let new_batch = ModuleBatchBuilder::new_batch(chunk_groups.clone());
+                let mut new_batch = ModuleBatchBuilder::new_batch(chunk_groups.clone());
+                new_batch.add_edge(
+                    idx,
+                    ChunkingType::ParallelInheritAsync,
+                    ResolvedVc::upcast(first_module),
+                );
                 let existing_batch = replace(&mut self.batches[batch_idx], new_batch);
                 self.batches.push(existing_batch);
                 // All modules that are assigned to the current batch that have
@@ -394,7 +383,7 @@ pub async fn compute_module_batches(
                             ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
                         ) {
                             // Add self edge
-                            assignment.add_edge(
+                            state.batches[assignment.batch_idx].add_edge(
                                 assignment.batch_idx,
                                 ty.without_inherit_async(),
                                 node.module,
@@ -422,11 +411,7 @@ pub async fn compute_module_batches(
                             // need to split the current batch to avoid breaking the
                             // ordering.
                             state.split_batch(parent_node.module);
-                            let parent_assignment = state
-                                .batch_assignments
-                                .get_mut(&parent_node.module)
-                                .unwrap();
-                            parent_assignment.add_edge(
+                            state.batches[batch_idx].add_edge(
                                 idx,
                                 ty.without_inherit_async(),
                                 node.module,
@@ -520,11 +505,7 @@ pub async fn compute_module_batches(
                     }
 
                     // Add an edge to the parent batch
-                    let parent_assignment = state
-                        .batch_assignments
-                        .get_mut(&parent_node.module)
-                        .unwrap();
-                    parent_assignment.add_edge(idx, ty.without_inherit_async(), node.module);
+                    state.batches[batch_idx].add_edge(idx, ty.without_inherit_async(), node.module);
 
                     if is_parallel {
                         // We want to visit parallel edges
@@ -539,20 +520,13 @@ pub async fn compute_module_batches(
                         batch_idx,
                         postorder_action,
                     } = state.batch_assignments.get_mut(&node.module).unwrap();
-                    if let Some(PostorderAction {
-                        chunkable_module,
-                        edges,
-                    }) = postorder_action.take()
-                    {
+                    if let Some(PostorderAction { chunkable_module }) = postorder_action.take() {
                         // modules need to be inserted in postorder into the batch
                         let item = &mut state.batches[*batch_idx];
                         let ModuleBatchBuilderType::Batch { modules, .. } = &mut item.ty else {
                             unreachable!();
                         };
                         modules.push(chunkable_module);
-                        for (to, ty, module) in edges {
-                            item.add_edge(to, ty, module)
-                        }
                     }
                 },
             )
