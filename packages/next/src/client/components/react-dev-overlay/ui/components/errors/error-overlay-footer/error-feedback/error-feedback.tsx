@@ -53,7 +53,15 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
         </p>
       ) : (
         <>
-          <p>Was this helpful?</p>
+          <p>
+            <a
+              href="https://nextjs.org/telemetry#error-feedback"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Was this helpful?
+            </a>
+          </p>
           <button
             aria-label="Mark as helpful"
             onClick={() => handleFeedback(true)}
