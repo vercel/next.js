@@ -65,26 +65,28 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
           </p>
           <button
             aria-disabled={disabled ? 'true' : undefined}
-            aria-label={
-              disabled
-                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
-                : 'Mark as helpful'
-            }
+            aria-label="Mark as helpful"
             onClick={disabled ? undefined : () => handleFeedback(true)}
             className={cx('feedback-button', voted === true && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsUp aria-hidden="true" />
           </button>
           <button
             aria-disabled={disabled ? 'true' : undefined}
-            aria-label={
-              disabled
-                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
-                : 'Mark as not helpful'
-            }
+            aria-label="Mark as not helpful"
             onClick={disabled ? undefined : () => handleFeedback(false)}
             className={cx('feedback-button', voted === false && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsDown
