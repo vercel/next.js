@@ -7,7 +7,6 @@ use std::{
 use anyhow::{bail, Result};
 use either::Either;
 use indexmap::map::Entry;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
