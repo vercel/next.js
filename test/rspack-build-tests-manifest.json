@@ -1324,7 +1324,6 @@
         "app dir - basic should match redirects in pages correctly $path",
         "app dir - basic should not apply client router filter on shallow",
         "app dir - basic should not create new root layout when nested (optional)",
-        "app dir - basic should not have loader generated function for edge runtime",
         "app dir - basic should not include parent when not in parent directory",
         "app dir - basic should not rerender layout when navigating between routes in the same layout",
         "app dir - basic should not serve when layout is provided but no folder index",
@@ -1501,13 +1500,13 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/create-root-layout/create-root-layout.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "app-dir create root layout build should break the build if a page is missing root layout"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
-      "runtimeError": false
+      "runtimeError": true
     },
     "test/e2e/app-dir/crypto-globally-available/crypto-globally-available.test.ts": {
       "passed": [],
@@ -2459,12 +2458,12 @@
     "test/e2e/app-dir/global-error/basic/index.test.ts": {
       "passed": [],
       "failed": [
-        "app dir - global error should catch metadata error in error boundary if presented",
-        "app dir - global error should catch metadata error in global-error if no error boundary is presented",
-        "app dir - global error should catch the client error thrown in the nested routes",
-        "app dir - global error should render global error for error in client components during SSR",
-        "app dir - global error should render global error for error in server components",
-        "app dir - global error should trigger error component when an error happens during rendering"
+        "app dir - global-error should catch metadata error in error boundary if presented",
+        "app dir - global-error should catch metadata error in global-error if no error boundary is presented",
+        "app dir - global-error should catch the client error thrown in the nested routes",
+        "app dir - global-error should render global error for error in client components during SSR",
+        "app dir - global-error should render global error for error in server components",
+        "app dir - global-error should trigger error component when an error happens during rendering"
       ],
       "pending": [],
       "flakey": [],
@@ -2476,6 +2475,16 @@
         "app dir - global error - with catch-all route should render 404 page correctly",
         "app dir - global error - with catch-all route should render catch-all route correctly",
         "app dir - global error - with catch-all route should render global error correctly"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/global-error/error-in-global-error/error-in-global-error.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - global-error - error-in-global-error should be able to use nextjs navigation hook in global-error",
+        "app dir - global-error - error-in-global-error should render fallback UI when error occurs in global-error"
       ],
       "pending": [],
       "flakey": [],
@@ -2879,7 +2888,7 @@
     "test/e2e/app-dir/metadata-static-generation/metadata-static-generation.test.ts": {
       "passed": [],
       "failed": [
-        "app-dir - metadata-static-generation should contain async generated metadata in head for dynamic page",
+        "app-dir - metadata-static-generation should contain async generated metadata in body for dynamic page",
         "app-dir - metadata-static-generation should contain async generated metadata in head for simple static page",
         "app-dir - metadata-static-generation should contain async generated metadata in head static page with suspenseful content",
         "app-dir - metadata-static-generation should generate all pages static"
@@ -2893,8 +2902,8 @@
       "failed": [
         "app-dir - metadata-streaming-static-generation dynamic pages should contain async generated metadata in body for simple dynamics page",
         "app-dir - metadata-streaming-static-generation dynamic pages should contain async generated metadata in body for suspenseful dynamic page",
-        "app-dir - metadata-streaming-static-generation dynamic pages with html limited bots should contain async generated metadata in head for simple dynamics page",
-        "app-dir - metadata-streaming-static-generation dynamic pages with html limited bots should contain async generated metadata in head for suspenseful dynamic page",
+        "app-dir - metadata-streaming-static-generation dynamic pages with html limited bots should contain async generated metadata in head for simple dynamic page",
+        "app-dir - metadata-streaming-static-generation dynamic pages with html limited bots should contain stream metadata in head for suspenseful dynamic page",
         "app-dir - metadata-streaming-static-generation should generate all pages static",
         "app-dir - metadata-streaming-static-generation static pages (production) should contain async generated metadata in head for simple static page",
         "app-dir - metadata-streaming-static-generation static pages (production) should contain async generated metadata in head for slow static page",
@@ -2919,6 +2928,12 @@
       "failed": [
         "app-dir - metadata-streaming dynamic api should load the metadata in browser",
         "app-dir - metadata-streaming dynamic api should render metadata to body",
+        "app-dir - metadata-streaming navigation API should not duplicate metadata with navigation API",
+        "app-dir - metadata-streaming navigation API should render blocking 307 response status when html limited bots access redirect",
+        "app-dir - metadata-streaming navigation API should render blocking 404 response status when html limited bots access notFound",
+        "app-dir - metadata-streaming navigation API should trigger custom not-found in the boundary",
+        "app-dir - metadata-streaming navigation API should trigger not-found boundary when call notFound",
+        "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
         "app-dir - metadata-streaming should delay the metadata render to body",
         "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
         "app-dir - metadata-streaming should only insert metadata once into head or body",
@@ -2926,6 +2941,120 @@
         "app-dir - metadata-streaming should send streaming response for headless browser bots",
         "app-dir - metadata-streaming should send the blocking response for html limited bots",
         "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-suspense/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-thrown/metadata-thrown.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata thrown should not crash from error thrown during preloading nested generateMetadata"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-warnings/metadata-warnings-missing-metadatabase.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
+        "app dir - metadata missing metadataBase should show warning in vercel deployment output in default build output mode",
+        "app dir - metadata missing metadataBase should warn for unsupported metadata properties",
+        "app dir - metadata missing metadataBase should warn metadataBase is missing and a relative URL is used"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata-warnings/metadata-warnings-with-metadatabase.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata missing metadataBase should not show warning in vercel deployment output in default build output mode",
+        "app dir - metadata missing metadataBase should not warn for viewport properties during manually merging metadata",
+        "app dir - metadata missing metadataBase should not warn metadataBase is missing and a relative URL is used",
+        "app dir - metadata missing metadataBase should warn for unsupported metadata properties"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/metadata/metadata.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - metadata basic should apply metadata when navigating client-side",
+        "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
+        "app dir - metadata basic should not contain query in canonical url after client navigation",
+        "app dir - metadata basic should relative canonical url",
+        "app dir - metadata basic should support alternate tags",
+        "app dir - metadata basic should support appLinks tags",
+        "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
+        "app dir - metadata basic should support facebook related tags",
+        "app dir - metadata basic should support generateMetadata dynamic props",
+        "app dir - metadata basic should support other basic tags",
+        "app dir - metadata basic should support other basic tags (edge)",
+        "app dir - metadata basic should support robots tags",
+        "app dir - metadata basic should support stashed title in one layer of page and layout",
+        "app dir - metadata basic should support stashed title in two layers of page and layout",
+        "app dir - metadata basic should support title and description",
+        "app dir - metadata basic should support title template",
+        "app dir - metadata basic should support verification tags",
+        "app dir - metadata basic should use parent layout title when no title is defined in page",
+        "app dir - metadata file based icons should not render if image file is not specified",
+        "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
+        "app dir - metadata icons should merge icons from layout if no static icons files are specified",
+        "app dir - metadata icons should not hoist meta[itemProp] to head",
+        "app dir - metadata icons should support basic complex descriptor icons field",
+        "app dir - metadata icons should support basic object icons field",
+        "app dir - metadata icons should support basic string icons field",
+        "app dir - metadata icons should support root level of favicon.ico",
+        "app dir - metadata opengraph metadataBase should override fallback base for resolving OG images",
+        "app dir - metadata opengraph should override file based images when opengraph-image and twitter-image specify images property",
+        "app dir - metadata opengraph should pick up opengraph-image and twitter-image as static metadata files",
+        "app dir - metadata opengraph should support opengraph tags",
+        "app dir - metadata opengraph should support opengraph with article type",
+        "app dir - metadata react cache should have same title and page value on initial load",
+        "app dir - metadata react cache should have same title and page value when navigating",
+        "app dir - metadata should not effect metadata images convention like files under pages directory",
+        "app dir - metadata static optimization should build static files into static route",
+        "app dir - metadata static routes should build favicon.ico as a custom route",
+        "app dir - metadata static routes should have /favicon.ico as route",
+        "app dir - metadata static routes should have icons as route",
+        "app dir - metadata static routes should support root dir robots.txt",
+        "app dir - metadata static routes should support sitemap.xml under every routes",
+        "app dir - metadata static routes should support static manifest.webmanifest",
+        "app dir - metadata twitter should render twitter card summary when image is not present",
+        "app dir - metadata twitter should support default twitter app card",
+        "app dir - metadata twitter should support default twitter player card",
+        "app dir - metadata twitter should support twitter card summary_large_image when image present",
+        "app dir - metadata viewport should support dynamic viewport export"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-matching/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - middleware with custom matcher should match /:id (without asterisk)"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/middleware-sitemap/matcher-exclude-sitemap/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "middleware-sitemap should not be affected by middleware if sitemap.xml is excluded from the matcher"
       ],
       "pending": [],
       "flakey": [],
@@ -3847,6 +3976,340 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
+      "passed": [],
+      "failed": [
+        "ppr-full Dynamic Data pages Incidental postpones should initially render with optimistic UI",
+        "ppr-full Dynamic Data pages Incidental postpones should render entirely dynamically when force-dynamic",
+        "ppr-full Dynamic Data pages Incidental postpones should render entirely statically with force-static",
+        "ppr-full Dynamic Data pages Optimistic UI should initially render with optimistic UI",
+        "ppr-full Dynamic Data pages Optimistic UI should render entirely dynamically when force-dynamic",
+        "ppr-full Dynamic Data pages Optimistic UI should render entirely statically with force-static",
+        "ppr-full Dynamic RSC Response for / should contain dynamic content",
+        "ppr-full Dynamic RSC Response for / should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/a should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/a should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/b should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/b should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/c should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /dynamic/force-dynamic/nested/c should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-static should have correct headers",
+        "ppr-full Dynamic RSC Response for /dynamic/force-static should not contain dynamic content",
+        "ppr-full Dynamic RSC Response for /loading/a should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /loading/a should have correct headers",
+        "ppr-full Dynamic RSC Response for /loading/b should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /loading/b should have correct headers",
+        "ppr-full Dynamic RSC Response for /loading/c should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /loading/c should have correct headers",
+        "ppr-full Dynamic RSC Response for /metadata should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /metadata should have correct headers",
+        "ppr-full Dynamic RSC Response for /nested/a should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /nested/a should have correct headers",
+        "ppr-full Dynamic RSC Response for /nested/b should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /nested/b should have correct headers",
+        "ppr-full Dynamic RSC Response for /nested/c should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /nested/c should have correct headers",
+        "ppr-full Dynamic RSC Response for /no-suspense should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /no-suspense should have correct headers",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/a should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/a should have correct headers",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/b should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/b should have correct headers",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/c should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /no-suspense/nested/c should have correct headers",
+        "ppr-full Dynamic RSC Response for /on-demand/a should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /on-demand/a should have correct headers",
+        "ppr-full Dynamic RSC Response for /on-demand/b should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /on-demand/b should have correct headers",
+        "ppr-full Dynamic RSC Response for /on-demand/c should contain dynamic content",
+        "ppr-full Dynamic RSC Response for /on-demand/c should have correct headers",
+        "ppr-full Dynamic RSC Response for /static should have correct headers",
+        "ppr-full Dynamic RSC Response for /static should not contain dynamic content",
+        "ppr-full HTML Fallback Dynamic Shell should render the dynamic shell as static if the page is static",
+        "ppr-full HTML Fallback Dynamic Shell should render the fallback shell on first visit",
+        "ppr-full HTML Fallback Dynamic Shell should render the route shell on the second visit",
+        "ppr-full HTML Fallback Dynamic Shell will allow dynamic fallback shells even when static is enforced",
+        "ppr-full HTML Fallback Dynamic Shell will only revalidate the page",
+        "ppr-full HTML Fallback Dynamic Shell will revalidate the page and fallback shell",
+        "ppr-full HTML Fallback for /fallback/nested/params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-params/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-pathname/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segment/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/nested/use-selected-layout-segments/slug-01/slug-02 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-params/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-pathname/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segment/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback for /fallback/use-selected-layout-segments/slug-01 should render the fallback HTML immediately",
+        "ppr-full HTML Fallback should allow client layouts without postponing fallback if params are not accessed",
+        "ppr-full HTML Fallback should postpone in client layout when fallback params are accessed",
+        "ppr-full HTML Response for / should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for / should cache the static part",
+        "ppr-full HTML Response for / should have correct headers",
+        "ppr-full HTML Response for / should resume with dynamic content",
+        "ppr-full HTML Response for /dynamic/force-dynamic should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /dynamic/force-dynamic should have correct headers",
+        "ppr-full HTML Response for /dynamic/force-dynamic should resume with dynamic content",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should have correct headers",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/a should resume with dynamic content",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should have correct headers",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/b should resume with dynamic content",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should have correct headers",
+        "ppr-full HTML Response for /dynamic/force-dynamic/nested/c should resume with dynamic content",
+        "ppr-full HTML Response for /dynamic/force-static should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /dynamic/force-static should have correct headers",
+        "ppr-full HTML Response for /dynamic/force-static should not contain dynamic content",
+        "ppr-full HTML Response for /loading/a should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /loading/a should cache the static part",
+        "ppr-full HTML Response for /loading/a should have correct headers",
+        "ppr-full HTML Response for /loading/a should resume with dynamic content",
+        "ppr-full HTML Response for /loading/b should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /loading/b should cache the static part",
+        "ppr-full HTML Response for /loading/b should have correct headers",
+        "ppr-full HTML Response for /loading/b should resume with dynamic content",
+        "ppr-full HTML Response for /loading/c should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /loading/c should cache the static part",
+        "ppr-full HTML Response for /loading/c should have correct headers",
+        "ppr-full HTML Response for /loading/c should resume with dynamic content",
+        "ppr-full HTML Response for /metadata should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /metadata should cache the static part",
+        "ppr-full HTML Response for /metadata should have correct headers",
+        "ppr-full HTML Response for /metadata should resume with dynamic content",
+        "ppr-full HTML Response for /nested/a should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /nested/a should cache the static part",
+        "ppr-full HTML Response for /nested/a should have correct headers",
+        "ppr-full HTML Response for /nested/a should resume with dynamic content",
+        "ppr-full HTML Response for /nested/b should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /nested/b should cache the static part",
+        "ppr-full HTML Response for /nested/b should have correct headers",
+        "ppr-full HTML Response for /nested/b should resume with dynamic content",
+        "ppr-full HTML Response for /nested/c should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /nested/c should cache the static part",
+        "ppr-full HTML Response for /nested/c should have correct headers",
+        "ppr-full HTML Response for /nested/c should resume with dynamic content",
+        "ppr-full HTML Response for /no-suspense should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /no-suspense should cache the static part",
+        "ppr-full HTML Response for /no-suspense should have correct headers",
+        "ppr-full HTML Response for /no-suspense should resume with dynamic content",
+        "ppr-full HTML Response for /no-suspense/nested/a should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /no-suspense/nested/a should cache the static part",
+        "ppr-full HTML Response for /no-suspense/nested/a should have correct headers",
+        "ppr-full HTML Response for /no-suspense/nested/a should resume with dynamic content",
+        "ppr-full HTML Response for /no-suspense/nested/b should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /no-suspense/nested/b should cache the static part",
+        "ppr-full HTML Response for /no-suspense/nested/b should have correct headers",
+        "ppr-full HTML Response for /no-suspense/nested/b should resume with dynamic content",
+        "ppr-full HTML Response for /no-suspense/nested/c should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /no-suspense/nested/c should cache the static part",
+        "ppr-full HTML Response for /no-suspense/nested/c should have correct headers",
+        "ppr-full HTML Response for /no-suspense/nested/c should resume with dynamic content",
+        "ppr-full HTML Response for /on-demand/a should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /on-demand/a should cache the static part",
+        "ppr-full HTML Response for /on-demand/a should have correct headers",
+        "ppr-full HTML Response for /on-demand/a should resume with dynamic content",
+        "ppr-full HTML Response for /on-demand/b should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /on-demand/b should cache the static part",
+        "ppr-full HTML Response for /on-demand/b should have correct headers",
+        "ppr-full HTML Response for /on-demand/b should resume with dynamic content",
+        "ppr-full HTML Response for /on-demand/c should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /on-demand/c should cache the static part",
+        "ppr-full HTML Response for /on-demand/c should have correct headers",
+        "ppr-full HTML Response for /on-demand/c should resume with dynamic content",
+        "ppr-full HTML Response for /static should allow navigations to and from a pages/ page",
+        "ppr-full HTML Response for /static should have correct headers",
+        "ppr-full HTML Response for /static should not contain dynamic content",
+        "ppr-full Metadata should set the right metadata when generateMetadata uses dynamic APIs",
+        "ppr-full Navigation Signals notFound() for /navigation/not-found should have correct headers",
+        "ppr-full Navigation Signals notFound() for /navigation/not-found/dynamic should cache the static part",
+        "ppr-full Navigation Signals notFound() for /navigation/not-found/dynamic should have correct headers",
+        "ppr-full Navigation Signals redirect() for /navigation/redirect should have correct headers",
+        "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should cache the static part",
+        "ppr-full Navigation Signals redirect() for /navigation/redirect/dynamic should have correct headers",
+        "ppr-full Prefetch RSC Response for / should have correct headers",
+        "ppr-full Prefetch RSC Response for / should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic should have correct headers",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/a should have correct headers",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/a should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/b should have correct headers",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/b should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/c should have correct headers",
+        "ppr-full Prefetch RSC Response for /dynamic/force-dynamic/nested/c should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /dynamic/force-static should have correct headers",
+        "ppr-full Prefetch RSC Response for /dynamic/force-static should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /loading/a should have correct headers",
+        "ppr-full Prefetch RSC Response for /loading/a should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /loading/b should have correct headers",
+        "ppr-full Prefetch RSC Response for /loading/b should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /loading/c should have correct headers",
+        "ppr-full Prefetch RSC Response for /loading/c should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /metadata should have correct headers",
+        "ppr-full Prefetch RSC Response for /metadata should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /nested/a should have correct headers",
+        "ppr-full Prefetch RSC Response for /nested/a should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /nested/b should have correct headers",
+        "ppr-full Prefetch RSC Response for /nested/b should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /nested/c should have correct headers",
+        "ppr-full Prefetch RSC Response for /nested/c should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /no-suspense should have correct headers",
+        "ppr-full Prefetch RSC Response for /no-suspense should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/a should have correct headers",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/a should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/b should have correct headers",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/b should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/c should have correct headers",
+        "ppr-full Prefetch RSC Response for /no-suspense/nested/c should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /on-demand/a should have correct headers",
+        "ppr-full Prefetch RSC Response for /on-demand/a should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /on-demand/b should have correct headers",
+        "ppr-full Prefetch RSC Response for /on-demand/b should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /on-demand/c should have correct headers",
+        "ppr-full Prefetch RSC Response for /on-demand/c should not contain dynamic content",
+        "ppr-full Prefetch RSC Response for /static should have correct headers",
+        "ppr-full Prefetch RSC Response for /static should not contain dynamic content",
+        "ppr-full Test Setup has all the test pathnames listed in the links component"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-history-replace-state/ppr-history-replace-state.test.ts": {
+      "passed": [],
+      "failed": ["ppr-history-replace-state should not remount component"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-incremental/ppr-incremental.test.ts": {
+      "passed": [],
+      "failed": [
+        "ppr-incremental ppr disabled / should not have the dynamic content hidden /",
+        "ppr-incremental ppr disabled / should render without the fallback in the initial load /",
+        "ppr-incremental ppr disabled /disabled should not have the dynamic content hidden /disabled",
+        "ppr-incremental ppr disabled /disabled should render without the fallback in the initial load /disabled",
+        "ppr-incremental ppr disabled /dynamic/[slug] should not have the dynamic content hidden /dynamic/a",
+        "ppr-incremental ppr disabled /dynamic/[slug] should not have the dynamic content hidden /dynamic/b",
+        "ppr-incremental ppr disabled /dynamic/[slug] should not have the dynamic content hidden /dynamic/c",
+        "ppr-incremental ppr disabled /dynamic/[slug] should render without the fallback in the initial load /dynamic/a",
+        "ppr-incremental ppr disabled /dynamic/[slug] should render without the fallback in the initial load /dynamic/b",
+        "ppr-incremental ppr disabled /dynamic/[slug] should render without the fallback in the initial load /dynamic/c",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should not have the dynamic content hidden /dynamic/disabled/a",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should not have the dynamic content hidden /dynamic/disabled/b",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should not have the dynamic content hidden /dynamic/disabled/c",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should render without the fallback in the initial load /dynamic/disabled/a",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should render without the fallback in the initial load /dynamic/disabled/b",
+        "ppr-incremental ppr disabled /dynamic/disabled/[slug] should render without the fallback in the initial load /dynamic/disabled/c",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should not have the dynamic content hidden /nested/disabled/a",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should not have the dynamic content hidden /nested/disabled/b",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should not have the dynamic content hidden /nested/disabled/c",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should render without the fallback in the initial load /nested/disabled/a",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should render without the fallback in the initial load /nested/disabled/b",
+        "ppr-incremental ppr disabled /nested/disabled/[slug] should render without the fallback in the initial load /nested/disabled/c",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should not have the dynamic content hidden /nested/disabled/disabled/a",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should not have the dynamic content hidden /nested/disabled/disabled/b",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should not have the dynamic content hidden /nested/disabled/disabled/c",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should render without the fallback in the initial load /nested/disabled/disabled/a",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should render without the fallback in the initial load /nested/disabled/disabled/b",
+        "ppr-incremental ppr disabled /nested/disabled/disabled/[slug] should render without the fallback in the initial load /nested/disabled/disabled/c",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should not have the dynamic content hidden /nested/enabled/disabled/a",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should not have the dynamic content hidden /nested/enabled/disabled/b",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should not have the dynamic content hidden /nested/enabled/disabled/c",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should render without the fallback in the initial load /nested/enabled/disabled/a",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should render without the fallback in the initial load /nested/enabled/disabled/b",
+        "ppr-incremental ppr disabled /nested/enabled/disabled/[slug] should render without the fallback in the initial load /nested/enabled/disabled/c",
+        "ppr-incremental ppr disabled /omitted/[slug] should not have the dynamic content hidden /omitted/a",
+        "ppr-incremental ppr disabled /omitted/[slug] should not have the dynamic content hidden /omitted/b",
+        "ppr-incremental ppr disabled /omitted/[slug] should not have the dynamic content hidden /omitted/c",
+        "ppr-incremental ppr disabled /omitted/[slug] should render without the fallback in the initial load /omitted/a",
+        "ppr-incremental ppr disabled /omitted/[slug] should render without the fallback in the initial load /omitted/b",
+        "ppr-incremental ppr disabled /omitted/[slug] should render without the fallback in the initial load /omitted/c",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should not have the dynamic content hidden /omitted/disabled/a",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should not have the dynamic content hidden /omitted/disabled/b",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should not have the dynamic content hidden /omitted/disabled/c",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/a",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/b",
+        "ppr-incremental ppr disabled /omitted/disabled/[slug] should render without the fallback in the initial load /omitted/disabled/c",
+        "ppr-incremental ppr disabled should not trigger a dynamic request for static pages",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/a",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/b",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should have the dynamic content hidden /dynamic/enabled/c",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should render with the fallback in the initial load /dynamic/enabled/a",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should render with the fallback in the initial load /dynamic/enabled/b",
+        "ppr-incremental ppr enabled /dynamic/enabled/[slug] should render with the fallback in the initial load /dynamic/enabled/c",
+        "ppr-incremental ppr enabled /enabled should have the dynamic content hidden /enabled",
+        "ppr-incremental ppr enabled /enabled should render with the fallback in the initial load /enabled",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should have the dynamic content hidden /nested/disabled/enabled/a",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should have the dynamic content hidden /nested/disabled/enabled/b",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should have the dynamic content hidden /nested/disabled/enabled/c",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should render with the fallback in the initial load /nested/disabled/enabled/a",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should render with the fallback in the initial load /nested/disabled/enabled/b",
+        "ppr-incremental ppr enabled /nested/disabled/enabled/[slug] should render with the fallback in the initial load /nested/disabled/enabled/c",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should have the dynamic content hidden /nested/enabled/a",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should have the dynamic content hidden /nested/enabled/b",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should have the dynamic content hidden /nested/enabled/c",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should render with the fallback in the initial load /nested/enabled/a",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should render with the fallback in the initial load /nested/enabled/b",
+        "ppr-incremental ppr enabled /nested/enabled/[slug] should render with the fallback in the initial load /nested/enabled/c",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should have the dynamic content hidden /nested/enabled/enabled/a",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should have the dynamic content hidden /nested/enabled/enabled/b",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should have the dynamic content hidden /nested/enabled/enabled/c",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should render with the fallback in the initial load /nested/enabled/enabled/a",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should render with the fallback in the initial load /nested/enabled/enabled/b",
+        "ppr-incremental ppr enabled /nested/enabled/enabled/[slug] should render with the fallback in the initial load /nested/enabled/enabled/c",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should have the dynamic content hidden /omitted/enabled/a",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should have the dynamic content hidden /omitted/enabled/b",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should have the dynamic content hidden /omitted/enabled/c",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should render with the fallback in the initial load /omitted/enabled/a",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should render with the fallback in the initial load /omitted/enabled/b",
+        "ppr-incremental ppr enabled /omitted/enabled/[slug] should render with the fallback in the initial load /omitted/enabled/c"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-metadata-blocking/ppr-metadata-blocking-ppr-fallback.test.ts": {
+      "passed": [],
+      "failed": [
+        "ppr-metadata-blocking-ppr-fallback should include viewport metadata in partial shell when metadata is dynamic under suspense",
+        "ppr-metadata-blocking-ppr-fallback should include viewport metadata in partial shell when page is partially dynamic",
+        "ppr-metadata-blocking-ppr-fallback should not include metadata in partial shell when page is fully dynamic"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-metadata-streaming/ppr-metadata-streaming.test.ts": {
+      "passed": [],
+      "failed": [
+        "ppr-metadata-streaming dynamic metadata should generate metadata in body when page content is static",
+        "ppr-metadata-streaming dynamic metadata should generate metadata in body when page is fully dynamic",
+        "ppr-metadata-streaming html limited bots should perform blocking and dynamic rendering when html limited bots requests the PPR page",
+        "ppr-metadata-streaming html limited bots should serve partial static shell when normal UA requests the PPR page",
+        "ppr-metadata-streaming partial shell should insert metadata into body with dynamic metadata and wrapped under layout Suspense boundary",
+        "ppr-metadata-streaming partial shell should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary",
+        "ppr-metadata-streaming static metadata should generate metadata in head when page is fully static",
+        "ppr-metadata-streaming static metadata should insert metadata in body when page is dynamic page content"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/ppr-missing-root-params/ppr-missing-root-params.test.ts": {
+      "passed": [],
+      "failed": [
+        "ppr-missing-root-params (multiple) should result in a build error",
+        "ppr-missing-root-params (nested) should result in a build error",
+        "ppr-missing-root-params (single) should result in a build error"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/ppr-navigations/avoid-popstate-flash/avoid-popstate-flash.test.ts": {
       "passed": [],
       "failed": [
@@ -4685,6 +5148,75 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "passed": [],
+      "failed": [
+        "searchparams-reuse-loading With Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading Without Middleware should correctly return different RSC data for full prefetches with different searchParam values",
+        "searchparams-reuse-loading should properly render root page with searchParams when prefetch is aliased",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
+        "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
+        "searchparams-reuse-loading should re-use the prefetched loading state when navigating to a new searchParam value",
+        "searchparams-reuse-loading should reflect the correct searchParams when re-using the same page segment",
+        "searchparams-reuse-loading should reflect the correct searchParams when the root page is prefetched first"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts": {
+      "passed": [],
+      "failed": [
+        "searchparams-static-bailout client component should bailout when using searchParams",
+        "searchparams-static-bailout client component should bailout when using searchParams is passed to client component",
+        "searchparams-static-bailout client component should not bailout when not using searchParams",
+        "searchparams-static-bailout server component should bailout when using searchParams",
+        "searchparams-static-bailout server component should not bailout when not using searchParams"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
+      "passed": [],
+      "failed": [
+        "segment cache (basic tests) navigate before any data has loaded into the prefetch cache",
+        "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
+        "segment cache (basic tests) navigate with prefetched data",
+        "segment cache (basic tests) prefetch interception route",
+        "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
+        "segment cache (basic tests) skips static layouts during partially static navigation"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
+      "passed": [],
+      "failed": [
+        "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
+        "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
+        "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
+        "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
+        "segment cache (incremental opt in) prefetches a shared layout on a PPR-enabled route that was previously omitted from a non-PPR-enabled route",
+        "segment cache (incremental opt in) when a link is prefetched with <Link prefetch=true>, no dynamic request is made on navigation",
+        "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
+        "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
+      "passed": [],
+      "failed": [
+        "segment cache memory pressure evicts least recently used prefetch data once cache size exceeds limit"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
       "passed": [],
       "failed": [
@@ -4693,6 +5225,25 @@
         "segment cache prefetch scheduling increases the priority of a viewport-initiated prefetch on hover",
         "segment cache prefetch scheduling prioritizes prefetching the route trees before the segments",
         "segment cache prefetch scheduling reschedules a link's prefetch when it re-enters the viewport"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
+      "passed": [],
+      "failed": [
+        "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
+        "segment cache (revalidation) evict client cache when Server Action calls revalidateTag"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
+      "passed": [],
+      "failed": [
+        "segment cache (staleness) entry expires when its stale time has elapsed"
       ],
       "pending": [],
       "flakey": [],
@@ -6126,6 +6677,24 @@
       "flakey": [],
       "runtimeError": true
     },
+    "test/e2e/middleware-custom-matchers/test/node-runtime.test.ts": {
+      "passed": [],
+      "failed": [
+        "Middleware custom matchers should match has cookie",
+        "Middleware custom matchers should match has cookie on client routing",
+        "Middleware custom matchers should match has header",
+        "Middleware custom matchers should match has header value",
+        "Middleware custom matchers should match has host",
+        "Middleware custom matchers should match has query",
+        "Middleware custom matchers should match has query on client routing",
+        "Middleware custom matchers should match missing header correctly",
+        "Middleware custom matchers should match missing query correctly",
+        "Middleware custom matchers should match source path"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": true
+    },
     "test/e2e/middleware-dynamic-basepath-matcher/test/index.test.ts": {
       "passed": [],
       "failed": [
@@ -6683,7 +7252,8 @@
         "next/font preload google fonts with multiple weights/styles",
         "next/font preload page with fonts",
         "next/font preload page with local fonts",
-        "next/font preload page without fonts"
+        "next/font preload page without fonts",
+        "next/font should not have deprecation warning"
       ],
       "pending": [],
       "flakey": [],
@@ -6742,6 +7312,17 @@
       "pending": [],
       "flakey": [],
       "runtimeError": true
+    },
+    "test/e2e/next-link-errors/next-link-errors.test.ts": {
+      "passed": [],
+      "failed": [
+        "next-link errors on invalid href",
+        "next-link multiple children",
+        "next-link no children"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
     },
     "test/e2e/next-phase/index.test.ts": {
       "passed": [],
@@ -7278,6 +7859,19 @@
       "flakey": [],
       "runtimeError": true
     },
+    "test/e2e/streaming-ssr-edge/streaming-ssr-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "streaming-ssr-edge should not stream to crawlers or google pagerender bot",
+        "streaming-ssr-edge should render 500 error from gIP correctly",
+        "streaming-ssr-edge should render 500 error from render function correctly",
+        "streaming-ssr-edge should render fallback if error raised from suspense during streaming",
+        "streaming-ssr-edge should support streaming for fizz response"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/streaming-ssr/index.test.ts": {
       "passed": [],
       "failed": [
@@ -7734,7 +8328,9 @@
       "runtimeError": false
     },
     "test/integration/amphtml/test/index.test.js": {
-      "passed": [],
+      "passed": [
+        "AMP Usage production mode should not have deprecation warning"
+      ],
       "failed": [
         "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
         "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
@@ -7928,10 +8524,10 @@
       "runtimeError": false
     },
     "test/integration/app-config-asset-prefix/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "App assetPrefix config should render correctly with assetPrefix: \"/\""
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -7949,10 +8545,10 @@
       "runtimeError": false
     },
     "test/integration/app-dir-export/test/dev-custom-dist-dir.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app dir - with output export and custom distDir (next dev) should render properly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8221,8 +8817,8 @@
       "runtimeError": false
     },
     "test/integration/babel-next-image/babel-next-image.test.js": {
-      "passed": [],
-      "failed": ["babel-next-image should work with babel and next/image"],
+      "passed": ["babel-next-image should work with babel and next/image"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8270,16 +8866,13 @@
     },
     "test/integration/build-indicator/test/index.test.js": {
       "passed": [
-        "Build Activity Indicator Disabled with next.config.js - (app) Does not add the build indicator container",
-        "Build Activity Indicator Disabled with next.config.js - (pages) Does not add the build indicator container",
+        "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
+        "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
         "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
         "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
         "Build Activity Indicator should validate buildActivityPosition config"
       ],
-      "failed": [
-        "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-        "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8303,6 +8896,49 @@
       "pending": [
         "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
         "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
+      "passed": [],
+      "failed": [
+        "build trace with extra entries production mode should build and trace correctly"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/build-trace-extra-entries/test/index.test.js": {
+      "passed": [],
+      "failed": [
+        "build trace with extra entries production mode should build and trace correctly"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/build-warnings/test/index.test.js": {
+      "passed": [
+        "Build warnings production mode should not shown warning about minification without any modification",
+        "Build warnings production mode should not warn about missing cache in non-CI",
+        "Build warnings production mode should not warn about missing cache on supported platforms",
+        "Build warnings production mode should shown warning about minification for minimize",
+        "Build warnings production mode should shown warning about minification for minimizer",
+        "Build warnings production mode should warn about missing cache in CI"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/integration/catches-missing-getStaticProps/test/index.test.js": {
+      "passed": [],
+      "failed": [
+        "Catches Missing getStaticProps production mode should catch it in server build mode"
+      ],
+      "pending": [
+        "Catches Missing getStaticProps development mode should catch it in development mode"
       ],
       "flakey": [],
       "runtimeError": false
@@ -8349,6 +8985,8 @@
         "CLI Usage dev -p reserved",
         "CLI Usage dev Allow retry if default port is already in use",
         "CLI Usage dev NODE_OPTIONS='--inspect'",
+        "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
+        "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
         "CLI Usage dev PORT=0",
         "CLI Usage dev custom directory",
         "CLI Usage dev invalid directory",
@@ -8372,7 +9010,6 @@
         "CLI Usage production mode build --help",
         "CLI Usage production mode build -h",
         "CLI Usage production mode build invalid directory",
-        "CLI Usage production mode build should exit when SIGINT is signalled",
         "CLI Usage production mode build should exit when SIGTERM is signalled",
         "CLI Usage production mode build should not throw UnhandledPromiseRejectionWarning",
         "CLI Usage production mode build should warn when unknown argument provided",
@@ -8394,8 +9031,7 @@
         "CLI Usage production mode telemetry should warn when unknown argument provided"
       ],
       "failed": [
-        "CLI Usage dev NODE_OPTIONS='--require=file with spaces to --require.js'",
-        "CLI Usage dev NODE_OPTIONS='--require=file with spaces to-require-with-node-require-option.js'",
+        "CLI Usage production mode build should exit when SIGINT is signalled",
         "CLI Usage production mode start should exit when SIGINT is signalled",
         "CLI Usage production mode start should exit when SIGTERM is signalled",
         "CLI Usage production mode start should format IPv6 addresses correctly"
@@ -8453,10 +9089,10 @@
       "runtimeError": false
     },
     "test/integration/config-devtool-dev/test/index.test.js": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "devtool set in development mode in next config should warn and revert when a devtool is set in development mode"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8502,8 +9138,10 @@
         "config-output-export should error with getStaticPaths and fallback true",
         "config-output-export should error with getStaticProps and revalidate 10 seconds (ISR)",
         "config-output-export should error with middleware function",
+        "config-output-export should work with getStaticPaths and fallback false",
         "config-output-export should work with getStaticProps and revalidate false",
         "config-output-export should work with getStaticProps and without revalidate",
+        "config-output-export should work with static homepage",
         "config-output-export when hasNextSupport = false should error with \"headers\" config",
         "config-output-export when hasNextSupport = false should error with \"redirects\" config",
         "config-output-export when hasNextSupport = false should error with \"rewrites\" config",
@@ -8511,10 +9149,7 @@
         "config-output-export when hasNextSupport = true should error with \"redirects\" config",
         "config-output-export when hasNextSupport = true should error with \"rewrites\" config"
       ],
-      "failed": [
-        "config-output-export should work with getStaticPaths and fallback false",
-        "config-output-export should work with static homepage"
-      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8685,13 +9320,13 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/app-api.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "create-next-app --api (Headless App) should create JavaScript project with --js flag",
         "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
         "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
         "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8713,7 +9348,32 @@
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/matrix.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
+        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind",
         "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
         "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
         "CNA options matrix - pages --no-app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
@@ -8739,47 +9399,22 @@
         "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
         "CNA options matrix - pages --no-app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
       ],
-      "failed": [
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@/* --eslint --src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --import-alias=@acme/* --eslint --src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --js --no-import-alias --eslint --src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@/* --eslint --src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --import-alias=@acme/* --eslint --src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --no-src-dir --tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --no-tailwind",
-        "CNA options matrix - app --app --no-turbopack --ts --no-import-alias --eslint --src-dir --tailwind"
-      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/integration/create-next-app/templates/pages.test.ts": {
       "passed": [
+        "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
+      ],
+      "failed": [
         "create-next-app --no-app (Pages Router) should create JavaScript project with --js flag",
         "create-next-app --no-app (Pages Router) should create TailwindCSS project with --tailwind flag",
         "create-next-app --no-app (Pages Router) should create TypeScript project with --ts flag",
         "create-next-app --no-app (Pages Router) should create an empty TailwindCSS project with --empty flag",
         "create-next-app --no-app (Pages Router) should create an empty project with --empty flag",
-        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag",
-        "create-next-app --no-app (Pages Router) should enable turbopack dev with --turbopack flag"
+        "create-next-app --no-app (Pages Router) should create project inside \"src\" directory with --src-dir flag"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8984,16 +9619,16 @@
     "test/integration/css/test/css-modules.test.js": {
       "passed": [
         "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on hover)",
-        "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav)"
+        "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
+        "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on nav)",
+        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on hover)",
+        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on load)",
+        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav)"
       ],
       "failed": [
-        "Basic CSS Modules Ordering useLightnincsss(false) Development Mode should have correct color on index page (on load)",
         "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on hover)",
         "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on load)",
         "Basic CSS Modules Ordering useLightnincsss(false) production mode should have correct color on index page (on nav)",
-        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on hover)",
-        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on load)",
-        "Basic CSS Modules Ordering useLightnincsss(true) Development Mode should have correct color on index page (on nav)",
         "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on hover)",
         "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on load)",
         "Basic CSS Modules Ordering useLightnincsss(true) production mode should have correct color on index page (on nav)",
@@ -10060,7 +10695,6 @@
         "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
         "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime"
       ],
       "failed": [
@@ -10074,6 +10708,7 @@
         "Edge runtime code with imports Middleware dynamically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
         "Edge runtime code with imports Middleware importing vanilla 3rd party module production mode does not throw in production at runtime",
         "Edge runtime code with imports Middleware statically importing 3rd party module production mode does not build and reports",
+        "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware using Buffer polyfill production mode does not throw in production at runtime"
       ],
       "pending": [
@@ -10244,7 +10879,6 @@
     "test/integration/env-config/test/index.test.js": {
       "passed": [
         "Env Config test environment should have process environment override .env",
-        "Env Config test environment should inline global values during build",
         "Env Config test environment should load env from .env",
         "Env Config test environment should provide env correctly for API routes",
         "Env Config test environment should provide env correctly for SSR",
@@ -10258,7 +10892,8 @@
         "Env Config production mode should provide env correctly for API routes",
         "Env Config production mode should provide env correctly for SSR",
         "Env Config production mode should provide env for SSG",
-        "Env Config production mode should provide global env to next.config.js"
+        "Env Config production mode should provide global env to next.config.js",
+        "Env Config test environment should inline global values during build"
       ],
       "pending": [
         "Env Config development mode should have process environment override .env",
@@ -10345,7 +10980,6 @@
     "test/integration/eslint/test/next-build.test.js": {
       "passed": [
         "Next Build production mode custom directories",
-        "Next Build production mode ignore during builds",
         "Next Build production mode invalid older eslint version",
         "Next Build production mode missing Next.js plugin",
         "Next Build production mode shows warnings and errors"
@@ -10355,7 +10989,8 @@
         "Next Build production mode empty directories do not fail the build",
         "Next Build production mode eslint cache lives in the user defined build directory",
         "Next Build production mode eslint caching is enabled",
-        "Next Build production mode eslint ignored directories do not fail the build"
+        "Next Build production mode eslint ignored directories do not fail the build",
+        "Next Build production mode ignore during builds"
       ],
       "pending": [],
       "flakey": [],
@@ -10540,10 +11175,10 @@
       "runtimeError": false
     },
     "test/integration/externals-pages-bundle/test/externals.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "default should use externals for unvendored node_modules reachable from the project"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12059,13 +12694,12 @@
       "runtimeError": false
     },
     "test/integration/gsp-build-errors/test/index.test.js": {
-      "passed": [
-        "GSP build errors production mode should fail build from undefined error in getStaticProps"
-      ],
+      "passed": [],
       "failed": [
         "GSP build errors production mode should fail build from ENOENT in getStaticProps",
         "GSP build errors production mode should fail build from module not found",
         "GSP build errors production mode should fail build from string error in getStaticProps",
+        "GSP build errors production mode should fail build from undefined error in getStaticProps",
         "GSP build errors production mode should fail build on normal error in getStaticProps",
         "GSP build errors production mode should handle non-serializable error in getStaticPaths",
         "GSP build errors production mode should handle non-serializable error in getStaticProps"
@@ -14396,9 +15030,10 @@
       "runtimeError": false
     },
     "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts": {
-      "passed": [],
+      "passed": [
+        "Image Component from node_modules development mode should apply image config for node_modules"
+      ],
       "failed": [
-        "Image Component from node_modules development mode should apply image config for node_modules",
         "Image Component from node_modules prod mode production mode should apply image config for node_modules"
       ],
       "pending": [],
@@ -15138,13 +15773,13 @@
     },
     "test/integration/page-config/test/index.test.js": {
       "passed": [
-        "Page Config production mode builds without error when export const config is used outside page",
         "Page Config production mode shows error when page config has invalid properties",
         "Page Config production mode shows error when page config has invalid property value",
         "Page Config production mode shows error when page config has spread properties",
         "Page Config production mode shows valid error when page config is a string"
       ],
       "failed": [
+        "Page Config production mode builds without error when export const config is used outside page",
         "Page Config production mode shows error when page config is export from",
         "Page Config production mode shows error when page config is imported and exported",
         "Page Config production mode shows valid error when page config has no init"
@@ -15482,8 +16117,10 @@
         "Basics default setting dev should only render once in SSR",
         "Basics default setting dev useId() values should match on hydration",
         "Concurrent mode in the experimental-edge runtime dev <RouteAnnouncer /> should not have the initial route announced",
+        "Concurrent mode in the experimental-edge runtime dev flushes styled-jsx styles as the page renders",
         "Concurrent mode in the experimental-edge runtime dev should not have invalid config warning",
         "Concurrent mode in the nodejs runtime dev <RouteAnnouncer /> should not have the initial route announced",
+        "Concurrent mode in the nodejs runtime dev flushes styled-jsx styles as the page renders",
         "Concurrent mode in the nodejs runtime dev should not have invalid config warning"
       ],
       "failed": [
@@ -15492,8 +16129,6 @@
         "Basics production mode default setting prod should contain dynamicIds in next data for dynamic imports",
         "Basics production mode default setting prod should only render once in SSR",
         "Basics production mode default setting prod useId() values should match on hydration",
-        "Concurrent mode in the experimental-edge runtime dev flushes styled-jsx styles as the page renders",
-        "Concurrent mode in the nodejs runtime dev flushes styled-jsx styles as the page renders",
         "production mode Concurrent mode in the experimental-edge runtime prod <RouteAnnouncer /> should not have the initial route announced",
         "production mode Concurrent mode in the experimental-edge runtime prod flushes styled-jsx styles as the page renders",
         "production mode Concurrent mode in the experimental-edge runtime prod should not have invalid config warning",
@@ -15512,23 +16147,6 @@
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for pages",
         "React Profiling Mode production mode with config enabled should have used the react-dom profiling bundle for server component",
         "React Profiling Mode production mode without config enabled should not have used the react-dom profiling bundle"
-      ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/integration/react-streaming/test/index.test.js": {
-      "passed": [
-        "streaming dev dev should not stream to crawlers or google pagerender bot",
-        "streaming dev dev should render 500 error correctly",
-        "streaming dev dev should render fallback if error raised from suspense during streaming"
-      ],
-      "failed": [
-        "production mode streaming prod prod should not stream to crawlers or google pagerender bot",
-        "production mode streaming prod prod should render 500 error correctly",
-        "production mode streaming prod prod should render fallback if error raised from suspense during streaming",
-        "production mode streaming prod prod should support streaming for fizz response",
-        "streaming dev dev should support streaming for fizz response"
       ],
       "pending": [],
       "flakey": [],
@@ -16277,86 +16895,86 @@
     },
     "test/integration/trailing-slashes/test/index.test.js": {
       "passed": [
-        "Trailing slashes development mode, trailingSlash: false / should client side render /index.js, with router path /",
         "Trailing slashes development mode, trailingSlash: false / should resolve to /index.js, with router path /",
-        "Trailing slashes development mode, trailingSlash: false /about should client side render /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: false /about should resolve to /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: false /about/ should redirect to /about",
-        "Trailing slashes development mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: false /about?hello=world should resolve to /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: false /catch-all/hello.world/ should redirect to /catch-all/hello.world",
-        "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
         "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
         "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world/ should redirect to /catch-all/hello/world",
         "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org should have href https://nextjs.org",
         "Trailing slashes development mode, trailingSlash: false /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/ should have href /",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/ should navigate to /",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/ should push route to /",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/about should have href /about",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about should navigate to /about",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about should push route to /about",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should have href /about",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should push route to /about",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should have href /about?hello=world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should have href /about?hello=world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
         "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should have href /catch-all/hello",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
-        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
-        "Trailing slashes development mode, trailingSlash: true / should client side render /index.js, with router path /",
         "Trailing slashes development mode, trailingSlash: true / should resolve to /index.js, with router path /",
         "Trailing slashes development mode, trailingSlash: true /about should redirect to /about/",
-        "Trailing slashes development mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: true /about/ should resolve to /about.js, with router path /about",
-        "Trailing slashes development mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: true /about/?hello=world should resolve to /about.js, with router path /about",
         "Trailing slashes development mode, trailingSlash: true /catch-all/hello.world/ should redirect to /catch-all/hello.world",
         "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world should redirect to /catch-all/hello/world/",
-        "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
         "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should resolve to /catch-all/[...slug].js, with router path /catch-all/[...slug]",
         "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org should have href https://nextjs.org",
         "Trailing slashes development mode, trailingSlash: true /external-linker?href=https://nextjs.org/ should have href https://nextjs.org/",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/ should have href /",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/ should navigate to /",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/ should push route to /",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/about should have href /about/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about should navigate to /about/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about should push route to /about/",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should have href /about/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should have href /about/?hello=world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should have href /about/?hello=world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should have href /catch-all/hello.world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
         "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should have href /catch-all/hello/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
-        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
         "Trailing slashes development mode, with basepath, trailingSlash: true /docs should redirect to /docs/",
         "Trailing slashes development mode, with basepath, trailingSlash: true /docs/about should redirect to /docs/about/",
         "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello.world/ should redirect to /docs/catch-all/hello.world",
         "Trailing slashes development mode, with basepath, trailingSlash: true /docs/catch-all/hello/world should redirect to /docs/catch-all/hello/world/",
         "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should have href /docs/",
-        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
-        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
-        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/",
-        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
-        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/"
+        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should have href /docs/about/"
       ],
       "failed": [
+        "Trailing slashes development mode, trailingSlash: false / should client side render /index.js, with router path /",
+        "Trailing slashes development mode, trailingSlash: false /about should client side render /about.js, with router path /about",
+        "Trailing slashes development mode, trailingSlash: false /about?hello=world should client side render /about.js, with router path /about",
+        "Trailing slashes development mode, trailingSlash: false /catch-all/hello/world should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/ should navigate to /",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/ should push route to /",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about should navigate to /about",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about should push route to /about",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should navigate to /about",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/ should push route to /about",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should navigate to /about?hello=world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about/?hello=world should push route to /about?hello=world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should navigate to /about?hello=world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/about?hello=world should push route to /about?hello=world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should navigate to /catch-all/hello",
+        "Trailing slashes development mode, trailingSlash: false /linker?href=/catch-all/hello/ should push route to /catch-all/hello",
+        "Trailing slashes development mode, trailingSlash: true / should client side render /index.js, with router path /",
+        "Trailing slashes development mode, trailingSlash: true /about/ should client side render /about.js, with router path /about",
+        "Trailing slashes development mode, trailingSlash: true /about/?hello=world should client side render /about.js, with router path /about",
+        "Trailing slashes development mode, trailingSlash: true /catch-all/hello/world/ should client side render /catch-all/[...slug].js, with router path /catch-all/[...slug]",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/ should navigate to /",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/ should push route to /",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about should navigate to /about/",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about should push route to /about/",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should navigate to /about/",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/ should push route to /about/",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should navigate to /about/?hello=world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about/?hello=world should push route to /about/?hello=world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should navigate to /about/?hello=world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/about?hello=world should push route to /about/?hello=world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should navigate to /catch-all/hello.world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello.world/ should push route to /catch-all/hello.world",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should navigate to /catch-all/hello/",
+        "Trailing slashes development mode, trailingSlash: true /linker?href=/catch-all/hello/ should push route to /catch-all/hello/",
+        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should navigate to /docs/",
+        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/ should push route to /docs/",
+        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should navigate to /docs/about/",
+        "Trailing slashes development mode, with basepath, trailingSlash: true /docs/linker?href=/about should push route to /docs/about/",
         "Trailing slashes production mode, trailingSlash: false / should client side render /index.js, with router path /",
         "Trailing slashes production mode, trailingSlash: false / should resolve to /index.js, with router path /",
         "Trailing slashes production mode, trailingSlash: false /about should client side render /about.js, with router path /about",
@@ -16825,6 +17443,73 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer",
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on server layer",
+        "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer",
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on server layer",
+        "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts": {
+      "passed": [],
+      "failed": [
+        "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions.test.ts": {
       "passed": [],
       "failed": [
@@ -16899,6 +17584,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts": {
+      "passed": [],
+      "failed": [
+        "build-output-tree-view with mixed static and dynamic pages and app router routes should show info about prerendered and dynamic routes in a tree view",
+        "build-output-tree-view with only a few static routes should show info about prerendered routes in a compact tree view"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/build-output/index.test.ts": {
       "passed": [],
       "failed": [
@@ -16949,6 +17644,7 @@
       "passed": [],
       "failed": [
         "dynamic-io-cache-handlers should call expireTags on global default cache handler",
+        "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler",
         "dynamic-io-cache-handlers should use global symbol for default cache handler"
       ],
       "pending": [],
@@ -17176,12 +17872,90 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/typed-routes-with-webpack-worker/typed-routes-with-webpack-worker.test.ts": {
+      "passed": [],
+      "failed": [
+        "app dir - typed-routes-with-webpack-worker builds successfully without errors",
+        "app dir - typed-routes-with-webpack-worker builds with valid errors"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
       "passed": [],
       "failed": [
         "unexpected-error cannot change response status when streaming has started",
         "unexpected-error should set response status to 500 for unexpected errors in isr app route",
         "unexpected-error should set response status to 500 for unexpected errors in ssr app route"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/worker-restart/worker-restart.test.ts": {
+      "passed": [],
+      "failed": [
+        "worker-restart should fail the build if a worker process is killed",
+        "worker-restart should properly exhaust all restart attempts and not fail with any worker errors",
+        "worker-restart should support configurable static generation retries"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/bfcache-routing/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "bfcache-routing should not suspend indefinitely when page is restored from bfcache after an mpa navigation"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/build-spinners/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "build-spinners should handle build spinners correctly app and pages",
+        "build-spinners should handle build spinners correctly app dir - (compile workers)",
+        "build-spinners should handle build spinners correctly app dir - basic",
+        "build-spinners should handle build spinners correctly page dir",
+        "build-spinners should handle build spinners correctly page dir (compile workers)"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/ci-missing-typescript-deps/index.test.ts": {
+      "passed": [
+        "ci-missing-typescript-deps should not throw an error if beta version of @types/react and @types/react-dom is installed",
+        "ci-missing-typescript-deps should show missing TypeScript dependencies error in CI"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/custom-error-500/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "custom-error-500 should correctly use pages/500 and call Error.getInitialProps",
+        "custom-error-500 should work correctly with pages/404 present"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": true
+    },
+    "test/production/custom-server/custom-server.test.ts": {
+      "passed": [],
+      "failed": [
+        "custom server can navigate to /a",
+        "custom server can navigate to /b",
+        "custom server can navigate to /c",
+        "custom server should log any error messages when server is started without \"quiet\" setting",
+        "custom server with app dir should render app with react canary",
+        "custom server with app dir should render pages with installed react",
+        "custom server with quiet setting should not log any error messages when server is started with \"quiet\" setting"
       ],
       "pending": [],
       "flakey": [],
@@ -17365,6 +18139,54 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/export/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "static export API routes export Should throw if a route is matched",
+        "static export Dynamic routes export Should throw error not matched route",
+        "static export Render via SSR Should render dynamic files with query",
+        "static export Render via SSR Should serve public files",
+        "static export Render via SSR Should serve static files",
+        "static export Render via SSR should give empty object for query if there is no query",
+        "static export Render via SSR should render _error on /404/index.html",
+        "static export Render via SSR should render _error on 404.html even if not provided in exportPathMap",
+        "static export Render via SSR should render a dynamically rendered custom url page",
+        "static export Render via SSR should render a page with getInitialProps",
+        "static export Render via SSR should render links correctly",
+        "static export Render via SSR should render pages with dynamic imports",
+        "static export Render via SSR should render paths with extensions",
+        "static export Render via SSR should render the about page",
+        "static export Render via SSR should render the home page",
+        "static export Render via browser pages in the nested level: level1 should render the about page",
+        "static export Render via browser pages in the nested level: level1 should render the home page",
+        "static export Render via browser should add trailing slash on Link",
+        "static export Render via browser should do navigations via Link",
+        "static export Render via browser should do navigations via Router",
+        "static export Render via browser should do run client side javascript",
+        "static export Render via browser should navigate even if used a button inside <Link />",
+        "static export Render via browser should not add any slash on hash Link",
+        "static export Render via browser should not add trailing slash on Link when disabled",
+        "static export Render via browser should preserve hash symbol on empty hash Link",
+        "static export Render via browser should preserve question mark on empty query Link",
+        "static export Render via browser should render 404 when visiting a page that returns notFound from gsp",
+        "static export Render via browser should render dynamic import components in the client",
+        "static export Render via browser should render dynamic pages with custom urls",
+        "static export Render via browser should render pages using getInitialProps",
+        "static export Render via browser should render pages with url hash correctly",
+        "static export Render via browser should render the home page",
+        "static export Render via browser should support client side navigation",
+        "static export Render via browser should update query after mount",
+        "static export exportTrailingSlash is not ignored",
+        "static export should delete existing exported files",
+        "static export should handle trailing slash in getStaticPaths",
+        "static export should honor trailingSlash for 404 page",
+        "static export should not duplicate /index with trailingSlash",
+        "static export should only output 404.html without trailingSlash"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/exported-runtimes-value-validation/index.test.ts": {
       "passed": [
         "Exported runtimes value validation fails to build on malformed input",
@@ -17500,6 +18322,39 @@
       "flakey": [],
       "runtimeError": true
     },
+    "test/production/middleware-typescript/test/index.test.ts": {
+      "passed": [],
+      "failed": ["middleware-typescript should have built and started"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/next-font/babel-unsupported.test.ts": {
+      "passed": [],
+      "failed": ["@next/font babel unsupported Build error when using babel"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/next-font/telemetry.test.ts": {
+      "passed": [],
+      "failed": [
+        "next/font unused telemetry should not send next/font/google and next/font/local usage event",
+        "next/font used telemetry should send next/font/google and next/font/local usage event"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": true
+    },
+    "test/production/next-link-legacybehavior-ref-merging/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "Link with legacyBehavior - handles buggy userspace ref merging does not crash when Link unmounts"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/optimize-server-react/optimize-server-react.test.ts": {
       "passed": [],
       "failed": [
@@ -17509,6 +18364,149 @@
       "pending": [],
       "flakey": [],
       "runtimeError": false
+    },
+    "test/production/pages-dir/production/test/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "Production Usage API routes does not work with pages/api/readfile-dirname.js",
+        "Production Usage API routes should work with dynamic params and search string",
+        "Production Usage API routes should work with pages/api/hello.js",
+        "Production Usage API routes should work with pages/api/index.js",
+        "Production Usage API routes should work with pages/api/readfile-processcwd.js",
+        "Production Usage Dynamic import custom loading should render custom loading on the server side when `ssr:false` and `loading` is provided",
+        "Production Usage Dynamic import custom loading should render the component on client side",
+        "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
+        "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
+        "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
+        "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
+        "Production Usage Dynamic import default behavior should render dynamic import components",
+        "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
+        "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
+        "Production Usage Dynamic import default behavior should render one dynamically imported component without any css files",
+        "Production Usage Dynamic import default behavior should render three dynamically imported components and load their css files",
+        "Production Usage Dynamic import ssr:false option should not render loading on the server side",
+        "Production Usage Dynamic import ssr:false option should render the component on client side",
+        "Production Usage Dynamic import ssr:true option should render the component on client side",
+        "Production Usage Dynamic import ssr:true option should render the component on the server side",
+        "Production Usage Misc It does not add a timestamp to link tags with prefetch attribute",
+        "Production Usage Misc Should allow access to public files",
+        "Production Usage Misc should add autoExport for auto pre-rendered pages",
+        "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
+        "Production Usage Misc should allow to access /static/ and /_next/",
+        "Production Usage Misc should handle already finished responses",
+        "Production Usage Misc should have default runtime values when not defined",
+        "Production Usage Misc should not add autoExport for non pre-rendered pages",
+        "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
+        "Production Usage Misc should reload the page on page script error",
+        "Production Usage Misc should reload the page on page script error with prefetch",
+        "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
+        "Production Usage Runtime errors should render a client side component error",
+        "Production Usage Runtime errors should render a server side error on the client side",
+        "Production Usage With Security Related Issues should handle encoded / value for trailing slash correctly",
+        "Production Usage With Security Related Issues should handle encoded value in the pathname correctly %",
+        "Production Usage With Security Related Issues should handle encoded value in the pathname correctly /",
+        "Production Usage With Security Related Issues should handle encoded value in the pathname correctly \\",
+        "Production Usage With Security Related Issues should handle encoded value in the pathname to query correctly (/)",
+        "Production Usage With Security Related Issues should handle encoded value in the query correctly",
+        "Production Usage With Security Related Issues should not allow accessing files outside .next/static directory",
+        "Production Usage With Security Related Issues should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true",
+        "Production Usage With Security Related Issues should not leak the user's home directory into the build",
+        "Production Usage With Security Related Issues should only access files inside .next directory",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using double quotes",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using querystring and quotes",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and double quotes",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using semicolons and single quotes",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using single quotes",
+        "Production Usage With Security Related Issues should prevent URI based XSS attacks using src",
+        "Production Usage With basic usage should allow etag header support",
+        "Production Usage With basic usage should allow etag header support with getStaticProps",
+        "Production Usage With basic usage should block special pages",
+        "Production Usage With basic usage should have X-Powered-By header support",
+        "Production Usage With basic usage should not contain customServer in NEXT_DATA",
+        "Production Usage With basic usage should polyfill Node.js modules",
+        "Production Usage With basic usage should render 200 for POST on page",
+        "Production Usage With basic usage should render 404 even if the HTTP method is not GET or HEAD",
+        "Production Usage With basic usage should render 404 for /_next/static route",
+        "Production Usage With basic usage should render 404 for POST on missing page",
+        "Production Usage With basic usage should render 404 for _next routes that do not exist",
+        "Production Usage With basic usage should render 404 for dotfiles in /static",
+        "Production Usage With basic usage should render 404 for routes that do not exist",
+        "Production Usage With basic usage should render the page",
+        "Production Usage With basic usage should return 200 on static file if If-Unmodified-Since is invalid date",
+        "Production Usage With basic usage should return 405 method on static then GET and HEAD",
+        "Production Usage With basic usage should return 412 on static file when If-Unmodified-Since is provided and file is modified",
+        "Production Usage With basic usage should set Cache-Control header",
+        "Production Usage With basic usage should set Content-Length header",
+        "Production Usage With basic usage should set correct Cache-Control header for static 404s",
+        "Production Usage With navigation should navigate to nested index via client side",
+        "Production Usage With navigation should navigate via client side",
+        "Production Usage With navigation should reload page successfully (on bad data fetch)",
+        "Production Usage With navigation should reload page successfully (on bad link)",
+        "Production Usage process.browser should eliminate client only code on the server",
+        "Production Usage process.browser should eliminate server only code on the client",
+        "Production Usage process.env should set process.env.NODE_ENV in production",
+        "Production Usage should change query correctly",
+        "Production Usage should clear all core performance marks",
+        "Production Usage should contain generated page count in output",
+        "Production Usage should contain the Next.js version in window export",
+        "Production Usage should handle AMP correctly in IE",
+        "Production Usage should handle failed param decoding",
+        "Production Usage should handle query/hash correctly during query updating ## $search",
+        "Production Usage should handle query/hash correctly during query updating ##? $search",
+        "Production Usage should handle query/hash correctly during query updating ##hello $search",
+        "Production Usage should handle query/hash correctly during query updating ##hello? $search",
+        "Production Usage should handle query/hash correctly during query updating #? $search",
+        "Production Usage should handle query/hash correctly during query updating #a ?hello",
+        "Production Usage should handle query/hash correctly during query updating #a ?hello=",
+        "Production Usage should handle query/hash correctly during query updating #a ?hello=world",
+        "Production Usage should handle query/hash correctly during query updating #hello? $search",
+        "Production Usage should handle query/hash correctly during query updating #hello?world $search",
+        "Production Usage should have defer on all script tags",
+        "Production Usage should navigate through history after query update",
+        "Production Usage should navigate to external site and back",
+        "Production Usage should navigate to external site and back (with query)",
+        "Production Usage should navigate to page with CSS and back",
+        "Production Usage should not clear custom performance marks",
+        "Production Usage should not contain amp, rsc APIs in main chunk",
+        "Production Usage should not contain currentScript usage for publicPath",
+        "Production Usage should not emit stats",
+        "Production Usage should not expose the compiled page file in development",
+        "Production Usage should not put backslashes in pages-manifest.json",
+        "Production Usage should not replace non-static pages with HTML files",
+        "Production Usage should not show target deprecation warning",
+        "Production Usage should only have one DOCTYPE",
+        "Production Usage should output traces",
+        "Production Usage should preserve query when hard navigating from page 404",
+        "Production Usage should remove placeholder for next/image correctly",
+        "Production Usage should replace static pages with HTML files",
+        "Production Usage should respond with 405 for POST to static page",
+        "Production Usage should warn when prefetch is true"
+      ],
+      "pending": [
+        "Production Usage With Security Related Issues should handle invalid URL properly",
+        "Production Usage With basic usage should allow etag header support with getServerSideProps"
+      ],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/pnpm-support/index.test.ts": {
+      "passed": [],
+      "failed": [
+        "pnpm support should build with dependencies installed via pnpm",
+        "pnpm support should execute client-side JS on each page in output: \"standalone\""
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/postcss-plugin-config-as-string/index.test.ts": {
+      "passed": [],
+      "failed": ["PostCSS plugin config as string should work"],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": true
     },
     "test/production/prerender-prefetch/index.test.ts": {
       "passed": [],
@@ -17593,6 +18591,7 @@
       "failed": [
         "required server files app router should handle optional catchall",
         "required server files app router should not fail caching",
+        "required server files app router should not override params with query params",
         "required server files app router should not send cache tags in minimal mode for SSR",
         "required server files app router should not send invalid soft tags to cache handler",
         "required server files app router should properly handle fallback for bot request",
