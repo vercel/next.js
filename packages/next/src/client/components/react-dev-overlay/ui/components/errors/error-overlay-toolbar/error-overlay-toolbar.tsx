@@ -26,7 +26,7 @@ export function ErrorOverlayToolbar({
 export const styles = `
   .error-overlay-toolbar {
     display: flex;
-    gap: var(--rem-px-6);
+    gap: var(--size-6);
   }
 
   .nodejs-inspector-button,

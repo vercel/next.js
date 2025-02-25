@@ -49,7 +49,7 @@ export const Default: Story = {
   decorators: [
     (Story) => (
       // Offset the translateY applied to the floating header.
-      <div style={{ paddingTop: 'var(--rem-px-42)' }}>
+      <div style={{ paddingTop: 'var(--size-42)' }}>
         <Story />
       </div>
     ),

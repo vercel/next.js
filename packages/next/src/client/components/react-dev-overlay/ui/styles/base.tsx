@@ -1,4 +1,3 @@
-import * as React from 'react'
 import { css } from '../../utils/css'
 
 export function Base() {
@@ -15,18 +14,13 @@ export function Base() {
             'position: absolute;'
           }
 
-          --size-gap-half: 4px;
-          --size-gap: 8px;
-          --size-gap-double: 16px;
-          --size-gap-triple: 24px;
-          --size-gap-quad: 32px;
-
-          --size-font-11: 11px;
-          --size-font-smaller: 12px;
-          --size-font-small: 14px;
-          --size-font: 16px;
-          --size-font-big: 20px;
-          --size-font-bigger: 24px;
+          --size-font-11: var(--size-11);
+          --size-font-smaller: var(--size-12);
+          --size-font-13: var(--size-13);
+          --size-font-small: var(--size-14);
+          --size-font: var(--size-16);
+          --size-font-big: var(--size-20);
+          --size-font-bigger: var(--size-24);
 
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
@@ -73,49 +67,52 @@ export function Base() {
           --timing-overlay: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 
           --rounded-none: 0px;
-          --rounded-sm: 0.125rem; /* 2px */
-          --rounded-md: 0.25rem; /* 4px */
-          --rounded-md-2: 0.375rem; /* 6px */
-          --rounded-lg: 0.5rem; /* 8px */
-          --rounded-xl: 0.75rem; /* 12px */
-          --rounded-2xl: 1rem; /* 16px */
-          --rounded-3xl: 1.5rem; /* 24px */
+          --rounded-sm: 2px;
+          --rounded-md: 4px;
+          --rounded-md-2: 6px;
+          --rounded-lg: 8px;
+          --rounded-xl: 12px;
+          --rounded-2xl: 16px;
+          --rounded-3xl: 24px;
+          --rounded-4xl: 32px;
           --rounded-full: 9999px;
 
-          /* --rem-px-N: rem value of Npx in base font size 16px. */
-          --rem-px-1: 0.0625rem;
-          --rem-px-2: 0.125rem;
-          --rem-px-3: 0.1875rem;
-          --rem-px-4: 0.25rem;
-          --rem-px-5: 0.3125rem;
-          --rem-px-6: 0.375rem;
-          --rem-px-7: 0.4375rem;
-          --rem-px-8: 0.5rem;
-          --rem-px-9: 0.5625rem;
-          --rem-px-10: 0.625rem;
-          --rem-px-11: 0.6875rem;
-          --rem-px-12: 0.75rem;
-          --rem-px-13: 0.8125rem;
-          --rem-px-14: 0.875rem;
-          --rem-px-15: 0.9375rem;
-          --rem-px-16: 1rem;
-          --rem-px-17: 1.0625rem;
-          --rem-px-18: 1.125rem;
-          --rem-px-20: 1.25rem;
-          --rem-px-22: 1.375rem;
-          --rem-px-24: 1.5rem;
-          --rem-px-26: 1.625rem;
-          --rem-px-28: 1.75rem;
-          --rem-px-30: 1.875rem;
-          --rem-px-32: 2rem;
-          --rem-px-34: 2.125rem;
-          --rem-px-36: 2.25rem;
-          --rem-px-38: 2.375rem;
-          --rem-px-40: 2.5rem;
-          --rem-px-42: 2.625rem;
-          --rem-px-44: 2.75rem;
-          --rem-px-46: 2.875rem;
-          --rem-px-48: 3rem;
+          /* Suffix N of --size-N as px value when the base font size is 16px. */
+          --size-1: 0.0625rem;
+          --size-2: 0.125rem;
+          --size-3: 0.1875rem;
+          --size-4: 0.25rem;
+          --size-5: 0.3125rem;
+          --size-6: 0.375rem;
+          --size-7: 0.4375rem;
+          --size-8: 0.5rem;
+          --size-9: 0.5625rem;
+          --size-10: 0.625rem;
+          --size-11: 0.6875rem;
+          --size-12: 0.75rem;
+          --size-13: 0.8125rem;
+          --size-14: 0.875rem;
+          --size-15: 0.9375rem;
+          /* If the base font size of the dev overlay changes e.g. 18px, 
+          just slide the window and make --size-18 as 1rem. */
+          --size-16: 1rem;
+          --size-17: 1.0625rem;
+          --size-18: 1.125rem;
+          --size-20: 1.25rem;
+          --size-22: 1.375rem;
+          --size-24: 1.5rem;
+          --size-26: 1.625rem;
+          --size-28: 1.75rem;
+          --size-30: 1.875rem;
+          --size-32: 2rem;
+          --size-34: 2.125rem;
+          --size-36: 2.25rem;
+          --size-38: 2.375rem;
+          --size-40: 2.5rem;
+          --size-42: 2.625rem;
+          --size-44: 2.75rem;
+          --size-46: 2.875rem;
+          --size-48: 3rem;
 
           @media print {
             display: none;
@@ -139,7 +136,7 @@ export function Base() {
         h4,
         h5,
         h6 {
-          margin-bottom: var(--size-gap);
+          margin-bottom: 8px;
           font-weight: 500;
           line-height: 1.5;
         }

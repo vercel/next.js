@@ -44,7 +44,7 @@ export const DIALOG_HEADER_STYLES = `
   .nextjs-container-errors-header
     > .nextjs-container-build-error-version-status {
     position: absolute;
-    top: var(--rem-px-16);
-    right: var(--rem-px-16);
+    top: var(--size-16);
+    right: var(--size-16);
   }
 `

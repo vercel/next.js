@@ -272,10 +272,10 @@ export const styles = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--rem-px-14);
+    margin-bottom: var(--size-14);
   }
   .error-overlay-notes-container {
-    margin: var(--rem-px-8) var(--rem-px-2);
+    margin: var(--size-8) var(--size-2);
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;

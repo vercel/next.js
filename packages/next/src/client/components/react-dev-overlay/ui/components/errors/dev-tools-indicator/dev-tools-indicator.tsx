@@ -262,8 +262,8 @@ function DevToolsPopover({
         // Reset the toast component's default positions.
         bottom: 'initial',
         left: 'initial',
-        [vertical]: 'var(--rem-px-10)',
-        [horizontal]: 'var(--rem-px-20)',
+        [vertical]: 'var(--size-10)',
+        [horizontal]: 'var(--size-20)',
       }}
     >
       <NextLogo
@@ -608,13 +608,13 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-label {
     font-size: var(--size-font-small);
-    line-height: var(--rem-px-20);
+    line-height: var(--size-20);
     color: var(--color-gray-1000);
   }
 
   .dev-tools-indicator-value {
     font-size: var(--size-font-small);
-    line-height: var(--rem-px-20);
+    line-height: var(--size-20);
     color: var(--color-gray-900);
     margin-left: auto;
   }
@@ -656,11 +656,11 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-shortcut {
     display: flex;
-    gap: var(--rem-px-4);
+    gap: var(--size-4);
 
     kbd {
-      width: var(--rem-px-20);
-      height: var(--rem-px-20);
+      width: var(--size-20);
+      height: var(--size-20);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -671,7 +671,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       color: var(--color-gray-1000);
       text-align: center;
       font-size: var(--size-font-smaller);
-      line-height: var(--rem-px-16);
+      line-height: var(--size-16);
     }
   }
 `

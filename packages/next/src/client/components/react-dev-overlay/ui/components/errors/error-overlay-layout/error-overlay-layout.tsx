@@ -152,6 +152,6 @@ export const styles = `
   [data-nextjs-error-label-group] {
     display: flex;
     align-items: center;
-    gap: var(--rem-px-8);
+    gap: var(--size-8);
   }
 `
