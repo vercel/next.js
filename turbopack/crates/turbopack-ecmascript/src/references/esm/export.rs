@@ -498,6 +498,9 @@ impl EsmExports {
         parsed: Vc<ParseResult>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
+        let ParseResult::Ok { eval_context, .. } = &*parsed.await? else {
+            return Err(anyhow::anyhow!("failed to get eval context"));
+        };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         for dynamic_export_asset in &expanded.dynamic_exports {
@@ -524,6 +527,13 @@ impl EsmExports {
                     } else {
                         Cow::Borrowed(name.as_str())
                     };
+                    let ctxt = eval_context
+                        .imports
+                        .exports
+                        .get(name)
+                        .map(|id| id.1)
+                        .expect("failed to get the correct SyntaxContext");
+
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,

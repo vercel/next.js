@@ -179,7 +179,7 @@ pub(crate) struct ImportMap {
     /// as a whole.
     full_star_imports: FxHashSet<Atom>,
 
-    exports: FxHashMap<RcStr, Id>,
+    pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
