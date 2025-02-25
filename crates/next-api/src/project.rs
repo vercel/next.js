@@ -1223,7 +1223,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+    async fn edge_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
         let mut transitions = vec![];
 
         let app_dir = *find_app_dir(self.project_path()).await?;
@@ -1244,7 +1244,7 @@ impl Project {
             ));
         }
 
-        let edge_module_context = ModuleAssetContext::new(
+        Ok(Vc::upcast(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions.clone().into_iter().collect(),
                 ..Default::default()
@@ -1273,8 +1273,68 @@ impl Project {
                 self.next_config(),
                 self.execution_context(),
             ),
+            Vc::cell("middleware-edge".into()),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn node_middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let mut transitions = vec![];
+
+        let app_dir = *find_app_dir(self.project_path()).await?;
+        let app_project = *self.app_project().await?;
+
+        let ecmascript_client_reference_transition_name = match app_project {
+            Some(app_project) => Some(app_project.client_transition_name().to_resolved().await?),
+            None => None,
+        };
+
+        if let Some(app_project) = app_project {
+            transitions.push((
+                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                app_project
+                    .edge_ecmascript_client_reference_transition()
+                    .to_resolved()
+                    .await?,
+            ));
+        }
+
+        Ok(Vc::upcast(ModuleAssetContext::new(
+            TransitionOptions {
+                named_transitions: transitions.clone().into_iter().collect(),
+                ..Default::default()
+            }
+            .cell(),
+            self.server_compile_time_info(),
+            get_server_module_options_context(
+                self.project_path(),
+                self.execution_context(),
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                NextRuntime::NodeJs,
+                self.encryption_key(),
+            ),
+            get_server_resolve_options_context(
+                self.project_path(),
+                Value::new(ServerContextType::Middleware {
+                    app_dir,
+                    ecmascript_client_reference_transition_name,
+                }),
+                self.next_mode(),
+                self.next_config(),
+                self.execution_context(),
+            ),
             Vc::cell("middleware".into()),
-        );
+        )))
+    }
+
+    #[turbo_tasks::function]
+    async fn middleware_context(self: Vc<Self>) -> Result<Vc<Box<dyn AssetContext>>> {
+        let edge_module_context = self.edge_middleware_context();
 
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = *middleware.await? else {
@@ -1292,41 +1352,9 @@ impl Project {
         let config = parse_config_from_source(module, NextRuntime::Edge).await?;
 
         if matches!(config.runtime, NextRuntime::NodeJs) {
-            let server_module_context = ModuleAssetContext::new(
-                TransitionOptions {
-                    named_transitions: transitions.clone().into_iter().collect(),
-                    ..Default::default()
-                }
-                .cell(),
-                self.server_compile_time_info(),
-                get_server_module_options_context(
-                    self.project_path(),
-                    self.execution_context(),
-                    Value::new(ServerContextType::Middleware {
-                        app_dir,
-                        ecmascript_client_reference_transition_name,
-                    }),
-                    self.next_mode(),
-                    self.next_config(),
-                    NextRuntime::NodeJs,
-                    self.encryption_key(),
-                ),
-                get_server_resolve_options_context(
-                    self.project_path(),
-                    Value::new(ServerContextType::Middleware {
-                        app_dir,
-                        ecmascript_client_reference_transition_name,
-                    }),
-                    self.next_mode(),
-                    self.next_config(),
-                    self.execution_context(),
-                ),
-                Vc::cell("middleware".into()),
-            );
-
-            Ok(Vc::upcast(server_module_context))
+            Ok(self.node_middleware_context())
         } else {
-            Ok(Vc::upcast(edge_module_context))
+            Ok(edge_module_context)
         }
     }
 
