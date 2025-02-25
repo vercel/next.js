@@ -36,13 +36,18 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: 28px;
-    height: 28px;
+    width: var(--rem-px-28);
+    height: var(--rem-px-28);
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-alpha-400);
     box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
+
+    svg {
+      width: var(--rem-px-14);
+      height: var(--rem-px-14);
+    }
 
     &:focus {
       outline: var(--focus-ring);

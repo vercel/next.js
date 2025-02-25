@@ -275,6 +275,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-cross] {
             color: #fff;
+            width: var(--rem-px-12);
+            height: var(--rem-px-12);
           }
 
           [data-next-mark] {
