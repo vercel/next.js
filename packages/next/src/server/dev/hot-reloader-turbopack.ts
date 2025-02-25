@@ -95,10 +95,7 @@ import {
   type TopLevelIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
-import {
-  devIndicatorServerState,
-  type DevIndicatorServerStateEnabled,
-} from './dev-indicator-server-state'
+import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
@@ -830,13 +827,8 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        if (
-          devIndicatorServerState.isDisabled &&
-          devIndicatorServerState.disabledUntil < Date.now()
-        ) {
-          ;(
-            devIndicatorServerState as unknown as DevIndicatorServerStateEnabled
-          ).isDisabled = false
+        if (devIndicatorServerState.disabledUntil < Date.now()) {
+          devIndicatorServerState.disabledUntil = 0
         }
 
         ;(async function () {

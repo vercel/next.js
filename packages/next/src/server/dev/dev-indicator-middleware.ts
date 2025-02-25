@@ -22,11 +22,8 @@ export function getDisableDevIndicatorMiddleware() {
         return middlewareResponse.methodNotAllowed(res)
       }
 
-      devIndicatorServerState.isDisabled = true
-      if (devIndicatorServerState.isDisabled) {
-        // 1 day from now
-        devIndicatorServerState.disabledUntil = Date.now() + 1000 * 60 * 60 * 24
-      }
+      // 1 day from now
+      devIndicatorServerState.disabledUntil = Date.now() + 1000 * 60 * 60 * 24
 
       return middlewareResponse.noContent(res)
     } catch (err) {

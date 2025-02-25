@@ -47,11 +47,14 @@ export function DevToolsIndicator({
       isStaticRoute={state.staticIndicator}
       hide={() => {
         setIsDevToolsIndicatorVisible(false)
+        fetch('/__nextjs_disable_dev_indicator', {
+          method: 'POST',
+        })
       }}
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
       position={position}
-      disabled={state.devIndicator.isDisabled || !isDevToolsIndicatorVisible}
+      disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
     />
   )

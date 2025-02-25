@@ -571,7 +571,10 @@ export default function HotReload({
         dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
       },
       onDevIndicator(devIndicator) {
-        dispatch({ type: ACTION_DEV_INDICATOR, devIndicator })
+        dispatch({
+          type: ACTION_DEV_INDICATOR,
+          devIndicator,
+        })
       },
     }
   }, [dispatch])

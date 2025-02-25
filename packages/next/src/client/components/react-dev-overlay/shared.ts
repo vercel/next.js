@@ -22,7 +22,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
-  devIndicator: DevIndicatorServerState
+  disableDevIndicator: boolean
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
 }
@@ -116,11 +116,8 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   errors: [],
   notFound: false,
   staticIndicator: false,
-  devIndicator: {
-    // To prevent flickering, set the initial state to disabled.
-    isDisabled: true,
-    disabledUntil: Infinity,
-  },
+  // To prevent flickering, set the initial state to disabled.
+  disableDevIndicator: true,
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
@@ -207,7 +204,10 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
         return { ..._state, versionInfo: action.versionInfo }
       }
       case ACTION_DEV_INDICATOR: {
-        return { ..._state, devIndicator: action.devIndicator }
+        return {
+          ..._state,
+          disableDevIndicator: !!action.devIndicator.disabledUntil,
+        }
       }
       default: {
         return _state
