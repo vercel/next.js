@@ -217,7 +217,7 @@ export default eslintConfig
 
 If you would like to use `next lint` with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, you'll have to add the following to the `.lintstagedrc.js` file in the root of your project in order to specify usage of the `--file` flag.
 
-```js filename=".lintstagedrc.js"
+```js filename=".lintstagedrc.cjs"
 const path = require('path')
 
 const buildEslintCommand = (filenames) =>
