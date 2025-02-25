@@ -47,6 +47,9 @@ export function DevToolsIndicator({
       isStaticRoute={state.staticIndicator}
       hide={() => {
         setIsDevToolsIndicatorVisible(false)
+        fetch('/__nextjs_disable_dev_indicator', {
+          method: 'POST',
+        })
       }}
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
@@ -380,7 +383,7 @@ function DevToolsPopover({
               <MenuItem
                 data-hide-dev-tools
                 title="Hide Dev Tools for the current server session or a day."
-                label="Hide Dev Tools"
+                label="Hide for Dev Session"
                 value={<StopIcon />}
                 onClick={hide}
                 index={isTurbopack ? 2 : 3}

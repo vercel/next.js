@@ -36,6 +36,7 @@ import {
   onRefresh,
   onVersionInfo,
   onStaticIndicator,
+  onDevIndicator,
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -318,6 +319,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
 
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+      if ('devIndicator' in obj) onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
