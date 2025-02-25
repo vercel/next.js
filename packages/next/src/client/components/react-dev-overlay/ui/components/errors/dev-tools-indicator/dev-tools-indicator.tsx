@@ -383,7 +383,7 @@ function DevToolsPopover({
               <MenuItem
                 data-hide-dev-tools
                 title="Hide Dev Tools for the current server session or a day."
-                label="Hide Dev Tools"
+                label="Hide for Dev Session"
                 value={<StopIcon />}
                 onClick={hide}
                 index={isTurbopack ? 2 : 3}

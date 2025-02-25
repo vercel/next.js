@@ -991,7 +991,6 @@ export async function assertNoDevToolsIndicator(browser: BrowserInterface) {
   // TODO: Implement for other BrowserInterface implementations
   const playwright = browser as Playwright
 
-  await waitFor(5000)
   const devToolsIndicator = playwright.locateDevToolsIndicator()
 
   if (await devToolsIndicator.isVisible()) {

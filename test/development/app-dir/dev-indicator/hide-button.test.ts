@@ -6,21 +6,14 @@ import {
   waitFor,
 } from 'next-test-utils'
 
+const COOLDOWN = 3000
+
 describe('dev indicator - Hide DevTools Button', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-  })
-
-  it('should still hide the dev indicator after reloading the page', async () => {
-    const browser = await next.browser('/')
-
-    await openDevToolsIndicatorPopover(browser)
-    await browser.elementByCss('[data-hide-dev-tools]').click()
-
-    await assertNoDevToolsIndicator(browser)
-    await browser.refresh()
-    // Still hidden after reload
-    await assertNoDevToolsIndicator(browser)
+    env: {
+      __NEXT_DEV_INDICATOR_COOLDOWN_MS: `${COOLDOWN}`,
+    },
   })
 
   it('should show the dev indicator when the server is manually restarted', async () => {
@@ -39,7 +32,22 @@ describe('dev indicator - Hide DevTools Button', () => {
     await assertHasDevToolsIndicator(browser2)
   })
 
-  it('should show the dev indicator after 1 day has passed', async () => {
+  it('should still hide the dev indicator after reloading the page', async () => {
+    const browser = await next.browser('/')
+
+    await openDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-hide-dev-tools]').click()
+
+    await assertNoDevToolsIndicator(browser)
+    await browser.refresh()
+    // Still hidden after reload
+    await assertNoDevToolsIndicator(browser)
+  })
+
+  it('should show the dev indicator after cooldown period has passed', async () => {
+    await next.stop()
+    await next.start()
+
     const browser = await next.browser('/')
 
     await openDevToolsIndicatorPopover(browser)
@@ -47,8 +55,8 @@ describe('dev indicator - Hide DevTools Button', () => {
 
     await assertNoDevToolsIndicator(browser)
 
-    // For testing, the indicator is hidden for only 3 seconds.
-    await waitFor(5000)
+    // Wait for `__NEXT_DEV_INDICATOR_COOLDOWN` to pass.
+    await waitFor(COOLDOWN)
 
     await browser.refresh()
     await assertHasDevToolsIndicator(browser)

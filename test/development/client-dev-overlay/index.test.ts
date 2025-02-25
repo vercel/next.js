@@ -13,6 +13,11 @@ describe('client-dev-overlay', () => {
       files: {
         pages: new FileRef(join(__dirname, 'app/pages')),
       },
+      env: {
+        // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
+        // impact subsequent tests.
+        __NEXT_DEV_INDICATOR_COOLDOWN_MS: '0',
+      },
     })
   })
   beforeEach(async () => {

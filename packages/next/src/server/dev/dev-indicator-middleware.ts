@@ -4,9 +4,11 @@ import * as Log from '../../build/output/log'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 
 const DISABLE_DEV_INDICATOR_PREFIX = '/__nextjs_disable_dev_indicator'
-// TODO: Better testing.
-// For testing, 3 seconds, otherwise 1 day.
-const TIME = process.env.__NEXT_TEST_MODE ? 3000 : 1000 * 60 * 60 * 24
+
+const COOLDOWN_TIME_MS = process.env.__NEXT_DEV_INDICATOR_COOLDOWN_MS
+  ? parseInt(process.env.__NEXT_DEV_INDICATOR_COOLDOWN_MS)
+  : // 1 day from now
+    1000 * 60 * 60 * 24
 
 export function getDisableDevIndicatorMiddleware() {
   return async function disableDevIndicatorMiddleware(
@@ -25,8 +27,7 @@ export function getDisableDevIndicatorMiddleware() {
         return middlewareResponse.methodNotAllowed(res)
       }
 
-      // 1 day from now
-      devIndicatorServerState.disabledUntil = Date.now() + TIME
+      devIndicatorServerState.disabledUntil = Date.now() + COOLDOWN_TIME_MS
 
       return middlewareResponse.noContent(res)
     } catch (err) {
