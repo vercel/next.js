@@ -1,0 +1,424 @@
+---
+title: Single-Page Applications with Next.js
+nav_title: Single-Page Apps
+description: Next.js fully supports building Single-Page Applications (SPAs).
+---
+
+Next.js fully supports building Single-Page Applications (SPAs).
+
+This includes fast route transitions with prefetching, client-side data fetching, using browser APIs, integrating with third-party client libraries, creating static routes, and more.
+
+If you have an existing SPA, you can migrate to Next.js without large changes to your code. Next.js then allows you to progressively add server features as needed.
+
+## What is a Single-Page Application?
+
+The definition of a SPA varies. We’ll define a “strict SPA” as:
+
+- **Client-side rendering (CSR)**: The app is served by one HTML file (e.g. `index.html`). Every route, page transition, and data fetch is handled by JavaScript in the browser.
+- **No full-page reloads**: Rather than requesting a new document for each route, client-side JavaScript manipulates the current page’s DOM and fetches data as needed.
+
+Strict SPAs often require large amounts of JavaScript to load before the page can be interactive. Further, client data waterfalls can be challenging to manage. Building SPAs with Next.js can address these issues.
+
+## Why use Next.js for SPAs?
+
+Next.js can automatically code split your JavaScript bundles, and generate multiple HTML entry points into different routes. This avoids loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
+
+The [`next/link`](/docs/app/api-reference/components/link) component automatically [prefetches](/docs/app/api-reference/components/link#prefetch) routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
+
+Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
+
+## Examples
+
+Let's explore common patterns used to build SPAs and how Next.js solves them.
+
+### Using React’s `use` within a Context Provider
+
+We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a client component with React’s [`use` hook](https://react.dev/reference/react/use).
+
+Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
+
+By “hoisting” your data fetching to the root layout, Next.js starts the specified requests on the server early before any other components in your application. This eliminates client waterfalls and prevents having multiple roundtrips between client and server. It can also significantly improve performance, as your server is closer (and ideally colocated) to where your database is located.
+
+For example, update your root layout to call the Promise, but do _not_ await it.
+
+```tsx filename="app/layout.tsx" switcher
+import { UserProvider } from './user-provider'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  let userPromise = getUser() // do NOT await
+
+  return (
+    <html lang="en">
+      <body>
+        <UserProvider userPromise={userPromise}>{children}</UserProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+import { UserProvider } from './user-provider'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({ children }) {
+  let userPromise = getUser() // do NOT await
+
+  return (
+    <html lang="en">
+      <body>
+        <UserProvider userPromise={userPromise}>{children}</UserProvider>
+      </body>
+    </html>
+  )
+}
+```
+
+While you can [defer and pass a single Promise](/docs/app/getting-started/fetching-data#with-the-use-hook) as a prop to a client component, we generally see this pattern paired with a React context provider. This enables easier access from client components with a custom React hook.
+
+You can forward a Promise to the React context provider:
+
+```ts filename="app/user-provider.ts" switcher
+'use client';
+
+import { createContext, useContext, ReactNode } from 'react';
+
+type User = any;
+type UserContextType = {
+  userPromise: Promise<User | null>;
+};
+
+const UserContext = createContext<UserContextType | null>(null);
+
+export function useUser(): UserContextType {
+  let context = useContext(UserContext);
+  if (context === null) {
+    throw new Error('useUser must be used within a UserProvider');
+  }
+  return context;
+}
+
+export function UserProvider({
+  children,
+  userPromise
+}: {
+  children: ReactNode;
+  userPromise: Promise<User | null>;
+}) {
+  return (
+    <UserContext.Provider value={{ userPromise }}>
+      {children}
+    </UserContext.Provider>
+  );
+}
+```
+
+```js filename="app/user-provider.js" switcher
+'use client'
+
+import { createContext, useContext, ReactNode } from 'react'
+
+const UserContext = createContext(null)
+
+export function useUser() {
+  let context = useContext(UserContext)
+  if (context === null) {
+    throw new Error('useUser must be used within a UserProvider')
+  }
+  return context
+}
+
+export function UserProvider({ children, userPromise }) {
+  return (
+    <UserContext.Provider value={{ userPromise }}>
+      {children}
+    </UserContext.Provider>
+  )
+}
+```
+
+Finally, you can call the `useUser()` custom hook in any client component and unwrap the Promise:
+
+```tsx filename="app/profile.tsx" switcher
+'use client'
+
+import { use } from 'react'
+import { useUser } from './user-provider'
+
+export function Profile() {
+  const { userPromise } = useUser()
+  const user = use(userPromise)
+
+  return '...'
+}
+```
+
+```jsx filename="app/profile.js" switcher
+'use client'
+
+import { use } from 'react'
+import { useUser } from './user-provider'
+
+export function Profile() {
+  const { userPromise } = useUser()
+  const user = use(userPromise)
+
+  return '...'
+}
+```
+
+The component that consumes the Promise (e.g. `Profile` above) will be suspended. This enables partial hydration. You can see the streamed and prerendered HTML before JavaScript has finished loading.
+
+### SPAs with SWR
+
+[SWR](https://swr.vercel.app) is a popular React library for data fetching.
+
+With SWR 2.3.0 (and React 19+), you can gradually adopt server features alongside your existing SWR-based client data fetching code. This is an abstraction of the above `use()` pattern. This means you can move data fetching between the client and server-side, or use both:
+
+- **Client-only:** `useSWR(key, fetcher)`
+- **Server-only:** `useSWR(key)` + RSC-provided data
+- **Mixed:** `useSWR(key, fetcher)` + RSC-provided data
+
+For example, wrap your application with `<SWRConfig>` and a `fallback`:
+
+```tsx filename="app/layout.tsx" switcher
+import { SWRConfig } from 'swr'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // We do NOT await getUser() here
+          // Only components that read this data will suspend
+          '/api/user': getUser(),
+        },
+      }}
+    >
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+```js filename="app/layout.js" switcher
+import { SWRConfig } from 'swr'
+import { getUser } from './user' // some server-side function
+
+export default function RootLayout({ children }) {
+  return (
+    <SWRConfig
+      value={{
+        fallback: {
+          // We do NOT await getUser() here
+          // Only components that read this data will suspend
+          '/api/user': getUser(),
+        },
+      }}
+    >
+      {children}
+    </SWRConfig>
+  )
+}
+```
+
+Because this is a server component, `getUser()` can securely read cookies, headers, or talk to your database. No separate API route is needed. Client components below the `<SWRConfig>` can call `useSWR()` with the same key to retrieve the user data. The component code with `useSWR` **does not require any changes** from your existing client-fetching solution.
+
+```tsx filename="app/profile.tsx" switcher
+'use client'
+
+import useSWR from 'swr'
+
+export function Profile() {
+  const fetcher = (url) => fetch(url).then((res) => res.json())
+  // The same SWR pattern you already know
+  const { data, error } = useSWR('/api/user', fetcher)
+
+  return '...'
+}
+```
+
+```jsx filename="app/profile.js" switcher
+'use client'
+
+import useSWR from 'swr'
+
+export function Profile() {
+  const fetcher = (url) => fetch(url).then((res) => res.json())
+  // The same SWR pattern you already know
+  const { data, error } = useSWR('/api/user', fetcher)
+
+  return '...'
+}
+```
+
+The `fallback` data can be prerendered and included in the initial HTML response, then immediately read in the child components using `useSWR`. SWR’s polling, revalidation, and caching still run **client-side only**, so it preserves all the interactivity you rely on for an SPA.
+
+Since the initial `fallback` data is automatically handled by Next.js, you can now delete any conditional logic previously needed to check if `data` was `undefined`. When the data is loading, the closest `<Suspense>` boundary will be suspended.
+
+|                      | SWR                 | RSC                 | RSC + SWR           |
+| -------------------- | ------------------- | ------------------- | ------------------- |
+| SSR data             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Streaming while SSR  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Deduplicate requests | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Client-side features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} /> |
+
+### SPAs with React Query
+
+You can use React Query with Next.js on both the client and server. This enables you to build both strict SPAs, as well as take advantage of server features in Next.js paired with React Query.
+
+Learn more in the [React Query documentation](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
+
+### Rendering components only in the browser
+
+Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic):
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const ClientOnlyComponent = dynamic(() => import('./component'), {
+  ssr: false,
+})
+```
+
+This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
+
+### Shallow routing on the client
+
+If you are migrating from a strict SPA like [Create React App](/docs/app/building-your-application/upgrading/from-create-react-app) or [Vite](/docs/app/building-your-application/upgrading/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
+
+Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
+
+`pushState` and `replaceState` calls integrate into the Next.js Router, allowing you to sync with [`usePathname`](/docs/app/api-reference/functions/use-pathname) and [`useSearchParams`](/docs/app/api-reference/functions/use-search-params).
+
+```tsx fileName="app/ui/sort-products.tsx" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder: string) {
+    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    urlSearchParams.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+```jsx fileName="app/ui/sort-products.js" switcher
+'use client'
+
+import { useSearchParams } from 'next/navigation'
+
+export default function SortProducts() {
+  const searchParams = useSearchParams()
+
+  function updateSorting(sortOrder) {
+    const urlSearchParams = new URLSearchParams(searchParams.toString())
+    urlSearchParams.set('sort', sortOrder)
+    window.history.pushState(null, '', `?${urlSearchParams.toString()}`)
+  }
+
+  return (
+    <>
+      <button onClick={() => updateSorting('asc')}>Sort Ascending</button>
+      <button onClick={() => updateSorting('desc')}>Sort Descending</button>
+    </>
+  )
+}
+```
+
+Learn more about how [routing and navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) work in Next.js.
+
+### Using Server Actions in client components
+
+You can progressively adopt Server Actions while still using client components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` to handle loading and error states.
+
+For example, create your first Server Action:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+export async function create() {}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function create() {}
+```
+
+You can import and use a Server Action from the client, similar to calling a JavaScript function. You do not need to create an API endpoint manually:
+
+```tsx filename="app/button.tsx" switcher
+'use client'
+
+import { create } from './actions'
+
+export function Button() {
+  return <button onClick={() => create()}>Create</button>
+}
+```
+
+```jsx filename="app/button.js" switcher
+'use client'
+
+import { create } from './actions'
+
+export function Button() {
+  return <button onClick={() => create()}>Create</button>
+}
+```
+
+Learn more about [mutating data with Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+
+## Static export (optional)
+
+Next.js also supports generating a fully [static site](/docs/app/building-your-application/deploying/static-exports). This has some advantages over strict SPAs:
+
+- **Automatic code-splitting**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
+- **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions remain instant and SPA-like.
+
+To enable a static export, update your configuration:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  output: 'export',
+}
+
+export default nextConfig
+```
+
+After running `next build`, Next.js will create an `out` folder with the HTML/CSS/JS assets for your application.
+
+> **Note:** Next.js server features are not supported with static exports. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
+
+## Migrating existing projects to Next.js
+
+You can incrementally migrate to Next.js by following our guides:
+
+- [Migrating from Create React App](/docs/app/building-your-application/upgrading/from-create-react-app)
+- [Migrating from Vite](/docs/app/building-your-application/upgrading/from-vite)
+
+If you are already using a SPA with the Pages Router, you can learn how to [incrementally adopt the App Router](/docs/app/building-your-application/upgrading/app-router-migration).

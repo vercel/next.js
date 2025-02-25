@@ -32,9 +32,7 @@ describe('createInitialRouterState', () => {
     const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
 
     const state = createInitialRouterState({
-      initialFlightData: [
-        [initialTree, ['', children, {}, null], <title>Test</title>],
-      ],
+      initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
@@ -44,9 +42,7 @@ describe('createInitialRouterState', () => {
     })
 
     const state2 = createInitialRouterState({
-      initialFlightData: [
-        [initialTree, ['', children, {}, null], <title>Test</title>],
-      ],
+      initialFlightData: [[initialTree, ['', children, {}, null]]],
       initialCanonicalUrlParts: initialCanonicalUrl.split('/'),
       initialParallelRoutes,
       location: new URL('/linking', 'https://localhost') as any,
@@ -59,7 +55,7 @@ describe('createInitialRouterState', () => {
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -81,7 +77,7 @@ describe('createInitialRouterState', () => {
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
                           loading: null,
-                          head: [null, <title>Test</title>],
+                          head: null,
                           prefetchHead: null,
                         },
                       ],
@@ -91,7 +87,7 @@ describe('createInitialRouterState', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
               },

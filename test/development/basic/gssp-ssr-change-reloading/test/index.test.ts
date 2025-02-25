@@ -13,11 +13,11 @@ import { NextInstance } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
-    window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
-      watcherDiv = watcherDiv.shadowRoot || watcherDiv
+      window.checkInterval = setInterval(function() {
+      const root = document.querySelector('nextjs-portal').shadowRoot;
+      const indicator = root.querySelector('[data-next-mark]')
       window.showedBuilder = window.showedBuilder || (
-        watcherDiv.querySelector('div').className.indexOf('visible') > -1
+        indicator.getAttribute('data-next-mark-loading') === 'true'
       )
       if (window.showedBuilder) clearInterval(window.checkInterval)
     }, 50)

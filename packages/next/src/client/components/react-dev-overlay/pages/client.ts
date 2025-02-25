@@ -1,21 +1,22 @@
 import * as Bus from './bus'
-import { parseStack } from '../internal/helpers/parse-stack'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+import { parseStack } from '../utils/parse-stack'
+import { parseComponentStack } from '../utils/parse-component-stack'
 import {
   hydrationErrorState,
   storeHydrationErrorStateFromConsoleArgs,
-} from '../internal/helpers/hydration-error-info'
+} from '../../errors/hydration-error-info'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import { attachHydrationErrorState } from '../internal/helpers/attach-hydration-error-state'
+import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -138,6 +139,9 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../internal/helpers/get-error-by-type'
-export { getServerError } from '../internal/helpers/node-stack-frames'
-export { default as ReactDevOverlay } from './ReactDevOverlay'
+export function onStaticIndicator(isStatic: boolean) {
+  Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
+}
+
+export { getErrorByType } from '../utils/get-error-by-type'
+export { getServerError } from '../utils/node-stack-frames'

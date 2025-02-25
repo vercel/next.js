@@ -14,6 +14,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkType,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -37,11 +38,6 @@ impl ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<EcmascriptChunkItemContent>> {
         let chunks_data = self.chunks_data().await?;
         let chunks_data = chunks_data.iter().try_join().await?;
@@ -52,7 +48,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({:#});
+                {TURBOPACK_EXPORT_VALUE}({:#});
             "#,
             StringifyJs(&chunks_data)
         };

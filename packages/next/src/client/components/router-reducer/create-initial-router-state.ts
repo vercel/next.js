@@ -38,7 +38,6 @@ export function createInitialRouterState({
     seedData: initialSeedData,
     head: initialHead,
   } = normalizedFlightData
-  const isServer = !location
   // For the SSR render, seed data should always be available (we only send back a `null` response
   // in the case of a `loading` segment, pre-PPR.)
   const rsc = initialSeedData?.[1]
@@ -48,10 +47,10 @@ export function createInitialRouterState({
     lazyData: null,
     rsc,
     prefetchRsc: null,
-    head: [null, null],
+    head: null,
     prefetchHead: null,
     // The cache gets seeded during the first render. `initialParallelRoutes` ensures the cache from the first render is there during the second render.
-    parallelRoutes: isServer ? new Map() : initialParallelRoutes,
+    parallelRoutes: initialParallelRoutes,
     loading,
   }
 

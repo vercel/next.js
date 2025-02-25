@@ -26,7 +26,6 @@ import {
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { ModuleInfo } from './flight-client-entry-plugin'
 
 interface Options {
@@ -224,35 +223,20 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation, { normalModuleFactory }) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
-        compilation.hooks.processAssets.tap(
-          {
-            name: PLUGIN_NAME,
-            // Have to be in the optimize stage to run after updating the CSS
-            // asset hash via extract mini css plugin.
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-          },
-          (assets) => this.createAsset(assets, compilation, compiler.context)
-        )
-      }
-    )
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+        },
+        () => this.createAsset(compilation, compiler.context)
+      )
+    })
   }
 
-  createAsset(
-    assets: webpack.Compilation['assets'],
-    compilation: webpack.Compilation,
-    context: string
-  ) {
+  createAsset(compilation: webpack.Compilation, context: string) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
@@ -317,7 +301,7 @@ export class ClientReferenceManifestPlugin {
         .getFiles()
         .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
         .map((file) => {
-          const source = compilation.assets[file].source()
+          const source = compilation.getAsset(file)!.source.source()
           if (
             this.experimentalInlineCss &&
             // Inline CSS currently does not work properly with HMR, so we only
@@ -340,8 +324,7 @@ export class ClientReferenceManifestPlugin {
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
-            ? // @ts-expect-error TODO: use `identifier()` instead.
-              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) {
@@ -541,7 +524,11 @@ export class ClientReferenceManifestPlugin {
               } else {
                 // If this is a concatenation, register each child to the parent ID.
                 if (
-                  connection.module?.constructor.name === 'ConcatenatedModule'
+                  connection.module?.constructor.name ===
+                    'ConcatenatedModule' ||
+                  (Boolean(process.env.NEXT_RSPACK) &&
+                    (connection.module as any)?.constructorName ===
+                      'ConcatenatedModule')
                 ) {
                   const concatenatedMod = connection.module
                   const concatenatedModId =
@@ -570,9 +557,9 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // We also need to create manifests for route handler entrypoints
-      // (excluding metadata route handlers) to enable `'use cache'`.
-      if (/\/route$/.test(entryName) && !isMetadataRoute(entryName)) {
+      // We also need to create manifests for route handler entrypoints to
+      // enable `'use cache'`.
+      if (/\/route$/.test(entryName)) {
         manifestEntryFiles.push(entryName)
       }
 
@@ -611,13 +598,14 @@ export class ClientReferenceManifestPlugin {
 
       const pagePath = pageName.replace(/%5F/g, '_')
       const pageBundlePath = normalizePagePath(pagePath.slice('app'.length))
-      assets[
-        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
-      ] = new sources.RawSource(
-        `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
-          pagePath.slice('app'.length)
-        )}]=${json}`
-      ) as unknown as webpack.sources.RawSource
+      compilation.emitAsset(
+        'server/app' + pageBundlePath + '_' + CLIENT_REFERENCE_MANIFEST + '.js',
+        new sources.RawSource(
+          `globalThis.__RSC_MANIFEST=(globalThis.__RSC_MANIFEST||{});globalThis.__RSC_MANIFEST[${JSON.stringify(
+            pagePath.slice('app'.length)
+          )}]=${json}`
+        ) as unknown as webpack.sources.RawSource
+      )
     }
   }
 }

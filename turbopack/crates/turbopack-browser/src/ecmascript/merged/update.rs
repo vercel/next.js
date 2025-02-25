@@ -83,16 +83,8 @@ struct EcmascriptModuleEntry {
 
 impl EcmascriptModuleEntry {
     async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
-        let map = match &*code.generate_source_map().await? {
-            Some(map) => {
-                let map = map.to_rope().await?;
-                // Cloning a rope is cheap.
-                Some(map.clone_value())
-            }
-            None => None,
-        };
-
-        Ok(Self::new(id, code.await?, map, chunk_path))
+        let map = &*code.generate_source_map().await?;
+        Ok(Self::new(id, code.await?, map.clone(), chunk_path))
     }
 
     fn new(id: &ModuleId, code: ReadRef<Code>, map: Option<Rope>, chunk_path: &str) -> Self {
@@ -180,7 +172,7 @@ pub(super) async fn update_ecmascript_merged_chunk(
         .map(|content| async move {
             let content_ref = content.await?;
             let output_root = content_ref.chunking_context.output_root().await?;
-            let path = content_ref.chunk.ident().path().await?;
+            let path = content_ref.chunk.path().await?;
             Ok((*content, content_ref, output_root, path))
         })
         .try_join()

@@ -1,7 +1,7 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    common::{collections::AHashMap, BytePos, Spanned},
+    common::{BytePos, Spanned},
     ecma::{
         ast::{Id, ModuleItem, Pass},
         atoms::JsWord,
@@ -36,7 +36,7 @@ pub struct FontFunction {
 }
 #[derive(Debug, Default)]
 pub struct State {
-    font_functions: AHashMap<Id, FontFunction>,
+    font_functions: FxHashMap<Id, FontFunction>,
     removeable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,

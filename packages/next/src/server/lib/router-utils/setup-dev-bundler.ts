@@ -49,6 +49,7 @@ import {
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -66,15 +67,15 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import {
-  ModuleBuildError,
-  TurbopackInternalError,
-} from '../../dev/turbopack-utils'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../../shared/lib/turbopack/utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -108,7 +109,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setAppIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean) => void
   resetFetch?: () => void
 }
 
@@ -902,6 +903,9 @@ async function startWatcher(opts: SetupOpts) {
   const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
+  const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+  opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
 
@@ -918,7 +922,10 @@ async function startWatcher(opts: SetupOpts) {
       return { finished: true }
     }
 
-    if (parsedUrl.pathname?.includes(devMiddlewareManifestPath)) {
+    if (
+      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
+      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+    ) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))

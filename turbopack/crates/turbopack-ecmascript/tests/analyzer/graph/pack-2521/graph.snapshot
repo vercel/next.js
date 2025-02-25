@@ -66,7 +66,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../src/build/Release/sharp-wasm32.node",
                         ),
                     ),
@@ -98,7 +98,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "@img/sharp-wasm32/sharp.node",
                         ),
                     ),
@@ -132,7 +132,7 @@
                 [
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "./libvips",
                             ),
                         ),

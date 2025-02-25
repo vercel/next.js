@@ -46,6 +46,7 @@ import {
   resolveVerification,
   resolveItunes,
   resolveFacebook,
+  resolvePagination,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
@@ -247,6 +248,14 @@ function mergeMetadata({
       case 'itunes': {
         target[key] = resolveItunes(
           source.itunes,
+          metadataBase,
+          metadataContext
+        )
+        break
+      }
+      case 'pagination': {
+        target.pagination = resolvePagination(
+          source.pagination,
           metadataBase,
           metadataContext
         )
@@ -470,9 +479,7 @@ async function collectMetadata({
   }
 }
 
-const cachedResolveMetadataItems = cache(resolveMetadataItems)
-export { cachedResolveMetadataItems as resolveMetadataItems }
-async function resolveMetadataItems(
+const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
@@ -496,7 +503,7 @@ async function resolveMetadataItems(
     createServerParamsForMetadata,
     workStore
   )
-}
+})
 
 async function resolveMetadataItemsImpl(
   metadataItems: MetadataItems,
@@ -900,4 +907,45 @@ export async function accumulateViewport(
     })
   }
   return resolvedViewport
+}
+
+// Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
+export async function resolveMetadata(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  metadataContext: MetadataContext
+): Promise<ResolvedMetadata> {
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  return accumulateMetadata(metadataItems, metadataContext)
+}
+
+// Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
+export async function resolveViewport(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<ResolvedViewport> {
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  return accumulateViewport(metadataItems)
 }

@@ -93,6 +93,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         .unwrap();
 
     b.to_async(rt).iter(|| async {
+        let var_cache = Default::default();
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
@@ -114,7 +115,8 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                     val.clone(),
                     &early_visitor,
                     &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
-                    Default::default(),
+                    &Default::default(),
+                    &var_cache,
                 )
                 .await
             })

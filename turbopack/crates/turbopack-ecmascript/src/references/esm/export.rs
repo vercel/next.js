@@ -1,10 +1,7 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashSet},
-    ops::ControlFlow,
-};
+use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -16,8 +13,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
-    Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -25,17 +22,19 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
 };
 
 use super::base::ReferencedAsset;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
 };
 
-#[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum EsmExport {
     /// A local binding that is exported (export { a } or export const a = 1)
     ///
@@ -44,9 +43,9 @@ pub enum EsmExport {
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// The last bool is true if the binding is a mutable binding
-    ImportedBinding(Vc<Box<dyn ModuleReference>>, RcStr, bool),
+    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
-    ImportedNamespace(Vc<Box<dyn ModuleReference>>),
+    ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
 }
@@ -56,6 +55,10 @@ pub async fn is_export_missing(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<bool>> {
+    if export_name == "__turbopack_module_id__" {
+        return Ok(Vc::cell(false));
+    }
+
     let exports = module.get_exports().await?;
     let exports = match &*exports {
         EcmascriptExports::None => return Ok(Vc::cell(true)),
@@ -333,9 +336,9 @@ pub struct ExpandStarResult {
 pub async fn expand_star_exports(
     root_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<ExpandStarResult>> {
-    let mut set = HashSet::new();
+    let mut set = FxIndexSet::default();
     let mut has_dynamic_exports = false;
-    let mut checked_modules = HashSet::new();
+    let mut checked_modules = FxHashSet::default();
     checked_modules.insert(root_module);
     let mut queue = vec![(root_module, root_module.get_exports())];
     while let Some((asset, exports)) = queue.pop() {
@@ -423,19 +426,18 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     Ok(())
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
-/// The expanded version of [EsmExports], the `exports` field here includes all
-/// exports that could be expanded from `star_exports`.
+/// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
+/// be expanded from `star_exports`.
 ///
-/// `star_exports` that could not be (fully) expanded end up in
-/// `dynamic_exports`.
-#[turbo_tasks::value(shared, local)]
+/// [`EsmExports::star_exports`] that could not be (fully) expanded end up in `dynamic_exports`.
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
@@ -465,7 +467,11 @@ impl EsmExports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.clone(), false),
+                        EsmExport::ImportedBinding(
+                            ResolvedVc::upcast(esm_ref),
+                            export.clone(),
+                            false,
+                        ),
                     );
                 }
             }
@@ -483,21 +489,23 @@ impl EsmExports {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmExports {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl EsmExports {
+    pub async fn code_generation(
         self: Vc<Self>,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+        _module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         for dynamic_export_asset in &expanded.dynamic_exports {
-            let ident = ReferencedAsset::get_ident_from_placeable(dynamic_export_asset).await?;
+            let ident =
+                ReferencedAsset::get_ident_from_placeable(dynamic_export_asset, chunking_context)
+                    .await?;
 
             dynamic_exports.push(quote_expr!(
-                "__turbopack_dynamic__($arg)",
+                "$turbopack_dynamic($arg)",
+                turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
                 arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
             ));
         }
@@ -534,7 +542,9 @@ impl CodeGenerateable for EsmExports {
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset.get_ident().await?.map(|ident| {
+                    referenced_asset.get_ident(
+                        chunking_context
+                    ).await?.map(|ident| {
                         let expr = MemberExpr {
                             span: DUMMY_SP,
                             obj: Box::new(Expr::Ident(Ident::new(
@@ -573,12 +583,15 @@ impl CodeGenerateable for EsmExports {
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
-                    referenced_asset.get_ident().await?.map(|ident| {
-                        quote!(
-                            "(() => $imported)" as Expr,
-                            imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
-                        )
-                    })
+                    referenced_asset
+                        .get_ident(chunking_context)
+                        .await?
+                        .map(|ident| {
+                            quote!(
+                                "(() => $imported)" as Expr,
+                                imported = Ident::new(ident.into(), DUMMY_SP, Default::default())
+                            )
+                        })
                 }
             };
             if let Some(expr) = expr {
@@ -615,7 +628,8 @@ impl CodeGenerateable for EsmExports {
             .collect(),
             vec![CodeGenerationHoistedStmt::new(
                 "__turbopack_esm__".into(),
-                quote!("__turbopack_esm__($getters);" as Stmt,
+                quote!("$turbopack_esm($getters);" as Stmt,
+                    turbopack_esm: Expr = TURBOPACK_ESM.into(),
                     getters: Expr = getters.clone()
                 ),
             )],

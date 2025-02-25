@@ -1,7 +1,8 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
-use turbo_tasks::Vc;
-use turbopack::module_options::ModuleRule;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 
 use crate::{
     mode::NextMode,
@@ -30,6 +31,7 @@ pub async fn get_next_server_transforms_rules(
     mode: Vc<NextMode>,
     foreign_code: bool,
     next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -46,6 +48,27 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
 
+    if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
+        rules.extend([
+            // Ignore the internal ModuleCssAsset -> CssModuleAsset references
+            // The CSS Module module itself is still needed for class names
+            ModuleRule::new_internal(
+                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+        rules.extend([
+            // Ignore all non-module CSS references
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".css".into()),
+                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+                ]),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+    }
+
     if !foreign_code {
         rules.push(get_next_page_static_info_assert_rule(
             mdx_rs,
@@ -54,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
@@ -90,8 +113,9 @@ pub async fn get_next_server_transforms_rules(
             // need to apply to foreign code too
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
+                encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 
@@ -102,8 +126,9 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppRSC { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
+                encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 
@@ -114,8 +139,9 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppRoute { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
+                encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 

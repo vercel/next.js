@@ -28,6 +28,10 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
+type NextTypePluginOptions = {
+  enabled?: boolean
+}
+
 export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
@@ -42,6 +46,13 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     for (let k of Object.keys(info.languageService)) {
       const x = (info.languageService as any)[k]
       proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
+    }
+
+    const pluginOptions: NextTypePluginOptions = info.config ?? {
+      enabled: true,
+    }
+    if (!pluginOptions.enabled) {
+      return proxy
     }
 
     // Auto completion

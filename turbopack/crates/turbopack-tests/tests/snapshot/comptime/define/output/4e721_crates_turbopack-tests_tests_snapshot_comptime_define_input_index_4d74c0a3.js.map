@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/define/input/index.js"],"sourcesContent":["if (DEFINED_VALUE) {\n  console.log('DEFINED_VALUE');\n}\n\nif (DEFINED_TRUE) {\n  console.log('DEFINED_VALUE');\n}\n\nif (A.VERY.LONG.DEFINED.VALUE) {\n  console.log('A.VERY.LONG.DEFINED.VALUE');\n}\n\nif (process.env.NODE_ENV) {\n  console.log('something');\n}\n\nif (process.env.NODE_ENV === 'production') {\n  console.log('production');\n}\n\nvar p = process;\n\nconsole.log(A.VERY.LONG.DEFINED.VALUE);\nconsole.log(DEFINED_VALUE);\nconsole.log(p.env.NODE_ENV);\n\nif (p.env.NODE_ENV === 'production') {\n  console.log('production');\n}\n\np.env.NODE_ENV == 'production' ? console.log('production') : console.log('development');\n\n// TODO short-circuit is not implemented yet\np.env.NODE_ENV != 'production' && console.log('development');\np.env.NODE_ENV == 'production' && console.log('production');\n"],"names":[],"mappings":"AAAA,wCAAmB;IACjB,QAAQ,GAAG,CAAC;AACd;AAEA,wCAAkB;IAChB,QAAQ,GAAG,CAAC;AACd;AAEA,iEAA+B;IAC7B,QAAQ,GAAG,CAAC;AACd;AAEA,wCAA0B;IACxB,QAAQ,GAAG,CAAC;AACd;AAEA,uCAA2C;;AAE3C;AAEA,IAAI,IAAI;AAER,QAAQ,GAAG;AACX,QAAQ,GAAG;AACX,QAAQ,GAAG;AAEX,uCAAqC;;AAErC;AAEA,6EAA6D,QAAQ,GAAG,CAAC;AAEzE,4CAA4C;AAC5C,mDAAkB,gBAAgB,QAAQ,GAAG,CAAC;AAC9C,mDAAkB,gBAAgB,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 32, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
