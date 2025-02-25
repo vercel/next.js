@@ -28,9 +28,6 @@ const styles = `
     outline: none;
     overflow: hidden;
   }
-  [data-nextjs-dialog]::-webkit-scrollbar {
-    display: none;
-  }
 
   ${
     '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
