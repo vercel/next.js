@@ -344,7 +344,7 @@ function DevToolsPopover({
             <div className="dev-tools-indicator-inner">
               {issueCount > 0 && (
                 <MenuItem
-                  title={`Open the error overlay to see ${issueCount} issues.`}
+                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
                   index={0}
                   label="Issues"
                   value={<IssueCount>{issueCount}</IssueCount>}
@@ -352,7 +352,7 @@ function DevToolsPopover({
                 />
               )}
               <MenuItem
-                title={`The current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
+                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
                 label="Route"
                 index={1}
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
@@ -368,7 +368,7 @@ function DevToolsPopover({
               ) : (
                 <MenuItem
                   index={2}
-                  title="Try Turbopack"
+                  title="Learn about Turbopack and how to enable it in your application."
                   label="Try Turbopack"
                   value={<ChevronRight />}
                   onClick={() => setIsTurbopackInfoOpen(true)}
