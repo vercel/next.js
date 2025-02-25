@@ -1,5 +1,4 @@
 import { useState, useRef, useLayoutEffect } from 'react'
-import { noop as css } from '../../../../utils/noop-template'
 
 export type ErrorMessageType = React.ReactNode
 
@@ -44,7 +43,7 @@ export function ErrorMessage({ errorMessage }: ErrorMessageProps) {
   )
 }
 
-export const styles = css`
+export const styles = `
   .nextjs__container_errors_wrapper {
     position: relative;
   }

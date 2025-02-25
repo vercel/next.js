@@ -24,6 +24,7 @@ use swc_core::{
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
+    quote,
 };
 use turbo_rcstr::RcStr;
 
@@ -2272,48 +2273,19 @@ fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
 
 fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleItem>) {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
-    extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(Expr::Ident(Ident::new(
-                    "Object".into(),
-                    DUMMY_SP,
-                    ident.ctxt,
-                ))),
-                prop: MemberProp::Ident(IdentName::new("defineProperty".into(), DUMMY_SP)),
-            }))),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Ident(ident.clone())),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new("name".into()),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Object(ObjectLit {
-                        span: DUMMY_SP,
-                        props: vec![
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str("value".into()),
-                                value: Box::new(name.into()),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str("writable".into()),
-                                value: Box::new(false.into()),
-                            }))),
-                        ],
-                    })),
-                },
-            ],
-            ..Default::default()
-        })),
-    })));
+    extra_items.push(quote!(
+        // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
+        // This should just be
+        //
+        //   "Object.defineProperty($action, \"name\", { value: $name, writable: false });"
+        //
+        // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
+        // in js files, and it can cause false positives when typechecking our fixture files.
+        "Object[\"defineProperty\"]($action, \"name\", { value: $name, writable: false });"
+            as ModuleItem,
+        action: Ident = ident.clone(),
+        name: Expr = name.into(),
+    ));
 }
 
 fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {

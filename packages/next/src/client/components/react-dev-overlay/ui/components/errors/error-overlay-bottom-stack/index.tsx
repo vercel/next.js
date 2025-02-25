@@ -1,42 +1,31 @@
-import { noop as css } from '../../../../utils/noop-template'
-
 export function ErrorOverlayBottomStack({
-  count,
+  errorCount,
   activeIdx,
 }: {
-  count: number
+  errorCount: number
   activeIdx: number
 }) {
-  let stackCount = '0'
-
-  if (count > 1) {
-    stackCount = '1'
-  }
-
-  if (count > 2) {
-    stackCount = '2'
-  }
-
-  if (activeIdx === 1) {
-    stackCount = '1'
-  }
-
-  if (activeIdx > 1) {
-    stackCount = '0'
-  }
-
+  // If there are more than 2 errors to navigate, the stack count should remain at 2.
+  const stackCount = Math.min(errorCount - activeIdx - 1, 2)
   return (
     <div aria-hidden className="error-overlay-bottom-stack">
-      <div className="stack" data-stack-count={stackCount}>
-        <div className="layer layer1">1</div>
-        <div className="layer layer2">2</div>
+      <div
+        className="error-overlay-bottom-stack-stack"
+        data-stack-count={stackCount}
+      >
+        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-1">
+          1
+        </div>
+        <div className="error-overlay-bottom-stack-layer error-overlay-bottom-stack-layer-2">
+          2
+        </div>
       </div>
     </div>
   )
 }
 
-export const styles = css`
-  .layer {
+export const styles = `
+  .error-overlay-bottom-stack-layer {
     width: 100%;
     height: var(--stack-layer-height);
     position: relative;
@@ -48,11 +37,11 @@ export const styles = css`
       box-shadow 350ms var(--timing-swift);
   }
 
-  .layer1 {
+  .error-overlay-bottom-stack-layer-1 {
     width: calc(100% - var(--size-6));
   }
 
-  .layer2 {
+  .error-overlay-bottom-stack-layer-2 {
     width: calc(100% - var(--size-12));
     z-index: -1;
   }
@@ -65,7 +54,7 @@ export const styles = css`
     overflow: visible;
   }
 
-  .stack {
+  .error-overlay-bottom-stack-stack {
     --stack-layer-height: 44px;
     --stack-layer-height-half: calc(var(--stack-layer-height) / 2);
     --stack-layer-trim: 13px;
@@ -81,7 +70,7 @@ export const styles = css`
     z-index: -1;
     max-width: var(--next-dialog-max-width);
 
-    .layer {
+    .error-overlay-bottom-stack-layer {
       grid-area: 1 / 1;
       /* Hide */
       translate: 0 calc(var(--stack-layer-height) * -1);
@@ -89,32 +78,32 @@ export const styles = css`
 
     &[data-stack-count='1'],
     &[data-stack-count='2'] {
-      .layer1 {
+      .error-overlay-bottom-stack-layer-1 {
         translate: 0
           calc(var(--stack-layer-height-half) * -1 - var(--stack-layer-trim));
       }
     }
 
     &[data-stack-count='2'] {
-      .layer2 {
+      .error-overlay-bottom-stack-layer-2 {
         translate: 0 calc(var(--stack-layer-trim) * -1 * 2);
       }
     }
 
     /* Only the bottom stack should have the shadow */
-    &[data-stack-count='1'] .layer1 {
+    &[data-stack-count='1'] .error-overlay-bottom-stack-layer-1 {
       box-shadow: var(--shadow);
     }
 
     &[data-stack-count='2'] {
-      .layer2 {
+      .error-overlay-bottom-stack-layer-2 {
         box-shadow: var(--shadow);
       }
     }
   }
 
   @media (prefers-color-scheme: dark) {
-    .layer {
+    .error-overlay-bottom-stack-layer {
       border-color: var(--color-gray-400);
     }
   }

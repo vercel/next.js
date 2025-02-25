@@ -1,5 +1,4 @@
 import { Dialog } from '../../dialog/dialog'
-import { noop as css } from '../../../../utils/noop-template'
 
 type ErrorOverlayDialogProps = {
   children?: React.ReactNode
@@ -26,7 +25,7 @@ export function ErrorOverlayDialog({
   )
 }
 
-export const DIALOG_STYLES = css`
+export const DIALOG_STYLES = `
   .error-overlay-dialog {
     overflow-y: auto;
     -webkit-font-smoothing: antialiased;

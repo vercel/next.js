@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
+use either::Either;
 use next_core::{
     next_client_reference::{
         find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
@@ -101,14 +102,14 @@ impl NextDynamicGraph {
                 InClientReference(ClientReferenceType),
             }
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut result = vec![];
@@ -207,7 +208,7 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entries.contains(&entry) {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
@@ -292,14 +293,14 @@ impl ClientReferencesGraph {
             let data = &*self.data.await?;
             let graph = &*self.graph.await?;
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut client_references = FxIndexSet::default();

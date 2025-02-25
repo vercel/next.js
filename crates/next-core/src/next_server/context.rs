@@ -270,10 +270,7 @@ pub async fn get_server_resolve_options_context(
                 ResolvedVc::upcast(next_external_plugin),
             ]
         }
-        ServerContextType::Middleware { .. } => {
-            vec![ResolvedVc::upcast(next_node_shared_runtime_plugin)]
-        }
-        ServerContextType::Instrumentation { .. } => {
+        ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
                 ResolvedVc::upcast(server_external_packages_plugin),

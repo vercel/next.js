@@ -23,7 +23,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
-  APP_ISR_MANIFEST = 'appIsrManifest',
+  ISR_MANIFEST = 'isrManifest',
 }
 
 interface ServerErrorAction {
@@ -112,7 +112,7 @@ export interface TurbopackConnectedAction {
 }
 
 export interface AppIsrManifestAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST
+  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST
   data: Record<string, boolean>
 }
 

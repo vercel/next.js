@@ -226,7 +226,13 @@ jobs:
 
       - run: turbo run get-test-timings -- --build ${{ github.sha }}
 
-      - run: /bin/bash -c "${{ inputs.afterBuild }}"
+      - run: ${{ inputs.afterBuild }}
+        # defaults.run.shell sets a stronger options (`-leo pipefail`)
+        # Set this back to github action's weaker defaults:
+        # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        #
+        # We must use a login shell: fnm installation may modify the `.profile`
+        shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
       - name: Upload artifact

@@ -12,7 +12,6 @@ pub mod analyzer;
 pub mod annotations;
 pub mod async_chunk;
 pub mod chunk;
-pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
 pub mod magic_identifier;

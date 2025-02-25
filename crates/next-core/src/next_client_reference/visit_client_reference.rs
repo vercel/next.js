@@ -174,7 +174,7 @@ pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<V
 
         let mut server_component_entries = vec![];
         let mut server_utils = vec![];
-        for node in graph.reverse_topological() {
+        for node in graph.postorder_topological() {
             match &node.ty {
                 VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
                     server_utils.push(*server_util);

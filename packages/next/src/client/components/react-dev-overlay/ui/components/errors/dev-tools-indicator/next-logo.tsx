@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useRef, useState } from 'react'
-import { noop as css } from '../../../../utils/noop-template'
+import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
@@ -9,7 +9,7 @@ interface Props extends React.ComponentProps<'button'> {
   isDevRendering: boolean
   isBuildError: boolean
   onTriggerClick: () => void
-  openErrorOverlay: () => void
+  toggleErrorOverlay: () => void
 }
 
 const SIZE = 36
@@ -65,7 +65,7 @@ export const NextLogo = forwardRef(function NextLogo(
     isDevRendering,
     isBuildError,
     onTriggerClick,
-    openErrorOverlay,
+    toggleErrorOverlay,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
@@ -442,7 +442,7 @@ export const NextLogo = forwardRef(function NextLogo(
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={openErrorOverlay}
+                onClick={toggleErrorOverlay}
               >
                 {disabled && (
                   <div data-disabled-icon>
