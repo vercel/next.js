@@ -599,15 +599,15 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     display: flex;
     align-items: center;
     padding: 8px 6px;
-    height: var(--rem-px-36);
+    height: var(--size-36);
     border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
     white-space: nowrap;
 
     svg {
-      width: var(--rem-px-16);
-      height: var(--rem-px-16);
+      width: var(--size-16);
+      height: var(--size-16);
     }
 
     &:focus-visible {
@@ -648,8 +648,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: var(--rem-px-40);
-    height: var(--rem-px-24);
+    min-width: var(--size-40);
+    height: var(--size-24);
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
@@ -667,8 +667,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     }
 
     .dev-tools-indicator-issue-count-indicator {
-      width: var(--rem-px-8);
-      height: var(--rem-px-8);
+      width: var(--size-8);
+      height: var(--size-8);
       background: var(--color-primary);
       box-shadow: 0 0 0 2px var(--color-secondary);
       border-radius: 50%;

@@ -128,7 +128,7 @@ export const CALL_STACK_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    min-height: var(--rem-px-28);
+    min-height: var(--size-28);
     padding: 8px 8px 12px 4px;
     width: 100%;
   }
@@ -151,8 +151,8 @@ export const CALL_STACK_STYLES = `
     justify-content: center;
     align-items: center;
 
-    width: var(--rem-px-20);
-    height: var(--rem-px-20);
+    width: var(--size-20);
+    height: var(--size-20);
     gap: 4px;
 
     color: var(--color-gray-1000);
@@ -187,8 +187,8 @@ export const CALL_STACK_STYLES = `
     }
 
     svg {
-      width: var(--rem-px-16);
-      height: var(--rem-px-16);
+      width: var(--size-16);
+      height: var(--size-16);
     }
   }
 `

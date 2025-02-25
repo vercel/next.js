@@ -262,7 +262,7 @@ export const styles = `
     background: none;
     border: none;
     color: var(--color-ansi-bright-white);
-    font-size: var(--rem-px-24);
+    font-size: var(--size-24);
     padding: 0;
     margin: 0;
     margin-left: 8px;

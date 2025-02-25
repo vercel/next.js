@@ -113,7 +113,7 @@ export const NextLogo = forwardRef(function NextLogo(
             --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
-            --mark-size: calc(var(--size) - var(--rem-px-2) * 2);
+            --mark-size: calc(var(--size) - var(--size-2) * 2);
 
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
@@ -207,8 +207,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-dot] {
             content: '';
-            width: var(--rem-px-8);
-            height: var(--rem-px-8);
+            width: var(--size-8);
+            height: var(--size-8);
             background: #fff;
             box-shadow: 0 0 0 1px var(--color-outer-border);
             border-radius: 50%;
@@ -229,7 +229,7 @@ export const NextLogo = forwardRef(function NextLogo(
             padding-right: ${disabled || isBuildError
               ? '8px'
               : 'calc(2px * 2)'};
-            height: var(--rem-px-32);
+            height: var(--size-32);
             margin: 0 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
@@ -252,7 +252,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: 2px;
             align-items: center;
             margin: 0;
-            line-height: var(--rem-px-36);
+            line-height: var(--size-36);
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
@@ -263,8 +263,8 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-collapse] {
-            width: var(--rem-px-24);
-            height: var(--rem-px-24);
+            width: var(--size-24);
+            height: var(--size-24);
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
@@ -275,8 +275,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-cross] {
             color: #fff;
-            width: var(--rem-px-12);
-            height: var(--rem-px-12);
+            width: var(--size-12);
+            height: var(--size-12);
           }
 
           [data-next-mark] {
@@ -298,8 +298,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
             svg {
               flex-shrink: 0;
-              width: var(--rem-px-40);
-              height: var(--rem-px-40);
+              width: var(--size-40);
+              height: var(--size-40);
             }
           }
 

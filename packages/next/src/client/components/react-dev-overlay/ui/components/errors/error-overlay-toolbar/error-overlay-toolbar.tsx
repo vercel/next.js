@@ -36,8 +36,8 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: var(--rem-px-28);
-    height: var(--rem-px-28);
+    width: var(--size-28);
+    height: var(--size-28);
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-alpha-400);
@@ -45,8 +45,8 @@ export const styles = `
     border-radius: var(--rounded-full);
 
     svg {
-      width: var(--rem-px-14);
-      height: var(--rem-px-14);
+      width: var(--size-14);
+      height: var(--size-14);
     }
 
     &:focus {

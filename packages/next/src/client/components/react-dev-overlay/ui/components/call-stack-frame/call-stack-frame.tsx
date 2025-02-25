@@ -106,7 +106,7 @@ export const CALL_STACK_FRAME_STYLES = `
     color: var(--color-gray-1000);
     font-size: var(--size-14);
     font-weight: 500;
-    line-height: var(--rem-px-20);
+    line-height: var(--size-20);
 
     svg {
       width: var(--size-16px);
@@ -123,8 +123,8 @@ export const CALL_STACK_FRAME_STYLES = `
     color: var(--color-font);
 
     svg {
-      width: var(--rem-px-16);
-      height: var(--rem-px-16);
+      width: var(--size-16);
+      height: var(--size-16);
     }
 
     &:focus-visible {

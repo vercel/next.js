@@ -121,12 +121,12 @@ export const CODE_FRAME_STYLES = `
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-smaller);
-    line-height: var(--rem-px-16);
+    line-height: var(--size-16);
     margin: 8px 0;
 
     svg {
-      width: var(--rem-px-16);
-      height: var(--rem-px-16);
+      width: var(--size-16);
+      height: var(--size-16);
     }
   }
 

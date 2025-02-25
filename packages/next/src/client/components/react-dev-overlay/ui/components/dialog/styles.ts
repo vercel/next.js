@@ -1,7 +1,7 @@
 const styles = `
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
-    --next-dialog-footer-height: var(--rem-px-48);
+    --next-dialog-footer-height: var(--size-48);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
     --next-dialog-container-padding: 12px;

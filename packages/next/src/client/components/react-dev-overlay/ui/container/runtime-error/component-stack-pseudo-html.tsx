@@ -8,7 +8,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
     font-family: var(--font-stack-monospace);
-    font-size: var(--rem-px-12);
+    font-size: var(--size-12);
     line-height: 1.33em; /* 16px in 12px font size */
     border-radius: var(--rounded-md-2);
   }

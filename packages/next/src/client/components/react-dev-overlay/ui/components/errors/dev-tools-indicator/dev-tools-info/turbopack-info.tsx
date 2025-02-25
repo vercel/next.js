@@ -149,8 +149,8 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
     right: 8px;
     top: 8px;
     padding: 4px;
-    height: var(--rem-px-24);
-    width: var(--rem-px-24);
+    height: var(--size-24);
+    width: var(--size-24);
     border-radius: var(--rounded-md-2);
     border: 1px solid var(--color-gray-alpha-400);
     background: var(--color-background-100);

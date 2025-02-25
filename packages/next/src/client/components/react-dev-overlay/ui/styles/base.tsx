@@ -14,13 +14,13 @@ export function Base() {
           */
           position: absolute;
 
-          --size-font-11: var(--rem-px-11);
-          --size-font-smaller: var(--rem-px-12);
-          --size-font-13: var(--rem-px-13);
-          --size-font-small: var(--rem-px-14);
-          --size-font: var(--rem-px-16);
-          --size-font-big: var(--rem-px-20);
-          --size-font-bigger: var(--rem-px-24);
+          --size-font-11: var(--size-11);
+          --size-font-smaller: var(--size-12);
+          --size-font-13: var(--size-13);
+          --size-font-small: var(--size-14);
+          --size-font: var(--size-16);
+          --size-font-big: var(--size-20);
+          --size-font-bigger: var(--size-24);
 
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
