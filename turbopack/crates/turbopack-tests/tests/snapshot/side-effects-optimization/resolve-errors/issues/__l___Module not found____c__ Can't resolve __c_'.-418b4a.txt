@@ -1,0 +1,16 @@
+error - [resolve] [project]/turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/node_modules/ramda/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/node_modules/ramda/index.js:1:0  Module not found: Can't resolve './missing.js'
+  
+         + v--------------------v
+       1 + import "./missing.js";
+         + ^--------------------^
+       2 | 
+       3 | export * from './pipe';
+       4 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './missing.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/node_modules/ramda/index.js
+  | Type of request: EcmaScript Modules request
+  |

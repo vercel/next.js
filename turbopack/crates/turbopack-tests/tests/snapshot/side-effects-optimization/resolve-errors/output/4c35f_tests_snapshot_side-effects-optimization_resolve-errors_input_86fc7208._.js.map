@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/index.js"],"sourcesContent":["import * as R from 'ramda';\n\nconsole.log((0, R.pipe)('a', 'b', 'c'));\nconsole.log(R.pipe('a', 'b', 'c'));\n\n\nit('should import only pipe.js', () => {\n  const modules = Object.keys(__turbopack_modules__);\n  expect(modules).toContainEqual(\n    expect.stringMatching(/input\\/node_modules\\/ramda\\/pipe/)\n  );\n  expect(modules).not.toContainEqual(\n    expect.stringMatching(/input\\/node_modules\\/ramda\\/index/)\n  );\n})\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,CAAC,GAAG,2PAAA,CAAA,OAAM,EAAE,KAAK,KAAK;AAClC,QAAQ,GAAG,CAAC,CAAA,GAAA,2PAAA,CAAA,OAAM,AAAD,EAAE,KAAK,KAAK;AAG7B,GAAG,8BAA8B;IAC/B,MAAM,UAAU,OAAO,IAAI;IAC3B,OAAO,SAAS,cAAc,CAC5B,OAAO,cAAc,CAAC;IAExB,OAAO,SAAS,GAAG,CAAC,cAAc,CAChC,OAAO,cAAc,CAAC;AAE1B"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/node_modules/ramda/pipe.js"],"sourcesContent":["export const pipe = (a, b, c) => {\n  console.log(a, b, c)\n}\n"],"names":[],"mappings":";;;AAAO,MAAM,OAAO,CAAC,GAAG,GAAG;IACzB,QAAQ,GAAG,CAAC,GAAG,GAAG;AACpB","ignoreList":[0]}},
+    {"offset": {"line": 29, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 35, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/side-effects-optimization/resolve-errors/input/node_modules/ramda/index.js"],"sourcesContent":["import \"./missing.js\";\n\nexport * from './pipe';\n"],"names":[],"mappings":";;;;;;;;AAEA","ignoreList":[0]}},
+    {"offset": {"line": 46, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
