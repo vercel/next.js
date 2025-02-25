@@ -15,6 +15,7 @@ import {
 } from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import { NEXTJS_HYDRATION_ERROR_LINK } from '../../../is-hydration-error'
 import type { ReadyRuntimeError } from '../../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
@@ -180,7 +181,9 @@ export function Errors({
             id="nextjs__container_errors__link"
             className="nextjs__container_errors__link"
           >
-            <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+            <HotlinkedText
+              text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
+            />
           </p>
         ) : null}
       </div>
