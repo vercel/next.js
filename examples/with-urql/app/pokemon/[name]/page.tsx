@@ -1,6 +1,10 @@
-import { getPokemon as getPokemonByName } from "../../../graphql/getPokemon";
+import { getPokemon as getPokemonByName } from "@/graphql/getPokemon";
 
-export default async function PokemonPage({ params }: { params: { name?: string } }) {
+export default async function PokemonPage({
+  params,
+}: {
+  params: { name?: string };
+}) {
   const pokemon = await getPokemonByName(params.name);
   return (
     <div>
