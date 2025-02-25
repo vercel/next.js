@@ -262,8 +262,8 @@ function DevToolsPopover({
         // Reset the toast component's default positions.
         bottom: 'initial',
         left: 'initial',
-        [vertical]: 'var(--size-10)',
-        [horizontal]: 'var(--size-20)',
+        [vertical]: '10px',
+        [horizontal]: '20px',
       }}
     >
       <NextLogo
@@ -395,7 +395,13 @@ function DevToolsPopover({
 
 function ChevronRight() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
       <path
         fill="#666"
         fillRule="evenodd"
@@ -593,10 +599,16 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     display: flex;
     align-items: center;
     padding: 8px 6px;
-    height: 36px;
+    height: var(--rem-px-36);
     border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
+    white-space: nowrap;
+
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
+    }
 
     &:focus-visible {
       outline: 0;
