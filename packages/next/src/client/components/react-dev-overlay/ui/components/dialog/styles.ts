@@ -27,7 +27,34 @@ const styles = `
   [data-nextjs-dialog] {
     outline: none;
     overflow: hidden;
+  }  
+  [data-nextjs-dialog]::-webkit-scrollbar {
+    width: 6px;
+    border-radius: 0 0 1rem 1rem;
+    margin-bottom: 1rem;
   }
+  [data-nextjs-dialog]::-webkit-scrollbar-button {
+    display: none;
+  }
+  /* css variables not working in scrollbar pseudo element */ 
+  [data-nextjs-dialog]::-webkit-scrollbar-track {
+    border-radius: 0 0 1rem 1rem;
+    background-color: #fff;
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar-thumb {
+    border-radius: 1rem;
+    background-color: #ddd;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    [data-nextjs-dialog]::-webkit-scrollbar-track {
+      background-color: #0a0a0a;
+    }
+    [data-nextjs-dialog]::-webkit-scrollbar-thumb {
+      background-color: #666;
+    }
+  }
+  
 
   ${
     '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
@@ -74,7 +101,7 @@ const styles = `
 
   [data-nextjs-dialog-footer] {
     /* Subtract border width */
-    width: calc(100% - 2px);
+    width: 100%;
     /* 
       We make this element fixed to anchor it to the bottom during the height transition.
       If you make this relative it will jump during the transition and not collapse or expand smoothly.
@@ -82,6 +109,8 @@ const styles = `
     */
     position: fixed;
     bottom: 1px;
+    border-left: 1px solid var(--color-gray-400);
+    border-right: 1px solid var(--color-gray-400);
     min-height: var(--next-dialog-footer-height);
     border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
     overflow: hidden;
