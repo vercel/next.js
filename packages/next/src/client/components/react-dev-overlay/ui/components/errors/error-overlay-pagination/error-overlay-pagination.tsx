@@ -166,7 +166,7 @@ export const styles = `
     text-align: center;
     font-size: var(--size-14);
     font-weight: 500;
-    line-height: 16px;
+    line-height: var(--size-16);
     font-variant-numeric: tabular-nums;
   }
 
@@ -175,13 +175,18 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: 24px;
-    height: 24px;
+    width: var(--size-24);
+    height: var(--size-24);
     background: var(--color-gray-300);
     flex-shrink: 0;
 
     border: none;
     border-radius: var(--rounded-full);
+
+    svg {
+      width: var(--size-16);
+      height: var(--size-16);
+    }
 
     &:focus-visible {
       outline: var(--focus-ring);
