@@ -344,6 +344,7 @@ function DevToolsPopover({
             <div className="dev-tools-indicator-inner">
               {issueCount > 0 && (
                 <MenuItem
+                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
                   index={0}
                   label="Issues"
                   value={<IssueCount>{issueCount}</IssueCount>}
@@ -351,6 +352,7 @@ function DevToolsPopover({
                 />
               )}
               <MenuItem
+                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
                 label="Route"
                 index={1}
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
@@ -358,10 +360,15 @@ function DevToolsPopover({
                 data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
               />
               {isTurbopack ? (
-                <MenuItem label="Turbopack" value="Enabled" />
+                <MenuItem
+                  title="Turbopack is enabled."
+                  label="Turbopack"
+                  value="Enabled"
+                />
               ) : (
                 <MenuItem
                   index={2}
+                  title="Learn about Turbopack and how to enable it in your application."
                   label="Try Turbopack"
                   value={<ChevronRight />}
                   onClick={() => setIsTurbopackInfoOpen(true)}
@@ -372,6 +379,7 @@ function DevToolsPopover({
             <div className="dev-tools-indicator-footer">
               <MenuItem
                 data-hide-dev-tools
+                title="Hide Dev Tools for the current server session or a day."
                 label="Hide Dev Tools"
                 value={<StopIcon />}
                 onClick={hide}
@@ -407,6 +415,7 @@ function MenuItem({
   ...props
 }: {
   index?: number
+  title?: string
   label: string
   value: React.ReactNode
   href?: string
