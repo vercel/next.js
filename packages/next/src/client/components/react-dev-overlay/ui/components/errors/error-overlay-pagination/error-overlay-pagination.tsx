@@ -164,7 +164,7 @@ export const styles = `
   .error-overlay-pagination-count {
     color: var(--color-gray-900);
     text-align: center;
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     font-weight: 500;
     line-height: 16px;
     font-variant-numeric: tabular-nums;

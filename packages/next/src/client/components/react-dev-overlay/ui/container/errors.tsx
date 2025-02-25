@@ -228,7 +228,7 @@ export const styles = `
   .nextjs-container-errors-body > h2 {
     color: var(--color-title-color);
     margin-bottom: var(--size-gap);
-    font-size: var(--size-font-big);
+    font-size: var(--size-20);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;

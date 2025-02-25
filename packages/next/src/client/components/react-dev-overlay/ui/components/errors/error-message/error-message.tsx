@@ -53,7 +53,7 @@ export const styles = `
     margin-left: var(--size-4);
     color: var(--color-red-900);
     font-weight: 500;
-    font-size: var(--size-font);
+    font-size: var(--size-16);
     letter-spacing: -0.32px;
     line-height: var(--size-24);
     overflow-wrap: break-word;

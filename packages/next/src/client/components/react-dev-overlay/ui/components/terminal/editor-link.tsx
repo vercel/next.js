@@ -46,7 +46,7 @@ export function EditorLink({ file, location }: EditorLinkProps) {
 export const EDITOR_LINK_STYLES = `
   [data-with-open-in-editor-link] svg {
     width: auto;
-    height: var(--size-font-small);
+    height: var(--size-14);
     margin-left: var(--size-gap);
   }
   [data-with-open-in-editor-link] {

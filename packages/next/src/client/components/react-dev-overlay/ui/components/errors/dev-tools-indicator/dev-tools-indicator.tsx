@@ -607,13 +607,13 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
   }
 
   .dev-tools-indicator-label {
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: var(--size-20);
     color: var(--color-gray-1000);
   }
 
   .dev-tools-indicator-value {
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: var(--size-20);
     color: var(--color-gray-900);
     margin-left: auto;
@@ -670,7 +670,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       background: var(--color-background-100);
       color: var(--color-gray-1000);
       text-align: center;
-      font-size: var(--size-font-smaller);
+      font-size: var(--size-12);
       line-height: var(--size-16);
     }
   }

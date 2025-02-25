@@ -104,7 +104,7 @@ export const CALL_STACK_FRAME_STYLES = `
     font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     font-weight: 500;
     line-height: var(--size-20);
   }
@@ -129,7 +129,7 @@ export const CALL_STACK_FRAME_STYLES = `
 
   .call-stack-frame-file-source {
     color: var(--color-gray-900);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: var(--size-20);
   }
 `

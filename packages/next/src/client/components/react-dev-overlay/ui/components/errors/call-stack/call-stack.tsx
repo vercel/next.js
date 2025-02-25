@@ -142,7 +142,7 @@ export const CALL_STACK_STYLES = `
     margin: 0;
 
     color: var(--color-gray-1000);
-    font-size: var(--size-font);
+    font-size: var(--size-16);
     font-weight: 500;
     line-height: var(--size-20);
   }
@@ -158,7 +158,7 @@ export const CALL_STACK_STYLES = `
 
     color: var(--color-gray-1000);
     text-align: center;
-    font-size: var(--size-font-11);
+    font-size: var(--size-11);
     font-weight: 500;
     line-height: var(--size-16);
 
@@ -172,7 +172,7 @@ export const CALL_STACK_STYLES = `
     align-items: center;
     gap: 6px;
     color: var(--color-gray-900);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: var(--size-20);
     border-radius: 6px;
     padding: 4px 6px;
