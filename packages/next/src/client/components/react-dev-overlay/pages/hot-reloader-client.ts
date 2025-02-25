@@ -272,8 +272,20 @@ function handleAvailableHash(hash: string) {
 }
 
 export function handleStaticIndicator() {
-  if (process.env.__NEXT_DEV_INDICATOR && isrManifest) {
-    const isPageStatic = window.location.pathname in isrManifest
+  if (process.env.__NEXT_DEV_INDICATOR) {
+    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const pageComponent = routeInfo?.Component
+    const appComponent = window.next.router.components['/_app']?.Component
+    const isDynamicPage =
+      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo.__N_SSP)
+    const hasAppGetInitialProps =
+      Boolean(appComponent?.getInitialProps) &&
+      appComponent?.getInitialProps !== appComponent?.origGetInitialProps
+
+    const isPageStatic =
+      window.location.pathname in isrManifest ||
+      (!isDynamicPage && !hasAppGetInitialProps)
+
     onStaticIndicator(isPageStatic)
   }
 }

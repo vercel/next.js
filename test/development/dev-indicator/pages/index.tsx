@@ -5,6 +5,7 @@ export default function Page() {
     <p>
       hello world <Link href="/gssp">to /gssp</Link>{' '}
       <Link href="/pregenerated">to /pregenerated</Link>
+      <Link href="/gip">to /gip</Link>
     </p>
   )
 }
