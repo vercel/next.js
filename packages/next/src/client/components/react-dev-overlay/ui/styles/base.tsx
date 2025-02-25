@@ -137,6 +137,10 @@ export function Base() {
         }
 
         a {
+          color: var(--color-blue-900);
+          &:hover {
+            color: var(--color-blue-900);
+          }
           &:focus {
             outline: var(--focus-ring);
           }
