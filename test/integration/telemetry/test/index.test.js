@@ -363,8 +363,8 @@ describe('Telemetry CLI', () => {
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
-          featureName: 'build-lint',
-          invocationCount: 1,
+          featureName: 'swcStyledComponents',
+          invocationCount: 0,
         })
 
         expect(featureUsageEvents).toContainEqual({
