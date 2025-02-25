@@ -628,7 +628,7 @@ impl SingleModuleGraph {
                         let mut neighbors = self.graph.neighbors(node).detach();
                         while let Some((edge, succ)) = neighbors.next(&self.graph) {
                             let edge_weight = self.graph.edge_weight(edge).unwrap();
-                            if !edge_filter(&edge_weight) {
+                            if !edge_filter(edge_weight) {
                                 continue;
                             }
                             let node_state = &node_states[succ.index()];
@@ -1122,7 +1122,7 @@ impl ModuleGraph {
         Ok(())
     }
 
-    pub async fn traverse_cycles<'l>(
+    pub async fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&ChunkingType) -> bool,
         mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]),
