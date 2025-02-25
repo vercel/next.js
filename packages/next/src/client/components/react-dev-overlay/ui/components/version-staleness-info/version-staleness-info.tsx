@@ -93,9 +93,9 @@ export const styles = `
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: var(--size-4);
+    gap: 4px;
 
-    height: 26px;
+    height: var(--size-26);
     padding: 6px 8px 6px 6px;
     background: var(--color-background-100);
     background-clip: padding-box;
@@ -104,7 +104,7 @@ export const styles = `
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);
-    font-size: 12px;
+    font-size: var(--size-12);
     font-weight: 500;
     line-height: var(--size-16);
   }

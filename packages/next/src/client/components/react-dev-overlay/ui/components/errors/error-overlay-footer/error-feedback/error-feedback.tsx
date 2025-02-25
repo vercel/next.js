@@ -113,7 +113,7 @@ export const styles = `
   }
 
   .error-feedback-thanks {
-    height: 24px;
+    height: var(--size-24);
     display: flex;
     align-items: center;
     padding-right: 4px; /* To match the 4px inner padding of the thumbs up and down icons */
@@ -123,8 +123,8 @@ export const styles = `
     background: none;
     border: none;
     border-radius: var(--rounded-md);
-    width: 24px;
-    height: 24px;
+    width: var(--size-24);
+    height: var(--size-24);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -155,5 +155,7 @@ export const styles = `
   .thumbs-up-icon,
   .thumbs-down-icon {
     color: var(--color-gray-900);
+    width: var(--size-16);
+    height: var(--size-16);
   }
 `

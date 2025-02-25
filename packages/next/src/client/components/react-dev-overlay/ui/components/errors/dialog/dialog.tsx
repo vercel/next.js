@@ -32,7 +32,7 @@ export const DIALOG_STYLES = `
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-400);
-    border-radius: var(--next-dialog-radius);
+    border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-menu);
     position: relative;
 

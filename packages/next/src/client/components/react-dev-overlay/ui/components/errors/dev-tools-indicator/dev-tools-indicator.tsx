@@ -262,8 +262,8 @@ function DevToolsPopover({
         // Reset the toast component's default positions.
         bottom: 'initial',
         left: 'initial',
-        [vertical]: 'var(--size-10)',
-        [horizontal]: 'var(--size-20)',
+        [vertical]: '10px',
+        [horizontal]: '20px',
       }}
     >
       <NextLogo
@@ -395,7 +395,13 @@ function DevToolsPopover({
 
 function ChevronRight() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
       <path
         fill="#666"
         fillRule="evenodd"
@@ -593,10 +599,16 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     display: flex;
     align-items: center;
     padding: 8px 6px;
-    height: 36px;
+    height: var(--size-36);
     border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
+    white-space: nowrap;
+
+    svg {
+      width: var(--size-16);
+      height: var(--size-16);
+    }
 
     &:focus-visible {
       outline: 0;
@@ -636,8 +648,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: 41px;
-    height: 24px;
+    min-width: var(--size-40);
+    height: var(--size-24);
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
@@ -646,7 +658,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     color: var(--color-gray-1000);
     border-radius: 128px;
     font-weight: 500;
-    font-size: 13px;
+    font-size: var(--size-13);
     font-variant-numeric: tabular-nums;
 
     &[data-has-issues='true'] {
@@ -655,8 +667,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     }
 
     .dev-tools-indicator-issue-count-indicator {
-      width: 8px;
-      height: 8px;
+      width: var(--size-8);
+      height: var(--size-8);
       background: var(--color-primary);
       box-shadow: 0 0 0 2px var(--color-secondary);
       border-radius: 50%;
@@ -665,7 +677,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-shortcut {
     display: flex;
-    gap: var(--size-4);
+    gap: 4px;
 
     kbd {
       width: var(--size-20);

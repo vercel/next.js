@@ -1,9 +1,10 @@
 const styles = `
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
-    --next-dialog-footer-height: 48px;
+    --next-dialog-footer-height: var(--size-48);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
+    --next-dialog-container-padding: 12px;
 
     display: flex;
     flex-direction: column-reverse;
@@ -54,7 +55,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: var(--size-16) var(--size-12);
+    padding: 16px 12px;
   }
 
   /* Account for the footer height, when present */
@@ -64,7 +65,7 @@ const styles = `
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    margin-bottom: var(--size-8);
+    margin-bottom: 8px;
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
