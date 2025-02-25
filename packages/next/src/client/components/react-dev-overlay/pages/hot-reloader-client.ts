@@ -35,6 +35,7 @@ import {
   onBeforeRefresh,
   onRefresh,
   onVersionInfo,
+  onStaticIndicator,
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
@@ -218,6 +219,7 @@ function handleErrors(errors: any) {
 let startLatency: number | null = null
 let turbopackLastUpdateLatency: number | null = null
 let turbopackUpdatedModules: Set<string> = new Set()
+let isrManifest: Record<string, boolean> = {}
 
 function onBeforeFastRefresh(updatedModules: string[]) {
   if (updatedModules.length > 0) {
@@ -269,6 +271,25 @@ function handleAvailableHash(hash: string) {
   mostRecentCompilationHash = hash
 }
 
+export function handleStaticIndicator() {
+  if (process.env.__NEXT_DEV_INDICATOR) {
+    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const pageComponent = routeInfo?.Component
+    const appComponent = window.next.router.components['/_app']?.Component
+    const isDynamicPage =
+      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo.__N_SSP)
+    const hasAppGetInitialProps =
+      Boolean(appComponent?.getInitialProps) &&
+      appComponent?.getInitialProps !== appComponent?.origGetInitialProps
+
+    const isPageStatic =
+      window.location.pathname in isrManifest ||
+      (!isDynamicPage && !hasAppGetInitialProps)
+
+    onStaticIndicator(isPageStatic)
+  }
+}
+
 /** Handles messages from the sevrer for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
   if (!('action' in obj)) {
@@ -277,6 +298,11 @@ function processMessage(obj: HMR_ACTION_TYPES) {
 
   // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
+      isrManifest = obj.data
+      handleStaticIndicator()
+      break
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
       turbopackLastUpdateLatency = null

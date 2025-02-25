@@ -10,6 +10,7 @@ import {
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
@@ -136,6 +137,10 @@ export function onBeforeRefresh() {
 
 export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
+}
+
+export function onStaticIndicator(isStatic: boolean) {
+  Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'
