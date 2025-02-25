@@ -54,7 +54,7 @@ const styles = `
     display: flex;
     flex-direction: column;
     position: relative;
-    padding: var(--size-4) var(--size-3);
+    padding: var(--size-16) var(--size-12);
   }
 
   /* Account for the footer height, when present */
@@ -64,7 +64,7 @@ const styles = `
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    margin-bottom: var(--size-2);
+    margin-bottom: var(--size-8);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {

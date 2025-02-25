@@ -2,20 +2,20 @@ export { PseudoHtmlDiff } from '../../components/hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html] {
-    padding: var(--size-2) 0;
-    margin: var(--size-2) 0;
+    padding: var(--size-8) 0;
+    margin: var(--size-8) 0;
     border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-font-smaller);
-    line-height: var(--size-4);
-    border-radius: var(--size-2);
+    font-size: var(--size-12);
+    line-height: var(--size-16);
+    border-radius: var(--size-8);
   }
   [data-nextjs-container-errors-pseudo-html-line] {
     display: inline-block;
     width: 100%;
-    padding-left: var(--size-10);
+    padding-left: var(--size-40);
     line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html--diff='error'] {
@@ -24,7 +24,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
-    margin-left: var(--size-3);
+    margin-left: var(--size-12);
     &:focus {
       outline: none;
     }
@@ -33,8 +33,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     background: var(--color-green-300);
   }
   [data-nextjs-container-errors-pseudo-html-line-sign] {
-    margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-6);
+    margin-left: calc(var(--size-24) * -1);
+    margin-right: var(--size-24);
   }
   [data-nextjs-container-errors-pseudo-html--diff='add']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
@@ -46,8 +46,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html--diff='remove']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
     color: var(--color-red-900);
-    margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-6);
+    margin-left: calc(var(--size-24) * -1);
+    margin-right: var(--size-24);
   }
   [data-nextjs-container-errors-pseudo-html--diff='error']
     [data-nextjs-container-errors-pseudo-html-line-sign] {

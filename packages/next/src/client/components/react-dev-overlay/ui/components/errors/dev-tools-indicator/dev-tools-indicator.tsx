@@ -262,8 +262,8 @@ function DevToolsPopover({
         // Reset the toast component's default positions.
         bottom: 'initial',
         left: 'initial',
-        [vertical]: 'var(--size-2_5)',
-        [horizontal]: 'var(--size-5)',
+        [vertical]: 'var(--size-10)',
+        [horizontal]: 'var(--size-20)',
       }}
     >
       <NextLogo
@@ -292,7 +292,7 @@ function DevToolsPopover({
           setIsOpen={setIsRouteInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={routeInfoRendered}
@@ -306,7 +306,7 @@ function DevToolsPopover({
           setIsOpen={setIsTurbopackInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={turbopackInfoRendered}
@@ -329,7 +329,7 @@ function DevToolsPopover({
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
               '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
-              [vertical]: 'calc(100% + var(--size-gap))',
+              [vertical]: 'calc(100% + 8px)',
               [horizontal]: 0,
             } as React.CSSProperties
           }
@@ -616,14 +616,14 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
   }
 
   .dev-tools-indicator-label {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     color: var(--color-gray-1000);
   }
 
   .dev-tools-indicator-value {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     color: var(--color-gray-900);
     margin-left: auto;
   }
@@ -665,11 +665,11 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-shortcut {
     display: flex;
-    gap: var(--size-1);
+    gap: var(--size-4);
 
     kbd {
-      width: var(--size-5);
-      height: var(--size-5);
+      width: var(--size-20);
+      height: var(--size-20);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -679,8 +679,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       background: var(--color-background-100);
       color: var(--color-gray-1000);
       text-align: center;
-      font-size: var(--size-font-smaller);
-      line-height: var(--size-4);
+      font-size: var(--size-12);
+      line-height: var(--size-16);
     }
   }
 `

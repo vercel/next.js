@@ -28,8 +28,8 @@ export const styles = `
     flex-direction: row;
     justify-content: space-between;
 
-    gap: var(--size-gap);
-    padding: var(--size-3);
+    gap: 8px;
+    padding: var(--size-12);
     background: var(--color-background-200);
     border-top: 1px solid var(--color-gray-400);
   }
@@ -49,7 +49,7 @@ export const styles = `
     margin: 0;
     font-size: 14px;
     font-weight: 400;
-    line-height: var(--size-font-big);
+    line-height: var(--size-20);
   }
 
   ${feedbackStyles}
