@@ -367,10 +367,13 @@ describe('Telemetry CLI', () => {
           invocationCount: 0,
         })
 
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'webpackPlugins',
-          invocationCount: 1,
-        })
+        // This event doesn't get recorded for Turbopack as the webpack config is not executed.
+        if (!process.env.TURBOPACK) {
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'webpackPlugins',
+            invocationCount: 1,
+          })
+        }
       })
       it('detect static 404 correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {
