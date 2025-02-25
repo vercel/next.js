@@ -174,6 +174,7 @@ export type EventBuildFeatureUsage = {
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
     | 'esmExternals'
+    | 'webpackPlugins'
     | UseCacheTrackerKey
   invocationCount: number
 }
