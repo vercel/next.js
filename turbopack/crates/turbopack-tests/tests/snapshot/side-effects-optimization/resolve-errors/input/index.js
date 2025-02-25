@@ -1,3 +1,3 @@
-import { ui } from 'ui'
+import { Parent } from './ui/src/index'
 
-console.log(ui())
+Parent();
