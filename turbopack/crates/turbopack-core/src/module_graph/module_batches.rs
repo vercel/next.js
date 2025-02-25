@@ -326,8 +326,10 @@ pub async fn compute_module_batches(
         let mut state: TraversalState = TraversalState::default();
         let mut entries = Vec::new();
 
-        // Find all chunk group entries and assign them to batches
         let chunk_group_info = module_graph.chunk_group_info().await?;
+        let module_graph = module_graph.await?;
+
+        // Find all chunk group entries and assign them to batches
         for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
             println!("chunk_group {i}: {}", chunk_group.to_string().await?);
             // Each entry need to be in a separate batch since we don't know the postorder of them.
@@ -360,11 +362,26 @@ pub async fn compute_module_batches(
             }
         }
 
+        // Find all cycles
+        let mut cycles = FxHashSet::default();
+        module_graph
+            .traverse_cycles(
+                |ty| {
+                    matches!(
+                        ty,
+                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync
+                    )
+                },
+                |cycle| {
+                    cycles.extend(cycle.iter().map(|&node| node.module));
+                },
+            )
+            .await?;
+
         // Traverse the module graph and assign all modules to batches based on the parent batch.
         // When the chunk groups bitmap change on an edge, a new batch is created.
         // Module order in batches must be postorder.
         module_graph
-            .await?
             .traverse_edges_from_entries_topological(
                 entries.iter().map(|&(module, _)| module),
                 &mut state,
@@ -410,6 +427,7 @@ pub async fn compute_module_batches(
                             // Since we have a parallel edge here, order is important. So we
                             // need to split the current batch to avoid breaking the
                             // ordering.
+                            // TODO: only split for parallel
                             state.split_batch(parent_node.module);
                             state.batches[batch_idx].add_edge(
                                 idx,
@@ -419,7 +437,7 @@ pub async fn compute_module_batches(
                         }
                         return Ok(GraphTraversalAction::Exclude);
                     }
-                    let is_parallel = match ty {
+                    match ty {
                         ChunkingType::Traced => {
                             // Traced are special edges. We add an edge to the target module.
                             // These edges do not influence the batching.
@@ -439,10 +457,17 @@ pub async fn compute_module_batches(
                         }
                         ChunkingType::Async
                         | ChunkingType::Isolated { .. }
-                        | ChunkingType::Shared { .. } => false,
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => true,
+                        | ChunkingType::Shared { .. } => unreachable!(
+                            "These chunking types should already have a batch assigned so it \
+                             should never get here"
+                        ),
+                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => {}
                     };
-                    let mut in_same_batch = is_parallel;
+                    let mut in_same_batch = true;
+
+                    if in_same_batch {
+                        in_same_batch = !cycles.contains(&node.module);
+                    }
 
                     // Get the chunk groups of the module
                     let chunk_groups = chunk_group_info
@@ -507,13 +532,8 @@ pub async fn compute_module_batches(
                     // Add an edge to the parent batch
                     state.batches[batch_idx].add_edge(idx, ty.without_inherit_async(), node.module);
 
-                    if is_parallel {
-                        // We want to visit parallel edges
-                        Ok(GraphTraversalAction::Continue)
-                    } else {
-                        // We don't want to visit that in this pass. It's already in `entries`.
-                        Ok(GraphTraversalAction::Exclude)
-                    }
+                    // We want to visit parallel edges
+                    Ok(GraphTraversalAction::Continue)
                 },
                 |_, node, state| {
                     let BatchAssignment {
