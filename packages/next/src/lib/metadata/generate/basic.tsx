@@ -20,7 +20,10 @@ function resolveViewportLayout(viewport: Viewport) {
       const viewportKey = viewportKey_ as keyof ViewportLayout
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
+        if (typeof value === 'boolean') {
+          if (viewportKey === 'initialScale') continue
+          value = value ? 'yes' : 'no'
+        }
         if (resolved) resolved += ', '
         resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
       }

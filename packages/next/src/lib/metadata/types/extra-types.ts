@@ -56,7 +56,7 @@ export type ItunesApp = {
 export type ViewportLayout = {
   width?: string | number | undefined
   height?: string | number | undefined
-  initialScale?: number | undefined
+  initialScale?: number | false | undefined
   minimumScale?: number | undefined
   maximumScale?: number | undefined
   userScalable?: boolean | undefined
