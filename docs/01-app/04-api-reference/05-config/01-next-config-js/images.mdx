@@ -249,7 +249,7 @@ export default function thumborLoader({ src, width, quality }) {
 // Docs: https://imagekit.io/docs/image-transformation
 export default function imageKitLoader({ src, width, quality }) {
   const params = [`w-${width}`, `q-${quality || 80}`]
-  return `https://ik.imagekit.io/your_imagekit_id/${src}?tr=${params.join(',')}`
+  return `https://ik.imagekit.io/your_imagekit_id/tr:${params.join(',')}/${src}`
 }
 ```
 
