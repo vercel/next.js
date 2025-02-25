@@ -823,13 +823,13 @@ export interface NextConfig extends Record<string, any> {
     | false
     | {
         /**
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          * */
         appIsrStatus?: boolean
 
         /**
          * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          */
         buildActivity?: boolean
 
