@@ -41,6 +41,7 @@ export function DevToolsIndicator({
 
   return (
     <DevToolsPopover
+      routerType={state.routerType}
       semver={state.versionInfo.installed}
       issueCount={errorCount}
       isStaticRoute={state.staticIndicator}
@@ -70,6 +71,7 @@ interface C {
 const Context = createContext({} as C)
 
 function DevToolsPopover({
+  routerType,
   disabled,
   issueCount,
   isStaticRoute,
@@ -79,6 +81,7 @@ function DevToolsPopover({
   hide,
   setIsErrorOverlayOpen,
 }: {
+  routerType: 'pages' | 'app'
   disabled: boolean
   issueCount: number
   isStaticRoute: boolean
@@ -283,6 +286,7 @@ function DevToolsPopover({
       {routeInfoMounted && (
         <RouteInfo
           ref={routeInfoRef}
+          routerType={routerType}
           routeType={isStaticRoute ? 'Static' : 'Dynamic'}
           isOpen={isRouteInfoOpen}
           setIsOpen={setIsRouteInfoOpen}

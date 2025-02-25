@@ -23,6 +23,7 @@ export interface OverlayState {
   staticIndicator: boolean
   disableDevIndicator: boolean
   debugInfo: DebugInfo
+  routerType: 'pages' | 'app'
 }
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -101,7 +102,7 @@ function pushErrorFilterDuplicates(
   ]
 }
 
-export const INITIAL_OVERLAY_STATE: OverlayState = {
+export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
   errors: [],
@@ -114,7 +115,16 @@ export const INITIAL_OVERLAY_STATE: OverlayState = {
   debugInfo: { devtoolsFrontendUrl: undefined },
 }
 
-export function useErrorOverlayReducer() {
+function getInitialState(
+  routerType: 'pages' | 'app'
+): OverlayState & { routerType: 'pages' | 'app' } {
+  return {
+    ...INITIAL_OVERLAY_STATE,
+    routerType,
+  }
+}
+
+export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
   return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_DEBUG_INFO: {
@@ -188,7 +198,7 @@ export function useErrorOverlayReducer() {
         return _state
       }
     }
-  }, INITIAL_OVERLAY_STATE)
+  }, getInitialState(routerType))
 }
 
 export const REACT_REFRESH_FULL_RELOAD_FROM_ERROR =

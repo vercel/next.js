@@ -51,6 +51,7 @@ const mockVersionInfo: VersionInfo = {
 }
 
 const state: OverlayState = {
+  routerType: 'app',
   nextId: 1,
   buildError: null,
   errors: [],
