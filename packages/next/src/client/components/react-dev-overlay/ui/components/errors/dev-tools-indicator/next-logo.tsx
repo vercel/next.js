@@ -229,7 +229,7 @@ export const NextLogo = forwardRef(function NextLogo(
             padding-right: ${disabled || isBuildError
               ? '8px'
               : 'calc(2px * 2)'};
-            height: 32px;
+            height: var(--rem-px-32);
             margin: 0 2px;
             border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;

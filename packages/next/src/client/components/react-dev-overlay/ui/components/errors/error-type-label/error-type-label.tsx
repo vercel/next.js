@@ -28,9 +28,9 @@ export const styles = `
     border-radius: var(--rounded-md-2);
     background: var(--color-red-100);
     font-weight: 600;
-    font-size: var(--rem-px-11);
+    font-size: var(--rem-px-12);
     color: var(--color-red-900);
     font-family: var(--font-stack-monospace);
-    line-height: 1.82em; /* 20px in 11px font size */
+    line-height: var(--rem-px-20);
   }
 `

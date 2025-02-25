@@ -85,8 +85,8 @@ const styles = `
   }
 
   .nextjs-static-indicator-toast-wrapper button > svg {
-    width: 16px;
-    height: 16px;
+    width: var(--rem-px-16);
+    height: var(--rem-px-16);
   }
 `
 

@@ -144,7 +144,6 @@ export const CALL_STACK_STYLES = `
     color: var(--color-gray-1000);
     font-size: var(--size-16);
     font-weight: 500;
-    line-height: var(--size-20);
   }
 
   .error-overlay-call-stack-count {
