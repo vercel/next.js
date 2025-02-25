@@ -22,6 +22,8 @@ import {
 import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
 import { createCacheKey } from '../components/segment-cache/cache-key'
 import { createPrefetchURL } from '../components/app-router'
+import type { FlightRouterState } from '../../server/app-render/types'
+import { getCurrentCacheVersion } from '../components/segment-cache/cache'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -221,15 +223,24 @@ type LinkInstance = {
   // already completed.  The same prefetch task object can be reused across
   // multiple prefetches of the same link.
   prefetchTask: PrefetchTask | null
+
+  // The cache version at the time the task was initiated. This is used to
+  // determine if the cache was invalidated since the task was initiated.
+  cacheVersion: number
 }
 
-// TODO: This is currently a WeakMap because it doesn't need to be enumerable,
-// but eventually we'll want to be able to re-prefetch all the currently
-// visible links, e.g. after a revalidation or refresh.
+// Use a WeakMap to associate a Link instance with its DOM element. This is
+// used by the IntersectionObserver to track the link's visibility.
 const links:
   | WeakMap<HTMLAnchorElement | SVGAElement, LinkInstance>
   | Map<Element, LinkInstance> =
   typeof WeakMap === 'function' ? new WeakMap() : new Map()
+
+// A Set of the currently visible links. We re-prefetch visible links after a
+// cache invalidation, or when the current URL changes. It's a separate data
+// structure from the WeakMap above because only the visible links need to
+// be enumerated.
+const visibleLinks: Set<LinkInstance> = new Set()
 
 // A single IntersectionObserver instance shared by all <Link> components.
 const observer: IntersectionObserver | null =
@@ -274,6 +285,7 @@ function mountLinkInstance(
     isVisible: false,
     wasHoveredOrTouched: false,
     prefetchTask: null,
+    cacheVersion: -1,
   }
   const existingInstance = links.get(element)
   if (existingInstance !== undefined) {
@@ -288,10 +300,11 @@ function mountLinkInstance(
   }
 }
 
-export function unmountLinkInstance(element: HTMLAnchorElement | SVGAElement) {
+function unmountLinkInstance(element: HTMLAnchorElement | SVGAElement) {
   const instance = links.get(element)
   if (instance !== undefined) {
     links.delete(element)
+    visibleLinks.delete(instance)
     const prefetchTask = instance.prefetchTask
     if (prefetchTask !== null) {
       cancelPrefetchTask(prefetchTask)
@@ -329,6 +342,11 @@ function onLinkVisibilityChanged(
   }
 
   instance.isVisible = isVisible
+  if (isVisible) {
+    visibleLinks.add(instance)
+  } else {
+    visibleLinks.delete(instance)
+  }
   rescheduleLinkPrefetch(instance)
 }
 
@@ -389,11 +407,55 @@ function rescheduleLinkPrefetch(instance: LinkInstance) {
         instance.kind === PrefetchKind.FULL,
         priority
       )
+      instance.cacheVersion = getCurrentCacheVersion()
     }
   } else {
     // We already have an old task object that we can reschedule. This is
     // effectively the same as canceling the old task and creating a new one.
     bumpPrefetchTask(existingPrefetchTask, priority)
+  }
+}
+
+export function pingVisibleLinks(
+  nextUrl: string | null,
+  tree: FlightRouterState
+) {
+  // For each currently visible link, cancel the existing prefetch task (if it
+  // exists) and schedule a new one. This is effectively the same as if all the
+  // visible links left and then re-entered the viewport.
+  //
+  // This is called when the Next-Url or the base tree changes, since those
+  // may affect the result of a prefetch task. It's also called after a
+  // cache invalidation.
+  const currentCacheVersion = getCurrentCacheVersion()
+  for (const instance of visibleLinks) {
+    const task = instance.prefetchTask
+    if (
+      task !== null &&
+      instance.cacheVersion === currentCacheVersion &&
+      task.key.nextUrl === nextUrl &&
+      task.treeAtTimeOfPrefetch === tree
+    ) {
+      // The cache has not been invalidated, and none of the inputs have
+      // changed. Bail out.
+      continue
+    }
+    // Something changed. Cancel the existing prefetch task and schedule a
+    // new one.
+    if (task !== null) {
+      cancelPrefetchTask(task)
+    }
+    const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
+    const priority = instance.wasHoveredOrTouched
+      ? PrefetchPriority.Intent
+      : PrefetchPriority.Default
+    instance.prefetchTask = scheduleSegmentPrefetchTask(
+      cacheKey,
+      tree,
+      instance.kind === PrefetchKind.FULL,
+      priority
+    )
+    instance.cacheVersion = getCurrentCacheVersion()
   }
 }
 

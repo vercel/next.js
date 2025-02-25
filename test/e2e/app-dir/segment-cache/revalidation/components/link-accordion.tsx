@@ -3,7 +3,15 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-export function LinkAccordion({ href, children }) {
+export function LinkAccordion({
+  href,
+  children,
+  prefetch,
+}: {
+  href: string
+  children: React.ReactNode
+  prefetch?: boolean
+}) {
   const [isVisible, setIsVisible] = useState(false)
   return (
     <>
@@ -14,9 +22,11 @@ export function LinkAccordion({ href, children }) {
         data-link-accordion={href}
       />
       {isVisible ? (
-        <Link href={href}>{children}</Link>
+        <Link href={href} prefetch={prefetch}>
+          {children}
+        </Link>
       ) : (
-        `${children} (link is hidden)`
+        <>{children} (link is hidden)</>
       )}
     </>
   )
