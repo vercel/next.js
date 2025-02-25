@@ -249,6 +249,11 @@ function CopySuccessIcon() {
 export const COPY_BUTTON_STYLES = `
   .nextjs-data-copy-button {
     color: inherit;
+
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
+    }
   }
   .nextjs-data-copy-button--initial:hover {
     cursor: pointer;

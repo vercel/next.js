@@ -252,7 +252,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: 2px;
             align-items: center;
             margin: 0;
-            line-height: 36px;
+            line-height: var(--rem-px-36);
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;

@@ -77,7 +77,7 @@ export const DEV_TOOLS_INFO_STYLES = `
     color: var(--color-gray-1000);
     font-size: var(--size-font-small);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--rem-px-20);
     margin: 0;
   }
 
@@ -85,7 +85,7 @@ export const DEV_TOOLS_INFO_STYLES = `
     padding: 8px 6px;
     color: var(--color-gray-1000);
     font-size: var(--size-font-small);
-    line-height: 20px;
+    line-height: var(--rem-px-20);
     margin: 0;
   }
   .dev-tools-info-paragraph {
@@ -103,10 +103,10 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-close-button {
     padding: 0 8px;
-    height: 28px;
+    height: var(--rem-px-28);
     font-size: var(--size-font-small);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--rem-px-20);
     transition: background var(--duration-short) ease;
     color: var(--color-gray-1000);
     border-radius: var(--rounded-md-2);
@@ -121,10 +121,10 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-learn-more-button {
     align-content: center;
     padding: 0 8px;
-    height: 28px;
+    height: var(--rem-px-28);
     font-size: var(--size-font-small);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--rem-px-20);
     transition: background var(--duration-short) ease;
     color: var(--color-background-100);
     border-radius: var(--rounded-md-2);

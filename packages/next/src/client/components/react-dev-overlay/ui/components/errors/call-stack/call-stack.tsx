@@ -128,7 +128,7 @@ export const CALL_STACK_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    min-height: 28px;
+    min-height: var(--rem-px-28);
     padding: 8px 8px 12px 4px;
     width: 100%;
   }

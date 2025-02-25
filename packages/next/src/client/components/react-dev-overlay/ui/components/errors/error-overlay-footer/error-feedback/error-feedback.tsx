@@ -113,7 +113,7 @@ export const styles = `
   }
 
   .error-feedback-thanks {
-    height: 24px;
+    height: var(--rem-px-24);
     display: flex;
     align-items: center;
     padding-right: 4px; /* To match the 4px inner padding of the thumbs up and down icons */
