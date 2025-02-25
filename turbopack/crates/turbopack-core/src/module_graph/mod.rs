@@ -6,7 +6,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{Dfs, EdgeRef, IntoNodeReferences, VisitMap, Visitable},
+    visit::{Dfs, EdgeRef, IntoNodeReferences, NodeIndexable, VisitMap, Visitable},
 };
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
@@ -583,6 +583,103 @@ impl SingleModuleGraph {
 
         Ok(())
     }
+
+    pub fn traverse_cycles<'l>(
+        &'l self,
+        edge_filter: impl Fn(&'l ChunkingType) -> bool,
+        mut visit_cycle: impl FnMut(&[&'l SingleModuleGraphModuleNode]),
+    ) {
+        // see https://en.wikipedia.org/wiki/Tarjan%27s_strongly_connected_components_algorithm
+        // but iteratively instead of recursively
+
+        #[derive(Clone)]
+        struct NodeState {
+            index: u32,
+            lowlink: u32,
+            on_stack: bool,
+        }
+        enum VisitStep {
+            UnvisitedNode(NodeIndex),
+            EdgeAfterVisit { parent: NodeIndex, child: NodeIndex },
+            AfterVisit(NodeIndex),
+        }
+        let mut node_states = vec![None; self.graph.node_bound()];
+        let mut stack = Vec::new();
+        let mut visit_stack = Vec::new();
+        let mut index = 0;
+        let mut scc = Vec::new();
+        for initial_index in self.graph.node_indices() {
+            // Skip over already visited nodes
+            if node_states[initial_index.index()].is_some() {
+                continue;
+            }
+            visit_stack.push(VisitStep::UnvisitedNode(initial_index));
+            while let Some(step) = visit_stack.pop() {
+                match step {
+                    VisitStep::UnvisitedNode(node) => {
+                        node_states[node.index()] = Some(NodeState {
+                            index,
+                            lowlink: index,
+                            on_stack: true,
+                        });
+                        index += 1;
+                        stack.push(node);
+                        visit_stack.push(VisitStep::AfterVisit(node));
+                        let mut neighbors = self.graph.neighbors(node).detach();
+                        while let Some((edge, succ)) = neighbors.next(&self.graph) {
+                            let edge_weight = self.graph.edge_weight(edge).unwrap();
+                            if !edge_filter(&edge_weight) {
+                                continue;
+                            }
+                            let node_state = &node_states[succ.index()];
+                            if let Some(node_state) = node_state {
+                                if node_state.on_stack {
+                                    let index = node_state.index;
+                                    let parent_state = node_states[node.index()].as_mut().unwrap();
+                                    parent_state.lowlink = parent_state.lowlink.min(index);
+                                }
+                            } else {
+                                visit_stack.push(VisitStep::EdgeAfterVisit {
+                                    parent: node,
+                                    child: succ,
+                                });
+                                visit_stack.push(VisitStep::UnvisitedNode(succ));
+                            }
+                        }
+                    }
+                    VisitStep::EdgeAfterVisit { parent, child } => {
+                        let child_state = node_states[child.index()].as_ref().unwrap();
+                        let lowlink = child_state.lowlink;
+
+                        let parent_state = node_states[parent.index()].as_mut().unwrap();
+                        parent_state.lowlink = parent_state.lowlink.min(lowlink);
+                    }
+                    VisitStep::AfterVisit(node) => {
+                        let node_state = node_states[node.index()].as_ref().unwrap();
+                        if node_state.lowlink == node_state.index {
+                            loop {
+                                let poppped = stack.pop().unwrap();
+                                let popped_state = node_states[poppped.index()].as_mut().unwrap();
+                                popped_state.on_stack = false;
+                                if let SingleModuleGraphNode::Module(module) =
+                                    self.graph.node_weight(poppped).unwrap()
+                                {
+                                    scc.push(module);
+                                }
+                                if poppped == node {
+                                    break;
+                                }
+                            }
+                            if scc.len() > 1 {
+                                visit_cycle(&scc);
+                            }
+                            scc.clear();
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -1022,6 +1119,17 @@ impl ModuleGraph {
             }
         }
 
+        Ok(())
+    }
+
+    pub async fn traverse_cycles<'l>(
+        &self,
+        edge_filter: impl Fn(&ChunkingType) -> bool,
+        mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]),
+    ) -> Result<()> {
+        for graph in &self.graphs {
+            graph.await?.traverse_cycles(&edge_filter, &mut visit_cycle);
+        }
         Ok(())
     }
 }
