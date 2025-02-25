@@ -101,7 +101,7 @@ const styles = `
 
   [data-nextjs-dialog-footer] {
     /* Subtract border width */
-    width: 100%;
+    width: calc(100% - 2px);
     /* 
       We make this element fixed to anchor it to the bottom during the height transition.
       If you make this relative it will jump during the transition and not collapse or expand smoothly.
@@ -109,8 +109,6 @@ const styles = `
     */
     position: fixed;
     bottom: 1px;
-    border-left: 1px solid var(--color-gray-400);
-    border-right: 1px solid var(--color-gray-400);
     min-height: var(--next-dialog-footer-height);
     border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
     overflow: hidden;
