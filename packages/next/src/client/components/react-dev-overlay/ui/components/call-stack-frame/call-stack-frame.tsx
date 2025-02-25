@@ -11,7 +11,6 @@ export const CallStackFrame: React.FC<{
   index: number
 }> = function CallStackFrame({ frame, index }) {
   // TODO: ability to expand resolved frames
-  // TODO: render error or external indicator
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
   const hasSource = Boolean(frame.originalCodeFrame)
@@ -63,6 +62,14 @@ export const CallStackFrame: React.FC<{
         data-has-source={hasSource}
       >
         {fileSource}
+        {frame.error ? (
+          <button
+            onClick={() => console.error(frame.reason)}
+            title="Sourcemapping failed. Click to log cause of error."
+          >
+            ❗
+          </button>
+        ) : null}
       </span>
     </div>
   )

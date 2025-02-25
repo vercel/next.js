@@ -1404,6 +1404,11 @@ export async function getRedboxCallStack(
         // so that c&p automatically does the right thing.
         const frame = frameElement.innerText.replace('\n', ' ')
 
+        if (frame.includes('❗')) {
+          stack.push('<FIXME-source-map-middleware-bug>')
+          continue
+        }
+
         // Feel free to adjust this heuristic if it accidentally hides too much.
         const isInternalFrame =
           // likely https://linear.app/vercel/issue/NDX-464
