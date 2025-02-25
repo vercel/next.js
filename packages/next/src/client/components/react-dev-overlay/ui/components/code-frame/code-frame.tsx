@@ -171,7 +171,7 @@ export const CODE_FRAME_STYLES = `
     background-color: var(--color-ansi-selection);
   }
 
-  [data-nextjs-codeframe] * {
+  [data-nextjs-codeframe] *:not(a) {
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);
