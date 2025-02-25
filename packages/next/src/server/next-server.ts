@@ -77,7 +77,7 @@ import { getCloneableBody } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache, {
   CachedRouteKind,
-  type IncrementalCacheItem,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -665,7 +665,7 @@ export default class NextNodeServer extends BaseServer<
     req: NodeNextRequest,
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult,
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   ): Promise<{
     buffer: Buffer
     contentType: string
