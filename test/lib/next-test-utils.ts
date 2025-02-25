@@ -1439,6 +1439,8 @@ export async function getRedboxCallStack(
         // so that c&p automatically does the right thing.
         const frame = frameElement.innerText.replace('\n', ' ')
 
+        // TODO: Special marker if source-mapping fails.
+
         // Feel free to adjust this heuristic if it accidentally hides too much.
         const isInternalFrame =
           // likely https://linear.app/vercel/issue/NDX-464
