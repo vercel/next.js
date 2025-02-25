@@ -168,7 +168,6 @@ impl InstrumentationEndpoint {
                 this.project
                     .node_root()
                     .join("server/instrumentation.js".into()),
-                *module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Instrumentation {
                         app_dir: this.app_dir,
@@ -177,7 +176,8 @@ impl InstrumentationEndpoint {
                     }),
                     this.project.next_mode(),
                 )
-                .resolve_entries(*this.asset_context),
+                .resolve_entries(*this.asset_context)
+                .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),

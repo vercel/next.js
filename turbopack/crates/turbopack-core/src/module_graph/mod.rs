@@ -825,16 +825,6 @@ macro_rules! get_node_idx {
 }
 pub(crate) use get_node_idx;
 
-// pub struct AllNodesIterator {
-//     inner: Vec<ReadRef<SingleModuleGraph>>,
-// }
-// impl<'a> Iterator for &'a AllNodesIterator {
-//     type Item = &'a SingleModuleGraphModuleNode;
-//     fn next(&mut self) -> Option<Self::Item> {
-//         self.inner.iter().flat_map(|g| g.iter_nodes()).next()
-//     }
-// }
-
 impl ModuleGraph {
     pub async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
         self.graphs.iter().try_join().await
@@ -864,12 +854,6 @@ impl ModuleGraph {
         };
         Ok(idx)
     }
-
-    // Iterate over all nodes in the graph
-    // pub async fn iter_nodes(&self) -> Result<AllNodesIterator> {
-    // let graphs = self.get_graphs().await?;
-    // Ok(AllNodesIterator { inner: graphs })
-    // }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.

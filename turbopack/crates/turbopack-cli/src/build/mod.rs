@@ -423,7 +423,6 @@ async fn build_internal(
                                                 .into(),
                                         )
                                         .with_extension("entry.js".into()),
-                                    *ResolvedVc::upcast(ecmascript),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),
