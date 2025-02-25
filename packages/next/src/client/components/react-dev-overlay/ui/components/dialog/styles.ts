@@ -51,7 +51,7 @@ const styles = `
       background-color: #0a0a0a;
     }
     [data-nextjs-dialog]::-webkit-scrollbar-thumb {
-      background-color: #666;
+      background-color: #333;
     }
   }
   
