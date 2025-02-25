@@ -23,6 +23,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
+    parse::ParseResult,
     process_content_with_code_gens,
 };
 
@@ -30,6 +31,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: ResolvedVc<EcmascriptModuleFacadeModule>,
+    pub(crate) parsed: ResolvedVc<ParseResult>,
     pub(crate) module_graph: ResolvedVc<ModuleGraph>,
     pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
@@ -68,7 +70,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let esm_code_gens = self
             .module
-            .code_generation(*self.module_graph, *chunking_context)
+            .code_generation(*self.module_graph, *chunking_context, *self.parsed)
             .await?;
         let additional_code_gens = [
             self.module
@@ -80,7 +82,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 )
                 .await?,
             exports
-                .code_generation(*self.module_graph, *chunking_context)
+                .code_generation(*self.module_graph, *chunking_context, *self.parsed)
                 .await?,
         ];
         let code_gens = esm_code_gens.iter().chain(additional_code_gens.iter());
