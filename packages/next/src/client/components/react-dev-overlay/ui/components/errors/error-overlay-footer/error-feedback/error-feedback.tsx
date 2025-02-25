@@ -107,7 +107,7 @@ export const styles = `
   .error-feedback {
     display: flex;
     align-items: center;
-    gap: var(--size-gap);
+    gap: 8px;
     white-space: nowrap;
     color: var(--color-gray-900);
   }

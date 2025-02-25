@@ -47,7 +47,7 @@ export const EDITOR_LINK_STYLES = `
   [data-with-open-in-editor-link] svg {
     width: auto;
     height: var(--size-14);
-    margin-left: var(--size-gap);
+    margin-left: 8px;
   }
   [data-with-open-in-editor-link] {
     cursor: pointer;
@@ -56,6 +56,6 @@ export const EDITOR_LINK_STYLES = `
     text-decoration: underline dotted;
   }
   [data-with-open-in-editor-link-import-trace] {
-    margin-left: var(--size-gap-double);
+    margin-left: 16px;
   }
 `

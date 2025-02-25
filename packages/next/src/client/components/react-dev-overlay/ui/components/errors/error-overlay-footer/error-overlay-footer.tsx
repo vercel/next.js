@@ -28,7 +28,7 @@ export const styles = `
     flex-direction: row;
     justify-content: space-between;
 
-    gap: var(--size-gap);
+    gap: 8px;
     padding: var(--size-12);
     background: var(--color-background-200);
     border-top: 1px solid var(--color-gray-400);

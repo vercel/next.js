@@ -1,11 +1,11 @@
 const styles = `
   .nextjs-toast {
     position: fixed;
-    bottom: var(--size-gap-double);
-    left: var(--size-gap-double);
+    bottom: 16px;
+    left: 16px;
     max-width: 420px;
     z-index: 9000;
-    box-shadow: 0px var(--size-gap-double) var(--size-gap-quad)
+    box-shadow: 0px 16px 32px
       rgba(0, 0, 0, 0.25);
   }
 
@@ -18,7 +18,7 @@ const styles = `
 
   .nextjs-toast-errors-parent {
     padding: 16px;
-    border-radius: var(--size-gap-quad);
+    border-radius: 32px;
     font-weight: 500;
     color: var(--color-ansi-bright-white);
     background-color: var(--color-ansi-red);
@@ -29,7 +29,7 @@ const styles = `
     height: 30px;
     overflow: hidden;
     border: 0;
-    border-radius: var(--size-gap-triple);
+    border-radius: 24px;
     background: var(--color-background);
     color: var(--color-font);
     transition: all 0.3s ease-in-out;

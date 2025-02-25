@@ -292,7 +292,7 @@ function DevToolsPopover({
           setIsOpen={setIsRouteInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={routeInfoRendered}
@@ -306,7 +306,7 @@ function DevToolsPopover({
           setIsOpen={setIsTurbopackInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={turbopackInfoRendered}
@@ -329,7 +329,7 @@ function DevToolsPopover({
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
               '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
-              [vertical]: 'calc(100% + var(--size-gap))',
+              [vertical]: 'calc(100% + 8px)',
               [horizontal]: 0,
             } as React.CSSProperties
           }
