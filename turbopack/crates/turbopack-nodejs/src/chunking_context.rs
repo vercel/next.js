@@ -374,9 +374,6 @@ impl ChunkingContext for NodeJsChunkingContext {
         .await
     }
 
-    /// Generates an output chunk that:
-    /// * evaluates the given assets; and
-    /// * exports the result of evaluating the last module as a CommonJS default export.
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
