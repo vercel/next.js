@@ -1,14 +1,11 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
-    "dependencies": "^0.0.1",
-    "graphql": "^16.10.0",
-    "isomorphic-unfetch": "^4.0.2",
     "next": "latest",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
