@@ -3,6 +3,7 @@ import {
   assertHasDevToolsIndicator,
   assertNoDevToolsIndicator,
   openDevToolsIndicatorPopover,
+  waitFor,
 } from 'next-test-utils'
 
 describe('dev indicator - Hide DevTools Button', () => {
@@ -36,5 +37,20 @@ describe('dev indicator - Hide DevTools Button', () => {
     const browser2 = await next.browser('/')
     await browser2.refresh()
     await assertHasDevToolsIndicator(browser2)
+  })
+
+  it('should show the dev indicator after 1 day has passed', async () => {
+    const browser = await next.browser('/')
+
+    await openDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-hide-dev-tools]').click()
+
+    await assertNoDevToolsIndicator(browser)
+
+    // For testing, the indicator is hidden for only 3 seconds.
+    await waitFor(5000)
+
+    await browser.refresh()
+    await assertHasDevToolsIndicator(browser)
   })
 })

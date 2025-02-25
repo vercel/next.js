@@ -110,6 +110,9 @@ function pushErrorFilterDuplicates(
   ]
 }
 
+const shouldDisableDevIndicator =
+  process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+
 export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
@@ -206,7 +209,8 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
       case ACTION_DEV_INDICATOR: {
         return {
           ..._state,
-          disableDevIndicator: !!action.devIndicator.disabledUntil,
+          disableDevIndicator:
+            shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }
       }
       default: {
