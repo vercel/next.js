@@ -3,14 +3,14 @@ export type DevIndicatorDisabledState = {
   disabledUntil: number
 }
 
-export type DevIndicatorEnabledState = {
+export type DevIndicatorServerStateEnabled = {
   isDisabled: false
 }
 
 export type DevIndicatorState =
   | DevIndicatorDisabledState
-  | DevIndicatorEnabledState
+  | DevIndicatorServerStateEnabled
 
-export const devIndicatorState: DevIndicatorState = {
+export const devIndicatorServerState: DevIndicatorState = {
   isDisabled: false,
 }

@@ -117,8 +117,9 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   notFound: false,
   staticIndicator: false,
   devIndicator: {
+    // To prevent flickering, set the initial state to disabled.
     isDisabled: true,
-    disabledUntil: 0,
+    disabledUntil: Infinity,
   },
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],

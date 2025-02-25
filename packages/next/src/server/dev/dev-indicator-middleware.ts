@@ -1,7 +1,7 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import { middlewareResponse } from '../../client/components/react-dev-overlay/server/middleware-response'
 import * as Log from '../../build/output/log'
-import { devIndicatorState } from './dev-indicator-state'
+import { devIndicatorServerState } from './dev-indicator-state'
 
 const DISABLE_DEV_INDICATOR_PREFIX = '/__nextjs_disable_dev_indicator'
 
@@ -22,10 +22,10 @@ export function getDisableDevIndicatorMiddleware() {
         return middlewareResponse.methodNotAllowed(res)
       }
 
-      devIndicatorState.isDisabled = true
-      if (devIndicatorState.isDisabled) {
+      devIndicatorServerState.isDisabled = true
+      if (devIndicatorServerState.isDisabled) {
         // 1 day from now
-        devIndicatorState.disabledUntil = Date.now() + 1000 * 60 * 60 * 24
+        devIndicatorServerState.disabledUntil = Date.now() + 1000 * 60 * 60 * 24
       }
 
       return middlewareResponse.noContent(res)

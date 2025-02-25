@@ -76,6 +76,7 @@ import {
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
+import { devIndicatorServerState } from '../../dev/dev-indicator-server-state'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -187,6 +188,13 @@ async function startWatcher(opts: SetupOpts) {
         previewProps: opts.fsChecker.prerenderManifest.preview,
         resetFetch,
       })
+
+  if (opts.nextConfig.devIndicators === false) {
+    devIndicatorServerState.isDisabled = true
+    if (devIndicatorServerState.isDisabled) {
+      devIndicatorServerState.disabledUntil = Infinity
+    }
+  }
 
   await hotReloader.start()
 

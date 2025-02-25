@@ -96,8 +96,8 @@ import {
 } from '../../shared/lib/turbopack/utils'
 import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
 import {
-  devIndicatorState,
-  type DevIndicatorEnabledState,
+  devIndicatorServerState,
+  type DevIndicatorServerStateEnabled,
 } from './dev-indicator-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
@@ -831,11 +831,11 @@ export async function createHotReloaderTurbopack(
         }
 
         if (
-          devIndicatorState.isDisabled &&
-          devIndicatorState.disabledUntil < Date.now()
+          devIndicatorServerState.isDisabled &&
+          devIndicatorServerState.disabledUntil < Date.now()
         ) {
           ;(
-            devIndicatorState as unknown as DevIndicatorEnabledState
+            devIndicatorServerState as unknown as DevIndicatorServerStateEnabled
           ).isDisabled = false
         }
 
@@ -851,7 +851,7 @@ export async function createHotReloaderTurbopack(
             debug: {
               devtoolsFrontendUrl,
             },
-            devIndicator: devIndicatorState,
+            devIndicator: devIndicatorServerState,
           }
 
           sendToClient(client, sync)

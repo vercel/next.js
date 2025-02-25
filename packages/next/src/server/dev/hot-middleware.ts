@@ -28,8 +28,8 @@ import type { VersionInfo } from './parse-version-info'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import {
-  devIndicatorState,
-  type DevIndicatorEnabledState,
+  devIndicatorServerState,
+  type DevIndicatorServerStateEnabled,
 } from './dev-indicator-state'
 
 function isMiddlewareStats(stats: webpack.Stats) {
@@ -207,11 +207,12 @@ export class WebpackHotMiddleware {
       const middlewareStats = statsToJson(this.middlewareLatestStats?.stats)
 
       if (
-        devIndicatorState.isDisabled &&
-        devIndicatorState.disabledUntil < Date.now()
+        devIndicatorServerState.isDisabled &&
+        devIndicatorServerState.disabledUntil < Date.now()
       ) {
-        ;(devIndicatorState as unknown as DevIndicatorEnabledState).isDisabled =
-          false
+        ;(
+          devIndicatorServerState as unknown as DevIndicatorServerStateEnabled
+        ).isDisabled = false
       }
 
       this.publish({
@@ -226,7 +227,7 @@ export class WebpackHotMiddleware {
         debug: {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },
-        devIndicator: devIndicatorState,
+        devIndicator: devIndicatorServerState,
       })
     }
   }
