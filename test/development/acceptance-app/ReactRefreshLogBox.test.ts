@@ -356,7 +356,7 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [
            "ClickCount.render Child.js (4:11)",
            "Home index.js (6:7)",
-           "<FIXME-source-map-middleware-bug>",
+           "<FIXME-file-protocol>",
          ],
        }
       `)

@@ -31,7 +31,6 @@ declare global {
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
        * `<FIXME-file-protocol>` in the snapshot would be unintended.
-       * `<FIXME-source-map-middleware-bug>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -51,7 +50,6 @@ declare global {
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
        * `<FIXME-file-protocol>` in the snapshot would be unintended.
-       * `<FIXME-source-map-middleware-bug>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *

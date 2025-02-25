@@ -258,8 +258,8 @@ describe('pages/ error recovery', () => {
          "stack": [
            "Child child.js (3:9)",
            "Set.forEach <anonymous> (0:0)",
-           "<FIXME-source-map-middleware-bug>",
-           "<FIXME-source-map-middleware-bug>",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
          ],
        }
       `)
@@ -477,8 +477,8 @@ describe('pages/ error recovery', () => {
          "stack": [
            "ClassDefault.render index.js (5:11)",
            "Set.forEach <anonymous> (0:0)",
-           "<FIXME-source-map-middleware-bug>",
-           "<FIXME-source-map-middleware-bug>",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
          ],
        }
       `)
@@ -561,8 +561,8 @@ describe('pages/ error recovery', () => {
          "stack": [
            "Foo Foo.js (3:3)",
            "Set.forEach <anonymous> (0:0)",
-           "<FIXME-source-map-middleware-bug>",
-           "<FIXME-source-map-middleware-bug>",
+           "<FIXME-file-protocol>",
+           "<FIXME-file-protocol>",
          ],
        }
       `)
