@@ -1,6 +1,9 @@
 const styles = `
   [data-nextjs-dialog-root] {
+    --next-dialog-radius: var(--rounded-xl);
+    --next-dialog-footer-height: var(--rem-px-48);
     --next-dialog-max-width: 960px;
+    --next-dialog-row-padding: 16px;
 
     display: flex;
     flex-direction: column-reverse;
@@ -79,12 +82,12 @@ const styles = `
     */
     position: fixed;
     bottom: 1px;
-    min-height: var(--rem-px-48);
-    border-radius: 0 0 var(--rounded-xl) var(--rounded-xl);
+    min-height: var(--next-dialog-footer-height);
+    border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
     overflow: hidden;
 
     > * {
-      min-height: var(--rem-px-48);
+      min-height: var(--next-dialog-footer-height);
     }
   }
 

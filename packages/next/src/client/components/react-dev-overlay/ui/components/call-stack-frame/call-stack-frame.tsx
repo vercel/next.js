@@ -106,7 +106,12 @@ export const CALL_STACK_FRAME_STYLES = `
     color: var(--color-gray-1000);
     font-size: var(--size-14);
     font-weight: 500;
-    line-height: var(--size-20);
+    line-height: var(--rem-px-20);
+
+    svg {
+      width: var(--size-16px);
+      height: var(--size-16px);
+    }
   }
 
   .open-in-editor-button {

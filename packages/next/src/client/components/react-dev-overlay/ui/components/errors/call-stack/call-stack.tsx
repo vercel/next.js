@@ -152,8 +152,8 @@ export const CALL_STACK_STYLES = `
     justify-content: center;
     align-items: center;
 
-    width: 20px;
-    height: 20px;
+    width: var(--rem-px-20);
+    height: var(--rem-px-20);
     gap: 4px;
 
     color: var(--color-gray-1000);
@@ -185,6 +185,11 @@ export const CALL_STACK_STYLES = `
 
     &:focus {
       outline: var(--focus-ring);
+    }
+
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
     }
   }
 `

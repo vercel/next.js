@@ -121,7 +121,7 @@ export const CODE_FRAME_STYLES = `
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font-smaller);
-    line-height: 16px;
+    line-height: var(--rem-px-16);
     margin: 8px 0;
   }
 
