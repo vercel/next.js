@@ -4,6 +4,7 @@ const styles = `
     --next-dialog-footer-height: var(--rem-px-48);
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
+    --next-dialog-container-padding: 12px;
 
     display: flex;
     flex-direction: column-reverse;
@@ -59,7 +60,7 @@ const styles = `
 
   /* Account for the footer height, when present */
   [data-nextjs-dialog][data-has-footer='true'] [data-nextjs-dialog-body] {
-    margin-bottom: 48px;
+    margin-bottom: var(--next-dialog-footer-height);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
