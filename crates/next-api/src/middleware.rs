@@ -161,7 +161,6 @@ impl MiddlewareEndpoint {
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
             .entry_chunk_group(
                 this.project.node_root().join("server/middleware.js".into()),
-                *module,
                 get_server_runtime_entries(
                     Value::new(ServerContextType::Middleware {
                         app_dir: this.app_dir,
@@ -170,7 +169,8 @@ impl MiddlewareEndpoint {
                     }),
                     this.project.next_mode(),
                 )
-                .resolve_entries(*this.asset_context),
+                .resolve_entries(*this.asset_context)
+                .with_entry(*module),
                 module_graph,
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
