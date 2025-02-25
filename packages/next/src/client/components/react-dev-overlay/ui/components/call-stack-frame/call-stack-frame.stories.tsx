@@ -32,7 +32,7 @@ const frame = {
     lineNumber: 10,
     column: 5,
   },
-  error: false,
+  error: false as const,
   reason: null,
   external: false,
   ignored: false,
