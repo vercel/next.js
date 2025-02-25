@@ -123,8 +123,8 @@ export const styles = `
     background: none;
     border: none;
     border-radius: var(--rounded-md);
-    width: 24px;
-    height: 24px;
+    width: var(--rem-px-24);
+    height: var(--rem-px-24);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -155,5 +155,7 @@ export const styles = `
   .thumbs-up-icon,
   .thumbs-down-icon {
     color: var(--color-gray-900);
+    width: var(--rem-px-16);
+    height: var(--rem-px-16);
   }
 `

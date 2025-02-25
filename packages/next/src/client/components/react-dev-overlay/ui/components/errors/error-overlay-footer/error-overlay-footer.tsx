@@ -49,7 +49,7 @@ export const styles = `
     margin: 0;
     font-size: var(--size-font-small);
     font-weight: 400;
-    line-height: 1.43em; /* 20px in 14px font size */
+    line-height: var(--rem-px-20);
   }
 
   ${feedbackStyles}

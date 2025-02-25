@@ -175,13 +175,18 @@ export const styles = `
     justify-content: center;
     align-items: center;
 
-    width: 24px;
-    height: 24px;
+    width: var(--rem-px-24);
+    height: var(--rem-px-24);
     background: var(--color-gray-300);
     flex-shrink: 0;
 
     border: none;
     border-radius: var(--rounded-full);
+
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
+    }
 
     &:focus-visible {
       outline: var(--focus-ring);

@@ -43,6 +43,7 @@ export function ErrorOverlayNav({
 
 export const styles = `
   [data-nextjs-error-overlay-nav] {
+    --notch-height: 2.625rem; /* 42px */
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -59,7 +60,7 @@ export const styles = `
 
       translate: -1px 0;
       width: auto;
-      height: 42px;
+      height: var(--notch-height);
       padding: 12px;
       background: var(--background-color);
       border: 1px solid var(--stroke-color);
@@ -98,6 +99,7 @@ export const styles = `
         top: -1px;
         pointer-events: none;
         z-index: -1;
+        height: calc(100% + 1px);
       }
     }
   }
@@ -127,6 +129,7 @@ function Tail() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className="error-overlay-notch-tail"
+      preserveAspectRatio="none"
     >
       <mask
         id="mask0_2667_14687"
