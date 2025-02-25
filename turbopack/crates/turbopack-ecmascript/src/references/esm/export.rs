@@ -28,12 +28,11 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    code_gen::{CodeGenerateable, CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    EcmascriptParsable,
 };
 
 #[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
@@ -431,7 +430,6 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
-    pub parsable: ResolvedVc<Box<dyn EcmascriptParsable>>,
     pub exports: BTreeMap<RcStr, EsmExport>,
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
@@ -497,6 +495,7 @@ impl EsmExports {
         self: Vc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        parsed: Vc<ParseResult>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
 
