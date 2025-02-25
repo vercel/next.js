@@ -5,14 +5,14 @@ export function Base() {
     <style>
       {css`
         :host {
-          ${
-            // Although the style applied to the shadow host is isolated,
-            // the element that attached the shadow host (i.e. `nextjs-portal`)
-            // is still affected by the parent's style (e.g. `body`). This may
-            // occur style conflicts like `display: flex`, with other children
-            // elements therefore give the shadow host an absolute position.
-            'position: absolute;'
-          }
+          /* 
+            Although the style applied to the shadow host is isolated,
+            the element that attached the shadow host (i.e. "nextjs-portal")
+            is still affected by the parent's style (e.g. "body"). This may
+            occur style conflicts like "display: flex", with other children
+            elements therefore give the shadow host an absolute position.
+          */
+          position: absolute;
 
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
@@ -69,11 +69,14 @@ export function Base() {
           --rounded-4xl: 32px;
           --rounded-full: 9999px;
 
-          /* Suffix N of --size-N as px value when the base font size is 16px. */
-          --size-1: 0.0625rem;
-          --size-2: 0.125rem;
-          --size-3: 0.1875rem;
-          --size-4: 0.25rem;
+          /* 
+            Suffix N of --size-N as px value when the base font size is 16px.
+            Example: --size-1 is 1px, --size-2 is 2px, --size-3 is 3px, etc.
+          */
+          --size-1: 0.0625rem; /* 1px */
+          --size-2: 0.125rem; /* 2px */
+          --size-3: 0.1875rem; /* 3px */
+          --size-4: 0.25rem; /* ...and more */
           --size-5: 0.3125rem;
           --size-6: 0.375rem;
           --size-7: 0.4375rem;
