@@ -122,6 +122,11 @@ export const CALL_STACK_FRAME_STYLES = `
     padding: 4px;
     color: var(--color-font);
 
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
+    }
+
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: -2px;

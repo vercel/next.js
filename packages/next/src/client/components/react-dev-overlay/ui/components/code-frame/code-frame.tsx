@@ -123,6 +123,11 @@ export const CODE_FRAME_STYLES = `
     font-size: var(--size-font-smaller);
     line-height: var(--rem-px-16);
     margin: 8px 0;
+
+    svg {
+      width: var(--rem-px-16);
+      height: var(--rem-px-16);
+    }
   }
 
   .code-frame-link,
@@ -156,6 +161,7 @@ export const CODE_FRAME_STYLES = `
     margin: -4px 0 -4px auto;
     border-radius: var(--rounded-full);
     margin-left: auto;
+
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: -2px;
