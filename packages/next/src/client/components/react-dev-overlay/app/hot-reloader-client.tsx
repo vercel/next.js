@@ -541,7 +541,7 @@ export default function HotReload({
   children: ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useErrorOverlayReducer()
+  const [state, dispatch] = useErrorOverlayReducer('app')
 
   const dispatcher = useMemo<Dispatcher>(() => {
     return {

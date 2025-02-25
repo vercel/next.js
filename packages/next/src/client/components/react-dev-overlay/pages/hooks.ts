@@ -4,7 +4,7 @@ import { useErrorOverlayReducer } from '../shared'
 import { Router } from '../../../router'
 
 export const usePagesDevOverlay = () => {
-  const [state, dispatch] = useErrorOverlayReducer()
+  const [state, dispatch] = useErrorOverlayReducer('pages')
 
   React.useEffect(() => {
     Bus.on(dispatch)
