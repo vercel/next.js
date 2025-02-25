@@ -92,7 +92,7 @@ export const styles = `
     box-shadow:
       0px 2px 2px var(--color-gray-alpha-100),
       0px 8px 8px -8px var(--color-gray-alpha-100);
-    font-size: var(--size-font-13);
+    font-size: var(--size-13);
     cursor: pointer;
     color: var(--color-gray-900);
     font-weight: 500;

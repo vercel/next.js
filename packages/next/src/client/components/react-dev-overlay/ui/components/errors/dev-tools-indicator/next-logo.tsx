@@ -244,7 +244,7 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-open] {
-            font-size: var(--size-font-13);
+            font-size: var(--size-13);
             color: white;
             width: fit-content;
             height: 100%;

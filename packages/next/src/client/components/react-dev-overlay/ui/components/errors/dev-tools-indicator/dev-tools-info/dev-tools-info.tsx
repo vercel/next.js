@@ -75,7 +75,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-title {
     padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     font-weight: 500;
     line-height: var(--size-20);
     margin: 0;
@@ -84,7 +84,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-article {
     padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: var(--size-20);
     margin: 0;
   }
@@ -104,7 +104,7 @@ export const DEV_TOOLS_INFO_STYLES = `
   .dev-tools-info-close-button {
     padding: 0 8px;
     height: var(--size-28);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     font-weight: 500;
     line-height: var(--size-20);
     transition: background var(--duration-short) ease;
@@ -122,7 +122,7 @@ export const DEV_TOOLS_INFO_STYLES = `
     align-content: center;
     padding: 0 8px;
     height: var(--size-28);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     font-weight: 500;
     line-height: var(--size-20);
     transition: background var(--duration-short) ease;

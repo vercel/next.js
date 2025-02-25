@@ -14,14 +14,6 @@ export function Base() {
           */
           position: absolute;
 
-          --size-font-11: var(--size-11);
-          --size-font-smaller: var(--size-12);
-          --size-font-13: var(--size-13);
-          --size-font-small: var(--size-14);
-          --size-font: var(--size-16);
-          --size-font-big: var(--size-20);
-          --size-font-bigger: var(--size-24);
-
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
           --color-border-shadow: rgba(0, 0, 0, 0.145);

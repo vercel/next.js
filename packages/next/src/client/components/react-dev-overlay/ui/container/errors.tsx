@@ -215,11 +215,11 @@ export const styles = `
     bottom: calc(16px * 4.5);
   }
   p.nextjs__container_errors__link {
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {

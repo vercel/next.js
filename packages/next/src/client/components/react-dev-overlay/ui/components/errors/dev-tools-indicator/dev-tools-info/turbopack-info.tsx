@@ -117,7 +117,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
     font-family: var(--font-stack-mono);
     padding: 2px 4px;
     margin: 0;
-    font-size: var(--size-font-13);
+    font-size: var(--size-13);
     white-space: break-spaces;
     border-radius: var(--rounded-md-2);
   }
@@ -137,7 +137,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   .dev-tools-info-code-block-pre {
     margin: 0;
     font-family: var(--font-stack-mono);
-    font-size: var(--size-font-smaller);
+    font-size: var(--size-12);
   }
 
   .dev-tools-info-copy-button {

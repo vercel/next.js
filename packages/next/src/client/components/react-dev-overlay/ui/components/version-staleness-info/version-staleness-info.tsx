@@ -104,7 +104,7 @@ export const styles = `
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);
-    font-size: var(--size-font-smaller);
+    font-size: var(--size-12);
     font-weight: 500;
     line-height: var(--size-16);
   }
