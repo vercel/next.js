@@ -1,17 +1,12 @@
-import HTML_BOTS_LIST from './html-bots'
+import { HTML_LIMITED_BOT_UA_RE } from './html-bots'
 
 // Bot crawler that will spin up a headless browser and execute JS
 const HEADLESS_BROWSER_BOT_UA_RE =
   /Googlebot|Google-PageRenderer|AdsBot-Google|googleweblight|Storebot-Google/i
 
-// This regex contains the bots that we need to do a blocking render for and can't safely stream the response
-// due to how they parse the DOM. For example, they might explicitly check for metadata in the `head` tag, so we can't stream metadata tags after the `head` was sent.
-export const HTML_LIMITED_BOT_UA_RE_STRING = HTML_BOTS_LIST.join('|')
+export const HTML_LIMITED_BOT_UA_RE_STRING = HTML_LIMITED_BOT_UA_RE.source
 
-export const HTML_LIMITED_BOT_UA_RE = new RegExp(
-  HTML_LIMITED_BOT_UA_RE_STRING,
-  'i'
-)
+export { HTML_LIMITED_BOT_UA_RE }
 
 function isDomBotUA(userAgent: string) {
   return HEADLESS_BROWSER_BOT_UA_RE.test(userAgent)

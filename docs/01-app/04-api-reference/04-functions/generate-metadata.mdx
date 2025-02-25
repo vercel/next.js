@@ -1208,8 +1208,7 @@ Some bots, like `Googlebot`, can execute JavaScript and are able to inspect the 
 Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
 
 If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
-Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior.
-Usually you don't have to worry about this, most of the bots will be handled by Next.js automatically.
+Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
 
 ```js filename="next.config.js"
 module.exports = {
