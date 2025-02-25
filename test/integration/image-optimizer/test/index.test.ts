@@ -542,6 +542,38 @@ describe('Image Optimizer', () => {
       }
     })
 
+    it('should error when experimental.nextUrlServerPrefix is provided but is invalid', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            nextUrlServerPrefix: 'httpbad',
+          },
+          images: {
+            formats: ['image/webp'],
+          },
+        })
+      )
+      try {
+        let stderr = ''
+
+        app = await launchApp(appDir, await findPort(), {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
+
+        await retry(() => {
+          expect(stderr).toContain(
+            `Specified nextUrlServerPrefix has to start with a /`
+          )
+        })
+      } finally {
+        await killApp(app).catch(() => {})
+        await nextConfig.restore()
+      }
+    })
+
     it('should error when images.remotePatterns is invalid', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
