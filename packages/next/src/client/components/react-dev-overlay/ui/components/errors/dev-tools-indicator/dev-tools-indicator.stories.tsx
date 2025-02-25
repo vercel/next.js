@@ -56,9 +56,7 @@ const state: OverlayState = {
   buildError: null,
   errors: [],
   refreshState: { type: 'idle' },
-  devIndicator: {
-    isDisabled: false,
-  },
+  disableDevIndicator: false,
   rootLayoutMissingTags: [],
   versionInfo: mockVersionInfo,
   notFound: false,
