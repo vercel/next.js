@@ -18,7 +18,7 @@ import {
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
-import type { DevIndicatorState } from '../../../../server/dev/dev-indicator-state'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -145,7 +145,7 @@ export function onStaticIndicator(isStatic: boolean) {
   Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
 }
 
-export function onDevIndicator(devIndicatorsState: DevIndicatorState) {
+export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
   Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
 }
 

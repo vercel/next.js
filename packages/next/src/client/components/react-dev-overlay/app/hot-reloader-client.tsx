@@ -49,7 +49,7 @@ import { getReactStitchedError } from '../../errors/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
-import type { DevIndicatorState } from '../../../../server/dev/dev-indicator-state'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -59,7 +59,7 @@ export interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
   onStaticIndicator(status: boolean): void
-  onDevIndicator(devIndicator: DevIndicatorState): void
+  onDevIndicator(devIndicator: DevIndicatorServerState): void
 }
 
 let mostRecentCompilationHash: any = null

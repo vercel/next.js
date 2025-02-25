@@ -5,7 +5,7 @@ import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
 import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
-import type { DevIndicatorState } from '../../../server/dev/dev-indicator-state'
+import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -22,7 +22,7 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
-  devIndicator: DevIndicatorState
+  devIndicator: DevIndicatorServerState
   debugInfo: DebugInfo
   routerType: 'pages' | 'app'
 }
@@ -82,7 +82,7 @@ interface VersionInfoAction {
 
 interface DevIndicatorAction {
   type: typeof ACTION_DEV_INDICATOR
-  devIndicator: DevIndicatorState
+  devIndicator: DevIndicatorServerState
 }
 
 export type BusEvent =

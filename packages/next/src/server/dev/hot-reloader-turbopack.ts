@@ -98,7 +98,7 @@ import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-o
 import {
   devIndicatorServerState,
   type DevIndicatorServerStateEnabled,
-} from './dev-indicator-state'
+} from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 

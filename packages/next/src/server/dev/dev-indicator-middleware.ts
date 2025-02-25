@@ -1,7 +1,7 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import { middlewareResponse } from '../../client/components/react-dev-overlay/server/middleware-response'
 import * as Log from '../../build/output/log'
-import { devIndicatorServerState } from './dev-indicator-state'
+import { devIndicatorServerState } from './dev-indicator-server-state'
 
 const DISABLE_DEV_INDICATOR_PREFIX = '/__nextjs_disable_dev_indicator'
 

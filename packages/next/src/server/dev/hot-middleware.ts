@@ -30,7 +30,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
 import {
   devIndicatorServerState,
   type DevIndicatorServerStateEnabled,
-} from './dev-indicator-state'
+} from './dev-indicator-server-state'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
