@@ -357,18 +357,18 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"hasWebpackConfig": true/)
         expect(event).toMatch(/"hasBabelConfig": false/)
 
-        // Check if features are detected correctly when custom webpack config exists
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'swcStyledComponents',
-          invocationCount: 0,
-        })
-
         // This event doesn't get recorded for Turbopack as the webpack config is not executed.
         if (!process.env.TURBOPACK) {
+          // Check if features are detected correctly when custom webpack config exists
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'swcStyledComponents',
+            invocationCount: 0,
+          })
+
           expect(featureUsageEvents).toContainEqual({
             featureName: 'webpackPlugins',
             invocationCount: 1,
