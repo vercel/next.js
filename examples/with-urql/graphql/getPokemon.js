@@ -1,4 +1,5 @@
 import { client } from "./client";
+
 const pokemonQuery = `
   query firstTwentyPokemons($name: String!) {
     pokemon(name: $name) {
