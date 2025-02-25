@@ -62,7 +62,7 @@ import { prefetch as prefetchWithSegmentCache } from '../components/segment-cach
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
-import { pingVisibleLinks } from '../app-dir/link'
+import { pingVisibleLinks } from './segment-cache/links'
 
 const globalMutable: {
   pendingMpaPath?: string
