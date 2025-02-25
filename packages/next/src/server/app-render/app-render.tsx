@@ -1211,7 +1211,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setAppIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, null)
   }
 
   if (
@@ -1473,19 +1473,19 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       process.env.NODE_ENV === 'development' &&
-      renderOpts.setAppIsrStatus &&
+      renderOpts.setIsrStatus &&
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req) &&
       !isDevWarmupRequest
     ) {
-      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         if (!requestStore.usedDynamic && !workStore.forceDynamic) {
           // only node can be ISR so we only need to update the status here
           const { pathname } = new URL(req.url || '/', 'http://n')
-          setAppIsrStatus(pathname, true)
+          setIsrStatus(pathname, true)
         }
       })
     }

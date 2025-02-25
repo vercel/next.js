@@ -12,7 +12,8 @@ interface Props extends React.ComponentProps<'button'> {
   toggleErrorOverlay: () => void
 }
 
-const SIZE = 36
+const SIZE = '2.25rem' // 36px in 16px base
+const SIZE_PX = 36
 const SHORT_DURATION_MS = 150
 
 /**
@@ -94,7 +95,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': `${SIZE}px`,
+          '--size': SIZE,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled and there are no errors, hide the badge
           display: disabled && !hasError ? 'none' : 'block',
@@ -112,8 +113,7 @@ export const NextLogo = forwardRef(function NextLogo(
             --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
-            --padding: 2px;
-            --mark-size: calc(var(--size) - var(--padding) * 2);
+            --mark-size: calc(var(--size) - var(--size-2) * 2);
 
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
@@ -143,7 +143,7 @@ export const NextLogo = forwardRef(function NextLogo(
               inset 0 0 0 1px var(--color-inner-border),
               0px 16px 32px -8px rgba(0, 0, 0, 0.24);
             backdrop-filter: blur(48px);
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             user-select: none;
             cursor: pointer;
             scale: 1;
@@ -207,8 +207,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-dot] {
             content: '';
-            width: 8px;
-            height: 8px;
+            width: var(--size-8);
+            height: var(--size-8);
             background: #fff;
             box-shadow: 0 0 0 1px var(--color-outer-border);
             border-radius: 50%;
@@ -223,15 +223,15 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-issues] {
             display: flex;
-            gap: var(--padding);
+            gap: 2px;
             align-items: center;
             padding-left: 8px;
             padding-right: ${disabled || isBuildError
               ? '8px'
-              : 'calc(var(--padding) * 2)'};
-            height: 32px;
-            margin: 0 var(--padding);
-            border-radius: 9999px;
+              : 'calc(2px * 2)'};
+            height: var(--size-32);
+            margin: 0 2px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
@@ -244,7 +244,7 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-open] {
-            font-size: 13px;
+            font-size: var(--size-13);
             color: white;
             width: fit-content;
             height: 100%;
@@ -252,7 +252,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: 2px;
             align-items: center;
             margin: 0;
-            line-height: 36px;
+            line-height: var(--size-36);
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
@@ -263,9 +263,9 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-collapse] {
-            width: 24px;
-            height: 24px;
-            border-radius: 9999px;
+            width: var(--size-24);
+            height: var(--size-24);
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:hover {
@@ -275,15 +275,17 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-cross] {
             color: #fff;
+            width: var(--size-12);
+            height: var(--size-12);
           }
 
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: var(--padding);
+            margin-left: 2px;
             display: flex;
             align-items: center;
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-long) var(--timing);
 
             &:focus-visible {
@@ -296,6 +298,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
             svg {
               flex-shrink: 0;
+              width: var(--size-40);
+              height: var(--size-40);
             }
           }
 
@@ -421,7 +425,7 @@ export const NextLogo = forwardRef(function NextLogo(
         data-error-expanded={isErrorExpanded}
         data-animate={newErrorDetected}
         style={{
-          width: hasError && width > SIZE ? width : SIZE,
+          width: hasError && width > SIZE_PX ? width : SIZE,
         }}
       >
         <div ref={ref}>

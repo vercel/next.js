@@ -111,18 +111,19 @@ async fn compute_async_module_info_single(
         },
     )?;
 
-    petgraph::algo::TarjanScc::new().run(&*graph.graph, |scc| {
-        // Only SCCs with more than one node are cycles
-        if scc.len() > 1
-            && scc
+    graph.traverse_cycles(
+        |ty| ty.is_inherit_async(),
+        |cycle| {
+            if cycle
                 .iter()
-                .any(|idx| async_modules.contains(&graph.graph.node_weight(*idx).unwrap().module()))
-        {
-            for &idx in scc {
-                async_modules.insert(graph.graph.node_weight(idx).unwrap().module());
+                .any(|node| async_modules.contains(&node.module))
+            {
+                for &node in cycle {
+                    async_modules.insert(node.module);
+                }
             }
-        }
-    });
+        },
+    );
 
     Ok(Vc::cell(async_modules))
 }

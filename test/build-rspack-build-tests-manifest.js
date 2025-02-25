@@ -91,10 +91,9 @@ async function fetchLatestTestArtifact() {
   const res = JSON.parse(stdout)
 
   for (const artifact of res.artifacts) {
-    // Temporarily allow other branches too
-    // if (artifact.expired || artifact.workflow_run.head_branch !== 'canary') {
-    //   continue
-    // }
+    if (artifact.expired || artifact.workflow_run.head_branch !== 'canary') {
+      continue
+    }
 
     return artifact
   }

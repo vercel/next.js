@@ -41,11 +41,15 @@ export function DevToolsIndicator({
 
   return (
     <DevToolsPopover
+      routerType={state.routerType}
       semver={state.versionInfo.installed}
       issueCount={errorCount}
       isStaticRoute={state.staticIndicator}
       hide={() => {
         setIsDevToolsIndicatorVisible(false)
+        fetch('/__nextjs_disable_dev_indicator', {
+          method: 'POST',
+        })
       }}
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
@@ -70,6 +74,7 @@ interface C {
 const Context = createContext({} as C)
 
 function DevToolsPopover({
+  routerType,
   disabled,
   issueCount,
   isStaticRoute,
@@ -79,6 +84,7 @@ function DevToolsPopover({
   hide,
   setIsErrorOverlayOpen,
 }: {
+  routerType: 'pages' | 'app'
   disabled: boolean
   issueCount: number
   isStaticRoute: boolean
@@ -259,8 +265,8 @@ function DevToolsPopover({
         // Reset the toast component's default positions.
         bottom: 'initial',
         left: 'initial',
-        [vertical]: 'var(--size-2_5)',
-        [horizontal]: 'var(--size-5)',
+        [vertical]: '10px',
+        [horizontal]: '20px',
       }}
     >
       <NextLogo
@@ -283,12 +289,13 @@ function DevToolsPopover({
       {routeInfoMounted && (
         <RouteInfo
           ref={routeInfoRef}
+          routerType={routerType}
           routeType={isStaticRoute ? 'Static' : 'Dynamic'}
           isOpen={isRouteInfoOpen}
           setIsOpen={setIsRouteInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={routeInfoRendered}
@@ -302,7 +309,7 @@ function DevToolsPopover({
           setIsOpen={setIsTurbopackInfoOpen}
           setPreviousOpen={setIsMenuOpen}
           style={{
-            [vertical]: 'calc(100% + var(--size-gap))',
+            [vertical]: 'calc(100% + 8px)',
             [horizontal]: 0,
           }}
           data-rendered={turbopackInfoRendered}
@@ -325,7 +332,7 @@ function DevToolsPopover({
             {
               '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
               '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
-              [vertical]: 'calc(100% + var(--size-gap))',
+              [vertical]: 'calc(100% + 8px)',
               [horizontal]: 0,
             } as React.CSSProperties
           }
@@ -340,6 +347,7 @@ function DevToolsPopover({
             <div className="dev-tools-indicator-inner">
               {issueCount > 0 && (
                 <MenuItem
+                  title={`${issueCount} ${issueCount === 1 ? 'issue' : 'issues'} found. Click to view details in the dev overlay.`}
                   index={0}
                   label="Issues"
                   value={<IssueCount>{issueCount}</IssueCount>}
@@ -347,6 +355,7 @@ function DevToolsPopover({
                 />
               )}
               <MenuItem
+                title={`Current route is ${isStaticRoute ? 'static' : 'dynamic'}.`}
                 label="Route"
                 index={1}
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
@@ -354,10 +363,15 @@ function DevToolsPopover({
                 data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
               />
               {isTurbopack ? (
-                <MenuItem label="Turbopack" value="Enabled" />
+                <MenuItem
+                  title="Turbopack is enabled."
+                  label="Turbopack"
+                  value="Enabled"
+                />
               ) : (
                 <MenuItem
                   index={2}
+                  title="Learn about Turbopack and how to enable it in your application."
                   label="Try Turbopack"
                   value={<ChevronRight />}
                   onClick={() => setIsTurbopackInfoOpen(true)}
@@ -368,7 +382,8 @@ function DevToolsPopover({
             <div className="dev-tools-indicator-footer">
               <MenuItem
                 data-hide-dev-tools
-                label="Hide Dev Tools"
+                title="Hide Dev Tools for the current server session or a day."
+                label="Hide for Dev Session"
                 value={<StopIcon />}
                 onClick={hide}
                 index={isTurbopack ? 2 : 3}
@@ -383,7 +398,13 @@ function DevToolsPopover({
 
 function ChevronRight() {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+    >
       <path
         fill="#666"
         fillRule="evenodd"
@@ -403,6 +424,7 @@ function MenuItem({
   ...props
 }: {
   index?: number
+  title?: string
   label: string
   value: React.ReactNode
   href?: string
@@ -580,10 +602,16 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     display: flex;
     align-items: center;
     padding: 8px 6px;
-    height: 36px;
+    height: var(--size-36);
     border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
+    white-space: nowrap;
+
+    svg {
+      width: var(--size-16);
+      height: var(--size-16);
+    }
 
     &:focus-visible {
       outline: 0;
@@ -603,14 +631,14 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
   }
 
   .dev-tools-indicator-label {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     color: var(--color-gray-1000);
   }
 
   .dev-tools-indicator-value {
-    font-size: var(--size-font-small);
-    line-height: var(--size-5);
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     color: var(--color-gray-900);
     margin-left: auto;
   }
@@ -623,8 +651,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     align-items: center;
     justify-content: center;
     gap: 8px;
-    min-width: 41px;
-    height: 24px;
+    min-width: var(--size-40);
+    height: var(--size-24);
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
@@ -633,7 +661,7 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     color: var(--color-gray-1000);
     border-radius: 128px;
     font-weight: 500;
-    font-size: 13px;
+    font-size: var(--size-13);
     font-variant-numeric: tabular-nums;
 
     &[data-has-issues='true'] {
@@ -642,8 +670,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
     }
 
     .dev-tools-indicator-issue-count-indicator {
-      width: 8px;
-      height: 8px;
+      width: var(--size-8);
+      height: var(--size-8);
       background: var(--color-primary);
       box-shadow: 0 0 0 2px var(--color-secondary);
       border-radius: 50%;
@@ -652,11 +680,11 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
 
   .dev-tools-indicator-shortcut {
     display: flex;
-    gap: var(--size-1);
+    gap: 4px;
 
     kbd {
-      width: var(--size-5);
-      height: var(--size-5);
+      width: var(--size-20);
+      height: var(--size-20);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -666,8 +694,8 @@ export const DEV_TOOLS_INDICATOR_STYLES = `
       background: var(--color-background-100);
       color: var(--color-gray-1000);
       text-align: center;
-      font-size: var(--size-font-smaller);
-      line-height: var(--size-4);
+      font-size: var(--size-12);
+      line-height: var(--size-16);
     }
   }
 `

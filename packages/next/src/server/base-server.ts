@@ -2535,7 +2535,7 @@ export default abstract class Server<
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
         // only available in dev
-        setAppIsrStatus: (this as any).setAppIsrStatus,
+        setIsrStatus: (this as any).setIsrStatus,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {

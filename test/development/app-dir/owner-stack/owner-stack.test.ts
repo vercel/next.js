@@ -139,10 +139,9 @@ describe('app-dir - owner-stack', () => {
       },
     })
 
-    // TODO(veil): Should only display one error.
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 2,
+       "count": 1,
        "description": "Error: ssr error",
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",

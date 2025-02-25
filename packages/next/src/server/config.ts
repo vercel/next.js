@@ -28,6 +28,7 @@ import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import { findDir } from '../lib/find-pages-dir'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -679,6 +680,17 @@ function assignDefaults(
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
+    const hasAppDir = Boolean(findDir(dir, 'app'))
+
+    if (hasAppDir) {
+      warnOptionHasBeenDeprecated(
+        result,
+        'i18n',
+        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
+        silent
+      )
+    }
+
     const { i18n } = result
     const i18nType = typeof i18n
 

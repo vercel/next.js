@@ -90,7 +90,7 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: no",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -106,7 +106,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 3,
+         "count": 2,
          "description": "Error: no",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -363,7 +363,7 @@ describe('ReactRefreshLogBox app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: ",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -1642,7 +1642,7 @@ export default function Home() {
       // FIXME: display the sourcemapped stack frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: utils error",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -1659,7 +1659,7 @@ export default function Home() {
       // FIXME: Webpack stack frames are not source mapped
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 3,
+         "count": 2,
          "description": "Error: utils error",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",

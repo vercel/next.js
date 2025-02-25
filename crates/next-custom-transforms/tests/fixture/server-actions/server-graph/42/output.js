@@ -7,9 +7,9 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
         foo: $$ACTION_ARG_1
     };
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "fn",
-    "writable": false
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+    value: "fn",
+    writable: false
 });
 async function Component({ foo }) {
     const a = 123;
