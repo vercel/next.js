@@ -1404,7 +1404,7 @@ export async function getRedboxCallStack(
         // so that c&p automatically does the right thing.
         const frame = frameElement.innerText.replace('\n', ' ')
 
-        if (frame.includes('❗')) {
+        if (frame.includes('⚠')) {
           stack.push('<FIXME-source-map-middleware-bug>')
           continue
         }

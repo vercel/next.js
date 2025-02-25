@@ -67,7 +67,7 @@ export const CallStackFrame: React.FC<{
             onClick={() => console.error(frame.reason)}
             title="Sourcemapping failed. Click to log cause of error."
           >
-            ❗
+            ⚠
           </button>
         ) : null}
       </span>
