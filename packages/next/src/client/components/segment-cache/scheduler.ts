@@ -313,7 +313,7 @@ function spawnPrefetchSubtask<T>(
       return null
     }
     // Wait for the connection to close before freeing up more bandwidth.
-    result.closed.then(onPrefetchConnectionClosed)
+    result.closed.then(onPrefetchConnectionClosed, onPrefetchConnectionClosed)
     return result.value
   })
 }
