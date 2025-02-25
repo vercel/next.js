@@ -10,7 +10,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
+    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
             op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
@@ -1222,7 +1222,10 @@ impl DepGraph {
                         ids.push(id.clone());
 
                         let has_explicit_pure = match &decl.init {
-                            Some(e) => comments.has_flag(e.span().lo, "PURE"),
+                            Some(e) => {
+                                e.span().lo == BytePos::PURE
+                                    || comments.has_flag(e.span().lo, "PURE")
+                            }
                             _ => false,
                         };
 
@@ -1246,10 +1249,11 @@ impl DepGraph {
                         let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
                                 || decl.init.as_deref().is_some_and(|e| {
-                                    e.may_have_side_effects(&ExprCtx {
+                                    e.may_have_side_effects(ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
                                         in_strict: false,
+                                        remaining_depth: 4,
                                     })
                                 }));
 

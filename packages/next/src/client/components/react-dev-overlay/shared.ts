@@ -2,9 +2,10 @@ import { useReducer } from 'react'
 
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { VersionInfo } from '../../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './internal/container/Errors'
-import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'
+import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
+import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
+import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -21,7 +22,9 @@ export interface OverlayState {
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
-  debugInfo: DebugInfo | undefined
+  disableDevIndicator: boolean
+  debugInfo: DebugInfo
+  routerType: 'pages' | 'app'
 }
 
 export const ACTION_STATIC_INDICATOR = 'static-indicator'
@@ -33,6 +36,7 @@ export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
+export const ACTION_DEV_INDICATOR = 'dev-indicator'
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -76,6 +80,11 @@ interface VersionInfoAction {
   versionInfo: VersionInfo
 }
 
+interface DevIndicatorAction {
+  type: typeof ACTION_DEV_INDICATOR
+  devIndicator: DevIndicatorServerState
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -86,6 +95,7 @@ export type BusEvent =
   | VersionInfoAction
   | StaticIndicatorAction
   | DebugInfoAction
+  | DevIndicatorAction
 
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
@@ -94,25 +104,39 @@ function pushErrorFilterDuplicates(
   return [
     ...errors.filter((e) => {
       // Filter out duplicate errors
-      return e.event.reason !== err.event.reason
+      return e.event.reason.stack !== err.event.reason.stack
     }),
     err,
   ]
 }
 
-export const INITIAL_OVERLAY_STATE: OverlayState = {
+const shouldDisableDevIndicator =
+  process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+
+export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
   errors: [],
   notFound: false,
   staticIndicator: false,
+  // To prevent flickering, set the initial state to disabled.
+  disableDevIndicator: true,
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
-  debugInfo: undefined,
+  debugInfo: { devtoolsFrontendUrl: undefined },
 }
 
-export function useErrorOverlayReducer() {
+function getInitialState(
+  routerType: 'pages' | 'app'
+): OverlayState & { routerType: 'pages' | 'app' } {
+  return {
+    ...INITIAL_OVERLAY_STATE,
+    routerType,
+  }
+}
+
+export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
   return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_DEBUG_INFO: {
@@ -182,11 +206,18 @@ export function useErrorOverlayReducer() {
       case ACTION_VERSION_INFO: {
         return { ..._state, versionInfo: action.versionInfo }
       }
+      case ACTION_DEV_INDICATOR: {
+        return {
+          ..._state,
+          disableDevIndicator:
+            shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
+        }
+      }
       default: {
         return _state
       }
     }
-  }, INITIAL_OVERLAY_STATE)
+  }, getInitialState(routerType))
 }
 
 export const REACT_REFRESH_FULL_RELOAD_FROM_ERROR =

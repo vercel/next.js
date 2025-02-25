@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/shebang/input/index.js"],"sourcesContent":["#!/usr/bin/env node\n\nimport { foo } from \"foo\";\n\nfoo(true);\n"],"names":[],"mappings":";AAEA;;AAEA,CAAA,GAAA,qNAAA,CAAA,MAAG,AAAD,EAAE"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/shebang/input/node_modules/foo/index.js"],"sourcesContent":["#!/usr/bin/env node\n\nexport function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;AAEO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB","ignoreList":[0]}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

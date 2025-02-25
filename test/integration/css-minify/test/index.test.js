@@ -25,7 +25,7 @@ function runTests() {
         "/* [project]/test/integration/css-minify/styles/global.css [client] (css) */
         .a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}
 
-        /*# sourceMappingURL=test_integration_css-minify_styles_global_411632.css.map*/
+        /*# sourceMappingURL=test_integration_css-minify_styles_global_411632c3.css.map*/
         "
       `)
     } else {

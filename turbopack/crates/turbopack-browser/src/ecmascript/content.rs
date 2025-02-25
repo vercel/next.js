@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -59,7 +59,7 @@ impl EcmascriptDevChunkContent {
     pub(crate) fn own_version(&self) -> Vc<EcmascriptDevChunkVersion> {
         EcmascriptDevChunkVersion::new(
             self.chunking_context.output_root(),
-            self.chunk.ident().path(),
+            self.chunk.path(),
             *self.entries,
         )
     }
@@ -68,7 +68,10 @@ impl EcmascriptDevChunkContent {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let output_root = this.chunking_context.output_root().await?;
-        let chunk_path_vc = this.chunk.ident().path();
+        let source_maps = this
+            .chunking_context
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
+        let chunk_path_vc = this.chunk.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
@@ -104,7 +107,7 @@ impl EcmascriptDevChunkContent {
 
         write!(code, "\n}}]);")?;
 
-        if code.has_source_map() {
+        if *source_maps.await? && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -116,11 +119,9 @@ impl EcmascriptDevChunkContent {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)
@@ -154,12 +155,12 @@ impl MergeableVersionedContent for EcmascriptDevChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(&self, section: RcStr) -> Result<Vc<OptionSourceMap>> {
+    async fn by_section(&self, section: RcStr) -> Result<Vc<OptionStringifiedSourceMap>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {

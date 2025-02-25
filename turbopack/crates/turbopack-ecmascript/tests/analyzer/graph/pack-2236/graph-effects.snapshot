@@ -114,7 +114,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "undefined",
                     ),
                 ),
@@ -183,7 +183,7 @@
                             Value(
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "ioredis",
                                         ),
                                     ),

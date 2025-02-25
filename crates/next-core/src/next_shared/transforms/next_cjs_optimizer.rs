@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use next_custom_transforms::transforms::cjs_optimizer::{cjs_optimizer, Config, PackageConfig};
 use rustc_hash::FxHashMap;
 use swc_core::{
+    atoms::atom,
     common::SyntaxContext,
     ecma::{ast::*, visit::VisitMutWith},
 };
@@ -18,30 +19,30 @@ pub fn get_next_cjs_optimizer_rule(enable_mdx_rs: bool) -> ModuleRule {
     // build it internally without accepting customization.
     let config = Config {
         packages: FxHashMap::from_iter([(
-            "next/server".to_string(),
+            atom!("next/server"),
             PackageConfig {
                 transforms: FxHashMap::from_iter([
                     (
-                        "NextRequest".into(),
-                        "next/dist/server/web/spec-extension/request".into(),
+                        atom!("NextRequest"),
+                        atom!("next/dist/server/web/spec-extension/request"),
                     ),
                     (
-                        "NextResponse".into(),
-                        "next/dist/server/web/spec-extension/response".into(),
+                        atom!("NextResponse"),
+                        atom!("next/dist/server/web/spec-extension/response"),
                     ),
                     (
-                        "ImageResponse".into(),
-                        "next/dist/server/web/spec-extension/image-response".into(),
+                        atom!("ImageResponse"),
+                        atom!("next/dist/server/web/spec-extension/image-response"),
                     ),
                     (
-                        "userAgentFromString".into(),
-                        "next/dist/server/web/spec-extension/user-agent".into(),
+                        atom!("userAgentFromString"),
+                        atom!("next/dist/server/web/spec-extension/user-agent"),
                     ),
                     (
-                        "userAgent".into(),
-                        "next/dist/server/web/spec-extension/user-agent".into(),
+                        atom!("userAgent"),
+                        atom!("next/dist/server/web/spec-extension/user-agent"),
                     ),
-                    ("after".into(), "next/dist/server/after".into()),
+                    (atom!("after"), atom!("next/dist/server/after")),
                 ]),
             },
         )]),

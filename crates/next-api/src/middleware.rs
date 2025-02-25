@@ -7,7 +7,7 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
     next_server::{get_server_runtime_entries, ServerContextType},
-    util::{parse_config_from_source, MiddlewareMatcherKind},
+    util::{parse_config_from_source, MiddlewareMatcherKind, NextRuntime},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -15,10 +15,14 @@ use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAsset},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset,
+    },
     context::AssetContext,
-    module::{Module, Modules},
-    output::OutputAssets,
+    module::Module,
+    module_graph::GraphEntries,
+    output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -26,17 +30,19 @@ use turbopack_core::{
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
+    nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, WrittenEndpoint},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
 };
 
 #[turbo_tasks::value]
 pub struct MiddlewareEndpoint {
     project: ResolvedVc<Project>,
+    build_id: RcStr,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source: ResolvedVc<Box<dyn Source>>,
     app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -48,6 +54,7 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     pub fn new(
         project: ResolvedVc<Project>,
+        build_id: RcStr,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
@@ -55,6 +62,7 @@ impl MiddlewareEndpoint {
     ) -> Vc<Self> {
         Self {
             project,
+            build_id,
             asset_context,
             source,
             app_dir,
@@ -64,7 +72,7 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
+    async fn entry_module(&self) -> Result<Vc<Box<dyn Module>>> {
         let userland_module = self
             .asset_context
             .process(
@@ -79,45 +87,96 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let module = wrap_edge_entry(
+        let config = parse_config_from_source(userland_module, NextRuntime::Edge).await?;
+
+        if matches!(config.runtime, NextRuntime::NodeJs) {
+            return Ok(module);
+        }
+        Ok(wrap_edge_entry(
             *self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
-        );
+        ))
+    }
 
-        let mut evaluatable_assets = get_server_runtime_entries(
+    #[turbo_tasks::function]
+    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        let module = self.entry_module();
+
+        let evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir,
-                ecmascript_client_reference_transition_name: self
+                app_dir: this.app_dir,
+                ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name,
             }),
-            self.project.next_mode(),
+            this.project.next_mode(),
         )
-        .resolve_entries(*self.asset_context)
-        .await?
-        .clone_value();
+        .resolve_entries(*this.asset_context);
+
+        let mut evaluatable_assets = evaluatable_assets.owned().await?;
 
         let Some(module) =
             Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
         else {
             bail!("Entry module must be evaluatable");
         };
-
         let evaluatable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module)
             .await?
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable.to_resolved().await?);
 
-        let edge_chunking_context = self.project.edge_chunking_context(false);
+        let evaluatable_assets = Vc::cell(evaluatable_assets);
+        let module_graph = this
+            .project
+            .module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated);
+
+        let edge_chunking_context = this.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            Vc::cell(evaluatable_assets),
+            evaluatable_assets,
+            module_graph,
             Value::new(AvailabilityInfo::Root),
         );
-
         Ok(edge_files)
+    }
+
+    #[turbo_tasks::function]
+    async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let this = self.await?;
+
+        let chunking_context = this.project.server_chunking_context(false);
+
+        let userland_module = self.entry_module().to_resolved().await?;
+        let module_graph = this
+            .project
+            .module_graph(*userland_module, ChunkGroupType::Entry);
+
+        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
+            bail!("Entry module must be evaluatable");
+        };
+
+        let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
+            .entry_chunk_group(
+                this.project.node_root().join("server/middleware.js".into()),
+                get_server_runtime_entries(
+                    Value::new(ServerContextType::Middleware {
+                        app_dir: this.app_dir,
+                        ecmascript_client_reference_transition_name: this
+                            .ecmascript_client_reference_transition_name,
+                    }),
+                    this.project.next_mode(),
+                )
+                .resolve_entries(*this.asset_context)
+                .with_entry(*module),
+                module_graph,
+                OutputAssets::empty(),
+                Value::new(AvailabilityInfo::Root),
+            )
+            .await?;
+        Ok(*chunk)
     }
 
     #[turbo_tasks::function]
@@ -126,37 +185,7 @@ impl MiddlewareEndpoint {
 
         let userland_module = self.userland_module();
 
-        let config = parse_config_from_source(userland_module);
-
-        let edge_files = self.edge_files();
-        let mut output_assets = edge_files.await?.clone_value();
-
-        let node_root = this.project.node_root();
-        let node_root_value = node_root.await?;
-
-        let file_paths_from_root = get_js_paths_from_root(&node_root_value, &output_assets).await?;
-
-        let all_output_assets = all_assets_from_entries(edge_files).await?;
-
-        let wasm_paths_from_root =
-            get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
-
-        let all_assets = get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
-
-        // Awaited later for parallelism
-        let config = config.await?;
-
-        let regions = if let Some(regions) = config.regions.as_ref() {
-            if regions.len() == 1 {
-                regions
-                    .first()
-                    .map(|region| Regions::Single(region.clone()))
-            } else {
-                Some(Regions::Multiple(regions.clone()))
-            }
-        } else {
-            None
-        };
+        let config = parse_config_from_source(userland_module, NextRuntime::Edge).await?;
 
         let next_config = this.project.next_config().await?;
         let has_i18n = next_config.i18n.is_some();
@@ -207,8 +236,9 @@ impl MiddlewareEndpoint {
                         source.insert_str(0, base_path);
                     }
 
-                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here using
-                    // path-to-regexp. Currently there is no equivalent of that so it post-processes
+                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
+                    // using path-to-regexp. Currently there is no
+                    // equivalent of that so it post-processes
                     // this value to the relevant regex in manifest-loader.ts
                     matcher.regexp = Some(RcStr::from(source));
 
@@ -223,36 +253,97 @@ impl MiddlewareEndpoint {
             }]
         };
 
-        let edge_function_definition = EdgeFunctionDefinition {
-            files: file_paths_from_root,
-            wasm: wasm_paths_to_bindings(wasm_paths_from_root),
-            assets: paths_to_bindings(all_assets),
-            name: "middleware".into(),
-            page: "/".into(),
-            regions,
-            matchers,
-            env: this.project.edge_env().await?.clone_value(),
-        };
-        let middleware_manifest_v2 = MiddlewaresManifestV2 {
-            middleware: [("/".into(), edge_function_definition)]
-                .into_iter()
-                .collect(),
-            ..Default::default()
-        };
-        let middleware_manifest_v2 = VirtualOutputAsset::new(
-            node_root.join("server/middleware/middleware-manifest.json".into()),
-            AssetContent::file(
-                FileContent::Content(File::from(serde_json::to_string_pretty(
-                    &middleware_manifest_v2,
-                )?))
-                .cell(),
-            ),
-        )
-        .to_resolved()
-        .await?;
-        output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
+        if matches!(config.runtime, NextRuntime::NodeJs) {
+            let chunk = self.node_chunk().to_resolved().await?;
+            let mut output_assets = vec![chunk];
+            if this.project.next_mode().await?.is_production() {
+                output_assets.push(ResolvedVc::upcast(
+                    NftJsonAsset::new(*this.project, *chunk, vec![])
+                        .to_resolved()
+                        .await?,
+                ));
+            }
+            let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                middleware: [].into_iter().collect(),
+                ..Default::default()
+            };
+            let middleware_manifest_v2 = VirtualOutputAsset::new(
+                this.project
+                    .node_root()
+                    .join("server/middleware/middleware-manifest.json".into()),
+                AssetContent::file(
+                    FileContent::Content(File::from(serde_json::to_string_pretty(
+                        &middleware_manifest_v2,
+                    )?))
+                    .cell(),
+                ),
+            )
+            .to_resolved()
+            .await?;
+            output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
-        Ok(Vc::cell(output_assets))
+            Ok(Vc::cell(output_assets))
+        } else {
+            let edge_files = self.edge_files();
+            let mut output_assets = edge_files.owned().await?;
+
+            let node_root = this.project.node_root();
+            let node_root_value = node_root.await?;
+
+            let file_paths_from_root =
+                get_js_paths_from_root(&node_root_value, &output_assets).await?;
+
+            let all_output_assets = all_assets_from_entries(edge_files).await?;
+
+            let wasm_paths_from_root =
+                get_wasm_paths_from_root(&node_root_value, &all_output_assets).await?;
+
+            let all_assets =
+                get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
+
+            let regions = if let Some(regions) = config.regions.as_ref() {
+                if regions.len() == 1 {
+                    regions
+                        .first()
+                        .map(|region| Regions::Single(region.clone()))
+                } else {
+                    Some(Regions::Multiple(regions.clone()))
+                }
+            } else {
+                None
+            };
+
+            let edge_function_definition = EdgeFunctionDefinition {
+                files: file_paths_from_root,
+                wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                assets: paths_to_bindings(all_assets),
+                name: "middleware".into(),
+                page: "/".into(),
+                regions,
+                matchers: matchers.clone(),
+                env: this.project.edge_env().owned().await?,
+            };
+            let middleware_manifest_v2 = MiddlewaresManifestV2 {
+                middleware: [("/".into(), edge_function_definition)]
+                    .into_iter()
+                    .collect(),
+                ..Default::default()
+            };
+            let middleware_manifest_v2 = VirtualOutputAsset::new(
+                node_root.join("server/middleware/middleware-manifest.json".into()),
+                AssetContent::file(
+                    FileContent::Content(File::from(serde_json::to_string_pretty(
+                        &middleware_manifest_v2,
+                    )?))
+                    .cell(),
+                ),
+            )
+            .to_resolved()
+            .await?;
+            output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
+
+            Ok(Vc::cell(output_assets))
+        }
     }
 
     #[turbo_tasks::function]
@@ -269,40 +360,36 @@ impl MiddlewareEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("middleware endpoint");
         async move {
             let this = self.await?;
-            let output_assets_op = output_assets_operation(self);
-            let output_assets = output_assets_op.connect();
-            let _ = output_assets.resolve().await?;
-            let _ = this
-                .project
-                .emit_all_output_assets(output_assets_op)
-                .resolve()
-                .await?;
+            let output_assets = self.output_assets();
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
-                let server_paths = all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value();
+                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .into_future()
+                    .owned()
                     .instrument(tracing::info_span!("client_paths"))
-                    .await?
-                    .clone_value();
+                    .await?;
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])
             };
 
-            Ok(WrittenEndpoint::Edge {
-                server_paths,
-                client_paths,
+            Ok(EndpointOutput {
+                output_paths: EndpointOutputPaths::Edge {
+                    server_paths,
+                    client_paths,
+                }
+                .resolved_cell(),
+                output_assets: output_assets.to_resolved().await?,
+                project: this.project,
             }
             .cell())
         }
@@ -321,12 +408,10 @@ impl Endpoint for MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        Ok(Vc::cell(vec![(
+            vec![self.entry_module().to_resolved().await?],
+            ChunkGroupType::Evaluated,
+        )]))
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn output_assets_operation(endpoint: ResolvedVc<MiddlewareEndpoint>) -> Vc<OutputAssets> {
-    endpoint.output_assets()
 }

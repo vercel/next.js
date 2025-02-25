@@ -1,25 +1,3951 @@
 require('./sourcemap-register.js');/******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
-/***/ 42:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
+/***/ 722:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
 "use strict";
-Object.defineProperty(exports, "__esModule", ({value: true})); function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; } function _nullishCoalesce(lhs, rhsFn) { if (lhs != null) { return lhs; } else { return rhsFn(); } } function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; } var _class; var _class2;var c=class extends Error{constructor(n){super(n),this.name="UpstashError"}};var ie=class{constructor(n){this.options={backend:_optionalChain([n, 'access', _2 => _2.options, 'optionalAccess', _3 => _3.backend]),agent:n.agent,responseEncoding:_nullishCoalesce(n.responseEncoding, () => ("base64")),cache:n.cache},this.baseUrl=n.baseUrl.replace(/\/$/,""),this.headers={"Content-Type":"application/json",...n.headers},this.options.responseEncoding==="base64"&&(this.headers["Upstash-Encoding"]="base64"),typeof _optionalChain([n, 'optionalAccess', _4 => _4.retry])=="boolean"&&_optionalChain([n, 'optionalAccess', _5 => _5.retry])===!1?this.retry={attempts:1,backoff:()=>0}:this.retry={attempts:_nullishCoalesce(_optionalChain([n, 'optionalAccess', _6 => _6.retry, 'optionalAccess', _7 => _7.retries]), () => (5)),backoff:_nullishCoalesce(_optionalChain([n, 'optionalAccess', _8 => _8.retry, 'optionalAccess', _9 => _9.backoff]), () => ((t=>Math.exp(t)*50)))}}mergeTelemetry(n){function t(o,m,r){return r&&(o[m]?o[m]=[o[m],r].join(","):o[m]=r),o}this.headers=t(this.headers,"Upstash-Telemetry-Runtime",n.runtime),this.headers=t(this.headers,"Upstash-Telemetry-Platform",n.platform),this.headers=t(this.headers,"Upstash-Telemetry-Sdk",n.sdk)}async request(n){let t={cache:this.options.cache,method:"POST",headers:this.headers,body:JSON.stringify(n.body),keepalive:!0,agent:_optionalChain([this, 'access', _10 => _10.options, 'optionalAccess', _11 => _11.agent]),backend:_optionalChain([this, 'access', _12 => _12.options, 'optionalAccess', _13 => _13.backend])},o=null,m=null;for(let a=0;a<=this.retry.attempts;a++)try{o=await fetch([this.baseUrl,..._nullishCoalesce(n.path, () => ([]))].join("/"),t);break}catch(i){m=i,await new Promise(p=>setTimeout(p,this.retry.backoff(a)))}if(!o)throw _nullishCoalesce(m, () => (new Error("Exhausted all retries")));let r=await o.json();if(!o.ok)throw new c(`${r.error}, command was: ${JSON.stringify(n.body)}`);return _optionalChain([this, 'access', _14 => _14.options, 'optionalAccess', _15 => _15.responseEncoding])==="base64"?Array.isArray(r)?r.map(({result:i,error:p})=>({result:re(i),error:p})):{result:re(r.result),error:r.error}:r}};function pe(s){let n="";try{let t=atob(s),o=t.length,m=new Uint8Array(o);for(let r=0;r<o;r++)m[r]=t.charCodeAt(r);n=new TextDecoder().decode(m)}catch (e2){n=s}return n}function re(s){let n;switch(typeof s){case"undefined":return s;case"number":{n=s;break}case"object":{Array.isArray(s)?n=s.map(t=>typeof t=="string"?pe(t):Array.isArray(t)?t.map(re):t):n=null;break}case"string":{n=s==="OK"?"OK":pe(s);break}default:break}return n}function de(s){let n=Array.isArray(s)?s.map(t=>{try{return de(t)}catch (e3){return t}}):JSON.parse(s);return typeof n=="number"&&n.toString()!==s?s:n}function ce(s){try{return de(s)}catch (e4){return s}}var he=s=>{switch(typeof s){case"string":case"number":case"boolean":return s;default:return JSON.stringify(s)}},e=class{constructor(n,t){this.serialize=he,this.deserialize=typeof _optionalChain([t, 'optionalAccess', _16 => _16.automaticDeserialization])>"u"||t.automaticDeserialization?_nullishCoalesce(_optionalChain([t, 'optionalAccess', _17 => _17.deserialize]), () => (ce)):o=>o,this.command=n.map(o=>this.serialize(o))}async exec(n){let{result:t,error:o}=await n.request({body:this.command});if(o)throw new c(o);if(typeof t>"u")throw new Error("Request did not return a result");return this.deserialize(t)}};var C=class extends e{constructor(n,t){super(["append",...n],t)}};var l=class extends e{constructor([n,t,o],m){let r=["bitcount",n];typeof t=="number"&&r.push(t),typeof o=="number"&&r.push(o),super(r,m)}};var g=class extends e{constructor(n,t){super(["bitop",...n],t)}};var x=class extends e{constructor(n,t){super(["bitpos",...n],t)}};var f=class extends e{constructor([n,t,o],m){super(["COPY",n,t,..._optionalChain([o, 'optionalAccess', _18 => _18.replace])?["REPLACE"]:[]],{...m,deserialize(r){return r>0?"COPIED":"NOT_COPIED"}})}};var y=class extends e{constructor(n){super(["dbsize"],n)}};var b=class extends e{constructor(n,t){super(["decr",...n],t)}};var O=class extends e{constructor(n,t){super(["decrby",...n],t)}};var T=class extends e{constructor(n,t){super(["del",...n],t)}};var w=class extends e{constructor(n,t){super(["echo",...n],t)}};var D=class extends e{constructor([n,t,o],m){super(["eval",n,t.length,...t,..._nullishCoalesce(o, () => ([]))],m)}};var k=class extends e{constructor([n,t,o],m){super(["evalsha",n,t.length,...t,..._nullishCoalesce(o, () => ([]))],m)}};var A=class extends e{constructor(n,t){super(["exists",...n],t)}};var S=class extends e{constructor(n,t){super(["expire",...n],t)}};var R=class extends e{constructor(n,t){super(["expireat",...n],t)}};var M=class extends e{constructor(n,t){let o=["flushall"];n&&n.length>0&&n[0].async&&o.push("async"),super(o,t)}};var v=class extends e{constructor([n],t){let o=["flushdb"];_optionalChain([n, 'optionalAccess', _19 => _19.async])&&o.push("async"),super(o,t)}};var E=class extends e{constructor([n,t,...o],m){let r=["geoadd",n];"nx"in t&&t.nx?r.push("nx"):"xx"in t&&t.xx&&r.push("xx"),"ch"in t&&t.ch&&r.push("ch"),"latitude"in t&&t.latitude&&r.push(t.longitude,t.latitude,t.member),r.push(...o.flatMap(({latitude:a,longitude:i,member:p})=>[i,a,p])),super(r,m)}};var z=class extends e{constructor([n,t,o,m="M"],r){super(["GEODIST",n,t,o,m],r)}};var J=class extends e{constructor(n,t){let[o]=n,m=Array.isArray(n[1])?n[1]:n.slice(1);super(["GEOPOS",o,...m],{deserialize:r=>Ce(r),...t})}};function Ce(s){let n=[];for(let t of s)!_optionalChain([t, 'optionalAccess', _20 => _20[0]])||!_optionalChain([t, 'optionalAccess', _21 => _21[1]])||n.push({lng:parseFloat(t[0]),lat:parseFloat(t[1])});return n}var P=class extends e{constructor(n,t){let[o]=n,m=Array.isArray(n[1])?n[1]:n.slice(1);super(["GEOHASH",o,...m],t)}};var I=class extends e{constructor([n,t,o,m,r],a){let i=["GEOSEARCH",n];(t.type==="FROMMEMBER"||t.type==="frommember")&&i.push(t.type,t.member),(t.type==="FROMLONLAT"||t.type==="fromlonlat")&&i.push(t.type,t.coordinate.lon,t.coordinate.lat),(o.type==="BYRADIUS"||o.type==="byradius")&&i.push(o.type,o.radius,o.radiusType),(o.type==="BYBOX"||o.type==="bybox")&&i.push(o.type,o.rect.width,o.rect.height,o.rectType),i.push(m),_optionalChain([r, 'optionalAccess', _22 => _22.count])&&i.push(r.count.limit,...r.count.any?["ANY"]:[]);let p=ae=>!_optionalChain([r, 'optionalAccess', _23 => _23.withCoord])&&!_optionalChain([r, 'optionalAccess', _24 => _24.withDist])&&!_optionalChain([r, 'optionalAccess', _25 => _25.withHash])?ae.map(d=>{try{return{member:JSON.parse(d)}}catch (e5){return{member:d}}}):ae.map(d=>{let ee=1,h={};try{h.member=JSON.parse(d[0])}catch (e6){h.member=d[0]}return r.withDist&&(h.dist=parseFloat(d[ee++])),r.withHash&&(h.hash=d[ee++].toString()),r.withCoord&&(h.coord={long:parseFloat(d[ee][0]),lat:parseFloat(d[ee][1])}),h});super([...i,..._optionalChain([r, 'optionalAccess', _26 => _26.withCoord])?["WITHCOORD"]:[],..._optionalChain([r, 'optionalAccess', _27 => _27.withDist])?["WITHDIST"]:[],..._optionalChain([r, 'optionalAccess', _28 => _28.withHash])?["WITHHASH"]:[]],{...a,deserialize:p})}};var K=class extends e{constructor([n,t,o,m,r,a],i){let p=["GEOSEARCHSTORE",n,t];(o.type==="FROMMEMBER"||o.type==="frommember")&&p.push(o.type,o.member),(o.type==="FROMLONLAT"||o.type==="fromlonlat")&&p.push(o.type,o.coordinate.lon,o.coordinate.lat),(m.type==="BYRADIUS"||m.type==="byradius")&&p.push(m.type,m.radius,m.radiusType),(m.type==="BYBOX"||m.type==="bybox")&&p.push(m.type,m.rect.width,m.rect.height,m.rectType),p.push(r),_optionalChain([a, 'optionalAccess', _29 => _29.count])&&p.push(a.count.limit,...a.count.any?["ANY"]:[]),super([...p,..._optionalChain([a, 'optionalAccess', _30 => _30.storeDist])?["STOREDIST"]:[]],i)}};var L=class extends e{constructor(n,t){super(["get",...n],t)}};var Z=class extends e{constructor(n,t){super(["getbit",...n],t)}};var N=class extends e{constructor(n,t){super(["getdel",...n],t)}};var G=class extends e{constructor(n,t){super(["getrange",...n],t)}};var B=class extends e{constructor(n,t){super(["getset",...n],t)}};var U=class extends e{constructor(n,t){super(["hdel",...n],t)}};var H=class extends e{constructor(n,t){super(["hexists",...n],t)}};var F=class extends e{constructor(n,t){super(["hget",...n],t)}};function le(s){if(s.length===0)return null;let n={};for(;s.length>=2;){let t=s.shift(),o=s.shift();try{!Number.isNaN(Number(o))&&!Number.isSafeInteger(o)?n[t]=o:n[t]=JSON.parse(o)}catch (e7){n[t]=o}}return n}var q=class extends e{constructor(n,t){super(["hgetall",...n],{deserialize:o=>le(o),...t})}};var $=class extends e{constructor(n,t){super(["hincrby",...n],t)}};var X=class extends e{constructor(n,t){super(["hincrbyfloat",...n],t)}};var j=class extends e{constructor([n],t){super(["hkeys",n],t)}};var Y=class extends e{constructor(n,t){super(["hlen",...n],t)}};function ge(s,n){if(n.length===0||n.every(o=>o===null))return null;let t={};for(let o=0;o<s.length;o++)try{t[s[o]]=JSON.parse(n[o])}catch (e8){t[s[o]]=n[o]}return t}var W=class extends e{constructor([n,...t],o){super(["hmget",n,...t],{deserialize:m=>ge(t,m),...o})}};var V=class extends e{constructor([n,t],o){super(["hmset",n,...Object.entries(t).flatMap(([m,r])=>[m,r])],o)}};function xe(s){if(s.length===0)return null;let n={};for(;s.length>=2;){let t=s.shift(),o=s.shift();try{n[t]=JSON.parse(o)}catch (e9){n[t]=o}}return n}var _=class extends e{constructor(n,t){let o=["hrandfield",n[0]];typeof n[1]=="number"&&o.push(n[1]),n[2]&&o.push("WITHVALUES"),super(o,{deserialize:n[2]?m=>xe(m):_optionalChain([t, 'optionalAccess', _31 => _31.deserialize]),...t})}};var Q=class extends e{constructor([n,t,o],m){let r=["hscan",n,t];_optionalChain([o, 'optionalAccess', _32 => _32.match])&&r.push("match",o.match),typeof _optionalChain([o, 'optionalAccess', _33 => _33.count])=="number"&&r.push("count",o.count),super(r,m)}};var nn=class extends e{constructor([n,t],o){super(["hset",n,...Object.entries(t).flatMap(([m,r])=>[m,r])],o)}};var tn=class extends e{constructor(n,t){super(["hsetnx",...n],t)}};var en=class extends e{constructor(n,t){super(["hstrlen",...n],t)}};var on=class extends e{constructor(n,t){super(["hvals",...n],t)}};var sn=class extends e{constructor(n,t){super(["incr",...n],t)}};var mn=class extends e{constructor(n,t){super(["incrby",...n],t)}};var rn=class extends e{constructor(n,t){super(["incrbyfloat",...n],t)}};var an=class extends e{constructor(n,t){super(["JSON.ARRAPPEND",...n],t)}};var pn=class extends e{constructor(n,t){super(["JSON.ARRINDEX",...n],t)}};var dn=class extends e{constructor(n,t){super(["JSON.ARRINSERT",...n],t)}};var cn=class extends e{constructor(n,t){super(["JSON.ARRLEN",n[0],_nullishCoalesce(n[1], () => ("$"))],t)}};var un=class extends e{constructor(n,t){super(["JSON.ARRPOP",...n],t)}};var hn=class extends e{constructor(n,t){let o=_nullishCoalesce(n[1], () => ("$")),m=_nullishCoalesce(n[2], () => (0)),r=_nullishCoalesce(n[3], () => (0));super(["JSON.ARRTRIM",n[0],o,m,r],t)}};var Cn=class extends e{constructor(n,t){super(["JSON.CLEAR",...n],t)}};var ln=class extends e{constructor(n,t){super(["JSON.DEL",...n],t)}};var gn=class extends e{constructor(n,t){super(["JSON.FORGET",...n],t)}};var xn=class extends e{constructor(n,t){let o=["JSON.GET"];typeof n[1]=="string"?o.push(...n):(o.push(n[0]),n[1]&&(n[1].indent&&o.push("INDENT",n[1].indent),n[1].newline&&o.push("NEWLINE",n[1].newline),n[1].space&&o.push("SPACE",n[1].space)),o.push(...n.slice(2))),super(o,t)}};var fn=class extends e{constructor(n,t){super(["JSON.MGET",...n[0],n[1]],t)}};var yn=class extends e{constructor(n,t){super(["JSON.NUMINCRBY",...n],t)}};var bn=class extends e{constructor(n,t){super(["JSON.NUMMULTBY",...n],t)}};var On=class extends e{constructor(n,t){super(["JSON.OBJKEYS",...n],t)}};var Tn=class extends e{constructor(n,t){super(["JSON.OBJLEN",...n],t)}};var wn=class extends e{constructor(n,t){super(["JSON.RESP",...n],t)}};var Dn=class extends e{constructor(n,t){let o=["JSON.SET",n[0],n[1],n[2]];n[3]&&(n[3].nx?o.push("NX"):n[3].xx&&o.push("XX")),super(o,t)}};var kn=class extends e{constructor(n,t){super(["JSON.STRAPPEND",...n],t)}};var An=class extends e{constructor(n,t){super(["JSON.STRLEN",...n],t)}};var Sn=class extends e{constructor(n,t){super(["JSON.TOGGLE",...n],t)}};var Rn=class extends e{constructor(n,t){super(["JSON.TYPE",...n],t)}};var Mn=class extends e{constructor(n,t){super(["keys",...n],t)}};var vn=class extends e{constructor(n,t){super(["lindex",...n],t)}};var En=class extends e{constructor(n,t){super(["linsert",...n],t)}};var zn=class extends e{constructor(n,t){super(["llen",...n],t)}};var Jn=class extends e{constructor(n,t){super(["lmove",...n],t)}};var Pn=class extends e{constructor(n,t){super(["lpop",...n],t)}};var In=class extends e{constructor(n,t){let o=["lpos",n[0],n[1]];typeof _optionalChain([n, 'access', _34 => _34[2], 'optionalAccess', _35 => _35.rank])=="number"&&o.push("rank",n[2].rank),typeof _optionalChain([n, 'access', _36 => _36[2], 'optionalAccess', _37 => _37.count])=="number"&&o.push("count",n[2].count),typeof _optionalChain([n, 'access', _38 => _38[2], 'optionalAccess', _39 => _39.maxLen])=="number"&&o.push("maxLen",n[2].maxLen),super(o,t)}};var Kn=class extends e{constructor(n,t){super(["lpush",...n],t)}};var Ln=class extends e{constructor(n,t){super(["lpushx",...n],t)}};var Zn=class extends e{constructor(n,t){super(["lrange",...n],t)}};var Nn=class extends e{constructor(n,t){super(["lrem",...n],t)}};var Gn=class extends e{constructor(n,t){super(["lset",...n],t)}};var Bn=class extends e{constructor(n,t){super(["ltrim",...n],t)}};var Un=class extends e{constructor(n,t){let o=Array.isArray(n[0])?n[0]:n;super(["mget",...o],t)}};var Hn=class extends e{constructor([n],t){super(["mset",...Object.entries(n).flatMap(([o,m])=>[o,m])],t)}};var Fn=class extends e{constructor([n],t){super(["msetnx",...Object.entries(n).flatMap(o=>o)],t)}};var qn=class extends e{constructor(n,t){super(["persist",...n],t)}};var $n=class extends e{constructor(n,t){super(["pexpire",...n],t)}};var Xn=class extends e{constructor(n,t){super(["pexpireat",...n],t)}};var jn=class extends e{constructor(n,t){let o=["ping"];typeof n<"u"&&typeof n[0]<"u"&&o.push(n[0]),super(o,t)}};var Yn=class extends e{constructor(n,t){super(["psetex",...n],t)}};var Wn=class extends e{constructor(n,t){super(["pttl",...n],t)}};var Vn=class extends e{constructor(n,t){super(["publish",...n],t)}};var _n=class extends e{constructor(n){super(["randomkey"],n)}};var Qn=class extends e{constructor(n,t){super(["rename",...n],t)}};var nt=class extends e{constructor(n,t){super(["renamenx",...n],t)}};var tt=class extends e{constructor(n,t){super(["rpop",...n],t)}};var et=class extends e{constructor(n,t){super(["rpush",...n],t)}};var ot=class extends e{constructor(n,t){super(["rpushx",...n],t)}};var st=class extends e{constructor(n,t){super(["sadd",...n],t)}};var mt=class extends e{constructor([n,t],o){let m=["scan",n];_optionalChain([t, 'optionalAccess', _40 => _40.match])&&m.push("match",t.match),typeof _optionalChain([t, 'optionalAccess', _41 => _41.count])=="number"&&m.push("count",t.count),_optionalChain([t, 'optionalAccess', _42 => _42.type])&&t.type.length>0&&m.push("type",t.type),super(m,o)}};var rt=class extends e{constructor(n,t){super(["scard",...n],t)}};var at=class extends e{constructor(n,t){super(["script","exists",...n],{deserialize:o=>o,...t})}};var it=class extends e{constructor([n],t){let o=["script","flush"];_optionalChain([n, 'optionalAccess', _43 => _43.sync])?o.push("sync"):_optionalChain([n, 'optionalAccess', _44 => _44.async])&&o.push("async"),super(o,t)}};var pt=class extends e{constructor(n,t){super(["script","load",...n],t)}};var dt=class extends e{constructor(n,t){super(["sdiff",...n],t)}};var ct=class extends e{constructor(n,t){super(["sdiffstore",...n],t)}};var ut=class extends e{constructor([n,t,o],m){let r=["set",n,t];o&&("nx"in o&&o.nx?r.push("nx"):"xx"in o&&o.xx&&r.push("xx"),"get"in o&&o.get&&r.push("get"),"ex"in o&&typeof o.ex=="number"?r.push("ex",o.ex):"px"in o&&typeof o.px=="number"?r.push("px",o.px):"exat"in o&&typeof o.exat=="number"?r.push("exat",o.exat):"pxat"in o&&typeof o.pxat=="number"?r.push("pxat",o.pxat):"keepTtl"in o&&o.keepTtl&&r.push("keepTtl")),super(r,m)}};var ht=class extends e{constructor(n,t){super(["setbit",...n],t)}};var Ct=class extends e{constructor(n,t){super(["setex",...n],t)}};var lt=class extends e{constructor(n,t){super(["setnx",...n],t)}};var gt=class extends e{constructor(n,t){super(["setrange",...n],t)}};var xt=class extends e{constructor(n,t){super(["sinter",...n],t)}};var ft=class extends e{constructor(n,t){super(["sinterstore",...n],t)}};var yt=class extends e{constructor(n,t){super(["sismember",...n],t)}};var bt=class extends e{constructor(n,t){super(["smembers",...n],t)}};var Ot=class extends e{constructor(n,t){super(["smismember",n[0],...n[1]],t)}};var Tt=class extends e{constructor(n,t){super(["smove",...n],t)}};var wt=class extends e{constructor([n,t],o){let m=["spop",n];typeof t=="number"&&m.push(t),super(m,o)}};var Dt=class extends e{constructor([n,t],o){let m=["srandmember",n];typeof t=="number"&&m.push(t),super(m,o)}};var kt=class extends e{constructor(n,t){super(["srem",...n],t)}};var At=class extends e{constructor([n,t,o],m){let r=["sscan",n,t];_optionalChain([o, 'optionalAccess', _45 => _45.match])&&r.push("match",o.match),typeof _optionalChain([o, 'optionalAccess', _46 => _46.count])=="number"&&r.push("count",o.count),super(r,m)}};var St=class extends e{constructor(n,t){super(["strlen",...n],t)}};var Rt=class extends e{constructor(n,t){super(["sunion",...n],t)}};var Mt=class extends e{constructor(n,t){super(["sunionstore",...n],t)}};var vt=class extends e{constructor(n){super(["time"],n)}};var Et=class extends e{constructor(n,t){super(["touch",...n],t)}};var zt=class extends e{constructor(n,t){super(["ttl",...n],t)}};var Jt=class extends e{constructor(n,t){super(["type",...n],t)}};var Pt=class extends e{constructor(n,t){super(["unlink",...n],t)}};var oe=class extends e{constructor([n,t,o,m],r){let a=["XADD",n];m&&(m.nomkStream&&a.push("NOMKSTREAM"),m.trim&&(a.push(m.trim.type,m.trim.comparison,m.trim.threshold),typeof m.trim.limit<"u"&&a.push("LIMIT",m.trim.limit))),a.push(t);for(let[i,p]of Object.entries(o))a.push(i,p);super(a,r)}};function fe(s){let n={};for(let t of s)for(;t.length>=2;){let o=t.shift(),m=t.shift();for((o in n)||(n[o]={});m.length>=2;){let r=m.shift(),a=m.shift();try{n[o][r]=JSON.parse(a)}catch (e10){n[o][r]=a}}}return n}var se=class extends e{constructor([n,t,o,m],r){let a=["XRANGE",n,t,o];typeof m=="number"&&a.push("COUNT",m),super(a,{deserialize:i=>fe(i),...r})}};var u=class extends e{constructor([n,t,...o],m){let r=["zadd",n];"nx"in t&&t.nx?r.push("nx"):"xx"in t&&t.xx&&r.push("xx"),"ch"in t&&t.ch&&r.push("ch"),"incr"in t&&t.incr&&r.push("incr"),"score"in t&&"member"in t&&r.push(t.score,t.member),r.push(...o.flatMap(({score:a,member:i})=>[a,i])),super(r,m)}};var It=class extends e{constructor(n,t){super(["zcard",...n],t)}};var Kt=class extends e{constructor(n,t){super(["zcount",...n],t)}};var Lt=class extends e{constructor(n,t){super(["zincrby",...n],t)}};var Zt=class extends e{constructor([n,t,o,m],r){let a=["zinterstore",n,t];Array.isArray(o)?a.push(...o):a.push(o),m&&("weights"in m&&m.weights?a.push("weights",...m.weights):"weight"in m&&typeof m.weight=="number"&&a.push("weights",m.weight),"aggregate"in m&&a.push("aggregate",m.aggregate)),super(a,r)}};var Nt=class extends e{constructor(n,t){super(["zlexcount",...n],t)}};var Gt=class extends e{constructor([n,t],o){let m=["zpopmax",n];typeof t=="number"&&m.push(t),super(m,o)}};var Bt=class extends e{constructor([n,t],o){let m=["zpopmin",n];typeof t=="number"&&m.push(t),super(m,o)}};var Ut=class extends e{constructor([n,t,o,m],r){let a=["zrange",n,t,o];_optionalChain([m, 'optionalAccess', _47 => _47.byScore])&&a.push("byscore"),_optionalChain([m, 'optionalAccess', _48 => _48.byLex])&&a.push("bylex"),_optionalChain([m, 'optionalAccess', _49 => _49.rev])&&a.push("rev"),typeof _optionalChain([m, 'optionalAccess', _50 => _50.count])<"u"&&typeof _optionalChain([m, 'optionalAccess', _51 => _51.offset])<"u"&&a.push("limit",m.offset,m.count),_optionalChain([m, 'optionalAccess', _52 => _52.withScores])&&a.push("withscores"),super(a,r)}};var Ht=class extends e{constructor(n,t){super(["zrank",...n],t)}};var Ft=class extends e{constructor(n,t){super(["zrem",...n],t)}};var qt=class extends e{constructor(n,t){super(["zremrangebylex",...n],t)}};var $t=class extends e{constructor(n,t){super(["zremrangebyrank",...n],t)}};var Xt=class extends e{constructor(n,t){super(["zremrangebyscore",...n],t)}};var jt=class extends e{constructor(n,t){super(["zrevrank",...n],t)}};var Yt=class extends e{constructor([n,t,o],m){let r=["zscan",n,t];_optionalChain([o, 'optionalAccess', _53 => _53.match])&&r.push("match",o.match),typeof _optionalChain([o, 'optionalAccess', _54 => _54.count])=="number"&&r.push("count",o.count),super(r,m)}};var Wt=class extends e{constructor(n,t){super(["zscore",...n],t)}};var Vt=class extends e{constructor([n,t,o],m){let r=["zunion",n];Array.isArray(t)?r.push(...t):r.push(t),o&&("weights"in o&&o.weights?r.push("weights",...o.weights):"weight"in o&&typeof o.weight=="number"&&r.push("weights",o.weight),"aggregate"in o&&r.push("aggregate",o.aggregate),_optionalChain([o, 'optionalAccess', _55 => _55.withScores])&&r.push("withscores")),super(r,m)}};var _t=class extends e{constructor([n,t,o,m],r){let a=["zunionstore",n,t];Array.isArray(o)?a.push(...o):a.push(o),m&&("weights"in m&&m.weights?a.push("weights",...m.weights):"weight"in m&&typeof m.weight=="number"&&a.push("weights",m.weight),"aggregate"in m&&a.push("aggregate",m.aggregate)),super(a,r)}};var Qt=class extends e{constructor(n,t){super(["zdiffstore",...n],t)}};var ne=class extends e{constructor(n,t){let[o,m]=n;super(["zmscore",o,...m],t)}};var te= (_class =class{constructor(n){;_class.prototype.__init.call(this);_class.prototype.__init2.call(this);_class.prototype.__init3.call(this);_class.prototype.__init4.call(this);_class.prototype.__init5.call(this);_class.prototype.__init6.call(this);_class.prototype.__init7.call(this);_class.prototype.__init8.call(this);_class.prototype.__init9.call(this);_class.prototype.__init10.call(this);_class.prototype.__init11.call(this);_class.prototype.__init12.call(this);_class.prototype.__init13.call(this);_class.prototype.__init14.call(this);_class.prototype.__init15.call(this);_class.prototype.__init16.call(this);_class.prototype.__init17.call(this);_class.prototype.__init18.call(this);_class.prototype.__init19.call(this);_class.prototype.__init20.call(this);_class.prototype.__init21.call(this);_class.prototype.__init22.call(this);_class.prototype.__init23.call(this);_class.prototype.__init24.call(this);_class.prototype.__init25.call(this);_class.prototype.__init26.call(this);_class.prototype.__init27.call(this);_class.prototype.__init28.call(this);_class.prototype.__init29.call(this);_class.prototype.__init30.call(this);_class.prototype.__init31.call(this);_class.prototype.__init32.call(this);_class.prototype.__init33.call(this);_class.prototype.__init34.call(this);_class.prototype.__init35.call(this);_class.prototype.__init36.call(this);_class.prototype.__init37.call(this);_class.prototype.__init38.call(this);_class.prototype.__init39.call(this);_class.prototype.__init40.call(this);_class.prototype.__init41.call(this);_class.prototype.__init42.call(this);_class.prototype.__init43.call(this);_class.prototype.__init44.call(this);_class.prototype.__init45.call(this);_class.prototype.__init46.call(this);_class.prototype.__init47.call(this);_class.prototype.__init48.call(this);_class.prototype.__init49.call(this);_class.prototype.__init50.call(this);_class.prototype.__init51.call(this);_class.prototype.__init52.call(this);_class.prototype.__init53.call(this);_class.prototype.__init54.call(this);_class.prototype.__init55.call(this);_class.prototype.__init56.call(this);_class.prototype.__init57.call(this);_class.prototype.__init58.call(this);_class.prototype.__init59.call(this);_class.prototype.__init60.call(this);_class.prototype.__init61.call(this);_class.prototype.__init62.call(this);_class.prototype.__init63.call(this);_class.prototype.__init64.call(this);_class.prototype.__init65.call(this);_class.prototype.__init66.call(this);_class.prototype.__init67.call(this);_class.prototype.__init68.call(this);_class.prototype.__init69.call(this);_class.prototype.__init70.call(this);_class.prototype.__init71.call(this);_class.prototype.__init72.call(this);_class.prototype.__init73.call(this);_class.prototype.__init74.call(this);_class.prototype.__init75.call(this);_class.prototype.__init76.call(this);_class.prototype.__init77.call(this);_class.prototype.__init78.call(this);_class.prototype.__init79.call(this);_class.prototype.__init80.call(this);_class.prototype.__init81.call(this);_class.prototype.__init82.call(this);_class.prototype.__init83.call(this);_class.prototype.__init84.call(this);_class.prototype.__init85.call(this);_class.prototype.__init86.call(this);_class.prototype.__init87.call(this);_class.prototype.__init88.call(this);_class.prototype.__init89.call(this);_class.prototype.__init90.call(this);_class.prototype.__init91.call(this);_class.prototype.__init92.call(this);_class.prototype.__init93.call(this);_class.prototype.__init94.call(this);_class.prototype.__init95.call(this);_class.prototype.__init96.call(this);_class.prototype.__init97.call(this);_class.prototype.__init98.call(this);_class.prototype.__init99.call(this);_class.prototype.__init100.call(this);_class.prototype.__init101.call(this);_class.prototype.__init102.call(this);_class.prototype.__init103.call(this);_class.prototype.__init104.call(this);_class.prototype.__init105.call(this);_class.prototype.__init106.call(this);_class.prototype.__init107.call(this);_class.prototype.__init108.call(this);_class.prototype.__init109.call(this);_class.prototype.__init110.call(this);_class.prototype.__init111.call(this);_class.prototype.__init112.call(this);_class.prototype.__init113.call(this);_class.prototype.__init114.call(this);_class.prototype.__init115.call(this);_class.prototype.__init116.call(this);_class.prototype.__init117.call(this);_class.prototype.__init118.call(this);_class.prototype.__init119.call(this);_class.prototype.__init120.call(this);_class.prototype.__init121.call(this);_class.prototype.__init122.call(this);_class.prototype.__init123.call(this);this.client=n.client,this.commands=[],this.commandOptions=n.commandOptions,this.multiExec=_nullishCoalesce(n.multiExec, () => (!1))}__init() {this.exec=async()=>{if(this.commands.length===0)throw new Error("Pipeline is empty");let n=this.multiExec?["multi-exec"]:["pipeline"];return(await this.client.request({path:n,body:Object.values(this.commands).map(o=>o.command)})).map(({error:o,result:m},r)=>{if(o)throw new c(`Command ${r+1} [ ${this.commands[r].command[0]} ] failed: ${o}`);return this.commands[r].deserialize(m)})}}length(){return this.commands.length}chain(n){return this.commands.push(n),this}__init2() {this.append=(...n)=>this.chain(new C(n,this.commandOptions))}__init3() {this.bitcount=(...n)=>this.chain(new l(n,this.commandOptions))}__init4() {this.bitop=(n,t,o,...m)=>this.chain(new g([n,t,o,...m],this.commandOptions))}__init5() {this.bitpos=(...n)=>this.chain(new x(n,this.commandOptions))}__init6() {this.copy=(...n)=>this.chain(new f(n,this.commandOptions))}__init7() {this.zdiffstore=(...n)=>this.chain(new Qt(n,this.commandOptions))}__init8() {this.dbsize=()=>this.chain(new y(this.commandOptions))}__init9() {this.decr=(...n)=>this.chain(new b(n,this.commandOptions))}__init10() {this.decrby=(...n)=>this.chain(new O(n,this.commandOptions))}__init11() {this.del=(...n)=>this.chain(new T(n,this.commandOptions))}__init12() {this.echo=(...n)=>this.chain(new w(n,this.commandOptions))}__init13() {this.eval=(...n)=>this.chain(new D(n,this.commandOptions))}__init14() {this.evalsha=(...n)=>this.chain(new k(n,this.commandOptions))}__init15() {this.exists=(...n)=>this.chain(new A(n,this.commandOptions))}__init16() {this.expire=(...n)=>this.chain(new S(n,this.commandOptions))}__init17() {this.expireat=(...n)=>this.chain(new R(n,this.commandOptions))}__init18() {this.flushall=n=>this.chain(new M(n,this.commandOptions))}__init19() {this.flushdb=(...n)=>this.chain(new v(n,this.commandOptions))}__init20() {this.get=(...n)=>this.chain(new L(n,this.commandOptions))}__init21() {this.getbit=(...n)=>this.chain(new Z(n,this.commandOptions))}__init22() {this.getdel=(...n)=>this.chain(new N(n,this.commandOptions))}__init23() {this.getrange=(...n)=>this.chain(new G(n,this.commandOptions))}__init24() {this.getset=(n,t)=>this.chain(new B([n,t],this.commandOptions))}__init25() {this.hdel=(...n)=>this.chain(new U(n,this.commandOptions))}__init26() {this.hexists=(...n)=>this.chain(new H(n,this.commandOptions))}__init27() {this.hget=(...n)=>this.chain(new F(n,this.commandOptions))}__init28() {this.hgetall=(...n)=>this.chain(new q(n,this.commandOptions))}__init29() {this.hincrby=(...n)=>this.chain(new $(n,this.commandOptions))}__init30() {this.hincrbyfloat=(...n)=>this.chain(new X(n,this.commandOptions))}__init31() {this.hkeys=(...n)=>this.chain(new j(n,this.commandOptions))}__init32() {this.hlen=(...n)=>this.chain(new Y(n,this.commandOptions))}__init33() {this.hmget=(...n)=>this.chain(new W(n,this.commandOptions))}__init34() {this.hmset=(n,t)=>this.chain(new V([n,t],this.commandOptions))}__init35() {this.hrandfield=(n,t,o)=>this.chain(new _([n,t,o],this.commandOptions))}__init36() {this.hscan=(...n)=>this.chain(new Q(n,this.commandOptions))}__init37() {this.hset=(n,t)=>this.chain(new nn([n,t],this.commandOptions))}__init38() {this.hsetnx=(n,t,o)=>this.chain(new tn([n,t,o],this.commandOptions))}__init39() {this.hstrlen=(...n)=>this.chain(new en(n,this.commandOptions))}__init40() {this.hvals=(...n)=>this.chain(new on(n,this.commandOptions))}__init41() {this.incr=(...n)=>this.chain(new sn(n,this.commandOptions))}__init42() {this.incrby=(...n)=>this.chain(new mn(n,this.commandOptions))}__init43() {this.incrbyfloat=(...n)=>this.chain(new rn(n,this.commandOptions))}__init44() {this.keys=(...n)=>this.chain(new Mn(n,this.commandOptions))}__init45() {this.lindex=(...n)=>this.chain(new vn(n,this.commandOptions))}__init46() {this.linsert=(n,t,o,m)=>this.chain(new En([n,t,o,m],this.commandOptions))}__init47() {this.llen=(...n)=>this.chain(new zn(n,this.commandOptions))}__init48() {this.lmove=(...n)=>this.chain(new Jn(n,this.commandOptions))}__init49() {this.lpop=(...n)=>this.chain(new Pn(n,this.commandOptions))}__init50() {this.lpos=(...n)=>this.chain(new In(n,this.commandOptions))}__init51() {this.lpush=(n,...t)=>this.chain(new Kn([n,...t],this.commandOptions))}__init52() {this.lpushx=(n,...t)=>this.chain(new Ln([n,...t],this.commandOptions))}__init53() {this.lrange=(...n)=>this.chain(new Zn(n,this.commandOptions))}__init54() {this.lrem=(n,t,o)=>this.chain(new Nn([n,t,o],this.commandOptions))}__init55() {this.lset=(n,t,o)=>this.chain(new Gn([n,t,o],this.commandOptions))}__init56() {this.ltrim=(...n)=>this.chain(new Bn(n,this.commandOptions))}__init57() {this.mget=(...n)=>this.chain(new Un(n,this.commandOptions))}__init58() {this.mset=n=>this.chain(new Hn([n],this.commandOptions))}__init59() {this.msetnx=n=>this.chain(new Fn([n],this.commandOptions))}__init60() {this.persist=(...n)=>this.chain(new qn(n,this.commandOptions))}__init61() {this.pexpire=(...n)=>this.chain(new $n(n,this.commandOptions))}__init62() {this.pexpireat=(...n)=>this.chain(new Xn(n,this.commandOptions))}__init63() {this.ping=n=>this.chain(new jn(n,this.commandOptions))}__init64() {this.psetex=(n,t,o)=>this.chain(new Yn([n,t,o],this.commandOptions))}__init65() {this.pttl=(...n)=>this.chain(new Wn(n,this.commandOptions))}__init66() {this.publish=(...n)=>this.chain(new Vn(n,this.commandOptions))}__init67() {this.randomkey=()=>this.chain(new _n(this.commandOptions))}__init68() {this.rename=(...n)=>this.chain(new Qn(n,this.commandOptions))}__init69() {this.renamenx=(...n)=>this.chain(new nt(n,this.commandOptions))}__init70() {this.rpop=(...n)=>this.chain(new tt(n,this.commandOptions))}__init71() {this.rpush=(n,...t)=>this.chain(new et([n,...t],this.commandOptions))}__init72() {this.rpushx=(n,...t)=>this.chain(new ot([n,...t],this.commandOptions))}__init73() {this.sadd=(n,...t)=>this.chain(new st([n,...t],this.commandOptions))}__init74() {this.scan=(...n)=>this.chain(new mt(n,this.commandOptions))}__init75() {this.scard=(...n)=>this.chain(new rt(n,this.commandOptions))}__init76() {this.scriptExists=(...n)=>this.chain(new at(n,this.commandOptions))}__init77() {this.scriptFlush=(...n)=>this.chain(new it(n,this.commandOptions))}__init78() {this.scriptLoad=(...n)=>this.chain(new pt(n,this.commandOptions))}__init79() {this.sdiff=(...n)=>this.chain(new dt(n,this.commandOptions))}__init80() {this.sdiffstore=(...n)=>this.chain(new ct(n,this.commandOptions))}__init81() {this.set=(n,t,o)=>this.chain(new ut([n,t,o],this.commandOptions))}__init82() {this.setbit=(...n)=>this.chain(new ht(n,this.commandOptions))}__init83() {this.setex=(n,t,o)=>this.chain(new Ct([n,t,o],this.commandOptions))}__init84() {this.setnx=(n,t)=>this.chain(new lt([n,t],this.commandOptions))}__init85() {this.setrange=(...n)=>this.chain(new gt(n,this.commandOptions))}__init86() {this.sinter=(...n)=>this.chain(new xt(n,this.commandOptions))}__init87() {this.sinterstore=(...n)=>this.chain(new ft(n,this.commandOptions))}__init88() {this.sismember=(n,t)=>this.chain(new yt([n,t],this.commandOptions))}__init89() {this.smembers=(...n)=>this.chain(new bt(n,this.commandOptions))}__init90() {this.smismember=(n,t)=>this.chain(new Ot([n,t],this.commandOptions))}__init91() {this.smove=(n,t,o)=>this.chain(new Tt([n,t,o],this.commandOptions))}__init92() {this.spop=(...n)=>this.chain(new wt(n,this.commandOptions))}__init93() {this.srandmember=(...n)=>this.chain(new Dt(n,this.commandOptions))}__init94() {this.srem=(n,...t)=>this.chain(new kt([n,...t],this.commandOptions))}__init95() {this.sscan=(...n)=>this.chain(new At(n,this.commandOptions))}__init96() {this.strlen=(...n)=>this.chain(new St(n,this.commandOptions))}__init97() {this.sunion=(...n)=>this.chain(new Rt(n,this.commandOptions))}__init98() {this.sunionstore=(...n)=>this.chain(new Mt(n,this.commandOptions))}__init99() {this.time=()=>this.chain(new vt(this.commandOptions))}__init100() {this.touch=(...n)=>this.chain(new Et(n,this.commandOptions))}__init101() {this.ttl=(...n)=>this.chain(new zt(n,this.commandOptions))}__init102() {this.type=(...n)=>this.chain(new Jt(n,this.commandOptions))}__init103() {this.unlink=(...n)=>this.chain(new Pt(n,this.commandOptions))}__init104() {this.zadd=(...n)=>"score"in n[1]?this.chain(new u([n[0],n[1],...n.slice(2)],this.commandOptions)):this.chain(new u([n[0],n[1],...n.slice(2)],this.commandOptions))}__init105() {this.zcard=(...n)=>this.chain(new It(n,this.commandOptions))}__init106() {this.zcount=(...n)=>this.chain(new Kt(n,this.commandOptions))}__init107() {this.zincrby=(n,t,o)=>this.chain(new Lt([n,t,o],this.commandOptions))}__init108() {this.zinterstore=(...n)=>this.chain(new Zt(n,this.commandOptions))}__init109() {this.zlexcount=(...n)=>this.chain(new Nt(n,this.commandOptions))}__init110() {this.zmscore=(...n)=>this.chain(new ne(n,this.commandOptions))}__init111() {this.zpopmax=(...n)=>this.chain(new Gt(n,this.commandOptions))}__init112() {this.zpopmin=(...n)=>this.chain(new Bt(n,this.commandOptions))}__init113() {this.zrange=(...n)=>this.chain(new Ut(n,this.commandOptions))}__init114() {this.zrank=(n,t)=>this.chain(new Ht([n,t],this.commandOptions))}__init115() {this.zrem=(n,...t)=>this.chain(new Ft([n,...t],this.commandOptions))}__init116() {this.zremrangebylex=(...n)=>this.chain(new qt(n,this.commandOptions))}__init117() {this.zremrangebyrank=(...n)=>this.chain(new $t(n,this.commandOptions))}__init118() {this.zremrangebyscore=(...n)=>this.chain(new Xt(n,this.commandOptions))}__init119() {this.zrevrank=(n,t)=>this.chain(new jt([n,t],this.commandOptions))}__init120() {this.zscan=(...n)=>this.chain(new Yt(n,this.commandOptions))}__init121() {this.zscore=(n,t)=>this.chain(new Wt([n,t],this.commandOptions))}__init122() {this.zunionstore=(...n)=>this.chain(new _t(n,this.commandOptions))}__init123() {this.zunion=(...n)=>this.chain(new Vt(n,this.commandOptions))}get json(){return{arrappend:(...n)=>this.chain(new an(n,this.commandOptions)),arrindex:(...n)=>this.chain(new pn(n,this.commandOptions)),arrinsert:(...n)=>this.chain(new dn(n,this.commandOptions)),arrlen:(...n)=>this.chain(new cn(n,this.commandOptions)),arrpop:(...n)=>this.chain(new un(n,this.commandOptions)),arrtrim:(...n)=>this.chain(new hn(n,this.commandOptions)),clear:(...n)=>this.chain(new Cn(n,this.commandOptions)),del:(...n)=>this.chain(new ln(n,this.commandOptions)),forget:(...n)=>this.chain(new gn(n,this.commandOptions)),geoadd:(...n)=>this.chain(new E(n,this.commandOptions)),geodist:(...n)=>this.chain(new z(n,this.commandOptions)),geopos:(...n)=>this.chain(new J(n,this.commandOptions)),geohash:(...n)=>this.chain(new P(n,this.commandOptions)),geosearch:(...n)=>this.chain(new I(n,this.commandOptions)),geosearchstore:(...n)=>this.chain(new K(n,this.commandOptions)),get:(...n)=>this.chain(new xn(n,this.commandOptions)),mget:(...n)=>this.chain(new fn(n,this.commandOptions)),numincrby:(...n)=>this.chain(new yn(n,this.commandOptions)),nummultby:(...n)=>this.chain(new bn(n,this.commandOptions)),objkeys:(...n)=>this.chain(new On(n,this.commandOptions)),objlen:(...n)=>this.chain(new Tn(n,this.commandOptions)),resp:(...n)=>this.chain(new wn(n,this.commandOptions)),set:(...n)=>this.chain(new Dn(n,this.commandOptions)),strappend:(...n)=>this.chain(new kn(n,this.commandOptions)),strlen:(...n)=>this.chain(new An(n,this.commandOptions)),toggle:(...n)=>this.chain(new Sn(n,this.commandOptions)),type:(...n)=>this.chain(new Rn(n,this.commandOptions))}}}, _class);var _enchex = __nccwpck_require__(680); var _enchex2 = _interopRequireDefault(_enchex);var _sha1 = __nccwpck_require__(595); var _sha12 = _interopRequireDefault(_sha1);var me=class{constructor(n,t){this.redis=n,this.sha1=this.digest(t),this.script=t}async eval(n,t){return await this.redis.eval(this.script,n,t)}async evalsha(n,t){return await this.redis.evalsha(this.sha1,n,t)}async exec(n,t){return await this.redis.evalsha(this.sha1,n,t).catch(async m=>{if(m instanceof Error&&m.message.toLowerCase().includes("noscript"))return await this.redis.eval(this.script,n,t);throw m})}digest(n){return _enchex2.default.stringify(_sha12.default.call(void 0, n))}};var ue= (_class2 =class{constructor(n,t){;_class2.prototype.__init124.call(this);_class2.prototype.__init125.call(this);_class2.prototype.__init126.call(this);_class2.prototype.__init127.call(this);_class2.prototype.__init128.call(this);_class2.prototype.__init129.call(this);_class2.prototype.__init130.call(this);_class2.prototype.__init131.call(this);_class2.prototype.__init132.call(this);_class2.prototype.__init133.call(this);_class2.prototype.__init134.call(this);_class2.prototype.__init135.call(this);_class2.prototype.__init136.call(this);_class2.prototype.__init137.call(this);_class2.prototype.__init138.call(this);_class2.prototype.__init139.call(this);_class2.prototype.__init140.call(this);_class2.prototype.__init141.call(this);_class2.prototype.__init142.call(this);_class2.prototype.__init143.call(this);_class2.prototype.__init144.call(this);_class2.prototype.__init145.call(this);_class2.prototype.__init146.call(this);_class2.prototype.__init147.call(this);_class2.prototype.__init148.call(this);_class2.prototype.__init149.call(this);_class2.prototype.__init150.call(this);_class2.prototype.__init151.call(this);_class2.prototype.__init152.call(this);_class2.prototype.__init153.call(this);_class2.prototype.__init154.call(this);_class2.prototype.__init155.call(this);_class2.prototype.__init156.call(this);_class2.prototype.__init157.call(this);_class2.prototype.__init158.call(this);_class2.prototype.__init159.call(this);_class2.prototype.__init160.call(this);_class2.prototype.__init161.call(this);_class2.prototype.__init162.call(this);_class2.prototype.__init163.call(this);_class2.prototype.__init164.call(this);_class2.prototype.__init165.call(this);_class2.prototype.__init166.call(this);_class2.prototype.__init167.call(this);_class2.prototype.__init168.call(this);_class2.prototype.__init169.call(this);_class2.prototype.__init170.call(this);_class2.prototype.__init171.call(this);_class2.prototype.__init172.call(this);_class2.prototype.__init173.call(this);_class2.prototype.__init174.call(this);_class2.prototype.__init175.call(this);_class2.prototype.__init176.call(this);_class2.prototype.__init177.call(this);_class2.prototype.__init178.call(this);_class2.prototype.__init179.call(this);_class2.prototype.__init180.call(this);_class2.prototype.__init181.call(this);_class2.prototype.__init182.call(this);_class2.prototype.__init183.call(this);_class2.prototype.__init184.call(this);_class2.prototype.__init185.call(this);_class2.prototype.__init186.call(this);_class2.prototype.__init187.call(this);_class2.prototype.__init188.call(this);_class2.prototype.__init189.call(this);_class2.prototype.__init190.call(this);_class2.prototype.__init191.call(this);_class2.prototype.__init192.call(this);_class2.prototype.__init193.call(this);_class2.prototype.__init194.call(this);_class2.prototype.__init195.call(this);_class2.prototype.__init196.call(this);_class2.prototype.__init197.call(this);_class2.prototype.__init198.call(this);_class2.prototype.__init199.call(this);_class2.prototype.__init200.call(this);_class2.prototype.__init201.call(this);_class2.prototype.__init202.call(this);_class2.prototype.__init203.call(this);_class2.prototype.__init204.call(this);_class2.prototype.__init205.call(this);_class2.prototype.__init206.call(this);_class2.prototype.__init207.call(this);_class2.prototype.__init208.call(this);_class2.prototype.__init209.call(this);_class2.prototype.__init210.call(this);_class2.prototype.__init211.call(this);_class2.prototype.__init212.call(this);_class2.prototype.__init213.call(this);_class2.prototype.__init214.call(this);_class2.prototype.__init215.call(this);_class2.prototype.__init216.call(this);_class2.prototype.__init217.call(this);_class2.prototype.__init218.call(this);_class2.prototype.__init219.call(this);_class2.prototype.__init220.call(this);_class2.prototype.__init221.call(this);_class2.prototype.__init222.call(this);_class2.prototype.__init223.call(this);_class2.prototype.__init224.call(this);_class2.prototype.__init225.call(this);_class2.prototype.__init226.call(this);_class2.prototype.__init227.call(this);_class2.prototype.__init228.call(this);_class2.prototype.__init229.call(this);_class2.prototype.__init230.call(this);_class2.prototype.__init231.call(this);_class2.prototype.__init232.call(this);_class2.prototype.__init233.call(this);_class2.prototype.__init234.call(this);_class2.prototype.__init235.call(this);_class2.prototype.__init236.call(this);_class2.prototype.__init237.call(this);_class2.prototype.__init238.call(this);_class2.prototype.__init239.call(this);_class2.prototype.__init240.call(this);_class2.prototype.__init241.call(this);_class2.prototype.__init242.call(this);_class2.prototype.__init243.call(this);_class2.prototype.__init244.call(this);_class2.prototype.__init245.call(this);_class2.prototype.__init246.call(this);_class2.prototype.__init247.call(this);_class2.prototype.__init248.call(this);_class2.prototype.__init249.call(this);_class2.prototype.__init250.call(this);_class2.prototype.__init251.call(this);this.client=n,this.opts=t,this.enableTelemetry=_nullishCoalesce(_optionalChain([t, 'optionalAccess', _56 => _56.enableTelemetry]), () => (!0))}get json(){return{arrappend:(...n)=>new an(n,this.opts).exec(this.client),arrindex:(...n)=>new pn(n,this.opts).exec(this.client),arrinsert:(...n)=>new dn(n,this.opts).exec(this.client),arrlen:(...n)=>new cn(n,this.opts).exec(this.client),arrpop:(...n)=>new un(n,this.opts).exec(this.client),arrtrim:(...n)=>new hn(n,this.opts).exec(this.client),clear:(...n)=>new Cn(n,this.opts).exec(this.client),del:(...n)=>new ln(n,this.opts).exec(this.client),forget:(...n)=>new gn(n,this.opts).exec(this.client),geoadd:(...n)=>new E(n,this.opts).exec(this.client),geopos:(...n)=>new J(n,this.opts).exec(this.client),geodist:(...n)=>new z(n,this.opts).exec(this.client),geohash:(...n)=>new P(n,this.opts).exec(this.client),geosearch:(...n)=>new I(n,this.opts).exec(this.client),geosearchstore:(...n)=>new K(n,this.opts).exec(this.client),get:(...n)=>new xn(n,this.opts).exec(this.client),mget:(...n)=>new fn(n,this.opts).exec(this.client),numincrby:(...n)=>new yn(n,this.opts).exec(this.client),nummultby:(...n)=>new bn(n,this.opts).exec(this.client),objkeys:(...n)=>new On(n,this.opts).exec(this.client),objlen:(...n)=>new Tn(n,this.opts).exec(this.client),resp:(...n)=>new wn(n,this.opts).exec(this.client),set:(...n)=>new Dn(n,this.opts).exec(this.client),strappend:(...n)=>new kn(n,this.opts).exec(this.client),strlen:(...n)=>new An(n,this.opts).exec(this.client),toggle:(...n)=>new Sn(n,this.opts).exec(this.client),type:(...n)=>new Rn(n,this.opts).exec(this.client)}}__init124() {this.use=n=>{let t=this.client.request.bind(this.client);this.client.request=o=>n(o,t)}}__init125() {this.addTelemetry=n=>{if(this.enableTelemetry)try{this.client.mergeTelemetry(n)}catch (e12){}}}createScript(n){return new me(this,n)}__init126() {this.pipeline=()=>new te({client:this.client,commandOptions:this.opts,multiExec:!1})}__init127() {this.multi=()=>new te({client:this.client,commandOptions:this.opts,multiExec:!0})}__init128() {this.append=(...n)=>new C(n,this.opts).exec(this.client)}__init129() {this.bitcount=(...n)=>new l(n,this.opts).exec(this.client)}__init130() {this.bitop=(n,t,o,...m)=>new g([n,t,o,...m],this.opts).exec(this.client)}__init131() {this.bitpos=(...n)=>new x(n,this.opts).exec(this.client)}__init132() {this.copy=(...n)=>new f(n,this.opts).exec(this.client)}__init133() {this.dbsize=()=>new y(this.opts).exec(this.client)}__init134() {this.decr=(...n)=>new b(n,this.opts).exec(this.client)}__init135() {this.decrby=(...n)=>new O(n,this.opts).exec(this.client)}__init136() {this.del=(...n)=>new T(n,this.opts).exec(this.client)}__init137() {this.echo=(...n)=>new w(n,this.opts).exec(this.client)}__init138() {this.eval=(...n)=>new D(n,this.opts).exec(this.client)}__init139() {this.evalsha=(...n)=>new k(n,this.opts).exec(this.client)}__init140() {this.exists=(...n)=>new A(n,this.opts).exec(this.client)}__init141() {this.expire=(...n)=>new S(n,this.opts).exec(this.client)}__init142() {this.expireat=(...n)=>new R(n,this.opts).exec(this.client)}__init143() {this.flushall=n=>new M(n,this.opts).exec(this.client)}__init144() {this.flushdb=(...n)=>new v(n,this.opts).exec(this.client)}__init145() {this.get=(...n)=>new L(n,this.opts).exec(this.client)}__init146() {this.getbit=(...n)=>new Z(n,this.opts).exec(this.client)}__init147() {this.getdel=(...n)=>new N(n,this.opts).exec(this.client)}__init148() {this.getrange=(...n)=>new G(n,this.opts).exec(this.client)}__init149() {this.getset=(n,t)=>new B([n,t],this.opts).exec(this.client)}__init150() {this.hdel=(...n)=>new U(n,this.opts).exec(this.client)}__init151() {this.hexists=(...n)=>new H(n,this.opts).exec(this.client)}__init152() {this.hget=(...n)=>new F(n,this.opts).exec(this.client)}__init153() {this.hgetall=(...n)=>new q(n,this.opts).exec(this.client)}__init154() {this.hincrby=(...n)=>new $(n,this.opts).exec(this.client)}__init155() {this.hincrbyfloat=(...n)=>new X(n,this.opts).exec(this.client)}__init156() {this.hkeys=(...n)=>new j(n,this.opts).exec(this.client)}__init157() {this.hlen=(...n)=>new Y(n,this.opts).exec(this.client)}__init158() {this.hmget=(...n)=>new W(n,this.opts).exec(this.client)}__init159() {this.hmset=(n,t)=>new V([n,t],this.opts).exec(this.client)}__init160() {this.hrandfield=(n,t,o)=>new _([n,t,o],this.opts).exec(this.client)}__init161() {this.hscan=(...n)=>new Q(n,this.opts).exec(this.client)}__init162() {this.hset=(n,t)=>new nn([n,t],this.opts).exec(this.client)}__init163() {this.hsetnx=(n,t,o)=>new tn([n,t,o],this.opts).exec(this.client)}__init164() {this.hstrlen=(...n)=>new en(n,this.opts).exec(this.client)}__init165() {this.hvals=(...n)=>new on(n,this.opts).exec(this.client)}__init166() {this.incr=(...n)=>new sn(n,this.opts).exec(this.client)}__init167() {this.incrby=(...n)=>new mn(n,this.opts).exec(this.client)}__init168() {this.incrbyfloat=(...n)=>new rn(n,this.opts).exec(this.client)}__init169() {this.keys=(...n)=>new Mn(n,this.opts).exec(this.client)}__init170() {this.lindex=(...n)=>new vn(n,this.opts).exec(this.client)}__init171() {this.linsert=(n,t,o,m)=>new En([n,t,o,m],this.opts).exec(this.client)}__init172() {this.llen=(...n)=>new zn(n,this.opts).exec(this.client)}__init173() {this.lmove=(...n)=>new Jn(n,this.opts).exec(this.client)}__init174() {this.lpop=(...n)=>new Pn(n,this.opts).exec(this.client)}__init175() {this.lpos=(...n)=>new In(n,this.opts).exec(this.client)}__init176() {this.lpush=(n,...t)=>new Kn([n,...t],this.opts).exec(this.client)}__init177() {this.lpushx=(n,...t)=>new Ln([n,...t],this.opts).exec(this.client)}__init178() {this.lrange=(...n)=>new Zn(n,this.opts).exec(this.client)}__init179() {this.lrem=(n,t,o)=>new Nn([n,t,o],this.opts).exec(this.client)}__init180() {this.lset=(n,t,o)=>new Gn([n,t,o],this.opts).exec(this.client)}__init181() {this.ltrim=(...n)=>new Bn(n,this.opts).exec(this.client)}__init182() {this.mget=(...n)=>new Un(n,this.opts).exec(this.client)}__init183() {this.mset=n=>new Hn([n],this.opts).exec(this.client)}__init184() {this.msetnx=n=>new Fn([n],this.opts).exec(this.client)}__init185() {this.persist=(...n)=>new qn(n,this.opts).exec(this.client)}__init186() {this.pexpire=(...n)=>new $n(n,this.opts).exec(this.client)}__init187() {this.pexpireat=(...n)=>new Xn(n,this.opts).exec(this.client)}__init188() {this.ping=n=>new jn(n,this.opts).exec(this.client)}__init189() {this.psetex=(n,t,o)=>new Yn([n,t,o],this.opts).exec(this.client)}__init190() {this.pttl=(...n)=>new Wn(n,this.opts).exec(this.client)}__init191() {this.publish=(...n)=>new Vn(n,this.opts).exec(this.client)}__init192() {this.randomkey=()=>new _n().exec(this.client)}__init193() {this.rename=(...n)=>new Qn(n,this.opts).exec(this.client)}__init194() {this.renamenx=(...n)=>new nt(n,this.opts).exec(this.client)}__init195() {this.rpop=(...n)=>new tt(n,this.opts).exec(this.client)}__init196() {this.rpush=(n,...t)=>new et([n,...t],this.opts).exec(this.client)}__init197() {this.rpushx=(n,...t)=>new ot([n,...t],this.opts).exec(this.client)}__init198() {this.sadd=(n,...t)=>new st([n,...t],this.opts).exec(this.client)}__init199() {this.scan=(...n)=>new mt(n,this.opts).exec(this.client)}__init200() {this.scard=(...n)=>new rt(n,this.opts).exec(this.client)}__init201() {this.scriptExists=(...n)=>new at(n,this.opts).exec(this.client)}__init202() {this.scriptFlush=(...n)=>new it(n,this.opts).exec(this.client)}__init203() {this.scriptLoad=(...n)=>new pt(n,this.opts).exec(this.client)}__init204() {this.sdiff=(...n)=>new dt(n,this.opts).exec(this.client)}__init205() {this.sdiffstore=(...n)=>new ct(n,this.opts).exec(this.client)}__init206() {this.set=(n,t,o)=>new ut([n,t,o],this.opts).exec(this.client)}__init207() {this.setbit=(...n)=>new ht(n,this.opts).exec(this.client)}__init208() {this.setex=(n,t,o)=>new Ct([n,t,o],this.opts).exec(this.client)}__init209() {this.setnx=(n,t)=>new lt([n,t],this.opts).exec(this.client)}__init210() {this.setrange=(...n)=>new gt(n,this.opts).exec(this.client)}__init211() {this.sinter=(...n)=>new xt(n,this.opts).exec(this.client)}__init212() {this.sinterstore=(...n)=>new ft(n,this.opts).exec(this.client)}__init213() {this.sismember=(n,t)=>new yt([n,t],this.opts).exec(this.client)}__init214() {this.smismember=(n,t)=>new Ot([n,t],this.opts).exec(this.client)}__init215() {this.smembers=(...n)=>new bt(n,this.opts).exec(this.client)}__init216() {this.smove=(n,t,o)=>new Tt([n,t,o],this.opts).exec(this.client)}__init217() {this.spop=(...n)=>new wt(n,this.opts).exec(this.client)}__init218() {this.srandmember=(...n)=>new Dt(n,this.opts).exec(this.client)}__init219() {this.srem=(n,...t)=>new kt([n,...t],this.opts).exec(this.client)}__init220() {this.sscan=(...n)=>new At(n,this.opts).exec(this.client)}__init221() {this.strlen=(...n)=>new St(n,this.opts).exec(this.client)}__init222() {this.sunion=(...n)=>new Rt(n,this.opts).exec(this.client)}__init223() {this.sunionstore=(...n)=>new Mt(n,this.opts).exec(this.client)}__init224() {this.time=()=>new vt().exec(this.client)}__init225() {this.touch=(...n)=>new Et(n,this.opts).exec(this.client)}__init226() {this.ttl=(...n)=>new zt(n,this.opts).exec(this.client)}__init227() {this.type=(...n)=>new Jt(n,this.opts).exec(this.client)}__init228() {this.unlink=(...n)=>new Pt(n,this.opts).exec(this.client)}__init229() {this.xadd=(...n)=>new oe(n,this.opts).exec(this.client)}__init230() {this.xrange=(...n)=>new se(n,this.opts).exec(this.client)}__init231() {this.zadd=(...n)=>"score"in n[1]?new u([n[0],n[1],...n.slice(2)],this.opts).exec(this.client):new u([n[0],n[1],...n.slice(2)],this.opts).exec(this.client)}__init232() {this.zcard=(...n)=>new It(n,this.opts).exec(this.client)}__init233() {this.zcount=(...n)=>new Kt(n,this.opts).exec(this.client)}__init234() {this.zdiffstore=(...n)=>new Qt(n,this.opts).exec(this.client)}__init235() {this.zincrby=(n,t,o)=>new Lt([n,t,o],this.opts).exec(this.client)}__init236() {this.zinterstore=(...n)=>new Zt(n,this.opts).exec(this.client)}__init237() {this.zlexcount=(...n)=>new Nt(n,this.opts).exec(this.client)}__init238() {this.zmscore=(...n)=>new ne(n,this.opts).exec(this.client)}__init239() {this.zpopmax=(...n)=>new Gt(n,this.opts).exec(this.client)}__init240() {this.zpopmin=(...n)=>new Bt(n,this.opts).exec(this.client)}__init241() {this.zrange=(...n)=>new Ut(n,this.opts).exec(this.client)}__init242() {this.zrank=(n,t)=>new Ht([n,t],this.opts).exec(this.client)}__init243() {this.zrem=(n,...t)=>new Ft([n,...t],this.opts).exec(this.client)}__init244() {this.zremrangebylex=(...n)=>new qt(n,this.opts).exec(this.client)}__init245() {this.zremrangebyrank=(...n)=>new $t(n,this.opts).exec(this.client)}__init246() {this.zremrangebyscore=(...n)=>new Xt(n,this.opts).exec(this.client)}__init247() {this.zrevrank=(n,t)=>new jt([n,t],this.opts).exec(this.client)}__init248() {this.zscan=(...n)=>new Yt(n,this.opts).exec(this.client)}__init249() {this.zscore=(n,t)=>new Wt([n,t],this.opts).exec(this.client)}__init250() {this.zunion=(...n)=>new Vt(n,this.opts).exec(this.client)}__init251() {this.zunionstore=(...n)=>new _t(n,this.opts).exec(this.client)}}, _class2);var cC="v1.24.3";exports.a = ie; exports.b = ue; exports.c = cC;
+
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+
+// platforms/nodejs.ts
+var nodejs_exports = {};
+__export(nodejs_exports, {
+  Redis: () => Redis2,
+  errors: () => error_exports
+});
+module.exports = __toCommonJS(nodejs_exports);
+
+// pkg/error.ts
+var error_exports = {};
+__export(error_exports, {
+  UpstashError: () => UpstashError,
+  UrlError: () => UrlError
+});
+var UpstashError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "UpstashError";
+  }
+};
+var UrlError = class extends Error {
+  constructor(url) {
+    super(
+      `Upstash Redis client was passed an invalid URL. You should pass a URL starting with https. Received: "${url}". `
+    );
+    this.name = "UrlError";
+  }
+};
+
+// pkg/http.ts
+var HttpClient = class {
+  baseUrl;
+  headers;
+  options;
+  readYourWrites;
+  upstashSyncToken = "";
+  hasCredentials;
+  retry;
+  constructor(config) {
+    this.options = {
+      backend: config.options?.backend,
+      agent: config.agent,
+      responseEncoding: config.responseEncoding ?? "base64",
+      // default to base64
+      cache: config.cache,
+      signal: config.signal,
+      keepAlive: config.keepAlive ?? true
+    };
+    this.upstashSyncToken = "";
+    this.readYourWrites = config.readYourWrites ?? true;
+    this.baseUrl = (config.baseUrl || "").replace(/\/$/, "");
+    const urlRegex = /^https?:\/\/[^\s#$./?].\S*$/;
+    if (this.baseUrl && !urlRegex.test(this.baseUrl)) {
+      throw new UrlError(this.baseUrl);
+    }
+    this.headers = {
+      "Content-Type": "application/json",
+      ...config.headers
+    };
+    this.hasCredentials = Boolean(this.baseUrl && this.headers.authorization.split(" ")[1]);
+    if (this.options.responseEncoding === "base64") {
+      this.headers["Upstash-Encoding"] = "base64";
+    }
+    this.retry = typeof config.retry === "boolean" && !config.retry ? {
+      attempts: 1,
+      backoff: () => 0
+    } : {
+      attempts: config.retry?.retries ?? 5,
+      backoff: config.retry?.backoff ?? ((retryCount) => Math.exp(retryCount) * 50)
+    };
+  }
+  mergeTelemetry(telemetry) {
+    this.headers = merge(this.headers, "Upstash-Telemetry-Runtime", telemetry.runtime);
+    this.headers = merge(this.headers, "Upstash-Telemetry-Platform", telemetry.platform);
+    this.headers = merge(this.headers, "Upstash-Telemetry-Sdk", telemetry.sdk);
+  }
+  async request(req) {
+    const requestOptions = {
+      //@ts-expect-error this should throw due to bun regression
+      cache: this.options.cache,
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(req.body),
+      keepalive: this.options.keepAlive,
+      agent: this.options.agent,
+      signal: this.options.signal,
+      /**
+       * Fastly specific
+       */
+      backend: this.options.backend
+    };
+    if (!this.hasCredentials) {
+      console.warn(
+        "[Upstash Redis] Redis client was initialized without url or token. Failed to execute command."
+      );
+    }
+    if (this.readYourWrites) {
+      const newHeader = this.upstashSyncToken;
+      this.headers["upstash-sync-token"] = newHeader;
+    }
+    let res = null;
+    let error = null;
+    for (let i = 0; i <= this.retry.attempts; i++) {
+      try {
+        res = await fetch([this.baseUrl, ...req.path ?? []].join("/"), requestOptions);
+        break;
+      } catch (error_) {
+        if (this.options.signal?.aborted) {
+          const myBlob = new Blob([
+            JSON.stringify({ result: this.options.signal.reason ?? "Aborted" })
+          ]);
+          const myOptions = {
+            status: 200,
+            statusText: this.options.signal.reason ?? "Aborted"
+          };
+          res = new Response(myBlob, myOptions);
+          break;
+        }
+        error = error_;
+        await new Promise((r) => setTimeout(r, this.retry.backoff(i)));
+      }
+    }
+    if (!res) {
+      throw error ?? new Error("Exhausted all retries");
+    }
+    const body = await res.json();
+    if (!res.ok) {
+      throw new UpstashError(`${body.error}, command was: ${JSON.stringify(req.body)}`);
+    }
+    if (this.readYourWrites) {
+      const headers = res.headers;
+      this.upstashSyncToken = headers.get("upstash-sync-token") ?? "";
+    }
+    if (this.readYourWrites) {
+      const headers = res.headers;
+      this.upstashSyncToken = headers.get("upstash-sync-token") ?? "";
+    }
+    if (this.options.responseEncoding === "base64") {
+      if (Array.isArray(body)) {
+        return body.map(({ result: result2, error: error2 }) => ({
+          result: decode(result2),
+          error: error2
+        }));
+      }
+      const result = decode(body.result);
+      return { result, error: body.error };
+    }
+    return body;
+  }
+};
+function base64decode(b64) {
+  let dec = "";
+  try {
+    const binString = atob(b64);
+    const size = binString.length;
+    const bytes = new Uint8Array(size);
+    for (let i = 0; i < size; i++) {
+      bytes[i] = binString.charCodeAt(i);
+    }
+    dec = new TextDecoder().decode(bytes);
+  } catch {
+    dec = b64;
+  }
+  return dec;
+}
+function decode(raw) {
+  let result = void 0;
+  switch (typeof raw) {
+    case "undefined": {
+      return raw;
+    }
+    case "number": {
+      result = raw;
+      break;
+    }
+    case "object": {
+      if (Array.isArray(raw)) {
+        result = raw.map(
+          (v) => typeof v === "string" ? base64decode(v) : Array.isArray(v) ? v.map((element) => decode(element)) : v
+        );
+      } else {
+        result = null;
+      }
+      break;
+    }
+    case "string": {
+      result = raw === "OK" ? "OK" : base64decode(raw);
+      break;
+    }
+    default: {
+      break;
+    }
+  }
+  return result;
+}
+function merge(obj, key, value) {
+  if (!value) {
+    return obj;
+  }
+  obj[key] = obj[key] ? [obj[key], value].join(",") : value;
+  return obj;
+}
+
+// pkg/auto-pipeline.ts
+function createAutoPipelineProxy(_redis, json) {
+  const redis = _redis;
+  if (!redis.autoPipelineExecutor) {
+    redis.autoPipelineExecutor = new AutoPipelineExecutor(redis);
+  }
+  return new Proxy(redis, {
+    get: (redis2, command) => {
+      if (command === "pipelineCounter") {
+        return redis2.autoPipelineExecutor.pipelineCounter;
+      }
+      if (command === "json") {
+        return createAutoPipelineProxy(redis2, true);
+      }
+      const commandInRedisButNotPipeline = command in redis2 && !(command in redis2.autoPipelineExecutor.pipeline);
+      if (commandInRedisButNotPipeline) {
+        return redis2[command];
+      }
+      const isFunction = json ? typeof redis2.autoPipelineExecutor.pipeline.json[command] === "function" : typeof redis2.autoPipelineExecutor.pipeline[command] === "function";
+      if (isFunction) {
+        return (...args) => {
+          return redis2.autoPipelineExecutor.withAutoPipeline((pipeline) => {
+            if (json) {
+              pipeline.json[command](
+                ...args
+              );
+            } else {
+              pipeline[command](...args);
+            }
+          });
+        };
+      }
+      return redis2.autoPipelineExecutor.pipeline[command];
+    }
+  });
+}
+var AutoPipelineExecutor = class {
+  pipelinePromises = /* @__PURE__ */ new WeakMap();
+  activePipeline = null;
+  indexInCurrentPipeline = 0;
+  redis;
+  pipeline;
+  // only to make sure that proxy can work
+  pipelineCounter = 0;
+  // to keep track of how many times a pipeline was executed
+  constructor(redis) {
+    this.redis = redis;
+    this.pipeline = redis.pipeline();
+  }
+  async withAutoPipeline(executeWithPipeline) {
+    const pipeline = this.activePipeline ?? this.redis.pipeline();
+    if (!this.activePipeline) {
+      this.activePipeline = pipeline;
+      this.indexInCurrentPipeline = 0;
+    }
+    const index = this.indexInCurrentPipeline++;
+    executeWithPipeline(pipeline);
+    const pipelineDone = this.deferExecution().then(() => {
+      if (!this.pipelinePromises.has(pipeline)) {
+        const pipelinePromise = pipeline.exec({ keepErrors: true });
+        this.pipelineCounter += 1;
+        this.pipelinePromises.set(pipeline, pipelinePromise);
+        this.activePipeline = null;
+      }
+      return this.pipelinePromises.get(pipeline);
+    });
+    const results = await pipelineDone;
+    const commandResult = results[index];
+    if (commandResult.error) {
+      throw new UpstashError(`Command failed: ${commandResult.error}`);
+    }
+    return commandResult.result;
+  }
+  async deferExecution() {
+    await Promise.resolve();
+    await Promise.resolve();
+  }
+};
+
+// pkg/util.ts
+function parseRecursive(obj) {
+  const parsed = Array.isArray(obj) ? obj.map((o) => {
+    try {
+      return parseRecursive(o);
+    } catch {
+      return o;
+    }
+  }) : JSON.parse(obj);
+  if (typeof parsed === "number" && parsed.toString() !== obj) {
+    return obj;
+  }
+  return parsed;
+}
+function parseResponse(result) {
+  try {
+    return parseRecursive(result);
+  } catch {
+    return result;
+  }
+}
+function deserializeScanResponse(result) {
+  return [result[0], ...parseResponse(result.slice(1))];
+}
+
+// pkg/commands/command.ts
+var defaultSerializer = (c) => {
+  switch (typeof c) {
+    case "string":
+    case "number":
+    case "boolean": {
+      return c;
+    }
+    default: {
+      return JSON.stringify(c);
+    }
+  }
+};
+var Command = class {
+  command;
+  serialize;
+  deserialize;
+  /**
+   * Create a new command instance.
+   *
+   * You can define a custom `deserialize` function. By default we try to deserialize as json.
+   */
+  constructor(command, opts) {
+    this.serialize = defaultSerializer;
+    this.deserialize = opts?.automaticDeserialization === void 0 || opts.automaticDeserialization ? opts?.deserialize ?? parseResponse : (x) => x;
+    this.command = command.map((c) => this.serialize(c));
+    if (opts?.latencyLogging) {
+      const originalExec = this.exec.bind(this);
+      this.exec = async (client) => {
+        const start = performance.now();
+        const result = await originalExec(client);
+        const end = performance.now();
+        const loggerResult = (end - start).toFixed(2);
+        console.log(
+          `Latency for \x1B[38;2;19;185;39m${this.command[0].toString().toUpperCase()}\x1B[0m: \x1B[38;2;0;255;255m${loggerResult} ms\x1B[0m`
+        );
+        return result;
+      };
+    }
+  }
+  /**
+   * Execute the command using a client.
+   */
+  async exec(client) {
+    const { result, error } = await client.request({
+      body: this.command,
+      upstashSyncToken: client.upstashSyncToken
+    });
+    if (error) {
+      throw new UpstashError(error);
+    }
+    if (result === void 0) {
+      throw new TypeError("Request did not return a result");
+    }
+    return this.deserialize(result);
+  }
+};
+
+// pkg/commands/append.ts
+var AppendCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["append", ...cmd], opts);
+  }
+};
+
+// pkg/commands/bitcount.ts
+var BitCountCommand = class extends Command {
+  constructor([key, start, end], opts) {
+    const command = ["bitcount", key];
+    if (typeof start === "number") {
+      command.push(start);
+    }
+    if (typeof end === "number") {
+      command.push(end);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/bitfield.ts
+var BitFieldCommand = class {
+  constructor(args, client, opts, execOperation = (command) => command.exec(this.client)) {
+    this.client = client;
+    this.opts = opts;
+    this.execOperation = execOperation;
+    this.command = ["bitfield", ...args];
+  }
+  command;
+  chain(...args) {
+    this.command.push(...args);
+    return this;
+  }
+  get(...args) {
+    return this.chain("get", ...args);
+  }
+  set(...args) {
+    return this.chain("set", ...args);
+  }
+  incrby(...args) {
+    return this.chain("incrby", ...args);
+  }
+  overflow(overflow) {
+    return this.chain("overflow", overflow);
+  }
+  exec() {
+    const command = new Command(this.command, this.opts);
+    return this.execOperation(command);
+  }
+};
+
+// pkg/commands/bitop.ts
+var BitOpCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["bitop", ...cmd], opts);
+  }
+};
+
+// pkg/commands/bitpos.ts
+var BitPosCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["bitpos", ...cmd], opts);
+  }
+};
+
+// pkg/commands/copy.ts
+var CopyCommand = class extends Command {
+  constructor([key, destinationKey, opts], commandOptions) {
+    super(["COPY", key, destinationKey, ...opts?.replace ? ["REPLACE"] : []], {
+      ...commandOptions,
+      deserialize(result) {
+        if (result > 0) {
+          return "COPIED";
+        }
+        return "NOT_COPIED";
+      }
+    });
+  }
+};
+
+// pkg/commands/dbsize.ts
+var DBSizeCommand = class extends Command {
+  constructor(opts) {
+    super(["dbsize"], opts);
+  }
+};
+
+// pkg/commands/decr.ts
+var DecrCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["decr", ...cmd], opts);
+  }
+};
+
+// pkg/commands/decrby.ts
+var DecrByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["decrby", ...cmd], opts);
+  }
+};
+
+// pkg/commands/del.ts
+var DelCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["del", ...cmd], opts);
+  }
+};
+
+// pkg/commands/echo.ts
+var EchoCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["echo", ...cmd], opts);
+  }
+};
+
+// pkg/commands/eval.ts
+var EvalCommand = class extends Command {
+  constructor([script, keys, args], opts) {
+    super(["eval", script, keys.length, ...keys, ...args ?? []], opts);
+  }
+};
+
+// pkg/commands/evalsha.ts
+var EvalshaCommand = class extends Command {
+  constructor([sha, keys, args], opts) {
+    super(["evalsha", sha, keys.length, ...keys, ...args ?? []], opts);
+  }
+};
+
+// pkg/commands/exists.ts
+var ExistsCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["exists", ...cmd], opts);
+  }
+};
+
+// pkg/commands/expire.ts
+var ExpireCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["expire", ...cmd.filter(Boolean)], opts);
+  }
+};
+
+// pkg/commands/expireat.ts
+var ExpireAtCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["expireat", ...cmd], opts);
+  }
+};
+
+// pkg/commands/flushall.ts
+var FlushAllCommand = class extends Command {
+  constructor(args, opts) {
+    const command = ["flushall"];
+    if (args && args.length > 0 && args[0].async) {
+      command.push("async");
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/flushdb.ts
+var FlushDBCommand = class extends Command {
+  constructor([opts], cmdOpts) {
+    const command = ["flushdb"];
+    if (opts?.async) {
+      command.push("async");
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/geo_add.ts
+var GeoAddCommand = class extends Command {
+  constructor([key, arg1, ...arg2], opts) {
+    const command = ["geoadd", key];
+    if ("nx" in arg1 && arg1.nx) {
+      command.push("nx");
+    } else if ("xx" in arg1 && arg1.xx) {
+      command.push("xx");
+    }
+    if ("ch" in arg1 && arg1.ch) {
+      command.push("ch");
+    }
+    if ("latitude" in arg1 && arg1.latitude) {
+      command.push(arg1.longitude, arg1.latitude, arg1.member);
+    }
+    command.push(
+      ...arg2.flatMap(({ latitude, longitude, member }) => [longitude, latitude, member])
+    );
+    super(command, opts);
+  }
+};
+
+// pkg/commands/geo_dist.ts
+var GeoDistCommand = class extends Command {
+  constructor([key, member1, member2, unit = "M"], opts) {
+    super(["GEODIST", key, member1, member2, unit], opts);
+  }
+};
+
+// pkg/commands/geo_hash.ts
+var GeoHashCommand = class extends Command {
+  constructor(cmd, opts) {
+    const [key] = cmd;
+    const members = Array.isArray(cmd[1]) ? cmd[1] : cmd.slice(1);
+    super(["GEOHASH", key, ...members], opts);
+  }
+};
+
+// pkg/commands/geo_pos.ts
+var GeoPosCommand = class extends Command {
+  constructor(cmd, opts) {
+    const [key] = cmd;
+    const members = Array.isArray(cmd[1]) ? cmd[1] : cmd.slice(1);
+    super(["GEOPOS", key, ...members], {
+      deserialize: (result) => transform(result),
+      ...opts
+    });
+  }
+};
+function transform(result) {
+  const final = [];
+  for (const pos of result) {
+    if (!pos?.[0] || !pos?.[1]) {
+      continue;
+    }
+    final.push({ lng: Number.parseFloat(pos[0]), lat: Number.parseFloat(pos[1]) });
+  }
+  return final;
+}
+
+// pkg/commands/geo_search.ts
+var GeoSearchCommand = class extends Command {
+  constructor([key, centerPoint, shape, order, opts], commandOptions) {
+    const command = ["GEOSEARCH", key];
+    if (centerPoint.type === "FROMMEMBER" || centerPoint.type === "frommember") {
+      command.push(centerPoint.type, centerPoint.member);
+    }
+    if (centerPoint.type === "FROMLONLAT" || centerPoint.type === "fromlonlat") {
+      command.push(centerPoint.type, centerPoint.coordinate.lon, centerPoint.coordinate.lat);
+    }
+    if (shape.type === "BYRADIUS" || shape.type === "byradius") {
+      command.push(shape.type, shape.radius, shape.radiusType);
+    }
+    if (shape.type === "BYBOX" || shape.type === "bybox") {
+      command.push(shape.type, shape.rect.width, shape.rect.height, shape.rectType);
+    }
+    command.push(order);
+    if (opts?.count) {
+      command.push("COUNT", opts.count.limit, ...opts.count.any ? ["ANY"] : []);
+    }
+    const transform2 = (result) => {
+      if (!opts?.withCoord && !opts?.withDist && !opts?.withHash) {
+        return result.map((member) => {
+          try {
+            return { member: JSON.parse(member) };
+          } catch {
+            return { member };
+          }
+        });
+      }
+      return result.map((members) => {
+        let counter = 1;
+        const obj = {};
+        try {
+          obj.member = JSON.parse(members[0]);
+        } catch {
+          obj.member = members[0];
+        }
+        if (opts.withDist) {
+          obj.dist = Number.parseFloat(members[counter++]);
+        }
+        if (opts.withHash) {
+          obj.hash = members[counter++].toString();
+        }
+        if (opts.withCoord) {
+          obj.coord = {
+            long: Number.parseFloat(members[counter][0]),
+            lat: Number.parseFloat(members[counter][1])
+          };
+        }
+        return obj;
+      });
+    };
+    super(
+      [
+        ...command,
+        ...opts?.withCoord ? ["WITHCOORD"] : [],
+        ...opts?.withDist ? ["WITHDIST"] : [],
+        ...opts?.withHash ? ["WITHHASH"] : []
+      ],
+      {
+        deserialize: transform2,
+        ...commandOptions
+      }
+    );
+  }
+};
+
+// pkg/commands/geo_search_store.ts
+var GeoSearchStoreCommand = class extends Command {
+  constructor([destination, key, centerPoint, shape, order, opts], commandOptions) {
+    const command = ["GEOSEARCHSTORE", destination, key];
+    if (centerPoint.type === "FROMMEMBER" || centerPoint.type === "frommember") {
+      command.push(centerPoint.type, centerPoint.member);
+    }
+    if (centerPoint.type === "FROMLONLAT" || centerPoint.type === "fromlonlat") {
+      command.push(centerPoint.type, centerPoint.coordinate.lon, centerPoint.coordinate.lat);
+    }
+    if (shape.type === "BYRADIUS" || shape.type === "byradius") {
+      command.push(shape.type, shape.radius, shape.radiusType);
+    }
+    if (shape.type === "BYBOX" || shape.type === "bybox") {
+      command.push(shape.type, shape.rect.width, shape.rect.height, shape.rectType);
+    }
+    command.push(order);
+    if (opts?.count) {
+      command.push("COUNT", opts.count.limit, ...opts.count.any ? ["ANY"] : []);
+    }
+    super([...command, ...opts?.storeDist ? ["STOREDIST"] : []], commandOptions);
+  }
+};
+
+// pkg/commands/get.ts
+var GetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["get", ...cmd], opts);
+  }
+};
+
+// pkg/commands/getbit.ts
+var GetBitCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["getbit", ...cmd], opts);
+  }
+};
+
+// pkg/commands/getdel.ts
+var GetDelCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["getdel", ...cmd], opts);
+  }
+};
+
+// pkg/commands/getrange.ts
+var GetRangeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["getrange", ...cmd], opts);
+  }
+};
+
+// pkg/commands/getset.ts
+var GetSetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["getset", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hdel.ts
+var HDelCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hdel", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hexists.ts
+var HExistsCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hexists", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hget.ts
+var HGetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hget", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hgetall.ts
+function deserialize(result) {
+  if (result.length === 0) {
+    return null;
+  }
+  const obj = {};
+  while (result.length >= 2) {
+    const key = result.shift();
+    const value = result.shift();
+    try {
+      const valueIsNumberAndNotSafeInteger = !Number.isNaN(Number(value)) && !Number.isSafeInteger(Number(value));
+      obj[key] = valueIsNumberAndNotSafeInteger ? value : JSON.parse(value);
+    } catch {
+      obj[key] = value;
+    }
+  }
+  return obj;
+}
+var HGetAllCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hgetall", ...cmd], {
+      deserialize: (result) => deserialize(result),
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/hincrby.ts
+var HIncrByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hincrby", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hincrbyfloat.ts
+var HIncrByFloatCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hincrbyfloat", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hkeys.ts
+var HKeysCommand = class extends Command {
+  constructor([key], opts) {
+    super(["hkeys", key], opts);
+  }
+};
+
+// pkg/commands/hlen.ts
+var HLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hlen", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hmget.ts
+function deserialize2(fields, result) {
+  if (result.every((field) => field === null)) {
+    return null;
+  }
+  const obj = {};
+  for (const [i, field] of fields.entries()) {
+    try {
+      obj[field] = JSON.parse(result[i]);
+    } catch {
+      obj[field] = result[i];
+    }
+  }
+  return obj;
+}
+var HMGetCommand = class extends Command {
+  constructor([key, ...fields], opts) {
+    super(["hmget", key, ...fields], {
+      deserialize: (result) => deserialize2(fields, result),
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/hmset.ts
+var HMSetCommand = class extends Command {
+  constructor([key, kv], opts) {
+    super(["hmset", key, ...Object.entries(kv).flatMap(([field, value]) => [field, value])], opts);
+  }
+};
+
+// pkg/commands/hrandfield.ts
+function deserialize3(result) {
+  if (result.length === 0) {
+    return null;
+  }
+  const obj = {};
+  while (result.length >= 2) {
+    const key = result.shift();
+    const value = result.shift();
+    try {
+      obj[key] = JSON.parse(value);
+    } catch {
+      obj[key] = value;
+    }
+  }
+  return obj;
+}
+var HRandFieldCommand = class extends Command {
+  constructor(cmd, opts) {
+    const command = ["hrandfield", cmd[0]];
+    if (typeof cmd[1] === "number") {
+      command.push(cmd[1]);
+    }
+    if (cmd[2]) {
+      command.push("WITHVALUES");
+    }
+    super(command, {
+      // @ts-expect-error to silence compiler
+      deserialize: cmd[2] ? (result) => deserialize3(result) : opts?.deserialize,
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/hscan.ts
+var HScanCommand = class extends Command {
+  constructor([key, cursor, cmdOpts], opts) {
+    const command = ["hscan", key, cursor];
+    if (cmdOpts?.match) {
+      command.push("match", cmdOpts.match);
+    }
+    if (typeof cmdOpts?.count === "number") {
+      command.push("count", cmdOpts.count);
+    }
+    super(command, {
+      deserialize: deserializeScanResponse,
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/hset.ts
+var HSetCommand = class extends Command {
+  constructor([key, kv], opts) {
+    super(["hset", key, ...Object.entries(kv).flatMap(([field, value]) => [field, value])], opts);
+  }
+};
+
+// pkg/commands/hsetnx.ts
+var HSetNXCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hsetnx", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hstrlen.ts
+var HStrLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hstrlen", ...cmd], opts);
+  }
+};
+
+// pkg/commands/hvals.ts
+var HValsCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["hvals", ...cmd], opts);
+  }
+};
+
+// pkg/commands/incr.ts
+var IncrCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["incr", ...cmd], opts);
+  }
+};
+
+// pkg/commands/incrby.ts
+var IncrByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["incrby", ...cmd], opts);
+  }
+};
+
+// pkg/commands/incrbyfloat.ts
+var IncrByFloatCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["incrbyfloat", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_arrappend.ts
+var JsonArrAppendCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.ARRAPPEND", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_arrindex.ts
+var JsonArrIndexCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.ARRINDEX", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_arrinsert.ts
+var JsonArrInsertCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.ARRINSERT", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_arrlen.ts
+var JsonArrLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.ARRLEN", cmd[0], cmd[1] ?? "$"], opts);
+  }
+};
+
+// pkg/commands/json_arrpop.ts
+var JsonArrPopCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.ARRPOP", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_arrtrim.ts
+var JsonArrTrimCommand = class extends Command {
+  constructor(cmd, opts) {
+    const path = cmd[1] ?? "$";
+    const start = cmd[2] ?? 0;
+    const stop = cmd[3] ?? 0;
+    super(["JSON.ARRTRIM", cmd[0], path, start, stop], opts);
+  }
+};
+
+// pkg/commands/json_clear.ts
+var JsonClearCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.CLEAR", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_del.ts
+var JsonDelCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.DEL", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_forget.ts
+var JsonForgetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.FORGET", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_get.ts
+var JsonGetCommand = class extends Command {
+  constructor(cmd, opts) {
+    const command = ["JSON.GET"];
+    if (typeof cmd[1] === "string") {
+      command.push(...cmd);
+    } else {
+      command.push(cmd[0]);
+      if (cmd[1]) {
+        if (cmd[1].indent) {
+          command.push("INDENT", cmd[1].indent);
+        }
+        if (cmd[1].newline) {
+          command.push("NEWLINE", cmd[1].newline);
+        }
+        if (cmd[1].space) {
+          command.push("SPACE", cmd[1].space);
+        }
+      }
+      command.push(...cmd.slice(2));
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/json_mget.ts
+var JsonMGetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.MGET", ...cmd[0], cmd[1]], opts);
+  }
+};
+
+// pkg/commands/json_mset.ts
+var JsonMSetCommand = class extends Command {
+  constructor(cmd, opts) {
+    const command = ["JSON.MSET"];
+    for (const c of cmd) {
+      command.push(c.key, c.path, c.value);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/json_numincrby.ts
+var JsonNumIncrByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.NUMINCRBY", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_nummultby.ts
+var JsonNumMultByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.NUMMULTBY", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_objkeys.ts
+var JsonObjKeysCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.OBJKEYS", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_objlen.ts
+var JsonObjLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.OBJLEN", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_resp.ts
+var JsonRespCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.RESP", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_set.ts
+var JsonSetCommand = class extends Command {
+  constructor(cmd, opts) {
+    const command = ["JSON.SET", cmd[0], cmd[1], cmd[2]];
+    if (cmd[3]) {
+      if (cmd[3].nx) {
+        command.push("NX");
+      } else if (cmd[3].xx) {
+        command.push("XX");
+      }
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/json_strappend.ts
+var JsonStrAppendCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.STRAPPEND", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_strlen.ts
+var JsonStrLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.STRLEN", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_toggle.ts
+var JsonToggleCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.TOGGLE", ...cmd], opts);
+  }
+};
+
+// pkg/commands/json_type.ts
+var JsonTypeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["JSON.TYPE", ...cmd], opts);
+  }
+};
+
+// pkg/commands/keys.ts
+var KeysCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["keys", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lindex.ts
+var LIndexCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lindex", ...cmd], opts);
+  }
+};
+
+// pkg/commands/linsert.ts
+var LInsertCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["linsert", ...cmd], opts);
+  }
+};
+
+// pkg/commands/llen.ts
+var LLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["llen", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lmove.ts
+var LMoveCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lmove", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lmpop.ts
+var LmPopCommand = class extends Command {
+  constructor(cmd, opts) {
+    const [numkeys, keys, direction, count] = cmd;
+    super(["LMPOP", numkeys, ...keys, direction, ...count ? ["COUNT", count] : []], opts);
+  }
+};
+
+// pkg/commands/lpop.ts
+var LPopCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lpop", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lpos.ts
+var LPosCommand = class extends Command {
+  constructor(cmd, opts) {
+    const args = ["lpos", cmd[0], cmd[1]];
+    if (typeof cmd[2]?.rank === "number") {
+      args.push("rank", cmd[2].rank);
+    }
+    if (typeof cmd[2]?.count === "number") {
+      args.push("count", cmd[2].count);
+    }
+    if (typeof cmd[2]?.maxLen === "number") {
+      args.push("maxLen", cmd[2].maxLen);
+    }
+    super(args, opts);
+  }
+};
+
+// pkg/commands/lpush.ts
+var LPushCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lpush", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lpushx.ts
+var LPushXCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lpushx", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lrange.ts
+var LRangeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lrange", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lrem.ts
+var LRemCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lrem", ...cmd], opts);
+  }
+};
+
+// pkg/commands/lset.ts
+var LSetCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["lset", ...cmd], opts);
+  }
+};
+
+// pkg/commands/ltrim.ts
+var LTrimCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["ltrim", ...cmd], opts);
+  }
+};
+
+// pkg/commands/mget.ts
+var MGetCommand = class extends Command {
+  constructor(cmd, opts) {
+    const keys = Array.isArray(cmd[0]) ? cmd[0] : cmd;
+    super(["mget", ...keys], opts);
+  }
+};
+
+// pkg/commands/mset.ts
+var MSetCommand = class extends Command {
+  constructor([kv], opts) {
+    super(["mset", ...Object.entries(kv).flatMap(([key, value]) => [key, value])], opts);
+  }
+};
+
+// pkg/commands/msetnx.ts
+var MSetNXCommand = class extends Command {
+  constructor([kv], opts) {
+    super(["msetnx", ...Object.entries(kv).flat()], opts);
+  }
+};
+
+// pkg/commands/persist.ts
+var PersistCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["persist", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pexpire.ts
+var PExpireCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pexpire", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pexpireat.ts
+var PExpireAtCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pexpireat", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pfadd.ts
+var PfAddCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pfadd", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pfcount.ts
+var PfCountCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pfcount", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pfmerge.ts
+var PfMergeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pfmerge", ...cmd], opts);
+  }
+};
+
+// pkg/commands/ping.ts
+var PingCommand = class extends Command {
+  constructor(cmd, opts) {
+    const command = ["ping"];
+    if (cmd?.[0] !== void 0) {
+      command.push(cmd[0]);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/psetex.ts
+var PSetEXCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["psetex", ...cmd], opts);
+  }
+};
+
+// pkg/commands/pttl.ts
+var PTtlCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["pttl", ...cmd], opts);
+  }
+};
+
+// pkg/commands/publish.ts
+var PublishCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["publish", ...cmd], opts);
+  }
+};
+
+// pkg/commands/randomkey.ts
+var RandomKeyCommand = class extends Command {
+  constructor(opts) {
+    super(["randomkey"], opts);
+  }
+};
+
+// pkg/commands/rename.ts
+var RenameCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["rename", ...cmd], opts);
+  }
+};
+
+// pkg/commands/renamenx.ts
+var RenameNXCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["renamenx", ...cmd], opts);
+  }
+};
+
+// pkg/commands/rpop.ts
+var RPopCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["rpop", ...cmd], opts);
+  }
+};
+
+// pkg/commands/rpush.ts
+var RPushCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["rpush", ...cmd], opts);
+  }
+};
+
+// pkg/commands/rpushx.ts
+var RPushXCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["rpushx", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sadd.ts
+var SAddCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sadd", ...cmd], opts);
+  }
+};
+
+// pkg/commands/scan.ts
+var ScanCommand = class extends Command {
+  constructor([cursor, opts], cmdOpts) {
+    const command = ["scan", cursor];
+    if (opts?.match) {
+      command.push("match", opts.match);
+    }
+    if (typeof opts?.count === "number") {
+      command.push("count", opts.count);
+    }
+    if (opts?.type && opts.type.length > 0) {
+      command.push("type", opts.type);
+    }
+    super(command, {
+      deserialize: deserializeScanResponse,
+      ...cmdOpts
+    });
+  }
+};
+
+// pkg/commands/scard.ts
+var SCardCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["scard", ...cmd], opts);
+  }
+};
+
+// pkg/commands/script_exists.ts
+var ScriptExistsCommand = class extends Command {
+  constructor(hashes, opts) {
+    super(["script", "exists", ...hashes], {
+      deserialize: (result) => result,
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/script_flush.ts
+var ScriptFlushCommand = class extends Command {
+  constructor([opts], cmdOpts) {
+    const cmd = ["script", "flush"];
+    if (opts?.sync) {
+      cmd.push("sync");
+    } else if (opts?.async) {
+      cmd.push("async");
+    }
+    super(cmd, cmdOpts);
+  }
+};
+
+// pkg/commands/script_load.ts
+var ScriptLoadCommand = class extends Command {
+  constructor(args, opts) {
+    super(["script", "load", ...args], opts);
+  }
+};
+
+// pkg/commands/sdiff.ts
+var SDiffCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sdiff", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sdiffstore.ts
+var SDiffStoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sdiffstore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/set.ts
+var SetCommand = class extends Command {
+  constructor([key, value, opts], cmdOpts) {
+    const command = ["set", key, value];
+    if (opts) {
+      if ("nx" in opts && opts.nx) {
+        command.push("nx");
+      } else if ("xx" in opts && opts.xx) {
+        command.push("xx");
+      }
+      if ("get" in opts && opts.get) {
+        command.push("get");
+      }
+      if ("ex" in opts && typeof opts.ex === "number") {
+        command.push("ex", opts.ex);
+      } else if ("px" in opts && typeof opts.px === "number") {
+        command.push("px", opts.px);
+      } else if ("exat" in opts && typeof opts.exat === "number") {
+        command.push("exat", opts.exat);
+      } else if ("pxat" in opts && typeof opts.pxat === "number") {
+        command.push("pxat", opts.pxat);
+      } else if ("keepTtl" in opts && opts.keepTtl) {
+        command.push("keepTtl");
+      }
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/setbit.ts
+var SetBitCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["setbit", ...cmd], opts);
+  }
+};
+
+// pkg/commands/setex.ts
+var SetExCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["setex", ...cmd], opts);
+  }
+};
+
+// pkg/commands/setnx.ts
+var SetNxCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["setnx", ...cmd], opts);
+  }
+};
+
+// pkg/commands/setrange.ts
+var SetRangeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["setrange", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sinter.ts
+var SInterCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sinter", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sinterstore.ts
+var SInterStoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sinterstore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sismember.ts
+var SIsMemberCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sismember", ...cmd], opts);
+  }
+};
+
+// pkg/commands/smembers.ts
+var SMembersCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["smembers", ...cmd], opts);
+  }
+};
+
+// pkg/commands/smismember.ts
+var SMIsMemberCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["smismember", cmd[0], ...cmd[1]], opts);
+  }
+};
+
+// pkg/commands/smove.ts
+var SMoveCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["smove", ...cmd], opts);
+  }
+};
+
+// pkg/commands/spop.ts
+var SPopCommand = class extends Command {
+  constructor([key, count], opts) {
+    const command = ["spop", key];
+    if (typeof count === "number") {
+      command.push(count);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/srandmember.ts
+var SRandMemberCommand = class extends Command {
+  constructor([key, count], opts) {
+    const command = ["srandmember", key];
+    if (typeof count === "number") {
+      command.push(count);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/srem.ts
+var SRemCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["srem", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sscan.ts
+var SScanCommand = class extends Command {
+  constructor([key, cursor, opts], cmdOpts) {
+    const command = ["sscan", key, cursor];
+    if (opts?.match) {
+      command.push("match", opts.match);
+    }
+    if (typeof opts?.count === "number") {
+      command.push("count", opts.count);
+    }
+    super(command, {
+      deserialize: deserializeScanResponse,
+      ...cmdOpts
+    });
+  }
+};
+
+// pkg/commands/strlen.ts
+var StrLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["strlen", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sunion.ts
+var SUnionCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sunion", ...cmd], opts);
+  }
+};
+
+// pkg/commands/sunionstore.ts
+var SUnionStoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["sunionstore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/time.ts
+var TimeCommand = class extends Command {
+  constructor(opts) {
+    super(["time"], opts);
+  }
+};
+
+// pkg/commands/touch.ts
+var TouchCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["touch", ...cmd], opts);
+  }
+};
+
+// pkg/commands/ttl.ts
+var TtlCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["ttl", ...cmd], opts);
+  }
+};
+
+// pkg/commands/type.ts
+var TypeCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["type", ...cmd], opts);
+  }
+};
+
+// pkg/commands/unlink.ts
+var UnlinkCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["unlink", ...cmd], opts);
+  }
+};
+
+// pkg/commands/xack.ts
+var XAckCommand = class extends Command {
+  constructor([key, group, id], opts) {
+    const ids = Array.isArray(id) ? [...id] : [id];
+    super(["XACK", key, group, ...ids], opts);
+  }
+};
+
+// pkg/commands/xadd.ts
+var XAddCommand = class extends Command {
+  constructor([key, id, entries, opts], commandOptions) {
+    const command = ["XADD", key];
+    if (opts) {
+      if (opts.nomkStream) {
+        command.push("NOMKSTREAM");
+      }
+      if (opts.trim) {
+        command.push(opts.trim.type, opts.trim.comparison, opts.trim.threshold);
+        if (opts.trim.limit !== void 0) {
+          command.push("LIMIT", opts.trim.limit);
+        }
+      }
+    }
+    command.push(id);
+    for (const [k, v] of Object.entries(entries)) {
+      command.push(k, v);
+    }
+    super(command, commandOptions);
+  }
+};
+
+// pkg/commands/xautoclaim.ts
+var XAutoClaim = class extends Command {
+  constructor([key, group, consumer, minIdleTime, start, options], opts) {
+    const commands = [];
+    if (options?.count) {
+      commands.push("COUNT", options.count);
+    }
+    if (options?.justId) {
+      commands.push("JUSTID");
+    }
+    super(["XAUTOCLAIM", key, group, consumer, minIdleTime, start, ...commands], opts);
+  }
+};
+
+// pkg/commands/xclaim.ts
+var XClaimCommand = class extends Command {
+  constructor([key, group, consumer, minIdleTime, id, options], opts) {
+    const ids = Array.isArray(id) ? [...id] : [id];
+    const commands = [];
+    if (options?.idleMS) {
+      commands.push("IDLE", options.idleMS);
+    }
+    if (options?.idleMS) {
+      commands.push("TIME", options.timeMS);
+    }
+    if (options?.retryCount) {
+      commands.push("RETRYCOUNT", options.retryCount);
+    }
+    if (options?.force) {
+      commands.push("FORCE");
+    }
+    if (options?.justId) {
+      commands.push("JUSTID");
+    }
+    if (options?.lastId) {
+      commands.push("LASTID", options.lastId);
+    }
+    super(["XCLAIM", key, group, consumer, minIdleTime, ...ids, ...commands], opts);
+  }
+};
+
+// pkg/commands/xdel.ts
+var XDelCommand = class extends Command {
+  constructor([key, ids], opts) {
+    const cmds = Array.isArray(ids) ? [...ids] : [ids];
+    super(["XDEL", key, ...cmds], opts);
+  }
+};
+
+// pkg/commands/xgroup.ts
+var XGroupCommand = class extends Command {
+  constructor([key, opts], commandOptions) {
+    const command = ["XGROUP"];
+    switch (opts.type) {
+      case "CREATE": {
+        command.push("CREATE", key, opts.group, opts.id);
+        if (opts.options) {
+          if (opts.options.MKSTREAM) {
+            command.push("MKSTREAM");
+          }
+          if (opts.options.ENTRIESREAD !== void 0) {
+            command.push("ENTRIESREAD", opts.options.ENTRIESREAD.toString());
+          }
+        }
+        break;
+      }
+      case "CREATECONSUMER": {
+        command.push("CREATECONSUMER", key, opts.group, opts.consumer);
+        break;
+      }
+      case "DELCONSUMER": {
+        command.push("DELCONSUMER", key, opts.group, opts.consumer);
+        break;
+      }
+      case "DESTROY": {
+        command.push("DESTROY", key, opts.group);
+        break;
+      }
+      case "SETID": {
+        command.push("SETID", key, opts.group, opts.id);
+        if (opts.options?.ENTRIESREAD !== void 0) {
+          command.push("ENTRIESREAD", opts.options.ENTRIESREAD.toString());
+        }
+        break;
+      }
+      default: {
+        throw new Error("Invalid XGROUP");
+      }
+    }
+    super(command, commandOptions);
+  }
+};
+
+// pkg/commands/xinfo.ts
+var XInfoCommand = class extends Command {
+  constructor([key, options], opts) {
+    const cmds = [];
+    if (options.type === "CONSUMERS") {
+      cmds.push("CONSUMERS", key, options.group);
+    } else {
+      cmds.push("GROUPS", key);
+    }
+    super(["XINFO", ...cmds], opts);
+  }
+};
+
+// pkg/commands/xlen.ts
+var XLenCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["XLEN", ...cmd], opts);
+  }
+};
+
+// pkg/commands/xpending.ts
+var XPendingCommand = class extends Command {
+  constructor([key, group, start, end, count, options], opts) {
+    const consumers = options?.consumer === void 0 ? [] : Array.isArray(options.consumer) ? [...options.consumer] : [options.consumer];
+    super(
+      [
+        "XPENDING",
+        key,
+        group,
+        ...options?.idleTime ? ["IDLE", options.idleTime] : [],
+        start,
+        end,
+        count,
+        ...consumers
+      ],
+      opts
+    );
+  }
+};
+
+// pkg/commands/xrange.ts
+function deserialize4(result) {
+  const obj = {};
+  for (const e of result) {
+    while (e.length >= 2) {
+      const streamId = e.shift();
+      const entries = e.shift();
+      if (!(streamId in obj)) {
+        obj[streamId] = {};
+      }
+      while (entries.length >= 2) {
+        const field = entries.shift();
+        const value = entries.shift();
+        try {
+          obj[streamId][field] = JSON.parse(value);
+        } catch {
+          obj[streamId][field] = value;
+        }
+      }
+    }
+  }
+  return obj;
+}
+var XRangeCommand = class extends Command {
+  constructor([key, start, end, count], opts) {
+    const command = ["XRANGE", key, start, end];
+    if (typeof count === "number") {
+      command.push("COUNT", count);
+    }
+    super(command, {
+      deserialize: (result) => deserialize4(result),
+      ...opts
+    });
+  }
+};
+
+// pkg/commands/xread.ts
+var UNBALANCED_XREAD_ERR = "ERR Unbalanced XREAD list of streams: for each stream key an ID or '$' must be specified";
+var XReadCommand = class extends Command {
+  constructor([key, id, options], opts) {
+    if (Array.isArray(key) && Array.isArray(id) && key.length !== id.length) {
+      throw new Error(UNBALANCED_XREAD_ERR);
+    }
+    const commands = [];
+    if (typeof options?.count === "number") {
+      commands.push("COUNT", options.count);
+    }
+    if (typeof options?.blockMS === "number") {
+      commands.push("BLOCK", options.blockMS);
+    }
+    commands.push(
+      "STREAMS",
+      ...Array.isArray(key) ? [...key] : [key],
+      ...Array.isArray(id) ? [...id] : [id]
+    );
+    super(["XREAD", ...commands], opts);
+  }
+};
+
+// pkg/commands/xreadgroup.ts
+var UNBALANCED_XREADGROUP_ERR = "ERR Unbalanced XREADGROUP list of streams: for each stream key an ID or '$' must be specified";
+var XReadGroupCommand = class extends Command {
+  constructor([group, consumer, key, id, options], opts) {
+    if (Array.isArray(key) && Array.isArray(id) && key.length !== id.length) {
+      throw new Error(UNBALANCED_XREADGROUP_ERR);
+    }
+    const commands = [];
+    if (typeof options?.count === "number") {
+      commands.push("COUNT", options.count);
+    }
+    if (typeof options?.blockMS === "number") {
+      commands.push("BLOCK", options.blockMS);
+    }
+    if (typeof options?.NOACK === "boolean" && options.NOACK) {
+      commands.push("NOACK");
+    }
+    commands.push(
+      "STREAMS",
+      ...Array.isArray(key) ? [...key] : [key],
+      ...Array.isArray(id) ? [...id] : [id]
+    );
+    super(["XREADGROUP", "GROUP", group, consumer, ...commands], opts);
+  }
+};
+
+// pkg/commands/xrevrange.ts
+var XRevRangeCommand = class extends Command {
+  constructor([key, end, start, count], opts) {
+    const command = ["XREVRANGE", key, end, start];
+    if (typeof count === "number") {
+      command.push("COUNT", count);
+    }
+    super(command, {
+      deserialize: (result) => deserialize5(result),
+      ...opts
+    });
+  }
+};
+function deserialize5(result) {
+  const obj = {};
+  for (const e of result) {
+    while (e.length >= 2) {
+      const streamId = e.shift();
+      const entries = e.shift();
+      if (!(streamId in obj)) {
+        obj[streamId] = {};
+      }
+      while (entries.length >= 2) {
+        const field = entries.shift();
+        const value = entries.shift();
+        try {
+          obj[streamId][field] = JSON.parse(value);
+        } catch {
+          obj[streamId][field] = value;
+        }
+      }
+    }
+  }
+  return obj;
+}
+
+// pkg/commands/xtrim.ts
+var XTrimCommand = class extends Command {
+  constructor([key, options], opts) {
+    const { limit, strategy, threshold, exactness = "~" } = options;
+    super(["XTRIM", key, strategy, exactness, threshold, ...limit ? ["LIMIT", limit] : []], opts);
+  }
+};
+
+// pkg/commands/zadd.ts
+var ZAddCommand = class extends Command {
+  constructor([key, arg1, ...arg2], opts) {
+    const command = ["zadd", key];
+    if ("nx" in arg1 && arg1.nx) {
+      command.push("nx");
+    } else if ("xx" in arg1 && arg1.xx) {
+      command.push("xx");
+    }
+    if ("ch" in arg1 && arg1.ch) {
+      command.push("ch");
+    }
+    if ("incr" in arg1 && arg1.incr) {
+      command.push("incr");
+    }
+    if ("lt" in arg1 && arg1.lt) {
+      command.push("lt");
+    } else if ("gt" in arg1 && arg1.gt) {
+      command.push("gt");
+    }
+    if ("score" in arg1 && "member" in arg1) {
+      command.push(arg1.score, arg1.member);
+    }
+    command.push(...arg2.flatMap(({ score, member }) => [score, member]));
+    super(command, opts);
+  }
+};
+
+// pkg/commands/zcard.ts
+var ZCardCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zcard", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zcount.ts
+var ZCountCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zcount", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zincrby.ts
+var ZIncrByCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zincrby", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zinterstore.ts
+var ZInterStoreCommand = class extends Command {
+  constructor([destination, numKeys, keyOrKeys, opts], cmdOpts) {
+    const command = ["zinterstore", destination, numKeys];
+    if (Array.isArray(keyOrKeys)) {
+      command.push(...keyOrKeys);
+    } else {
+      command.push(keyOrKeys);
+    }
+    if (opts) {
+      if ("weights" in opts && opts.weights) {
+        command.push("weights", ...opts.weights);
+      } else if ("weight" in opts && typeof opts.weight === "number") {
+        command.push("weights", opts.weight);
+      }
+      if ("aggregate" in opts) {
+        command.push("aggregate", opts.aggregate);
+      }
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/zlexcount.ts
+var ZLexCountCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zlexcount", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zpopmax.ts
+var ZPopMaxCommand = class extends Command {
+  constructor([key, count], opts) {
+    const command = ["zpopmax", key];
+    if (typeof count === "number") {
+      command.push(count);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/zpopmin.ts
+var ZPopMinCommand = class extends Command {
+  constructor([key, count], opts) {
+    const command = ["zpopmin", key];
+    if (typeof count === "number") {
+      command.push(count);
+    }
+    super(command, opts);
+  }
+};
+
+// pkg/commands/zrange.ts
+var ZRangeCommand = class extends Command {
+  constructor([key, min, max, opts], cmdOpts) {
+    const command = ["zrange", key, min, max];
+    if (opts?.byScore) {
+      command.push("byscore");
+    }
+    if (opts?.byLex) {
+      command.push("bylex");
+    }
+    if (opts?.rev) {
+      command.push("rev");
+    }
+    if (opts?.count !== void 0 && opts.offset !== void 0) {
+      command.push("limit", opts.offset, opts.count);
+    }
+    if (opts?.withScores) {
+      command.push("withscores");
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/zrank.ts
+var ZRankCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zrank", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zrem.ts
+var ZRemCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zrem", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zremrangebylex.ts
+var ZRemRangeByLexCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zremrangebylex", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zremrangebyrank.ts
+var ZRemRangeByRankCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zremrangebyrank", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zremrangebyscore.ts
+var ZRemRangeByScoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zremrangebyscore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zrevrank.ts
+var ZRevRankCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zrevrank", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zscan.ts
+var ZScanCommand = class extends Command {
+  constructor([key, cursor, opts], cmdOpts) {
+    const command = ["zscan", key, cursor];
+    if (opts?.match) {
+      command.push("match", opts.match);
+    }
+    if (typeof opts?.count === "number") {
+      command.push("count", opts.count);
+    }
+    super(command, {
+      deserialize: deserializeScanResponse,
+      ...cmdOpts
+    });
+  }
+};
+
+// pkg/commands/zscore.ts
+var ZScoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zscore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zunion.ts
+var ZUnionCommand = class extends Command {
+  constructor([numKeys, keyOrKeys, opts], cmdOpts) {
+    const command = ["zunion", numKeys];
+    if (Array.isArray(keyOrKeys)) {
+      command.push(...keyOrKeys);
+    } else {
+      command.push(keyOrKeys);
+    }
+    if (opts) {
+      if ("weights" in opts && opts.weights) {
+        command.push("weights", ...opts.weights);
+      } else if ("weight" in opts && typeof opts.weight === "number") {
+        command.push("weights", opts.weight);
+      }
+      if ("aggregate" in opts) {
+        command.push("aggregate", opts.aggregate);
+      }
+      if (opts.withScores) {
+        command.push("withscores");
+      }
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/zunionstore.ts
+var ZUnionStoreCommand = class extends Command {
+  constructor([destination, numKeys, keyOrKeys, opts], cmdOpts) {
+    const command = ["zunionstore", destination, numKeys];
+    if (Array.isArray(keyOrKeys)) {
+      command.push(...keyOrKeys);
+    } else {
+      command.push(keyOrKeys);
+    }
+    if (opts) {
+      if ("weights" in opts && opts.weights) {
+        command.push("weights", ...opts.weights);
+      } else if ("weight" in opts && typeof opts.weight === "number") {
+        command.push("weights", opts.weight);
+      }
+      if ("aggregate" in opts) {
+        command.push("aggregate", opts.aggregate);
+      }
+    }
+    super(command, cmdOpts);
+  }
+};
+
+// pkg/commands/zdiffstore.ts
+var ZDiffStoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    super(["zdiffstore", ...cmd], opts);
+  }
+};
+
+// pkg/commands/zmscore.ts
+var ZMScoreCommand = class extends Command {
+  constructor(cmd, opts) {
+    const [key, members] = cmd;
+    super(["zmscore", key, ...members], opts);
+  }
+};
+
+// pkg/pipeline.ts
+var Pipeline = class {
+  client;
+  commands;
+  commandOptions;
+  multiExec;
+  constructor(opts) {
+    this.client = opts.client;
+    this.commands = [];
+    this.commandOptions = opts.commandOptions;
+    this.multiExec = opts.multiExec ?? false;
+    if (this.commandOptions?.latencyLogging) {
+      const originalExec = this.exec.bind(this);
+      this.exec = async (options) => {
+        const start = performance.now();
+        const result = await (options ? originalExec(options) : originalExec());
+        const end = performance.now();
+        const loggerResult = (end - start).toFixed(2);
+        console.log(
+          `Latency for \x1B[38;2;19;185;39m${this.multiExec ? ["MULTI-EXEC"] : ["PIPELINE"].toString().toUpperCase()}\x1B[0m: \x1B[38;2;0;255;255m${loggerResult} ms\x1B[0m`
+        );
+        return result;
+      };
+    }
+  }
+  exec = async (options) => {
+    if (this.commands.length === 0) {
+      throw new Error("Pipeline is empty");
+    }
+    const path = this.multiExec ? ["multi-exec"] : ["pipeline"];
+    const res = await this.client.request({
+      path,
+      body: Object.values(this.commands).map((c) => c.command)
+    });
+    return options?.keepErrors ? res.map(({ error, result }, i) => {
+      return {
+        error,
+        result: this.commands[i].deserialize(result)
+      };
+    }) : res.map(({ error, result }, i) => {
+      if (error) {
+        throw new UpstashError(
+          `Command ${i + 1} [ ${this.commands[i].command[0]} ] failed: ${error}`
+        );
+      }
+      return this.commands[i].deserialize(result);
+    });
+  };
+  /**
+   * Returns the length of pipeline before the execution
+   */
+  length() {
+    return this.commands.length;
+  }
+  /**
+   * Pushes a command into the pipeline and returns a chainable instance of the
+   * pipeline
+   */
+  chain(command) {
+    this.commands.push(command);
+    return this;
+  }
+  /**
+   * @see https://redis.io/commands/append
+   */
+  append = (...args) => this.chain(new AppendCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/bitcount
+   */
+  bitcount = (...args) => this.chain(new BitCountCommand(args, this.commandOptions));
+  /**
+   * Returns an instance that can be used to execute `BITFIELD` commands on one key.
+   *
+   * @example
+   * ```typescript
+   * redis.set("mykey", 0);
+   * const result = await redis.pipeline()
+   *   .bitfield("mykey")
+   *   .set("u4", 0, 16)
+   *   .incr("u4", "#1", 1)
+   *   .exec();
+   * console.log(result); // [[0, 1]]
+   * ```
+   *
+   * @see https://redis.io/commands/bitfield
+   */
+  bitfield = (...args) => new BitFieldCommand(args, this.client, this.commandOptions, this.chain.bind(this));
+  /**
+   * @see https://redis.io/commands/bitop
+   */
+  bitop = (op, destinationKey, sourceKey, ...sourceKeys) => this.chain(
+    new BitOpCommand([op, destinationKey, sourceKey, ...sourceKeys], this.commandOptions)
+  );
+  /**
+   * @see https://redis.io/commands/bitpos
+   */
+  bitpos = (...args) => this.chain(new BitPosCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/copy
+   */
+  copy = (...args) => this.chain(new CopyCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zdiffstore
+   */
+  zdiffstore = (...args) => this.chain(new ZDiffStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/dbsize
+   */
+  dbsize = () => this.chain(new DBSizeCommand(this.commandOptions));
+  /**
+   * @see https://redis.io/commands/decr
+   */
+  decr = (...args) => this.chain(new DecrCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/decrby
+   */
+  decrby = (...args) => this.chain(new DecrByCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/del
+   */
+  del = (...args) => this.chain(new DelCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/echo
+   */
+  echo = (...args) => this.chain(new EchoCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/eval
+   */
+  eval = (...args) => this.chain(new EvalCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/evalsha
+   */
+  evalsha = (...args) => this.chain(new EvalshaCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/exists
+   */
+  exists = (...args) => this.chain(new ExistsCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/expire
+   */
+  expire = (...args) => this.chain(new ExpireCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/expireat
+   */
+  expireat = (...args) => this.chain(new ExpireAtCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/flushall
+   */
+  flushall = (args) => this.chain(new FlushAllCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/flushdb
+   */
+  flushdb = (...args) => this.chain(new FlushDBCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geoadd
+   */
+  geoadd = (...args) => this.chain(new GeoAddCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geodist
+   */
+  geodist = (...args) => this.chain(new GeoDistCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geopos
+   */
+  geopos = (...args) => this.chain(new GeoPosCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geohash
+   */
+  geohash = (...args) => this.chain(new GeoHashCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geosearch
+   */
+  geosearch = (...args) => this.chain(new GeoSearchCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/geosearchstore
+   */
+  geosearchstore = (...args) => this.chain(new GeoSearchStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/get
+   */
+  get = (...args) => this.chain(new GetCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/getbit
+   */
+  getbit = (...args) => this.chain(new GetBitCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/getdel
+   */
+  getdel = (...args) => this.chain(new GetDelCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/getrange
+   */
+  getrange = (...args) => this.chain(new GetRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/getset
+   */
+  getset = (key, value) => this.chain(new GetSetCommand([key, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hdel
+   */
+  hdel = (...args) => this.chain(new HDelCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hexists
+   */
+  hexists = (...args) => this.chain(new HExistsCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hget
+   */
+  hget = (...args) => this.chain(new HGetCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hgetall
+   */
+  hgetall = (...args) => this.chain(new HGetAllCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hincrby
+   */
+  hincrby = (...args) => this.chain(new HIncrByCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hincrbyfloat
+   */
+  hincrbyfloat = (...args) => this.chain(new HIncrByFloatCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hkeys
+   */
+  hkeys = (...args) => this.chain(new HKeysCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hlen
+   */
+  hlen = (...args) => this.chain(new HLenCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hmget
+   */
+  hmget = (...args) => this.chain(new HMGetCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hmset
+   */
+  hmset = (key, kv) => this.chain(new HMSetCommand([key, kv], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hrandfield
+   */
+  hrandfield = (key, count, withValues) => this.chain(new HRandFieldCommand([key, count, withValues], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hscan
+   */
+  hscan = (...args) => this.chain(new HScanCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hset
+   */
+  hset = (key, kv) => this.chain(new HSetCommand([key, kv], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hsetnx
+   */
+  hsetnx = (key, field, value) => this.chain(new HSetNXCommand([key, field, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hstrlen
+   */
+  hstrlen = (...args) => this.chain(new HStrLenCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/hvals
+   */
+  hvals = (...args) => this.chain(new HValsCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/incr
+   */
+  incr = (...args) => this.chain(new IncrCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/incrby
+   */
+  incrby = (...args) => this.chain(new IncrByCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/incrbyfloat
+   */
+  incrbyfloat = (...args) => this.chain(new IncrByFloatCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/keys
+   */
+  keys = (...args) => this.chain(new KeysCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lindex
+   */
+  lindex = (...args) => this.chain(new LIndexCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/linsert
+   */
+  linsert = (key, direction, pivot, value) => this.chain(new LInsertCommand([key, direction, pivot, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/llen
+   */
+  llen = (...args) => this.chain(new LLenCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lmove
+   */
+  lmove = (...args) => this.chain(new LMoveCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lpop
+   */
+  lpop = (...args) => this.chain(new LPopCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lmpop
+   */
+  lmpop = (...args) => this.chain(new LmPopCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lpos
+   */
+  lpos = (...args) => this.chain(new LPosCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lpush
+   */
+  lpush = (key, ...elements) => this.chain(new LPushCommand([key, ...elements], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lpushx
+   */
+  lpushx = (key, ...elements) => this.chain(new LPushXCommand([key, ...elements], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lrange
+   */
+  lrange = (...args) => this.chain(new LRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lrem
+   */
+  lrem = (key, count, value) => this.chain(new LRemCommand([key, count, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/lset
+   */
+  lset = (key, index, value) => this.chain(new LSetCommand([key, index, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/ltrim
+   */
+  ltrim = (...args) => this.chain(new LTrimCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/mget
+   */
+  mget = (...args) => this.chain(new MGetCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/mset
+   */
+  mset = (kv) => this.chain(new MSetCommand([kv], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/msetnx
+   */
+  msetnx = (kv) => this.chain(new MSetNXCommand([kv], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/persist
+   */
+  persist = (...args) => this.chain(new PersistCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pexpire
+   */
+  pexpire = (...args) => this.chain(new PExpireCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pexpireat
+   */
+  pexpireat = (...args) => this.chain(new PExpireAtCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pfadd
+   */
+  pfadd = (...args) => this.chain(new PfAddCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pfcount
+   */
+  pfcount = (...args) => this.chain(new PfCountCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pfmerge
+   */
+  pfmerge = (...args) => this.chain(new PfMergeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/ping
+   */
+  ping = (args) => this.chain(new PingCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/psetex
+   */
+  psetex = (key, ttl, value) => this.chain(new PSetEXCommand([key, ttl, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/pttl
+   */
+  pttl = (...args) => this.chain(new PTtlCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/publish
+   */
+  publish = (...args) => this.chain(new PublishCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/randomkey
+   */
+  randomkey = () => this.chain(new RandomKeyCommand(this.commandOptions));
+  /**
+   * @see https://redis.io/commands/rename
+   */
+  rename = (...args) => this.chain(new RenameCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/renamenx
+   */
+  renamenx = (...args) => this.chain(new RenameNXCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/rpop
+   */
+  rpop = (...args) => this.chain(new RPopCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/rpush
+   */
+  rpush = (key, ...elements) => this.chain(new RPushCommand([key, ...elements], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/rpushx
+   */
+  rpushx = (key, ...elements) => this.chain(new RPushXCommand([key, ...elements], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sadd
+   */
+  sadd = (key, member, ...members) => this.chain(new SAddCommand([key, member, ...members], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/scan
+   */
+  scan = (...args) => this.chain(new ScanCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/scard
+   */
+  scard = (...args) => this.chain(new SCardCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/script-exists
+   */
+  scriptExists = (...args) => this.chain(new ScriptExistsCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/script-flush
+   */
+  scriptFlush = (...args) => this.chain(new ScriptFlushCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/script-load
+   */
+  scriptLoad = (...args) => this.chain(new ScriptLoadCommand(args, this.commandOptions));
+  /*)*
+   * @see https://redis.io/commands/sdiff
+   */
+  sdiff = (...args) => this.chain(new SDiffCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sdiffstore
+   */
+  sdiffstore = (...args) => this.chain(new SDiffStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/set
+   */
+  set = (key, value, opts) => this.chain(new SetCommand([key, value, opts], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/setbit
+   */
+  setbit = (...args) => this.chain(new SetBitCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/setex
+   */
+  setex = (key, ttl, value) => this.chain(new SetExCommand([key, ttl, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/setnx
+   */
+  setnx = (key, value) => this.chain(new SetNxCommand([key, value], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/setrange
+   */
+  setrange = (...args) => this.chain(new SetRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sinter
+   */
+  sinter = (...args) => this.chain(new SInterCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sinterstore
+   */
+  sinterstore = (...args) => this.chain(new SInterStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sismember
+   */
+  sismember = (key, member) => this.chain(new SIsMemberCommand([key, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/smembers
+   */
+  smembers = (...args) => this.chain(new SMembersCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/smismember
+   */
+  smismember = (key, members) => this.chain(new SMIsMemberCommand([key, members], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/smove
+   */
+  smove = (source, destination, member) => this.chain(new SMoveCommand([source, destination, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/spop
+   */
+  spop = (...args) => this.chain(new SPopCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/srandmember
+   */
+  srandmember = (...args) => this.chain(new SRandMemberCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/srem
+   */
+  srem = (key, ...members) => this.chain(new SRemCommand([key, ...members], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sscan
+   */
+  sscan = (...args) => this.chain(new SScanCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/strlen
+   */
+  strlen = (...args) => this.chain(new StrLenCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sunion
+   */
+  sunion = (...args) => this.chain(new SUnionCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/sunionstore
+   */
+  sunionstore = (...args) => this.chain(new SUnionStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/time
+   */
+  time = () => this.chain(new TimeCommand(this.commandOptions));
+  /**
+   * @see https://redis.io/commands/touch
+   */
+  touch = (...args) => this.chain(new TouchCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/ttl
+   */
+  ttl = (...args) => this.chain(new TtlCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/type
+   */
+  type = (...args) => this.chain(new TypeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/unlink
+   */
+  unlink = (...args) => this.chain(new UnlinkCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zadd
+   */
+  zadd = (...args) => {
+    if ("score" in args[1]) {
+      return this.chain(
+        new ZAddCommand([args[0], args[1], ...args.slice(2)], this.commandOptions)
+      );
+    }
+    return this.chain(
+      new ZAddCommand(
+        [args[0], args[1], ...args.slice(2)],
+        this.commandOptions
+      )
+    );
+  };
+  /**
+   * @see https://redis.io/commands/xadd
+   */
+  xadd = (...args) => this.chain(new XAddCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xack
+   */
+  xack = (...args) => this.chain(new XAckCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xdel
+   */
+  xdel = (...args) => this.chain(new XDelCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xgroup
+   */
+  xgroup = (...args) => this.chain(new XGroupCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xread
+   */
+  xread = (...args) => this.chain(new XReadCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xreadgroup
+   */
+  xreadgroup = (...args) => this.chain(new XReadGroupCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xinfo
+   */
+  xinfo = (...args) => this.chain(new XInfoCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xlen
+   */
+  xlen = (...args) => this.chain(new XLenCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xpending
+   */
+  xpending = (...args) => this.chain(new XPendingCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xclaim
+   */
+  xclaim = (...args) => this.chain(new XClaimCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xautoclaim
+   */
+  xautoclaim = (...args) => this.chain(new XAutoClaim(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xtrim
+   */
+  xtrim = (...args) => this.chain(new XTrimCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xrange
+   */
+  xrange = (...args) => this.chain(new XRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/xrevrange
+   */
+  xrevrange = (...args) => this.chain(new XRevRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zcard
+   */
+  zcard = (...args) => this.chain(new ZCardCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zcount
+   */
+  zcount = (...args) => this.chain(new ZCountCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zincrby
+   */
+  zincrby = (key, increment, member) => this.chain(new ZIncrByCommand([key, increment, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zinterstore
+   */
+  zinterstore = (...args) => this.chain(new ZInterStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zlexcount
+   */
+  zlexcount = (...args) => this.chain(new ZLexCountCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zmscore
+   */
+  zmscore = (...args) => this.chain(new ZMScoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zpopmax
+   */
+  zpopmax = (...args) => this.chain(new ZPopMaxCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zpopmin
+   */
+  zpopmin = (...args) => this.chain(new ZPopMinCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zrange
+   */
+  zrange = (...args) => this.chain(new ZRangeCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zrank
+   */
+  zrank = (key, member) => this.chain(new ZRankCommand([key, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zrem
+   */
+  zrem = (key, ...members) => this.chain(new ZRemCommand([key, ...members], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zremrangebylex
+   */
+  zremrangebylex = (...args) => this.chain(new ZRemRangeByLexCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zremrangebyrank
+   */
+  zremrangebyrank = (...args) => this.chain(new ZRemRangeByRankCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zremrangebyscore
+   */
+  zremrangebyscore = (...args) => this.chain(new ZRemRangeByScoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zrevrank
+   */
+  zrevrank = (key, member) => this.chain(new ZRevRankCommand([key, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zscan
+   */
+  zscan = (...args) => this.chain(new ZScanCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zscore
+   */
+  zscore = (key, member) => this.chain(new ZScoreCommand([key, member], this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zunionstore
+   */
+  zunionstore = (...args) => this.chain(new ZUnionStoreCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/zunion
+   */
+  zunion = (...args) => this.chain(new ZUnionCommand(args, this.commandOptions));
+  /**
+   * @see https://redis.io/commands/?group=json
+   */
+  get json() {
+    return {
+      /**
+       * @see https://redis.io/commands/json.arrappend
+       */
+      arrappend: (...args) => this.chain(new JsonArrAppendCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.arrindex
+       */
+      arrindex: (...args) => this.chain(new JsonArrIndexCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.arrinsert
+       */
+      arrinsert: (...args) => this.chain(new JsonArrInsertCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.arrlen
+       */
+      arrlen: (...args) => this.chain(new JsonArrLenCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.arrpop
+       */
+      arrpop: (...args) => this.chain(new JsonArrPopCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.arrtrim
+       */
+      arrtrim: (...args) => this.chain(new JsonArrTrimCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.clear
+       */
+      clear: (...args) => this.chain(new JsonClearCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.del
+       */
+      del: (...args) => this.chain(new JsonDelCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.forget
+       */
+      forget: (...args) => this.chain(new JsonForgetCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.get
+       */
+      get: (...args) => this.chain(new JsonGetCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.mget
+       */
+      mget: (...args) => this.chain(new JsonMGetCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.mset
+       */
+      mset: (...args) => this.chain(new JsonMSetCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.numincrby
+       */
+      numincrby: (...args) => this.chain(new JsonNumIncrByCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.nummultby
+       */
+      nummultby: (...args) => this.chain(new JsonNumMultByCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.objkeys
+       */
+      objkeys: (...args) => this.chain(new JsonObjKeysCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.objlen
+       */
+      objlen: (...args) => this.chain(new JsonObjLenCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.resp
+       */
+      resp: (...args) => this.chain(new JsonRespCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.set
+       */
+      set: (...args) => this.chain(new JsonSetCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.strappend
+       */
+      strappend: (...args) => this.chain(new JsonStrAppendCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.strlen
+       */
+      strlen: (...args) => this.chain(new JsonStrLenCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.toggle
+       */
+      toggle: (...args) => this.chain(new JsonToggleCommand(args, this.commandOptions)),
+      /**
+       * @see https://redis.io/commands/json.type
+       */
+      type: (...args) => this.chain(new JsonTypeCommand(args, this.commandOptions))
+    };
+  }
+};
+
+// pkg/script.ts
+var import_enc_hex = __toESM(__nccwpck_require__(606));
+var import_sha1 = __toESM(__nccwpck_require__(377));
+var Script = class {
+  script;
+  sha1;
+  redis;
+  constructor(redis, script) {
+    this.redis = redis;
+    this.sha1 = this.digest(script);
+    this.script = script;
+  }
+  /**
+   * Send an `EVAL` command to redis.
+   */
+  async eval(keys, args) {
+    return await this.redis.eval(this.script, keys, args);
+  }
+  /**
+   * Calculates the sha1 hash of the script and then calls `EVALSHA`.
+   */
+  async evalsha(keys, args) {
+    return await this.redis.evalsha(this.sha1, keys, args);
+  }
+  /**
+   * Optimistically try to run `EVALSHA` first.
+   * If the script is not loaded in redis, it will fall back and try again with `EVAL`.
+   *
+   * Following calls will be able to use the cached script
+   */
+  async exec(keys, args) {
+    const res = await this.redis.evalsha(this.sha1, keys, args).catch(async (error) => {
+      if (error instanceof Error && error.message.toLowerCase().includes("noscript")) {
+        return await this.redis.eval(this.script, keys, args);
+      }
+      throw error;
+    });
+    return res;
+  }
+  /**
+   * Compute the sha1 hash of the script and return its hex representation.
+   */
+  digest(s) {
+    return import_enc_hex.default.stringify((0, import_sha1.default)(s));
+  }
+};
+
+// pkg/redis.ts
+var Redis = class {
+  client;
+  opts;
+  enableTelemetry;
+  enableAutoPipelining;
+  /**
+   * Create a new redis client
+   *
+   * @example
+   * ```typescript
+   * const redis = new Redis({
+   *  url: "<UPSTASH_REDIS_REST_URL>",
+   *  token: "<UPSTASH_REDIS_REST_TOKEN>",
+   * });
+   * ```
+   */
+  constructor(client, opts) {
+    this.client = client;
+    this.opts = opts;
+    this.enableTelemetry = opts?.enableTelemetry ?? true;
+    if (opts?.readYourWrites === false) {
+      this.client.readYourWrites = false;
+    }
+    this.enableAutoPipelining = opts?.enableAutoPipelining ?? true;
+  }
+  get readYourWritesSyncToken() {
+    return this.client.upstashSyncToken;
+  }
+  set readYourWritesSyncToken(session) {
+    this.client.upstashSyncToken = session;
+  }
+  get json() {
+    return {
+      /**
+       * @see https://redis.io/commands/json.arrappend
+       */
+      arrappend: (...args) => new JsonArrAppendCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.arrindex
+       */
+      arrindex: (...args) => new JsonArrIndexCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.arrinsert
+       */
+      arrinsert: (...args) => new JsonArrInsertCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.arrlen
+       */
+      arrlen: (...args) => new JsonArrLenCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.arrpop
+       */
+      arrpop: (...args) => new JsonArrPopCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.arrtrim
+       */
+      arrtrim: (...args) => new JsonArrTrimCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.clear
+       */
+      clear: (...args) => new JsonClearCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.del
+       */
+      del: (...args) => new JsonDelCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.forget
+       */
+      forget: (...args) => new JsonForgetCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.get
+       */
+      get: (...args) => new JsonGetCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.mget
+       */
+      mget: (...args) => new JsonMGetCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.mset
+       */
+      mset: (...args) => new JsonMSetCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.numincrby
+       */
+      numincrby: (...args) => new JsonNumIncrByCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.nummultby
+       */
+      nummultby: (...args) => new JsonNumMultByCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.objkeys
+       */
+      objkeys: (...args) => new JsonObjKeysCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.objlen
+       */
+      objlen: (...args) => new JsonObjLenCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.resp
+       */
+      resp: (...args) => new JsonRespCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.set
+       */
+      set: (...args) => new JsonSetCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.strappend
+       */
+      strappend: (...args) => new JsonStrAppendCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.strlen
+       */
+      strlen: (...args) => new JsonStrLenCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.toggle
+       */
+      toggle: (...args) => new JsonToggleCommand(args, this.opts).exec(this.client),
+      /**
+       * @see https://redis.io/commands/json.type
+       */
+      type: (...args) => new JsonTypeCommand(args, this.opts).exec(this.client)
+    };
+  }
+  /**
+   * Wrap a new middleware around the HTTP client.
+   */
+  use = (middleware) => {
+    const makeRequest = this.client.request.bind(this.client);
+    this.client.request = (req) => middleware(req, makeRequest);
+  };
+  /**
+   * Technically this is not private, we can hide it from intellisense by doing this
+   */
+  addTelemetry = (telemetry) => {
+    if (!this.enableTelemetry) {
+      return;
+    }
+    try {
+      this.client.mergeTelemetry(telemetry);
+    } catch {
+    }
+  };
+  createScript(script) {
+    return new Script(this, script);
+  }
+  /**
+   * Create a new pipeline that allows you to send requests in bulk.
+   *
+   * @see {@link Pipeline}
+   */
+  pipeline = () => new Pipeline({
+    client: this.client,
+    commandOptions: this.opts,
+    multiExec: false
+  });
+  autoPipeline = () => {
+    return createAutoPipelineProxy(this);
+  };
+  /**
+   * Create a new transaction to allow executing multiple steps atomically.
+   *
+   * All the commands in a transaction are serialized and executed sequentially. A request sent by
+   * another client will never be served in the middle of the execution of a Redis Transaction. This
+   * guarantees that the commands are executed as a single isolated operation.
+   *
+   * @see {@link Pipeline}
+   */
+  multi = () => new Pipeline({
+    client: this.client,
+    commandOptions: this.opts,
+    multiExec: true
+  });
+  /**
+   * Returns an instance that can be used to execute `BITFIELD` commands on one key.
+   *
+   * @example
+   * ```typescript
+   * redis.set("mykey", 0);
+   * const result = await redis.bitfield("mykey")
+   *   .set("u4", 0, 16)
+   *   .incr("u4", "#1", 1)
+   *   .exec();
+   * console.log(result); // [0, 1]
+   * ```
+   *
+   * @see https://redis.io/commands/bitfield
+   */
+  bitfield = (...args) => new BitFieldCommand(args, this.client, this.opts);
+  /**
+   * @see https://redis.io/commands/append
+   */
+  append = (...args) => new AppendCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/bitcount
+   */
+  bitcount = (...args) => new BitCountCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/bitop
+   */
+  bitop = (op, destinationKey, sourceKey, ...sourceKeys) => new BitOpCommand([op, destinationKey, sourceKey, ...sourceKeys], this.opts).exec(
+    this.client
+  );
+  /**
+   * @see https://redis.io/commands/bitpos
+   */
+  bitpos = (...args) => new BitPosCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/copy
+   */
+  copy = (...args) => new CopyCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/dbsize
+   */
+  dbsize = () => new DBSizeCommand(this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/decr
+   */
+  decr = (...args) => new DecrCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/decrby
+   */
+  decrby = (...args) => new DecrByCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/del
+   */
+  del = (...args) => new DelCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/echo
+   */
+  echo = (...args) => new EchoCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/eval
+   */
+  eval = (...args) => new EvalCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/evalsha
+   */
+  evalsha = (...args) => new EvalshaCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/exists
+   */
+  exists = (...args) => new ExistsCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/expire
+   */
+  expire = (...args) => new ExpireCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/expireat
+   */
+  expireat = (...args) => new ExpireAtCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/flushall
+   */
+  flushall = (args) => new FlushAllCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/flushdb
+   */
+  flushdb = (...args) => new FlushDBCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geoadd
+   */
+  geoadd = (...args) => new GeoAddCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geopos
+   */
+  geopos = (...args) => new GeoPosCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geodist
+   */
+  geodist = (...args) => new GeoDistCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geohash
+   */
+  geohash = (...args) => new GeoHashCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geosearch
+   */
+  geosearch = (...args) => new GeoSearchCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/geosearchstore
+   */
+  geosearchstore = (...args) => new GeoSearchStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/get
+   */
+  get = (...args) => new GetCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/getbit
+   */
+  getbit = (...args) => new GetBitCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/getdel
+   */
+  getdel = (...args) => new GetDelCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/getrange
+   */
+  getrange = (...args) => new GetRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/getset
+   */
+  getset = (key, value) => new GetSetCommand([key, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hdel
+   */
+  hdel = (...args) => new HDelCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hexists
+   */
+  hexists = (...args) => new HExistsCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hget
+   */
+  hget = (...args) => new HGetCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hgetall
+   */
+  hgetall = (...args) => new HGetAllCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hincrby
+   */
+  hincrby = (...args) => new HIncrByCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hincrbyfloat
+   */
+  hincrbyfloat = (...args) => new HIncrByFloatCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hkeys
+   */
+  hkeys = (...args) => new HKeysCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hlen
+   */
+  hlen = (...args) => new HLenCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hmget
+   */
+  hmget = (...args) => new HMGetCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hmset
+   */
+  hmset = (key, kv) => new HMSetCommand([key, kv], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hrandfield
+   */
+  hrandfield = (key, count, withValues) => new HRandFieldCommand([key, count, withValues], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hscan
+   */
+  hscan = (...args) => new HScanCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hset
+   */
+  hset = (key, kv) => new HSetCommand([key, kv], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hsetnx
+   */
+  hsetnx = (key, field, value) => new HSetNXCommand([key, field, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hstrlen
+   */
+  hstrlen = (...args) => new HStrLenCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/hvals
+   */
+  hvals = (...args) => new HValsCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/incr
+   */
+  incr = (...args) => new IncrCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/incrby
+   */
+  incrby = (...args) => new IncrByCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/incrbyfloat
+   */
+  incrbyfloat = (...args) => new IncrByFloatCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/keys
+   */
+  keys = (...args) => new KeysCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lindex
+   */
+  lindex = (...args) => new LIndexCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/linsert
+   */
+  linsert = (key, direction, pivot, value) => new LInsertCommand([key, direction, pivot, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/llen
+   */
+  llen = (...args) => new LLenCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lmove
+   */
+  lmove = (...args) => new LMoveCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lpop
+   */
+  lpop = (...args) => new LPopCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lmpop
+   */
+  lmpop = (...args) => new LmPopCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lpos
+   */
+  lpos = (...args) => new LPosCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lpush
+   */
+  lpush = (key, ...elements) => new LPushCommand([key, ...elements], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lpushx
+   */
+  lpushx = (key, ...elements) => new LPushXCommand([key, ...elements], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lrange
+   */
+  lrange = (...args) => new LRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lrem
+   */
+  lrem = (key, count, value) => new LRemCommand([key, count, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/lset
+   */
+  lset = (key, index, value) => new LSetCommand([key, index, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/ltrim
+   */
+  ltrim = (...args) => new LTrimCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/mget
+   */
+  mget = (...args) => new MGetCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/mset
+   */
+  mset = (kv) => new MSetCommand([kv], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/msetnx
+   */
+  msetnx = (kv) => new MSetNXCommand([kv], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/persist
+   */
+  persist = (...args) => new PersistCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pexpire
+   */
+  pexpire = (...args) => new PExpireCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pexpireat
+   */
+  pexpireat = (...args) => new PExpireAtCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pfadd
+   */
+  pfadd = (...args) => new PfAddCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pfcount
+   */
+  pfcount = (...args) => new PfCountCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pfmerge
+   */
+  pfmerge = (...args) => new PfMergeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/ping
+   */
+  ping = (args) => new PingCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/psetex
+   */
+  psetex = (key, ttl, value) => new PSetEXCommand([key, ttl, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/pttl
+   */
+  pttl = (...args) => new PTtlCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/publish
+   */
+  publish = (...args) => new PublishCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/randomkey
+   */
+  randomkey = () => new RandomKeyCommand().exec(this.client);
+  /**
+   * @see https://redis.io/commands/rename
+   */
+  rename = (...args) => new RenameCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/renamenx
+   */
+  renamenx = (...args) => new RenameNXCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/rpop
+   */
+  rpop = (...args) => new RPopCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/rpush
+   */
+  rpush = (key, ...elements) => new RPushCommand([key, ...elements], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/rpushx
+   */
+  rpushx = (key, ...elements) => new RPushXCommand([key, ...elements], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sadd
+   */
+  sadd = (key, member, ...members) => new SAddCommand([key, member, ...members], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/scan
+   */
+  scan = (...args) => new ScanCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/scard
+   */
+  scard = (...args) => new SCardCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/script-exists
+   */
+  scriptExists = (...args) => new ScriptExistsCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/script-flush
+   */
+  scriptFlush = (...args) => new ScriptFlushCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/script-load
+   */
+  scriptLoad = (...args) => new ScriptLoadCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sdiff
+   */
+  sdiff = (...args) => new SDiffCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sdiffstore
+   */
+  sdiffstore = (...args) => new SDiffStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/set
+   */
+  set = (key, value, opts) => new SetCommand([key, value, opts], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/setbit
+   */
+  setbit = (...args) => new SetBitCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/setex
+   */
+  setex = (key, ttl, value) => new SetExCommand([key, ttl, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/setnx
+   */
+  setnx = (key, value) => new SetNxCommand([key, value], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/setrange
+   */
+  setrange = (...args) => new SetRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sinter
+   */
+  sinter = (...args) => new SInterCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sinterstore
+   */
+  sinterstore = (...args) => new SInterStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sismember
+   */
+  sismember = (key, member) => new SIsMemberCommand([key, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/smismember
+   */
+  smismember = (key, members) => new SMIsMemberCommand([key, members], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/smembers
+   */
+  smembers = (...args) => new SMembersCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/smove
+   */
+  smove = (source, destination, member) => new SMoveCommand([source, destination, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/spop
+   */
+  spop = (...args) => new SPopCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/srandmember
+   */
+  srandmember = (...args) => new SRandMemberCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/srem
+   */
+  srem = (key, ...members) => new SRemCommand([key, ...members], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sscan
+   */
+  sscan = (...args) => new SScanCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/strlen
+   */
+  strlen = (...args) => new StrLenCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sunion
+   */
+  sunion = (...args) => new SUnionCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/sunionstore
+   */
+  sunionstore = (...args) => new SUnionStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/time
+   */
+  time = () => new TimeCommand().exec(this.client);
+  /**
+   * @see https://redis.io/commands/touch
+   */
+  touch = (...args) => new TouchCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/ttl
+   */
+  ttl = (...args) => new TtlCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/type
+   */
+  type = (...args) => new TypeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/unlink
+   */
+  unlink = (...args) => new UnlinkCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xadd
+   */
+  xadd = (...args) => new XAddCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xack
+   */
+  xack = (...args) => new XAckCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xdel
+   */
+  xdel = (...args) => new XDelCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xgroup
+   */
+  xgroup = (...args) => new XGroupCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xread
+   */
+  xread = (...args) => new XReadCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xreadgroup
+   */
+  xreadgroup = (...args) => new XReadGroupCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xinfo
+   */
+  xinfo = (...args) => new XInfoCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xlen
+   */
+  xlen = (...args) => new XLenCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xpending
+   */
+  xpending = (...args) => new XPendingCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xclaim
+   */
+  xclaim = (...args) => new XClaimCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xautoclaim
+   */
+  xautoclaim = (...args) => new XAutoClaim(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xtrim
+   */
+  xtrim = (...args) => new XTrimCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xrange
+   */
+  xrange = (...args) => new XRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/xrevrange
+   */
+  xrevrange = (...args) => new XRevRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zadd
+   */
+  zadd = (...args) => {
+    if ("score" in args[1]) {
+      return new ZAddCommand([args[0], args[1], ...args.slice(2)], this.opts).exec(
+        this.client
+      );
+    }
+    return new ZAddCommand(
+      [args[0], args[1], ...args.slice(2)],
+      this.opts
+    ).exec(this.client);
+  };
+  /**
+   * @see https://redis.io/commands/zcard
+   */
+  zcard = (...args) => new ZCardCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zcount
+   */
+  zcount = (...args) => new ZCountCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zdiffstore
+   */
+  zdiffstore = (...args) => new ZDiffStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zincrby
+   */
+  zincrby = (key, increment, member) => new ZIncrByCommand([key, increment, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zinterstore
+   */
+  zinterstore = (...args) => new ZInterStoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zlexcount
+   */
+  zlexcount = (...args) => new ZLexCountCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zmscore
+   */
+  zmscore = (...args) => new ZMScoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zpopmax
+   */
+  zpopmax = (...args) => new ZPopMaxCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zpopmin
+   */
+  zpopmin = (...args) => new ZPopMinCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zrange
+   */
+  zrange = (...args) => new ZRangeCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zrank
+   */
+  zrank = (key, member) => new ZRankCommand([key, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zrem
+   */
+  zrem = (key, ...members) => new ZRemCommand([key, ...members], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zremrangebylex
+   */
+  zremrangebylex = (...args) => new ZRemRangeByLexCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zremrangebyrank
+   */
+  zremrangebyrank = (...args) => new ZRemRangeByRankCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zremrangebyscore
+   */
+  zremrangebyscore = (...args) => new ZRemRangeByScoreCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zrevrank
+   */
+  zrevrank = (key, member) => new ZRevRankCommand([key, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zscan
+   */
+  zscan = (...args) => new ZScanCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zscore
+   */
+  zscore = (key, member) => new ZScoreCommand([key, member], this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zunion
+   */
+  zunion = (...args) => new ZUnionCommand(args, this.opts).exec(this.client);
+  /**
+   * @see https://redis.io/commands/zunionstore
+   */
+  zunionstore = (...args) => new ZUnionStoreCommand(args, this.opts).exec(this.client);
+};
+
+// version.ts
+var VERSION = "v1.34.3";
+
+// platforms/nodejs.ts
+if (typeof atob === "undefined") {
+  global.atob = (b64) => Buffer.from(b64, "base64").toString("utf8");
+}
+var Redis2 = class _Redis extends Redis {
+  /**
+   * Create a new redis client by providing a custom `Requester` implementation
+   *
+   * @example
+   * ```ts
+   *
+   * import { UpstashRequest, Requester, UpstashResponse, Redis } from "@upstash/redis"
+   *
+   *  const requester: Requester = {
+   *    request: <TResult>(req: UpstashRequest): Promise<UpstashResponse<TResult>> => {
+   *      // ...
+   *    }
+   *  }
+   *
+   * const redis = new Redis(requester)
+   * ```
+   */
+  constructor(configOrRequester) {
+    if ("request" in configOrRequester) {
+      super(configOrRequester);
+      return;
+    }
+    if (!configOrRequester.url) {
+      console.warn(
+        `[Upstash Redis] The 'url' property is missing or undefined in your Redis config.`
+      );
+    } else if (configOrRequester.url.startsWith(" ") || configOrRequester.url.endsWith(" ") || /\r|\n/.test(configOrRequester.url)) {
+      console.warn(
+        "[Upstash Redis] The redis url contains whitespace or newline, which can cause errors!"
+      );
+    }
+    if (!configOrRequester.token) {
+      console.warn(
+        `[Upstash Redis] The 'token' property is missing or undefined in your Redis config.`
+      );
+    } else if (configOrRequester.token.startsWith(" ") || configOrRequester.token.endsWith(" ") || /\r|\n/.test(configOrRequester.token)) {
+      console.warn(
+        "[Upstash Redis] The redis token contains whitespace or newline, which can cause errors!"
+      );
+    }
+    const client = new HttpClient({
+      baseUrl: configOrRequester.url,
+      retry: configOrRequester.retry,
+      headers: { authorization: `Bearer ${configOrRequester.token}` },
+      agent: configOrRequester.agent,
+      responseEncoding: configOrRequester.responseEncoding,
+      cache: configOrRequester.cache ?? "no-store",
+      signal: configOrRequester.signal,
+      keepAlive: configOrRequester.keepAlive,
+      readYourWrites: configOrRequester.readYourWrites
+    });
+    super(client, {
+      automaticDeserialization: configOrRequester.automaticDeserialization,
+      enableTelemetry: !process.env.UPSTASH_DISABLE_TELEMETRY,
+      latencyLogging: configOrRequester.latencyLogging,
+      enableAutoPipelining: configOrRequester.enableAutoPipelining
+    });
+    this.addTelemetry({
+      runtime: (
+        // @ts-expect-error to silence compiler
+        typeof EdgeRuntime === "string" ? "edge-light" : `node@${process.version}`
+      ),
+      platform: process.env.VERCEL ? "vercel" : process.env.AWS_REGION ? "aws" : "unknown",
+      sdk: `@upstash/redis@${VERSION}`
+    });
+    if (this.enableAutoPipelining) {
+      return this.autoPipeline();
+    }
+  }
+  /**
+   * Create a new Upstash Redis instance from environment variables.
+   *
+   * Use this to automatically load connection secrets from your environment
+   * variables. For instance when using the Vercel integration.
+   *
+   * This tries to load `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` from
+   * your environment using `process.env`.
+   */
+  static fromEnv(config) {
+    if (process.env === void 0) {
+      throw new TypeError(
+        '[Upstash Redis] Unable to get environment variables, `process.env` is undefined. If you are deploying to cloudflare, please import from "@upstash/redis/cloudflare" instead'
+      );
+    }
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    if (!url) {
+      console.warn("[Upstash Redis] Unable to find environment variable: `UPSTASH_REDIS_REST_URL`");
+    }
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    if (!token) {
+      console.warn(
+        "[Upstash Redis] Unable to find environment variable: `UPSTASH_REDIS_REST_TOKEN`"
+      );
+    }
+    return new _Redis({ ...config, url, token });
+  }
+};
+// Annotate the CommonJS export names for ESM import in node:
+0 && (0);
 
 
 /***/ }),
 
-/***/ 534:
-/***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
-
-"use strict";
-Object.defineProperty(exports, "__esModule", ({value: true})); function _optionalChain(ops) { let lastAccessLHS = undefined; let value = ops[0]; let i = 1; while (i < ops.length) { const op = ops[i]; const fn = ops[i + 1]; i += 2; if ((op === 'optionalAccess' || op === 'optionalCall') && value == null) { return undefined; } if (op === 'access' || op === 'optionalAccess') { lastAccessLHS = value; value = fn(value); } else if (op === 'call' || op === 'optionalCall') { value = fn((...args) => value.call(lastAccessLHS, ...args)); lastAccessLHS = undefined; } } return value; }var _chunkJIU2S2DZjs = __nccwpck_require__(42);typeof atob>"u"&&(global.atob=function(n){return Buffer.from(n,"base64").toString("utf-8")});var a=class n extends _chunkJIU2S2DZjs.b{constructor(e){if("request"in e){super(e);return}(e.url.startsWith(" ")||e.url.endsWith(" ")||/\r|\n/.test(e.url))&&console.warn("The redis url contains whitespace or newline, which can cause errors!"),(e.token.startsWith(" ")||e.token.endsWith(" ")||/\r|\n/.test(e.token))&&console.warn("The redis token contains whitespace or newline, which can cause errors!");let t=new (0, _chunkJIU2S2DZjs.a)({baseUrl:e.url,retry:e.retry,headers:{authorization:`Bearer ${e.token}`},agent:e.agent,responseEncoding:e.responseEncoding,cache:e.cache||"no-store"});super(t,{automaticDeserialization:e.automaticDeserialization,enableTelemetry:!process.env.UPSTASH_DISABLE_TELEMETRY}),this.addTelemetry({runtime:typeof EdgeRuntime=="string"?"edge-light":`node@${process.version}`,platform:process.env.VERCEL?"vercel":process.env.AWS_REGION?"aws":"unknown",sdk:`@upstash/redis@${_chunkJIU2S2DZjs.c}`})}static fromEnv(e){if(typeof _optionalChain([process, 'optionalAccess', _ => _.env])>"u")throw new Error('Unable to get environment variables, `process.env` is undefined. If you are deploying to cloudflare, please import from "@upstash/redis/cloudflare" instead');let t=_optionalChain([process, 'optionalAccess', _2 => _2.env, 'access', _3 => _3.UPSTASH_REDIS_REST_URL]);if(!t)throw new Error("Unable to find environment variable: `UPSTASH_REDIS_REST_URL`");let s=_optionalChain([process, 'optionalAccess', _4 => _4.env, 'access', _5 => _5.UPSTASH_REDIS_REST_TOKEN]);if(!s)throw new Error("Unable to find environment variable: `UPSTASH_REDIS_REST_TOKEN`");return new n({...e,url:t,token:s})}};exports.Redis = a;
-
-
-/***/ }),
-
-/***/ 786:
+/***/ 255:
 /***/ (function(module, exports, __nccwpck_require__) {
 
 ;(function (root, factory) {
@@ -67,7 +3993,7 @@ Object.defineProperty(exports, "__esModule", ({value: true})); function _optiona
 	    // Native crypto import via require (NodeJS)
 	    if (!crypto && "function" === 'function') {
 	        try {
-	            crypto = __nccwpck_require__(113);
+	            crypto = __nccwpck_require__(982);
 	        } catch (err) {}
 	    }
 
@@ -825,13 +4751,13 @@ Object.defineProperty(exports, "__esModule", ({value: true})); function _optiona
 
 /***/ }),
 
-/***/ 680:
+/***/ 606:
 /***/ (function(module, exports, __nccwpck_require__) {
 
 ;(function (root, factory) {
 	if (true) {
 		// CommonJS
-		module.exports = exports = factory(__nccwpck_require__(786));
+		module.exports = exports = factory(__nccwpck_require__(255));
 	}
 	else {}
 }(this, function (CryptoJS) {
@@ -842,13 +4768,13 @@ Object.defineProperty(exports, "__esModule", ({value: true})); function _optiona
 
 /***/ }),
 
-/***/ 595:
+/***/ 377:
 /***/ (function(module, exports, __nccwpck_require__) {
 
 ;(function (root, factory) {
 	if (true) {
 		// CommonJS
-		module.exports = exports = factory(__nccwpck_require__(786));
+		module.exports = exports = factory(__nccwpck_require__(255));
 	}
 	else {}
 }(this, function (CryptoJS) {
@@ -991,7 +4917,7 @@ Object.defineProperty(exports, "__esModule", ({value: true})); function _optiona
 
 /***/ }),
 
-/***/ 113:
+/***/ 982:
 /***/ ((module) => {
 
 "use strict";
@@ -999,7 +4925,7 @@ module.exports = require("crypto");
 
 /***/ }),
 
-/***/ 292:
+/***/ 943:
 /***/ ((module) => {
 
 "use strict";
@@ -1007,7 +4933,7 @@ module.exports = require("fs/promises");
 
 /***/ }),
 
-/***/ 17:
+/***/ 928:
 /***/ ((module) => {
 
 "use strict";
@@ -1015,12 +4941,12 @@ module.exports = require("path");
 
 /***/ }),
 
-/***/ 381:
+/***/ 287:
 /***/ ((__unused_webpack_module, exports, __nccwpck_require__) => {
 
 "use strict";
 Object.defineProperty(exports, "__esModule", ({value: true}));// src/index.ts
-var _redis = __nccwpck_require__(534);
+var _redis = __nccwpck_require__(722);
 var _kv = null;
 process.env.UPSTASH_DISABLE_TELEMETRY = "1";
 var VercelKV = class extends _redis.Redis {
@@ -1029,57 +4955,63 @@ var VercelKV = class extends _redis.Redis {
    * Same as `scan` but returns an AsyncIterator to allow iteration via `for await`.
    */
   async *scanIterator(options) {
-    let cursor = 0;
+    let cursor = "0";
     let keys;
     do {
       [cursor, keys] = await this.scan(cursor, options);
       for (const key of keys) {
         yield key;
       }
-    } while (cursor !== 0);
+    } while (cursor !== "0");
   }
   /**
    * Same as `hscan` but returns an AsyncIterator to allow iteration via `for await`.
    */
   async *hscanIterator(key, options) {
-    let cursor = 0;
+    let cursor = "0";
     let items;
     do {
       [cursor, items] = await this.hscan(key, cursor, options);
       for (const item of items) {
         yield item;
       }
-    } while (cursor !== 0);
+    } while (cursor !== "0");
   }
   /**
    * Same as `sscan` but returns an AsyncIterator to allow iteration via `for await`.
    */
   async *sscanIterator(key, options) {
-    let cursor = 0;
+    let cursor = "0";
     let items;
     do {
       [cursor, items] = await this.sscan(key, cursor, options);
       for (const item of items) {
         yield item;
       }
-    } while (cursor !== 0);
+    } while (cursor !== "0");
   }
   /**
    * Same as `zscan` but returns an AsyncIterator to allow iteration via `for await`.
    */
   async *zscanIterator(key, options) {
-    let cursor = 0;
+    let cursor = "0";
     let items;
     do {
       [cursor, items] = await this.zscan(key, cursor, options);
       for (const item of items) {
         yield item;
       }
-    } while (cursor !== 0);
+    } while (cursor !== "0");
   }
 };
 function createClient(config) {
-  return new VercelKV(config);
+  return new VercelKV({
+    // The Next.js team recommends no value or `default` for fetch requests's `cache` option
+    // upstash/redis defaults to `no-store`, so we enforce `default`
+    cache: "default",
+    enableAutoPipelining: true,
+    ...config
+  });
 }
 var src_default = new Proxy(
   {},
@@ -1174,12 +5106,10 @@ exports.VercelKV = VercelKV; exports.createClient = createClient; exports["defau
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be isolated against other modules in the chunk.
-(() => {
-const fs = __nccwpck_require__(292)
-const path = __nccwpck_require__(17)
+const fs = __nccwpck_require__(943)
+const path = __nccwpck_require__(928)
 
-const { createClient } = __nccwpck_require__(381)
+const { createClient } = __nccwpck_require__(287)
 
 async function collectExamplesResult(manifestFile) {
   const file = path.join(process.cwd(), manifestFile)
@@ -1312,55 +5242,71 @@ async function collectResults(manifestFile) {
   }
 }
 
+async function collectAndUpload(kv, { jsonPrefix, kvPrefix }) {
+  const developmentResult = await collectResults(
+    `test/${jsonPrefix}dev-tests-manifest.json`
+  )
+  const productionResult = await collectResults(
+    `test/${jsonPrefix}build-tests-manifest.json`
+  )
+  const developmentExamplesResult = await collectExamplesResult(
+    `test/${jsonPrefix}dev-examples-manifest.json`
+  )
+
+  console.log('TEST RESULT DEVELOPMENT')
+  console.log(developmentResult.testRun)
+
+  console.log('TEST RESULT PRODUCTION')
+  console.log(productionResult.testRun)
+
+  console.log('EXAMPLES RESULT')
+  console.log(developmentExamplesResult.status)
+
+  await kv.rpush(`${kvPrefix}test-runs`, developmentResult.testRun)
+  await kv.rpush(`${kvPrefix}test-runs-production`, productionResult.testRun)
+  await kv.rpush(`${kvPrefix}examples-runs`, developmentExamplesResult.status)
+  console.log('SUCCESSFULLY SAVED RUNS')
+
+  await kv.set(`${kvPrefix}passing-tests`, developmentResult.passingTests)
+  await kv.set(
+    `${kvPrefix}passing-tests-production`,
+    productionResult.passingTests
+  )
+  console.log('SUCCESSFULLY SAVED PASSING')
+
+  await kv.set(`${kvPrefix}failing-tests`, developmentResult.failingTests)
+  await kv.set(
+    `${kvPrefix}failing-tests-production`,
+    productionResult.failingTests
+  )
+  console.log('SUCCESSFULLY SAVED FAILING')
+
+  await kv.set(`${kvPrefix}examples-data`, developmentExamplesResult.data)
+  console.log('SUCCESSFULLY SAVED EXAMPLES')
+}
+
 async function main() {
   try {
-    const developmentResult = await collectResults(
-      'test/turbopack-dev-tests-manifest.json'
-    )
-    const productionResult = await collectResults(
-      'test/turbopack-build-tests-manifest.json'
-    )
-    const developmentExamplesResult = await collectExamplesResult(
-      'test/turbopack-dev-examples-manifest.json'
-    )
-
     const kv = createClient({
       url: process.env.TURBOYET_KV_REST_API_URL,
       token: process.env.TURBOYET_KV_REST_API_TOKEN,
     })
-
-    console.log('TEST RESULT DEVELOPMENT')
-    console.log(developmentResult.testRun)
-
-    console.log('TEST RESULT PRODUCTION')
-    console.log(productionResult.testRun)
-
-    console.log('EXAMPLES RESULT')
-    console.log(developmentExamplesResult.status)
-
-    await kv.rpush('test-runs', developmentResult.testRun)
-    await kv.rpush('test-runs-production', productionResult.testRun)
-    await kv.rpush('examples-runs', developmentExamplesResult.status)
-    console.log('SUCCESSFULLY SAVED RUNS')
-
-    await kv.set('passing-tests', developmentResult.passingTests)
-    await kv.set('passing-tests-production', productionResult.passingTests)
-    console.log('SUCCESSFULLY SAVED PASSING')
-
-    await kv.set('failing-tests', developmentResult.failingTests)
-    await kv.set('failing-tests-production', productionResult.failingTests)
-    console.log('SUCCESSFULLY SAVED FAILING')
-
-    await kv.set('examples-data', developmentExamplesResult.data)
-    console.log('SUCCESSFULLY SAVED EXAMPLES')
+    console.log('### UPLOADING TURBOPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'turbopack-',
+      kvPrefix: '',
+    })
+    console.log('### UPLOADING RSPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'rspack-',
+      kvPrefix: 'rspack-',
+    })
   } catch (error) {
     console.log(error)
   }
 }
 
 main()
-
-})();
 
 module.exports = __webpack_exports__;
 /******/ })()

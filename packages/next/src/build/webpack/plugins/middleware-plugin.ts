@@ -154,7 +154,7 @@ function getCreateAssets(params: {
   opts: Options
 }) {
   const { compilation, metadataByEntry, opts } = params
-  return (assets: any) => {
+  return () => {
     const middlewareManifest: MiddlewareManifest = {
       version: MANIFEST_VERSION,
       middleware: {},
@@ -171,11 +171,14 @@ function getCreateAssets(params: {
     const interceptionRewrites = JSON.stringify(
       opts.rewrites.beforeFiles.filter(isInterceptionRouteRewrite)
     )
-    assets[`${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`] = new sources.RawSource(
-      `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
-        interceptionRewrites
-      )}`
-    ) as unknown as webpack.sources.RawSource
+    compilation.emitAsset(
+      `${INTERCEPTION_ROUTE_REWRITE_MANIFEST}.js`,
+      new sources.RawSource(
+        `self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST=${JSON.stringify(
+          interceptionRewrites
+        )}`
+      ) as unknown as webpack.sources.RawSource
+    )
 
     for (const entrypoint of compilation.entrypoints.values()) {
       if (!entrypoint.name) {
@@ -242,8 +245,11 @@ function getCreateAssets(params: {
       Object.keys(middlewareManifest.middleware)
     )
 
-    assets[MIDDLEWARE_MANIFEST] = new sources.RawSource(
-      JSON.stringify(middlewareManifest, null, 2)
+    compilation.emitAsset(
+      MIDDLEWARE_MANIFEST,
+      new sources.RawSource(
+        JSON.stringify(middlewareManifest, null, 2)
+      ) as unknown as webpack.sources.RawSource
     )
   }
 }
@@ -511,7 +517,11 @@ function getCodeAnalyzer(params: {
           sourceContent: source.toString(),
         })
 
-        if (!dev && isNodeJsModule(importedModule)) {
+        if (
+          !dev &&
+          isNodeJsModule(importedModule) &&
+          !SUPPORTED_NATIVE_MODULES.includes(importedModule)
+        ) {
           compilation.warnings.push(
             buildWebpackError({
               message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
@@ -781,9 +791,13 @@ export default class MiddlewarePlugin {
         compiler,
         compilation,
       })
-      hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+
+      // parser hooks aren't available in rspack
+      if (!process.env.NEXT_RSPACK) {
+        hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+      }
 
       /**
        * Extract all metadata for the entry points in a Map object.

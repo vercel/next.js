@@ -15,7 +15,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -29,7 +29,7 @@ use super::{
     issue::RenderingIssue, RenderData, RenderStaticIncomingMessage, RenderStaticOutgoingMessage,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation,
+    get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
     render::error_page::error_html_body, source_map::trace_stack, ResponseHeaders,
 };
 
@@ -77,7 +77,7 @@ pub async fn render_static_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -204,7 +204,7 @@ struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -288,20 +288,20 @@ async fn render_stream_internal(
             *chunking_context,
             *module,
             *runtime_entries,
-        );
-        let renderer_pool = get_renderer_pool(
-            *cwd,
-            *env,
+        ).to_resolved().await?;
+        let renderer_pool_op = get_renderer_pool_operation(
+            cwd,
+            env,
             intermediate_asset,
-            *intermediate_output_path,
-            *output_root,
-            *project_dir,
+            intermediate_output_path,
+            output_root,
+            project_dir,
             debug,
         );
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
-        let pool = renderer_pool.strongly_consistent().await?;
+        let pool = renderer_pool_op.read_strongly_consistent().await?;
         let data = data.await?;
         let mut operation = pool.operation().await?;
 
@@ -343,7 +343,7 @@ async fn render_stream_internal(
                 // 500 proxy error as if it were the proper result.
                 let trace = trace_stack(
                     error,
-                    intermediate_asset,
+                    *intermediate_asset,
                     *intermediate_output_path,
                     *project_dir,
                 )
@@ -377,7 +377,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, *intermediate_output_path, *project_dir).await?;
+                        trace_stack(error, *intermediate_asset, *intermediate_output_path, *project_dir).await?;
                         drop(guard);
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;

@@ -1,0 +1,25 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/lib.js"],"sourcesContent":["let dog = \"dog\";\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction getDog() {\n  return dog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction setDog(newDog) {\n  dog = newDog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nexport const dogRef = {\n  initial: dog,\n  get: getDog,\n  set: setDog,\n};\n\nexport let cat = \"cat\";\n\nexport const initialCat = cat;\n\nexport function getChimera() {\n  return cat + dog;\n}\n"],"names":[],"mappings":";;;;;;AAAA,IAAI,MAAM"}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/lib.js"],"sourcesContent":["let dog = \"dog\";\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction getDog() {\n  return dog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction setDog(newDog) {\n  dog = newDog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nexport const dogRef = {\n  initial: dog,\n  get: getDog,\n  set: setDog,\n};\n\nexport let cat = \"cat\";\n\nexport const initialCat = cat;\n\nexport function getChimera() {\n  return cat + dog;\n}\n"],"names":[],"mappings":";;;AAEA,gPAAA,CAAA,IAAG,IAAI;AAQP,gPAAA,CAAA,IAAG,IAAI;AAQP,gPAAA,CAAA,IAAG,IAAI"}},
+    {"offset": {"line": 27, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 33, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/lib.js"],"sourcesContent":["let dog = \"dog\";\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction getDog() {\n  return dog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction setDog(newDog) {\n  dog = newDog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nexport const dogRef = {\n  initial: dog,\n  get: getDog,\n  set: setDog,\n};\n\nexport let cat = \"cat\";\n\nexport const initialCat = cat;\n\nexport function getChimera() {\n  return cat + dog;\n}\n"],"names":[],"mappings":";;;;;AAIA,QAAQ,GAAG,CAAC,gPAAA,CAAA,IAAG;AAQf,QAAQ,GAAG,CAAC,gPAAA,CAAA,IAAG;AAQf,QAAQ,GAAG,CAAC,gPAAA,CAAA,IAAG"}},
+    {"offset": {"line": 42, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 48, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 51, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 57, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 61, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 67, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/lib.js"],"sourcesContent":["let dog = \"dog\";\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction getDog() {\n  return dog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nfunction setDog(newDog) {\n  dog = newDog;\n}\n\ndog += \"!\";\n\nconsole.log(dog);\n\nexport const dogRef = {\n  initial: dog,\n  get: getDog,\n  set: setDog,\n};\n\nexport let cat = \"cat\";\n\nexport const initialCat = cat;\n\nexport function getChimera() {\n  return cat + dog;\n}\n"],"names":[],"mappings":";;;;;;AA4BO,IAAI,MAAM"}},
+    {"offset": {"line": 75, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 81, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 87, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 93, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 105, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 111, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 117, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 123, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/export-named/input/index.js"],"sourcesContent":["import { fakeCat } from \"./module\";\n\n\nconsole.log(fakeCat)\n"],"names":[],"mappings":";AAAA;AAAA;;AAGA,QAAQ,GAAG,CAAC,mPAAA,CAAA,UAAO"}},
+    {"offset": {"line": 128, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

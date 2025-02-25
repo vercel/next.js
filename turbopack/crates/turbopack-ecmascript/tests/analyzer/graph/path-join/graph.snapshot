@@ -9,7 +9,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),
@@ -27,7 +27,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -55,14 +55,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "bar",
                         ),
                     ),
@@ -90,14 +90,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo/",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "bar",
                         ),
                     ),
@@ -125,14 +125,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "/bar",
                         ),
                     ),
@@ -160,14 +160,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo/",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "/bar",
                         ),
                     ),
@@ -195,28 +195,28 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "bar",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "..",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "baz",
                         ),
                     ),
@@ -226,14 +226,14 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "..",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "foo",
                         ),
                     ),

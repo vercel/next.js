@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-legacy-nesting/input/index.js"],"sourcesContent":["import \"./style.css\";\n\nconsole.log('css-legacy-nesting');\n"],"names":[],"mappings":";;AAEA,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

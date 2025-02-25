@@ -6,7 +6,7 @@ import {
 } from 'next-test-utils'
 
 describe('server-navigation-error', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -18,7 +18,7 @@ describe('server-navigation-error', () => {
         `Next.js navigation API is not allowed to be used in Pages Router.`
       )
       const source = await getRedboxSource(browser)
-      if (process.env.TURBOPACK) {
+      if (isTurbopack) {
         expect(source).toMatchInlineSnapshot(`
           "pages/pages/redirect.tsx (4:10) @ Page
 
@@ -31,12 +31,12 @@ describe('server-navigation-error', () => {
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`
-          "pages/pages/redirect.tsx (4:12) @ Page
+          "pages/pages/redirect.tsx (4:11) @ Page
 
             2 |
             3 | export default function Page() {
           > 4 |   redirect('/')
-              |            ^
+              |           ^
             5 | }
             6 |"
         `)
@@ -50,7 +50,7 @@ describe('server-navigation-error', () => {
         `Next.js navigation API is not allowed to be used in Pages Router.`
       )
       const source = await getRedboxSource(browser)
-      if (process.env.TURBOPACK) {
+      if (isTurbopack) {
         expect(source).toMatchInlineSnapshot(`
           "pages/pages/not-found.tsx (4:10) @ Page
 
@@ -86,7 +86,7 @@ describe('server-navigation-error', () => {
         `Next.js navigation API is not allowed to be used in Middleware.`
       )
       const source = await getRedboxSource(browser)
-      if (process.env.TURBOPACK) {
+      if (isTurbopack) {
         expect(source).toMatchInlineSnapshot(`
           "middleware.ts (8:12) @ middleware
 
@@ -100,12 +100,12 @@ describe('server-navigation-error', () => {
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`
-          "middleware.ts (8:14) @ middleware
+          "middleware.ts (8:13) @ middleware
 
              6 |     notFound()
              7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
           >  8 |     redirect('/')
-               |              ^
+               |             ^
              9 |   }
             10 | }
             11 |"
@@ -121,7 +121,7 @@ describe('server-navigation-error', () => {
       )
       const source = await getRedboxSource(browser)
 
-      if (process.env.TURBOPACK) {
+      if (isTurbopack) {
         expect(source).toMatchInlineSnapshot(`
           "middleware.ts (6:12) @ middleware
 

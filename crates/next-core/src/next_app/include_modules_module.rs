@@ -7,6 +7,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -81,6 +82,7 @@ impl ChunkableModule for IncludeModulesModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
@@ -125,11 +127,6 @@ impl ChunkItem for IncludeModulesChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     fn content(&self) -> Vc<EcmascriptChunkItemContent> {
         EcmascriptChunkItemContent {
             ..Default::default()
@@ -165,7 +162,7 @@ impl ValueToString for IncludedModuleReference {
 impl ModuleReference for IncludedModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 

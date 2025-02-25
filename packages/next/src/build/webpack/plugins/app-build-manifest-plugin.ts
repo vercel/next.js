@@ -25,32 +25,18 @@ export class AppBuildManifestPlugin {
   }
 
   public apply(compiler: any) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
-      }
-    )
-
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets: any) => this.createAsset(assets, compilation)
+        () => this.createAsset(compilation)
       )
     })
   }
 
-  private createAsset(assets: any, compilation: webpack.Compilation) {
+  private createAsset(compilation: webpack.Compilation) {
     const manifest: AppBuildManifest = {
       pages: {},
     }
@@ -81,6 +67,9 @@ export class AppBuildManifestPlugin {
 
     const json = JSON.stringify(manifest, null, 2)
 
-    assets[APP_BUILD_MANIFEST] = new sources.RawSource(json)
+    compilation.emitAsset(
+      APP_BUILD_MANIFEST,
+      new sources.RawSource(json) as unknown as webpack.sources.RawSource
+    )
   }
 }

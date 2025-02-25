@@ -33,6 +33,12 @@ import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 import { babelIncludeRegexes } from '../../webpack-config'
 import { isResourceInPackages } from '../../handle-externals'
+import type { TelemetryLoaderContext } from '../plugins/telemetry-plugin/telemetry-plugin'
+import {
+  updateTelemetryLoaderCtxFromTransformOutput,
+  type SwcTransformTelemetryOutput,
+} from '../plugins/telemetry-plugin/update-telemetry-loader-context-from-swc'
+import type { LoaderContext } from 'webpack'
 
 const maybeExclude = (
   excludePath: string,
@@ -72,7 +78,7 @@ const FORCE_TRANSPILE_CONDITIONS =
   /(next\/font|next\/dynamic|use server|use client)/
 
 async function loaderTransform(
-  this: any,
+  this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,
   source?: string,
   inputSourceMap?: any
 ) {
@@ -115,7 +121,7 @@ async function loaderTransform(
     bundleLayer,
     esm,
   } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
+  const isPageFile = pagesDir ? filename.startsWith(pagesDir) : false
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
   const swcOptions = getLoaderSWCOptions({
@@ -143,6 +149,7 @@ async function loaderTransform(
     bundleLayer,
     esm,
     cacheHandlers: nextConfig.experimental?.cacheHandlers,
+    useCacheEnabled: nextConfig.experimental?.useCache,
   })
 
   const programmaticOptions = {
@@ -179,14 +186,17 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
-  return transform(source as any, programmaticOptions).then((output) => {
-    if (output.eliminatedPackages && this.eliminatedPackages) {
-      for (const pkg of JSON.parse(output.eliminatedPackages)) {
-        this.eliminatedPackages.add(pkg)
-      }
+  return transform(source as any, programmaticOptions).then(
+    (
+      output: {
+        code: string
+        map?: string
+      } & SwcTransformTelemetryOutput
+    ) => {
+      updateTelemetryLoaderCtxFromTransformOutput(this, output)
+      return [output.code, output.map ? JSON.parse(output.map) : undefined]
     }
-    return [output.code, output.map ? JSON.parse(output.map) : undefined]
-  })
+  )
 }
 
 const EXCLUDED_PATHS =

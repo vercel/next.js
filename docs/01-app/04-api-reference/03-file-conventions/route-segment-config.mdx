@@ -53,7 +53,6 @@ export const dynamic = 'auto'
 - **`'auto'`** (default): The default option to cache as much as possible without preventing any components from opting into dynamic behavior.
 - **`'force-dynamic'`**: Force [dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering), which will result in routes being rendered for each user at request time. This option is equivalent to:
 
-  - `getServerSideProps()` in the `pages` directory.
   - Setting the option of every `fetch()` request in a layout or page to `{ cache: 'no-store', next: { revalidate: 0 } }`.
   - Setting the segment config to `export const fetchCache = 'force-no-store'`
 
