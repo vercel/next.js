@@ -294,7 +294,7 @@ pub trait ProcessCss: ParseCss {
 pub async fn parse_css(
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
@@ -339,7 +339,7 @@ async fn process_content(
     filename: &str,
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]

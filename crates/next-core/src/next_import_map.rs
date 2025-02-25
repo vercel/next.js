@@ -208,6 +208,10 @@ pub async fn get_next_client_import_map(
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
             );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -374,7 +378,11 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "next/link",
                 request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
-            )
+            );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
     }
@@ -431,6 +439,7 @@ pub async fn get_next_edge_import_map(
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),
             "next/link" => "next/dist/api/link".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/navigation" => "next/dist/api/navigation".to_string(),
             "next/router" => "next/dist/api/router".to_string(),
             "next/script" => "next/dist/api/script".to_string(),

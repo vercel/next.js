@@ -69,23 +69,23 @@ export const DEV_TOOLS_INFO_STYLES = `
   }
 
   .dev-tools-info-container {
-    padding: var(--size-1_5);
+    padding: 6px;
   }
 
   .dev-tools-info-title {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     margin: 0;
   }
 
   .dev-tools-info-article {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     margin: 0;
   }
   .dev-tools-info-paragraph {
@@ -98,15 +98,15 @@ export const DEV_TOOLS_INFO_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
   }
 
   .dev-tools-info-close-button {
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-gray-1000);
     border-radius: var(--rounded-md-2);
@@ -120,11 +120,11 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-learn-more-button {
     align-content: center;
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-background-100);
     border-radius: var(--rounded-md-2);

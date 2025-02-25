@@ -183,7 +183,7 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
-  setAppIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -204,6 +204,8 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  htmlLimitedBots: string | undefined
+  streamingMetadata: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -216,8 +218,6 @@ export interface RenderOptsPartial {
     clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
-    streamingMetadata: boolean
-    htmlLimitedBots: string | undefined
   }
   postponed?: string
 

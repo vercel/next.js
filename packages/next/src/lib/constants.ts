@@ -182,6 +182,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
       WEBPACK_LAYERS_NAMES.instrument,
+      WEBPACK_LAYERS_NAMES.middleware,
     ],
     appPages: [
       // app router pages and layouts

@@ -90,7 +90,7 @@ export default (mode: 'webpack' | 'turbopack') => {
       }
       case 'serverError':
       case 'devPagesManifestUpdate':
-      case 'appIsrManifest':
+      case 'isrManifest':
       case 'building':
       case 'finishBuilding': {
         return

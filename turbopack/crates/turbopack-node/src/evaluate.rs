@@ -22,7 +22,9 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets},
+    chunk::{
+        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+    },
     context::AssetContext,
     error::PrettyPrintError,
     file_source::FileSource,
@@ -127,7 +129,9 @@ async fn emit_evaluate_pool_assets_operation(
                 "RUNTIME".into() => runtime_asset
             }))),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let runtime_entries = {
         let globals_module = asset_context
@@ -154,18 +158,19 @@ async fn emit_evaluate_pool_assets_operation(
         entries
     };
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(
-        iter::once(entry_module.to_resolved().await?)
+    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
+        iter::once(entry_module)
             .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
             .collect(),
-    ));
+        ChunkGroupType::Entry,
+    )]));
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
-        entry_module,
+        Vc::<EvaluatableAssets>::cell(runtime_entries)
+            .with_entry(*ResolvedVc::try_downcast(entry_module).unwrap()),
         module_graph,
         OutputAssets::empty(),
-        Vc::<EvaluatableAssets>::cell(runtime_entries),
     );
 
     let output_root = chunking_context.output_root().to_resolved().await?;

@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -2348,6 +2349,18 @@ export default async function build(
               },
             ],
           }
+
+          if (turboNextBuild) {
+            await writeManifest(
+              path.join(
+                distDir,
+                'static',
+                buildId,
+                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+              ),
+              functionsConfigManifest.functions['/_middleware'].matchers || []
+            )
+          }
         }
       }
 
@@ -2757,8 +2770,8 @@ export default async function build(
                 : undefined
 
             const htmlBotsRegexString =
-              config.experimental.htmlLimitedBots ||
-              HTML_LIMITED_BOT_UA_RE_STRING
+              // The htmlLimitedBots has been converted to a string during loadConfig
+              config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
 
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
@@ -2774,8 +2787,7 @@ export default async function build(
               ...(isRoutePPREnabled &&
               // Disable streaming metadata for PPR on deployment where we don't have the special env.
               // TODO: enable streaming metadata in PPR mode by default once it's ready.
-              process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
-              config.experimental.streamingMetadata
+              process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
                 ? [
                     {
                       type: 'header',

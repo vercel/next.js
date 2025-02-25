@@ -61,6 +61,12 @@ pub struct ImportAttributes {
     pub media: Option<RcStr>,
 }
 
+impl ImportAttributes {
+    pub fn is_empty(&self) -> bool {
+        self.layer.is_none() && self.supports.is_none() && self.media.is_none()
+    }
+}
+
 /// The accumulated list of conditions that should be applied to this module
 /// through its import path
 #[derive(Debug, Default)]

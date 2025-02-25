@@ -13,11 +13,10 @@ describe('next-link', () => {
     const browser = await webdriver(next.appPort, '/invalid-href')
 
     if (isNextDev) {
-      // TODO(veil): Should be a single error
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
@@ -41,11 +40,10 @@ describe('next-link', () => {
     const browser = await webdriver(next.appPort, '/no-children')
 
     if (isNextDev) {
-      // TODO(veil): Should be a single error
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
@@ -67,11 +65,10 @@ describe('next-link', () => {
     const browser = await webdriver(next.appPort, '/multiple-children')
 
     if (isNextDev) {
-      // TODO(veil): Should be a single error
       // TODO(veil): https://linear.app/vercel/issue/NDX-554/hide-the-anonymous-frames-which-are-between-2-ignored-frames
       await expect(browser).toDisplayRedbox(`
        {
-         "count": 2,
+         "count": 1,
          "description": "Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,

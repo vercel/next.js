@@ -958,11 +958,46 @@ export async function goToNextErrorView(
 export async function openDevToolsIndicatorPopover(
   browser: BrowserInterface
 ): Promise<void> {
+  const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+
   try {
-    await browser.waitForElementByCss('[data-nextjs-dev-tools-button]').click()
+    await devToolsIndicator.click()
   } catch (cause) {
     const error = new Error('No DevTools Indicator to open.', { cause })
     Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    throw error
+  }
+}
+
+export async function assertHasDevToolsIndicator(browser: BrowserInterface) {
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
+
+  const devToolsIndicator = playwright.locateDevToolsIndicator()
+  try {
+    await devToolsIndicator.waitFor({ timeout: 5000 })
+  } catch (errorCause) {
+    const error = new Error(
+      'Expected DevTools Indicator but found no visible one.'
+    )
+    Error.captureStackTrace(error, assertHasDevToolsIndicator)
+    throw error
+  }
+
+  return devToolsIndicator
+}
+
+export async function assertNoDevToolsIndicator(browser: BrowserInterface) {
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
+
+  const devToolsIndicator = playwright.locateDevToolsIndicator()
+
+  if (await devToolsIndicator.isVisible()) {
+    const error = new Error(
+      'Expected no visible DevTools Indicator but found one.'
+    )
+    Error.captureStackTrace(error, assertNoDevToolsIndicator)
     throw error
   }
 }
@@ -1417,6 +1452,8 @@ export async function getRedboxCallStack(
             stack.push('<FIXME-internal-frame>')
           }
           foundInternalFrame = true
+        } else if (frame.includes('file://')) {
+          stack.push('<FIXME-file-protocol>')
         } else {
           stack.push(frame)
         }
@@ -1739,4 +1776,11 @@ export async function getHighlightedDiffLines(
       (await line.innerText())[0],
     ])
   )
+}
+
+export function trimEndMultiline(str: string) {
+  return str
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
 }

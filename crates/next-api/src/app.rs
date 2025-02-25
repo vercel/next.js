@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -53,13 +53,15 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModules, ChunkingContext, ChunkingContextExt,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
         EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
-    module::{Module, Modules},
-    module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
+    module::Module,
+    module_graph::{
+        chunk_group_info::ChunkGroup, GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
+    },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
     reference_type::{CssReferenceSubType, ReferenceType},
@@ -811,13 +813,14 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
-        extra_entries: Vc<EvaluatableAssets>,
+        client_shared_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
-        let extra_entries = extra_entries
+        let client_shared_entries = client_shared_entries
             .await?
             .into_iter()
-            .map(|m| *ResolvedVc::upcast(*m));
+            .map(|m| ResolvedVc::upcast(*m))
+            .collect();
 
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
@@ -831,11 +834,17 @@ impl AppProject {
                     } = &*find_server_entries(*rsc_entry).await?;
 
                     let graph = SingleModuleGraph::new_with_entries_visited(
-                        server_utils
-                            .iter()
-                            .map(|m| Vc::upcast(**m))
-                            .chain(extra_entries)
-                            .collect(),
+                        vec![
+                            (
+                                server_utils
+                                    .iter()
+                                    .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
+                                    .try_join()
+                                    .await?,
+                                ChunkGroupType::Entry,
+                            ),
+                            (client_shared_entries, ChunkGroupType::Evaluated),
+                        ],
                         VisitedModules::empty(),
                     );
                     graphs.push(graph);
@@ -843,7 +852,7 @@ impl AppProject {
 
                     for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited(
-                            vec![Vc::upcast(**module)],
+                            vec![(vec![ResolvedVc::upcast(*module)], ChunkGroupType::Entry)],
                             visited_modules,
                         );
                         graphs.push(graph);
@@ -864,22 +873,24 @@ impl AppProject {
                     visited_modules
                 } else {
                     let graph = SingleModuleGraph::new_with_entries_visited(
-                        extra_entries.collect::<_>(),
+                        vec![(client_shared_entries, ChunkGroupType::Evaluated)],
                         VisitedModules::empty(),
                     );
                     graphs.push(graph);
                     VisitedModules::from_graph(graph)
                 };
 
-                let graph =
-                    SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);
+                let graph = SingleModuleGraph::new_with_entries_visited(
+                    vec![(vec![ResolvedVc::upcast(rsc_entry)], ChunkGroupType::Entry)],
+                    visited_modules,
+                );
                 graphs.push(graph);
                 visited_modules = visited_modules.concatenate(graph);
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
-                let additional_entries = endpoint.additional_root_modules(base);
+                let additional_entries = endpoint.additional_entries(base);
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-                    additional_entries.await?.into_iter().map(|m| **m).collect(),
+                    additional_entries.owned().await?,
                     visited_modules,
                 );
                 graphs.push(additional_module_graph);
@@ -1651,7 +1662,12 @@ impl AppEndpoint {
             NextRuntime::NodeJs => {
                 let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
 
+                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
+                    bail!("rsc_entry must be evaluatable");
+                };
+
                 evaluatable_assets.push(server_action_manifest_loader);
+                evaluatable_assets.push(rsc_entry);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1663,14 +1679,18 @@ impl AppEndpoint {
                         let server_utils = client_references
                             .server_utils
                             .iter()
-                            .map(async |m| Ok(Vc::upcast(*m.await?.module)))
+                            .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                             .try_join()
                             .await?;
                         let chunk_group = chunking_context
-                            .chunk_group_multiple(
+                            .chunk_group(
                                 AssetIdent::from_path(this.app_project.project().project_path())
                                     .with_modifier(server_utils_modifier()),
-                                ChunkableModules::interned(server_utils),
+                                // TODO this should be ChunkGroup::Shared
+                                ChunkGroup::Entry {
+                                    entries: server_utils,
+                                    ty: ChunkGroupType::Entry,
+                                },
                                 module_graph,
                                 Value::new(current_availability_info),
                             )
@@ -1705,7 +1725,13 @@ impl AppEndpoint {
                             let chunk_group = chunking_context
                                 .chunk_group(
                                     server_component.ident(),
-                                    Vc::upcast(*server_component.await?.module),
+                                    // TODO this should be ChunkGroup::Shared
+                                    ChunkGroup::Entry {
+                                        entries: vec![ResolvedVc::upcast(
+                                            server_component.await?.module,
+                                        )],
+                                        ty: ChunkGroupType::Entry,
+                                    },
                                     module_graph,
                                     Value::new(current_availability_info),
                                 )
@@ -1733,7 +1759,6 @@ impl AppEndpoint {
                                     )
                                     .into(),
                                 ),
-                                *app_entry.rsc_entry,
                                 Vc::cell(evaluatable_assets),
                                 module_graph,
                                 current_chunks,
@@ -1877,15 +1902,18 @@ impl Endpoint for AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.app_endpoint_entry().await?.rsc_entry]))
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
+        Ok(Vc::cell(vec![(
+            vec![self.app_endpoint_entry().await?.rsc_entry],
+            ChunkGroupType::Entry,
+        )]))
     }
 
     #[turbo_tasks::function]
-    async fn additional_root_modules(
+    async fn additional_entries(
         self: Vc<Self>,
         graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<Modules>> {
+    ) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let app_entry = self.app_endpoint_entry().await?;
         let rsc_entry = app_entry.rsc_entry;
@@ -1917,7 +1945,10 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(Vc::cell(vec![server_actions_loader]))
+        Ok(Vc::cell(vec![(
+            vec![server_actions_loader],
+            ChunkGroupType::Entry,
+        )]))
     }
 }
 
