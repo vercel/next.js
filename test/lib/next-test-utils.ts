@@ -1404,7 +1404,9 @@ export async function getRedboxCallStack(
         // so that c&p automatically does the right thing.
         const frame = frameElement.innerText.replace('\n', ' ')
 
-        if (frame.includes('⚠')) {
+        const hasError =
+          frameElement.querySelector('.source-mapping-error-button') !== null
+        if (hasError) {
           stack.push('<FIXME-source-map-middleware-bug>')
           continue
         }

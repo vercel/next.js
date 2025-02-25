@@ -2,7 +2,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrame } from '../../../utils/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
-import { ExternalIcon } from '../../icons/external'
+import { ExternalIcon, SourceMappingErrorIcon } from '../../icons/external'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
@@ -56,20 +56,21 @@ export const CallStackFrame: React.FC<{
             <ExternalIcon width={16} height={16} />
           </button>
         )}
+        {frame.error ? (
+          <button
+            className="source-mapping-error-button"
+            onClick={() => console.error(frame.reason)}
+            title="Sourcemapping failed. Click to log cause of error."
+          >
+            <SourceMappingErrorIcon width={16} height={16} />
+          </button>
+        ) : null}
       </div>
       <span
         className="call-stack-frame-file-source"
         data-has-source={hasSource}
       >
         {fileSource}
-        {frame.error ? (
-          <button
-            onClick={() => console.error(frame.reason)}
-            title="Sourcemapping failed. Click to log cause of error."
-          >
-            ⚠
-          </button>
-        ) : null}
       </span>
     </div>
   )
@@ -121,7 +122,7 @@ export const CALL_STACK_FRAME_STYLES = `
     }
   }
 
-  .open-in-editor-button {
+  .open-in-editor-button, .source-mapping-error-button {
     display: flex;
     align-items: center;
     justify-content: center;
