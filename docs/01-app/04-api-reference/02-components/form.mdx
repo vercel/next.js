@@ -1,5 +1,5 @@
 ---
-title: <Form>
+title: Form
 description: Learn how to use the `<Form>` component to handle form submissions and search params updates with client-side navigation.
 ---
 
@@ -209,9 +209,9 @@ import { getSearchResults } from '@/lib/search'
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: { [key: string]: string | string[] | undefined }
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  const results = await getSearchResults(searchParams.query)
+  const results = await getSearchResults((await searchParams).query)
 
   return <div>...</div>
 }
@@ -221,7 +221,7 @@ export default async function SearchPage({
 import { getSearchResults } from '@/lib/search'
 
 export default async function SearchPage({ searchParams }) {
-  const results = await getSearchResults(searchParams.query)
+  const results = await getSearchResults((await searchParams).query)
 
   return <div>...</div>
 }

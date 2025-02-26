@@ -1,13 +1,19 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell } from './generated-native'
+import type {
+  ExternalObject,
+  RefCell,
+  NapiTurboEngineOptions,
+} from './generated-native'
+
+export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: TurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
     startTurbopackTraceServer(traceFilePath: string): void
 
@@ -27,8 +33,6 @@ export interface Binding {
 
   initCustomTraceSubscriber?(traceOutFilePath?: string): ExternalObject<RefCell>
   teardownTraceSubscriber?(guardExternal: ExternalObject<RefCell>): void
-  initHeapProfiler?(): ExternalObject<RefCell>
-  teardownHeapProfiler?(guardExternal: ExternalObject<RefCell>): void
   css: {
     lightning: {
       transform(transformOptions: any): Promise<any>
@@ -101,18 +105,6 @@ export type TurbopackResult<T = {}> = T & {
   diagnostics: Diagnostics[]
 }
 
-export interface TurboEngineOptions {
-  /**
-   * Use the new backend with persistent caching enabled.
-   */
-  persistentCaching?: boolean
-
-  /**
-   * An upper bound of memory that turbopack will attempt to stay under.
-   */
-  memoryLimit?: number
-}
-
 export interface Middleware {
   endpoint: Endpoint
 }
@@ -122,7 +114,7 @@ export interface Instrumentation {
   edge: Endpoint
 }
 
-export interface Entrypoints {
+export interface RawEntrypoints {
   routes: Map<string, Route>
   middleware?: Middleware
   instrumentation?: Instrumentation
@@ -169,6 +161,7 @@ export interface TurbopackStackFrame {
   isServer: boolean
   isInternal?: boolean
   file: string
+  originalFile?: string
   /** 1-indexed, unlike source map tokens */
   line?: number
   /** 1-indexed, unlike source map tokens */
@@ -193,7 +186,7 @@ export interface UpdateInfo {
 export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
-  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<Entrypoints>>
+  entrypointsSubscribe(): AsyncIterableIterator<TurbopackResult<RawEntrypoints>>
 
   hmrEvents(identifier: string): AsyncIterableIterator<TurbopackResult<Update>>
 
@@ -207,7 +200,8 @@ export interface Project {
   getSourceMapSync(filePath: string): string | null
 
   traceSource(
-    stackFrame: TurbopackStackFrame
+    stackFrame: TurbopackStackFrame,
+    currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(
@@ -386,6 +380,13 @@ export interface ProjectOptions {
    * The browserslist query to use for targeting browsers.
    */
   browserslistQuery: string
+
+  /**
+   * When the code is minified, this opts out of the default mangling of local
+   * names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 
 export interface DefineEnv {
@@ -395,3 +396,45 @@ export interface DefineEnv {
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+
+export interface GlobalEntrypoints {
+  app: Endpoint | undefined
+  document: Endpoint | undefined
+  error: Endpoint | undefined
+  middleware: Middleware | undefined
+  instrumentation: Instrumentation | undefined
+}
+
+export type PageRoute =
+  | {
+      type: 'page'
+      htmlEndpoint: Endpoint
+      dataEndpoint: Endpoint
+    }
+  | {
+      type: 'page-api'
+      endpoint: Endpoint
+    }
+
+export type AppRoute =
+  | {
+      type: 'app-page'
+      htmlEndpoint: Endpoint
+      rscEndpoint: Endpoint
+    }
+  | {
+      type: 'app-route'
+      endpoint: Endpoint
+    }
+
+// pathname -> route
+export type PageEntrypoints = Map<string, PageRoute>
+
+// originalName / page -> route
+export type AppEntrypoints = Map<string, AppRoute>
+
+export type Entrypoints = {
+  global: GlobalEntrypoints
+  page: PageEntrypoints
+  app: AppEntrypoints
+}

@@ -7,13 +7,21 @@ import type { UrlObject } from 'url'
 import { formatUrl } from '../../shared/lib/router/utils/format-url'
 import { AppRouterContext } from '../../shared/lib/app-router-context.shared-runtime'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
-import type { PrefetchOptions } from '../../shared/lib/app-router-context.shared-runtime'
-import { useIntersection } from '../use-intersection'
 import { PrefetchKind } from '../components/router-reducer/router-reducer-types'
 import { useMergedRef } from '../use-merged-ref'
 import { isAbsoluteUrl } from '../../shared/lib/utils'
 import { addBasePath } from '../add-base-path'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
+import {
+  type PrefetchTask,
+  schedulePrefetchTask as scheduleSegmentPrefetchTask,
+  cancelPrefetchTask,
+  bumpPrefetchTask,
+  PrefetchPriority,
+} from '../components/segment-cache/scheduler'
+import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
+import { createCacheKey } from '../components/segment-cache/cache-key'
+import { createPrefetchURL } from '../components/app-router'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -25,79 +33,168 @@ type OptionalKeys<T> = {
 
 type InternalLinkProps = {
   /**
-   * The path or URL to navigate to. It can also be an object.
+   * **Required**. The path or URL to navigate to. It can also be an object (similar to `URL`).
    *
-   * @example https://nextjs.org/docs/api-reference/next/link#with-url-object
+   * @example
+   * ```tsx
+   * // Navigate to /dashboard:
+   * <Link href="/dashboard">Dashboard</Link>
+   *
+   * // Navigate to /about?name=test:
+   * <Link href={{ pathname: '/about', query: { name: 'test' } }}>
+   *   About
+   * </Link>
+   * ```
+   *
+   * @remarks
+   * - For external URLs, use a fully qualified URL such as `https://...`.
+   * - In the App Router, dynamic routes must not include bracketed segments in `href`.
    */
   href: Url
+
   /**
-   * Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes) to see how it worked. Note: when this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes).
+   * @deprecated v10.0.0: `href` props pointing to a dynamic route are
+   * automatically resolved and no longer require the `as` prop.
    */
   as?: Url
+
   /**
-   * Replace the current `history` state instead of adding a new url into the stack.
+   * Replace the current `history` state instead of adding a new URL into the stack.
    *
    * @defaultValue `false`
+   *
+   * @example
+   * ```tsx
+   * <Link href="/about" replace>
+   *   About (replaces the history state)
+   * </Link>
+   * ```
    */
   replace?: boolean
+
   /**
-   * Whether to override the default scroll behavior
+   * Whether to override the default scroll behavior. If `true`, Next.js attempts to maintain
+   * the scroll position if the newly navigated page is still visible. If not, it scrolls to the top.
    *
-   * @example https://nextjs.org/docs/api-reference/next/link#disable-scrolling-to-the-top-of-the-page
+   * If `false`, Next.js will not modify the scroll behavior at all.
    *
    * @defaultValue `true`
+   *
+   * @example
+   * ```tsx
+   * <Link href="/dashboard" scroll={false}>
+   *   No auto scroll
+   * </Link>
+   * ```
    */
   scroll?: boolean
+
   /**
-   * Update the path of the current page without rerunning [`getStaticProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-static-props), [`getServerSideProps`](https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props).
+   * Update the path of the current page without rerunning data fetching methods
+   * like `getStaticProps`, `getServerSideProps`, or `getInitialProps`.
+   *
+   * @remarks
+   * `shallow` only applies to the Pages Router. For the App Router, see the
+   * [following documentation](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#using-the-native-history-api).
    *
    * @defaultValue `false`
+   *
+   * @example
+   * ```tsx
+   * <Link href="/blog" shallow>
+   *   Shallow navigation
+   * </Link>
+   * ```
    */
   shallow?: boolean
+
   /**
-   * Forces `Link` to send the `href` property to its child.
+   * Forces `Link` to pass its `href` to the child component. Useful if the child is a custom
+   * component that wraps an `<a>` tag, or if you're using certain styling libraries.
    *
    * @defaultValue `false`
+   *
+   * @example
+   * ```tsx
+   * <Link href="/dashboard" passHref>
+   *   <MyStyledAnchor>Dashboard</MyStyledAnchor>
+   * </Link>
+   * ```
    */
   passHref?: boolean
+
   /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
-   * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
+   * Prefetch can be disabled by passing `prefetch={false}`.
    *
-   * In App Router:
-   * - `null` (default): For statically generated pages, this will prefetch the full React Server Component data. For dynamic pages, this will prefetch up to the nearest route segment with a [`loading.js`](https://nextjs.org/docs/app/api-reference/file-conventions/loading) file. If there is no loading file, it will not fetch the full tree to avoid fetching too much data.
-   * - `true`: This will prefetch the full React Server Component data for all route segments, regardless of whether they contain a segment with `loading.js`.
-   * - `false`: This will not prefetch any data, even on hover.
+   * @remarks
+   * Prefetching is only enabled in production.
    *
-   * In Pages Router:
-   * - `true` (default): The full route & its data will be prefetched.
-   * - `false`: Prefetching will not happen when entering the viewport, but will still happen on hover.
-   * @defaultValue `true` (pages router) or `null` (app router)
+   * - In the **App Router**:
+   *   - `null` (default): Prefetch behavior depends on static vs dynamic routes:
+   *     - Static routes: fully prefetched
+   *     - Dynamic routes: partial prefetch to the nearest segment with a `loading.js`
+   *   - `true`: Always prefetch the full route and data.
+   *   - `false`: Disable prefetching on both viewport and hover.
+   * - In the **Pages Router**:
+   *   - `true` (default): Prefetches the route and data in the background on viewport or hover.
+   *   - `false`: Prefetch only on hover, not on viewport.
+   *
+   * @defaultValue `true` (Pages Router) or `null` (App Router)
+   *
+   * @example
+   * ```tsx
+   * <Link href="/dashboard" prefetch={false}>
+   *   Dashboard
+   * </Link>
+   * ```
    */
   prefetch?: boolean | null
+
   /**
-   * The active locale is automatically prepended. `locale` allows for providing a different locale.
-   * When `false` `href` has to include the locale as the default behavior is disabled.
-   * Note: This is only available in the Pages Router.
+   * The active locale is automatically prepended in the Pages Router. `locale` allows for providing
+   * a different locale, or can be set to `false` to opt out of automatic locale behavior.
+   *
+   * @remarks
+   * Note: locale only applies in the Pages Router and is ignored in the App Router.
+   *
+   * @example
+   * ```tsx
+   * // Use the 'fr' locale:
+   * <Link href="/about" locale="fr">
+   *   About (French)
+   * </Link>
+   *
+   * // Disable locale prefix:
+   * <Link href="/about" locale={false}>
+   *   About (no locale prefix)
+   * </Link>
+   * ```
    */
   locale?: string | false
+
   /**
-   * Enable legacy link behavior.
+   * Enable legacy link behavior, requiring an `<a>` tag to wrap the child content
+   * if the child is a string or number.
+   *
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
   legacyBehavior?: boolean
+
   /**
-   * Optional event handler for when the mouse pointer is moved onto Link
+   * Optional event handler for when the mouse pointer is moved onto the `<Link>`.
    */
   onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
+
   /**
-   * Optional event handler for when Link is touched.
+   * Optional event handler for when the `<Link>` is touched.
    */
   onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
+
   /**
-   * Optional event handler for when Link is clicked.
+   * Optional event handler for when the `<Link>` is clicked.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
 }
@@ -112,11 +209,196 @@ export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
-function prefetch(
-  router: AppRouterInstance,
+type LinkInstance = {
+  router: AppRouterInstance
+  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+  prefetchHref: string
+
+  isVisible: boolean
+  wasHoveredOrTouched: boolean
+
+  // The most recently initiated prefetch task. It may or may not have
+  // already completed.  The same prefetch task object can be reused across
+  // multiple prefetches of the same link.
+  prefetchTask: PrefetchTask | null
+}
+
+// TODO: This is currently a WeakMap because it doesn't need to be enumerable,
+// but eventually we'll want to be able to re-prefetch all the currently
+// visible links, e.g. after a revalidation or refresh.
+const links:
+  | WeakMap<HTMLAnchorElement | SVGAElement, LinkInstance>
+  | Map<Element, LinkInstance> =
+  typeof WeakMap === 'function' ? new WeakMap() : new Map()
+
+// A single IntersectionObserver instance shared by all <Link> components.
+const observer: IntersectionObserver | null =
+  typeof IntersectionObserver === 'function'
+    ? new IntersectionObserver(handleIntersect, {
+        rootMargin: '200px',
+      })
+    : null
+
+function mountLinkInstance(
+  element: HTMLAnchorElement | SVGAElement,
   href: string,
-  options: PrefetchOptions
-): void {
+  router: AppRouterInstance,
+  kind: PrefetchKind.AUTO | PrefetchKind.FULL
+) {
+  let prefetchUrl: URL | null = null
+  try {
+    prefetchUrl = createPrefetchURL(href)
+    if (prefetchUrl === null) {
+      // We only track the link if it's prefetchable. For example, this excludes
+      // links to external URLs.
+      return
+    }
+  } catch {
+    // createPrefetchURL sometimes throws an error if an invalid URL is
+    // provided, though I'm not sure if it's actually necessary.
+    // TODO: Consider removing the throw from the inner function, or change it
+    // to reportError. Or maybe the error isn't even necessary for automatic
+    // prefetches, just navigations.
+    const reportErrorFn =
+      typeof reportError === 'function' ? reportError : console.error
+    reportErrorFn(
+      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+    )
+    return
+  }
+
+  const instance: LinkInstance = {
+    prefetchHref: prefetchUrl.href,
+    router,
+    kind,
+    isVisible: false,
+    wasHoveredOrTouched: false,
+    prefetchTask: null,
+  }
+  const existingInstance = links.get(element)
+  if (existingInstance !== undefined) {
+    // This shouldn't happen because each <Link> component should have its own
+    // anchor tag instance, but it's defensive coding to avoid a memory leak in
+    // case there's a logical error somewhere else.
+    unmountLinkInstance(element)
+  }
+  links.set(element, instance)
+  if (observer !== null) {
+    observer.observe(element)
+  }
+}
+
+export function unmountLinkInstance(element: HTMLAnchorElement | SVGAElement) {
+  const instance = links.get(element)
+  if (instance !== undefined) {
+    links.delete(element)
+    const prefetchTask = instance.prefetchTask
+    if (prefetchTask !== null) {
+      cancelPrefetchTask(prefetchTask)
+    }
+  }
+  if (observer !== null) {
+    observer.unobserve(element)
+  }
+}
+
+function handleIntersect(entries: Array<IntersectionObserverEntry>) {
+  for (const entry of entries) {
+    // Some extremely old browsers or polyfills don't reliably support
+    // isIntersecting so we check intersectionRatio instead. (Do we care? Not
+    // really. But whatever this is fine.)
+    const isVisible = entry.intersectionRatio > 0
+    onLinkVisibilityChanged(entry.target as HTMLAnchorElement, isVisible)
+  }
+}
+
+function onLinkVisibilityChanged(
+  element: HTMLAnchorElement | SVGAElement,
+  isVisible: boolean
+) {
+  if (process.env.NODE_ENV !== 'production') {
+    // Prefetching on viewport is disabled in development for performance
+    // reasons, because it requires compiling the target page.
+    // TODO: Investigate re-enabling this.
+    return
+  }
+
+  const instance = links.get(element)
+  if (instance === undefined) {
+    return
+  }
+
+  instance.isVisible = isVisible
+  rescheduleLinkPrefetch(instance)
+}
+
+function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
+  const instance = links.get(element)
+  if (instance === undefined) {
+    return
+  }
+  // Prefetch the link on hover/touchstart.
+  if (instance !== undefined) {
+    instance.wasHoveredOrTouched = true
+    rescheduleLinkPrefetch(instance)
+  }
+}
+
+function rescheduleLinkPrefetch(instance: LinkInstance) {
+  const existingPrefetchTask = instance.prefetchTask
+
+  if (!instance.isVisible) {
+    // Cancel any in-progress prefetch task. (If it already finished then this
+    // is a no-op.)
+    if (existingPrefetchTask !== null) {
+      cancelPrefetchTask(existingPrefetchTask)
+    }
+    // We don't need to reset the prefetchTask to null upon cancellation; an
+    // old task object can be rescheduled with bumpPrefetchTask. This is a
+    // micro-optimization but also makes the code simpler (don't need to
+    // worry about whether an old task object is stale).
+    return
+  }
+
+  if (!process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+    // The old prefetch implementation does not have different priority levels.
+    // Just schedule a new prefetch task.
+    prefetchWithOldCacheImplementation(instance)
+    return
+  }
+
+  // In the Segment Cache implementation, we assign a higher priority level to
+  // links that were at one point hovered or touched. Since the queue is last-
+  // in-first-out, the highest priority Link is whichever one was hovered last.
+  //
+  // We also increase the relative priority of links whenever they re-enter the
+  // viewport, as if they were being scheduled for the first time.
+  const priority = instance.wasHoveredOrTouched
+    ? PrefetchPriority.Intent
+    : PrefetchPriority.Default
+  if (existingPrefetchTask === null) {
+    // Initiate a prefetch task.
+    const appRouterState = getCurrentAppRouterState()
+    if (appRouterState !== null) {
+      const nextUrl = appRouterState.nextUrl
+      const treeAtTimeOfPrefetch = appRouterState.tree
+      const cacheKey = createCacheKey(instance.prefetchHref, nextUrl)
+      instance.prefetchTask = scheduleSegmentPrefetchTask(
+        cacheKey,
+        treeAtTimeOfPrefetch,
+        instance.kind === PrefetchKind.FULL,
+        priority
+      )
+    }
+  } else {
+    // We already have an old task object that we can reschedule. This is
+    // effectively the same as canceling the old task and creating a new one.
+    bumpPrefetchTask(existingPrefetchTask, priority)
+  }
+}
+
+function prefetchWithOldCacheImplementation(instance: LinkInstance) {
+  // This is the path used when the Segment Cache is not enabled.
   if (typeof window === 'undefined') {
     return
   }
@@ -124,7 +406,9 @@ function prefetch(
   const doPrefetch = async () => {
     // note that `appRouter.prefetch()` is currently sync,
     // so we have to wrap this call in an async function to be able to catch() errors below.
-    return router.prefetch(href, options)
+    return instance.router.prefetch(instance.prefetchHref, {
+      kind: instance.kind,
+    })
   }
 
   // Prefetch the page if asked (only in the client)
@@ -205,12 +489,14 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
 }
 
 /**
- * A React component that extends the HTML `<a>` element to provide [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
- * and client-side navigation between routes.
+ * A React component that extends the HTML `<a>` element to provide
+ * [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
+ * and client-side navigation. This is the primary way to navigate between routes in Next.js.
  *
- * It is the primary way to navigate between routes in Next.js.
+ * @remarks
+ * - Prefetching is only enabled in production.
  *
- * Read more: [Next.js docs: `<Link>`](https://nextjs.org/docs/app/api-reference/components/link)
+ * @see https://nextjs.org/docs/app/api-reference/components/link
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
@@ -394,9 +680,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
     }, [hrefProp, asProp])
 
-    const previousHref = React.useRef<string>(href)
-    const previousAs = React.useRef<string>(as)
-
     // This will return the first child, if multiple are provided it will throw an error
     let child: any
     if (legacyBehavior) {
@@ -443,47 +726,23 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       ? child && typeof child === 'object' && child.ref
       : forwardedRef
 
-    const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
-      rootMargin: '200px',
-    })
-
-    const setIntersectionWithResetRef = React.useCallback(
-      (el: Element) => {
-        // Before the link getting observed, check if visible state need to be reset
-        if (previousAs.current !== as || previousHref.current !== href) {
-          resetVisible()
-          previousAs.current = as
-          previousHref.current = href
+    // Use a callback ref to attach an IntersectionObserver to the anchor tag on
+    // mount. In the future we will also use this to keep track of all the
+    // currently mounted <Link> instances, e.g. so we can re-prefetch them after
+    // a revalidation or refresh.
+    const observeLinkVisibilityOnMount = React.useCallback(
+      (element: HTMLAnchorElement | SVGAElement) => {
+        if (prefetchEnabled && router !== null) {
+          mountLinkInstance(element, href, router, appPrefetchKind)
         }
-
-        setIntersectionRef(el)
+        return () => {
+          unmountLinkInstance(element)
+        }
       },
-      [as, href, resetVisible, setIntersectionRef]
+      [prefetchEnabled, href, router, appPrefetchKind]
     )
 
-    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
-
-    // Prefetch the URL if we haven't already and it's visible.
-    React.useEffect(() => {
-      // in dev, we only prefetch on hover to avoid wasting resources as the prefetch will trigger compiling the page.
-      if (process.env.NODE_ENV !== 'production') {
-        return
-      }
-
-      if (!router) {
-        return
-      }
-
-      // If we don't need to prefetch the URL, don't do prefetch.
-      if (!isVisible || !prefetchEnabled) {
-        return
-      }
-
-      // Prefetch the URL.
-      prefetch(router, href, {
-        kind: appPrefetchKind,
-      })
-    }, [as, href, isVisible, prefetchEnabled, router, appPrefetchKind])
+    const mergedRef = useMergedRef(observeLinkVisibilityOnMount, childRef)
 
     const childProps: {
       onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
@@ -492,7 +751,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       href?: string
       ref?: any
     } = {
-      ref: setRef,
+      ref: mergedRef,
       onClick(e) {
         if (process.env.NODE_ENV !== 'production') {
           if (!e) {
@@ -545,9 +804,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        prefetch(router, href, {
-          kind: appPrefetchKind,
-        })
+        onNavigationIntent(e.currentTarget as HTMLAnchorElement | SVGAElement)
       },
       onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
         ? undefined
@@ -572,9 +829,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               return
             }
 
-            prefetch(router, href, {
-              kind: appPrefetchKind,
-            })
+            onNavigationIntent(
+              e.currentTarget as HTMLAnchorElement | SVGAElement
+            )
           },
     }
 

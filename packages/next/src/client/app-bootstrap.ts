@@ -56,8 +56,25 @@ function loadScriptsInSequence(
     })
 }
 
-export function appBootstrap(callback: () => void) {
+export function appBootstrap(hydrate: () => void) {
   loadScriptsInSequence((self as any).__next_s, () => {
-    callback()
+    // If the static shell is being debugged, skip hydration if the
+    // `__nextppronly` query is present. This is only enabled when the
+    // environment variable `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` is
+    // set to `1`. Otherwise the following is optimized out.
+    if (process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING === '1') {
+      const search = new URLSearchParams(window.location.search)
+      if (
+        search.get('__nextppronly') === 'fallback' ||
+        search.get('__nextppronly') === '1'
+      ) {
+        console.warn(
+          `Skipping hydration due to __nextppronly=${search.get('__nextppronly')}`
+        )
+        return
+      }
+    }
+
+    hydrate()
   })
 }

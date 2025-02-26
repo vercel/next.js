@@ -5,18 +5,19 @@ use indoc::writedoc;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkData, ChunkItemExt, ChunkableModule, ChunkingContext, ChunksData, EvaluatableAssets,
-        MinifyType, ModuleId,
+        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, MinifyType,
+        ModuleChunkItemIdExt, ModuleId,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
@@ -36,6 +37,9 @@ pub(crate) struct EcmascriptDevEvaluateChunk {
     ident: ResolvedVc<AssetIdent>,
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    // TODO(sokra): It's weird to use ModuleGraph here, we should convert evaluatable_assets to a
+    // list of chunk items before passing it to this struct
+    module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,12 +51,14 @@ impl EcmascriptDevEvaluateChunk {
         ident: ResolvedVc<AssetIdent>,
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+        module_graph: ResolvedVc<ModuleGraph>,
     ) -> Vc<Self> {
         EcmascriptDevEvaluateChunk {
             chunking_context,
             ident,
             other_chunks,
             evaluatable_assets,
+            module_graph,
         }
         .cell()
     }
@@ -69,7 +75,11 @@ impl EcmascriptDevEvaluateChunk {
         let environment = this.chunking_context.environment();
 
         let output_root = this.chunking_context.output_root().await?;
-        let chunk_path_vc = self.ident().path();
+        let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
+        let source_maps = this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self));
+        let chunk_path_vc = self.path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
@@ -97,12 +107,10 @@ impl EcmascriptDevEvaluateChunk {
                 move |entry| async move {
                     if let Some(placeable) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
-                            .await?
                     {
                         Ok(Some(
                             placeable
-                                .as_chunk_item(Vc::upcast(*chunking_context))
-                                .id()
+                                .chunk_item_id(Vc::upcast(*chunking_context))
                                 .await?,
                         ))
                     } else {
@@ -145,7 +153,8 @@ impl EcmascriptDevEvaluateChunk {
                     environment,
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
-                    Vc::cell(output_root.to_string().into()),
+                    output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -154,7 +163,8 @@ impl EcmascriptDevEvaluateChunk {
                     environment,
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
-                    Vc::cell(output_root.to_string().into()),
+                    output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -165,7 +175,7 @@ impl EcmascriptDevEvaluateChunk {
             }
         }
 
-        if code.has_source_map() {
+        if *source_maps.await? && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -177,11 +187,9 @@ impl EcmascriptDevEvaluateChunk {
         }
 
         let code = code.build().cell();
-        if matches!(
-            this.chunking_context.await?.minify_type(),
-            MinifyType::Minify
-        ) {
-            return Ok(minify(chunk_path_vc, code));
+
+        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+            return Ok(minify(chunk_path_vc, code, source_maps, mangle));
         }
 
         Ok(code)
@@ -204,8 +212,8 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident.await?.clone_value();
+    async fn path(&self) -> Result<Vc<FileSystemPath>> {
+        let mut ident = self.ident.owned().await?;
 
         ident.add_modifier(modifier().to_resolved().await?);
 
@@ -218,14 +226,17 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
                 .await?,
         );
 
-        for chunk in &*self.other_chunks.await? {
-            ident.add_modifier(chunk.ident().to_string().to_resolved().await?);
-        }
+        ident.modifiers.extend(
+            self.other_chunks
+                .await?
+                .iter()
+                .map(|chunk| chunk.path().to_string().to_resolved())
+                .try_join()
+                .await?,
+        );
 
         let ident = AssetIdent::new(Value::new(ident));
-        Ok(AssetIdent::from_path(
-            self.chunking_context.chunk_path(ident, ".js".into()),
-        ))
+        Ok(self.chunking_context.chunk_path(ident, ".js".into()))
     }
 
     #[turbo_tasks::function]
@@ -266,7 +277,7 @@ impl Asset for EcmascriptDevEvaluateChunk {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
     }
 }

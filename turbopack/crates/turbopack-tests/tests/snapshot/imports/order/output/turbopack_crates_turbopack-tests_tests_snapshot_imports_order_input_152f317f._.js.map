@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/order/input/posts.ts"],"sourcesContent":["export default {\n  js: true,\n};\n"],"names":[],"mappings":";;;uCAAe;IACb,IAAI;AACN"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/order/input/index.js"],"sourcesContent":["import posts from \"./posts\";\n\nconsole.log(posts.js);\nif (!posts.js) {\n  process.exit(1);\n}\n"],"names":[],"mappings":";AAAA;;AAEA,QAAQ,GAAG,CAAC,8LAAA,CAAA,UAAK,CAAC,EAAE;AACpB,IAAI,CAAC,8LAAA,CAAA,UAAK,CAAC,EAAE,EAAE;IACb,QAAQ,IAAI,CAAC;AACf"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

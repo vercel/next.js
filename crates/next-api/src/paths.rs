@@ -39,7 +39,7 @@ pub async fn all_server_paths(
                 .iter()
                 .map(|&asset| async move {
                     Ok(
-                        if let Some(path) = node_root.get_path_to(&*asset.ident().path().await?) {
+                        if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
                             let content_hash = match *asset.content().await? {
                                 AssetContent::File(file) => *file.hash().await?,
                                 AssetContent::Redirect { .. } => 0,
@@ -84,7 +84,7 @@ pub(crate) async fn get_paths_from_root(
     output_assets
         .iter()
         .map(move |&file| async move {
-            let path = &*file.ident().path().await?;
+            let path = &*file.path().await?;
             let Some(relative) = root.get_path_to(path) else {
                 return Ok(None);
             };

@@ -1,8 +1,9 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
@@ -135,10 +136,7 @@ impl NextFontGoogleReplacer {
             )
             .cell()),
         ).to_resolved().await?;
-        Ok(ImportMapResult::Result(
-            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
-        )
-        .cell())
+        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(js_asset))).cell())
     }
 }
 
@@ -237,8 +235,8 @@ impl NextFontGoogleCssModuleReplacer {
                     scoped_font_family,
                     font_fallback.has_size_adjust(),
                 )
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
             ),
             None => {
                 println!(
@@ -267,10 +265,7 @@ impl NextFontGoogleCssModuleReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(
-            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
-        )
-        .cell())
+        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(css_asset))).cell())
     }
 }
 
@@ -302,7 +297,7 @@ impl ImportMappingReplacement for NextFontGoogleCssModuleReplacer {
             return Ok(ImportMapResult::NoEntry.cell());
         };
 
-        Ok(self.import_map_result(query_vc.await?.clone_value()))
+        Ok(self.import_map_result(query_vc.owned().await?))
     }
 }
 
@@ -379,9 +374,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         // really matter either.
         let Some(font) = fetch_from_google_fonts(Vc::cell(url.into()), font_virtual_path).await?
         else {
-            return Ok(
-                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
-            );
+            return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
         };
 
         let font_source = VirtualSource::new(
@@ -391,10 +384,7 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(
-            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
-        )
-        .cell())
+        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(font_source))).cell())
     }
 }
 
@@ -710,7 +700,8 @@ async fn get_mock_stylesheet(
 
     match &val.try_into_single().await? {
         SingleValue::Single(val) => {
-            let val: HashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val.to_str()?)?;
+            let val: FxHashMap<RcStr, Option<RcStr>> =
+                parse_json_with_source_context(val.to_str()?)?;
             Ok(val
                 .get(&*stylesheet_url.await?)
                 .context("url not found")?

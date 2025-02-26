@@ -14,15 +14,15 @@ use crate::{
 async fn get_referenced_output_assets(
     parent: ResolvedVc<Box<dyn OutputAsset>>,
 ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(parent.references().await?.clone_value().into_iter())
+    Ok(parent.references().owned().await?.into_iter())
 }
 
 pub async fn get_referenced_modules(
     parent: ResolvedVc<Box<dyn Module>>,
 ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send> {
     Ok(primary_referenced_modules(*parent)
+        .owned()
         .await?
-        .clone_value()
         .into_iter())
 }
 

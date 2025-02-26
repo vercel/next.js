@@ -13,6 +13,7 @@ import type {
   RenderResumeDataCache,
   PrerenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
+import type { Params } from '../request/params'
 
 type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -52,6 +53,7 @@ export type RequestStore = {
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
   readonly implicitTags: string[]
+  readonly rootParams: Params
 
   /**
    * The resume data cache for this request. This will be a immutable cache.
@@ -100,6 +102,8 @@ export type PrerenderStoreModern = {
    */
   readonly dynamicTracking: null | DynamicTrackingState
 
+  readonly rootParams: Params
+
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
   expire: number // server expiration time
@@ -120,6 +124,7 @@ export type PrerenderStoreModern = {
 
 export type PrerenderStorePPR = {
   type: 'prerender-ppr'
+  readonly rootParams: Params
   readonly implicitTags: string[]
   readonly dynamicTracking: null | DynamicTrackingState
   // Collected revalidate times and tags for this document during the prerender.
@@ -136,6 +141,7 @@ export type PrerenderStorePPR = {
 
 export type PrerenderStoreLegacy = {
   type: 'prerender-legacy'
+  readonly rootParams: Params
   readonly implicitTags: string[]
   // Collected revalidate times and tags for this document during the prerender.
   revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
@@ -160,6 +166,10 @@ export type UseCacheStore = {
   explicitExpire: undefined | number // server expiration time
   explicitStale: undefined | number // client expiration time
   tags: null | string[]
+  readonly hmrRefreshHash: string | undefined
+  readonly isHmrRefresh: boolean
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  readonly forceRevalidate: boolean
 } & PhasePartial
 
 export type UnstableCacheStore = {
@@ -242,4 +252,14 @@ export function getRenderResumeDataCache(
   }
 
   return null
+}
+
+export function getHmrRefreshHash(
+  workUnitStore: WorkUnitStore
+): string | undefined {
+  return workUnitStore.type === 'cache'
+    ? workUnitStore.hmrRefreshHash
+    : workUnitStore.type === 'request'
+      ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
+      : undefined
 }

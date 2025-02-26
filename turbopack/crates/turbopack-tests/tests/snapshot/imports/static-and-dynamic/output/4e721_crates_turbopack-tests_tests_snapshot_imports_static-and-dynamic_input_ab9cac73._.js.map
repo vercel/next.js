@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs"],"sourcesContent":["export default \"turbopack\";\n"],"names":[],"mappings":";;;uCAAe"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/index.js"],"sourcesContent":["import img from \"./vercel.mjs\";\nconsole.log(img);\n\nimport(\"./vercel.mjs\").then(console.log);\n"],"names":[],"mappings":";AAAA;;AACA,QAAQ,GAAG,CAAC,mNAAA,CAAA,UAAG;AAEf,4LAAuB,IAAI,CAAC,QAAQ,GAAG"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

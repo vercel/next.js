@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/resolve_error_esm/input/index.js"],"sourcesContent":["import dne from \"does-not-exist/path\";\n\nconsole.log(dne);\nconsole.log({}[dne]);\n"],"names":[],"mappings":";;;;;;;AAEA,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC,CAAC,CAAC,CAAC,IAAI"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

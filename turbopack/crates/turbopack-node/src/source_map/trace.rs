@@ -1,16 +1,8 @@
 use std::{borrow::Cow, fmt::Display};
 
 use anyhow::Result;
-use mime::APPLICATION_JSON;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::File;
-use turbopack_core::{
-    asset::AssetContent,
-    source_map::{SourceMap, Token},
-};
+use turbopack_core::source_map::{SourceMap, Token};
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
 /// An individual stack frame, as parsed by the stacktrace-parser npm module.
@@ -20,8 +12,8 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 pub struct StackFrame<'a> {
     pub file: Cow<'a, str>,
     #[serde(rename = "lineNumber")]
-    pub line: Option<usize>,
-    pub column: Option<usize>,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
     #[serde(rename = "methodName")]
     pub name: Option<Cow<'a, str>>,
 }
@@ -63,7 +55,7 @@ impl<'a> StackFrame<'a> {
         }
     }
 
-    pub fn get_pos(&self) -> Option<(usize, usize)> {
+    pub fn get_pos(&self) -> Option<(u32, u32)> {
         self.line.zip(self.column)
     }
 }
@@ -81,93 +73,47 @@ impl Display for StackFrame<'_> {
         }
     }
 }
-/// Source Map Trace is a convenient wrapper to perform and consume a source map
-/// trace's token.
-#[turbo_tasks::value(shared)]
-#[derive(Debug)]
-pub struct SourceMapTrace {
-    map: ResolvedVc<SourceMap>,
-    line: usize,
-    column: usize,
-    name: Option<RcStr>,
-}
 
 /// The result of performing a source map trace.
-#[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub enum TraceResult {
     NotFound,
-    Found(#[turbo_tasks(trace_ignore)] StackFrame<'static>),
+    Found(StackFrame<'static>),
 }
 
-#[turbo_tasks::value_impl]
-impl SourceMapTrace {
-    #[turbo_tasks::function]
-    pub fn new(
-        map: ResolvedVc<SourceMap>,
-        line: usize,
-        column: usize,
-        name: Option<RcStr>,
-    ) -> Vc<Self> {
-        SourceMapTrace {
-            map,
-            line,
-            column,
-            name,
-        }
-        .cell()
-    }
+/// Traces the line/column through the source map into its original
+/// position.
+///
+/// This method is god-awful slow. We're getting the content
+/// of a .map file, which means we're serializing all of the individual
+/// sections into a string and concatenating, taking that and
+/// deserializing into a DecodedMap, and then querying it. Besides being a
+/// memory hog, it'd be so much faster if we could just directly access
+/// the individual sections of the JS file's map without the
+/// serialization.
+pub async fn trace_source_map(
+    map: &SourceMap,
+    line: u32,
+    column: u32,
+    name: Option<&str>,
+) -> Result<TraceResult> {
+    let token = map
+        .lookup_token(line.saturating_sub(1), column.saturating_sub(1))
+        .await?;
+    let result = match token {
+        Token::Original(t) => TraceResult::Found(StackFrame {
+            file: t.original_file.clone().into(),
+            line: Some(t.original_line.saturating_add(1)),
+            column: Some(t.original_column.saturating_add(1)),
+            name: t
+                .name
+                .clone()
+                .map(|v| v.into_owned())
+                .or_else(|| name.map(ToString::to_string))
+                .map(Cow::Owned),
+        }),
+        _ => TraceResult::NotFound,
+    };
 
-    /// Traces the line/column through the source map into its original
-    /// position.
-    ///
-    /// This method is god-awful slow. We're getting the content
-    /// of a .map file, which means we're serializing all of the individual
-    /// sections into a string and concatenating, taking that and
-    /// deserializing into a DecodedMap, and then querying it. Besides being a
-    /// memory hog, it'd be so much faster if we could just directly access
-    /// the individual sections of the JS file's map without the
-    /// serialization.
-    #[turbo_tasks::function]
-    pub async fn trace(&self) -> Result<Vc<TraceResult>> {
-        let token = self
-            .map
-            .lookup_token(self.line.saturating_sub(1), self.column.saturating_sub(1))
-            .await?;
-        let result = match &*token {
-            Token::Original(t) => TraceResult::Found(StackFrame {
-                file: t.original_file.clone().into(),
-                line: Some(t.original_line.saturating_add(1)),
-                column: Some(t.original_column.saturating_add(1)),
-                name: t
-                    .name
-                    .clone()
-                    .or_else(|| self.name.clone())
-                    .map(|v| v.into_owned())
-                    .map(Cow::Owned),
-            }),
-            _ => TraceResult::NotFound,
-        };
-
-        Ok(result.cell())
-    }
-
-    /// Takes the trace and generates a (possibly valid) JSON asset content.
-    #[turbo_tasks::function]
-    pub async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        let trace = self.trace().await?;
-        let result = match &*trace {
-            // purposefully invalid JSON (it can't be empty), so that the catch handler will default
-            // to the generated stack frame.
-            TraceResult::NotFound => "".to_string(),
-            TraceResult::Found(frame) => json!({
-                "originalStackFrame": frame,
-                // TODO
-                "originalCodeFrame": null,
-            })
-            .to_string(),
-        };
-        let file = File::from(result).with_content_type(APPLICATION_JSON);
-        Ok(AssetContent::file(file.into()))
-    }
+    Ok(result)
 }

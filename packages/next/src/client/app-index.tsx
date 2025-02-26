@@ -9,11 +9,11 @@ import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { onRecoverableError } from './react-client-callbacks/shared'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
   onCaughtError,
   onUncaughtError,
-} from './react-client-callbacks/app-router'
+} from './react-client-callbacks/error-boundary-callbacks'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import {
@@ -29,7 +29,7 @@ import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-r
 
 /// <reference types="react-dom/experimental" />
 
-const appElement: HTMLElement | Document | null = document
+const appElement: HTMLElement | Document = document
 
 const encoder = new TextEncoder()
 
@@ -41,13 +41,24 @@ let initialServerDataFlushed = false
 
 let initialFormStateData: null | any = null
 
-function nextServerDataCallback(
-  seg:
-    | [isBootStrap: 0]
-    | [isNotBootstrap: 1, responsePartial: string]
-    | [isFormState: 2, formState: any]
-    | [isBinary: 3, responseBase64Partial: string]
-): void {
+type FlightSegment =
+  | [isBootStrap: 0]
+  | [isNotBootstrap: 1, responsePartial: string]
+  | [isFormState: 2, formState: any]
+  | [isBinary: 3, responseBase64Partial: string]
+
+type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
+  push: (seg: FlightSegment) => void
+}
+
+declare global {
+  // If you're working in a browser environment
+  interface Window {
+    __next_f: NextFlight
+  }
+}
+
+function nextServerDataCallback(seg: FlightSegment): void {
   if (seg[0] === 0) {
     initialServerDataBuffer = []
   } else if (seg[0] === 1) {
@@ -134,8 +145,7 @@ if (document.readyState === 'loading') {
   setTimeout(DOMContentLoaded)
 }
 
-const nextServerDataLoadingGlobal = ((self as any).__next_f =
-  (self as any).__next_f || [])
+const nextServerDataLoadingGlobal = (self.__next_f = self.__next_f || [])
 nextServerDataLoadingGlobal.forEach(nextServerDataCallback)
 nextServerDataLoadingGlobal.push = nextServerDataCallback
 
@@ -222,11 +232,11 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
-const reactRootOptions = {
+const reactRootOptions: ReactDOMClient.RootOptions = {
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
-} satisfies ReactDOMClient.RootOptions
+}
 
 export function hydrate() {
   const reactEl = (
@@ -256,16 +266,14 @@ export function hydrate() {
       element = createRootLevelDevOverlayElement(element)
     }
 
-    ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-      element
-    )
+    ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
   } else {
-    React.startTransition(() =>
-      (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
+    React.startTransition(() => {
+      ReactDOMClient.hydrateRoot(appElement, reactEl, {
         ...reactRootOptions,
         formState: initialFormStateData,
       })
-    )
+    })
   }
 
   // TODO-APP: Remove this logic when Float has GC built-in in development.

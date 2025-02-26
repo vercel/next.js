@@ -1,9 +1,7 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-};
+use std::{collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
@@ -13,11 +11,12 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
 use crate::{
+    analyzer::{ConstantValue, ObjectPart},
     tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
 };
@@ -72,6 +71,31 @@ impl ImportAnnotations {
         }
 
         ImportAnnotations { map }
+    }
+
+    pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
+        let mut map = BTreeMap::new();
+
+        let JsValue::Object { parts, .. } = with else {
+            return None;
+        };
+
+        for part in parts.iter() {
+            let ObjectPart::KeyValue(key, value) = part else {
+                continue;
+            };
+            let (
+                JsValue::Constant(ConstantValue::Str(key)),
+                JsValue::Constant(ConstantValue::Str(value)),
+            ) = (key, value)
+            else {
+                continue;
+            };
+
+            map.insert(key.as_str().into(), value.as_str().into());
+        }
+
+        Some(ImportAnnotations { map })
     }
 
     /// Returns the content on the transition annotation
@@ -149,7 +173,11 @@ pub(crate) struct ImportMap {
     /// full details.
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-    attributes: HashMap<BytePos, ImportAttributes>,
+    attributes: FxHashMap<BytePos, ImportAttributes>,
+
+    /// The module specifiers of star imports that are accessed dynamically and should be imported
+    /// as a whole.
+    full_star_imports: FxHashSet<JsWord>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -209,7 +237,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: JsWord,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
-    pub issue_source: Option<Vc<IssueSource>>,
+    pub issue_source: Option<IssueSource>,
 }
 
 impl ImportMap {
@@ -263,35 +291,128 @@ impl ImportMap {
         None
     }
 
-    pub fn references(&self) -> impl Iterator<Item = &ImportMapReference> {
+    pub fn references(&self) -> impl ExactSizeIterator<Item = &ImportMapReference> {
         self.references.iter()
     }
 
-    pub fn reexports(&self) -> impl Iterator<Item = (usize, &Reexport)> {
+    pub fn reexports(&self) -> impl ExactSizeIterator<Item = (usize, &Reexport)> {
         self.reexports.iter().map(|(i, r)| (*i, r))
     }
 
     /// Analyze ES import
     pub(super) fn analyze(
         m: &Program,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
         comments: Option<&dyn Comments>,
     ) -> Self {
         let mut data = ImportMap::default();
 
-        m.visit_with(&mut Analyzer {
+        // We have to analyze imports first to determine if a star import is dynamic.
+        // We can't do this in the visitor because import may (and likely) comes before usages, and
+        // a method invoked after visitor will not work because we need to preserve the import
+        // order.
+
+        if let Program::Module(m) = m {
+            let mut candidates = FxIndexMap::default();
+
+            // Imports are hoisted to the top of the module.
+            // So we have to collect all imports first.
+            m.body.iter().for_each(|stmt| {
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = stmt {
+                    for s in &import.specifiers {
+                        if let ImportSpecifier::Namespace(s) = s {
+                            candidates.insert(s.local.to_id(), import.src.value.clone());
+                        }
+                    }
+                }
+            });
+
+            let mut analyzer = StarImportAnalyzer {
+                candidates,
+                full_star_imports: &mut data.full_star_imports,
+            };
+            m.visit_with(&mut analyzer);
+        }
+
+        let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
-        });
+        };
+        m.visit_with(&mut analyzer);
 
         data
+    }
+
+    pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
+        let r = &self.references[esm_reference_index];
+
+        self.full_star_imports.contains(&r.module_path)
+    }
+}
+
+struct StarImportAnalyzer<'a> {
+    /// The local identifiers of the star imports
+    candidates: FxIndexMap<Id, JsWord>,
+    full_star_imports: &'a mut FxHashSet<JsWord>,
+}
+
+impl Visit for StarImportAnalyzer<'_> {
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        match &node.prop {
+            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
+                if node.obj.is_ident() {
+                    return;
+                }
+                // We can skip `visit_expr(obj)` because it's not a dynamic access
+                node.obj.visit_children_with(self);
+            }
+            MemberProp::Computed(..) => {
+                node.obj.visit_with(self);
+                node.prop.visit_with(self);
+            }
+        }
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        pat.visit_children_with(self);
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        node.visit_children_with(self);
     }
 }
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<Vc<Box<dyn Source>>>,
+    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 }
 
@@ -305,7 +426,7 @@ impl Analyzer<'_> {
     ) -> Option<usize> {
         let issue_source = self
             .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_usize(), span.hi.to_usize()));
+            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
 
         let r = ImportMapReference {
             module_path,

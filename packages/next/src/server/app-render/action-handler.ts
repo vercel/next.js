@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
@@ -399,6 +399,44 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
+export function parseHostHeader(
+  headers: IncomingHttpHeaders,
+  originDomain?: string
+) {
+  const forwardedHostHeader = headers['x-forwarded-host']
+  const forwardedHostHeaderValue =
+    forwardedHostHeader && Array.isArray(forwardedHostHeader)
+      ? forwardedHostHeader[0]
+      : forwardedHostHeader?.split(',')?.[0]?.trim()
+  const hostHeader = headers['host']
+
+  if (originDomain) {
+    return forwardedHostHeaderValue === originDomain
+      ? {
+          type: HostType.XForwardedHost,
+          value: forwardedHostHeaderValue,
+        }
+      : hostHeader === originDomain
+        ? {
+            type: HostType.Host,
+            value: hostHeader,
+          }
+        : undefined
+  }
+
+  return forwardedHostHeaderValue
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeaderValue,
+      }
+    : hostHeader
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
+}
+
 type ServerModuleMap = Record<
   string,
   {
@@ -487,22 +525,7 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-
-  const forwardedHostHeader = req.headers['x-forwarded-host'] as
-    | string
-    | undefined
-  const hostHeader = req.headers['host']
-  const host: Host = forwardedHostHeader
-    ? {
-        type: HostType.XForwardedHost,
-        value: forwardedHostHeader,
-      }
-    : hostHeader
-      ? {
-          type: HostType.Host,
-          value: hostHeader,
-        }
-      : undefined
+  const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
 
@@ -657,12 +680,19 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
-              formState = decodeFormState(
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
+              formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
+
+              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -680,8 +710,7 @@ export async function handleAction({
             }
           }
 
-          let actionData = ''
-
+          const chunks: Buffer[] = []
           const reader = req.body.getReader()
           while (true) {
             const { done, value } = await reader.read()
@@ -689,8 +718,10 @@ export async function handleAction({
               break
             }
 
-            actionData += new TextDecoder().decode(value)
+            chunks.push(value)
           }
+
+          const actionData = Buffer.concat(chunks).toString('utf-8')
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
@@ -804,12 +835,19 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
+
+              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -1047,7 +1085,7 @@ function getActionModIdOrError(
     throw new Error(
       `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
         err instanceof Error ? `Original error: ${err.message}` : ''
-      }`
+      }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
 }

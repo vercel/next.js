@@ -29,9 +29,15 @@ To prevent creating many HTTP requests for each dynamic component, PPR is able t
 
 ## Using Partial Prerendering
 
-### Incremental Adoption (Version 15)
+### Incremental Adoption (Version 15 Canary Versions)
 
-In Next.js 15, you can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/api-reference/file-conventions/page) by setting the [`ppr`](/docs/app/api-reference/config/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
+In Next.js 15 canary versions, PPR is available as an experimental feature. It's not available in the stable versions yet. To install:
+
+```bash
+npm install next@canary
+```
+
+You can incrementally adopt Partial Prerendering in [layouts](/docs/app/building-your-application/routing/layouts-and-templates) and [pages](/docs/app/api-reference/file-conventions/page) by setting the [`ppr`](/docs/app/api-reference/config/next-config-js/ppr) option in `next.config.js` to `incremental`, and exporting the `experimental_ppr` [route config option](/docs/app/api-reference/file-conventions/route-segment-config) at the top of the file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'

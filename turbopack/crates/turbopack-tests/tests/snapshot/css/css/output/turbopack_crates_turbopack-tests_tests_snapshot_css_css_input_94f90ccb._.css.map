@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.css"],"sourcesContent":[".foo-style { color: green; }\n"],"names":[],"mappings":"AAAA","ignoreList":[0]}},
+    {"offset": {"line": 1, "column": 23}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css"],"sourcesContent":[".imported {\n  color: cyan;\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 4, "column": 21}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/imported.css"],"sourcesContent":[".imported {\n  color: cyan;\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 9, "column": 21}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.css"],"sourcesContent":["@import url(\"./imported.css\");\n/* De-duplicate similar imports */\n@import url(\"../input/imported.css\");\n/* But not if they have different attributes */\n@import url(\"./imported.css\") layer(layer) print;\n.style {\n  color: yellow;\n}\n"],"names":[],"mappings":"AAKA"}},
+    {"offset": {"line": 14, "column": 18}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/node_modules/foo/style.module.css"],"sourcesContent":[".foo-module-style { color: blue; }\n"],"names":[],"mappings":"AAAA","ignoreList":[0]}},
+    {"offset": {"line": 17, "column": 51}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 20, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.module.css"],"sourcesContent":[".module-style {\n  color: magenta;\n  > h1,\n  + .inner {\n    background: purple;\n  }\n}\n\n.composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: green;\n}\n\n.another-composed-module-style {\n  composes: foo-module-style from \"foo/style.module.css\";\n  color: yellow;\n}"],"names":[],"mappings":"AAAA,+CAEE,0HAMF,0DAKA"}},
+    {"offset": {"line": 20, "column": 292}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
