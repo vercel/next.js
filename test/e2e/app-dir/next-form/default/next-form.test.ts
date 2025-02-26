@@ -56,28 +56,73 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
-  it('should include the value of the submitter in search params', async () => {
-    const session = await next.browser(pathPrefix + '/forms/submitter-value')
-    const navigationTracker = await trackMpaNavs(session)
+  describe('should include the value of the submitter in search params', () => {
+    it.each([
+      {
+        name: '<button type="submit">',
+        path: '/forms/submitter-value/button-type-submit',
+      },
+      {
+        name: '<input type="submit">',
+        path: '/forms/submitter-value/input-type-submit',
+      },
+    ])('$name', async ({ path }) => {
+      const session = await next.browser(pathPrefix + path)
+      const navigationTracker = await trackMpaNavs(session)
 
-    const submitButtonOne = await session.elementById('submit-btn-one')
-    await submitButtonOne.click()
-    {
-      const result = await session.waitForElementByCss('#search-results').text()
-      expect(result).toMatch(/query: "one"/)
-    }
+      const submitButtonOne = await session.elementById('submit-btn-one')
+      await submitButtonOne.click()
+      {
+        const result = await session
+          .waitForElementByCss('#search-results')
+          .text()
+        expect(result).toMatch(/query: "one"/)
+      }
 
-    expect(await navigationTracker.didMpaNavigate()).toBe(false)
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
 
-    await session.back()
+      await session.back()
 
-    const submitButtonTwo = await session.elementById('submit-btn-two')
-    await submitButtonTwo.click()
+      const submitButtonTwo = await session.elementById('submit-btn-two')
+      await submitButtonTwo.click()
+      {
+        const result = await session
+          .waitForElementByCss('#search-results')
+          .text()
+        expect(result).toMatch(/query: "two"/)
+      }
+    })
 
-    {
-      const result = await session.waitForElementByCss('#search-results').text()
-      expect(result).toMatch(/query: "two"/)
-    }
+    test('<input type="image">', async () => {
+      const session = await next.browser(
+        pathPrefix + '/forms/submitter-value/input-type-image'
+      )
+      const navigationTracker = await trackMpaNavs(session)
+
+      const submitButtonOne = await session.elementById('submit-btn-one')
+      await submitButtonOne.click()
+      await session.waitForElementByCss('#search-results')
+
+      // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+      // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+      expect(new URL(await session.url()).search).toMatch(
+        /\?buttonOne\.x=\d+&buttonOne\.y=\d+/
+      )
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+
+      await session.back()
+
+      const submitButtonTwo = await session.elementById('submit-btn-two')
+      await submitButtonTwo.click()
+      await session.waitForElementByCss('#search-results')
+
+      // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+      // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+      expect(new URL(await session.url()).search).toMatch(
+        /\?buttonTwo\.x=\d+&buttonTwo\.y=\d+/
+      )
+    })
   })
 
   // `<form action={someFunction}>` is only supported in React 19.x

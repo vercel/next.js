@@ -1,7 +1,7 @@
 import * as React from 'react'
 import Form from 'next/form'
 
-export default function Home() {
+export default function Page() {
   return (
     <Form action="/pages-dir/search" id="search-form">
       <button id="submit-btn-one" type="submit" name="query" value="one">
