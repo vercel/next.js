@@ -97,7 +97,7 @@ const colors = `
   --color-turbopack-background-blue: #0a1723;
 `
 
-const base = css`
+const base = `
   --color-font: white;
   --color-backdrop: rgba(0, 0, 0, 0.8);
   --color-border-shadow: rgba(255, 255, 255, 0.145);
