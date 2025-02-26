@@ -340,7 +340,7 @@ export function serverActionReducer(
 
           mutable.cache = cache
           if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache()
+            revalidateEntireCache(state.nextUrl, newTree)
           } else {
             mutable.prefetchCache = new Map()
           }
