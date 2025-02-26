@@ -66,6 +66,13 @@ async function main() {
     body: PR_BODY,
   })
 
+  await octokit.rest.issues.addLabels({
+    owner,
+    repo,
+    issue_number: pullRequest.number,
+    labels: ['run-react-18-tests'],
+  })
+
   console.log('Created pull request', pullRequest.url)
 
   const previousPullRequests = pullRequests.filter(({ title, user }) => {
