@@ -2,11 +2,11 @@
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { check } from 'next-test-utils'
+import { getRedboxTotalErrorCount, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshRegression app', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     dependencies: {
       'styled-components': '5.1.0',
@@ -174,16 +174,18 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
+    await retry(() =>
+      expect(
+        session.evaluate(() => document.querySelector('p').textContent)
+      ).resolves.toEqual('0')
     )
 
     await session.evaluate(() => document.querySelector('button').click())
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '1'
+    await retry(() =>
+      expect(
+        session.evaluate(() => document.querySelector('p').textContent)
+      ).resolves.toEqual('1')
     )
 
     await session.patch(
@@ -205,16 +207,18 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      'Count: 1'
+    await retry(() =>
+      expect(
+        session.evaluate(() => document.querySelector('p').textContent)
+      ).resolves.toEqual('Count: 1')
     )
 
     await session.evaluate(() => document.querySelector('button').click())
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      'Count: 2'
+    await retry(() =>
+      expect(
+        session.evaluate(() => document.querySelector('p').textContent)
+      ).resolves.toEqual('Count: 2')
     )
   })
 
@@ -256,9 +260,10 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await check(
-      () => session.evaluate(() => document.querySelector('p').textContent),
-      '0'
+    await retry(() =>
+      expect(
+        session.evaluate(() => document.querySelector('p').textContent)
+      ).resolves.toEqual('0')
     )
 
     await session.evaluate(() => document.querySelector('button').click())
@@ -270,45 +275,100 @@ describe('ReactRefreshRegression app', () => {
   // https://github.com/vercel/next.js/issues/11504
   test('shows an overlay for anonymous function server-side error', async () => {
     await using sandbox = await createSandbox(next)
-    const { session } = sandbox
+    const { browser, session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
-
-    const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                    ^"
-    `)
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: boom",
+         "environmentLabel": "Server",
+         "label": "Unhandled Runtime Error",
+         "source": "app/page.js (1:36) @
+       {default export}
+       > 1 | export default function () { throw new Error('boom'); }
+           |                                    ^",
+         "stack": [
+           "{default export} app/page.js (1:36)",
+         ],
+       }
+      `)
+    } else {
+      // TODO(veil): Why 5?
+      await retry(async () => {
+        expect(await getRedboxTotalErrorCount(browser)).toBe(5)
+      })
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 5,
+         "description": "Error: boom",
+         "environmentLabel": "Server",
+         "label": "Unhandled Runtime Error",
+         "source": "app/page.js (1:36) @ default
+       > 1 | export default function () { throw new Error('boom'); }
+           |                                    ^",
+         "stack": [
+           "default app/page.js (1:36)",
+         ],
+       }
+      `)
+    }
   })
 
   test('shows an overlay for server-side error in server component', async () => {
     await using sandbox = await createSandbox(next)
-    const { session } = sandbox
+    const { browser, session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    await session.assertHasRedbox()
-
-    const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
-      "> 1 | export default function Page() { throw new Error('boom'); }
-          |                                        ^"
-    `)
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: boom",
+         "environmentLabel": "Server",
+         "label": "Unhandled Runtime Error",
+         "source": "app/page.js (1:40) @ Page
+       > 1 | export default function Page() { throw new Error('boom'); }
+           |                                        ^",
+         "stack": [
+           "Page app/page.js (1:40)",
+         ],
+       }
+      `)
+    } else {
+      // TODO(veil): Why 5?
+      await retry(async () => {
+        expect(await getRedboxTotalErrorCount(browser)).toBe(5)
+      })
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 5,
+         "description": "Error: boom",
+         "environmentLabel": "Server",
+         "label": "Unhandled Runtime Error",
+         "source": "app/page.js (1:40) @ Page
+       > 1 | export default function Page() { throw new Error('boom'); }
+           |                                        ^",
+         "stack": [
+           "Page app/page.js (1:40)",
+         ],
+       }
+      `)
+    }
   })
 
   test('shows an overlay for server-side error in client component', async () => {
     await using sandbox = await createSandbox(next)
-    const { session } = sandbox
+    const { browser, session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -318,15 +378,20 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    await session.assertHasRedbox()
-
-    const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
-      .toMatchInlineSnapshot(`
-        "  1 | 'use client'
-        > 2 | export default function Page() { throw new Error('boom'); }
-            |                                        ^"
-      `)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: boom",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/page.js (2:40) @ Page
+     > 2 | export default function Page() { throw new Error('boom'); }
+         |                                        ^",
+       "stack": [
+         "Page app/page.js (2:40)",
+       ],
+     }
+    `)
   })
 
   // https://github.com/vercel/next.js/issues/13574
