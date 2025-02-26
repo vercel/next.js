@@ -1,0 +1,7 @@
+{
+  "name": "@payloadcms/ui",
+  "version": "3.24.0",
+  "sideEffects": [
+    "./src/side-effect.js"
+  ]
+}
