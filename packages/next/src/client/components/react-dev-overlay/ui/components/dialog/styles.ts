@@ -1,3 +1,12 @@
+const darkTheme = `
+[data-nextjs-dialog]::-webkit-scrollbar-track {
+  background-color: #0a0a0a;
+}
+[data-nextjs-dialog]::-webkit-scrollbar-thumb {
+  background-color: #333;
+}
+`
+
 const styles = `
   [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
@@ -47,15 +56,14 @@ const styles = `
     background-color: #ddd;
   }
 
+  :host(.dark) {
+    ${darkTheme}
+  }
   @media (prefers-color-scheme: dark) {
-    [data-nextjs-dialog]::-webkit-scrollbar-track {
-      background-color: #0a0a0a;
-    }
-    [data-nextjs-dialog]::-webkit-scrollbar-thumb {
-      background-color: #333;
+    :host(:not(.light)) {
+      ${darkTheme}  
     }
   }
-  
 
   ${
     '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
