@@ -4,6 +4,8 @@ import { css } from '../../../../../utils/css'
 import type { DevToolsIndicatorPosition } from '../dev-tools-indicator'
 import EyeIcon from '../../../../icons/eye-icon'
 import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../../shared'
+import LightIcon from '../../../../icons/light-icon'
+import DarkIcon from '../../../../icons/dark-icon'
 
 function getInitialPreference() {
   if (
@@ -65,7 +67,10 @@ export function UserPreferences({
               Select your theme preference.
             </p>
           </div>
-          <div className="preference-control">
+          <div className="preference-control-select">
+            <div className="preference-icon">
+              {theme === 'Light' ? <LightIcon /> : <DarkIcon />}
+            </div>
             <select
               className="select-button"
               value={theme}
@@ -84,7 +89,7 @@ export function UserPreferences({
               Adjust the placement of your dev tools.
             </p>
           </div>
-          <div className="preference-control">
+          <div className="preference-control-select">
             <select
               className="select-button"
               value={position}
@@ -111,7 +116,9 @@ export function UserPreferences({
               className="action-button"
               onClick={hide}
             >
-              <EyeIcon />
+              <div className="preference-icon">
+                <EyeIcon />
+              </div>
               <span>Hide</span>
             </button>
           </div>
@@ -180,6 +187,13 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     margin: 0;
   }
 
+  .preference-icon {
+    display: flex;
+    align-items: center;
+    width: 16px;
+    height: 16px;
+  }
+
   .select-button,
   .action-button {
     display: flex;
@@ -196,6 +210,36 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     &:hover {
       background: var(--color-gray-100);
     }
+  }
+
+  .preference-control-select {
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: var(--rounded-lg);
+    border: 1px solid var(--color-gray-400);
+
+    &:hover {
+      background: var(--color-gray-100);
+    }
+
+    &:focus-within {
+      outline: 5px auto -webkit-focus-ring-color;
+    }
+  }
+
+  .preference-control-select select {
+    font-size: 14px;
+    padding-right: 1rem;
+    font-weight: 400;
+    height: 100%;
+    width: 100%;
+    background-color: var(--White);
+    border: none;
+    padding: 0 6px 0 0;
+    border-radius: 0;
+    outline: none;
   }
 
   :global(.icon) {
