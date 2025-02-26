@@ -68,7 +68,7 @@ export function UserPreferences({
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
-            <h2>Theme</h2>
+            <label htmlFor="theme">Theme</label>
             <p className="preference-description">
               Select your theme preference.
             </p>
@@ -78,6 +78,8 @@ export function UserPreferences({
               <ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />
             </div>
             <select
+              id="theme"
+              name="theme"
               className="select-button"
               value={theme}
               onChange={handleThemeChange}
@@ -91,13 +93,15 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <h2>Position</h2>
+            <label htmlFor="position">Position</label>
             <p className="preference-description">
               Adjust the placement of your dev tools.
             </p>
           </div>
           <div className="preference-control-select">
             <select
+              id="position"
+              name="position"
               className="select-button"
               value={position}
               onChange={handlePositionChange}
@@ -112,13 +116,17 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <h2>Hide Dev Tools for this session</h2>
+            <label htmlFor="hide-dev-tools">
+              Hide Dev Tools for this session
+            </label>
             <p className="preference-description">
               Hide Dev Tools until you restart your dev server, or 1 day.
             </p>
           </div>
           <div className="preference-control">
             <button
+              id="hide-dev-tools"
+              name="hide-dev-tools"
               data-hide-dev-tools
               className="action-button"
               onClick={hide}
@@ -133,7 +141,7 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <h2>Disable Dev Tools for this project</h2>
+            <label>Disable Dev Tools for this project</label>
             <p className="preference-description">
               To disable this UI completely, set{' '}
               <code className="dev-tools-info-code">devIndicators: false</code>{' '}
@@ -194,7 +202,7 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     flex: 1;
   }
 
-  .preference-header h2 {
+  .preference-header label {
     font-size: var(--size-14);
     font-weight: 500;
     color: var(--color-gray-1000);
