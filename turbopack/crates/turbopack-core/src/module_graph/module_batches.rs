@@ -445,17 +445,19 @@ pub async fn compute_module_batches(
                 // Select more matching items that are equal in all batches that contain the shared
                 // module(s)
                 loop {
-                    if let Some(next_item) = get_item_at(
+                    if let Some(PreBatchItem::ParallelModule(next_module)) = get_item_at(
                         &pre_batches,
                         batches_with_item_index[0].0,
                         batches_with_item_index[0].1 + selected_items,
                     ) {
-                        if batches_with_item_index[1..]
-                            .iter()
-                            .all(|&(batch_idx, item_idx)| {
-                                get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
-                                    == Some(next_item)
-                            })
+                        if parallel_module_to_pre_batch.get(next_module).unwrap().len()
+                            == batches.len()
+                            && batches_with_item_index[1..]
+                                .iter()
+                                .all(|&(batch_idx, item_idx)| {
+                                    get_item_at(&pre_batches, batch_idx, item_idx + selected_items)
+                                        == Some(&PreBatchItem::ParallelModule(*next_module))
+                                })
                         {
                             selected_items += 1;
                             continue;
