@@ -69,3 +69,9 @@ export function ComponentStyles() {
   )
 }
 ```
+
+### Dark Theme
+
+The dev overlay supports a dark theme that is automatically applied when the user's system is in dark mode. Or toggle the theme at the preference of the DevTools Indicator.
+
+To make changes to the dark theme, you can edit the [`ui/styles/dark-theme.tsx`](./ui/styles/dark-theme.tsx) file.
