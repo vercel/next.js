@@ -77,6 +77,7 @@ export const NextLogo = forwardRef(function NextLogo(
     shouldSkip: (count) => count === 0,
     animationDuration: SHORT_DURATION_MS,
   })
+  const [dismissed, setDismissed] = useState(false)
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
@@ -90,6 +91,8 @@ export const NextLogo = forwardRef(function NextLogo(
     setIsErrorExpanded(hasError)
   }, [hasError])
 
+  const isExpanded = isErrorExpanded || disabled
+
   return (
     <div
       data-next-badge-root
@@ -97,8 +100,9 @@ export const NextLogo = forwardRef(function NextLogo(
         {
           '--size': SIZE,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
-          // if the indicator is disabled and there are no errors, hide the badge
-          display: disabled && !hasError ? 'none' : 'block',
+          // if the indicator is disabled, hide the badge
+          // also allow the "disabled" state be dismissed, as long as there are no build errors
+          display: disabled && (!hasError || dismissed) ? 'none' : 'block',
         } as React.CSSProperties
       }
     >
@@ -226,9 +230,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${disabled || isBuildError
-              ? '8px'
-              : 'calc(2px * 2)'};
+            padding-right: ${isBuildError ? '8px' : 'calc(2px * 2)'};
             height: var(--size-32);
             margin: 0 2px;
             border-radius: var(--rounded-full);
@@ -422,7 +424,7 @@ export const NextLogo = forwardRef(function NextLogo(
       <div
         data-next-badge
         data-error={hasError}
-        data-error-expanded={isErrorExpanded}
+        data-error-expanded={isExpanded}
         data-animate={newErrorDetected}
         style={{
           width: hasError && width > SIZE_PX ? width : SIZE,
@@ -441,7 +443,7 @@ export const NextLogo = forwardRef(function NextLogo(
               <NextMark isLoading={isLoading} isDevBuilding={isDevBuilding} />
             </button>
           )}
-          {isErrorExpanded && (
+          {isExpanded && (
             <div data-issues>
               <button
                 data-issues-open
@@ -470,12 +472,16 @@ export const NextLogo = forwardRef(function NextLogo(
                   )}
                 </div>
               </button>
-              {!disabled && !isBuildError && (
+              {!isBuildError && (
                 <button
                   data-issues-collapse
                   aria-label="Collapse issues badge"
                   onClick={() => {
-                    setIsErrorExpanded(false)
+                    if (disabled) {
+                      setDismissed(true)
+                    } else {
+                      setIsErrorExpanded(false)
+                    }
                     // Move focus to the trigger to prevent having it stuck on this element
                     triggerRef.current?.focus()
                   }}
