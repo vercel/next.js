@@ -1,4 +1,4 @@
-export default function Index() {
+export default function Page() {
   return (
     <div>
       <p>The console should be empty.</p>
@@ -6,5 +6,5 @@ export default function Index() {
   );
 }
 
-console.log("log from index.js");
-console.error("error log from index.js");
+console.log("log from page.tsx");
+console.error("error log from page.tsx");
