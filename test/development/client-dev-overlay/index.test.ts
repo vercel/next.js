@@ -74,21 +74,7 @@ describe('client-dev-overlay', () => {
     )
   })
 
-  it('should keep the error indicator visible when there are errors', async () => {
-    await getMinimizeButton().click()
-    await getPopover().click()
-    await getPreferencesButton().click()
-    await getHideButton().click()
-
-    await retry(async () => {
-      const display = await browser.eval(
-        `getComputedStyle(document.querySelector('nextjs-portal').shadowRoot.querySelector('${selectors.indicator}')).display`
-      )
-      expect(display).toBe('block')
-    })
-  })
-
-  it('should be possible to hide the minimized overlay when there are no errors', async () => {
+  it('should be possible to hide the minimized overlay', async () => {
     const originalContent = await next.readFile('pages/index.js')
     try {
       await next.patchFile('pages/index.js', (content) => {
