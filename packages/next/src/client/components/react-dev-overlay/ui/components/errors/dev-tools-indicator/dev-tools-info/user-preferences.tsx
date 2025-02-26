@@ -6,6 +6,7 @@ import EyeIcon from '../../../../icons/eye-icon'
 import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
+import SystemIcon from '../../../../icons/system-icon'
 
 function getInitialPreference() {
   if (typeof localStorage === 'undefined') {
@@ -147,14 +148,16 @@ export function UserPreferences({
 }
 
 function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
-  const activeTheme =
-    theme === 'system'
-      ? window.matchMedia('(prefers-color-scheme: dark)').matches
-        ? 'dark'
-        : 'light'
-      : theme
-
-  return activeTheme === 'dark' ? <DarkIcon /> : <LightIcon />
+  switch (theme) {
+    case 'system':
+      return <SystemIcon />
+    case 'dark':
+      return <DarkIcon />
+    case 'light':
+      return <LightIcon />
+    default:
+      return null
+  }
 }
 
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
