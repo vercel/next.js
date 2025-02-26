@@ -5,8 +5,9 @@ describe('as-path-with-rewrites', () => {
     files: __dirname,
   })
 
-  it('should not include internal query params in `asPath`', async () => {
+  it('should not include internal query params in `asPath` and `req.url`', async () => {
     const $ = await next.render$('/foo')
-    expect($('h1').text()).toBe('rewrite-target: /foo')
+    expect($('#as-path').text()).toBe('/foo')
+    expect($('#req-url').text()).toBe('/foo')
   })
 })
