@@ -1443,7 +1443,7 @@ export default abstract class Server<
       // cache handlers.
       const handlers = getCacheHandlers()
       if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] ?? ''
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
         const expiredTags = typeof header === 'string' ? header.split(',') : []
 
         const promises: Promise<void>[] = []
