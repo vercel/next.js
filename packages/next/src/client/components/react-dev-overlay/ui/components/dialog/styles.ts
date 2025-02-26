@@ -28,7 +28,7 @@ const styles = `
   [data-nextjs-dialog] {
     outline: none;
     overflow: hidden;
-  }  
+  }
   [data-nextjs-dialog]::-webkit-scrollbar {
     width: 6px;
     border-radius: 0 0 1rem 1rem;
@@ -37,25 +37,14 @@ const styles = `
   [data-nextjs-dialog]::-webkit-scrollbar-button {
     display: none;
   }
-  /* css variables not working in scrollbar pseudo element */ 
   [data-nextjs-dialog]::-webkit-scrollbar-track {
     border-radius: 0 0 1rem 1rem;
-    background-color: #fff;
+    background-color: var(--color-background-100);
   }
   [data-nextjs-dialog]::-webkit-scrollbar-thumb {
     border-radius: 1rem;
-    background-color: #ddd;
+    background-color: var(--color-gray-500);
   }
-
-  @media (prefers-color-scheme: dark) {
-    [data-nextjs-dialog]::-webkit-scrollbar-track {
-      background-color: #0a0a0a;
-    }
-    [data-nextjs-dialog]::-webkit-scrollbar-thumb {
-      background-color: #333;
-    }
-  }
-  
 
   ${
     '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
