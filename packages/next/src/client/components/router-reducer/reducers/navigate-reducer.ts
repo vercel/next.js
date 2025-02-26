@@ -120,10 +120,10 @@ function handleNavigationResult(
       mutable.cache = result.data.cacheNode
       mutable.patchedTree = result.data.flightRouterState
       mutable.canonicalUrl = result.data.canonicalUrl
+      mutable.scrollableSegments = result.data.scrollableSegments
+      mutable.shouldScroll = result.data.shouldScroll
       // TODO: Not yet implemented
-      // mutable.scrollableSegments = scrollableSegments
       // mutable.hashFragment = hash
-      // mutable.shouldScroll = shouldScroll
       return handleMutable(state, mutable)
     }
     case NavigationResultTag.Async: {
@@ -186,7 +186,8 @@ export function navigateReducer(
       url,
       state.cache,
       state.tree,
-      state.nextUrl
+      state.nextUrl,
+      shouldScroll
     )
     return handleNavigationResult(state, mutable, pendingPush, result)
   }
@@ -311,7 +312,8 @@ export function navigateReducer(
               treePatch,
               seedData,
               head,
-              isHeadPartial
+              isHeadPartial,
+              scrollableSegments
             )
 
             if (task !== null) {
@@ -437,20 +439,23 @@ export function navigateReducer(
               // segments in the FlightDataPath will be able to reference the updated cache.
               currentCache = cache
             }
+
+            for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+              const scrollableSegmentPath = [
+                ...flightSegmentPath,
+                ...subSegment,
+              ]
+              // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+              if (
+                scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+                DEFAULT_SEGMENT_KEY
+              ) {
+                scrollableSegments.push(scrollableSegmentPath)
+              }
+            }
           }
 
           currentTree = newTree
-
-          for (const subSegment of generateSegmentsFromPatch(treePatch)) {
-            const scrollableSegmentPath = [...flightSegmentPath, ...subSegment]
-            // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
-            if (
-              scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              DEFAULT_SEGMENT_KEY
-            ) {
-              scrollableSegments.push(scrollableSegmentPath)
-            }
-          }
         }
       }
 
