@@ -423,7 +423,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
               ? input.url
               : String(input)
           validateURL(url)
-          super(url, init)
+          if (input instanceof Request || (typeof input !== 'string' && 'url' in input)) super(input, init)
+          else super(url, init)
           this.next = init?.next
         }
       }
