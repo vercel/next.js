@@ -146,7 +146,4 @@ export function RouteInfo({
   )
 }
 
-export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = `
-  .dev-tools-info-link {
-  }
-`
+export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = ``

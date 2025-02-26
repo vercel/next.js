@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react'
-import type { OverlayState } from '../../../../shared'
+import { STORAGE_KEY_POSITION, type OverlayState } from '../../../../shared'
 
 import { useState, useEffect, useRef, createContext, useContext } from 'react'
 import { Toast } from '../../toast'
@@ -9,7 +9,8 @@ import { useIsDevRendering } from '../../../../utils/dev-indicator/dev-render-in
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
 import { TurbopackInfo } from './dev-tools-info/turbopack-info'
 import { RouteInfo } from './dev-tools-info/route-info'
-import { StopIcon } from '../../../icons/stop-icon'
+import GearIcon from '../../../icons/gear-icon'
+import { UserPreferences } from './dev-tools-info/user-preferences'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -18,14 +19,13 @@ const INDICATOR_POSITION =
     .__NEXT_DEV_INDICATOR_POSITION as typeof window.__NEXT_DEV_INDICATOR_POSITION) ||
   'bottom-left'
 
-type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
+export type DevToolsIndicatorPosition = typeof INDICATOR_POSITION
 
 export function DevToolsIndicator({
   state,
   errorCount,
   isBuildError,
   setIsErrorOverlayOpen,
-  position = INDICATOR_POSITION,
 }: {
   state: OverlayState
   errorCount: number
@@ -33,8 +33,6 @@ export function DevToolsIndicator({
   setIsErrorOverlayOpen: (
     isErrorOverlayOpen: boolean | ((prev: boolean) => boolean)
   ) => void
-  // Technically this prop isn't needed, but useful for testing.
-  position?: DevToolsIndicatorPosition
 }) {
   const [isDevToolsIndicatorVisible, setIsDevToolsIndicatorVisible] =
     useState(true)
@@ -53,7 +51,6 @@ export function DevToolsIndicator({
       }}
       setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       isTurbopack={!!process.env.TURBOPACK}
-      position={position}
       disabled={state.disableDevIndicator || !isDevToolsIndicatorVisible}
       isBuildError={isBuildError}
     />
@@ -73,13 +70,25 @@ interface C {
 
 const Context = createContext({} as C)
 
+function getInitialPosition() {
+  if (
+    typeof localStorage !== 'undefined' &&
+    localStorage.getItem(STORAGE_KEY_POSITION)
+  ) {
+    return localStorage.getItem(
+      STORAGE_KEY_POSITION
+    ) as DevToolsIndicatorPosition
+  }
+
+  return INDICATOR_POSITION
+}
+
 function DevToolsPopover({
   routerType,
   disabled,
   issueCount,
   isStaticRoute,
   isTurbopack,
-  position,
   isBuildError,
   hide,
   setIsErrorOverlayOpen,
@@ -90,7 +99,6 @@ function DevToolsPopover({
   isStaticRoute: boolean
   semver: string | undefined
   isTurbopack: boolean
-  position: DevToolsIndicatorPosition
   isBuildError: boolean
   hide: () => void
   setIsErrorOverlayOpen: (
@@ -103,10 +111,14 @@ function DevToolsPopover({
   const triggerTurbopackRef = useRef<HTMLButtonElement | null>(null)
   const routeInfoRef = useRef<HTMLElement>(null)
   const triggerRouteInfoRef = useRef<HTMLButtonElement | null>(null)
+  const preferencesRef = useRef<HTMLElement>(null)
+  const triggerPreferencesRef = useRef<HTMLButtonElement | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isTurbopackInfoOpen, setIsTurbopackInfoOpen] = useState(false)
   const [isRouteInfoOpen, setIsRouteInfoOpen] = useState(false)
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
+  const [position, setPosition] = useState(getInitialPosition())
 
   // This hook lets us do an exit animation before unmounting the component
   const { mounted: menuMounted, rendered: menuRendered } = useDelayedRender(
@@ -128,6 +140,11 @@ function DevToolsPopover({
       enterDelay: 0,
       exitDelay: ANIMATE_OUT_DURATION_MS,
     })
+  const { mounted: preferencesMounted, rendered: preferencesRendered } =
+    useDelayedRender(isPreferencesOpen, {
+      enterDelay: 0,
+      exitDelay: ANIMATE_OUT_DURATION_MS,
+    })
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
@@ -146,7 +163,13 @@ function DevToolsPopover({
     isRouteInfoOpen,
     closeRouteInfo
   )
-
+  useFocusTrap(preferencesRef, triggerPreferencesRef, isPreferencesOpen)
+  useClickOutside(
+    preferencesRef,
+    triggerPreferencesRef,
+    isPreferencesOpen,
+    closePreferences
+  )
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
@@ -254,6 +277,15 @@ function DevToolsPopover({
     setIsRouteInfoOpen(false)
   }
 
+  function closePreferences() {
+    setIsPreferencesOpen(false)
+  }
+
+  function handleHideDevtools() {
+    closePreferences()
+    hide()
+  }
+
   const [vertical, horizontal] = position.split('-', 2)
 
   return (
@@ -313,6 +345,21 @@ function DevToolsPopover({
             [horizontal]: 0,
           }}
           data-rendered={turbopackInfoRendered}
+        />
+      )}
+
+      {preferencesMounted && (
+        <UserPreferences
+          ref={preferencesRef}
+          isOpen={isPreferencesOpen}
+          hide={handleHideDevtools}
+          setPosition={setPosition}
+          position={position}
+          style={{
+            [vertical]: 'calc(100% + 8px)',
+            [horizontal]: 0,
+          }}
+          data-rendered={preferencesRendered}
         />
       )}
 
@@ -381,11 +428,10 @@ function DevToolsPopover({
 
             <div className="dev-tools-indicator-footer">
               <MenuItem
-                data-hide-dev-tools
-                title="Hide Dev Tools for the current server session or a day."
-                label="Hide for Dev Session"
-                value={<StopIcon />}
-                onClick={hide}
+                data-preferences
+                label="Preferences"
+                value={<GearIcon />}
+                onClick={() => setIsPreferencesOpen(true)}
                 index={isTurbopack ? 2 : 3}
               />
             </div>

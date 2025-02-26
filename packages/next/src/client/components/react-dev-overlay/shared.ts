@@ -38,6 +38,9 @@ export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
 export const ACTION_DEV_INDICATOR = 'dev-indicator'
 
+export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
+export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
+
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
   staticIndicator: boolean

@@ -9,13 +9,7 @@ const meta: Meta<typeof DevToolsIndicator> = {
   parameters: {
     layout: 'centered',
   },
-  argTypes: {
-    position: {
-      control: 'select',
-      options: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-      defaultValue: 'bottom-left',
-    },
-  },
+  argTypes: {},
   decorators: [
     withShadowPortal,
     // Test for high z-index
