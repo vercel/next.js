@@ -1,5 +1,4 @@
 use anyhow::Result;
-use either::Either;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -17,6 +16,7 @@ use crate::{
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
+    None,
 }
 
 impl ModuleOrBatch {
@@ -26,6 +26,7 @@ impl ModuleOrBatch {
                 ResolvedVc::try_downcast(module).map(ChunkableModuleOrBatch::Module)
             }
             ModuleOrBatch::Batch(batch) => Some(ChunkableModuleOrBatch::Batch(batch)),
+            ModuleOrBatch::None => Some(ChunkableModuleOrBatch::None),
         }
     }
 }
@@ -46,17 +47,27 @@ impl ModuleOrBatch {
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),
+    None,
 }
 
 impl ChunkableModuleOrBatch {
-    pub async fn ident_strings(self) -> Result<Either<ReadRef<RcStr>, ReadRef<Vec<RcStr>>>> {
+    pub async fn ident_strings(self) -> Result<IdentStrings> {
         Ok(match self {
             ChunkableModuleOrBatch::Module(module) => {
-                Either::Left(module.ident().to_string().await?)
+                IdentStrings::Single(module.ident().to_string().await?)
             }
-            ChunkableModuleOrBatch::Batch(batch) => Either::Right(batch.ident_strings().await?),
+            ChunkableModuleOrBatch::Batch(batch) => {
+                IdentStrings::Multiple(batch.ident_strings().await?)
+            }
+            ChunkableModuleOrBatch::None => IdentStrings::None,
         })
     }
+}
+
+pub enum IdentStrings {
+    None,
+    Single(ReadRef<RcStr>),
+    Multiple(ReadRef<Vec<RcStr>>),
 }
 
 #[turbo_tasks::value]

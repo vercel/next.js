@@ -47,6 +47,7 @@ async fn attach_async_info_to_chunkable_module(
 pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     ChunkItem(ChunkItemWithAsyncModuleInfo),
     Batch(ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>),
+    None,
 }
 
 impl ChunkItemOrBatchWithAsyncModuleInfo {
@@ -75,6 +76,7 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
                 .to_resolved()
                 .await?,
             ),
+            ChunkableModuleOrBatch::None => Self::None,
         })
     }
 }

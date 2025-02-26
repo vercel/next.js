@@ -107,6 +107,9 @@ async fn chunk_items_with_info(
                 by_type: map.into_iter().collect(),
             }
         }
+        ChunkItemOrBatchWithAsyncModuleInfo::None => ChunkItemsWithInfo {
+            by_type: smallvec![],
+        },
     };
     Ok(chunk_items_with_info.cell())
 }

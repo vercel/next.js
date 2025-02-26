@@ -1,9 +1,8 @@
 use anyhow::Result;
-use either::Either;
 use turbo_tasks::{FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use crate::module_graph::module_batch::ChunkableModuleOrBatch;
+use crate::module_graph::module_batch::{ChunkableModuleOrBatch, IdentStrings};
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
@@ -58,12 +57,13 @@ impl AvailableModules {
             .await?;
         for idents in item_idents {
             match idents {
-                Either::Left(ident) => hasher.write_value(ident),
-                Either::Right(idents) => {
+                IdentStrings::Single(ident) => hasher.write_value(ident),
+                IdentStrings::Multiple(idents) => {
                     for ident in idents {
                         hasher.write_value(ident);
                     }
                 }
+                IdentStrings::None => {}
             }
         }
         Ok(Vc::cell(hasher.finish()))

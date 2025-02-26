@@ -75,6 +75,9 @@ pub async fn make_chunk_group(
                 }
                 writeln!(info, "]")?;
             }
+            ChunkableModuleOrBatch::None => {
+                writeln!(info, "[]")?;
+            }
         }
     }
     println!("Chunking:\n{}", info);
@@ -281,7 +284,7 @@ pub async fn chunk_group_content(
                 }
                 ChunkingType::Async => {
                     if can_split_async {
-                        let chunkable_module = ResolvedVc::try_downcast(edge.module)
+                        let chunkable_module = ResolvedVc::try_downcast(edge.module.unwrap())
                             .context("Module in async chunking edge is not chunkable")?;
                         result.async_modules.insert(chunkable_module);
                         GraphTraversalAction::Exclude

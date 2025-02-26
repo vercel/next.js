@@ -208,6 +208,17 @@ impl ChunkingType {
         }
     }
 
+    pub fn is_parallel(&self) -> bool {
+        match self {
+            ChunkingType::Parallel => true,
+            ChunkingType::ParallelInheritAsync => true,
+            ChunkingType::Async => false,
+            ChunkingType::Isolated { .. } => false,
+            ChunkingType::Shared { .. } => false,
+            ChunkingType::Traced => false,
+        }
+    }
+
     pub fn without_inherit_async(&self) -> Self {
         match self {
             ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => ChunkingType::Parallel,
