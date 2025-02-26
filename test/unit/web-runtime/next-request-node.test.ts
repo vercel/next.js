@@ -1,7 +1,5 @@
-/**
- * @jest-environment @edge-runtime/jest-environment
- */
-
+// this file must not use the edge-runtime env setup
+// so that we test node runtime properly
 import { expectTypeOf } from 'expect-type'
 import { NextRequest } from 'next/dist/server/web/spec-extension/request'
 
