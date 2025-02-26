@@ -633,16 +633,14 @@ export default nextConfig;
 
 Then in your middleware file, set the runtime to `nodejs` in the `config` object:
 
-```js {3} filename="middleware.js" switcher
+```js highlight={2} filename="middleware.js" switcher
 export const config = {
-  matcher: '/about/:path*',
   runtime: 'nodejs',
 };
 ```
 
-```ts {3} filename="middleware.ts" switcher
+```ts highlight={2} filename="middleware.ts" switcher
 export const config = {
-  matcher: '/about/:path*',
   runtime: 'nodejs',
 };
 ```
