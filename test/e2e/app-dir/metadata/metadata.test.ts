@@ -775,6 +775,14 @@ describe('app dir - metadata', () => {
         'theme-color': '#000',
       })
     })
+
+    it('should skip initial-scale from viewport', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
+      })
+    })
   })
 
   describe('react cache', () => {
