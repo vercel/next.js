@@ -1,5 +1,14 @@
 import { css } from '../../utils/css'
 
+const darkTheme = css`
+  --color-font: white;
+  --color-backdrop: rgba(0, 0, 0, 0.8);
+  --color-border-shadow: rgba(255, 255, 255, 0.145);
+
+  --color-title-color: #fafafa;
+  --color-stack-notes: #a9a9a9;
+`
+
 export function Base() {
   return (
     <style>
@@ -114,14 +123,13 @@ export function Base() {
           }
         }
 
+        :host(.dark) {
+          ${darkTheme}
+        }
+
         @media (prefers-color-scheme: dark) {
           :host {
-            --color-font: white;
-            --color-backdrop: rgb(0, 0, 0, 0.8);
-            --color-border-shadow: rgba(255, 255, 255, 0.145);
-
-            --color-title-color: #fafafa;
-            --color-stack-notes: #a9a9a9;
+            ${darkTheme}
           }
         }
 

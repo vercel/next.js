@@ -20,6 +20,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     const browser = await next.browser('/')
 
     await openDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
     await assertNoDevToolsIndicator(browser)
@@ -36,6 +37,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     const browser = await next.browser('/')
 
     await openDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
     await assertNoDevToolsIndicator(browser)
@@ -51,6 +53,7 @@ describe('dev indicator - Hide DevTools Button', () => {
     const browser = await next.browser('/')
 
     await openDevToolsIndicatorPopover(browser)
+    await browser.elementByCss('[data-preferences]').click()
     await browser.elementByCss('[data-hide-dev-tools]').click()
 
     await assertNoDevToolsIndicator(browser)

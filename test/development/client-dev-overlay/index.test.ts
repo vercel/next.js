@@ -37,6 +37,7 @@ describe('client-dev-overlay', () => {
     popover: '[data-nextjs-dev-tools-button]',
     indicator: '[data-next-badge-root]',
     minimizeButton: 'body',
+    preferencesButton: '[data-preferences]',
     hideButton: '[data-hide-dev-tools]',
   }
   function getToast() {
@@ -50,6 +51,9 @@ describe('client-dev-overlay', () => {
   }
   function getHideButton() {
     return browser.elementByCss(selectors.hideButton)
+  }
+  function getPreferencesButton() {
+    return browser.elementByCss(selectors.preferencesButton)
   }
 
   it('should be able to fullscreen the minimized overlay', async () => {
@@ -73,6 +77,7 @@ describe('client-dev-overlay', () => {
   it('should keep the error indicator visible when there are errors', async () => {
     await getMinimizeButton().click()
     await getPopover().click()
+    await getPreferencesButton().click()
     await getHideButton().click()
 
     await retry(async () => {
@@ -92,6 +97,7 @@ describe('client-dev-overlay', () => {
 
       await getMinimizeButton().click()
       await getPopover().click()
+      await getPreferencesButton().click()
       await getHideButton().click()
 
       await retry(async () => {
