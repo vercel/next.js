@@ -167,7 +167,7 @@ jobs:
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - run: corepack prepare --activate yarn@1.22.19 && (killall turbo || echo 'no turbo') && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.8
@@ -193,7 +193,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
@@ -224,7 +224,7 @@ jobs:
       - run: pnpm playwright install chromium
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
