@@ -2301,12 +2301,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/dev-indicator/hide-button.test.ts": {
+    "passed": [
+      "dev indicator - Hide DevTools Button should show the dev indicator after cooldown period has passed",
+      "dev indicator - Hide DevTools Button should show the dev indicator when the server is manually restarted",
+      "dev indicator - Hide DevTools Button should still hide the dev indicator after reloading the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/dev-indicator/route-type.test.ts": {
     "passed": [
-      "dev indicator - route type should have route type as dynamic when changing to dynamic page",
-      "dev indicator - route type should have route type as dynamic when on load of dynamic page",
-      "dev indicator - route type should have route type as dynamic when using force-dynamic",
-      "dev indicator - route type should have route type as static by default for static page"
+      "app dir dev indicator - route type should have route type as dynamic when changing to dynamic page",
+      "app dir dev indicator - route type should have route type as dynamic when on load of dynamic page",
+      "app dir dev indicator - route type should have route type as dynamic when using force-dynamic",
+      "app dir dev indicator - route type should have route type as static by default for static page"
     ],
     "failed": [],
     "pending": [],
@@ -3195,6 +3206,23 @@
     "passed": [
       "correct tsconfig.json defaults should add `moduleResolution` when generating tsconfig.json in dev",
       "correct tsconfig.json defaults should not warn for `moduleResolution` when already present and valid"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-indicator/dev-indicator.test.ts": {
+    "passed": [
+      "dev indicator - route type getInitialProps should be marked dynamic on first load",
+      "dev indicator - route type getInitialProps should update when going from dynamic -> static",
+      "dev indicator - route type getInitialProps should update when going from static -> dynamic",
+      "dev indicator - route type getServerSideProps should be marked dynamic on first load",
+      "dev indicator - route type getServerSideProps should update when going from dynamic -> static",
+      "dev indicator - route type getServerSideProps should update when going from static -> dynamic",
+      "dev indicator - route type getStaticPaths should be marked static on first load",
+      "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
+      "dev indicator - route type should have route type as static by default for static page"
     ],
     "failed": [],
     "pending": [],
@@ -5912,7 +5940,8 @@
       "i18n-hybrid does resolve /en-CA/about",
       "i18n-hybrid does resolve /en-US/about",
       "i18n-hybrid does resolve /fr-CA/about",
-      "i18n-hybrid does resolve /fr-FR/about"
+      "i18n-hybrid does resolve /fr-FR/about",
+      "i18n-hybrid should warn about i18n in app dir"
     ],
     "failed": [],
     "pending": [],
@@ -8332,6 +8361,13 @@
     "passed": [
       "segment cache memory pressure disabled in development / deployment"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/mpa-navigations/mpa-navigations.test.ts": {
+    "passed": ["segment cache (MPA navigations) ppr is disabled"],
     "failed": [],
     "pending": [],
     "flakey": [],
