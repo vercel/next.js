@@ -7540,7 +7540,10 @@
       "runtimeError": false
     },
     "test/e2e/prerender.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "Prerender should reload page on failed data request, and retry",
         "Prerender outputs a prerender-manifest correctly",
         "Prerender outputs dataRoutes in routes-manifest correctly",
         "Prerender outputs prerendered files correctly",
@@ -7619,10 +7622,6 @@
         "Prerender should support prerendered catchall-explicit route (single)",
         "Prerender should use correct caching headers for a no-revalidate page",
         "Prerender should use correct caching headers for a revalidate page"
-      ],
-      "failed": [],
-      "pending": [
-        "Prerender should reload page on failed data request, and retry"
       ],
       "flakey": [],
       "runtimeError": false
