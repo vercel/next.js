@@ -605,6 +605,48 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).
 
+### Using Node.js runtime with middleware
+
+The Node.js runtime can be used as an experimental feature to run middleware. To enable, add the flag to your `next.config.js` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+};
+
+export default nextConfig;
+```
+
+```js filename="next.config.js" switcher
+const nextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+};
+
+export default nextConfig;
+```
+
+Then in your middleware file, set the runtime to `nodejs` in the `config` object:
+
+```js {3} filename="middleware.js" switcher
+export const config = {
+  matcher: '/about/:path*',
+  runtime: 'nodejs',
+};
+```
+
+```ts {3} filename="middleware.ts" switcher
+export const config = {
+  matcher: '/about/:path*',
+  runtime: 'nodejs',
+};
+```
+
 ## Version History
 
 | Version   | Changes                                                                                       |
