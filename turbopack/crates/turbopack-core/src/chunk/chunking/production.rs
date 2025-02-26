@@ -1,22 +1,21 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault};
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use rustc_hash::FxHasher;
 use tracing::{field::Empty, Instrument};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
-        chunking::{make_chunk, ChunkItemWithInfo, SplitContext},
-        ChunkingConfig,
+        chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
+        ChunkItemWithAsyncModuleInfo, ChunkingConfig,
     },
-    module::Module,
     module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
 };
 
 pub async fn make_production_chunks(
-    chunk_items: Vec<&ChunkItemWithInfo>,
+    chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
@@ -34,23 +33,42 @@ pub async fn make_production_chunks(
 
         let mut grouped_chunk_items = FxIndexMap::<_, Vec<_>>::default();
 
-        for chunk_item in chunk_items {
-            let ChunkItemWithInfo { module, .. } = chunk_item;
-            let chunk_groups = if let Some(module) = module {
-                match chunk_group_info
+        // Helper Vec to keep ReadRefs on batches and allow references into them
+        let batch_read_refs = chunk_items
+            .iter()
+            .copied()
+            .map(async |item| {
+                Ok(
+                    if let ChunkItemOrBatchWithInfo::Batch { batch, .. } = item {
+                        Some(batch.await?)
+                    } else {
+                        None
+                    },
+                )
+            })
+            .try_join()
+            .await?;
+
+        // Put chunk items into `grouped_chunk_items` based on their chunk groups
+        for (i, chunk_item) in chunk_items.into_iter().enumerate() {
+            let chunk_groups = match chunk_item {
+                &ChunkItemOrBatchWithInfo::ChunkItem {
+                    chunk_item:
+                        ChunkItemWithAsyncModuleInfo {
+                            module: Some(module),
+                            ..
+                        },
+                    ..
+                } => chunk_group_info
                     .module_chunk_groups
-                    .get(&ResolvedVc::upcast(*module))
-                {
-                    Some(chunk_group) => Some(chunk_group),
-                    None => {
-                        bail!(
-                            "Module {:?} has no chunk group info",
-                            module.ident().to_string().await?,
-                        );
-                    }
+                    .get(&ResolvedVc::upcast(module)),
+                &ChunkItemOrBatchWithInfo::ChunkItem {
+                    chunk_item: ChunkItemWithAsyncModuleInfo { module: None, .. },
+                    ..
+                } => None,
+                ChunkItemOrBatchWithInfo::Batch { .. } => {
+                    batch_read_refs[i].as_ref().unwrap().chunk_groups.as_ref()
                 }
-            } else {
-                None
             };
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
             grouped_chunk_items.entry(key).or_default().push(chunk_item);
@@ -74,7 +92,7 @@ pub async fn make_production_chunks(
                 .map(|(key, chunk_items)| {
                     let size = chunk_items
                         .iter()
-                        .map(|chunk_item| chunk_item.size)
+                        .map(|chunk_item| chunk_item.size())
                         .sum::<usize>();
                     ChunkCandidate {
                         size,
@@ -462,7 +480,7 @@ pub async fn make_production_chunks(
 
 struct ChunkCandidate<'l> {
     size: usize,
-    chunk_items: Vec<&'l ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 
@@ -488,7 +506,7 @@ impl PartialEq for ChunkCandidate<'_> {
 
 struct MergeCandidate<'l> {
     size: usize,
-    chunk_items: Vec<&'l ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 

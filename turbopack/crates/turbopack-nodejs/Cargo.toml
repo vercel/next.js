@@ -20,6 +20,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 rustc-hash = { workspace = true }

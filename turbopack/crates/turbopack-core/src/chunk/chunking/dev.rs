@@ -1,22 +1,26 @@
 use std::{borrow::Cow, mem::take};
 
-use anyhow::Result;
+use anyhow::{bail, Result};
+use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::FxIndexMap;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
-use crate::chunk::chunking::{make_chunk, ChunkItemWithInfo, SplitContext};
+use crate::chunk::{
+    chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
+    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+};
 
 /// Handle chunk items based on their total size. If the total size is too
 /// small, they will be pushed into `remaining`, if possible. If the total size
 /// is too large, it will return `false` and the caller should hand of the chunk
 /// items to be further split. Otherwise it creates a chunk.
 async fn handle_split_group<'l>(
-    chunk_items: &mut Vec<&'l ChunkItemWithInfo>,
+    chunk_items: &mut Vec<&'l ChunkItemOrBatchWithInfo>,
     key: &mut String,
     split_context: &mut SplitContext<'_>,
-    remaining: Option<&mut Vec<&'l ChunkItemWithInfo>>,
+    remaining: Option<&mut Vec<&'l ChunkItemOrBatchWithInfo>>,
 ) -> Result<bool> {
     Ok(match (chunk_size(chunk_items), remaining) {
         (ChunkSize::Large, _) => false,
@@ -31,11 +35,51 @@ async fn handle_split_group<'l>(
     })
 }
 
+/// Expands all batches and ensures that there are only terminal ChunkItems left.
+pub async fn expand_batches<'l>(
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vec<ChunkItemOrBatchWithInfo>> {
+    let mut expanded = Vec::new();
+    for item in chunk_items {
+        match item {
+            ChunkItemOrBatchWithInfo::ChunkItem { .. } => {
+                expanded.push(item.clone());
+            }
+            ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
+                expanded.extend(
+                    batch
+                        .await?
+                        .chunk_items
+                        .iter()
+                        .map(async |item| {
+                            let size = ty.chunk_item_size(
+                                chunking_context,
+                                *item.chunk_item,
+                                item.async_info.map(|i| *i),
+                            );
+                            let asset_ident = item.chunk_item.asset_ident().to_string();
+                            Ok(ChunkItemOrBatchWithInfo::ChunkItem {
+                                chunk_item: item.clone(),
+                                size: *size.await?,
+                                asset_ident: asset_ident.owned().await?,
+                            })
+                        })
+                        .try_join()
+                        .await?,
+                );
+            }
+        }
+    }
+    Ok(expanded)
+}
+
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
 pub async fn app_vendors_split<'l>(
-    chunk_items: Vec<&'l ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
@@ -43,11 +87,14 @@ pub async fn app_vendors_split<'l>(
     let mut app_chunk_items = Vec::new();
     let mut vendors_chunk_items = Vec::new();
     for item in chunk_items {
-        let ChunkItemWithInfo {
+        let ChunkItemOrBatchWithInfo::ChunkItem {
+            chunk_item: ChunkItemWithAsyncModuleInfo { module, .. },
             asset_ident,
-            module,
             ..
-        } = &item;
+        } = &item
+        else {
+            bail!("Batch items are not supported");
+        };
         if module.is_none() {
             // This happens for async module loaders.
             // We want them to be in a separate chunk.
@@ -97,13 +144,15 @@ pub async fn app_vendors_split<'l>(
 /// [folder_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
 async fn package_name_split<'l>(
-    chunk_items: Vec<&'l ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
     let mut map = FxIndexMap::<_, Vec<_>>::default();
     for item in chunk_items {
-        let ChunkItemWithInfo { asset_ident, .. } = &item;
+        let ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } = &item else {
+            bail!("Batch items are not supported");
+        };
         let package_name = package_name(asset_ident);
         if let Some(list) = map.get_mut(package_name) {
             list.push(item);
@@ -129,15 +178,22 @@ async fn package_name_split<'l>(
 /// Split chunk items by folder structure.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name), location))]
 async fn folder_split<'l>(
-    mut chunk_items: Vec<&'l ChunkItemWithInfo>,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     mut location: usize,
     name: Cow<'_, str>,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
     let mut map = FxIndexMap::<_, (_, Vec<_>)>::default();
+    let mut chunk_items: Either<_, Vec<&'l ChunkItemOrBatchWithInfo>> = Either::Left(chunk_items);
     loop {
-        for item in chunk_items {
-            let ChunkItemWithInfo { asset_ident, .. } = &item;
+        let iter = match chunk_items {
+            Either::Left(iter) => Either::Left(iter.into_iter()),
+            Either::Right(list) => Either::Right(list.into_iter()),
+        };
+        for item in iter {
+            let ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } = &item else {
+                bail!("Batch items are not supported");
+            };
             let (folder_name, new_location) = folder_name(asset_ident, location);
             if let Some((_, list)) = map.get_mut(folder_name) {
                 list.push(item);
@@ -149,7 +205,7 @@ async fn folder_split<'l>(
             // shortcut
             let (folder_name, (new_location, list)) = map.into_iter().next().unwrap();
             if let Some(new_location) = new_location {
-                chunk_items = list;
+                chunk_items = Either::Right(list);
                 location = new_location;
                 map = FxIndexMap::default();
                 continue;
@@ -180,7 +236,9 @@ async fn folder_split<'l>(
         }
     }
     if !remaining.is_empty() {
-        let ChunkItemWithInfo { asset_ident, .. } = &remaining[0];
+        let ChunkItemOrBatchWithInfo::ChunkItem { asset_ident, .. } = &remaining[0] else {
+            bail!("Batch items are not supported");
+        };
         let mut key = format!("{}-{}", name, &asset_ident[..location]);
         if !handle_split_group(&mut remaining, &mut key, split_context, None).await? {
             make_chunk(remaining, &mut key, split_context).await?;
@@ -227,10 +285,10 @@ enum ChunkSize {
 
 /// Determines the total size of the passed chunk items. Returns too small, too
 /// large or perfect fit.
-fn chunk_size(chunk_items: &[&ChunkItemWithInfo]) -> ChunkSize {
+fn chunk_size(chunk_items: &[&ChunkItemOrBatchWithInfo]) -> ChunkSize {
     let mut total_size = 0;
-    for ChunkItemWithInfo { size, .. } in chunk_items {
-        total_size += size;
+    for item in chunk_items {
+        total_size += item.size();
     }
     if total_size >= LARGE_CHUNK {
         ChunkSize::Large

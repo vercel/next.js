@@ -9540,6 +9540,7 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "indexmap 2.7.1",
  "indoc",
  "rustc-hash 2.1.0",
@@ -9933,6 +9934,7 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "indexmap 2.7.1",
  "indoc",
  "rustc-hash 2.1.0",

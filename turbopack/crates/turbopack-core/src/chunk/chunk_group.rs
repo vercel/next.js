@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, future::Future};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
@@ -28,7 +28,23 @@ pub struct MakeChunkGroupResult {
 }
 
 /// Creates a chunk group from a set of entries.
-pub async fn make_chunk_group(
+pub fn make_chunk_group(
+    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
+        + Send
+        + Clone,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    availability_info: AvailabilityInfo,
+) -> impl Future<Output = Result<MakeChunkGroupResult>> + Send {
+    make_chunk_group_async(
+        chunk_group_entries,
+        module_graph,
+        chunking_context,
+        availability_info,
+    )
+}
+///
+pub async fn make_chunk_group_async(
     chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
         + Send
         + Clone,

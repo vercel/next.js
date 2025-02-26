@@ -1,6 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
+use either::Either;
 use indoc::writedoc;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::File;
@@ -13,7 +14,10 @@ use turbopack_core::{
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt, EcmascriptChunkItemWithAsyncInfo},
+    chunk::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkContent, EcmascriptChunkItemExt,
+        EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
+    },
     minify::minify,
     utils::StringifyJs,
 };
@@ -52,20 +56,54 @@ pub(super) async fn chunk_items(
         .await?
         .chunk_items
         .iter()
-        .map(
-            async |&EcmascriptChunkItemWithAsyncInfo {
-                       chunk_item,
-                       async_info,
-                       ..
-                   }| {
-                Ok((
-                    chunk_item.id().await?,
-                    chunk_item.code(async_info.map(|info| *info)).await?,
-                ))
-            },
-        )
+        .map(async |item| match item {
+            &EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
+                EcmascriptChunkItemWithAsyncInfo {
+                    chunk_item,
+                    async_info,
+                    ..
+                },
+            ) => Ok(Either::Left(std::iter::once((
+                chunk_item.id(),
+                chunk_item.code(async_info.map(|info| *info)),
+            )))),
+            &EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => Ok(Either::Right(
+                batch_id_and_code(*batch)
+                    .await?
+                    .into_iter()
+                    .map(|&(id, code)| (*id, *code)),
+            )),
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .flatten()
+        .map(async |(id, code)| Ok((id.await?, code.await?)))
         .try_join()
         .await
+}
+
+#[turbo_tasks::value(transparent)]
+struct CodeAndIds(Vec<(ResolvedVc<ModuleId>, ResolvedVc<Code>)>);
+
+#[turbo_tasks::function]
+async fn batch_id_and_code(batch: Vc<EcmascriptChunkBatchWithAsyncInfo>) -> Result<Vc<CodeAndIds>> {
+    let mut code_and_ids = Vec::new();
+    for item in batch.await?.chunk_items.iter() {
+        let &EcmascriptChunkItemWithAsyncInfo {
+            chunk_item,
+            async_info,
+            ..
+        } = item;
+        code_and_ids.push((
+            chunk_item.id().to_resolved().await?,
+            chunk_item
+                .code(async_info.map(|info| *info))
+                .to_resolved()
+                .await?,
+        ));
+    }
+    Ok(Vc::cell(code_and_ids))
 }
 
 #[turbo_tasks::value_impl]
@@ -89,10 +127,30 @@ impl EcmascriptBuildNodeChunkContent {
             "#,
         )?;
 
-        for (id, item_code) in chunk_items(*this.content).await? {
-            write!(code, "{}: ", StringifyJs(&id))?;
-            code.push_code(&item_code);
-            writeln!(code, ",")?;
+        for item in this.content.await?.chunk_items.iter() {
+            match item {
+                EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(chunk_item) => {
+                    let &EcmascriptChunkItemWithAsyncInfo {
+                        chunk_item,
+                        async_info,
+                        ..
+                    } = chunk_item;
+                    let id = chunk_item.id().await?;
+                    let item_code = chunk_item.code(async_info.map(|info| *info)).await?;
+                    write!(code, "{}: ", StringifyJs(&id))?;
+                    code.push_code(&item_code);
+                    writeln!(code, ",")?;
+                }
+                &EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
+                    for (id, item_code) in batch_id_and_code(*batch).await? {
+                        let id = id.await?;
+                        let item_code = item_code.await?;
+                        write!(code, "{}: ", StringifyJs(&id))?;
+                        code.push_code(&item_code);
+                        writeln!(code, ",")?;
+                    }
+                }
+            }
         }
 
         write!(code, "\n}};")?;
