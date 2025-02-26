@@ -4586,19 +4586,19 @@ var ContextOnlyDispatcher = {
             idWithLeadingBit & ~(1 << (32 - clz32(idWithLeadingBit) - 1))
           ).toString(32) + JSCompiler_inline_result;
         identifierPrefix =
-          ":" + identifierPrefix + "R" + JSCompiler_inline_result;
+          "\u00ab" + identifierPrefix + "R" + JSCompiler_inline_result;
         JSCompiler_inline_result = localIdCounter++;
         0 < JSCompiler_inline_result &&
           (identifierPrefix += "H" + JSCompiler_inline_result.toString(32));
-        identifierPrefix += ":";
+        identifierPrefix += "\u00bb";
       } else
         (JSCompiler_inline_result = globalClientIdCounter++),
           (identifierPrefix =
-            ":" +
+            "\u00ab" +
             identifierPrefix +
             "r" +
             JSCompiler_inline_result.toString(32) +
-            ":");
+            "\u00bb");
       return (hook.memoizedState = identifierPrefix);
     },
     useHostTransitionStatus: useHostTransitionStatus,
@@ -12373,20 +12373,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1604 = 0;
-  i$jscomp$inline_1604 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1604++
+  var i$jscomp$inline_1606 = 0;
+  i$jscomp$inline_1606 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1606++
 ) {
-  var eventName$jscomp$inline_1605 =
-      simpleEventPluginEvents[i$jscomp$inline_1604],
-    domEventName$jscomp$inline_1606 =
-      eventName$jscomp$inline_1605.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1607 =
-      eventName$jscomp$inline_1605[0].toUpperCase() +
-      eventName$jscomp$inline_1605.slice(1);
+  var eventName$jscomp$inline_1607 =
+      simpleEventPluginEvents[i$jscomp$inline_1606],
+    domEventName$jscomp$inline_1608 =
+      eventName$jscomp$inline_1607.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1609 =
+      eventName$jscomp$inline_1607[0].toUpperCase() +
+      eventName$jscomp$inline_1607.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1606,
-    "on" + capitalizedEvent$jscomp$inline_1607
+    domEventName$jscomp$inline_1608,
+    "on" + capitalizedEvent$jscomp$inline_1609
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15898,16 +15898,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1858 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1860 = React.version;
 if (
-  "19.1.0-canary-22e39ea7-20250225" !==
-  isomorphicReactPackageVersion$jscomp$inline_1858
+  "19.1.0-canary-ebc22ef7-20250225" !==
+  isomorphicReactPackageVersion$jscomp$inline_1860
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1858,
-      "19.1.0-canary-22e39ea7-20250225"
+      isomorphicReactPackageVersion$jscomp$inline_1860,
+      "19.1.0-canary-ebc22ef7-20250225"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15927,12 +15927,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1865 = {
+var internals$jscomp$inline_1867 = {
   bundleType: 0,
-  version: "19.1.0-canary-22e39ea7-20250225",
+  version: "19.1.0-canary-ebc22ef7-20250225",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-22e39ea7-20250225",
+  reconcilerVersion: "19.1.0-canary-ebc22ef7-20250225",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$281 = 0;
@@ -15950,16 +15950,16 @@ var internals$jscomp$inline_1865 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2307 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2310 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2307.isDisabled &&
-    hook$jscomp$inline_2307.supportsFiber
+    !hook$jscomp$inline_2310.isDisabled &&
+    hook$jscomp$inline_2310.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2307.inject(
-        internals$jscomp$inline_1865
+      (rendererID = hook$jscomp$inline_2310.inject(
+        internals$jscomp$inline_1867
       )),
-        (injectedHook = hook$jscomp$inline_2307);
+        (injectedHook = hook$jscomp$inline_2310);
     } catch (err) {}
 }
 function noop() {}
@@ -16212,7 +16212,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-22e39ea7-20250225";
+exports.version = "19.1.0-canary-ebc22ef7-20250225";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
