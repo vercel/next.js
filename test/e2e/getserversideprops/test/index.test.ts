@@ -171,6 +171,12 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/rewrite-target\\.json$`
+    ),
+    page: '/rewrite-target',
+  },
+  {
+    dataRouteRegex: normalizeRegEx(
       `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/slow\\.json$`
     ),
     page: '/slow',
