@@ -296,7 +296,6 @@
     },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
-      "@storybook/react@8.5.2": "patches/@storybook__react@8.5.2.patch",
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch"
     }
   }
