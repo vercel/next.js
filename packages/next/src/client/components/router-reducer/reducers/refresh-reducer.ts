@@ -123,7 +123,7 @@ export function refreshReducer(
             undefined
           )
           if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-            revalidateEntireCache()
+            revalidateEntireCache(state.nextUrl, newTree)
           } else {
             mutable.prefetchCache = new Map()
           }

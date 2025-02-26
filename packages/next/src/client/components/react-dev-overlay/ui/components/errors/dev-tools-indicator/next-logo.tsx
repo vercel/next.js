@@ -555,9 +555,9 @@ function NextMark({
           className={isLoading ? 'path0' : 'paused'}
           d="M13.3 15.2 L2.34 1 V12.6"
           fill="none"
-          stroke="url(#paint0_linear_1357_10853)"
+          stroke="url(#next_logo_paint0_linear_1357_10853)"
           strokeWidth="1.86"
-          mask="url(#mask0)"
+          mask="url(#next_logo_mask0)"
           strokeDasharray="29.6"
           strokeDashoffset="29.6"
         />
@@ -565,14 +565,14 @@ function NextMark({
           className={isLoading ? 'path1' : 'paused'}
           d="M11.825 1.5 V13.1"
           strokeWidth="1.86"
-          stroke="url(#paint1_linear_1357_10853)"
+          stroke="url(#next_logo_paint1_linear_1357_10853)"
           strokeDasharray="11.6"
           strokeDashoffset="11.6"
         />
       </g>
       <defs>
         <linearGradient
-          id="paint0_linear_1357_10853"
+          id="next_logo_paint0_linear_1357_10853"
           x1="9.95555"
           y1="11.1226"
           x2="15.4778"
@@ -584,7 +584,7 @@ function NextMark({
           <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
         <linearGradient
-          id="paint1_linear_1357_10853"
+          id="next_logo_paint1_linear_1357_10853"
           x1="11.8222"
           y1="1.40039"
           x2="11.791"
@@ -594,7 +594,7 @@ function NextMark({
           <stop stopColor={strokeColor} />
           <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
-        <mask id="mask0">
+        <mask id="next_logo_mask0">
           <rect width="100%" height="100%" fill="white" />
           <rect width="5" height="1.5" fill="black" />
         </mask>

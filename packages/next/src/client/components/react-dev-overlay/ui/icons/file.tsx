@@ -89,7 +89,7 @@ function File() {
 function React() {
   return (
     <svg height="16" strokeLinejoin="round" viewBox="0 0 16 16" width="16">
-      <g clipPath="url(#clip0_872_3183)">
+      <g clipPath="url(#file_react_clip0_872_3183)">
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -98,7 +98,7 @@ function React() {
         />
       </g>
       <defs>
-        <clipPath id="clip0_872_3183">
+        <clipPath id="file_react_clip0_872_3183">
           <rect width="16" height="16" fill="white"></rect>
         </clipPath>
       </defs>
