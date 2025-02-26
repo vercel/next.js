@@ -1,0 +1,18 @@
+# Codegen
+docs/
+examples/
+prompts/
+jupyter/
+.venv/
+codegen-system-prompt.txt
+
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.txt
+*.pyc
+
+# Keep codemods
+!codemods/
+!codemods/**
