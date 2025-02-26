@@ -347,7 +347,7 @@ pub async fn compute_module_batches(
             let batch = &mut pre_batches.batches[idx];
             batch.items.extend(items);
         }
-        span.record("initial_pre_batch_items", &initial_pre_batch_items);
+        span.record("initial_pre_batch_items", initial_pre_batch_items);
 
         // Create a map of parallel module to the batches they are contained in.
         let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
@@ -486,7 +486,7 @@ pub async fn compute_module_batches(
                 }
             }
         }
-        span.record("extracted_shared_items", &extracted_shared_items);
+        span.record("extracted_shared_items", extracted_shared_items);
 
         // Now every module is only in one batch
 
@@ -534,7 +534,7 @@ pub async fn compute_module_batches(
             }
             pre_batches.batches[i].items = new_items;
         }
-        span.record("pre_batches", &pre_batches.batches.len());
+        span.record("pre_batches", pre_batches.batches.len());
 
         // Now batches are in the correct shape. We can create the real batches and the graph.
 
@@ -596,10 +596,10 @@ pub async fn compute_module_batches(
             .map(|module| graph.add_node(ModuleOrBatch::Module(*module)))
             .collect::<Vec<_>>();
 
-        span.record("batches", &batches_count);
+        span.record("batches", batches_count);
         modules_count += pre_batches.single_module_entries.len();
-        span.record("modules", &modules_count);
-        span.record("edges", &edges_count);
+        span.record("modules", modules_count);
+        span.record("edges", edges_count);
 
         // Add all the edges to the graph
         for (i, pre_batch) in pre_batches.batches.into_iter().enumerate() {

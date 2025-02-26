@@ -133,10 +133,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
             let ty = item.chunk_item.ty().to_resolved().await?;
             if ty != chunk_type {
                 let mut map = FxIndexMap::default();
-                map.insert(
-                    chunk_type,
-                    this.chunk_items[..i].iter().cloned().collect::<Vec<_>>(),
-                );
+                map.insert(chunk_type, this.chunk_items[..i].to_vec());
                 map.insert(ty, vec![item.clone()]);
                 for (_, item) in iter {
                     map.entry(item.chunk_item.ty().to_resolved().await?)
@@ -172,12 +169,14 @@ impl ChunkItemBatchWithAsyncModuleInfo {
     }
 }
 
+type ChunkItemBatchWithAsyncModuleInfoByChunkTypeT = SmallVec<
+    [(
+        ResolvedVc<Box<dyn ChunkType>>,
+        ChunkItemOrBatchWithAsyncModuleInfo,
+    ); 1],
+>;
+
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemBatchWithAsyncModuleInfoByChunkType(
-    SmallVec<
-        [(
-            ResolvedVc<Box<dyn ChunkType>>,
-            ChunkItemOrBatchWithAsyncModuleInfo,
-        ); 1],
-    >,
+    ChunkItemBatchWithAsyncModuleInfoByChunkTypeT,
 );

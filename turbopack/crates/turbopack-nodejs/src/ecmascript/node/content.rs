@@ -56,8 +56,8 @@ pub(super) async fn chunk_items(
         .await?
         .chunk_items
         .iter()
-        .map(async |item| match item {
-            &EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
+        .map(async |item| match *item {
+            EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
                 EcmascriptChunkItemWithAsyncInfo {
                     chunk_item,
                     async_info,
@@ -67,7 +67,7 @@ pub(super) async fn chunk_items(
                 chunk_item.id(),
                 chunk_item.code(async_info.map(|info| *info)),
             )))),
-            &EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => Ok(Either::Right(
+            EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => Ok(Either::Right(
                 batch_id_and_code(*batch)
                     .await?
                     .into_iter()

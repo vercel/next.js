@@ -36,8 +36,8 @@ async fn handle_split_group<'l>(
 }
 
 /// Expands all batches and ensures that there are only terminal ChunkItems left.
-pub async fn expand_batches<'l>(
-    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+pub async fn expand_batches(
+    chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     ty: ResolvedVc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vec<ChunkItemOrBatchWithInfo>> {
