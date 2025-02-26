@@ -1,4 +1,4 @@
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -64,7 +64,7 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
-import { isClientReference } from '../lib/client-reference'
+import { isClientReference } from '../lib/client-and-server-references'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/route-kind'
@@ -402,12 +402,22 @@ export async function printTreeView(
     gzipSize?: boolean
   }
 ) {
-  const getPrettySize = (_size: number): string => {
-    const size = prettyBytes(_size)
-    return white(bold(size))
+  const getPrettySize = (
+    _size: number,
+    { strong }: { strong?: boolean } = {}
+  ): string => {
+    const size = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+      ? 'N/A kB'
+      : prettyBytes(_size)
+
+    return strong ? white(bold(size)) : size
   }
 
-  const MIN_DURATION = 300
+  // Can be overridden for test purposes to omit the build duration output.
+  const MIN_DURATION = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+    ? Infinity // Don't ever log build durations.
+    : 300
+
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
@@ -526,14 +536,14 @@ export async function printTreeView(
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? prettyBytes(pageInfo.size)
+              ? getPrettySize(pageInfo.size)
               : ''
           : '',
         pageInfo
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? getPrettySize(pageInfo.totalSize)
+              ? getPrettySize(pageInfo.totalSize, { strong: true })
               : ''
           : '',
       ])
@@ -553,7 +563,7 @@ export async function printTreeView(
           const size = stats.sizes.get(file)
           messages.push([
             `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
-            typeof size === 'number' ? prettyBytes(size) : '',
+            typeof size === 'number' ? getPrettySize(size) : '',
             '',
           ])
         })
@@ -628,11 +638,16 @@ export async function printTreeView(
     })
 
     const sharedFilesSize = stats.router[routerType]?.common.size.total
-    const sharedFiles = stats.router[routerType]?.common.files ?? []
+
+    const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+      ? []
+      : stats.router[routerType]?.common.files ?? []
 
     messages.push([
       '+ First Load JS shared by all',
-      typeof sharedFilesSize === 'number' ? getPrettySize(sharedFilesSize) : '',
+      typeof sharedFilesSize === 'number'
+        ? getPrettySize(sharedFilesSize, { strong: true })
+        : '',
       '',
     ])
     const sharedCssFiles: string[] = []
@@ -667,13 +682,13 @@ export async function printTreeView(
         return
       }
 
-      messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
+      messages.push([`  ${innerSymbol} ${cleanName}`, getPrettySize(size), ''])
     })
 
     if (restChunkCount > 0) {
       messages.push([
         `  └ other shared chunks (total)`,
-        prettyBytes(restChunkSize),
+        getPrettySize(restChunkSize),
         '',
       ])
     }
@@ -717,7 +732,11 @@ export async function printTreeView(
     )
 
     messages.push(['', '', ''])
-    messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
+    messages.push([
+      'ƒ Middleware',
+      getPrettySize(sum(middlewareSizes), { strong: true }),
+      '',
+    ])
   }
 
   print(
@@ -1006,7 +1025,6 @@ export async function isPageStatic({
     cacheHandlers,
     distDir,
     dir,
-    dynamicIO,
     flushToDisk: isrFlushToDisk,
     cacheMaxMemorySize: maxMemoryCacheSize,
   })
@@ -1466,8 +1484,9 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfig,
+  serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1580,6 +1599,12 @@ export async function copyTracedFiles(
         Log.warn(`Failed to copy traced files for ${pageFile}`, err)
       }
     })
+  }
+
+  if (hasNodeMiddleware) {
+    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+    const middlewareTrace = `${middlewareFile}.nft.json`
+    await handleTraceFiles(middlewareTrace)
   }
 
   if (appPageKeys) {
@@ -1776,7 +1801,13 @@ export function isWebpackClientOnlyLayer(
 export function isWebpackDefaultLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return layer === null || layer === undefined
+  return (
+    layer === null ||
+    layer === undefined ||
+    layer === WEBPACK_LAYERS.pagesDirBrowser ||
+    layer === WEBPACK_LAYERS.pagesDirEdge ||
+    layer === WEBPACK_LAYERS.pagesDirNode
+  )
 }
 
 export function isWebpackBundledLayer(

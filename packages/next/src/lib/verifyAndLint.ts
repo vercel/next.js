@@ -1,5 +1,5 @@
 import { red } from './picocolors'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from './worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
@@ -23,15 +23,13 @@ export async function verifyAndLint(
 
   try {
     lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+      exposedMethods: ['runLintCheck'],
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }) as Worker & {
       runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
     }
-
-    lintWorkers.getStdout().pipe(process.stdout)
-    lintWorkers.getStderr().pipe(process.stderr)
 
     const lintDirs = (configLintDirs ?? ESLINT_DEFAULT_DIRS).reduce(
       (res: string[], d: string) => {

@@ -559,7 +559,59 @@
       }
     }
     function getCurrentStackInDEV() {
-      return "";
+      var owner = resolveOwner();
+      if (null === owner) return "";
+      try {
+        var info = "";
+        if (owner.owner || "string" !== typeof owner.name) {
+          for (; owner; ) {
+            var ownerStack = owner.debugStack;
+            if (null != ownerStack) {
+              if ((owner = owner.owner)) {
+                var JSCompiler_temp_const = info;
+                var error = ownerStack,
+                  prevPrepareStackTrace = Error.prepareStackTrace;
+                Error.prepareStackTrace = void 0;
+                var stack = error.stack;
+                Error.prepareStackTrace = prevPrepareStackTrace;
+                stack.startsWith("Error: react-stack-top-frame\n") &&
+                  (stack = stack.slice(29));
+                var idx = stack.indexOf("\n");
+                -1 !== idx && (stack = stack.slice(idx + 1));
+                idx = stack.indexOf("react-stack-bottom-frame");
+                -1 !== idx && (idx = stack.lastIndexOf("\n", idx));
+                var JSCompiler_inline_result =
+                  -1 !== idx ? (stack = stack.slice(0, idx)) : "";
+                info =
+                  JSCompiler_temp_const + ("\n" + JSCompiler_inline_result);
+              }
+            } else break;
+          }
+          var JSCompiler_inline_result$jscomp$0 = info;
+        } else {
+          JSCompiler_temp_const = owner.name;
+          if (void 0 === prefix)
+            try {
+              throw Error();
+            } catch (x) {
+              (prefix =
+                ((error = x.stack.trim().match(/\n( *(at )?)/)) && error[1]) ||
+                ""),
+                (suffix =
+                  -1 < x.stack.indexOf("\n    at")
+                    ? " (<anonymous>)"
+                    : -1 < x.stack.indexOf("@")
+                      ? "@unknown:0:0"
+                      : "");
+            }
+          JSCompiler_inline_result$jscomp$0 =
+            "\n" + prefix + JSCompiler_temp_const + suffix;
+        }
+      } catch (x) {
+        JSCompiler_inline_result$jscomp$0 =
+          "\nError generating stack: " + x.message + "\n" + x.stack;
+      }
+      return JSCompiler_inline_result$jscomp$0;
     }
     function defaultErrorHandler(error) {
       console.error(error);
@@ -633,7 +685,7 @@
           ? defaultFilterStackFrame
           : filterStackFrame;
       this.didWarnForKey = null;
-      type = createTask(this, model, null, !1, abortSet, null);
+      type = createTask(this, model, null, !1, abortSet, null, null, null);
       pingedTasks.push(type);
     }
     function noop() {}
@@ -644,7 +696,9 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       (task = thenable._debugInfo) &&
         forwardDebugInfo(request, newTask.id, task);
@@ -656,12 +710,7 @@
             newTask.id
           );
         case "rejected":
-          task = thenable.reason;
-          var digest = logRecoverableError(request, task, null);
-          emitErrorChunk(request, newTask.id, digest, task);
-          newTask.status = ERRORED$1;
-          request.abortableTasks.delete(newTask);
-          return newTask.id;
+          return erroredTask(request, newTask, thenable.reason), newTask.id;
         default:
           if (request.status === ABORTING)
             return (
@@ -691,13 +740,8 @@
           pingTask(request, newTask);
         },
         function (reason) {
-          if (newTask.status === PENDING$1) {
-            var _digest = logRecoverableError(request, reason, newTask);
-            emitErrorChunk(request, newTask.id, _digest, reason);
-            newTask.status = ERRORED$1;
-            request.abortableTasks.delete(newTask);
-            enqueueFlush(request);
-          }
+          newTask.status === PENDING$1 &&
+            (erroredTask(request, newTask, reason), enqueueFlush(request));
         }
       );
       return newTask.id;
@@ -723,24 +767,20 @@
             }
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortStream);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortStream),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       function abortStream(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortStream);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortStream),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       var supportsBYOB = stream.supportsBYOB;
       if (void 0 === supportsBYOB)
@@ -756,7 +796,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -802,26 +844,22 @@
             }
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortIterable);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortIterable),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
-        }
+            iterator.throw(reason).then(error, error));
       }
       function abortIterable(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortIterable);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortIterable),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
-        }
+            iterator.throw(reason).then(error, error));
       }
       var isIterator = iterable === iterator,
         streamTask = createTask(
@@ -830,7 +868,9 @@
           task.keyPath,
           task.implicitSlot,
           request.abortableTasks,
-          task.debugOwner
+          task.debugOwner,
+          task.debugStack,
+          task.debugTask
         );
       request.abortableTasks.delete(streamTask);
       request.pendingChunks++;
@@ -883,14 +923,21 @@
       return lazyType;
     }
     function callWithDebugContextInDEV(request, task, callback, arg) {
-      currentOwner = {
+      var componentDebugInfo = {
         name: "",
         env: task.environmentName,
         key: null,
         owner: task.debugOwner
       };
+      componentDebugInfo.stack =
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1);
+      componentDebugInfo.debugStack = task.debugStack;
+      request = componentDebugInfo.debugTask = task.debugTask;
+      currentOwner = componentDebugInfo;
       try {
-        return callback(arg);
+        return request ? request.run(callback.bind(null, arg)) : callback(arg);
       } finally {
         currentOwner = null;
       }
@@ -960,7 +1007,14 @@
           (multiShot._debugInfo = result._debugInfo),
           multiShot);
     }
-    function renderFunctionComponent(request, task, key, Component, props) {
+    function renderFunctionComponent(
+      request,
+      task,
+      key,
+      Component,
+      props,
+      validated
+    ) {
       var prevThenableState = task.thenableState;
       task.thenableState = null;
       if (null === debugID) return outlineTask(request, task);
@@ -977,15 +1031,27 @@
           key: key,
           owner: task.debugOwner
         };
+        componentDebugInfo.stack =
+          null === task.debugStack
+            ? null
+            : filterStackTrace(request, task.debugStack, 1);
         componentDebugInfo.props = props;
+        componentDebugInfo.debugStack = task.debugStack;
+        componentDebugInfo.debugTask = task.debugTask;
         outlineComponentInfo(request, componentDebugInfo);
         emitDebugChunk(request, componentDebugID, componentDebugInfo);
         task.environmentName = componentEnv;
+        2 === validated &&
+          warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
       thenableIndexCounter = 0;
       thenableState = prevThenableState;
       currentComponentDebugInfo = componentDebugInfo;
-      props = callComponentInDEV(Component, props, componentDebugInfo);
+      props = task.debugTask
+        ? task.debugTask.run(
+            callComponentInDEV.bind(null, Component, props, componentDebugInfo)
+          )
+        : callComponentInDEV(Component, props, componentDebugInfo);
       if (request.status === ABORTING)
         throw (
           ("object" !== typeof props ||
@@ -1002,14 +1068,35 @@
         props
       );
       Component = task.keyPath;
-      prevThenableState = task.implicitSlot;
+      validated = task.implicitSlot;
       null !== key
         ? (task.keyPath = null === Component ? key : Component + "," + key)
         : null === Component && (task.implicitSlot = !0);
       request = renderModelDestructive(request, task, emptyRoot, "", props);
       task.keyPath = Component;
-      task.implicitSlot = prevThenableState;
+      task.implicitSlot = validated;
       return request;
+    }
+    function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
+      function logKeyError() {
+        console.error(
+          'Each child in a list should have a unique "key" prop.%s%s See https://react.dev/link/warning-keys for more information.',
+          "",
+          ""
+        );
+      }
+      key = request.didWarnForKey;
+      null == key && (key = request.didWarnForKey = new WeakSet());
+      request = componentDebugInfo.owner;
+      if (null != request) {
+        if (key.has(request)) return;
+        key.add(request);
+      }
+      debugTask
+        ? debugTask.run(
+            callComponentInDEV.bind(null, logKeyError, null, componentDebugInfo)
+          )
+        : callComponentInDEV(logKeyError, null, componentDebugInfo);
     }
     function renderFragment(request, task, children) {
       for (var i = 0; i < children.length; i++) {
@@ -1028,7 +1115,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1047,7 +1136,9 @@
             REACT_FRAGMENT_TYPE,
             task.keyPath,
             { children: children },
-            null
+            null,
+            null,
+            0
           ]),
           task.implicitSlot ? [request] : request
         );
@@ -1061,14 +1152,16 @@
         task.keyPath,
         task.implicitSlot,
         request.abortableTasks,
-        task.debugOwner
+        task.debugOwner,
+        task.debugStack,
+        task.debugTask
       );
       retryTask(request, task);
       return task.status === COMPLETED
         ? serializeByValueID(task.id)
         : "$L" + task.id.toString(16);
     }
-    function renderElement(request, task, type, key, ref, props) {
+    function renderElement(request, task, type, key, ref, props, validated) {
       if (null !== ref && void 0 !== ref)
         throw Error(
           "Refs cannot be used in Server Components, nor passed to Client Components."
@@ -1084,7 +1177,22 @@
       ) {
         if (type === REACT_FRAGMENT_TYPE && null === key)
           return (
-            (type = task.implicitSlot),
+            2 === validated &&
+              ((validated = {
+                name: "Fragment",
+                env: (0, request.environmentName)(),
+                key: key,
+                owner: task.debugOwner,
+                stack:
+                  null === task.debugStack
+                    ? null
+                    : filterStackTrace(request, task.debugStack, 1),
+                props: props,
+                debugStack: task.debugStack,
+                debugTask: task.debugTask
+              }),
+              warnForMissingKey(request, key, validated, task.debugTask)),
+            (validated = task.implicitSlot),
             null === task.keyPath && (task.implicitSlot = !0),
             (request = renderModelDestructive(
               request,
@@ -1093,7 +1201,7 @@
               "",
               props.children
             )),
-            (task.implicitSlot = type),
+            (task.implicitSlot = validated),
             request
           );
         if (
@@ -1105,26 +1213,61 @@
             case REACT_LAZY_TYPE:
               type = callLazyInitInDEV(type);
               if (request.status === ABORTING) throw null;
-              return renderElement(request, task, type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_FORWARD_REF_TYPE:
               return renderFunctionComponent(
                 request,
                 task,
                 key,
                 type.render,
-                props
+                props,
+                validated
               );
             case REACT_MEMO_TYPE:
-              return renderElement(request, task, type.type, key, ref, props);
+              return renderElement(
+                request,
+                task,
+                type.type,
+                key,
+                ref,
+                props,
+                validated
+              );
             case REACT_ELEMENT_TYPE:
               type._store.validated = 1;
           }
-      } else return renderFunctionComponent(request, task, key, type, props);
+      } else
+        return renderFunctionComponent(
+          request,
+          task,
+          key,
+          type,
+          props,
+          validated
+        );
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
       null !== task.debugOwner &&
         outlineComponentInfo(request, task.debugOwner);
-      request = [REACT_ELEMENT_TYPE, type, key, props, task.debugOwner];
+      request = [
+        REACT_ELEMENT_TYPE,
+        type,
+        key,
+        props,
+        task.debugOwner,
+        null === task.debugStack
+          ? null
+          : filterStackTrace(request, task.debugStack, 1),
+        validated
+      ];
       task = task.implicitSlot && null !== key ? [request] : request;
       return task;
     }
@@ -1147,7 +1290,9 @@
       keyPath,
       implicitSlot,
       abortSet,
-      debugOwner
+      debugOwner,
+      debugStack,
+      debugTask
     ) {
       request.pendingChunks++;
       var id = request.nextChunkId++;
@@ -1195,6 +1340,8 @@
       };
       task.environmentName = request.environmentName();
       task.debugOwner = debugOwner;
+      task.debugStack = debugStack;
+      task.debugTask = debugTask;
       abortSet.add(task);
       return task;
     }
@@ -1287,6 +1434,8 @@
         null,
         !1,
         request.abortableTasks,
+        null,
+        null,
         null
       );
       retryTask(request, value);
@@ -1358,24 +1507,20 @@
             );
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortBlob);
-          var digest = logRecoverableError(request, reason, newTask);
-          emitErrorChunk(request, newTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortBlob),
+          erroredTask(request, newTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       function abortBlob(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortBlob);
-          var digest = logRecoverableError(request, reason, newTask);
-          emitErrorChunk(request, newTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortBlob),
+          erroredTask(request, newTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       var model = [blob.type],
         newTask = createTask(
@@ -1384,6 +1529,8 @@
           null,
           !1,
           request.abortableTasks,
+          null,
+          null,
           null
         ),
         reader = blob.stream().getReader(),
@@ -1426,7 +1573,9 @@
               task.keyPath,
               task.implicitSlot,
               request.abortableTasks,
-              task.debugOwner
+              task.debugOwner,
+              task.debugStack,
+              task.debugTask
             )),
             (value = request.ping),
             key.then(value, value),
@@ -1483,13 +1632,16 @@
             _existingReference = value.props;
             var refProp = _existingReference.ref;
             task.debugOwner = value._owner;
+            task.debugStack = value._debugStack;
+            task.debugTask = value._debugTask;
             request = renderElement(
               request,
               task,
               value.type,
               value.key,
               void 0 !== refProp ? refProp : null,
-              _existingReference
+              _existingReference,
+              value._store.validated
             );
             "object" === typeof request &&
               null !== request &&
@@ -1775,8 +1927,10 @@
         : ((request.status = CLOSING), (request.fatalError = error));
     }
     function serializeErrorValue(request, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
+        name = error.name;
         var message = String(error.message);
         var stack = filterStackTrace(request, error, 0);
         var errorEnv = error.environmentName;
@@ -1789,6 +1943,7 @@
       return (
         "$Z" +
         outlineModel(request, {
+          name: name,
           message: message,
           stack: stack,
           env: env
@@ -1796,9 +1951,11 @@
       );
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
+          name = error.name;
           var message = String(error.message);
           var stack = filterStackTrace(request, error, 0);
           var errorEnv = error.environmentName;
@@ -1814,7 +1971,13 @@
           "An error occurred but serializing the error message failed."),
           (stack = []);
       }
-      digest = { digest: digest, message: message, stack: stack, env: env };
+      digest = {
+        digest: digest,
+        name: name,
+        message: message,
+        stack: stack,
+        env: env
+      };
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       id = stringToChunk(id);
       request.completedErrorChunks.push(id);
@@ -1857,6 +2020,7 @@
           key: componentInfo.key,
           owner: componentInfo.owner
         };
+        componentDebugInfo.stack = componentInfo.stack;
         componentDebugInfo.props = componentInfo.props;
         objectLimit = outlineConsoleValue(
           request,
@@ -1922,25 +2086,34 @@
         counter.objectLimit--;
         switch (value.$$typeof) {
           case REACT_ELEMENT_TYPE:
-            return (
-              null != value._owner &&
-                outlineComponentInfo(request, value._owner),
-              "object" === typeof value.type &&
-                null !== value.type &&
-                doNotLimit.add(value.type),
-              "object" === typeof value.key &&
-                null !== value.key &&
-                doNotLimit.add(value.key),
-              doNotLimit.add(value.props),
-              null !== value._owner && doNotLimit.add(value._owner),
-              [
-                REACT_ELEMENT_TYPE,
-                value.type,
-                value.key,
-                value.props,
-                value._owner
-              ]
-            );
+            null != value._owner && outlineComponentInfo(request, value._owner);
+            "object" === typeof value.type &&
+              null !== value.type &&
+              doNotLimit.add(value.type);
+            "object" === typeof value.key &&
+              null !== value.key &&
+              doNotLimit.add(value.key);
+            doNotLimit.add(value.props);
+            null !== value._owner && doNotLimit.add(value._owner);
+            counter = null;
+            if (null != value._debugStack)
+              for (
+                counter = filterStackTrace(request, value._debugStack, 1),
+                  doNotLimit.add(counter),
+                  request = 0;
+                request < counter.length;
+                request++
+              )
+                doNotLimit.add(counter[request]);
+            return [
+              REACT_ELEMENT_TYPE,
+              value.type,
+              value.key,
+              value.props,
+              value._owner,
+              counter,
+              value._store.validated
+            ];
         }
         if ("function" === typeof value.then) {
           switch (value.status) {
@@ -2139,10 +2312,11 @@
     }
     function forwardDebugInfo(request, id, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
-        request.pendingChunks++,
+        "number" !== typeof debugInfo[i].time &&
+          (request.pendingChunks++,
           "string" === typeof debugInfo[i].name &&
             outlineComponentInfo(request, debugInfo[i]),
-          emitDebugChunk(request, id, debugInfo[i]);
+          emitDebugChunk(request, id, debugInfo[i]));
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2177,6 +2351,12 @@
                                   : ((value = stringify(value, task.toJSON)),
                                     emitModelChunk(request, task.id, value));
     }
+    function erroredTask(request, task, error) {
+      request.abortableTasks.delete(task);
+      task.status = ERRORED$1;
+      var digest = logRecoverableError(request, error, task);
+      emitErrorChunk(request, task.id, digest, error);
+    }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
         var prevDebugID = debugID;
@@ -2195,22 +2375,18 @@
           modelRoot = resolvedModel;
           task.keyPath = null;
           task.implicitSlot = !1;
-          if ("object" === typeof resolvedModel && null !== resolvedModel) {
+          var currentEnv = (0, request.environmentName)();
+          currentEnv !== task.environmentName &&
+            (request.pendingChunks++,
+            emitDebugChunk(request, task.id, { env: currentEnv }));
+          if ("object" === typeof resolvedModel && null !== resolvedModel)
             request.writtenObjects.set(
               resolvedModel,
               serializeByValueID(task.id)
-            );
-            var currentEnv = (0, request.environmentName)();
-            currentEnv !== task.environmentName &&
-              (request.pendingChunks++,
-              emitDebugChunk(request, task.id, { env: currentEnv }));
-            emitChunk(request, task, resolvedModel);
-          } else {
-            var json = stringify(resolvedModel),
-              _currentEnv = (0, request.environmentName)();
-            _currentEnv !== task.environmentName &&
-              (request.pendingChunks++,
-              emitDebugChunk(request, task.id, { env: _currentEnv }));
+            ),
+              emitChunk(request, task, resolvedModel);
+          else {
+            var json = stringify(resolvedModel);
             emitModelChunk(request, task.id, json);
           }
           request.abortableTasks.delete(task);
@@ -2235,12 +2411,7 @@
               task.thenableState = getThenableStateAfterSuspending();
               var ping = task.ping;
               x.then(ping, ping);
-            } else {
-              request.abortableTasks.delete(task);
-              task.status = ERRORED$1;
-              var digest = logRecoverableError(request, x, task);
-              emitErrorChunk(request, task.id, digest, x);
-            }
+            } else erroredTask(request, task, x);
           }
         } finally {
           debugID = prevDebugID;
@@ -2363,6 +2534,19 @@
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
         }));
+    }
+    function startFlowing(request, destination) {
+      if (request.status === CLOSING)
+        (request.status = CLOSED),
+          closeWithError(destination, request.fatalError);
+      else if (request.status !== CLOSED && null === request.destination) {
+        request.destination = destination;
+        try {
+          flushCompletedChunks(request, destination);
+        } catch (error) {
+          logRecoverableError(request, error, null), fatalError(request, error);
+        }
+      }
     }
     function abort(request, reason) {
       try {
@@ -2694,6 +2878,8 @@
       }
     }
     function reportGlobalError(response, error) {
+      response._closed = !0;
+      response._closedReason = error;
       response._chunks.forEach(function (chunk) {
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
@@ -2706,7 +2892,9 @@
         (chunk =
           null != chunk
             ? new Chunk("resolved_model", chunk, id, response)
-            : createPendingChunk(response)),
+            : response._closed
+              ? new Chunk("rejected", null, response._closedReason, response)
+              : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -3133,6 +3321,8 @@
         _prefix: formFieldPrefix,
         _formData: backingFormData,
         _chunks: chunks,
+        _closed: !1,
+        _closedReason: null,
         _temporaryReferences: temporaryReferences
       };
     }
@@ -3435,45 +3625,7 @@
       thenableState = null,
       currentComponentDebugInfo = null,
       HooksDispatcher = {
-        useMemo: function (nextCreate) {
-          return nextCreate();
-        },
-        useCallback: function (callback) {
-          return callback;
-        },
-        useDebugValue: function () {},
-        useDeferredValue: unsupportedHook,
-        useTransition: unsupportedHook,
         readContext: unsupportedContext,
-        useContext: unsupportedContext,
-        useReducer: unsupportedHook,
-        useRef: unsupportedHook,
-        useState: unsupportedHook,
-        useInsertionEffect: unsupportedHook,
-        useLayoutEffect: unsupportedHook,
-        useImperativeHandle: unsupportedHook,
-        useEffect: unsupportedHook,
-        useId: function () {
-          if (null === currentRequest$1)
-            throw Error("useId can only be used while React is rendering");
-          var id = currentRequest$1.identifierCount++;
-          return (
-            ":" +
-            currentRequest$1.identifierPrefix +
-            "S" +
-            id.toString(32) +
-            ":"
-          );
-        },
-        useSyncExternalStore: unsupportedHook,
-        useCacheRefresh: function () {
-          return unsupportedRefresh;
-        },
-        useMemoCache: function (size) {
-          for (var data = Array(size), i = 0; i < size; i++)
-            data[i] = REACT_MEMO_CACHE_SENTINEL;
-          return data;
-        },
         use: function (usable) {
           if (
             (null !== usable && "object" === typeof usable) ||
@@ -3500,6 +3652,48 @@
           throw Error(
             "An unsupported type was passed to use(): " + String(usable)
           );
+        },
+        useCallback: function (callback) {
+          return callback;
+        },
+        useContext: unsupportedContext,
+        useEffect: unsupportedHook,
+        useImperativeHandle: unsupportedHook,
+        useLayoutEffect: unsupportedHook,
+        useInsertionEffect: unsupportedHook,
+        useMemo: function (nextCreate) {
+          return nextCreate();
+        },
+        useReducer: unsupportedHook,
+        useRef: unsupportedHook,
+        useState: unsupportedHook,
+        useDebugValue: function () {},
+        useDeferredValue: unsupportedHook,
+        useTransition: unsupportedHook,
+        useSyncExternalStore: unsupportedHook,
+        useId: function () {
+          if (null === currentRequest$1)
+            throw Error("useId can only be used while React is rendering");
+          var id = currentRequest$1.identifierCount++;
+          return (
+            ":" +
+            currentRequest$1.identifierPrefix +
+            "S" +
+            id.toString(32) +
+            ":"
+          );
+        },
+        useHostTransitionStatus: unsupportedHook,
+        useFormState: unsupportedHook,
+        useActionState: unsupportedHook,
+        useOptimistic: unsupportedHook,
+        useMemoCache: function (size) {
+          for (var data = Array(size), i = 0; i < size; i++)
+            data[i] = REACT_MEMO_CACHE_SENTINEL;
+          return data;
+        },
+        useCacheRefresh: function () {
+          return unsupportedRefresh;
         }
       },
       currentOwner = null,
@@ -3521,6 +3715,7 @@
       throw Error(
         'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
       );
+    var prefix, suffix;
     new ("function" === typeof WeakMap ? WeakMap : Map)();
     var callComponent = {
         "react-stack-bottom-frame": function (
@@ -3745,21 +3940,7 @@
             startWork(request);
           },
           pull: function (controller) {
-            if (request.status === CLOSING)
-              (request.status = CLOSED),
-                closeWithError(controller, request.fatalError);
-            else if (
-              request.status !== CLOSED &&
-              null === request.destination
-            ) {
-              request.destination = controller;
-              try {
-                flushCompletedChunks(request, controller);
-              } catch (error) {
-                logRecoverableError(request, error, null),
-                  fatalError(request, error);
-              }
-            }
+            startFlowing(request, controller);
           },
           cancel: function (reason) {
             request.destination = null;
@@ -3768,5 +3949,52 @@
         },
         { highWaterMark: 0 }
       );
+    };
+    exports.unstable_prerender = function (model, webpackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = new RequestInstance(
+          PRERENDER,
+          model,
+          webpackMap,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          function () {
+            var stream = new ReadableStream(
+              {
+                type: "bytes",
+                start: function () {
+                  startWork(request);
+                },
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+            resolve({ prelude: stream });
+          },
+          reject
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
     };
   })();

@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     env::current_dir,
     future::{join, Future},
     io::{stdout, Write},
@@ -11,14 +10,17 @@ use std::{
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
+use turbo_tasks_backend::{
+    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -32,7 +34,7 @@ use turbopack_dev_server::{
         combined::CombinedContentSource, router::PrefixedRouterContentSource,
         static_assets::StaticAssetsContentSource, ContentSource,
     },
-    DevServer, DevServerBuilder,
+    DevServer, DevServerBuilder, NonLocalSourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -50,8 +52,10 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
+type Backend = TurboTasksBackend<NoopBackingStorage>;
+
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -68,7 +72,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: Arc<TurboTasks<Backend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -220,13 +224,15 @@ impl TurbopackDevServerBuilder {
                 browserslist_query.clone(),
             )
         };
+        // safety: Everything that `source` captures in its closure is a `NonLocalValue`
+        let source = unsafe { NonLocalSourceProvider::new(source) };
 
         let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
         Ok(server.serve(tasks, source, issue_reporter_arc))
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,
@@ -242,19 +248,28 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs = project_fs(root_dir);
-    let project_path = fs.root().join(project_relative).to_resolved().await?;
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
+    let root_path = fs.root().to_resolved().await?;
+    let project_path = root_path.join(project_relative).to_resolved().await?;
 
-    let env = load_env(*project_path);
+    let env = load_env(*root_path);
     let build_output_root = output_fs
         .root()
         .join(".turbopack/build".into())
         .to_resolved()
         .await?;
 
+    let build_output_root_to_root_path = project_path
+        .join(".turbopack/build".into())
+        .await?
+        .get_relative_path_to(&*root_path.await?)
+        .context("Project path is in root path")?;
+    let build_output_root_to_root_path = ResolvedVc::cell(build_output_root_to_root_path);
+
     let build_chunking_context = NodeJsChunkingContext::builder(
-        project_path,
+        root_path,
         build_output_root,
+        build_output_root_to_root_path,
         build_output_root,
         build_output_root
             .join("chunks".into())
@@ -270,7 +285,7 @@ async fn source(
     .build();
 
     let execution_context =
-        ExecutionContext::new(*project_path, Vc::upcast(build_chunking_context), env);
+        ExecutionContext::new(*root_path, Vc::upcast(build_chunking_context), env);
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
     let server_root = server_fs.root();
@@ -292,14 +307,16 @@ async fn source(
         })
         .collect();
 
-    let web_source = create_web_entry_source(
-        *project_path,
+    let web_source: ResolvedVc<Box<dyn ContentSource>> = create_web_entry_source(
+        *root_path,
         execution_context,
         entry_requests,
         server_root,
+        Vc::cell("/ROOT".into()),
         env,
         eager_compile,
         NodeEnv::Development.cell(),
+        Default::default(),
         browserslist_query,
     )
     .to_resolved()
@@ -314,7 +331,7 @@ async fn source(
         .await?;
     let introspect = ResolvedVc::upcast(
         IntrospectionSource {
-            roots: HashSet::from([ResolvedVc::upcast(main_source)]),
+            roots: FxHashSet::from_iter([ResolvedVc::upcast(main_source)]),
         }
         .resolved_cell(),
     );
@@ -344,10 +361,12 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(MemoryBackend::new(
-        args.common
-            .memory_limit
-            .map_or(usize::MAX, |l| l * 1024 * 1024),
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
     ));
 
     let tt_clone = tt.clone();
@@ -491,7 +510,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<MemoryBackend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -511,7 +530,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<MemoryBackend>, future: impl Future<
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<MemoryBackend>,
+    _tt: &TurboTasks<Backend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

@@ -27,4 +27,6 @@ export const NEXT_RSC_UNION_QUERY = '_rsc' as const
 
 export const NEXT_ROUTER_STALE_TIME_HEADER = 'x-nextjs-stale-time' as const
 export const NEXT_DID_POSTPONE_HEADER = 'x-nextjs-postponed' as const
+export const NEXT_REWRITTEN_PATH_HEADER = 'x-nextjs-rewritten-path' as const
+export const NEXT_REWRITTEN_QUERY_HEADER = 'x-nextjs-rewritten-query' as const
 export const NEXT_IS_PRERENDER_HEADER = 'x-nextjs-prerender' as const

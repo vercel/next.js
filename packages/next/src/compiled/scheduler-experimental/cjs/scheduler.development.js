@@ -28,15 +28,7 @@
             try {
               b: {
                 advanceTimers(currentTime);
-                for (
-                  currentTask = peek(taskQueue);
-                  null !== currentTask &&
-                  !(
-                    currentTask.expirationTime > currentTime &&
-                    shouldYieldToHost()
-                  );
-
-                ) {
+                for (currentTask = peek(taskQueue); null !== currentTask; ) {
                   var callback = currentTask.callback;
                   if ("function" === typeof callback) {
                     currentTask.callback = null;
@@ -55,6 +47,11 @@
                     advanceTimers(currentTime);
                   } else pop(taskQueue);
                   currentTask = peek(taskQueue);
+                  if (
+                    null === currentTask ||
+                    currentTask.expirationTime > currentTime
+                  )
+                    break;
                 }
                 if (null !== currentTask) hasMoreWork = !0;
                 else {
@@ -150,7 +147,9 @@
       advanceTimers(currentTime);
       if (!isHostCallbackScheduled)
         if (null !== peek(taskQueue))
-          (isHostCallbackScheduled = !0), requestHostCallback();
+          (isHostCallbackScheduled = !0),
+            isMessageLoopRunning ||
+              ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline());
         else {
           var firstTimer = peek(timerQueue);
           null !== firstTimer &&
@@ -159,13 +158,6 @@
               firstTimer.startTime - currentTime
             );
         }
-    }
-    function shouldYieldToHost() {
-      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
-    }
-    function requestHostCallback() {
-      isMessageLoopRunning ||
-        ((isMessageLoopRunning = !0), schedulePerformWorkUntilDeadline());
     }
     function requestHostTimeout(callback, ms) {
       taskTimeoutID = localSetTimeout(function () {
@@ -233,11 +225,6 @@
     exports.unstable_cancelCallback = function (task) {
       task.callback = null;
     };
-    exports.unstable_continueExecution = function () {
-      isHostCallbackScheduled ||
-        isPerformingWork ||
-        ((isHostCallbackScheduled = !0), requestHostCallback());
-    };
     exports.unstable_forceFrameRate = function (fps) {
       0 > fps || 125 < fps
         ? console.error(
@@ -247,9 +234,6 @@
     };
     exports.unstable_getCurrentPriorityLevel = function () {
       return currentPriorityLevel;
-    };
-    exports.unstable_getFirstCallbackNode = function () {
-      return peek(taskQueue);
     };
     exports.unstable_next = function (eventHandler) {
       switch (currentPriorityLevel) {
@@ -269,7 +253,6 @@
         currentPriorityLevel = previousPriorityLevel;
       }
     };
-    exports.unstable_pauseExecution = function () {};
     exports.unstable_requestPaint = function () {};
     exports.unstable_runWithPriority = function (priorityLevel, eventHandler) {
       switch (priorityLevel) {
@@ -341,10 +324,15 @@
           push(taskQueue, priorityLevel),
           isHostCallbackScheduled ||
             isPerformingWork ||
-            ((isHostCallbackScheduled = !0), requestHostCallback()));
+            ((isHostCallbackScheduled = !0),
+            isMessageLoopRunning ||
+              ((isMessageLoopRunning = !0),
+              schedulePerformWorkUntilDeadline())));
       return priorityLevel;
     };
-    exports.unstable_shouldYield = shouldYieldToHost;
+    exports.unstable_shouldYield = function () {
+      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
+    };
     exports.unstable_wrapCallback = function (callback) {
       var parentPriorityLevel = currentPriorityLevel;
       return function () {

@@ -9,6 +9,7 @@ import {
 } from 'next-test-utils'
 import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
+import nodeFs from 'fs'
 import { join } from 'path'
 
 const GENERIC_RSC_ERROR =
@@ -888,9 +889,9 @@ describe('app-dir action handling', () => {
     async (runtime) => {
       let redirectResponseCode
       const browser = await next.browser(`/delayed-action/${runtime}`, {
-        beforePageLoad(page) {
+        beforePageLoad(page: Page) {
           page.on('response', async (res: Response) => {
-            const headers = await res.allHeaders()
+            const headers = await res.allHeaders().catch(() => ({}))
             if (headers['x-action-redirect']) {
               redirectResponseCode = res.status()
             }
@@ -919,19 +920,24 @@ describe('app-dir action handling', () => {
 
   if (isNextStart) {
     it('should not expose action content in sourcemaps', async () => {
-      const sourcemap = (
-        await fs.readdir(
-          join(next.testDir, '.next', 'static', 'chunks', 'app', 'client')
+      // We check all sourcemaps in the `static` folder for sensitive information given that chunking
+      const sourcemaps = nodeFs
+        .readdirSync(join(next.testDir, '.next', 'static'), {
+          recursive: true,
+          encoding: 'utf8',
+        })
+        .filter((f) => f.endsWith('.js.map'))
+        .map((f) =>
+          nodeFs.readFileSync(join(next.testDir, '.next', 'static', f), {
+            encoding: 'utf8',
+          })
         )
-      ).find((f) => f.endsWith('.js.map'))
 
-      expect(sourcemap).toBeDefined()
+      expect(sourcemaps).not.toBeEmpty()
 
-      expect(
-        await next.readFile(
-          join('.next', 'static', 'chunks', 'app', 'client', sourcemap)
-        )
-      ).not.toContain('this_is_sensitive_info')
+      for (const sourcemap of sourcemaps) {
+        expect(sourcemap).not.toContain('this_is_sensitive_info')
+      }
     })
   }
 
@@ -1866,5 +1872,21 @@ describe('app-dir action handling', () => {
         expect(newNumber).toBe(firstNumber)
       })
     })
+  })
+
+  describe('request body decoding', () => {
+    it.each(['node', 'edge'])(
+      'should correctly decode multi-byte characters in the request body (%s)',
+      async (runtime) => {
+        const browser = await next.browser(`/decode-req-body/${runtime}`)
+
+        await browser.elementByCss('button').click()
+        const result = await browser.elementByCss('p').text()
+
+        expect(result).toEqual(
+          'Server responded with 100000 あ characters and 0 � characters.'
+        )
+      }
+    )
   })
 })

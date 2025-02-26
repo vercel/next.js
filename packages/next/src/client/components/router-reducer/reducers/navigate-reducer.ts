@@ -21,10 +21,7 @@ import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
-import {
-  listenForDynamicRequest,
-  updateCacheNodeOnNavigation,
-} from '../ppr-navigations'
+import { listenForDynamicRequest, startPPRNavigation } from '../ppr-navigations'
 import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
@@ -123,10 +120,10 @@ function handleNavigationResult(
       mutable.cache = result.data.cacheNode
       mutable.patchedTree = result.data.flightRouterState
       mutable.canonicalUrl = result.data.canonicalUrl
+      mutable.scrollableSegments = result.data.scrollableSegments
+      mutable.shouldScroll = result.data.shouldScroll
       // TODO: Not yet implemented
-      // mutable.scrollableSegments = scrollableSegments
       // mutable.hashFragment = hash
-      // mutable.shouldScroll = shouldScroll
       return handleMutable(state, mutable)
     }
     case NavigationResultTag.Async: {
@@ -173,7 +170,7 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, href, pendingPush)
   }
 
-  if (process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+  if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
     // (Very Early Experimental Feature) Segment Cache
     //
     // Bypass the normal prefetch cache and use the new per-segment cache
@@ -189,7 +186,8 @@ export function navigateReducer(
       url,
       state.cache,
       state.tree,
-      state.nextUrl
+      state.nextUrl,
+      shouldScroll
     )
     return handleNavigationResult(state, mutable, pendingPush, result)
   }
@@ -296,33 +294,35 @@ export function navigateReducer(
         }
 
         if (newTree !== null) {
-          if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-            return handleExternalUrl(state, mutable, href, pendingPush)
-          }
-
           if (
             // This is just a paranoid check. When a route is PPRed, the server
             // will send back a static response that's rendered from
             // the root. If for some reason it doesn't, we fall back to the
             // non-PPR implementation.
             // TODO: We should get rid of the else branch and do all navigations
-            // via updateCacheNodeOnNavigation. The current structure is just
+            // via startPPRNavigation. The current structure is just
             // an incremental step.
             seedData &&
             isRootRender &&
             postponed
           ) {
-            const task = updateCacheNodeOnNavigation(
+            const task = startPPRNavigation(
               currentCache,
               currentTree,
               treePatch,
               seedData,
               head,
-              isHeadPartial
+              isHeadPartial,
+              scrollableSegments
             )
 
             if (task !== null) {
-              // Use the tree computed by updateCacheNodeOnNavigation instead
+              if (task.route === null) {
+                // Detected a change to the root layout. Perform an full-
+                // page navigation.
+                return handleExternalUrl(state, mutable, href, pendingPush)
+              }
+              // Use the tree computed by startPPRNavigation instead
               // of the one computed by applyRouterStatePatchToTree.
               // TODO: We should remove applyRouterStatePatchToTree
               // from the PPR path entirely.
@@ -379,6 +379,11 @@ export function navigateReducer(
             // given that PPR prefetches are always static and return the whole
             // tree. Or in the meantime we could factor it out into a
             // separate function.
+
+            if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+              return handleExternalUrl(state, mutable, href, pendingPush)
+            }
+
             const cache: CacheNode = createEmptyCacheNode()
             let applied = false
 
@@ -434,20 +439,23 @@ export function navigateReducer(
               // segments in the FlightDataPath will be able to reference the updated cache.
               currentCache = cache
             }
+
+            for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+              const scrollableSegmentPath = [
+                ...flightSegmentPath,
+                ...subSegment,
+              ]
+              // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+              if (
+                scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+                DEFAULT_SEGMENT_KEY
+              ) {
+                scrollableSegments.push(scrollableSegmentPath)
+              }
+            }
           }
 
           currentTree = newTree
-
-          for (const subSegment of generateSegmentsFromPatch(treePatch)) {
-            const scrollableSegmentPath = [...flightSegmentPath, ...subSegment]
-            // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
-            if (
-              scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              DEFAULT_SEGMENT_KEY
-            ) {
-              scrollableSegments.push(scrollableSegmentPath)
-            }
-          }
         }
       }
 

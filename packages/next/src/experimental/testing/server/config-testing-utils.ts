@@ -18,6 +18,7 @@ import type {
 import type { BaseNextRequest } from '../../../server/base-http'
 import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
+import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -122,8 +123,11 @@ export async function unstable_getResponseFromNextConfig({
       params,
       query: parsedUrl.query,
     })
+    const searchParams = new URLSearchParams(
+      parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
+    )
     return new URL(
-      newUrl,
+      searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
         : parsedUrl.host

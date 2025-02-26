@@ -5,7 +5,29 @@ description: API reference for the generateStaticParams function.
 
 The `generateStaticParams` function can be used in combination with [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes) to [**statically generate**](/docs/app/building-your-application/rendering/server-components#static-rendering-default) routes at build time instead of on-demand at request time.
 
-```jsx filename="app/blog/[slug]/page.js"
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// Return a list of `params` to populate the [slug] dynamic segment
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+
+// Multiple versions of this page will be statically generated
+// using the `params` returned by `generateStaticParams`
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  // ...
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
 // Return a list of `params` to populate the [slug] dynamic segment
 export async function generateStaticParams() {
   const posts = await fetch('https://.../posts').then((res) => res.json())
@@ -193,6 +215,16 @@ export async function generateStaticParams() {
 }
 ```
 
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  return posts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
 #### Subset of paths at build time
 
 To statically render a subset of paths at build time, and the rest the first time they're visited at runtime, return a partial list of paths:
@@ -208,9 +240,34 @@ export async function generateStaticParams() {
 }
 ```
 
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+
+  // Render the first 10 posts at build time
+  return posts.slice(0, 10).map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
 Then, by using the [`dynamicParams`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) segment config option, you can control what happens when a dynamic segment is visited that was not generated with `generateStaticParams`.
 
-```jsx filename="app/blog/[slug]/page.js"
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+// All posts besides the top 10 will be a 404
+export const dynamicParams = false
+
+export async function generateStaticParams() {
+  const posts = await fetch('https://.../posts').then((res) => res.json())
+  const topPosts = posts.slice(0, 10)
+
+  return topPosts.map((post) => ({
+    slug: post.slug,
+  }))
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
 // All posts besides the top 10 will be a 404
 export const dynamicParams = false
 

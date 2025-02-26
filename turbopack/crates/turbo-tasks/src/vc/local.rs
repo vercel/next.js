@@ -33,17 +33,8 @@ use crate::{marker_trait::impl_auto_marker_trait, OperationVc, ResolvedVc};
 /// [`negative_impls`]: https://doc.rust-lang.org/beta/unstable-book/language-features/negative-impls.html
 pub unsafe trait NonLocalValue {}
 
-// TODO(bgw): These trait implementations aren't correct, as these values `T` could contain
-// references to local `Vc` values. We must also check that `T: NonLocalValue`. However, we're
-// temporarily ignoring that problem, as:
-//
-// - We don't *currently* depend on `NonLocalValue` for safety (local tasks aren't enabled).
-// - We intend to make all `VcValueType`s implement `NonLocalValue`, so implementing this for all
-//   values is approximating that future state.
-// - Adding a `T: NonLocalValue` bound introduces a lot of noise that isn't directly actionable for
-//   types that include a `ResolvedVc` or `OperationVc` that is not *yet* a `NonLocalValue`.
-unsafe impl<T: ?Sized> NonLocalValue for OperationVc<T> {}
-unsafe impl<T: ?Sized> NonLocalValue for ResolvedVc<T> {}
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for OperationVc<T> {}
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for ResolvedVc<T> {}
 
 impl_auto_marker_trait!(NonLocalValue);
 

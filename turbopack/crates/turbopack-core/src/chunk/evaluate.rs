@@ -14,7 +14,7 @@ use crate::{
 ///
 /// The chunking context implementation will resolve the dynamic entry to a
 /// well-known value or trait object.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 
 pub trait EvaluatableAssetExt {
@@ -81,7 +81,7 @@ impl EvaluatableAssets {
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     ) -> Result<Vc<EvaluatableAssets>> {
-        let mut entries = self.await?.clone_value();
+        let mut entries = self.owned().await?;
         entries.push(entry);
         Ok(EvaluatableAssets(entries).cell())
     }

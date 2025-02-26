@@ -41,6 +41,10 @@ export class NextDevInstance extends NextInstance {
       startArgs = this.startCommand.split(' ')
     }
 
+    if (this.startOptions) {
+      startArgs.push(...this.startOptions)
+    }
+
     if (process.env.NEXT_SKIP_ISOLATE) {
       // without isolation yarn can't be used and pnpm must be used instead
       if (startArgs[0] === 'yarn') {
@@ -157,13 +161,13 @@ export class NextDevInstance extends NextInstance {
   ) {
     await this.handleDevWatchDelayBeforeChange(filename)
     try {
-      const cliOutputLengthBefore = this.cliOutput.length
+      let cliOutputLength = this.cliOutput.length
       const isServerRunning = this.childProcess && !this.isStopping
 
       const detectServerRestart = async () => {
         await retry(async () => {
           const isServerReady = this.serverReadyPattern.test(
-            this.cliOutput.slice(cliOutputLengthBefore)
+            this.cliOutput.slice(cliOutputLength)
           )
           if (isServerRunning && !isServerReady) {
             throw new Error('Server has not finished restarting.')
@@ -198,6 +202,7 @@ export class NextDevInstance extends NextInstance {
           runWithTempContent
             ? async (...args) => {
                 await waitServerToBeReadyAfterPatchFile()
+                cliOutputLength = this.cliOutput.length
 
                 return runWithTempContent(...args)
               }
