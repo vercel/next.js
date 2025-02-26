@@ -2503,7 +2503,8 @@
         "i18n-hybrid does resolve /en-CA/about",
         "i18n-hybrid does resolve /en-US/about",
         "i18n-hybrid does resolve /fr-CA/about",
-        "i18n-hybrid does resolve /fr-FR/about"
+        "i18n-hybrid does resolve /fr-FR/about",
+        "i18n-hybrid should warn about i18n in app dir"
       ],
       "failed": [],
       "pending": [],
@@ -5125,6 +5126,16 @@
     "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
       "passed": [
         "segment cache memory pressure evicts least recently used prefetch data once cache size exceeds limit"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/e2e/app-dir/segment-cache/mpa-navigations/mpa-navigations.test.ts": {
+      "passed": [
+        "segment cache (MPA navigations) triggers MPA navigation when navigating to a different root layout",
+        "segment cache (MPA navigations) triggers MPA navigation when navigating to a different root layout, during a navigation where a root param also changed"
       ],
       "failed": [],
       "pending": [],
@@ -18353,6 +18364,7 @@
         "Production Usage should handle query/hash correctly during query updating #hello? $search",
         "Production Usage should handle query/hash correctly during query updating #hello?world $search",
         "Production Usage should have defer on all script tags",
+        "Production Usage should navigate through history after query update",
         "Production Usage should navigate to external site and back",
         "Production Usage should navigate to external site and back (with query)",
         "Production Usage should navigate to page with CSS and back",
@@ -18369,10 +18381,7 @@
         "Production Usage should respond with 405 for POST to static page",
         "Production Usage should warn when prefetch is true"
       ],
-      "failed": [
-        "Production Usage should navigate through history after query update",
-        "Production Usage should output traces"
-      ],
+      "failed": ["Production Usage should output traces"],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
         "Production Usage With basic usage should allow etag header support with getServerSideProps",
