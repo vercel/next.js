@@ -74,6 +74,7 @@ pub async fn make_chunk_group(
         .try_join()
         .await?
         .into_iter()
+        .flatten()
         .collect::<Vec<_>>();
 
     // Compute new [AvailabilityInfo]

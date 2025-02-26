@@ -56,9 +56,9 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
         async_module_info: &ReadRef<AsyncModulesInfo>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Self> {
+    ) -> Result<Option<Self>> {
         Ok(match chunkable_module_or_batch {
-            ChunkableModuleOrBatch::Module(module) => Self::ChunkItem(
+            ChunkableModuleOrBatch::Module(module) => Some(Self::ChunkItem(
                 attach_async_info_to_chunkable_module(
                     module,
                     async_module_info,
@@ -66,8 +66,8 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
                     chunking_context,
                 )
                 .await?,
-            ),
-            ChunkableModuleOrBatch::Batch(batch) => Self::Batch(
+            )),
+            ChunkableModuleOrBatch::Batch(batch) => Some(Self::Batch(
                 ChunkItemBatchWithAsyncModuleInfo::from_module_batch(
                     *batch,
                     module_graph,
@@ -75,8 +75,8 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
                 )
                 .to_resolved()
                 .await?,
-            ),
-            ChunkableModuleOrBatch::None => Self::None,
+            )),
+            ChunkableModuleOrBatch::None => None,
         })
     }
 }
