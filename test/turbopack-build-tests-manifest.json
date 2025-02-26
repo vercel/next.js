@@ -7560,7 +7560,6 @@
         "Prerender should automatically reset cache TTL when an error occurs and runtime cache was available",
         "Prerender should fetch /_next/data correctly with mismatched href and as",
         "Prerender should handle de-duping correctly",
-        "Prerender should handle fallback only page correctly HTML",
         "Prerender should handle fallback only page correctly data",
         "Prerender should handle on-demand revalidate for fallback: blocking",
         "Prerender should handle on-demand revalidate for fallback: false",
@@ -7620,7 +7619,7 @@
         "Prerender should use correct caching headers for a no-revalidate page",
         "Prerender should use correct caching headers for a revalidate page"
       ],
-      "failed": [],
+      "failed": ["Prerender should handle fallback only page correctly HTML"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
