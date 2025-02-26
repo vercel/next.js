@@ -1,28 +1,26 @@
 ---
 title: devIndicators
-description: Optimized pages include an indicator to let you know if it's being statically optimized. You can opt-out of it here.
+description: Configuration options for the on-screen indicator that gives context about the current route you're viewing during development.
 ---
 
-{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
-
-<AppOnly>
-
-`devIndicators` allows you to configure the on-screen indicators that give context about the current route you're viewing during development.
+`devIndicators` allows you to configure the on-screen indicator that gives context about the current route you're viewing during development.
 
 ```ts filename="Types"
-  devIndicators: {
-    buildActivityPosition?: 'bottom-right'
+  devIndicators: false | {
+    position?: 'bottom-right'
     | 'bottom-left'
     | 'top-right'
-    | 'top-left', // defaults to 'bottom-right'
+    | 'top-left', // defaults to 'bottom-left',
   },
 ```
 
+Setting `devIndicators` to `false` will hide the indicator, however Next.js will continue to surface any build or runtime errors that were encountered.
+
 ## Troubleshooting
 
-### Static route not showing the indicator
+### Indicator not marking a route as static
 
-If you expect a route to be static and the indicator is enabled but not showing, it's likely the route has opted out of static rendering.
+If you expect a route to be static and the indicator has marked it as dynamic, it's likely the route has opted out of static rendering.
 
 You can confirm if a route is [static](/docs/app/building-your-application/rendering/server-components#static-rendering-default) or [dynamic](/docs/app/building-your-application/rendering/server-components#dynamic-rendering) by building your application using `next build --debug`, and checking the output in your terminal. Static (or prerendered) routes will display a `○` symbol, whereas dynamic routes will display a `ƒ` symbol. For example:
 
@@ -35,6 +33,8 @@ Route (app)                              Size     First Load JS
 ƒ  (Dynamic)  server-rendered on demand
 ```
 
+<AppOnly>
+
 There are two reasons a route might opt out of static rendering:
 
 - The presence of [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) which rely on runtime information.
@@ -46,20 +46,6 @@ Check your route for any of these conditions, and if you are not able to statica
 
 <PagesOnly>
 
-> **Good to know**: This indicator was removed in Next.js version 10.0.1. We recommend upgrading to the latest version of Next.js.
-
-When a page qualifies for [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) we show an indicator to let you know.
-
-This is helpful since automatic static optimization can be very beneficial and knowing immediately in development if the page qualifies can be useful.
-
-In some cases this indicator might not be useful, like when working on electron applications. To remove it open `next.config.js` and disable the `autoPrerender` config in `devIndicators`:
-
-```js filename="next.config.js"
-module.exports = {
-  devIndicators: {
-    autoPrerender: false,
-  },
-}
-```
+When exporting [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props) or [`getInitialProps`](/docs/pages/api-reference/functions/get-initial-props) from a page, it will be marked as dynamic.
 
 </PagesOnly>
