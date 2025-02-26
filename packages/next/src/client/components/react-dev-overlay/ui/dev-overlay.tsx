@@ -8,7 +8,7 @@ import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
 import { DevToolsIndicator } from './components/errors/dev-tools-indicator/dev-tools-indicator'
 import { RenderError } from './container/runtime-error/render-error'
-
+import { DarkTheme } from './styles/dark-theme'
 export function DevOverlay({
   state,
   isErrorOverlayOpen,
@@ -25,6 +25,7 @@ export function DevOverlay({
       <CssReset />
       <Base />
       <Colors />
+      <DarkTheme />
       <ComponentStyles />
 
       <RenderError state={state} isAppDir={true}>
