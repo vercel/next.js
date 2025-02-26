@@ -1,12 +1,13 @@
-use std::mem::replace;
+use std::{future::IntoFuture, mem::replace};
 
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
     TryJoinIterExt, ValueToString, Vc,
 };
 
@@ -14,7 +15,8 @@ use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingC
 use crate::{
     chunk::{
         chunk_item_batch::{
-            ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
+            ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+            ChunkItemOrBatchWithAsyncModuleInfo,
         },
         chunking::{
             dev::{app_vendors_split, expand_batches},
@@ -38,6 +40,11 @@ struct ChunkItemsWithInfo {
         ); 1],
     >,
 }
+
+#[turbo_tasks::value(transparent)]
+struct BatchChunkItemsWithInfo(
+    FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, ResolvedVc<ChunkItemsWithInfo>>,
+);
 
 #[derive(
     Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, ValueDebugFormat,
@@ -90,12 +97,11 @@ async fn batch_size(
     Ok(Vc::cell(size))
 }
 
-#[turbo_tasks::function]
-async fn chunk_items_with_info(
+async fn plain_chunk_items_with_info(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<ChunkItemsWithInfo>> {
-    let chunk_items_with_info: ChunkItemsWithInfo = match chunk_item_or_batch {
+) -> Result<ChunkItemsWithInfo> {
+    Ok(match chunk_item_or_batch {
         ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item_with_info) => {
             let ChunkItemWithAsyncModuleInfo {
                 chunk_item,
@@ -160,8 +166,41 @@ async fn chunk_items_with_info(
                 by_type: by_type.into_iter().collect(),
             }
         }
-    };
+    })
+}
+
+#[turbo_tasks::function]
+async fn chunk_items_with_info(
+    chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<ChunkItemsWithInfo>> {
+    let chunk_items_with_info =
+        plain_chunk_items_with_info(chunk_item_or_batch, chunking_context).await?;
     Ok(chunk_items_with_info.cell())
+}
+
+#[turbo_tasks::function]
+async fn batch_chunk_items_with_info(
+    batch_group: Vc<ChunkItemBatchGroup>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<BatchChunkItemsWithInfo>> {
+    let batch_group = batch_group.await?;
+    let map = batch_group
+        .items
+        .iter()
+        .map(async |item| {
+            Ok((
+                item.clone(),
+                chunk_items_with_info(item.clone(), chunking_context)
+                    .to_resolved()
+                    .await?,
+            ))
+        })
+        .try_join()
+        .await?
+        .into_iter()
+        .collect();
+    Ok(Vc::cell(map))
 }
 
 /// Creates chunks based on heuristics for the passed `chunk_items`. Also
@@ -170,6 +209,7 @@ pub async fn make_chunks(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vec<ResolvedVc<Box<dyn Chunk>>>> {
@@ -179,14 +219,17 @@ pub async fn make_chunks(
         "get chunk item info",
         chunk_items_or_batches = chunk_items_or_batches.len()
     );
-    let chunk_items = async {
-        chunk_items_or_batches
-            .iter()
-            .map(|c| chunk_items_with_info(c.clone(), chunking_context))
-            .try_join()
-            .await
-    }
+    // let chunk_items = todo!();
+    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = ChunkItemBatchGroup::batch_info(
+        &batch_groups,
+        &chunk_items_or_batches,
+        |batch_group| batch_chunk_items_with_info(batch_group, chunking_context).into_future(),
+        |c| chunk_items_with_info(c.clone(), chunking_context).to_resolved(),
+    )
     .instrument(span)
+    .await?
+    .into_iter()
+    .try_join()
     .await?;
 
     let mut map = FxIndexMap::<_, Vec<_>>::default();

@@ -35,7 +35,10 @@ use crate::{
     asset::Asset,
     ident::AssetIdent,
     module::Module,
-    module_graph::{module_batch::ChunkableModuleOrBatch, ModuleGraph},
+    module_graph::{
+        module_batch::{ChunkableModuleOrBatch, ModuleBatchGroup},
+        ModuleGraph,
+    },
     output::OutputAssets,
     reference::ModuleReference,
 };
@@ -259,6 +262,7 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 #[derive(Default)]
 pub struct ChunkGroupContent {
     pub chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
+    pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 }

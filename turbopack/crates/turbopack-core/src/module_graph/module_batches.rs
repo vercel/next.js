@@ -1,13 +1,16 @@
 use std::{
     collections::{hash_map::Entry, VecDeque},
+    hash::BuildHasherDefault,
     mem::take,
 };
 
 use anyhow::{bail, Result};
+use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
+use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
     TryJoinIterExt, ValueToString, Vc,
@@ -18,7 +21,7 @@ use crate::{
     module::Module,
     module_graph::{
         chunk_group_info::{ChunkGroupInfo, RoaringBitmapWrapper},
-        module_batch::{ModuleBatch, ModuleOrBatch},
+        module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
         GraphTraversalAction, ModuleGraph,
     },
@@ -57,6 +60,7 @@ pub struct ModuleBatchesGraph {
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
     entries: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+    batch_groups: FxHashMap<ModuleOrBatch, ResolvedVc<ModuleBatchGroup>>,
 }
 
 impl ModuleBatchesGraph {
@@ -73,6 +77,13 @@ impl ModuleBatchesGraph {
             );
         };
         Ok(*entry)
+    }
+
+    pub fn get_batch_group(
+        &self,
+        module_or_batch: &ModuleOrBatch,
+    ) -> Option<ResolvedVc<ModuleBatchGroup>> {
+        self.batch_groups.get(module_or_batch).copied()
     }
 
     pub async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<ModuleOrBatch> {
@@ -299,6 +310,7 @@ pub async fn compute_module_batches(
     let outer_span = tracing::info_span!(
         "compute module batches",
         initial_pre_batch_items = tracing::field::Empty,
+        initial_pre_batches = tracing::field::Empty,
         extracted_shared_items = tracing::field::Empty,
         batches = tracing::field::Empty,
         modules = tracing::field::Empty,
@@ -348,6 +360,7 @@ pub async fn compute_module_batches(
             batch.items.extend(items);
         }
         span.record("initial_pre_batch_items", initial_pre_batch_items);
+        span.record("initial_pre_batches", pre_batches.batches.len());
 
         // Create a map of parallel module to the batches they are contained in.
         let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
@@ -574,6 +587,47 @@ pub async fn compute_module_batches(
             .try_join()
             .await?;
 
+        // Create the batch groups by grouping batches with the same chunk groups
+        let mut batch_groups: FxHashMap<_, Vec<_>> = FxHashMap::default();
+        for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
+            let key =
+                BuildHasherDefault::<FxHasher>::default().prehash(pre_batch.chunk_groups.clone());
+            let batch = batches[i];
+            batch_groups.entry(key).or_default().push(batch);
+        }
+        for &module in &pre_batches.single_module_entries {
+            let chunk_groups = chunk_group_info
+                .module_chunk_groups
+                .get(&module)
+                .expect("all modules need to have chunk group info");
+            let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups.clone());
+            batch_groups
+                .entry(key)
+                .or_default()
+                .push(ModuleOrBatch::Module(module));
+        }
+
+        // Create the batch group instances
+        let batch_groups = batch_groups
+            .into_iter()
+            .map(async |(key, items)| {
+                if items.len() == 1 {
+                    Ok(Either::Left(std::iter::empty()))
+                } else {
+                    let batch_group = ModuleBatchGroup::new(items.clone(), (*key).clone())
+                        .to_resolved()
+                        .await?;
+                    Ok(Either::Right(
+                        items.into_iter().map(move |item| (item, batch_group)),
+                    ))
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten()
+            .collect::<FxHashMap<_, _>>();
+
         // Insert batches into the graph and store the NodeIndicies
         let mut batches_count = 0;
         let mut modules_count = 0;
@@ -673,6 +727,7 @@ pub async fn compute_module_batches(
         Ok(ModuleBatchesGraph {
             graph: TracedDiGraph(graph),
             entries,
+            batch_groups,
         }
         .cell())
     }

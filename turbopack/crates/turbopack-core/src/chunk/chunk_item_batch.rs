@@ -1,9 +1,12 @@
+use std::{future::Future, ops::Deref};
+
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    Vc,
+    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 
 use crate::{
@@ -11,7 +14,7 @@ use crate::{
     module_graph::{
         async_module_info::AsyncModulesInfo,
         chunk_group_info::RoaringBitmapWrapper,
-        module_batch::{ChunkableModuleOrBatch, ModuleBatch},
+        module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch},
         ModuleGraph,
     },
 };
@@ -180,3 +183,71 @@ type ChunkItemBatchWithAsyncModuleInfoByChunkTypeT = SmallVec<
 pub struct ChunkItemBatchWithAsyncModuleInfoByChunkType(
     ChunkItemBatchWithAsyncModuleInfoByChunkTypeT,
 );
+
+#[turbo_tasks::value]
+pub struct ChunkItemBatchGroup {
+    pub items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItemBatchGroup {
+    #[turbo_tasks::function]
+    pub async fn from_module_batch_group(
+        batch_group: Vc<ChunkableModuleBatchGroup>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<Self>> {
+        let async_module_info = module_graph.async_module_info().await?;
+        let batch_group = batch_group.await?;
+        let items = batch_group
+            .items
+            .iter()
+            .map(|&batch| {
+                ChunkItemOrBatchWithAsyncModuleInfo::from_chunkable_module_or_batch(
+                    batch,
+                    &async_module_info,
+                    module_graph,
+                    chunking_context,
+                )
+            })
+            .try_flat_join()
+            .await?;
+        Ok(Self { items }.cell())
+    }
+}
+
+impl ChunkItemBatchGroup {
+    pub async fn batch_info<'a, Info, BatchGroupInfo, A, B>(
+        batch_groups: &[ResolvedVc<ChunkItemBatchGroup>],
+        items: &[ChunkItemOrBatchWithAsyncModuleInfo],
+        get_batch_group_info: impl Fn(Vc<ChunkItemBatchGroup>) -> A + Send + 'a,
+        get_item_info: impl Fn(&ChunkItemOrBatchWithAsyncModuleInfo) -> B + Send + 'a,
+    ) -> Result<Vec<Info>>
+    where
+        A: Future<Output = Result<BatchGroupInfo>> + Send + 'a,
+        B: Future<Output = Result<Info>> + Send + 'a,
+        BatchGroupInfo: Deref<Target = FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, Info>> + Send,
+        Info: Copy + Send,
+    {
+        let batch_group_info: Vec<BatchGroupInfo> = batch_groups
+            .iter()
+            .map(|&batch_group| get_batch_group_info(*batch_group))
+            .try_join()
+            .await?;
+        let batch_group_info = batch_group_info
+            .iter()
+            .flat_map(|info| info.iter())
+            .collect::<FxHashMap<_, _>>();
+        items
+            .iter()
+            .map(async |item| {
+                Ok(if let Some(&info) = batch_group_info.get(item) {
+                    *info
+                } else {
+                    get_item_info(item).await?
+                })
+            })
+            .try_join()
+            .await
+    }
+}

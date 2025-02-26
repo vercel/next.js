@@ -8,7 +8,9 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{
+        chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch, ModuleGraph,
+    },
     output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
@@ -77,7 +79,9 @@ impl ManifestAsyncModule {
                 .module_batches(this.chunking_context.batching_config())
                 .await?;
             let module_or_batch = batches.get_entry(inner_module).await?;
-            if let Some(chunkable_module_or_batch) = module_or_batch.try_to_chunkable_module() {
+            if let Some(chunkable_module_or_batch) =
+                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+            {
                 if *chunk_items.get(chunkable_module_or_batch).await? {
                     return Ok(Vc::cell(vec![]));
                 }
