@@ -427,6 +427,7 @@ async fn parse_route_matcher_from_js_value(
 #[turbo_tasks::function]
 pub async fn parse_config_from_source(
     module: ResolvedVc<Box<dyn Module>>,
+    default_runtime: NextRuntime,
 ) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     {
@@ -456,9 +457,13 @@ pub async fn parse_config_from_source(
                                 return WrapFuture::new(
                                     async {
                                         let value = eval_context.eval(init);
-                                        Ok(parse_config_from_js_value(*module, &value)
-                                            .await?
-                                            .cell())
+                                        Ok(parse_config_from_js_value(
+                                            *module,
+                                            &value,
+                                            default_runtime,
+                                        )
+                                        .await?
+                                        .cell())
                                     },
                                     |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
                                 )
@@ -537,14 +542,23 @@ pub async fn parse_config_from_source(
             }
         }
     }
-    Ok(Default::default())
+    let config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
+
+    Ok(config.cell())
 }
 
 async fn parse_config_from_js_value(
     module: Vc<Box<dyn Module>>,
     value: &JsValue,
+    default_runtime: NextRuntime,
 ) -> Result<NextSourceConfig> {
-    let mut config = NextSourceConfig::default();
+    let mut config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {

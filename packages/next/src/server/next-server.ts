@@ -1343,11 +1343,11 @@ export default class NextNodeServer extends BaseServer<
   }
 
   /** Returns the middleware routing item if there is one. */
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
     if (!middleware) {
-      const middlewareModule = this.loadNodeMiddleware()
+      const middlewareModule = await this.loadNodeMiddleware()
 
       if (middlewareModule) {
         return {
@@ -1437,7 +1437,7 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
-  private loadNodeMiddleware() {
+  private async loadNodeMiddleware() {
     if (!this.nextConfig.experimental.nodeMiddleware) {
       return
     }
@@ -1448,6 +1448,7 @@ export default class NextNodeServer extends BaseServer<
         : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
 
       if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
+        // if used with top level await, this will be a promise
         return require(join(this.distDir, 'server', 'middleware.js'))
       }
     } catch (err) {
@@ -1468,8 +1469,9 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    const nodeMiddleware = await this.loadNodeMiddleware()
 
-    if (!info && this.loadNodeMiddleware()) {
+    if (!info && nodeMiddleware) {
       return true
     }
     return Boolean(info && info.paths.length > 0)
@@ -1543,7 +1545,7 @@ export default class NextNodeServer extends BaseServer<
       params?: { [key: string]: string | string[] }
     } = {}
 
-    const middleware = this.getMiddleware()
+    const middleware = await this.getMiddleware()
     if (!middleware) {
       return { finished: false }
     }
@@ -1588,7 +1590,7 @@ export default class NextNodeServer extends BaseServer<
     // we decide we want to
     if (!middlewareInfo) {
       let middlewareModule
-      middlewareModule = this.loadNodeMiddleware()
+      middlewareModule = await this.loadNodeMiddleware()
 
       if (!middlewareModule) {
         throw new MiddlewareNotFoundError()
@@ -1666,7 +1668,7 @@ export default class NextNodeServer extends BaseServer<
       return true
     }
 
-    const middleware = this.getMiddleware()
+    const middleware = await this.getMiddleware()
     if (!middleware) {
       return handleFinished()
     }

@@ -60,7 +60,6 @@ const externals = {
   'caniuse-lite': 'caniuse-lite',
   '/caniuse-lite(/.*)/': 'caniuse-lite$1',
 
-  'node-fetch': 'node-fetch',
   postcss: 'postcss',
   // Ensure latest version is used
   'postcss-safe-parser': 'next/dist/compiled/postcss-safe-parser',
@@ -239,15 +238,6 @@ export async function copy_vercel_og(task, opts) {
     },
     { spaces: 2 }
   )
-}
-
-// eslint-disable-next-line camelcase
-externals['node-fetch'] = 'next/dist/compiled/node-fetch'
-export async function ncc_node_fetch(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('node-fetch')))
-    .ncc({ packageName: 'node-fetch', externals })
-    .target('src/compiled/node-fetch')
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
@@ -2310,7 +2300,6 @@ export async function ncc(task, opts) {
         'ncc_image_size',
         'ncc_hapi_accept',
         'ncc_commander',
-        'ncc_node_fetch',
         'ncc_node_anser',
         'ncc_node_stacktrace_parser',
         'ncc_node_data_uri_to_buffer',
@@ -2584,14 +2573,14 @@ export async function nextbuildjest(task, opts) {
 
 export async function client(task, opts) {
   await task
-    .source('src/client/**/!(*.test).+(js|ts|tsx|woff2)')
+    .source('src/client/**/!(*.test|*.stories).+(js|ts|tsx|woff2)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/client')
 }
 
 export async function client_esm(task, opts) {
   await task
-    .source('src/client/**/!(*.test).+(js|ts|tsx|woff2)')
+    .source('src/client/**/!(*.test|*.stories).+(js|ts|tsx|woff2)')
     .swc('client', { dev: opts.dev, esm: true })
     .target('dist/esm/client')
 }

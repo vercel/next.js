@@ -100,7 +100,15 @@ describe('use-cache-unknown-cache-kind', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toBe('Failed to compile')
+      if (isTurbopack) {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
+      } else {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Error:   x Unknown cache kind "custom". Please configure a cache handler for this kind in the "experimental.cacheHandlers" object in your Next.js config."`
+        )
+      }
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`

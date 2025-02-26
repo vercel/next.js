@@ -121,6 +121,19 @@ describe('app-dir - metadata-streaming', () => {
       expect(await browser.elementByCss('p').text()).toBe('index page')
     })
 
+    it('should trigger custom not-found in the boundary', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      expect(await browser.elementByCss('h1').text()).toBe('Custom Not Found')
+    })
+
+    it('should not duplicate metadata with navigation API', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      const titleTags = await browser.elementsByCss('title')
+      expect(titleTags.length).toBe(1)
+    })
+
     it('should render blocking 404 response status when html limited bots access notFound', async () => {
       const { status } = await next.fetch('/notfound', {
         headers: {

@@ -84,7 +84,15 @@ describe('use-cache-without-experimental-flag', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toBe('Failed to compile')
+      if (isTurbopack) {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
+      } else {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config."`
+        )
+      }
 
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`

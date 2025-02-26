@@ -21,10 +21,7 @@ import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
 import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
-import {
-  listenForDynamicRequest,
-  updateCacheNodeOnNavigation,
-} from '../ppr-navigations'
+import { listenForDynamicRequest, startPPRNavigation } from '../ppr-navigations'
 import {
   getOrCreatePrefetchCacheEntry,
   prunePrefetchCache,
@@ -296,23 +293,19 @@ export function navigateReducer(
         }
 
         if (newTree !== null) {
-          if (isNavigatingToNewRootLayout(currentTree, newTree)) {
-            return handleExternalUrl(state, mutable, href, pendingPush)
-          }
-
           if (
             // This is just a paranoid check. When a route is PPRed, the server
             // will send back a static response that's rendered from
             // the root. If for some reason it doesn't, we fall back to the
             // non-PPR implementation.
             // TODO: We should get rid of the else branch and do all navigations
-            // via updateCacheNodeOnNavigation. The current structure is just
+            // via startPPRNavigation. The current structure is just
             // an incremental step.
             seedData &&
             isRootRender &&
             postponed
           ) {
-            const task = updateCacheNodeOnNavigation(
+            const task = startPPRNavigation(
               currentCache,
               currentTree,
               treePatch,
@@ -322,7 +315,12 @@ export function navigateReducer(
             )
 
             if (task !== null) {
-              // Use the tree computed by updateCacheNodeOnNavigation instead
+              if (task.route === null) {
+                // Detected a change to the root layout. Perform an full-
+                // page navigation.
+                return handleExternalUrl(state, mutable, href, pendingPush)
+              }
+              // Use the tree computed by startPPRNavigation instead
               // of the one computed by applyRouterStatePatchToTree.
               // TODO: We should remove applyRouterStatePatchToTree
               // from the PPR path entirely.
@@ -379,6 +377,11 @@ export function navigateReducer(
             // given that PPR prefetches are always static and return the whole
             // tree. Or in the meantime we could factor it out into a
             // separate function.
+
+            if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+              return handleExternalUrl(state, mutable, href, pendingPush)
+            }
+
             const cache: CacheNode = createEmptyCacheNode()
             let applied = false
 

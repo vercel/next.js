@@ -134,7 +134,7 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        combinedDependencies['@next/plugin-rspack'] = pkgPaths = pkgPaths.get(
+        combinedDependencies['@next/plugin-rspack'] = pkgPaths.get(
           '@next/plugin-rspack'
         )
       }

@@ -60,6 +60,10 @@ describe('AMP Usage', () => {
       return killApp(app)
     })
 
+    it('should not have deprecation warning', async () => {
+      expect(output.toLowerCase()).not.toContain('deprecation')
+    })
+
     it('should have amp optimizer in trace', async () => {
       const trace = JSON.parse(
         readFileSync(join(appDir, '.next/next-server.js.nft.json'), 'utf8')

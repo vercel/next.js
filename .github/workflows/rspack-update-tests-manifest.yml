@@ -3,7 +3,7 @@ name: Update Rspack test manifest
 
 on:
   schedule:
-    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    # Every day at 7AM https://crontab.guru/#0_7_*_*_*
     - cron: '0 7 * * *'
   workflow_dispatch:
 
