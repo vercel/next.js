@@ -3,7 +3,7 @@ import { isNextRouterError } from '../is-next-router-error'
 import { handleClientError } from '../errors/use-error-handler'
 import { parseConsoleArgs } from '../../lib/console'
 
-export const originConsoleError = window.console.error
+export const originConsoleError = globalThis.console.error
 
 // Patch console.error to collect information about hydration errors
 export function patchConsoleError() {

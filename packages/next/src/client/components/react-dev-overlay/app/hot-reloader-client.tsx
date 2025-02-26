@@ -8,13 +8,14 @@ import {
   useSyncExternalStore,
 } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import formatWebpackMessages from '../_experimental/internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
   ACTION_DEBUG_INFO,
+  ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
@@ -22,8 +23,8 @@ import {
   ACTION_VERSION_INFO,
   useErrorOverlayReducer,
 } from '../shared'
-import { parseStack } from '../_experimental/internal/helpers/parse-stack'
-import ReactDevOverlay from './react-dev-overlay'
+import { parseStack } from '../utils/parse-stack'
+import { AppDevOverlay } from './app-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {
@@ -31,8 +32,8 @@ import {
   useTurbopack,
   useWebsocket,
   useWebsocketPing,
-} from '../_experimental/internal/helpers/use-websocket'
-import { parseComponentStack } from '../_experimental/internal/helpers/parse-component-stack'
+} from '../utils/use-websocket'
+import { parseComponentStack } from '../utils/parse-component-stack'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
@@ -48,6 +49,7 @@ import { getReactStitchedError } from '../../errors/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -57,6 +59,7 @@ export interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
   onStaticIndicator(status: boolean): void
+  onDevIndicator(devIndicator: DevIndicatorServerState): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -340,7 +343,7 @@ function processMessage(
   }
 
   switch (obj.action) {
-    case HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST: {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
       if (process.env.__NEXT_DEV_INDICATOR) {
         if (appIsrManifestRef) {
           appIsrManifestRef.current = obj.data
@@ -379,6 +382,7 @@ function processMessage(
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
       if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
+      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -541,7 +545,7 @@ export default function HotReload({
   children: ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
-  const [state, dispatch] = useErrorOverlayReducer()
+  const [state, dispatch] = useErrorOverlayReducer('app')
 
   const dispatcher = useMemo<Dispatcher>(() => {
     return {
@@ -565,6 +569,12 @@ export default function HotReload({
       },
       onDebugInfo(debugInfo) {
         dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
+      },
+      onDevIndicator(devIndicator) {
+        dispatch({
+          type: ACTION_DEV_INDICATOR,
+          devIndicator,
+        })
       },
     }
   }, [dispatch])
@@ -704,9 +714,9 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay state={state} globalError={globalError}>
+      <AppDevOverlay state={state} globalError={globalError}>
         {children}
-      </ReactDevOverlay>
+      </AppDevOverlay>
     )
   }
 

@@ -28,7 +28,9 @@ const styles = {
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  reset: () => void
+  // global-error, there's no `reset` function;
+  // regular error boundary, there's a `reset` function.
+  reset?: () => void
 }>
 
 export interface ErrorBoundaryProps {

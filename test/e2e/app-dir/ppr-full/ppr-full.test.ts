@@ -20,16 +20,16 @@ type Page = {
 
 const pages: Page[] = [
   { pathname: '/', dynamic: true },
-  { pathname: '/nested/a', dynamic: true, revalidate: 60 },
-  { pathname: '/nested/b', dynamic: true, revalidate: 60 },
-  { pathname: '/nested/c', dynamic: true, revalidate: 60 },
-  { pathname: '/metadata', dynamic: true, revalidate: 60 },
+  { pathname: '/nested/a', dynamic: true, revalidate: 120 },
+  { pathname: '/nested/b', dynamic: true, revalidate: 120 },
+  { pathname: '/nested/c', dynamic: true, revalidate: 120 },
+  { pathname: '/metadata', dynamic: true, revalidate: 120 },
   { pathname: '/on-demand/a', dynamic: true },
   { pathname: '/on-demand/b', dynamic: true },
   { pathname: '/on-demand/c', dynamic: true },
-  { pathname: '/loading/a', dynamic: true, revalidate: 60 },
-  { pathname: '/loading/b', dynamic: true, revalidate: 60 },
-  { pathname: '/loading/c', dynamic: true, revalidate: 60 },
+  { pathname: '/loading/a', dynamic: true, revalidate: 120 },
+  { pathname: '/loading/b', dynamic: true, revalidate: 120 },
+  { pathname: '/loading/c', dynamic: true, revalidate: 120 },
   { pathname: '/static', dynamic: false },
   { pathname: '/no-suspense', dynamic: true, emptyStaticPart: true },
   { pathname: '/no-suspense/nested/a', dynamic: true, emptyStaticPart: true },
@@ -42,7 +42,7 @@ const pages: Page[] = [
   {
     pathname: '/dynamic/force-static',
     dynamic: 'force-static',
-    revalidate: 60,
+    revalidate: 120,
   },
 ]
 
@@ -154,7 +154,7 @@ describe('ppr-full', () => {
           }
         })
 
-        if (dynamic === true && !isNextDev) {
+        if (dynamic === true && !isNextDev && !isNextDeploy) {
           it('should cache the static part', async () => {
             const delay = 500
 
@@ -618,7 +618,7 @@ describe('ppr-full', () => {
           }
         })
 
-        if (pathname.endsWith('/dynamic')) {
+        if (pathname.endsWith('/dynamic') && !isNextDeploy) {
           it('should cache the static part', async () => {
             const {
               timings: { streamFirstChunk, streamEnd, start },

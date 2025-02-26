@@ -382,6 +382,7 @@ jobs:
     with:
       afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
+      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
     secrets: inherit
 
@@ -399,6 +400,7 @@ jobs:
     with:
       afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
+      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
     secrets: inherit
 

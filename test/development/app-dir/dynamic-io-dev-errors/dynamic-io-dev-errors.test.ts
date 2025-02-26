@@ -106,7 +106,7 @@ describe('Dynamic IO Dev Errors', () => {
          "description": "Error: Route "/no-accessed-data": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense",
          "environmentLabel": "Server",
          "label": "Console Error",
-         "source": undefined,
+         "source": null,
          "stack": [
            "Page [Server] <anonymous> (2:1)",
            "main <anonymous> (2:1)",
@@ -142,7 +142,7 @@ describe('Dynamic IO Dev Errors', () => {
       await expect(browser).toDisplayRedbox(`
          {
            "count": 1,
-           "description": "Failed to compile",
+           "description": "Ecmascript file had an error",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/page.tsx (1:14)
@@ -156,7 +156,7 @@ describe('Dynamic IO Dev Errors', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "count": 1,
-         "description": "Failed to compile",
+         "description": "Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it.",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.tsx

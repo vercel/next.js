@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getRouteTypeFromDevToolsIndicator, retry } from 'next-test-utils'
 
-describe('dev indicator - route type', () => {
+describe('app dir dev indicator - route type', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

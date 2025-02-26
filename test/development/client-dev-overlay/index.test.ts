@@ -2,7 +2,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('client-dev-overlay', () => {
   let next: NextInstance
@@ -12,6 +12,11 @@ describe('client-dev-overlay', () => {
     next = await createNext({
       files: {
         pages: new FileRef(join(__dirname, 'app/pages')),
+      },
+      env: {
+        // Disable the cooldown period for the dev indicator so that hiding the indicator in a test doesn't
+        // impact subsequent tests.
+        __NEXT_DEV_INDICATOR_COOLDOWN_MS: '0',
       },
     })
   })
@@ -30,7 +35,9 @@ describe('client-dev-overlay', () => {
     fullScreenDialog: '[data-nextjs-dialog]',
     toast: '[data-nextjs-toast]',
     popover: '[data-nextjs-dev-tools-button]',
+    indicator: '[data-next-badge-root]',
     minimizeButton: 'body',
+    preferencesButton: '[data-preferences]',
     hideButton: '[data-hide-dev-tools]',
   }
   function getToast() {
@@ -45,18 +52,19 @@ describe('client-dev-overlay', () => {
   function getHideButton() {
     return browser.elementByCss(selectors.hideButton)
   }
+  function getPreferencesButton() {
+    return browser.elementByCss(selectors.preferencesButton)
+  }
 
   it('should be able to fullscreen the minimized overlay', async () => {
     await getMinimizeButton().click()
     await getToast().click()
 
-    await check(async () => {
-      return (await elementExistsInNextJSPortalShadowDOM(
-        selectors.fullScreenDialog
-      ))
-        ? 'success'
-        : 'missing'
-    }, 'success')
+    await retry(async () => {
+      expect(
+        await elementExistsInNextJSPortalShadowDOM(selectors.fullScreenDialog)
+      ).toBe(true)
+    })
   })
 
   it('should be able to minimize the fullscreen overlay', async () => {
@@ -66,22 +74,48 @@ describe('client-dev-overlay', () => {
     )
   })
 
-  it('should be able to hide the minimized overlay', async () => {
+  it('should keep the error indicator visible when there are errors', async () => {
     await getMinimizeButton().click()
     await getPopover().click()
+    await getPreferencesButton().click()
     await getHideButton().click()
 
-    await check(async () => {
-      const exists = await elementExistsInNextJSPortalShadowDOM(selectors.toast)
-      return exists ? 'found' : 'success'
-    }, 'success')
+    await retry(async () => {
+      const display = await browser.eval(
+        `getComputedStyle(document.querySelector('nextjs-portal').shadowRoot.querySelector('${selectors.indicator}')).display`
+      )
+      expect(display).toBe('block')
+    })
+  })
+
+  it('should be possible to hide the minimized overlay when there are no errors', async () => {
+    const originalContent = await next.readFile('pages/index.js')
+    try {
+      await next.patchFile('pages/index.js', (content) => {
+        return content.replace(`throw Error('example runtime error')`, '')
+      })
+
+      await getMinimizeButton().click()
+      await getPopover().click()
+      await getPreferencesButton().click()
+      await getHideButton().click()
+
+      await retry(async () => {
+        const display = await browser.eval(
+          `getComputedStyle(document.querySelector('nextjs-portal').shadowRoot.querySelector('${selectors.indicator}')).display`
+        )
+        expect(display).toBe('none')
+      })
+    } finally {
+      await next.patchFile('pages/index.js', originalContent)
+    }
   })
 
   it('should have a role of "dialog" if the page is focused', async () => {
-    await check(async () => {
-      return (await elementExistsInNextJSPortalShadowDOM('[role="dialog"]'))
-        ? 'exists'
-        : 'missing'
-    }, 'exists')
+    await retry(async () => {
+      expect(
+        await elementExistsInNextJSPortalShadowDOM('[role="dialog"]')
+      ).toBe(true)
+    })
   })
 })
