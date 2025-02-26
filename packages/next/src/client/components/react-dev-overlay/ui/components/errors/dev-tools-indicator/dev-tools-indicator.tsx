@@ -353,8 +353,6 @@ function DevToolsPopover({
           ref={preferencesRef}
           isOpen={isPreferencesOpen}
           hide={handleHideDevtools}
-          setIsOpen={setIsPreferencesOpen}
-          setPreviousOpen={setIsMenuOpen}
           setPosition={setPosition}
           position={position}
           style={{

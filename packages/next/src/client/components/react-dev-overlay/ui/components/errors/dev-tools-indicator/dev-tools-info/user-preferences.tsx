@@ -20,16 +20,12 @@ function getInitialPreference() {
 
 export function UserPreferences({
   isOpen,
-  setIsOpen,
-  setPreviousOpen,
   setPosition,
   position,
   hide,
   ...props
 }: {
   isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
   hide: () => void
@@ -60,13 +56,7 @@ export function UserPreferences({
   }
 
   return (
-    <DevToolsInfo
-      title="Preferences"
-      setIsOpen={setIsOpen}
-      learnMoreLink="https://nextjs.org/docs/app/api-reference/config/next-config-js/devIndicators"
-      setPreviousOpen={setPreviousOpen}
-      {...props}
-    >
+    <DevToolsInfo title="Preferences" {...props}>
       <div className="preferences-container">
         <div className="preference-section">
           <div className="preference-header">
@@ -110,7 +100,7 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <h2>Hide Dev Tools for this Session</h2>
+            <h2>Hide Dev Tools for this session</h2>
             <p className="preference-description">
               Hide Dev Tools until you restart your dev server, or 1 day.
             </p>
@@ -146,7 +136,13 @@ export function UserPreferences({
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   .preferences-container {
     padding: 8px 6px;
-    width: 480px;
+    width: 100%;
+  }
+
+  @media (min-width: 576px) {
+    .preferences-container {
+      width: 480px;
+    }
   }
 
   .preference-section:first-child {
@@ -154,7 +150,7 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   }
 
   .preference-section {
-    padding: 8px 0;
+    padding: 12px 0;
     border-bottom: 1px solid var(--color-gray-400);
     display: flex;
     justify-content: space-between;
@@ -172,10 +168,10 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   }
 
   .preference-header h2 {
-    font-size: var(--size-14);s
+    font-size: var(--size-14);
     font-weight: 500;
     color: var(--color-gray-1000);
-    margin: 0 0 4px 0;
+    margin: 0;
   }
 
   .preference-description {
@@ -189,16 +185,16 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--color-background-200);
-    border: 1px solid #eaeaea;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-400);
     border-radius: var(--rounded-lg);
     font-weight: 400;
     font-size: var(--size-14);
     color: var(--color-gray-1000);
-    padding: 4px 8px;
+    padding: 6px 8px;
 
     &:hover {
-      background: var(--color-gray-400);
+      background: var(--color-gray-100);
     }
   }
 
