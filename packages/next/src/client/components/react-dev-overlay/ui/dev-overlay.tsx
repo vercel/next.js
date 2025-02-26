@@ -26,8 +26,8 @@ export function DevOverlay({
       <CssReset />
       <Base />
       <Colors />
-      <DarkTheme />
       <ComponentStyles />
+      <DarkTheme />
 
       <RenderError state={state} isAppDir={true}>
         {({ runtimeErrors, totalErrorCount }) => {

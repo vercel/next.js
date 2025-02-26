@@ -10,8 +10,8 @@ export const withShadowPortal = (Story: any) => (
     <CssReset />
     <Base />
     <Colors />
-    <DarkTheme />
     <ComponentStyles />
+    <DarkTheme />
     <Story />
   </ShadowPortal>
 )
