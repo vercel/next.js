@@ -56,6 +56,30 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
     expect(await navigationTracker.didMpaNavigate()).toBe(false)
   })
 
+  it('should include the value of the submitter in search params', async () => {
+    const session = await next.browser(pathPrefix + '/forms/submitter-value')
+    const navigationTracker = await trackMpaNavs(session)
+
+    const submitButtonOne = await session.elementById('submit-btn-one')
+    await submitButtonOne.click()
+    {
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: "one"/)
+    }
+
+    expect(await navigationTracker.didMpaNavigate()).toBe(false)
+
+    await session.back()
+
+    const submitButtonTwo = await session.elementById('submit-btn-two')
+    await submitButtonTwo.click()
+
+    {
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: "two"/)
+    }
+  })
+
   // `<form action={someFunction}>` is only supported in React 19.x
   ;(isReact18 ? describe.skip : describe)('functions passed to action', () => {
     it.each([
