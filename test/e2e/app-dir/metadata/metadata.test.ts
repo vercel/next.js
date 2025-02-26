@@ -776,7 +776,7 @@ describe('app dir - metadata', () => {
       })
     })
 
-    it('should skip initial-scale from viewport', async () => {
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
       const browser = await next.browser('/viewport/skip-initial-scale')
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
