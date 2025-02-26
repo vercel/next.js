@@ -1,11 +1,10 @@
-import { GetServerSidePropsContext } from 'next'
 import { useRouter } from 'next/router'
 
-export async function getServerSideProps({ req }: GetServerSidePropsContext) {
+export async function getServerSideProps({ req }) {
   return { props: { url: req.url } }
 }
 
-export default function RewriteTarget({ url }: { url: string }) {
+export default function RewriteTarget({ url }) {
   const router = useRouter()
 
   return (

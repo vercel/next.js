@@ -543,6 +543,13 @@ const runTests = (isDev = false, isDeploy = false) => {
     expect($('#as-path').text()).toBe('/something')
   })
 
+  it('should not include rewrite query params in `asPath` and `req.url`', async () => {
+    const $ = await next.render$('/rewrite-source/foo')
+    expect($('h1').text()).toBe('rewrite-target')
+    expect($('#as-path').text()).toBe('/rewrite-source/foo')
+    expect($('#req-url').text()).toBe('/rewrite-source/foo')
+  })
+
   it('should return data correctly', async () => {
     const data = JSON.parse(
       await renderViaHTTP(next.url, `/_next/data/${buildId}/something.json`)
