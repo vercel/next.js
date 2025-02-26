@@ -114,7 +114,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   .dev-tools-info-code {
     background: var(--color-gray-400);
     color: var(--color-gray-1000);
-    font-family: var(--font-stack-mono);
+    font-family: var(--font-stack-monospace);
     padding: 2px 4px;
     margin: 0;
     font-size: var(--size-13);
@@ -136,7 +136,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
 
   .dev-tools-info-code-block-pre {
     margin: 0;
-    font-family: var(--font-stack-mono);
+    font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
   }
 
