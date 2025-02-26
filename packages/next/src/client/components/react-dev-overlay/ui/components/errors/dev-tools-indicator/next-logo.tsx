@@ -97,8 +97,8 @@ export const NextLogo = forwardRef(function NextLogo(
         {
           '--size': SIZE,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
-          // if the indicator is disabled and there are no errors, hide the badge
-          display: disabled && !hasError ? 'none' : 'block',
+          // if the indicator is disabled, hide the badge
+          display: disabled ? 'none' : 'block',
         } as React.CSSProperties
       }
     >
