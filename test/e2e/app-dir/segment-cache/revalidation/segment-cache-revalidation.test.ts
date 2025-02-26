@@ -97,6 +97,59 @@ describe('segment cache (revalidation)', () => {
     }, 'no-requests')
   })
 
+  it('refetch visible Form components after cache is revalidated', async () => {
+    // This is the same as the previous test, but for forms. Since the
+    // prefetching implementation is shared between Link and Form, we don't
+    // bother to test every feature using both Link and Form; this test should
+    // be sufficient.
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page: Playwright.Page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    const formVisibilityToggle = await browser.elementByCss(
+      'input[data-form-accordion="/greeting"]'
+    )
+
+    // Reveal the form that points to the target page to trigger a prefetch
+    await act(
+      async () => {
+        await formVisibilityToggle.click()
+      },
+      {
+        includes: 'random-greeting',
+      }
+    )
+
+    // Perform an action that calls revalidatePath. This should cause the
+    // corresponding entry to be evicted from the client cache, and a new
+    // prefetch to be requested.
+    await act(
+      async () => {
+        const revalidateByPath = await browser.elementById('revalidate-by-path')
+        await revalidateByPath.click()
+      },
+      {
+        includes: 'random-greeting [1]',
+      }
+    )
+    TestLog.assert(['REQUEST: random-greeting'])
+
+    // Navigate to the target page.
+    await act(async () => {
+      const button = await browser.elementByCss(
+        'form[action="/greeting"] button'
+      )
+      await button.click()
+      // Navigation should finish immedately because the page is
+      // fully prefetched.
+      const greeting = await browser.elementById('greeting')
+      expect(await greeting.innerHTML()).toBe('random-greeting [1]')
+    }, 'no-requests')
+  })
+
   it('evict client cache when Server Action calls revalidateTag', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
