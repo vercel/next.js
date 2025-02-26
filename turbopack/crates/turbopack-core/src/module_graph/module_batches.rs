@@ -180,6 +180,26 @@ enum PreBatchItem {
     NonParallelEdge(ChunkingType, ResolvedVc<Box<dyn Module>>),
 }
 
+impl PreBatchItem {
+    async fn debug_str(&self) -> Result<String> {
+        Ok(match self {
+            PreBatchItem::ParallelModule(module) => {
+                format!("ParallelModule({})", module.ident().to_string().await?)
+            }
+            PreBatchItem::ParallelReference(idx) => {
+                format!("ParallelReference({})", idx)
+            }
+            PreBatchItem::NonParallelEdge(ty, module) => {
+                format!(
+                    "NonParallelEdge({:?}, {})",
+                    ty,
+                    module.ident().to_string().await?
+                )
+            }
+        })
+    }
+}
+
 struct PreBatch {
     items: FxIndexSet<PreBatchItem>,
     chunk_groups: RoaringBitmapWrapper,
@@ -191,6 +211,15 @@ impl PreBatch {
             items: FxIndexSet::default(),
             chunk_groups,
         }
+    }
+
+    async fn debug_items(&self) -> Result<Vec<String>> {
+        Ok(self
+            .items
+            .iter()
+            .map(|item| item.debug_str())
+            .try_join()
+            .await?)
     }
 }
 
@@ -314,7 +343,8 @@ pub async fn compute_module_batches(
             VecDeque::new();
 
         // Start with the entries
-        for chunk_group in &chunk_group_info.chunk_groups {
+        for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+            println!("chunk_group {i}: {}", chunk_group.to_string().await?);
             for entry in chunk_group.entries() {
                 if let Some(chunkable_module) = ResolvedVc::try_downcast(entry) {
                     let chunk_groups = chunk_group_info
@@ -348,6 +378,10 @@ pub async fn compute_module_batches(
             batch.items.extend(items);
         }
         span.record("initial_pre_batch_items", &initial_pre_batch_items);
+
+        for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
+            println!("pre_batch {i} {:#?}", pre_batch.debug_items().await?);
+        }
 
         // Create a map of parallel module to the batches they are contained in.
         let mut parallel_module_to_pre_batch: FxIndexMap<_, Vec<PreBatchIndex>> =
@@ -383,6 +417,11 @@ pub async fn compute_module_batches(
         // Extract shared modules into separate batches
         for i in 0..parallel_module_to_pre_batch.len() {
             let (&module, batches) = parallel_module_to_pre_batch.get_index(i).unwrap();
+            println!(
+                "module {} in batches {:?}",
+                module.ident().to_string().await?,
+                batches
+            );
             if batches.len() > 1 {
                 // Create a new batch for the shared modules
                 let batches_with_item_index = batches
@@ -424,6 +463,7 @@ pub async fn compute_module_batches(
                     }
                     break;
                 }
+                println!("{selected_items} items selected");
                 extracted_shared_items += selected_items;
 
                 // Check if a batch is completely selected. In that case we can replace all other
@@ -488,6 +528,10 @@ pub async fn compute_module_batches(
 
         // Now every module is only in one batch
 
+        for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
+            println!("pre_batch {i} {:#?}", pre_batch.debug_items().await?);
+        }
+
         let mut edges_count = 0;
 
         // Since batches can only have references followed by a list of parallel modules, we need to
@@ -535,6 +579,10 @@ pub async fn compute_module_batches(
         span.record("pre_batches", &pre_batches.batches.len());
 
         // Now batches are in the correct shape. We can create the real batches and the graph.
+
+        for (i, pre_batch) in pre_batches.batches.iter().enumerate() {
+            println!("pre_batch {i} {:#?}", pre_batch.debug_items().await?);
+        }
 
         // Create the graph
         let mut graph: DiGraph<ModuleOrBatch, ModuleBatchesGraphEdge, u32> =
