@@ -8,16 +8,12 @@ import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 
 function getInitialPreference() {
-  if (
-    typeof localStorage !== 'undefined' &&
-    localStorage.getItem(STORAGE_KEY_THEME)
-  ) {
-    return 'Dark'
+  if (typeof localStorage === 'undefined') {
+    return 'system'
   }
 
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'Dark'
-    : 'Light'
+  const theme = localStorage.getItem(STORAGE_KEY_THEME)
+  return theme === 'dark' || theme === 'light' ? theme : 'system'
 }
 
 export function UserPreferences({
@@ -43,12 +39,21 @@ export function UserPreferences({
 
     setTheme(e.target.value)
 
-    if (e.target.value === 'Dark') {
+    if (e.target.value === 'system') {
+      portal.classList.remove('dark')
+      portal.classList.remove('light')
+      localStorage.removeItem(STORAGE_KEY_THEME)
+      return
+    }
+
+    if (e.target.value === 'dark') {
       portal.classList.add('dark')
-      localStorage.setItem(STORAGE_KEY_THEME, '1')
+      portal.classList.remove('light')
+      localStorage.setItem(STORAGE_KEY_THEME, 'dark')
     } else {
       portal.classList.remove('dark')
-      localStorage.removeItem(STORAGE_KEY_THEME)
+      portal.classList.add('light')
+      localStorage.setItem(STORAGE_KEY_THEME, 'light')
     }
   }
 
@@ -69,15 +74,16 @@ export function UserPreferences({
           </div>
           <div className="preference-control-select">
             <div className="preference-icon">
-              {theme === 'Light' ? <LightIcon /> : <DarkIcon />}
+              <ThemeIcon theme={theme as 'dark' | 'light' | 'system'} />
             </div>
             <select
               className="select-button"
               value={theme}
               onChange={handleThemeChange}
             >
-              <option value="Light">Light</option>
-              <option value="Dark">Dark</option>
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
             </select>
           </div>
         </div>
@@ -138,6 +144,17 @@ export function UserPreferences({
       </div>
     </DevToolsInfo>
   )
+}
+
+function ThemeIcon({ theme }: { theme: 'dark' | 'light' | 'system' }) {
+  const activeTheme =
+    theme === 'system'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme
+
+  return activeTheme === 'dark' ? <DarkIcon /> : <LightIcon />
 }
 
 export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
@@ -230,12 +247,8 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
   }
 
   .preference-control-select select {
-    font-size: 14px;
-    padding-right: 1rem;
+    font-size: var(--size-14);
     font-weight: 400;
-    height: 100%;
-    width: 100%;
-    background-color: var(--White);
     border: none;
     padding: 0 6px 0 0;
     border-radius: 0;

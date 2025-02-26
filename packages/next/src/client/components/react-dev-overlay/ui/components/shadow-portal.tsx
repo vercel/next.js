@@ -11,11 +11,15 @@ export function ShadowPortal({ children }: { children: React.ReactNode }) {
     const ownerDocument = document
     portalNode.current = ownerDocument.createElement('nextjs-portal')
     // load default color preference from localstorage
-    if (
-      typeof localStorage !== 'undefined' &&
-      localStorage.getItem(STORAGE_KEY_THEME)
-    ) {
-      portalNode.current.classList.add('dark')
+    if (typeof localStorage !== 'undefined') {
+      const theme = localStorage.getItem(STORAGE_KEY_THEME)
+      if (theme === 'dark') {
+        portalNode.current.classList.add('dark')
+        portalNode.current.classList.remove('light')
+      } else if (theme === 'light') {
+        portalNode.current.classList.remove('dark')
+        portalNode.current.classList.add('light')
+      }
     }
 
     shadowNode.current = portalNode.current.attachShadow({ mode: 'open' })

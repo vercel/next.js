@@ -243,7 +243,7 @@ export function Colors() {
         }
 
         @media (prefers-color-scheme: dark) {
-          :host {
+          :host(:not(.light)) {
             ${darkTheme}
           }
         }
