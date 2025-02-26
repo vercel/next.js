@@ -603,11 +603,7 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 ## Runtime
 
-Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).
-
-### Using Node.js runtime with middleware
-
-The Node.js runtime can be used as an experimental feature to run middleware. To enable, add the flag to your `next.config.js` file:
+Middleware defaults to using the Edge runtime. As of v15.2, we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next';
@@ -649,7 +645,7 @@ export const config = {
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
-| `v15.2.0` | Middleware can now use the Node.js runtime. See the [middleware documentation](/docs/app/building-your-application/routing/middleware#using-nodejs-runtime-with-middleware) for more details. |
+| `v15.2.0` | Middleware can now use the Node.js runtime (experimental) |
 | `v13.1.0` | Advanced Middleware flags added                                                               |
 | `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |
 | `v12.2.0` | Middleware is stable, please see the [upgrade guide](/docs/messages/middleware-upgrade-guide) |
