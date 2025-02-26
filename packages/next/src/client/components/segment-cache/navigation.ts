@@ -48,6 +48,8 @@ type SuccessfulNavigationResult = {
     flightRouterState: FlightRouterState
     cacheNode: CacheNode
     canonicalUrl: string
+    scrollableSegments: Array<FlightSegmentPath>
+    shouldScroll: boolean
   }
 }
 
@@ -81,7 +83,8 @@ export function navigate(
   url: URL,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null
+  nextUrl: string | null,
+  shouldScroll: boolean
 ): NavigationResult {
   const now = Date.now()
 
@@ -104,7 +107,8 @@ export function navigate(
       prefetchSeedData,
       prefetchHead,
       isPrefetchHeadPartial,
-      canonicalUrl
+      canonicalUrl,
+      shouldScroll
     )
   }
   // There's no matching prefetch for this route in the cache.
@@ -114,7 +118,8 @@ export function navigate(
       url,
       nextUrl,
       currentCacheNode,
-      currentFlightRouterState
+      currentFlightRouterState,
+      shouldScroll
     ),
   }
 }
@@ -128,7 +133,8 @@ function navigateUsingPrefetchedRouteTree(
   prefetchSeedData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
-  canonicalUrl: string
+  canonicalUrl: string,
+  shouldScroll: boolean
 ): SuccessfulNavigationResult | NoOpNavigationResult | MPANavigationResult {
   // Recursively construct a prefetch tree by reading from the Segment Cache. To
   // maintain compatibility, we output the same data structures as the old
@@ -136,13 +142,15 @@ function navigateUsingPrefetchedRouteTree(
   // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
   // read from the Segment Cache directly. It's only structured this way for now
   // so we can share code with the old prefetching implementation.
+  const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
     prefetchSeedData,
     prefetchHead,
-    isPrefetchHeadPartial
+    isPrefetchHeadPartial,
+    scrollableSegments
   )
   if (task !== null) {
     const dynamicRequestTree = task.dynamicRequestTree
@@ -156,7 +164,13 @@ function navigateUsingPrefetchedRouteTree(
       // The prefetched tree does not contain dynamic holes — it's
       // fully static. We can skip the dynamic request.
     }
-    return navigationTaskToResult(task, currentCacheNode, canonicalUrl)
+    return navigationTaskToResult(
+      task,
+      currentCacheNode,
+      canonicalUrl,
+      scrollableSegments,
+      shouldScroll
+    )
   }
   // The server sent back an empty tree patch. There's nothing to update.
   return noOpNavigationResult
@@ -165,7 +179,9 @@ function navigateUsingPrefetchedRouteTree(
 function navigationTaskToResult(
   task: PPRNavigationTask,
   currentCacheNode: CacheNode,
-  canonicalUrl: string
+  canonicalUrl: string,
+  scrollableSegments: Array<FlightSegmentPath>,
+  shouldScroll: boolean
 ): SuccessfulNavigationResult | MPANavigationResult {
   const flightRouterState = task.route
   if (flightRouterState === null) {
@@ -183,6 +199,8 @@ function navigationTaskToResult(
       flightRouterState,
       cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
       canonicalUrl,
+      scrollableSegments,
+      shouldScroll,
     },
   }
 }
@@ -260,7 +278,8 @@ async function navigateDynamicallyWithNoPrefetch(
   url: URL,
   nextUrl: string | null,
   currentCacheNode: CacheNode,
-  currentFlightRouterState: FlightRouterState
+  currentFlightRouterState: FlightRouterState,
+  shouldScroll: boolean
 ): Promise<
   MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
 > {
@@ -314,13 +333,15 @@ async function navigateDynamicallyWithNoPrefetch(
   )
 
   // Now we proceed exactly as we would for normal navigation.
+  const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
     prefetchSeedData,
     prefetchHead,
-    isPrefetchHeadPartial
+    isPrefetchHeadPartial,
+    scrollableSegments
   )
   if (task !== null) {
     // In this case, we've already sent the dynamic request, so we don't
@@ -338,7 +359,13 @@ async function navigateDynamicallyWithNoPrefetch(
       // The prefetched tree does not contain dynamic holes — it's
       // fully static. We don't need to process the server response further.
     }
-    return navigationTaskToResult(task, currentCacheNode, canonicalUrl)
+    return navigationTaskToResult(
+      task,
+      currentCacheNode,
+      canonicalUrl,
+      scrollableSegments,
+      shouldScroll
+    )
   }
   // The server sent back an empty tree patch. There's nothing to update.
   return noOpNavigationResult
