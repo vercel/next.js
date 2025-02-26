@@ -5,34 +5,22 @@ TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
 [alias]
 xtask = "run --package xtask --"
 
-[build]
+[target.'cfg(any(unix, not(unix)))']
+# Cargo will merge rustflags from `target` sections together, but `target`
+# sections are mutually exclusive with `build` sections. Define this in an
+# always-matched `target` section, so that we don't have to duplicate flags
+# everywhere.
+# https://doc.rust-lang.org/cargo/reference/config.html#buildrustflags
 rustflags = [
-  "--cfg",
-  "tokio_unstable",
+  "--cfg=tokio_unstable",
   "-Zshare-generics=y", # make the current crate share its generic instantiations
   "-Zthreads=8", # parallel frontend https://blog.rust-lang.org/2023/11/09/parallel-rustc.html
   "-Csymbol-mangling-version=v0",
 ]
-rustdocflags = []
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-C",
-  "target-feature=+crt-static"
-]
-
-[target.i686-pc-windows-msvc]
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-C",
-  "target-feature=+crt-static"
-]
+rustflags = ["-Ctarget-feature=+crt-static"]
 
 [target.aarch64-pc-windows-msvc]
 linker = "rust-lld"
@@ -42,38 +30,13 @@ linker = "rust-lld"
 
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
 rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-Zthreads=8",
   "-Zunstable-options",
-  "-Csymbol-mangling-version=v0",
   "-Clinker-flavor=gnu-lld-cc",
-  "-Clink-self-contained=+linker",
 ]
 
-[target.aarch64-unknown-linux-musl]
-linker = "aarch64-linux-musl-gcc"
-# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-Csymbol-mangling-version=v0",
-  "-Ctarget-feature=-crt-static",
-  "-Clink-arg=-lgcc",
-]
+[target.'cfg(all(target_os = "linux", target_env = "musl"))']
+# Rustflags for musl targets need to be mirrored to `.github/workflows/build_and_deploy.yml`
+# The napi cli sets a RUSTFLAGS environment variable that will otherwise override these options:
+# https://github.com/napi-rs/napi-rs/blob/2d8e19d7c626405287b73a52dc/cli/src/api/build.ts#L467-L485
+rustflags = ["-Ctarget-feature=-crt-static"]
 
-[target.x86_64-unknown-linux-musl]
-# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
-rustflags = [
-  "--cfg",
-  "tokio_unstable",
-  "-Zshare-generics=y",
-  "-Zthreads=8",
-  "-Csymbol-mangling-version=v0",
-  "-Ctarget-feature=-crt-static",
-]
-
-[target.armv7-unknown-linux-gnueabihf]
-linker = "arm-linux-gnueabihf-gcc"
