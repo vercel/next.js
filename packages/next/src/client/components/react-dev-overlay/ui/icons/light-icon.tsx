@@ -7,7 +7,7 @@ export default function LightIcon() {
       viewBox="0 0 16 16"
       fill="none"
     >
-      <g clipPath="url(#a)">
+      <g clipPath="url(#light_icon_clip_path)">
         <path
           fill="currentColor"
           fillRule="evenodd"
@@ -16,7 +16,7 @@ export default function LightIcon() {
         />
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="light_icon_clip_path">
           <path fill="currentColor" d="M0 0h16v16H0z" />
         </clipPath>
       </defs>
