@@ -253,6 +253,7 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     padding: 0 6px 0 0;
     border-radius: 0;
     outline: none;
+    background: none;
   }
 
   :global(.icon) {
