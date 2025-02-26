@@ -120,17 +120,17 @@ function onFormSubmit(
   }
 
   const formElement = event.currentTarget
-  const submitter = (event.nativeEvent as SubmitEvent).submitter
+  const submitterElement = (event.nativeEvent as SubmitEvent).submitter
 
-  if (submitter) {
+  if (submitterElement) {
     // this is page-router-only, so we don't need to worry about false positives
     // from the attributes that react adds for server actions.
-    if (hasUnsupportedSubmitterAttributes(submitter)) {
+    if (hasUnsupportedSubmitterAttributes(submitterElement)) {
       return
     }
 
     // client actions have `formAction="javascript:..."`. We obviously can't prefetch/navigate to that.
-    if (hasReactClientActionAttributes(submitter)) {
+    if (hasReactClientActionAttributes(submitterElement)) {
       return
     }
   }
@@ -138,7 +138,7 @@ function onFormSubmit(
   const targetUrl = createFormSubmitDestinationUrl(
     actionHref,
     formElement,
-    submitter
+    submitterElement
   )
 
   // Finally, no more reasons for bailing out.
