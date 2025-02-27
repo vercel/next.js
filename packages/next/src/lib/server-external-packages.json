@@ -45,6 +45,7 @@
   "node-cron",
   "node-pty",
   "node-web-audio-api",
+  "onnxruntime-node",
   "oslo",
   "pg",
   "playwright",
