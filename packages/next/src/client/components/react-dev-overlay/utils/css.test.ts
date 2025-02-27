@@ -1,7 +1,7 @@
 import { css } from './css'
 
 describe('css template literal tag', () => {
-  test('combines strings and interpolations correctly', () => {
+  it('should combines strings and interpolations correctly', () => {
     const color = 'red'
     const result = css`
       color: ${color};
@@ -10,7 +10,7 @@ describe('css template literal tag', () => {
     expect(result).toBe('color:red;background:blue;')
   })
 
-  test('removes all whitespace', () => {
+  it('should remove all whitespace', () => {
     const result = css`
       margin: 0;
       padding: 10px;
@@ -18,7 +18,7 @@ describe('css template literal tag', () => {
     expect(result).toBe('margin:0;padding:10px;')
   })
 
-  test('removes CSS comments', () => {
+  it('should remove CSS comments', () => {
     const result = css`
       color: blue; /* this is a comment */
       /* multi-line
@@ -29,7 +29,19 @@ describe('css template literal tag', () => {
     expect(result).toBe('color:blue;margin:10px;')
   })
 
-  test('handles multiple interpolations', () => {
+  it('should remove multiline comments', () => {
+    const result = css`
+      color: blue;
+      /*
+       * This is multi-line comment.
+       * Is should be removed.
+       */
+      margin: 10px;
+    `
+    expect(result).toBe('color:blue;margin:10px;')
+  })
+
+  it('should handle multiple interpolations', () => {
     const width = '100px'
     const height = '200px'
     const result = css`
@@ -43,12 +55,12 @@ describe('css template literal tag', () => {
     expect(result).toBe('width:100px;height:200px;color:blue;')
   })
 
-  test('handles empty strings', () => {
+  it('should handle empty strings', () => {
     const result = css``
     expect(result).toBe('')
   })
 
-  test('handles CSS wildcard selector', () => {
+  it('should handle CSS wildcard selector', () => {
     const result = css`
       * {
         margin: 0;
