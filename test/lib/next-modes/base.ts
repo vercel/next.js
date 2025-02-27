@@ -535,6 +535,22 @@ export class NextInstance {
     return fs.readFile(path.join(this.testDir, filename), 'utf8')
   }
 
+  public async readFiles(
+    dirname: string,
+    predicate: (filename: string) => boolean
+  ) {
+    const absoluteDirname = path.join(this.testDir, dirname)
+    const filenames = await fs.readdir(absoluteDirname, 'utf-8')
+
+    return Promise.all(
+      filenames
+        .filter(predicate)
+        .map((filename) =>
+          fs.readFile(path.join(absoluteDirname, filename), 'utf8')
+        )
+    )
+  }
+
   public readFileSync(filename: string) {
     return readFileSync(path.join(this.testDir, filename), 'utf8')
   }
