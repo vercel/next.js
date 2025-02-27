@@ -52,7 +52,10 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph},
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        GraphEntries, ModuleGraph,
+    },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -782,10 +785,15 @@ impl PageEndpoint {
 
             let module_graph = self.client_module_graph();
 
-            let evaluatable_assets = self.client_evaluatable_assets();
+            let evaluatable_assets = self
+                .client_evaluatable_assets()
+                .await?
+                .iter()
+                .map(|m| ResolvedVc::upcast(*m))
+                .collect();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
-                evaluatable_assets,
+                ChunkGroup::Entry(evaluatable_assets),
                 module_graph,
                 Value::new(AvailabilityInfo::Root),
             );
@@ -948,13 +956,16 @@ impl PageEndpoint {
                 .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let mut evaluatable_assets = edge_runtime_entries.owned().await?;
-                evaluatable_assets.push(ssr_module_evaluatable);
+                let edge_runtime_entries = edge_runtime_entries.await?;
+                let evaluatable_assets = edge_runtime_entries
+                    .iter()
+                    .map(|m| ResolvedVc::upcast(*m))
+                    .chain(std::iter::once(ResolvedVc::upcast(ssr_module_evaluatable)));
 
                 let edge_files = edge_chunking_context
                     .evaluated_chunk_group_assets(
                         ssr_module.ident(),
-                        Vc::cell(evaluatable_assets),
+                        ChunkGroup::Entry(evaluatable_assets.collect()),
                         module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )

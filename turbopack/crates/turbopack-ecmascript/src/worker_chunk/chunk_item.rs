@@ -1,15 +1,15 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, ChunkData, ChunkItem, ChunkType, ChunkingContext,
-        ChunkingContextExt, ChunksData, EvaluatableAsset, EvaluatableAssets,
+        ChunkingContextExt, ChunksData,
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
 };
 
@@ -41,21 +41,13 @@ impl WorkerLoaderChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
 
-        let Some(evaluatable) = ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.inner)
-        else {
-            bail!(
-                "{} is not evaluatable for Worker loader module",
-                module.inner.ident().to_string().await?
-            );
-        };
-
         Ok(self.chunking_context.evaluated_chunk_group_assets(
             AssetIdent::from_path(
                 self.chunking_context
                     .chunk_path(module.inner.ident(), ".js".into()),
             )
             .with_modifier(worker_modifier()),
-            EvaluatableAssets::empty().with_entry(*evaluatable),
+            ChunkGroup::Isolated(ResolvedVc::upcast(module.inner)),
             *self.module_graph,
             Value::new(AvailabilityInfo::Root),
         ))

@@ -17,13 +17,15 @@ use turbopack_core::{
     },
     context::AssetContext,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, GraphEntries},
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        GraphEntries,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     nft_json::NftJsonAsset,
@@ -98,12 +100,11 @@ impl InstrumentationEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-
         let module = self.core_modules().await?.edge_entry_module;
 
         let module_graph = this.project.module_graph(*module);
 
-        let mut evaluatable_assets = get_server_runtime_entries(
+        let evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
                 ecmascript_client_reference_transition_name: this
@@ -112,24 +113,16 @@ impl InstrumentationEndpoint {
             this.project.next_mode(),
         )
         .resolve_entries(*this.asset_context)
-        .owned()
-        .await?;
-
-        let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-        else {
-            bail!("Entry module must be evaluatable");
-        };
-
-        let Some(evaluatable) = ResolvedVc::try_sidecast(module) else {
-            bail!("Entry module must be evaluatable");
-        };
-        evaluatable_assets.push(evaluatable);
+        .await?
+        .iter()
+        .map(|m| ResolvedVc::upcast(*m))
+        .chain(std::iter::once(module))
+        .collect();
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
-
-        let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+        let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            Vc::cell(evaluatable_assets),
+            ChunkGroup::Entry(evaluatable_assets),
             module_graph,
             Value::new(AvailabilityInfo::Root),
         );
