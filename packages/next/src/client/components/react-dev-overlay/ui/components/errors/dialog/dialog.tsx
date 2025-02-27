@@ -36,10 +36,6 @@ export const DIALOG_STYLES = `
     box-shadow: var(--shadow-menu);
     position: relative;
 
-    @media (prefers-color-scheme: dark) {
-      border-color: var(--color-gray-400);
-    }
-
     &:has(
         ~ [data-nextjs-error-overlay-nav] .error-overlay-notch[data-side='left']
       ) {
