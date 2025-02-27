@@ -1108,7 +1108,7 @@ impl AppEndpoint {
 
         let (process_client_assets, process_ssr, emit_manifests) = match this.ty {
             AppEndpointType::Page { ty, .. } => (
-                true,
+                false,
                 matches!(ty, AppPageEndpointType::Html),
                 matches!(ty, AppPageEndpointType::Html),
             ),
