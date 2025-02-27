@@ -66,7 +66,7 @@ impl EcmascriptBuildNodeChunkContent {
         for item in chunk_items {
             for (id, item_code) in item {
                 write!(code, "{}: ", StringifyJs(&id))?;
-                code.push_code(&item_code);
+                code.push_code(item_code);
                 writeln!(code, ",")?;
             }
         }
