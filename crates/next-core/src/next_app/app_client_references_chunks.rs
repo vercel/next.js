@@ -2,7 +2,7 @@ use anyhow::Result;
 use futures::join;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext},
@@ -43,7 +43,7 @@ pub struct ClientReferencesChunks {
     pub client_component_ssr_chunks:
         FxIndexMap<ClientReferenceType, (ResolvedVc<OutputAssets>, AvailabilityInfo)>,
     pub layout_segment_client_chunks:
-        FxIndexMap<ServerComponentOrUtilites, Vec<ResolvedVc<Box<dyn OutputAsset>>>>,
+        FxIndexMap<ServerComponentOrUtilites, FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>>,
 }
 
 /// Computes all client references chunks.
@@ -181,7 +181,7 @@ pub async fn get_app_client_references_chunks(
 
             let mut layout_segment_client_chunks: FxIndexMap<
                 ServerComponentOrUtilites,
-                Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+                FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>,
             > = FxIndexMap::default();
             let mut client_component_ssr_chunks = FxIndexMap::default();
             let mut client_component_client_chunks = FxIndexMap::default();
@@ -274,19 +274,23 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunk_groups
                             .iter()
                             .map(async |chunk_group| {
-                                let chunk_group_reordered =
-                                    reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty);
-                                Ok((
-                                    chunk_group.clone(),
-                                    ssr_chunking_context
-                                        .chunk_group(
-                                            base_ident.with_modifier(ssr_modules_modifier()),
-                                            chunk_group_reordered,
-                                            module_graph,
-                                            Value::new(current_ssr_availability_info),
-                                        )
-                                        .await?,
-                                ))
+                                if let Some(chunk_group_reordered) =
+                                    reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty)
+                                {
+                                    Ok(Some((
+                                        chunk_group.clone(),
+                                        ssr_chunking_context
+                                            .chunk_group(
+                                                base_ident.with_modifier(ssr_modules_modifier()),
+                                                chunk_group_reordered,
+                                                module_graph,
+                                                Value::new(current_ssr_availability_info),
+                                            )
+                                            .await?,
+                                    )))
+                                } else {
+                                    Ok(None)
+                                }
                             })
                             .try_join()
                             .instrument(tracing::info_span!(
@@ -301,19 +305,23 @@ pub async fn get_app_client_references_chunks(
                 let client_chunk_group = client_chunk_groups
                     .iter()
                     .map(async |chunk_group| {
-                        let chunk_group_reordered =
-                            reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty);
-                        Ok((
-                            chunk_group.clone(),
-                            client_chunking_context
-                                .chunk_group(
-                                    base_ident.with_modifier(client_modules_modifier()),
-                                    chunk_group_reordered,
-                                    module_graph,
-                                    Value::new(current_client_availability_info),
-                                )
-                                .await?,
-                        ))
+                        if let Some(chunk_group_reordered) =
+                            reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty)
+                        {
+                            Ok(Some((
+                                chunk_group.clone(),
+                                client_chunking_context
+                                    .chunk_group(
+                                        base_ident.with_modifier(client_modules_modifier()),
+                                        chunk_group_reordered,
+                                        module_graph,
+                                        Value::new(current_client_availability_info),
+                                    )
+                                    .await?,
+                            )))
+                        } else {
+                            Ok(None)
+                        }
                     })
                     .try_join()
                     .instrument(tracing::info_span!(
@@ -324,7 +332,7 @@ pub async fn get_app_client_references_chunks(
                 let (client_chunk_group, ssr_chunk_group) =
                     join!(client_chunk_group, ssr_chunk_group);
 
-                for (chunk_group, chunks_group_result) in ssr_chunk_group?.into_iter() {
+                for (chunk_group, chunks_group_result) in ssr_chunk_group?.into_iter().flatten() {
                     let ssr_chunks = current_ssr_chunks.concatenate(*chunks_group_result.assets);
                     let ssr_chunks = ssr_chunks.to_resolved().await?;
 
@@ -357,7 +365,7 @@ pub async fn get_app_client_references_chunks(
                     }
                 }
 
-                for (chunk_group, chunk_group_result) in client_chunk_group?.into_iter() {
+                for (chunk_group, chunk_group_result) in client_chunk_group?.into_iter().flatten() {
                     let client_chunks =
                         current_client_chunks.concatenate(*chunk_group_result.assets);
                     let client_chunks = client_chunks.to_resolved().await?;
@@ -412,7 +420,7 @@ pub async fn get_app_client_references_chunks(
 fn reorder_isolated_merged_entries(
     chunk_group: &ChunkGroup,
     client_to_ref_ty: &FxIndexMap<ResolvedVc<Box<dyn Module>>, Vec<ClientReferenceType>>,
-) -> ChunkGroup {
+) -> Option<ChunkGroup> {
     let ChunkGroup::IsolatedMerged {
         parent,
         entries,
@@ -427,9 +435,9 @@ fn reorder_isolated_merged_entries(
     // However, any client references that are not listed in client_to_ref_ty still need to be
     // retained  (they were already chunked in a preceding layout segment), but the order doesn't
     // matter in this case (since they will not be chunked in this step anyway).
-    ChunkGroup::IsolatedMerged {
-        parent: *parent,
-        entries: client_to_ref_ty
+
+    if entries.iter().any(|m| client_to_ref_ty.contains_key(m)) {
+        let entries = client_to_ref_ty
             .keys()
             .copied()
             .filter(|m| entries.contains(m))
@@ -439,7 +447,16 @@ fn reorder_isolated_merged_entries(
                     .copied()
                     .filter(|m| !client_to_ref_ty.contains_key(m)),
             )
-            .collect(),
-        merge_tag: merge_tag.clone(),
+            .collect();
+
+        Some(ChunkGroup::IsolatedMerged {
+            parent: *parent,
+            entries,
+            merge_tag: merge_tag.clone(),
+        })
+    } else {
+        // Not a single client reference is "new" in the current layout segment, the result of
+        // chunking will be an empty list anyway.
+        None
     }
 }
