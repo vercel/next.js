@@ -1,8 +1,7 @@
 'use client'
 
-import { useEffect, type FormEvent, useContext } from 'react'
+import { useCallback, type FormEvent, useContext } from 'react'
 import { addBasePath } from '../add-base-path'
-import { useIntersection } from '../use-intersection'
 import { useMergedRef } from '../use-merged-ref'
 import {
   AppRouterContext,
@@ -17,6 +16,10 @@ import {
   hasUnsupportedSubmitterAttributes,
   type FormProps,
 } from '../form-shared'
+import {
+  mountLinkInstance,
+  unmountLinkInstance,
+} from '../components/segment-cache/links'
 
 export type { FormProps }
 
@@ -93,31 +96,25 @@ export default function Form({
     // if we don't have an action path, we can't prefetch anything.
     !!router && isNavigatingForm && prefetch === null
 
-  const [setIntersectionRef, isVisible] = useIntersection({
-    rootMargin: '200px',
-    disabled: !isPrefetchEnabled,
-  })
+  const observeFormVisibilityOnMount = useCallback(
+    (element: HTMLFormElement) => {
+      if (isPrefetchEnabled && router !== null) {
+        mountLinkInstance(element, actionProp, router, PrefetchKind.AUTO)
+      }
+      return () => {
+        unmountLinkInstance(element)
+      }
+    },
+    [isPrefetchEnabled, actionProp, router]
+  )
 
-  const ownRef = useMergedRef<HTMLFormElement>(
-    setIntersectionRef,
+  const mergedRef = useMergedRef(
+    observeFormVisibilityOnMount,
     externalRef ?? null
   )
 
-  useEffect(() => {
-    if (!isVisible || !isPrefetchEnabled) {
-      return
-    }
-
-    try {
-      const prefetchKind = PrefetchKind.AUTO
-      router.prefetch(actionProp, { kind: prefetchKind })
-    } catch (err) {
-      console.error(err)
-    }
-  }, [isPrefetchEnabled, isVisible, actionProp, prefetch, router])
-
   if (!isNavigatingForm) {
-    return <form {...props} ref={ownRef} />
+    return <form {...props} ref={mergedRef} />
   }
 
   const actionHref = addBasePath(actionProp)
@@ -125,7 +122,7 @@ export default function Form({
   return (
     <form
       {...props}
-      ref={ownRef}
+      ref={mergedRef}
       action={actionHref}
       onSubmit={(event) =>
         onFormSubmit(event, {
