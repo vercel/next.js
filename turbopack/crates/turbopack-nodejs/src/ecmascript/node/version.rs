@@ -4,10 +4,7 @@ use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{chunk::MinifyType, version::Version};
-use turbopack_ecmascript::chunk::EcmascriptChunkContent;
-
-use super::content::chunk_items;
-use crate::ecmascript::node::content::CodeAndIds;
+use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
@@ -36,7 +33,7 @@ impl EcmascriptBuildNodeChunkVersion {
                 output_root.to_string()
             );
         };
-        let chunk_items = chunk_items(content).await?;
+        let chunk_items = content.await?.chunk_item_code_and_ids().await?;
         Ok(EcmascriptBuildNodeChunkVersion {
             chunk_path: chunk_path.to_string(),
             chunk_items,

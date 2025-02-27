@@ -37,16 +37,16 @@ impl EcmascriptDevChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptDevChunkContentEntries(
+pub struct EcmascriptBrowserChunkContentEntries(
     FxIndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentEntries {
+impl EcmascriptBrowserChunkContentEntries {
     #[turbo_tasks::function]
     pub async fn new(
         chunk_content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
+    ) -> Result<Vc<EcmascriptBrowserChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
         let entries: FxIndexMap<_, _> = chunk_content

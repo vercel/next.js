@@ -1,27 +1,16 @@
-use std::{future::IntoFuture, io::Write};
-
 use anyhow::Result;
 use indoc::writedoc;
-use rustc_hash::FxHashMap;
-use smallvec::{smallvec, SmallVec};
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{batch_info, ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{Version, VersionedContent},
 };
-use turbopack_ecmascript::{
-    chunk::{
-        EcmascriptChunkContent, EcmascriptChunkItemBatchGroup, EcmascriptChunkItemExt,
-        EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
-    },
-    minify::minify,
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
 use crate::NodeJsChunkingContext;
@@ -50,78 +39,11 @@ impl EcmascriptBuildNodeChunkContent {
     }
 }
 
-pub(super) async fn chunk_items(
-    content: Vc<EcmascriptChunkContent>,
-) -> Result<Vec<ReadRef<CodeAndIds>>> {
-    let content = content.await?;
-    batch_info(
-        &content.batch_groups,
-        &content.chunk_items,
-        |batch| batch_group_code_and_ids(batch).into_future(),
-        |item| code_and_ids(item.clone()).into_future(),
-    )
-    .await
-}
-
-#[turbo_tasks::value(transparent, serialization = "none")]
-pub struct CodeAndIds(SmallVec<[(ReadRef<ModuleId>, ReadRef<Code>); 1]>);
-
-#[turbo_tasks::value(transparent, serialization = "none")]
-struct BatchGroupCodeAndIds(
-    FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeAndIds>>,
-);
-
-#[turbo_tasks::function]
-async fn batch_group_code_and_ids(
-    batch_group: Vc<EcmascriptChunkItemBatchGroup>,
-) -> Result<Vc<BatchGroupCodeAndIds>> {
-    Ok(Vc::cell(
-        batch_group
-            .await?
-            .items
-            .iter()
-            .map(async |item| Ok((item.clone(), code_and_ids(item.clone()).await?)))
-            .try_join()
-            .await?
-            .into_iter()
-            .collect(),
-    ))
-}
-
-#[turbo_tasks::function]
-async fn code_and_ids(item: EcmascriptChunkItemOrBatchWithAsyncInfo) -> Result<Vc<CodeAndIds>> {
-    Ok(Vc::cell(match item {
-        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(EcmascriptChunkItemWithAsyncInfo {
-            chunk_item,
-            async_info,
-            ..
-        }) => {
-            let id = chunk_item.id();
-            let code = chunk_item.code(async_info.map(|info| *info));
-            smallvec![(id.await?, code.await?)]
-        }
-        EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
-            .await?
-            .chunk_items
-            .iter()
-            .map(|item| async {
-                Ok((
-                    item.chunk_item.id().await?,
-                    item.chunk_item
-                        .code(item.async_info.map(|info| *info))
-                        .await?,
-                ))
-            })
-            .try_join()
-            .await?
-            .into(),
-    }))
-}
-
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+        use std::io::Write;
         let this = self.await?;
         let source_maps = this
             .chunking_context
@@ -140,13 +62,7 @@ impl EcmascriptBuildNodeChunkContent {
         )?;
 
         let content = this.content.await?;
-        let chunk_items = batch_info(
-            &content.batch_groups,
-            &content.chunk_items,
-            |batch| batch_group_code_and_ids(batch).into_future(),
-            |item| code_and_ids(item.clone()).into_future(),
-        )
-        .await?;
+        let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
                 write!(code, "{}: ", StringifyJs(&id))?;

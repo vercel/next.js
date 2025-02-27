@@ -1,12 +1,17 @@
+use std::future::IntoFuture;
+
 use anyhow::Result;
 use either::Either;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkItems},
+    chunk::{batch_info, ChunkItem, ChunkItems},
     output::OutputAsset,
 };
 
-use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
+use crate::chunk::{
+    batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    batch_group_code_and_ids, item_code_and_ids, CodeAndIds,
+};
 
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptChunkContent {
@@ -43,5 +48,17 @@ impl EcmascriptChunkContent {
                 .collect(),
         )
         .cell())
+    }
+}
+
+impl EcmascriptChunkContent {
+    pub async fn chunk_item_code_and_ids(&self) -> Result<Vec<ReadRef<CodeAndIds>>> {
+        batch_info(
+            &self.batch_groups,
+            &self.chunk_items,
+            |batch| batch_group_code_and_ids(batch).into_future(),
+            |item| item_code_and_ids(item.clone()).into_future(),
+        )
+        .await
     }
 }

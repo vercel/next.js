@@ -1,5 +1,6 @@
 pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
 pub(crate) mod item;
@@ -28,6 +29,7 @@ pub use self::{
         EcmascriptChunkItemOrBatchWithAsyncInfo,
     },
     chunk_type::EcmascriptChunkType,
+    code_and_ids::{batch_group_code_and_ids, item_code_and_ids, BatchGroupCodeAndIds, CodeAndIds},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{

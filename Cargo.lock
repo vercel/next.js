@@ -9755,6 +9755,7 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
+ "smallvec",
  "sourcemap",
  "strsim 0.11.1",
  "swc_core 16.0.0",
