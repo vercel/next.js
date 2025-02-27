@@ -605,7 +605,7 @@ function assignDefaults(
   if (
     typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
   ) {
-    const value = Number.parseInt(
+    const value = parseInt(
       result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
@@ -676,7 +676,7 @@ function assignDefaults(
 
   // use the closest lockfile as tracing root
   if (!result?.outputFileTracingRoot || !result?.experimental?.turbo?.root) {
-    const rootDir = findRootDir(dir)
+    let rootDir = findRootDir(dir)
 
     if (rootDir) {
       if (!result?.outputFileTracingRoot) {
