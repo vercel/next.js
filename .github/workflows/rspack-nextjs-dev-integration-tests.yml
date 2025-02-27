@@ -14,11 +14,7 @@ jobs:
       name: rspack-development
       test_type: development
       run_before_test: |
-        export NEXT_RSPACK=1 \
-          NEXT_TEST_USE_RSPACK=1 \
-          BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN=1 \
-          BUILTIN_APP_LOADER=1 \
-          BUILTIN_SWC_LOADER=1
+        export NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1
       # Failing tests take longer (due to timeouts and retries). Since we have
       # many failing tests, we need smaller groups and longer timeouts, in case
       # a group gets stuck with a cluster of failing tests.

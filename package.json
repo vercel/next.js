@@ -77,7 +77,7 @@
     "storybook": "turbo run storybook",
     "build-storybook": "turbo run build-storybook",
     "test-storybook": "turbo run test-storybook",
-    "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1 BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN=1 BUILTIN_APP_LOADER=1 BUILTIN_SWC_LOADER=1"
+    "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
