@@ -15,6 +15,7 @@
   "@sentry/profiling-node",
   "@sparticuz/chromium",
   "@swc/core",
+  "@temporalio/client",
   "argon2",
   "autoprefixer",
   "aws-crt",
