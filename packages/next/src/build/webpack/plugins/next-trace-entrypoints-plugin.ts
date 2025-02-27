@@ -1,6 +1,5 @@
 import nodePath from 'path'
 import type { Span } from '../../../trace'
-import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
@@ -20,6 +19,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { getCompilationSpan } from '../utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -576,6 +576,12 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      const compilationSpan =
+        getCompilationSpan(compilation) || getCompilationSpan(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
+      )
+
       compilation.hooks.processAssets.tapAsync(
         {
           name: PLUGIN_NAME,
@@ -633,10 +639,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         }
       }
 
-      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-        'next-trace-entrypoint-plugin'
-      )
       traceEntrypointsPluginSpan.traceFn(() => {
         compilation.hooks.processAssets.tapAsync(
           {
