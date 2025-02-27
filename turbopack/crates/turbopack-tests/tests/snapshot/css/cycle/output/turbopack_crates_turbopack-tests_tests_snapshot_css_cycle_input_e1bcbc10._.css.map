@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/a.css"],"sourcesContent":["@import \"b.css\";\n\n.a {\n  content: \"\";\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 1, "column": 14}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/e.css"],"sourcesContent":["@import \"a.css\";\n\n.e {\n  content: \"\";\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 4, "column": 14}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/d.css"],"sourcesContent":["@import \"e.css\";\n\n.d {\n  content: \"\";\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 7, "column": 14}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/c.css"],"sourcesContent":["@import \"d.css\";\n\n.c {\n  content: \"\";\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 10, "column": 14}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/b.css"],"sourcesContent":["@import \"c.css\";\n\n.b {\n  content: \"\";\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 13, "column": 14}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css"],"sourcesContent":["@import \"a.css\";\n"],"names":[],"mappings":""}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

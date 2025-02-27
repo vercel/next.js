@@ -31,6 +31,9 @@ import { Playwright } from './browsers/playwright'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
+// TODO: Create dedicated Jest environment that sets up these matchers
+// Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
+import './add-redbox-matchers'
 
 export { shouldRunTurboDevTest }
 
@@ -955,11 +958,46 @@ export async function goToNextErrorView(
 export async function openDevToolsIndicatorPopover(
   browser: BrowserInterface
 ): Promise<void> {
+  const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+
   try {
-    await browser.waitForElementByCss('[data-nextjs-dev-tools-button]').click()
+    await devToolsIndicator.click()
   } catch (cause) {
     const error = new Error('No DevTools Indicator to open.', { cause })
     Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    throw error
+  }
+}
+
+export async function assertHasDevToolsIndicator(browser: BrowserInterface) {
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
+
+  const devToolsIndicator = playwright.locateDevToolsIndicator()
+  try {
+    await devToolsIndicator.waitFor({ timeout: 5000 })
+  } catch (errorCause) {
+    const error = new Error(
+      'Expected DevTools Indicator but found no visible one.'
+    )
+    Error.captureStackTrace(error, assertHasDevToolsIndicator)
+    throw error
+  }
+
+  return devToolsIndicator
+}
+
+export async function assertNoDevToolsIndicator(browser: BrowserInterface) {
+  // TODO: Implement for other BrowserInterface implementations
+  const playwright = browser as Playwright
+
+  const devToolsIndicator = playwright.locateDevToolsIndicator()
+
+  if (await devToolsIndicator.isVisible()) {
+    const error = new Error(
+      'Expected no visible DevTools Indicator but found one.'
+    )
+    Error.captureStackTrace(error, assertNoDevToolsIndicator)
     throw error
   }
 }
@@ -995,13 +1033,15 @@ export async function getRouteTypeFromDevToolsIndicator(
   })
 }
 
-export function getRedboxHeader(browser: BrowserInterface) {
+export function getRedboxHeader(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal?.shadowRoot
-    return root?.querySelector('[data-nextjs-dialog-header]')?.innerText
+    return root?.querySelector('[data-nextjs-dialog-header]')?.innerText ?? null
   })
 }
 
@@ -1022,7 +1062,9 @@ export async function getRedboxTotalErrorCount(
   return parseInt(text || '-1')
 }
 
-export async function getRedboxSource(browser: BrowserInterface) {
+export function getRedboxSource(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
@@ -1032,60 +1074,97 @@ export async function getRedboxSource(browser: BrowserInterface) {
         )
       )
     const root = portal.shadowRoot
-    return root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
-      .innerText
+    return (
+      root.querySelector('[data-nextjs-codeframe], [data-nextjs-terminal]')
+        ?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxTitle(browser: BrowserInterface) {
+export function getRedboxTitle(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    return root.querySelector(
-      '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
-    ).innerText
+    return (
+      root.querySelector(
+        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+      )?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxDescription(browser: BrowserInterface) {
+export function getRedboxLabel(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector('#nextjs__container_errors_desc').innerText
-    if (text === null) throw new Error('No redbox description found')
-    return text
+    return (
+      root.querySelector('#nextjs__container_errors_label')?.innerText ?? null
+    )
   })
 }
 
-export function getRedboxDescriptionWarning(browser: BrowserInterface) {
+export function getRedboxEnvironmentLabel(
+  browser: BrowserInterface
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector(
-      '#nextjs__container_errors__notes'
-    )?.innerText
-    return text
+    return (
+      root.querySelector('[data-nextjs-environment-name-label]')?.innerText ??
+      null
+    )
+  })
+}
+
+export function getRedboxDescription(
+  browser: BrowserInterface
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxDescriptionWarning(
+  browser: BrowserInterface
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root.querySelector('#nextjs__container_errors__notes')?.innerText ?? null
+    )
   })
 }
 
 export function getRedboxErrorLink(
   browser: BrowserInterface
-): Promise<string | undefined> {
+): Promise<string | null> {
   return browser.eval(() => {
     const portal = [].slice
       .call(document.querySelectorAll('nextjs-portal'))
       .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
     const root = portal.shadowRoot
-    const text = root.querySelector(
-      '#nextjs__container_errors__link'
-    )?.innerText
-    return text
+    return (
+      root.querySelector('#nextjs__container_errors__link')?.innerText ?? null
+    )
   })
 }
 
@@ -1341,15 +1420,50 @@ export async function hasRedboxCallStack(browser: BrowserInterface) {
 
 export async function getRedboxCallStack(
   browser: BrowserInterface
-): Promise<string | null> {
-  const callStackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const callStackFrameTexts = await Promise.all(
-    callStackFrameElements.map((f) => f.innerText())
-  )
+): Promise<string[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-call-stack-frame]'))
+    const root = portal?.shadowRoot
+    const frameElements = root?.querySelectorAll(
+      '[data-nextjs-call-stack-frame]'
+    )
 
-  return callStackFrameTexts.join('\n').trim()
+    const stack: string[] = []
+    if (frameElements !== undefined) {
+      let foundInternalFrame = false
+      for (const frameElement of frameElements) {
+        // `innerText` will be "${methodName}\n${location}".
+        // Ideally `innerText` would be "${methodName} ${location}"
+        // so that c&p automatically does the right thing.
+        const frame = frameElement.innerText.replace('\n', ' ')
+
+        // TODO: Special marker if source-mapping fails.
+
+        // Feel free to adjust this heuristic if it accidentally hides too much.
+        const isInternalFrame =
+          // likely https://linear.app/vercel/issue/NDX-464
+          // location starts with `./dist` e.g. "NotFoundBoundary ./dist/esm/[...]"
+          / .\/dist\//.test(frame)
+
+        if (isInternalFrame) {
+          // We only add one of these frames.
+          // If we'd add all of them, the stack would change during refactorings which is annoying.
+          if (!foundInternalFrame) {
+            stack.push('<FIXME-internal-frame>')
+          }
+          foundInternalFrame = true
+        } else if (frame.includes('file://')) {
+          stack.push('<FIXME-file-protocol>')
+        } else {
+          stack.push(frame)
+        }
+      }
+    }
+
+    return stack
+  })
 }
 
 export async function getRedboxCallStackCollapsed(
@@ -1664,4 +1778,11 @@ export async function getHighlightedDiffLines(
       (await line.innerText())[0],
     ])
   )
+}
+
+export function trimEndMultiline(str: string) {
+  return str
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .join('\n')
 }

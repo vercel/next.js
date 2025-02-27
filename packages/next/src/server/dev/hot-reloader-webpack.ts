@@ -84,6 +84,8 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
+import { getDevOverlayFontMiddleware } from '../../client/components/react-dev-overlay/font/get-dev-overlay-font-middleware'
+import { getDisableDevIndicatorMiddleware } from './dev-indicator-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -524,9 +526,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 if (file) {
                   // `file` is filepath in `pages/` but it can be a webpack url.
                   // If it's a webpack loader URL, it will include the app-pages layer
-                  if (
-                    file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/./`)
-                  ) {
+                  if (file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/`)) {
                     const fileUrl = new URL(file, 'file://')
                     const cwd = process.cwd()
                     const modules = fileUrl.searchParams
@@ -541,7 +541,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     }
                   } else if (
                     // Handle known webpack layers
-                    file.startsWith(`(${WEBPACK_LAYERS.pagesDirBrowser})/./`)
+                    file.startsWith(`(${WEBPACK_LAYERS.pagesDirBrowser})/`)
                   ) {
                     const cleanedFilePath = file.slice(
                       `(${WEBPACK_LAYERS.pagesDirBrowser})/`.length
@@ -1549,6 +1549,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         edgeServerStats: () => this.edgeServerStats,
       }),
       getNextErrorFeedbackMiddleware(this.telemetry),
+      getDevOverlayFontMiddleware(),
+      getDisableDevIndicatorMiddleware(),
     ]
   }
 

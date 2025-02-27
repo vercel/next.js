@@ -45,14 +45,14 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkGroupType, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    module::{Module, Modules},
-    module_graph::ModuleGraph,
+    module::Module,
+    module_graph::{GraphEntries, ModuleGraph},
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -105,6 +105,7 @@ impl PagesProject {
             app: _,
             document: _,
             error: _,
+            error_500: _,
         } = &*pages_structure.await?;
         let mut routes = FxIndexMap::default();
 
@@ -711,7 +712,7 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<Box<dyn Source>> {
-        Vc::upcast(FileSource::new(self.page.project_path()))
+        Vc::upcast(FileSource::new(self.page.file_path()))
     }
 
     #[turbo_tasks::function]
@@ -768,7 +769,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets))
+        Ok(project.module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated))
     }
 
     #[turbo_tasks::function]
@@ -779,9 +780,9 @@ impl PageEndpoint {
             let project = this.pages_project.project();
             let client_chunking_context = project.client_chunking_context();
 
-            let evaluatable_assets = self.client_evaluatable_assets();
-            let module_graph = project.module_graph_for_entries(evaluatable_assets);
+            let module_graph = self.client_module_graph();
 
+            let evaluatable_assets = self.client_evaluatable_assets();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
                 evaluatable_assets,
@@ -842,7 +843,7 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_config_from_source(ssr_module).await?;
+        let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         let ssr_module = if is_edge {
@@ -905,7 +906,7 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
-            let module_graph = project.module_graph(*ssr_module);
+            let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 // The SSR and Client Graphs are not connected in Pages Router.
@@ -956,12 +957,12 @@ impl PageEndpoint {
                 DynamicImportedChunks::default().resolved_cell()
             };
 
+            let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
+                .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.owned().await?;
-                let evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                    .context("could not process page loader entry module")?;
-                evaluatable_assets.push(evaluatable);
+                evaluatable_assets.push(ssr_module_evaluatable);
 
                 let edge_files = edge_chunking_context
                     .evaluated_chunk_group_assets(
@@ -991,8 +992,7 @@ impl PageEndpoint {
                 } = *chunking_context
                     .entry_chunk_group(
                         ssr_entry_chunk_path,
-                        *ssr_module,
-                        runtime_entries,
+                        runtime_entries.with_entry(*ssr_module_evaluatable),
                         module_graph,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
@@ -1465,15 +1465,22 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push(ssr_chunk_module.ssr_module);
+        modules.push((vec![ssr_chunk_module.ssr_module], ChunkGroupType::Entry));
 
         if let PageEndpointType::Html = this.ty {
-            modules.push(self.client_module().to_resolved().await?);
+            modules.push((
+                self.client_evaluatable_assets()
+                    .await?
+                    .iter()
+                    .map(|m| ResolvedVc::upcast(*m))
+                    .collect(),
+                ChunkGroupType::Evaluated,
+            ));
         }
 
         Ok(Vc::cell(modules))

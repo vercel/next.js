@@ -4,9 +4,10 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, describeVariants as describe } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
+import stripAnsi from 'strip-ansi'
 
 describe.each(['default', 'turbo'])('Error recovery app %s', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
@@ -470,8 +471,12 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
     const { session } = sandbox
     await session.assertHasRedbox()
-    await expect(session.getRedboxSource(true)).resolves.toMatch(
-      /Failed to compile/
-    )
+
+    const source = stripAnsi(await session.getRedboxSource(true))
+    if (isTurbopack) {
+      expect(source).toMatch(/Parsing ecmascript source code failed/)
+    } else {
+      expect(source).toMatch(/x Expected '}', got '<eof>'/)
+    }
   })
 })

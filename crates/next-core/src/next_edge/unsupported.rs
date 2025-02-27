@@ -64,10 +64,9 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
             };
             let content = AssetContent::file(File::from(code).into());
             let source = VirtualSource::new(root_path, content).to_resolved().await?;
-            return Ok(ImportMapResult::Result(
-                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
-            )
-            .cell());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(source))).cell(),
+            );
         };
 
         Ok(ImportMapResult::NoEntry.cell())

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxHeader, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 describe('app-dir - errors', () => {
@@ -14,7 +14,14 @@ describe('app-dir - errors', () => {
 
   describe('error component', () => {
     it('should trigger error component when an error happens during rendering', async () => {
-      const browser = await next.browser('/client-component')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/client-component', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
       await browser.elementByCss('#error-trigger-button').click()
 
       if (isNextDev) {
@@ -27,10 +34,20 @@ describe('app-dir - errors', () => {
           await browser.waitForElementByCss('#error-boundary-message').text()
         ).toBe('An error occurred: this is a test')
       }
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
     })
 
     it('should trigger error component when an error happens during server components rendering', async () => {
-      const browser = await next.browser('/server-component')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/server-component', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
 
       expect(
         await browser.waitForElementByCss('#error-boundary-message').text()
@@ -49,6 +66,9 @@ describe('app-dir - errors', () => {
         // await assertHasRedbox(browser)
         // expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
       }
+
+      // Handled by custom error boundary.
+      expect(pageErrors).toEqual([])
     })
 
     it('should preserve custom digests', async () => {
@@ -143,12 +163,31 @@ describe('app-dir - errors', () => {
     })
 
     it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
-      const browser = await next.browser('/global-error-boundary/client')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/global-error-boundary/client', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
       await browser.elementByCss('#error-trigger-button').click()
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(/this is a test/)
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: this is a test",
+           "environmentLabel": null,
+           "label": "Unhandled Runtime Error",
+           "source": "app/global-error-boundary/client/page.js (8:11) @ Page
+         >  8 |     throw new Error('this is a test')
+              |           ^",
+           "stack": [
+             "Page app/global-error-boundary/client/page.js (8:11)",
+           ],
+         }
+        `)
       } else {
         expect(
           await browser.waitForElementByCss('body').elementByCss('h2').text()
@@ -156,14 +195,39 @@ describe('app-dir - errors', () => {
           'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).'
         )
       }
+
+      expect(pageErrors).toEqual([
+        expect.objectContaining({
+          message: 'this is a test',
+        }),
+      ])
     })
 
     it('should display error digest for error in server component with default error boundary', async () => {
-      const browser = await next.browser('/global-error-boundary/server')
+      const pageErrors: unknown[] = []
+      const browser = await next.browser('/global-error-boundary/server', {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error: unknown) => {
+            pageErrors.push(error)
+          })
+        },
+      })
 
       if (isNextDev) {
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(/custom server error/)
+        await expect(browser).toDisplayRedbox(`
+          {
+            "count": 1,
+            "description": "Error: custom server error",
+            "environmentLabel": "Server",
+            "label": "Unhandled Runtime Error",
+            "source": "app/global-error-boundary/server/page.js (2:9) @ Page
+          > 2 |   throw Error('custom server error')
+              |         ^",
+            "stack": [
+              "Page app/global-error-boundary/server/page.js (2:9)",
+            ],
+          }
+        `)
       } else {
         expect(
           await browser.waitForElementByCss('body').elementByCss('h2').text()
@@ -174,6 +238,16 @@ describe('app-dir - errors', () => {
           await browser.waitForElementByCss('body').elementByCss('p').text()
         ).toMatch(/Digest: \w+/)
       }
+
+      expect(pageErrors).toEqual([
+        expect.objectContaining({
+          message: isNextDev
+            ? 'custom server error'
+            : 'An error occurred in the Server Components render. ' +
+              'The specific message is omitted in production builds to avoid leaking sensitive details. ' +
+              'A digest property is included on this error instance which may provide additional details about the nature of the error.',
+        }),
+      ])
     })
 
     // production tests
@@ -204,13 +278,17 @@ describe('app-dir - errors', () => {
       })
 
       it('should hydrate empty shell to handle server-side rendering errors', async () => {
-        const browser = await next.browser('/ssr-error-client-component')
-        const logs = await browser.log()
-        const errors = logs
-          .filter((x) => x.source === 'error')
-          .map((x) => x.message)
-          .join('\n')
-        expect(errors).toInclude('Error during SSR')
+        const pageErrors: unknown[] = []
+        await next.browser('/ssr-error-client-component', {
+          beforePageLoad: (page) => {
+            page.on('pageerror', (error: unknown) => {
+              pageErrors.push(error)
+            })
+          },
+        })
+        expect(pageErrors).toEqual([
+          expect.objectContaining({ message: 'Error during SSR' }),
+        ])
       })
 
       it('should log the original RSC error trace in production', async () => {

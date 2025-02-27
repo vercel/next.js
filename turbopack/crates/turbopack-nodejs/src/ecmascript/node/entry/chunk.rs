@@ -7,7 +7,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAssets, ModuleChunkItemIdExt},
     code_builder::{Code, CodeBuilder},
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
@@ -115,8 +115,7 @@ impl EcmascriptBuildNodeEntryChunk {
                 ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*evaluatable_asset)
             {
                 let runtime_module_id = placeable
-                    .as_chunk_item(*this.module_graph, Vc::upcast(*this.chunking_context))
-                    .id()
+                    .chunk_item_id(Vc::upcast(*this.chunking_context))
                     .await?;
 
                 writedoc!(
@@ -131,8 +130,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
         let runtime_module_id = this
             .exported_module
-            .as_chunk_item(*this.module_graph, Vc::upcast(*this.chunking_context))
-            .id()
+            .chunk_item_id(Vc::upcast(*this.chunking_context))
             .await?;
 
         writedoc!(

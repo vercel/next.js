@@ -321,14 +321,13 @@ function createDivergedMetadataComponents(
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
 } {
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
-    ? Metadata
-    : EmptyMetadata
+  const StreamingMetadata: React.ComponentType<{}> | null =
+    serveStreamingMetadata ? Metadata : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -490,23 +489,28 @@ async function generateDynamicRSCPayload(
     const preloadCallbacks: PreloadCallbacks = []
 
     const searchParams = createServerSearchParamsForMetadata(query, workStore)
-    const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-      createMetadataComponents({
-        tree: loaderTree,
-        searchParams,
-        metadataContext: createTrackedMetadataContext(
-          url.pathname,
-          ctx.renderOpts,
-          workStore
-        ),
-        getDynamicParamFromSegment,
-        appUsingSizeAdjustment,
-        createServerParamsForMetadata,
-        workStore,
-        MetadataBoundary,
-        ViewportBoundary,
-        serveStreamingMetadata,
-      })
+    const {
+      ViewportTree,
+      MetadataTree,
+      getViewportReady,
+      getMetadataReady,
+      StreamingMetadataOutlet,
+    } = createMetadataComponents({
+      tree: loaderTree,
+      searchParams,
+      metadataContext: createTrackedMetadataContext(
+        url.pathname,
+        ctx.renderOpts,
+        workStore
+      ),
+      getDynamicParamFromSegment,
+      appUsingSizeAdjustment,
+      createServerParamsForMetadata,
+      workStore,
+      MetadataBoundary,
+      ViewportBoundary,
+      serveStreamingMetadata,
+    })
 
     const { StreamingMetadata, StaticMetadata } =
       createDivergedMetadataComponents(() => {
@@ -540,6 +544,7 @@ async function generateDynamicRSCPayload(
         getMetadataReady,
         preloadCallbacks,
         StreamingMetadata,
+        StreamingMetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -801,24 +806,29 @@ async function getRSCPayload(
   const serveStreamingMetadata = getServeStreamingMetadata(ctx)
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-    createMetadataComponents({
-      tree,
-      errorType: is404 ? 'not-found' : undefined,
-      searchParams,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
-      getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
-      createServerParamsForMetadata,
-      workStore,
-      MetadataBoundary,
-      ViewportBoundary,
-      serveStreamingMetadata: serveStreamingMetadata,
-    })
+  const {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+    StreamingMetadataOutlet,
+  } = createMetadataComponents({
+    tree,
+    errorType: is404 ? 'not-found' : undefined,
+    searchParams,
+    metadataContext: createTrackedMetadataContext(
+      url.pathname,
+      ctx.renderOpts,
+      workStore
+    ),
+    getDynamicParamFromSegment,
+    appUsingSizeAdjustment,
+    createServerParamsForMetadata,
+    workStore,
+    MetadataBoundary,
+    ViewportBoundary,
+    serveStreamingMetadata,
+  })
 
   const preloadCallbacks: PreloadCallbacks = []
 
@@ -844,6 +854,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     StreamingMetadata,
+    StreamingMetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -987,13 +998,12 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>
-        <StreamingMetadata />
-      </head>
+      <head>{StreamingMetadata ? <StreamingMetadata /> : null}</head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
             data-next-error-message={err.message}
+            data-next-error-digest={'digest' in err ? err.digest : ''}
             data-next-error-stack={err.stack}
           />
         ) : null}
@@ -1201,7 +1211,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setAppIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, null)
   }
 
   if (
@@ -1463,19 +1473,19 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       process.env.NODE_ENV === 'development' &&
-      renderOpts.setAppIsrStatus &&
+      renderOpts.setIsrStatus &&
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req) &&
       !isDevWarmupRequest
     ) {
-      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         if (!requestStore.usedDynamic && !workStore.forceDynamic) {
           // only node can be ISR so we only need to update the status here
           const { pathname } = new URL(req.url || '/', 'http://n')
-          setAppIsrStatus(pathname, true)
+          setIsrStatus(pathname, true)
         }
       })
     }

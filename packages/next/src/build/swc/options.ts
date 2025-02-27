@@ -221,7 +221,9 @@ function getBaseSWCOptions({
             isReactServerLayer,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
+            cacheKinds: ['default', 'remote'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
           }
         : undefined,
     // For app router we prefer to bundle ESM,

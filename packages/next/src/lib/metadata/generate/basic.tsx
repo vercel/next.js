@@ -5,7 +5,6 @@ import type {
 } from '../types/metadata-interface'
 import type { ViewportLayout } from '../types/extra-types'
 
-import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
 import { getOrigin } from './utils'
@@ -20,9 +19,15 @@ function resolveViewportLayout(viewport: Viewport) {
       const viewportKey = viewportKey_ as keyof ViewportLayout
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-        if (resolved) resolved += ', '
-        resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        if (typeof value === 'boolean') {
+          value = value ? 'yes' : 'no'
+        } else if (!value && viewportKey === 'initialScale') {
+          value = undefined
+        }
+        if (value) {
+          if (resolved) resolved += ', '
+          resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        }
       }
     }
   }

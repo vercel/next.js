@@ -31,8 +31,8 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
-        ChunkingContext, ModuleId,
+        availability_info::AvailabilityInfo, ChunkItem, ChunkableModule, ChunkingContext,
+        ModuleChunkItemIdExt, ModuleId,
     },
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
@@ -83,8 +83,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
-                .id()
+                .chunk_item_id(Vc::upcast(chunking_context))
                 .to_resolved()
                 .await?;
 
