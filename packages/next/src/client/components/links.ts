@@ -1,17 +1,17 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
-import type { AppRouterInstance } from '../../../shared/lib/app-router-context.shared-runtime'
-import { getCurrentAppRouterState } from '../../../shared/lib/router/action-queue'
-import { createPrefetchURL } from '../app-router'
-import { PrefetchKind } from '../router-reducer/router-reducer-types'
-import { getCurrentCacheVersion } from './cache'
-import { createCacheKey } from './cache-key'
+import type { FlightRouterState } from '../../server/app-render/types'
+import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
+import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
+import { createPrefetchURL } from './app-router'
+import { PrefetchKind } from './router-reducer/router-reducer-types'
+import { getCurrentCacheVersion } from './segment-cache'
+import { createCacheKey } from './segment-cache'
 import {
   type PrefetchTask,
   PrefetchPriority,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
   bumpPrefetchTask,
-} from './scheduler'
+} from './segment-cache'
 
 type LinkElement = HTMLAnchorElement | SVGAElement | HTMLFormElement
 

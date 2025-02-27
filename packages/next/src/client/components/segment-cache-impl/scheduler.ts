@@ -25,6 +25,7 @@ import {
   resetRevalidatingSegmentEntry,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
+import { PrefetchPriority } from '../segment-cache'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -134,27 +135,6 @@ const enum PrefetchTaskExitStatus {
    * There's nothing left to prefetch.
    */
   Done,
-}
-
-/**
- * The priority of the prefetch task. Higher numbers are higher priority.
- */
-export const enum PrefetchPriority {
-  /**
-   * Assigned to any visible link that was hovered/touched at some point. This
-   * is not removed on mouse exit, because a link that was momentarily
-   * hovered is more likely to to be interacted with than one that was not.
-   */
-  Intent = 2,
-  /**
-   * The default priority for prefetch tasks.
-   */
-  Default = 1,
-  /**
-   * Assigned to tasks when they spawn non-blocking background work, like
-   * revalidating a partially cached entry to see if more data is available.
-   */
-  Background = 0,
 }
 
 /**

@@ -52,7 +52,7 @@ import type {
 } from '../../../server/app-render/types'
 import { normalizeFlightData } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
-import { pingVisibleLinks } from './links'
+import { pingVisibleLinks } from '../links'
 
 // A note on async/await when working in the prefetch cache:
 //
