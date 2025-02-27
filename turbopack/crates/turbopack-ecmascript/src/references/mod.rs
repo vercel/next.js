@@ -939,7 +939,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             analysis.set_async_module(async_module);
         } else if let Some(span) = top_level_await_span {
             AnalyzeIssue::new(
-                IssueSeverity::Error.cell(),
+                IssueSeverity::Error,
                 source.ident(),
                 Vc::cell("unexpected top level await".into()),
                 StyledString::Text("top level await is only supported in ESM modules.".into())
