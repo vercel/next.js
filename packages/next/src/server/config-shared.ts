@@ -604,7 +604,7 @@ export interface ExperimentalConfig {
   }
 
   /**
-   * Similar to the assetPrefix option, but for reqeusts to the server.
+   * Similar to the assetPrefix option, but for requests to the server.
    * Prefixes /_next/image (and soon /_next/data) requests with <nextUrlServerPrefix>.
    * /_next/image -> /<nextUrlServerPrefix>/_next/image
    */

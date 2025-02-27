@@ -329,6 +329,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         multiZoneDraftMode: z.boolean().optional(),
+        nextUrlServerPrefix: z.string().startsWith('/').optional(),
         cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here

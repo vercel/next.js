@@ -1,12 +1,11 @@
 import React from 'react'
 import Image from 'next/image'
-import img from '../public/test.jpg'
 
 const Page = () => {
   return (
     <div>
       <p>nextUrlServerPrefix</p>
-      <Image id="test1" src={img} placeholder="blur" />
+      <Image id="test1" src="/test.jpg" width={200} height={200} />
     </div>
   )
 }

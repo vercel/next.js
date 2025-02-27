@@ -292,32 +292,6 @@ function assignDefaults(
     )
   }
 
-  if (typeof result.experimental?.nextUrlServerPrefix !== 'string') {
-    throw new Error(
-      `Specified nextUrlServerPrefix is not a string, found type "${typeof result.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
-    )
-  }
-
-  if (result.experimental?.nextUrlServerPrefix !== '') {
-    if (result.experimental?.nextUrlServerPrefix === '/') {
-      throw new Error(
-        `Specified nextUrlServerPrefix /. nextUrlServerPrefix has to be either an empty string or a path prefix" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
-      )
-    }
-
-    if (!result.experimental?.nextUrlServerPrefix.startsWith('/')) {
-      throw new Error(
-        `Specified nextUrlServerPrefix has to start with a /, found "${result.experimental?.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
-      )
-    }
-
-    if (result.experimental?.nextUrlServerPrefix.endsWith('/')) {
-      throw new Error(
-        `Specified nextUrlServerPrefix should not end with /, found "${result.experimental?.nextUrlServerPrefix}" https://nextjs.org/docs/messages/invalid-next-url-server-prefix`
-      )
-    }
-  }
-
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
@@ -438,12 +412,27 @@ function assignDefaults(
       )
     }
 
-    if (
-      images.path === imageConfigDefault.path &&
-      result.basePath &&
-      !pathHasPrefix(images.path, result.basePath)
-    ) {
-      images.path = `${result.basePath}${images.path}`
+    if (images.path === imageConfigDefault.path) {
+      if (
+        result.basePath &&
+        result.experimental?.nextUrlServerPrefix &&
+        !pathHasPrefix(
+          images.path,
+          `${result.basePath}${result.experimental?.nextUrlServerPrefix}`
+        )
+      ) {
+        images.path = `${result.basePath}${result.experimental?.nextUrlServerPrefix}${images.path}`
+      } else if (
+        result.basePath &&
+        !pathHasPrefix(images.path, result.basePath)
+      ) {
+        images.path = `${result.basePath}${images.path}`
+      } else if (
+        result.experimental?.nextUrlServerPrefix &&
+        !pathHasPrefix(images.path, result.experimental?.nextUrlServerPrefix)
+      ) {
+        images.path = `${result.experimental?.nextUrlServerPrefix}${images.path}`
+      }
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
@@ -616,7 +605,7 @@ function assignDefaults(
   if (
     typeof result.experimental?.serverActions?.bodySizeLimit !== 'undefined'
   ) {
-    const value = parseInt(
+    const value = Number.parseInt(
       result.experimental.serverActions?.bodySizeLimit.toString()
     )
     if (isNaN(value) || value < 1) {
@@ -687,7 +676,7 @@ function assignDefaults(
 
   // use the closest lockfile as tracing root
   if (!result?.outputFileTracingRoot || !result?.experimental?.turbo?.root) {
-    let rootDir = findRootDir(dir)
+    const rootDir = findRootDir(dir)
 
     if (rootDir) {
       if (!result?.outputFileTracingRoot) {
