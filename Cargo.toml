@@ -299,7 +299,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "15.0.1", features = [
+swc_core = { version = "16.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -309,11 +309,11 @@ testing = { version = "8.0.0" }
 browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.3"
-modularize_imports = { version = "0.78.0" }
-styled_components = { version = "0.106.0" }
-styled_jsx = { version = "0.82.0" }
-swc_emotion = { version = "0.82.0" }
-swc_relay = { version = "0.52.0" }
+modularize_imports = { version = "0.79.0" }
+styled_components = { version = "0.107.0" }
+styled_jsx = { version = "0.83.0" }
+swc_emotion = { version = "0.83.0" }
+swc_relay = { version = "0.53.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
