@@ -58,15 +58,19 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
-import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
-import { pingVisibleLinks } from './segment-cache/links'
 
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
+
+const prefetchWithSegmentCache = process.env.__NEXT_CLIENT_SEGMENT_CACHE
+  ? (
+      require('../components/segment-cache/prefetch') as typeof import('../components/segment-cache/prefetch')
+    ).prefetch
+  : undefined
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
@@ -150,6 +154,9 @@ function HistoryUpdater({
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
     if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      const { pingVisibleLinks } =
+        require('./segment-cache/links') as typeof import('./segment-cache/links')
+
       pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
     }
   }, [appRouterState.nextUrl, appRouterState.tree])
@@ -290,7 +297,7 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: process.env.__NEXT_CLIENT_SEGMENT_CACHE
+      prefetch: prefetchWithSegmentCache
         ? // Unlike the old implementation, the Segment Cache doesn't store its
           // data in the router reducer state; it writes into a global mutable
           // cache. So we don't need to dispatch an action.

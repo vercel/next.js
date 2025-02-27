@@ -24,6 +24,13 @@ import {
   type RouteTree,
 } from './cache'
 import { createCacheKey } from './cache-key'
+import { handleMutable } from '../router-reducer/handle-mutable'
+import { handleExternalUrl } from '../router-reducer/reducers/navigate-reducer'
+import type {
+  ReadonlyReducerState,
+  Mutable,
+  ReducerState,
+} from '../router-reducer/router-reducer-types'
 
 export const enum NavigationResultTag {
   MPA,
@@ -121,6 +128,50 @@ export function navigate(
       currentFlightRouterState,
       shouldScroll
     ),
+  }
+}
+
+export function handleNavigationResult(
+  state: ReadonlyReducerState,
+  mutable: Mutable,
+  pendingPush: boolean,
+  result: NavigationResult
+): ReducerState {
+  switch (result.tag) {
+    case NavigationResultTag.MPA: {
+      // Perform an MPA navigation.
+      const newUrl = result.data
+      return handleExternalUrl(state, mutable, newUrl, pendingPush)
+    }
+    case NavigationResultTag.NoOp:
+      // The server responded with no change to the current page.
+      return handleMutable(state, mutable)
+    case NavigationResultTag.Success: {
+      // Received a new result.
+      mutable.cache = result.data.cacheNode
+      mutable.patchedTree = result.data.flightRouterState
+      mutable.canonicalUrl = result.data.canonicalUrl
+      mutable.scrollableSegments = result.data.scrollableSegments
+      mutable.shouldScroll = result.data.shouldScroll
+      // TODO: Not yet implemented
+      // mutable.hashFragment = hash
+      return handleMutable(state, mutable)
+    }
+    case NavigationResultTag.Async: {
+      return result.data.then(
+        (asyncResult) =>
+          handleNavigationResult(state, mutable, pendingPush, asyncResult),
+        // If the navigation failed, return the current state.
+        // TODO: This matches the current behavior but we need to do something
+        // better here if the network fails.
+        () => {
+          return state
+        }
+      )
+    }
+    default:
+      const _exhaustiveCheck: never = result
+      return state
   }
 }
 

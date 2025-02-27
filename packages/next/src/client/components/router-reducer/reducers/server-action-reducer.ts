@@ -56,7 +56,6 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache/cache'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -70,6 +69,12 @@ type FetchServerActionResult = {
     paths: string[]
   }
 }
+
+const revalidateEntireCache = process.env.__NEXT_CLIENT_SEGMENT_CACHE
+  ? (
+      require('../../segment-cache/cache') as typeof import('../../segment-cache/cache')
+    ).revalidateEntireCache
+  : undefined
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
@@ -339,7 +344,7 @@ export function serverActionReducer(
           )
 
           mutable.cache = cache
-          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+          if (revalidateEntireCache) {
             revalidateEntireCache(state.nextUrl, newTree)
           } else {
             mutable.prefetchCache = new Map()
