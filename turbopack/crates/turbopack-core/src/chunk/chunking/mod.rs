@@ -7,8 +7,8 @@ use smallvec::{smallvec, SmallVec};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
-    TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef,
+    ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext};
@@ -133,7 +133,12 @@ async fn plain_chunk_items_with_info(
             let by_type = batch_by_type
                 .iter()
                 .map(|&(ty, ref chunk_item_or_batch)| {
-                    plain_chunk_items_with_info_with_type(chunk_item_or_batch, ty, chunking_context)
+                    plain_chunk_items_with_info_with_type(
+                        chunk_item_or_batch,
+                        ty,
+                        None,
+                        chunking_context,
+                    )
                 })
                 .try_join()
                 .await?;
@@ -147,6 +152,7 @@ async fn plain_chunk_items_with_info(
 async fn plain_chunk_items_with_info_with_type(
     chunk_item_or_batch: &ChunkItemOrBatchWithAsyncModuleInfo,
     ty: ResolvedVc<Box<dyn ChunkType>>,
+    batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<(
     ResolvedVc<Box<dyn ChunkType>>,
@@ -171,7 +177,7 @@ async fn plain_chunk_items_with_info_with_type(
                     size: *chunk_item_size.await?,
                     asset_ident: asset_ident.owned().await?,
                 }],
-                SmallVec::new(),
+                batch_group.into_iter().collect(),
             ))
         }
         &ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
@@ -179,7 +185,7 @@ async fn plain_chunk_items_with_info_with_type(
             Ok((
                 ty,
                 smallvec![ChunkItemOrBatchWithInfo::Batch { batch, size }],
-                SmallVec::new(),
+                batch_group.into_iter().collect(),
             ))
         }
     }
@@ -199,10 +205,16 @@ async fn chunk_items_with_info(
 async fn chunk_items_with_info_with_type(
     chunk_item_or_batch: ChunkItemOrBatchWithAsyncModuleInfo,
     ty: ResolvedVc<Box<dyn ChunkType>>,
+    batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkItemsWithInfo>> {
-    let result =
-        plain_chunk_items_with_info_with_type(&chunk_item_or_batch, ty, chunking_context).await?;
+    let result = plain_chunk_items_with_info_with_type(
+        &chunk_item_or_batch,
+        ty,
+        batch_group,
+        chunking_context,
+    )
+    .await?;
     Ok(ChunkItemsWithInfo {
         by_type: smallvec![result],
     }
@@ -242,19 +254,24 @@ async fn batch_chunk_items_with_info(
 #[turbo_tasks::function]
 async fn batch_chunk_items_with_info_with_type(
     batch_group: Vc<ChunkItemBatchGroup>,
-    ty: ResolvedVc<Box<dyn ChunkType>>,
+    ty: Vc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<BatchChunkItemsWithInfo>> {
-    let batch_group = batch_group.await?;
     let map = batch_group
+        .await?
         .items
         .iter()
         .map(async |item| {
             Ok((
                 item.clone(),
-                chunk_items_with_info_with_type(item.clone(), *ty, chunking_context)
-                    .to_resolved()
-                    .await?,
+                chunk_items_with_info_with_type(
+                    item.clone(),
+                    ty,
+                    Some(batch_group),
+                    chunking_context,
+                )
+                .to_resolved()
+                .await?,
             ))
         })
         .try_join()
@@ -278,7 +295,8 @@ pub async fn make_chunks(
 
     let span = tracing::trace_span!(
         "get chunk item info",
-        chunk_items_or_batches = chunk_items_or_batches.len()
+        chunk_items_or_batches = chunk_items_or_batches.len(),
+        batch_groups = batch_groups.len()
     );
     let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
         &batch_groups,
@@ -292,7 +310,7 @@ pub async fn make_chunks(
     .try_join()
     .await?;
 
-    let mut map = FxIndexMap::<_, (Vec<_>, Vec<_>)>::default();
+    let mut map = FxIndexMap::<_, (Vec<_>, FxIndexSet<_>)>::default();
     for result in chunk_items.iter() {
         for (ty, chunk_items, batch_groups) in result.by_type.iter() {
             let entry = map.entry(*ty).or_default();
@@ -318,7 +336,7 @@ pub async fn make_chunks(
                 // Production chunking
                 make_production_chunks(
                     chunk_items,
-                    batch_groups,
+                    batch_groups.into_iter().collect(),
                     module_graph,
                     chunking_config,
                     split_context,

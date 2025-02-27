@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -84,6 +86,16 @@ pub enum IdentStrings {
     None,
     Single(ReadRef<RcStr>),
     Multiple(ReadRef<Vec<RcStr>>),
+}
+
+impl Debug for IdentStrings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IdentStrings::None => write!(f, "None"),
+            IdentStrings::Single(ident) => write!(f, "{}", ident),
+            IdentStrings::Multiple(idents) => write!(f, "{:?}", idents),
+        }
+    }
 }
 
 #[turbo_tasks::value]
