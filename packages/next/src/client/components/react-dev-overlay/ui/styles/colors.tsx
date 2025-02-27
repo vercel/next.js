@@ -18,9 +18,9 @@ export function Colors() {
           /* cyan: keyword */
           --color-ansi-cyan: var(--color-syntax-keyword);
           /* yellow: capitalized, jsxIdentifier, punctuation */
-          --color-ansi-yellow: var(--color-syntax-punctuation);
+          --color-ansi-yellow: var(--color-syntax-function);
           /* magenta: number, regex */
-          --color-ansi-magenta: var(--color-syntax-number);
+          --color-ansi-magenta: var(--color-syntax-keyword);
           /* green: string */
           --color-ansi-green: var(--color-syntax-string);
           /* gray (bright black): comment, gutter */
