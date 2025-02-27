@@ -413,25 +413,9 @@ function assignDefaults(
     }
 
     if (images.path === imageConfigDefault.path) {
-      if (
-        result.basePath &&
-        result.experimental?.nextUrlServerPrefix &&
-        !pathHasPrefix(
-          images.path,
-          `${result.basePath}${result.experimental?.nextUrlServerPrefix}`
-        )
-      ) {
-        images.path = `${result.basePath}${result.experimental?.nextUrlServerPrefix}${images.path}`
-      } else if (
-        result.basePath &&
-        !pathHasPrefix(images.path, result.basePath)
-      ) {
-        images.path = `${result.basePath}${images.path}`
-      } else if (
-        result.experimental?.nextUrlServerPrefix &&
-        !pathHasPrefix(images.path, result.experimental?.nextUrlServerPrefix)
-      ) {
-        images.path = `${result.experimental?.nextUrlServerPrefix}${images.path}`
+      const prefix = `${result.basePath || ''}${result.experimental?.nextUrlServerPrefix || ''}`
+      if (prefix && !pathHasPrefix(images.path, prefix)) {
+        images.path = `${prefix}${images.path}`
       }
     }
 
