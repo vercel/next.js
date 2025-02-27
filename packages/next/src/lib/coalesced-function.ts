@@ -26,6 +26,10 @@ export function withCoalescedInvoke<F extends (...args: any) => any>(
       return await func.apply(undefined, args)
     }
 
+    async function __wrapper__() {
+      return await func.apply(undefined, args)
+    }
+
     const future = __wrapper()
       .then((res) => {
         globalInvokeCache.delete(key)
