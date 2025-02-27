@@ -577,7 +577,7 @@ pub async fn compute_module_batches(
                             .chain(modules)
                             .map(|m| *m)
                             .collect::<Vec<_>>(),
-                        Some(take(&mut pre_batch.chunk_groups)),
+                        Some(pre_batch.chunk_groups.clone()),
                     );
                     Ok(ModuleOrBatch::Batch(batch.to_resolved().await?))
                 } else {
