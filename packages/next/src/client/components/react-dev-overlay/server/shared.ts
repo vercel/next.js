@@ -2,8 +2,6 @@ import type { StackFrame } from 'stacktrace-parser'
 import { codeFrameColumns } from 'next/dist/compiled/babel/code-frame'
 import isInternal from '../../../../shared/lib/is-internal'
 
-export type SourcePackage = 'react' | 'next'
-
 export interface OriginalStackFramesRequest {
   frames: StackFrame[]
   isServer: boolean
@@ -19,8 +17,6 @@ export type OriginalStackFrameResponseResult =
 export interface OriginalStackFrameResponse {
   originalStackFrame?: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame?: string | null
-  /** We use this to group frames in the error overlay */
-  sourcePackage?: SourcePackage | null
 }
 
 /**

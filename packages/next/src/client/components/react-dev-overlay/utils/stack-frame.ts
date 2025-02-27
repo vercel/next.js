@@ -47,7 +47,6 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
-      sourcePackage: body.sourcePackage,
       ignored: body.originalStackFrame?.ignored || false,
     }
   }
@@ -61,7 +60,6 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
-      sourcePackage: null,
       ignored: true,
     })
   }
@@ -74,7 +72,6 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
-      sourcePackage: null,
       ignored: false,
     })
   )
