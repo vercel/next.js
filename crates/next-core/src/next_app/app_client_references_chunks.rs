@@ -1,6 +1,5 @@
 use anyhow::Result;
 use futures::join;
-use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
@@ -208,10 +207,10 @@ pub async fn get_app_client_references_chunks(
                     continue;
                 }
 
-                let mut client_to_ref_ty: FxHashMap<
+                let mut client_to_ref_ty: FxIndexMap<
                     ResolvedVc<Box<dyn Module>>,
                     Vec<ClientReferenceType>,
-                > = FxHashMap::default();
+                > = FxIndexMap::default();
                 for ty in client_reference_types {
                     match ty {
                         ClientReferenceType::EcmascriptClientReference(proxy) => {
@@ -275,12 +274,14 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunk_groups
                             .iter()
                             .map(async |chunk_group| {
+                                let chunk_group_reordered =
+                                    reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty);
                                 Ok((
                                     chunk_group.clone(),
                                     ssr_chunking_context
                                         .chunk_group(
                                             base_ident.with_modifier(ssr_modules_modifier()),
-                                            chunk_group.clone(),
+                                            chunk_group_reordered,
                                             module_graph,
                                             Value::new(current_ssr_availability_info),
                                         )
@@ -300,12 +301,14 @@ pub async fn get_app_client_references_chunks(
                 let client_chunk_group = client_chunk_groups
                     .iter()
                     .map(async |chunk_group| {
+                        let chunk_group_reordered =
+                            reorder_isolated_merged_entries(chunk_group, &client_to_ref_ty);
                         Ok((
                             chunk_group.clone(),
                             client_chunking_context
                                 .chunk_group(
                                     base_ident.with_modifier(client_modules_modifier()),
-                                    chunk_group.clone(),
+                                    chunk_group_reordered,
                                     module_graph,
                                     Value::new(current_client_availability_info),
                                 )
@@ -404,4 +407,39 @@ pub async fn get_app_client_references_chunks(
     }
     .instrument(tracing::info_span!("process client references"))
     .await
+}
+
+fn reorder_isolated_merged_entries(
+    chunk_group: &ChunkGroup,
+    client_to_ref_ty: &FxIndexMap<ResolvedVc<Box<dyn Module>>, Vec<ClientReferenceType>>,
+) -> ChunkGroup {
+    let ChunkGroup::IsolatedMerged {
+        parent,
+        entries,
+        merge_tag,
+    } = chunk_group
+    else {
+        unreachable!("expected ChunkGroup::IsolatedMerged for client reference")
+    };
+    // Reorder the entries, because the order of IsolatedMerged entries obtained by chunk_group_info
+    // is unspecified (and thus not strictly execution order, which is a problem for CSS).
+    //
+    // However, any client references that are not listed in client_to_ref_ty still need to be
+    // retained  (they were already chunked in a preceding layout segment), but the order doesn't
+    // matter in this case (since they will not be chunked in this step anyway).
+    ChunkGroup::IsolatedMerged {
+        parent: *parent,
+        entries: client_to_ref_ty
+            .keys()
+            .copied()
+            .filter(|m| entries.contains(m))
+            .chain(
+                entries
+                    .iter()
+                    .copied()
+                    .filter(|m| !client_to_ref_ty.contains_key(m)),
+            )
+            .collect(),
+        merge_tag: merge_tag.clone(),
+    }
 }
