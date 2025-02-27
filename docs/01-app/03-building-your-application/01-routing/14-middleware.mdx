@@ -603,7 +603,7 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 ## Runtime
 
-Middleware defaults to using the Edge runtime. As of v15.2, we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
+Middleware defaults to using the Edge runtime. As of v15.2 (canary), we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -640,6 +640,8 @@ export const config = {
   runtime: 'nodejs',
 }
 ```
+
+> **Note**: This feature is not yet recommended for production use. Therefore, Next.js will throw an error unless you are using the next@canary release instead of the stable release.
 
 ## Version History
 
