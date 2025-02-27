@@ -1,6 +1,7 @@
 use std::{future::Future, ops::Deref};
 
 use anyhow::Result;
+use either::Either;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use smallvec::{smallvec, SmallVec};
@@ -55,6 +56,11 @@ pub enum ChunkItemOrBatchWithAsyncModuleInfo {
     Batch(ResolvedVc<ChunkItemBatchWithAsyncModuleInfo>),
 }
 
+type ChunkItemOrBatchWithAsyncModuleInfoByChunkType = Either<
+    ChunkItemBatchWithAsyncModuleInfoByChunkTypeData,
+    ReadRef<ChunkItemBatchWithAsyncModuleInfoByChunkType>,
+>;
+
 impl ChunkItemOrBatchWithAsyncModuleInfo {
     pub async fn from_chunkable_module_or_batch(
         chunkable_module_or_batch: ChunkableModuleOrBatch,
@@ -82,6 +88,18 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
                 .await?,
             )),
             ChunkableModuleOrBatch::None => None,
+        })
+    }
+
+    pub async fn split_by_chunk_type(
+        &self,
+    ) -> Result<ChunkItemOrBatchWithAsyncModuleInfoByChunkType> {
+        Ok(match self {
+            Self::ChunkItem(item) => Either::Left(smallvec![(
+                item.chunk_item.ty().to_resolved().await?,
+                Self::ChunkItem(item.clone())
+            )]),
+            Self::Batch(batch) => Either::Right(batch.split_by_chunk_type().await?),
         })
     }
 }
@@ -172,7 +190,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
     }
 }
 
-type ChunkItemBatchWithAsyncModuleInfoByChunkTypeT = SmallVec<
+type ChunkItemBatchWithAsyncModuleInfoByChunkTypeData = SmallVec<
     [(
         ResolvedVc<Box<dyn ChunkType>>,
         ChunkItemOrBatchWithAsyncModuleInfo,
@@ -181,12 +199,23 @@ type ChunkItemBatchWithAsyncModuleInfoByChunkTypeT = SmallVec<
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemBatchWithAsyncModuleInfoByChunkType(
-    ChunkItemBatchWithAsyncModuleInfoByChunkTypeT,
+    ChunkItemBatchWithAsyncModuleInfoByChunkTypeData,
 );
+
+type ChunkItemBatchGroupByChunkTypeT = SmallVec<
+    [(
+        ResolvedVc<Box<dyn ChunkType>>,
+        ResolvedVc<ChunkItemBatchGroup>,
+    ); 1],
+>;
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkItemBatchGroupByChunkType(ChunkItemBatchGroupByChunkTypeT);
 
 #[turbo_tasks::value]
 pub struct ChunkItemBatchGroup {
     pub items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+    pub chunk_groups: RoaringBitmapWrapper,
 }
 
 #[turbo_tasks::value_impl]
@@ -212,7 +241,44 @@ impl ChunkItemBatchGroup {
             })
             .try_flat_join()
             .await?;
-        Ok(Self { items }.cell())
+        Ok(Self {
+            items,
+            chunk_groups: batch_group.chunk_groups.clone(),
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn split_by_chunk_type(self: Vc<Self>) -> Result<Vc<ChunkItemBatchGroupByChunkType>> {
+        let this = self.await?;
+        // TODO it could avoid the FxIndexMap with some iterator magic...
+        let mut map: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
+        for item in &this.items {
+            let split = item.split_by_chunk_type().await?;
+            for (ty, value) in split.iter() {
+                map.entry(*ty).or_default().push(value.clone());
+            }
+        }
+        let result = if map.len() == 1 {
+            let (ty, _) = map.into_iter().next().unwrap();
+            smallvec![(ty, self.to_resolved().await?)]
+        } else {
+            map.into_iter()
+                .map(|(ty, items)| {
+                    (
+                        ty,
+                        ChunkItemBatchGroup {
+                            items,
+                            chunk_groups: this.chunk_groups.clone(),
+                        },
+                    )
+                })
+                .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
+                .try_join()
+                .await?
+                .into()
+        };
+        Ok(Vc::cell(result))
     }
 }
 

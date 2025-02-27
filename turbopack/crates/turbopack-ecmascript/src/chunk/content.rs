@@ -6,11 +6,12 @@ use turbopack_core::{
     output::OutputAsset,
 };
 
-use crate::chunk::item::EcmascriptChunkItemOrBatchWithAsyncInfo;
+use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<EcmascriptChunkItemOrBatchWithAsyncInfo>,
+    pub batch_groups: Vec<ResolvedVc<EcmascriptChunkItemBatchGroup>>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 

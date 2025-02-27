@@ -1,21 +1,23 @@
-use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault};
+use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
 use anyhow::Result;
 use rustc_hash::FxHasher;
+use smallvec::SmallVec;
 use tracing::{field::Empty, Instrument};
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
         chunking::{make_chunk, ChunkItemOrBatchWithInfo, SplitContext},
-        ChunkItemWithAsyncModuleInfo, ChunkingConfig,
+        ChunkItemBatchGroup, ChunkItemWithAsyncModuleInfo, ChunkingConfig,
     },
     module_graph::{chunk_group_info::RoaringBitmapWrapper, ModuleGraph},
 };
 
 pub async fn make_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
+    batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
     module_graph: Vc<ModuleGraph>,
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
@@ -31,7 +33,13 @@ pub async fn make_production_chunks(
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
 
-        let mut grouped_chunk_items = FxIndexMap::<_, Vec<_>>::default();
+        #[derive(Default)]
+        struct GrouppedChunkItems<'l> {
+            chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+            batch_group: Option<ResolvedVc<ChunkItemBatchGroup>>,
+        }
+
+        let mut grouped_chunk_items = FxIndexMap::<_, GrouppedChunkItems<'_>>::default();
 
         // Helper Vec to keep ReadRefs on batches and allow references into them
         let batch_read_refs = chunk_items
@@ -48,6 +56,8 @@ pub async fn make_production_chunks(
             })
             .try_join()
             .await?;
+
+        let batch_group_read_refs = batch_groups.iter().try_join().await?;
 
         // Put chunk items into `grouped_chunk_items` based on their chunk groups
         for (i, chunk_item) in chunk_items.into_iter().enumerate() {
@@ -71,7 +81,17 @@ pub async fn make_production_chunks(
                 }
             };
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups);
-            grouped_chunk_items.entry(key).or_default().push(chunk_item);
+            grouped_chunk_items
+                .entry(key)
+                .or_default()
+                .chunk_items
+                .push(chunk_item);
+        }
+
+        for (i, batch_group) in batch_groups.into_iter().enumerate() {
+            let data = &batch_group_read_refs[i].chunk_groups;
+            let key = BuildHasherDefault::<FxHasher>::default().prehash(Some(data));
+            grouped_chunk_items.entry(key).or_default().batch_group = Some(batch_group);
         }
 
         let &ChunkingConfig {
@@ -83,23 +103,38 @@ pub async fn make_production_chunks(
 
         if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
             span.record("chunks", grouped_chunk_items.len());
-            for chunk_items in grouped_chunk_items.into_values() {
-                make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
+            for group in grouped_chunk_items.into_values() {
+                make_chunk(
+                    group.chunk_items,
+                    group.batch_group.into_iter().collect(),
+                    &mut String::new(),
+                    &mut split_context,
+                )
+                .await?;
             }
         } else {
             let mut heap = grouped_chunk_items
                 .into_iter()
-                .map(|(key, chunk_items)| {
-                    let size = chunk_items
-                        .iter()
-                        .map(|chunk_item| chunk_item.size())
-                        .sum::<usize>();
-                    ChunkCandidate {
-                        size,
-                        chunk_items,
-                        chunk_groups: key.map(Cow::Borrowed),
-                    }
-                })
+                .map(
+                    |(
+                        key,
+                        GrouppedChunkItems {
+                            chunk_items,
+                            batch_group,
+                        },
+                    )| {
+                        let size = chunk_items
+                            .iter()
+                            .map(|chunk_item| chunk_item.size())
+                            .sum::<usize>();
+                        ChunkCandidate {
+                            size,
+                            chunk_items,
+                            batch_groups: batch_group.into_iter().collect(),
+                            chunk_groups: key.map(Cow::Borrowed),
+                        }
+                    },
+                )
                 .collect::<BinaryHeap<_>>();
 
             span.record("chunks_before_limits", heap.len());
@@ -129,12 +164,14 @@ pub async fn make_production_chunks(
                             let ChunkCandidate {
                                 size,
                                 chunk_items,
+                                batch_groups,
                                 chunk_groups,
                             } = heap.pop().unwrap();
                             chunks_to_merge_size += size;
                             chunks_to_merge.push(MergeCandidate {
                                 size,
                                 chunk_items,
+                                batch_groups,
                                 chunk_groups,
                             });
                             continue;
@@ -392,10 +429,23 @@ pub async fn make_production_chunks(
                         let MergeCandidate {
                             size,
                             chunk_items,
+                            mut batch_groups,
                             chunk_groups,
                         } = other;
                         candidate.size += size;
                         candidate.chunk_items.extend(chunk_items);
+                        if batch_groups.len() + candidate.batch_groups.len() > 16 {
+                            let mut set = take(&mut candidate.batch_groups)
+                                .into_iter()
+                                .collect::<FxIndexSet<_>>();
+                            set.extend(batch_groups);
+                            candidate.batch_groups = set.into_iter().collect();
+                        } else {
+                            batch_groups.retain(|batch_group| {
+                                !candidate.batch_groups.contains(batch_group)
+                            });
+                            candidate.batch_groups.extend(batch_groups);
+                        }
                         candidate.chunk_groups =
                             merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
 
@@ -416,6 +466,7 @@ pub async fn make_production_chunks(
                             heap.push(ChunkCandidate {
                                 size: unused.size,
                                 chunk_items: unused.chunk_items,
+                                batch_groups: unused.batch_groups,
                                 chunk_groups: unused.chunk_groups,
                             });
                         } else {
@@ -430,9 +481,11 @@ pub async fn make_production_chunks(
 
                 let mut remainer_size = 0;
                 let mut remainer_chunk_items = Vec::new();
+                let mut remainer_batch_groups = FxIndexSet::default();
                 for MergeCandidate {
                     size,
                     chunk_items,
+                    batch_groups,
                     chunk_groups,
                 } in chunks_to_merge.into_iter()
                 {
@@ -440,11 +493,13 @@ pub async fn make_production_chunks(
                         heap.push(ChunkCandidate {
                             size,
                             chunk_items,
+                            batch_groups,
                             chunk_groups,
                         });
                     } else {
                         remainer_size += size;
                         remainer_chunk_items.extend(chunk_items);
+                        remainer_batch_groups.extend(batch_groups);
                     }
                 }
 
@@ -454,6 +509,7 @@ pub async fn make_production_chunks(
                     heap.push(ChunkCandidate {
                         size: remainer_size,
                         chunk_items: remainer_chunk_items,
+                        batch_groups: remainer_batch_groups.into_iter().collect(),
                         chunk_groups: None,
                     });
                 }
@@ -463,11 +519,20 @@ pub async fn make_production_chunks(
 
             let mut total_size = 0;
             for ChunkCandidate {
-                chunk_items, size, ..
+                chunk_items,
+                batch_groups,
+                size,
+                ..
             } in heap.into_iter()
             {
                 total_size += size;
-                make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
+                make_chunk(
+                    chunk_items,
+                    batch_groups.into_vec(),
+                    &mut String::new(),
+                    &mut split_context,
+                )
+                .await?;
             }
             span.record("total_size", total_size);
         }
@@ -481,6 +546,7 @@ pub async fn make_production_chunks(
 struct ChunkCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 
@@ -507,6 +573,7 @@ impl PartialEq for ChunkCandidate<'_> {
 struct MergeCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
 }
 

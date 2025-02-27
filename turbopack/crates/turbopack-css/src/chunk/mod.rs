@@ -13,7 +13,7 @@ use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
         ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
@@ -498,6 +498,7 @@ impl ChunkType for CssChunkType {
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let mut chunk_items = Vec::new();

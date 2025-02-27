@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use either::Either;
 use indoc::writedoc;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -64,27 +64,22 @@ pub(super) async fn chunk_items(
                     ..
                 },
             ) => Ok(Either::Left(std::iter::once((
-                chunk_item.id(),
-                chunk_item.code(async_info.map(|info| *info)),
+                chunk_item.id().await?,
+                chunk_item.code(async_info.map(|info| *info)).await?,
             )))),
             EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => Ok(Either::Right(
                 batch_id_and_code(*batch)
                     .await?
                     .into_iter()
-                    .map(|&(id, code)| (*id, *code)),
+                    .map(|(id, code)| (id.clone(), code.clone())),
             )),
         })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .map(async |(id, code)| Ok((id.await?, code.await?)))
-        .try_join()
+        .try_flat_join()
         .await
 }
 
-#[turbo_tasks::value(transparent)]
-struct CodeAndIds(Vec<(ResolvedVc<ModuleId>, ResolvedVc<Code>)>);
+#[turbo_tasks::value(transparent, serialization = "none")]
+struct CodeAndIds(Vec<(ReadRef<ModuleId>, ReadRef<Code>)>);
 
 #[turbo_tasks::function]
 async fn batch_id_and_code(batch: Vc<EcmascriptChunkBatchWithAsyncInfo>) -> Result<Vc<CodeAndIds>> {
@@ -96,11 +91,8 @@ async fn batch_id_and_code(batch: Vc<EcmascriptChunkBatchWithAsyncInfo>) -> Resu
             ..
         } = item;
         code_and_ids.push((
-            chunk_item.id().to_resolved().await?,
-            chunk_item
-                .code(async_info.map(|info| *info))
-                .to_resolved()
-                .await?,
+            chunk_item.id().await?,
+            chunk_item.code(async_info.map(|info| *info)).await?,
         ));
     }
     Ok(Vc::cell(code_and_ids))
@@ -143,8 +135,6 @@ impl EcmascriptBuildNodeChunkContent {
                 }
                 &EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
                     for (id, item_code) in batch_id_and_code(*batch).await? {
-                        let id = id.await?;
-                        let item_code = item_code.await?;
                         write!(code, "{}: ", StringifyJs(&id))?;
                         code.push_code(&item_code);
                         writeln!(code, ",")?;

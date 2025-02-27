@@ -23,7 +23,9 @@ use turbo_tasks::{
 use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
-    chunk_item_batch::{ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo},
+    chunk_item_batch::{
+        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
+    },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
         ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
@@ -305,6 +307,7 @@ pub trait ChunkType: ValueToString {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 

@@ -1,3 +1,4 @@
+pub(crate) mod batch;
 pub(crate) mod chunk_type;
 pub(crate) mod content;
 pub(crate) mod data;
@@ -22,13 +23,13 @@ use turbopack_core::{
 };
 
 pub use self::{
+    batch::{EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemOrBatchWithAsyncInfo},
     chunk_type::EcmascriptChunkType,
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{
-        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkItemExt, EcmascriptChunkItemOptions,
-        EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
     },
     placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };

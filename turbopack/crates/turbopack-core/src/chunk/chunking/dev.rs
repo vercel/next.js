@@ -25,7 +25,7 @@ async fn handle_split_group<'l>(
     Ok(match (chunk_size(chunk_items), remaining) {
         (ChunkSize::Large, _) => false,
         (ChunkSize::Perfect, _) | (ChunkSize::Small, None) => {
-            make_chunk(take(chunk_items), key, split_context).await?;
+            make_chunk(take(chunk_items), Vec::new(), key, split_context).await?;
             true
         }
         (ChunkSize::Small, Some(remaining)) => {
@@ -107,7 +107,13 @@ pub async fn app_vendors_split<'l>(
     }
     if !chunk_group_specific_chunk_items.is_empty() {
         let mut name = format!("{}-specific", name);
-        make_chunk(chunk_group_specific_chunk_items, &mut name, split_context).await?;
+        make_chunk(
+            chunk_group_specific_chunk_items,
+            Vec::new(),
+            &mut name,
+            split_context,
+        )
+        .await?;
     }
     let mut remaining = Vec::new();
     let mut key = format!("{}-app", name);
@@ -211,7 +217,7 @@ async fn folder_split<'l>(
                 continue;
             } else {
                 let mut key = format!("{}-{}", name, folder_name);
-                make_chunk(list, &mut key, split_context).await?;
+                make_chunk(list, Vec::new(), &mut key, split_context).await?;
                 return Ok(());
             }
         } else {
@@ -231,7 +237,7 @@ async fn folder_split<'l>(
                 ))
                 .await?;
             } else {
-                make_chunk(list, &mut key, split_context).await?;
+                make_chunk(list, Vec::new(), &mut key, split_context).await?;
             }
         }
     }
@@ -241,7 +247,7 @@ async fn folder_split<'l>(
         };
         let mut key = format!("{}-{}", name, &asset_ident[..location]);
         if !handle_split_group(&mut remaining, &mut key, split_context, None).await? {
-            make_chunk(remaining, &mut key, split_context).await?;
+            make_chunk(remaining, Vec::new(), &mut key, split_context).await?;
         }
     }
     Ok(())

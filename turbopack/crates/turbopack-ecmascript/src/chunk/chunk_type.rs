@@ -1,16 +1,16 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{TryJoinIterExt, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkType, ChunkingContext,
     },
     output::OutputAssets,
 };
 
 use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
-use crate::chunk::item::EcmascriptChunkItemOrBatchWithAsyncInfo;
+use crate::chunk::batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo};
 
 #[turbo_tasks::value]
 #[derive(Default)]
@@ -36,6 +36,7 @@ impl ChunkType for EcmascriptChunkType {
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: Vc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
         let Some(chunking_context) =
@@ -48,6 +49,14 @@ impl ChunkType for EcmascriptChunkType {
             chunk_items: chunk_items
                 .iter()
                 .map(EcmascriptChunkItemOrBatchWithAsyncInfo::from_chunk_item_or_batch)
+                .try_join()
+                .await?,
+            batch_groups: batch_groups
+                .into_iter()
+                .map(|batch_group| {
+                    EcmascriptChunkItemBatchGroup::from_chunk_item_batch_group(*batch_group)
+                        .to_resolved()
+                })
                 .try_join()
                 .await?,
             referenced_output_assets: referenced_output_assets.owned().await?,
