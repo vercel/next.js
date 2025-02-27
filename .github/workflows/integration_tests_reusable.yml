@@ -86,6 +86,8 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.e2e) }}
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
@@ -93,6 +95,7 @@ jobs:
 
         export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
         export NEXT_E2E_TEST_TIMEOUT=240000
+        export NEXT_TEST_REACT_VERSION=${{ matrix.react }}
         export NEXT_TEST_MODE=${{
           inputs.test_type == 'development' && 'dev' || 'start'
         }}
@@ -119,6 +122,8 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -127,6 +132,7 @@ jobs:
 
         export NEXT_TEST_CONTINUE_ON_ERROR=TRUE
         export NEXT_E2E_TEST_TIMEOUT=240000
+        export NEXT_TEST_REACT_VERSION=${{ matrix.react }}
 
         # HACK: Despite the name, these environment variables are just used to
         # gate tests, so they're applicable to both turbopack and rspack tests
