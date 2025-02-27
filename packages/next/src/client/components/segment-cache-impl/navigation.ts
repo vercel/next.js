@@ -24,13 +24,7 @@ import {
   type RouteTree,
 } from './cache'
 import { createCacheKey } from './cache-key'
-
-export const enum NavigationResultTag {
-  MPA,
-  Success,
-  NoOp,
-  Async,
-}
+import { NavigationResultTag } from '../segment-cache'
 
 type MPANavigationResult = {
   tag: NavigationResultTag.MPA

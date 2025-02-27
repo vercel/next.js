@@ -32,7 +32,7 @@ import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
   type NavigationResult,
-} from '../../segment-cache/navigation'
+} from '../../segment-cache'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -179,9 +179,6 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
-    // TODO: Currently this always returns an async result, but in the future
-    // it will return a sync result if the navigation was prefetched. Hence
-    // a result type that's more complicated than you might expect.
     const result = navigateUsingSegmentCache(
       url,
       state.cache,
