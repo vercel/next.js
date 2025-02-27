@@ -164,7 +164,7 @@ jobs:
       stepName: 'rust-check'
     secrets: inherit
 
-  rust-doc-check:
+  rustdoc-check:
     name: rustdoc check
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -175,7 +175,7 @@ jobs:
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: ./scripts/deploy-turbopack-docs.sh
-      stepName: 'rust-doc-check'
+      stepName: 'rustdoc-check'
     secrets: inherit
 
   ast-grep:
@@ -635,6 +635,7 @@ jobs:
         'test-ppr-integration',
         'test-cargo-unit',
         'rust-check',
+        'rustdoc-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
