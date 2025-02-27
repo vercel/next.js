@@ -1,43 +1,17 @@
-import type { Params } from './params'
+import type { Params } from '../../server/request/params'
 
-import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
+import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
-
-export function createRenderParamsFromClient(underlyingParams: Params) {
-  if (process.env.NODE_ENV === 'development') {
-    return makeDynamicallyTrackedExoticParamsWithDevWarnings(underlyingParams)
-  } else {
-    return makeUntrackedExoticParams(underlyingParams)
-  }
-}
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 
 interface CacheLifetime {}
-const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
-function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const promise = Promise.resolve(underlyingParams)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      ;(promise as any)[prop] = underlyingParams[prop]
-    }
-  })
-
-  return promise
-}
-
-function makeDynamicallyTrackedExoticParamsWithDevWarnings(
-  underlyingParams: Params
+export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
+  underlyingParams: Params,
+  CachedParams: WeakMap<CacheLifetime, Promise<Params>>
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {

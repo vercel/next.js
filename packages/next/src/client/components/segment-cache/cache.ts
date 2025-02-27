@@ -45,7 +45,7 @@ import {
   encodeChildSegmentKey,
   encodeSegment,
   ROOT_SEGMENT_KEY,
-} from '../../../server/app-render/segment-value-encoding'
+} from '../../../shared/lib/segment-cache/segment-value-encoding'
 import type {
   FlightRouterState,
   NavigationFlightResponse,

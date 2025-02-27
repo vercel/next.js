@@ -1,4 +1,4 @@
-import type { Segment as FlightRouterStateSegment } from './types'
+import type { Segment as FlightRouterStateSegment } from '../../../server/app-render/types'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
