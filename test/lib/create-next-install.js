@@ -153,6 +153,7 @@ async function createNextInstall({
             scripts,
             dependencies: combinedDependencies,
             private: true,
+            packageManager: 'pnpm@9.6.0',
             // Add resolutions if provided.
             ...(resolutions ? { resolutions } : {}),
           },
