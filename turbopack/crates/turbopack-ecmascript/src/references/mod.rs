@@ -32,7 +32,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::JsWord,
+    atoms::Atom,
     common::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
@@ -3176,7 +3176,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
 
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
-                fn to_string(name: &ModuleExportName) -> &JsWord {
+                fn to_string(name: &ModuleExportName) -> &Atom {
                     name.atom()
                 }
                 match spec {
@@ -3445,7 +3445,7 @@ impl From<Vec<AstParentKind>> for AstPath {
     }
 }
 
-pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());
+pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| "__turbopack-helper__".into());
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
