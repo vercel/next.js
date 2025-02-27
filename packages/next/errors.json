@@ -649,5 +649,6 @@
   "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
   "649": "Cache handlers not initialized",
   "650": "experimental.nodeMiddleware",
-  "651": "Unexpected module type %s"
+  "651": "Unexpected module type %s",
+  "652": "Rspack support is only available in Next.js canary."
 }
