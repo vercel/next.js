@@ -403,13 +403,10 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
             source_map: if source_map {
-                Some(
-                    generate_minimal_source_map(
-                        self.module.ident().to_string().await?.to_string(),
-                        code,
-                    )
-                    .await?,
-                )
+                Some(generate_minimal_source_map(
+                    self.module.ident().to_string().await?.to_string(),
+                    code,
+                )?)
             } else {
                 None
             },
@@ -419,7 +416,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     }
 }
 
-async fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
+fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -435,7 +432,7 @@ async fn generate_minimal_source_map(filename: String, source: String) -> Result
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(sm, mappings, None).await?;
+    let map = generate_js_source_map(sm, mappings, None)?;
     Ok(map)
 }
 

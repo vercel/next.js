@@ -74,7 +74,7 @@ impl PartialEq for ParseResult {
     }
 }
 
-pub async fn generate_js_source_map(
+pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
     original_source_map: Option<&Rope>,

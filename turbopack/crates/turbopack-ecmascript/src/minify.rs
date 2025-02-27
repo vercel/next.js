@@ -19,23 +19,13 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::code_builder::{Code, CodeBuilder};
 
 use crate::parse::generate_js_source_map;
 
-#[turbo_tasks::function]
-pub async fn minify(
-    path: Vc<FileSystemPath>,
-    code: Vc<Code>,
-    source_maps: Vc<bool>,
-    mangle: bool,
-) -> Result<Vc<Code>> {
-    let path = path.await?;
-    let code = code.await?;
+pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
     let source_maps = source_maps
-        .await?
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
@@ -121,7 +111,7 @@ pub async fn minify(
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(generate_js_source_map(cm, src_map_buf, Some(original_map)).await?),
+            Some(generate_js_source_map(cm, src_map_buf, Some(original_map))?),
         );
 
         write!(
@@ -134,7 +124,7 @@ pub async fn minify(
     } else {
         builder.push_source(&src.into(), None);
     }
-    Ok(builder.build().cell())
+    Ok(builder.build())
 }
 
 // From https://github.com/swc-project/swc/blob/11efd4e7c5e8081f8af141099d3459c3534c1e1d/crates/swc/src/lib.rs#L523-L560
