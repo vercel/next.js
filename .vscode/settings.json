@@ -61,7 +61,10 @@
     "packages/next/src/server/app-render/after-task-async-storage-instance.ts",
     "packages/next/src/server/app-render/clean-async-snapshot-instance.ts",
     "packages/next/src/server/app-render/work-async-storage-instance.ts",
-    "packages/next/src/server/app-render/work-unit-async-storage-instance.ts"
+    "packages/next/src/server/app-render/work-unit-async-storage-instance.ts",
+    // in order to guarantee DCE, all imports of segment cache code should
+    // go through the `packages/next/src/client/components/segment-cache.ts` entrypoint
+    "packages/next/src/client/components/segment-cache-impl/*"
   ],
   // Disable TypeScript surveys.
   "typescript.surveys.enabled": false,
