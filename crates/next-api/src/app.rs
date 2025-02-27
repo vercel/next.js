@@ -1740,43 +1740,6 @@ impl AppEndpoint {
                     let mut current_availability_info = AvailabilityInfo::Root;
 
                     let client_references = client_references.await?;
-                    if !client_references.server_utils.is_empty() {
-                        let span = tracing::trace_span!("server utils");
-                        async {
-                            let server_utils_chunk_group = module_graph
-                                .chunk_group_info()
-                                .get_merged_group(
-                                    ChunkGroup::Entry(
-                                        [ResolvedVc::upcast(rsc_entry)].into_iter().collect(),
-                                    ),
-                                    NEXT_SERVER_UTILITY_MERGE_TAG.clone(),
-                                )
-                                .await?
-                                .first()
-                                .cloned()
-                                .unwrap();
-
-                            let chunk_group = chunking_context
-                                .chunk_group(
-                                    AssetIdent::from_path(
-                                        this.app_project.project().project_path(),
-                                    )
-                                    .with_modifier(server_utils_modifier()),
-                                    server_utils_chunk_group,
-                                    module_graph,
-                                    Value::new(current_availability_info),
-                                )
-                                .await?;
-                            current_chunks = current_chunks
-                                .concatenate(*chunk_group.assets)
-                                .resolve()
-                                .await?;
-                            current_availability_info = chunk_group.availability_info;
-                            anyhow::Ok(())
-                        }
-                        .instrument(span)
-                        .await?;
-                    }
                     for server_component in client_references
                         .server_component_entries
                         .iter()
@@ -1816,21 +1779,23 @@ impl AppEndpoint {
                         .await?;
                     }
 
-                    current_chunks = current_chunks
-                        .concatenate(
-                            chunking_context.chunk_group_assets(
-                                server_action_manifest_loader.ident(),
-                                ChunkGroup::Entry(
-                                    [ResolvedVc::upcast(server_action_manifest_loader)]
-                                        .into_iter()
-                                        .collect(),
-                                ),
-                                module_graph,
-                                Value::new(current_availability_info),
+                    let chunk_group = chunking_context
+                        .chunk_group(
+                            server_action_manifest_loader.ident(),
+                            ChunkGroup::Entry(
+                                [ResolvedVc::upcast(server_action_manifest_loader)]
+                                    .into_iter()
+                                    .collect(),
                             ),
+                            module_graph,
+                            Value::new(current_availability_info),
                         )
+                        .await?;
+                    current_chunks = current_chunks
+                        .concatenate(*chunk_group.assets)
                         .resolve()
                         .await?;
+                    current_availability_info = chunk_group.availability_info;
 
                     anyhow::Ok(Vc::cell(vec![
                         chunking_context
