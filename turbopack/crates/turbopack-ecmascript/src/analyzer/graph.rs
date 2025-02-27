@@ -1505,6 +1505,11 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // It's not a real declaration
+        if decl.declare {
+            return;
+        }
+
         let old = replace(
             &mut self.cur_fn_return_values,
             Some(get_fn_init_return_vals(decl.function.body.as_ref())),
@@ -1610,6 +1615,11 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast ClassDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // It's not a real declaration
+        if decl.declare {
+            return;
+        }
+
         self.add_value_from_expr(
             decl.ident.to_id(),
             // TODO avoid clone
@@ -1626,6 +1636,11 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast VarDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        // It's not a real declaration
+        if n.declare {
+            return;
+        }
+
         let old = self.var_decl_kind;
         self.var_decl_kind = Some(n.kind);
         n.visit_children_with_ast_path(self, ast_path);
