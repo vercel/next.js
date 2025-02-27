@@ -174,8 +174,9 @@ describe('parallel-routes-revalidation', () => {
     // go back to the previous page
     await browser.back()
 
-    // reload the page, which will cause the router to no longer have cache nodes
-    await browser.refresh()
+    // reload the page, which will cause the router to no longer have cache
+    // nodes. make sure the page is hydrated before going forward.
+    await browser.refresh({ waitHydration: true })
 
     // go forward, this will trigger a lazy fetch for the missing data, and should restore the detail page
     await browser.forward()

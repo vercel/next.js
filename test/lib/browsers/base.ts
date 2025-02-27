@@ -85,7 +85,10 @@ export abstract class BrowserInterface<TCurrent = any> {
    * Use browsers `go forward` functionality. Inverse of back.
    */
   abstract forward(options?: any): BrowserInterface<any> & Promise<any>
-  abstract refresh(): BrowserInterface<any> & Promise<any>
+  abstract refresh(options?: {
+    waitHydration?: boolean
+    retryWaitHydration?: boolean
+  }): BrowserInterface<any> & Promise<any>
   abstract setDimensions(opts: {
     height: number
     width: number
@@ -129,4 +132,7 @@ export abstract class BrowserInterface<TCurrent = any> {
   abstract websocketFrames(): Promise<any[]>
   abstract url(): Promise<string>
   abstract waitForIdleNetwork(): Promise<void>
+  abstract waitForHydration(options?: {
+    retryWaitHydration?: boolean
+  }): Promise<void>
 }
