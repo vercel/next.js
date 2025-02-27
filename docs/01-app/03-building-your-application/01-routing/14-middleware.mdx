@@ -606,15 +606,15 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 Middleware defaults to using the Edge runtime. As of v15.2, we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
 
 ```ts filename="next.config.ts" switcher
-import type { NextConfig } from 'next';
+import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
     nodeMiddleware: true,
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
 ```
 
 ```js filename="next.config.js" switcher
@@ -622,9 +622,9 @@ const nextConfig = {
   experimental: {
     nodeMiddleware: true,
   },
-};
+}
 
-export default nextConfig;
+export default nextConfig
 ```
 
 Then in your middleware file, set the runtime to `nodejs` in the `config` object:
@@ -632,13 +632,13 @@ Then in your middleware file, set the runtime to `nodejs` in the `config` object
 ```js highlight={2} filename="middleware.js" switcher
 export const config = {
   runtime: 'nodejs',
-};
+}
 ```
 
 ```ts highlight={2} filename="middleware.ts" switcher
 export const config = {
   runtime: 'nodejs',
-};
+}
 ```
 
 ## Version History
