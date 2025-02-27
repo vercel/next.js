@@ -16,7 +16,10 @@ import {
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FallbackRouteParams } from './fallback-params'
 import type { Params } from './params'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()

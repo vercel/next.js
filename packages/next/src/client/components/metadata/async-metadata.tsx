@@ -1,7 +1,7 @@
 'use client'
 
 import { Suspense, use } from 'react'
-import { useServerInsertedMetadata } from '../../server/app-render/metadata-insertion/use-server-inserted-metadata'
+import { useServerInsertedMetadata } from './use-server-inserted-metadata'
 
 export type StreamingMetadataResolvedState = {
   metadata: React.ReactNode
@@ -39,14 +39,10 @@ export function AsyncMetadata({
 }: {
   promise: Promise<StreamingMetadataResolvedState>
 }) {
-  return (
-    <>
-      {typeof window === 'undefined' ? (
-        <ServerInsertMetadata promise={promise} />
-      ) : (
-        <BrowserResolvedMetadata promise={promise} />
-      )}
-    </>
+  return typeof window === 'undefined' ? (
+    <ServerInsertMetadata promise={promise} />
+  ) : (
+    <BrowserResolvedMetadata promise={promise} />
   )
 }
 

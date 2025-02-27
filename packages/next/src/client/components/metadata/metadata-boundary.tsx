@@ -4,7 +4,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
   OUTLET_BOUNDARY_NAME,
-} from './metadata-constants'
+} from '../../../lib/metadata/metadata-constants'
 
 // We use a namespace object to allow us to recover the name of the function
 // at runtime even when production bundling/minification is used.
