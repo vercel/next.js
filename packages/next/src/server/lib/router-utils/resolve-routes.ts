@@ -805,13 +805,11 @@ export function getResolveRoutes(
       }
     }
 
-    const parsedUrlCopy = { ...parsedUrl }
     for (const route of routes) {
       const result = await handleRoute(route)
       if (result) {
         return result
       }
-      parsedUrl = parsedUrlCopy
     }
 
     return {
