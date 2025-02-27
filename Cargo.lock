@@ -9939,6 +9939,7 @@ dependencies = [
  "indoc",
  "rustc-hash 2.1.0",
  "serde",
+ "smallvec",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",

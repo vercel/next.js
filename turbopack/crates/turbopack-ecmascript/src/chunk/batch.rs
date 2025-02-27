@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItem, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
@@ -11,7 +11,9 @@ use turbopack_core::{
 
 use crate::chunk::EcmascriptChunkItemWithAsyncInfo;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, TaskInput,
+)]
 pub enum EcmascriptChunkItemOrBatchWithAsyncInfo {
     ChunkItem(EcmascriptChunkItemWithAsyncInfo),
     Batch(ResolvedVc<EcmascriptChunkBatchWithAsyncInfo>),

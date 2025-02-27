@@ -1,4 +1,4 @@
-use std::{future::Future, ops::Deref};
+use std::{future::Future, hash::Hash, ops::Deref};
 
 use anyhow::Result;
 use either::Either;
@@ -282,38 +282,38 @@ impl ChunkItemBatchGroup {
     }
 }
 
-impl ChunkItemBatchGroup {
-    pub async fn batch_info<'a, Info, BatchGroupInfo, A, B>(
-        batch_groups: &[ResolvedVc<ChunkItemBatchGroup>],
-        items: &[ChunkItemOrBatchWithAsyncModuleInfo],
-        get_batch_group_info: impl Fn(Vc<ChunkItemBatchGroup>) -> A + Send + 'a,
-        get_item_info: impl Fn(&ChunkItemOrBatchWithAsyncModuleInfo) -> B + Send + 'a,
-    ) -> Result<Vec<Info>>
-    where
-        A: Future<Output = Result<BatchGroupInfo>> + Send + 'a,
-        B: Future<Output = Result<Info>> + Send + 'a,
-        BatchGroupInfo: Deref<Target = FxHashMap<ChunkItemOrBatchWithAsyncModuleInfo, Info>> + Send,
-        Info: Copy + Send,
-    {
-        let batch_group_info: Vec<BatchGroupInfo> = batch_groups
-            .iter()
-            .map(|&batch_group| get_batch_group_info(*batch_group))
-            .try_join()
-            .await?;
-        let batch_group_info = batch_group_info
-            .iter()
-            .flat_map(|info| info.iter())
-            .collect::<FxHashMap<_, _>>();
-        items
-            .iter()
-            .map(async |item| {
-                Ok(if let Some(&info) = batch_group_info.get(item) {
-                    *info
-                } else {
-                    get_item_info(item).await?
-                })
+pub async fn batch_info<'a, BatchGroup, Item, Info, BatchGroupInfo, A, B>(
+    batch_groups: &[ResolvedVc<BatchGroup>],
+    items: &[Item],
+    get_batch_group_info: impl Fn(Vc<BatchGroup>) -> A + Send + 'a,
+    get_item_info: impl Fn(&Item) -> B + Send + 'a,
+) -> Result<Vec<Info>>
+where
+    A: Future<Output = Result<BatchGroupInfo>> + Send + 'a,
+    B: Future<Output = Result<Info>> + Send + 'a,
+    BatchGroup: Send,
+    Item: Send + Eq + Hash,
+    BatchGroupInfo: Deref<Target = FxHashMap<Item, Info>> + Send,
+    Info: Clone + Send,
+{
+    let batch_group_info: Vec<BatchGroupInfo> = batch_groups
+        .iter()
+        .map(|&batch_group| get_batch_group_info(*batch_group))
+        .try_join()
+        .await?;
+    let batch_group_info = batch_group_info
+        .iter()
+        .flat_map(|info| info.iter())
+        .collect::<FxHashMap<_, _>>();
+    items
+        .iter()
+        .map(async |item| {
+            Ok(if let Some(&info) = batch_group_info.get(item) {
+                info.clone()
+            } else {
+                get_item_info(item).await?
             })
-            .try_join()
-            .await
-    }
+        })
+        .try_join()
+        .await
 }

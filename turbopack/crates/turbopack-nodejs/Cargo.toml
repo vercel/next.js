@@ -25,6 +25,7 @@ indexmap = { workspace = true }
 indoc = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
+smallvec = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 

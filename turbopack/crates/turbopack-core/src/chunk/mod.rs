@@ -24,7 +24,8 @@ use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunk_item_batch::{
-        ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemOrBatchWithAsyncModuleInfo,
+        batch_info, ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
+        ChunkItemOrBatchWithAsyncModuleInfo,
     },
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,

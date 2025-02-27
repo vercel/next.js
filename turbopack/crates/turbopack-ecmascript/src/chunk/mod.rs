@@ -23,7 +23,10 @@ use turbopack_core::{
 };
 
 pub use self::{
-    batch::{EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemOrBatchWithAsyncInfo},
+    batch::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemBatchGroup,
+        EcmascriptChunkItemOrBatchWithAsyncInfo,
+    },
     chunk_type::EcmascriptChunkType,
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,

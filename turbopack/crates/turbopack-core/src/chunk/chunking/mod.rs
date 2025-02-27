@@ -14,6 +14,7 @@ use turbo_tasks::{
 use super::{Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext};
 use crate::{
     chunk::{
+        batch_info,
         chunk_item_batch::{
             ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo,
             ChunkItemOrBatchWithAsyncModuleInfo,
@@ -279,8 +280,7 @@ pub async fn make_chunks(
         "get chunk item info",
         chunk_items_or_batches = chunk_items_or_batches.len()
     );
-    // let chunk_items = todo!();
-    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = ChunkItemBatchGroup::batch_info(
+    let chunk_items: Vec<ReadRef<ChunkItemsWithInfo>> = batch_info(
         &batch_groups,
         &chunk_items_or_batches,
         |batch_group| batch_chunk_items_with_info(batch_group, chunking_context).into_future(),

@@ -3,19 +3,16 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
-use turbopack_core::{
-    chunk::{MinifyType, ModuleId},
-    code_builder::Code,
-    version::Version,
-};
+use turbopack_core::{chunk::MinifyType, version::Version};
 use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
 use super::content::chunk_items;
+use crate::ecmascript::node::content::CodeAndIds;
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
     chunk_path: String,
-    chunk_items: Vec<(ReadRef<ModuleId>, ReadRef<Code>)>,
+    chunk_items: Vec<ReadRef<CodeAndIds>>,
     minify_type: MinifyType,
 }
 
@@ -57,8 +54,10 @@ impl Version for EcmascriptBuildNodeChunkVersion {
         hasher.write_ref(&self.chunk_path);
         hasher.write_ref(&self.minify_type);
         hasher.write_value(self.chunk_items.len());
-        for (module_id, code) in &self.chunk_items {
-            hasher.write_value((module_id, code.source_code()));
+        for item in &self.chunk_items {
+            for (module_id, code) in item {
+                hasher.write_value((module_id, code.source_code()));
+            }
         }
         let hash = hasher.finish();
         let hex_hash = encode_hex(hash);
