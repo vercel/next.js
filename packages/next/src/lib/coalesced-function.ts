@@ -2,6 +2,7 @@ type CoalescedInvoke<T> = {
   isOrigin: boolean
   value: T
 }
+import connect from '../components/react-dev-overlay/pages/hot-reloader-client'
 
 export type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
 
