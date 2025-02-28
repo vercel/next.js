@@ -3116,7 +3116,7 @@ export default abstract class Server<
         typeof postponed !== 'undefined'
       ) {
         return {
-          cacheControl: { revalidate: 1 },
+          cacheControl: { revalidate: 1, expire: undefined },
           isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
@@ -3309,7 +3309,7 @@ export default abstract class Server<
     // If this is a resume request in minimal mode it is streamed with dynamic
     // content and should not be cached.
     if (minimalPostponed) {
-      cacheControl = { revalidate: 0 }
+      cacheControl = { revalidate: 0, expire: undefined }
     }
 
     // If this is in minimal mode and this is a flight request that isn't a
@@ -3321,18 +3321,18 @@ export default abstract class Server<
       !isPrefetchRSCRequest &&
       isRoutePPREnabled
     ) {
-      cacheControl = { revalidate: 0 }
+      cacheControl = { revalidate: 0, expire: undefined }
     } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
       if (isPreviewMode) {
-        cacheControl = { revalidate: 0 }
+        cacheControl = { revalidate: 0, expire: undefined }
       }
 
       // If this isn't SSG, then we should set change the header only if it is
       // not set already.
       else if (!isSSG) {
         if (!res.getHeader('Cache-Control')) {
-          cacheControl = { revalidate: 0 }
+          cacheControl = { revalidate: 0, expire: undefined }
         }
       }
 
@@ -3348,9 +3348,10 @@ export default abstract class Server<
         cacheControl = {
           revalidate:
             typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate,
+          expire: undefined,
         }
       } else if (is500Page) {
-        cacheControl = { revalidate: 0 }
+        cacheControl = { revalidate: 0, expire: undefined }
       } else if (cacheEntry.cacheControl) {
         // If the cache entry has a cache control with a revalidate value that's
         // a number, use it.
@@ -3370,7 +3371,7 @@ export default abstract class Server<
         // Otherwise if the revalidate value is false, then we should use the
         // cache time of one year.
         else {
-          cacheControl = { revalidate: CACHE_ONE_YEAR }
+          cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
         }
       }
     }
@@ -3561,7 +3562,7 @@ export default abstract class Server<
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
             cacheControl: isDynamicRSCRequest
-              ? { revalidate: 0 }
+              ? { revalidate: 0, expire: undefined }
               : cacheEntry.cacheControl,
           }
         }
@@ -3605,7 +3606,11 @@ export default abstract class Server<
           })
         )
 
-        return { type: 'html', body, cacheControl: { revalidate: 0 } }
+        return {
+          type: 'html',
+          body,
+          cacheControl: { revalidate: 0, expire: undefined },
+        }
       }
 
       // This request has postponed, so let's create a new transformer that the
@@ -3652,7 +3657,7 @@ export default abstract class Server<
         // We don't want to cache the response if it has postponed data because
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
-        cacheControl: { revalidate: 0 },
+        cacheControl: { revalidate: 0, expire: undefined },
       }
     } else if (isNextDataRequest) {
       return {

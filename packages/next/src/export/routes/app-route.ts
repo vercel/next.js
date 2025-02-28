@@ -114,14 +114,14 @@ export async function exportAppRoute(
       // unless specifically opted into
       experimental.dynamicIO !== true
     ) {
-      return { cacheControl: { revalidate: 0 } }
+      return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
     const response = await module.handle(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
-      return { cacheControl: { revalidate: 0 } }
+      return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
     const blob = await response.blob()
@@ -173,6 +173,6 @@ export async function exportAppRoute(
       throw err
     }
 
-    return { cacheControl: { revalidate: 0 } }
+    return { cacheControl: { revalidate: 0, expire: undefined } }
   }
 }

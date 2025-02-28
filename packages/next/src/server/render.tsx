@@ -1049,8 +1049,8 @@ export async function renderToHTMLImpl(
       'props' in data ? data.props : undefined
     )
 
-    // pass up revalidate and props for export
-    metadata.cacheControl = { revalidate }
+    // pass up cache control and props for export
+    metadata.cacheControl = { revalidate, expire: undefined }
     metadata.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1123,7 +1123,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
-      metadata.cacheControl = { revalidate: 0 }
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering

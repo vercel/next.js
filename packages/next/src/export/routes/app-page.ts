@@ -139,7 +139,7 @@ export async function exportAppPage(
     const { metadata } = result
     const {
       flightData,
-      cacheControl = { revalidate: false },
+      cacheControl = { revalidate: false, expire: undefined },
       postponed,
       fetchTags,
       fetchMetrics,
@@ -298,7 +298,7 @@ export async function exportAppPage(
       })
     }
 
-    return { cacheControl: { revalidate: 0 }, fetchMetrics }
+    return { cacheControl: { revalidate: 0, expire: undefined }, fetchMetrics }
   }
 }
 

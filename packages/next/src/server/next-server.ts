@@ -957,7 +957,7 @@ export default class NextNodeServer extends BaseServer<
                 upstreamEtag,
               },
               isFallback: false,
-              cacheControl: { revalidate: maxAge },
+              cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
           {

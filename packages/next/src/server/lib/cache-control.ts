@@ -11,7 +11,7 @@ export type Revalidate = number | false
 
 export interface CacheControl {
   revalidate: Revalidate
-  expire?: number
+  expire: number | undefined
 }
 
 export function getCacheControlHeader({

@@ -416,7 +416,7 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          cacheControl: { revalidate: maxAge },
+          cacheControl: { revalidate: maxAge, expire: undefined },
           isStale: now > expireAt,
           isFallback: false,
         }

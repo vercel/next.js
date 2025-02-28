@@ -1422,7 +1422,7 @@ async function renderToHTMLOrFlightImpl(
     // If force static is specifically set to false, we should not revalidate
     // the page.
     if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
-      metadata.cacheControl = { revalidate: 0 }
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } else {
       // Copy the cache control value onto the render result metadata.
       metadata.cacheControl = {
