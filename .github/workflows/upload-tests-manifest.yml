@@ -1,7 +1,7 @@
 # Workflow to upload next.js integration test results to KV for https://areweturboyet.com/
 # This workflow assumes the `next-integration-test` workflow has been executed
 # and test reports have been uploaded to the `test-results` artifact.
-name: Upload Turbopack tests manifest to areweturboyet.com
+name: Upload bundler test manifests to areweturboyet.com
 
 on:
   schedule:
@@ -12,6 +12,11 @@ on:
         description: Next.js version, sha, branch to test
         type: string
         default: 'canary'
+  push:
+    branches:
+      - canary
+    paths:
+      - 'test/*-manifest.json'
 
 jobs:
   upload_test_results:
