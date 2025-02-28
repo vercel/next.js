@@ -21,10 +21,7 @@ use swc_core::{
 };
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    code_builder::{Code, CodeBuilder},
-    source_map::GenerateSourceMap,
-};
+use turbopack_core::code_builder::{Code, CodeBuilder};
 
 use crate::parse::generate_js_source_map;
 
@@ -36,8 +33,11 @@ pub async fn minify(
     mangle: bool,
 ) -> Result<Vc<Code>> {
     let path = path.await?;
-    let source_maps = source_maps.await?.then(|| code.generate_source_map());
     let code = code.await?;
+    let source_maps = source_maps
+        .await?
+        .then(|| code.generate_source_map_ref())
+        .transpose()?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {
@@ -117,11 +117,11 @@ pub async fn minify(
     };
 
     let mut builder = CodeBuilder::default();
-    if let Some(original_map) = source_maps {
+    if let Some(original_map) = source_maps.as_ref() {
         src_map_buf.shrink_to_fit();
         builder.push_source(
             &src.into(),
-            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
+            Some(generate_js_source_map(cm, src_map_buf, Some(original_map)).await?),
         );
 
         write!(
