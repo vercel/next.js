@@ -1,4 +1,4 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/b1abf_turbopack-tests_tests_snapshot_css_css-modules_input_style_module_css_4e2d6e50._.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/b1abf_turbopack-tests_tests_snapshot_css_css-modules_input_style_module_css_adb3ea2d._.js", {
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css [test] (css module, async loader)": ((__turbopack_context__) => {
 

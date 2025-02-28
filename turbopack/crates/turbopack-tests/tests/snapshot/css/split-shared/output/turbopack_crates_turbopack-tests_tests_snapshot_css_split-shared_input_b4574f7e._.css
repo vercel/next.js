@@ -1,11 +1,11 @@
-/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css) */
-.b1{content:"5"}
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1a.css [test] (css) */
 .b1a{content:"3"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1b.css [test] (css) */
 .b1b{content:"4"}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css) */
+.b1{content:"5"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/shared1.css [test] (css) */
 .shared{content:"7"}
@@ -31,9 +31,6 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3.css [test] (css) */
 .b3{content:"11"}
 
-/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css) */
-
-
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/a.css [test] (css) */
 .a{content:"1"}
 
@@ -49,4 +46,7 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/c.css [test] (css) */
 .c{content:"17"}
 
-/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_split-shared_input_c23a1401._.css.map*/
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css) */
+
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4574f7e._.css.map*/
