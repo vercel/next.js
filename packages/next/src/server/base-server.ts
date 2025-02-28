@@ -2484,10 +2484,8 @@ export default abstract class Server<
         query: origQuery,
       })
 
-      const shouldWaitOnAllReady =
-        !supportsDynamicResponse ||
-        // When html bots request PPR page, perform the full dynamic rendering.
-        (isHtmlBot && isRoutePPREnabled)
+      // When html bots request PPR page, perform the full dynamic rendering.
+      const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
 
       const renderOpts: LoadedRenderOpts = {
         ...components,
