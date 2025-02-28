@@ -16,7 +16,7 @@ import {
   mountLinkInstance,
   onNavigationIntent,
   unmountLinkInstance,
-} from '../components/segment-cache/links'
+} from '../components/links'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {

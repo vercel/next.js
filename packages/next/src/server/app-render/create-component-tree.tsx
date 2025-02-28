@@ -527,7 +527,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata,
+            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
             // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             StreamingMetadataOutlet: isChildrenRouteKey

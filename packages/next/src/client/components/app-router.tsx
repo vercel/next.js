@@ -58,11 +58,11 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
-import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
+import { prefetch as prefetchWithSegmentCache } from './segment-cache'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
-import { pingVisibleLinks } from './segment-cache/links'
+import { pingVisibleLinks } from './links'
 
 const globalMutable: {
   pendingMpaPath?: string

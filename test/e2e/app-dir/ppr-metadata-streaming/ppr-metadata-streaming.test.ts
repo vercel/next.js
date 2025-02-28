@@ -2,20 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import { assertNoConsoleErrors } from 'next-test-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
 describe('ppr-metadata-streaming', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   // No dynamic APIs used in metadata
   describe('static metadata', () => {
