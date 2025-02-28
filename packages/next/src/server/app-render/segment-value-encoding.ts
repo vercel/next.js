@@ -73,3 +73,9 @@ function encodeToFilesystemAndURLSafeString(value: string) {
     .replace(/=+$/, '') // Remove trailing '='
   return '!' + base64url
 }
+
+export function convertSegmentPathToStaticExportFilename(
+  segmentPath: string
+): string {
+  return `__next${segmentPath.replace(/\//g, '.')}.txt`
+}
