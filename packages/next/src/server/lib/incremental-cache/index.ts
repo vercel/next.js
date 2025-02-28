@@ -14,7 +14,6 @@ import {
   type SetIncrementalFetchCacheContext,
   type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
-import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
 import FileSystemCache from './file-system-cache'
@@ -27,7 +26,7 @@ import {
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
-import { SharedRevalidateTimings } from './shared-revalidate-timings'
+import { SharedCacheControls } from './shared-cache-controls'
 import { workUnitAsyncStorageInstance } from '../../app-render/work-unit-async-storage-instance'
 import {
   getPrerenderResumeDataCache,
@@ -35,6 +34,7 @@ import {
 } from '../../app-render/work-unit-async-storage.external'
 import { getCacheHandlers } from '../../use-cache/handlers'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import type { Revalidate } from '../cache-control'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -96,10 +96,10 @@ export class IncrementalCache implements IncrementalCacheType {
   private readonly locks = new Map<string, Promise<void>>()
 
   /**
-   * The revalidate timings for routes. This will source the timings from the
-   * prerender manifest until the in-memory cache is updated with new timings.
+   * The cache controls for routes. This will source the values from the
+   * prerender manifest until the in-memory cache is updated with new values.
    */
-  private readonly revalidateTimings: SharedRevalidateTimings
+  private readonly cacheControls: SharedCacheControls
 
   constructor({
     fs,
@@ -170,7 +170,7 @@ export class IncrementalCache implements IncrementalCacheType {
     this.requestProtocol = requestProtocol
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
-    this.revalidateTimings = new SharedRevalidateTimings(this.prerenderManifest)
+    this.cacheControls = new SharedCacheControls(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
@@ -216,10 +216,15 @@ export class IncrementalCache implements IncrementalCacheType {
     if (dev)
       return Math.floor(performance.timeOrigin + performance.now() - 1000)
 
+    const cacheControl = this.cacheControls.get(toRoute(pathname))
+
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second unless it's a fallback request.
-    const initialRevalidateSeconds =
-      this.revalidateTimings.get(toRoute(pathname)) ?? (isFallback ? false : 1)
+    const initialRevalidateSeconds = cacheControl
+      ? cacheControl.revalidate
+      : isFallback
+        ? false
+        : 1
 
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
@@ -488,8 +493,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
     let entry: IncrementalResponseCacheEntry | null = null
     const { isFallback } = ctx
-
-    const revalidate = this.revalidateTimings.get(toRoute(cacheKey))
+    const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
     let revalidateAfter: Revalidate
@@ -514,7 +518,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (cacheData) {
       entry = {
         isStale,
-        revalidate,
+        cacheControl,
         revalidateAfter,
         value: cacheData.value,
         isFallback,
@@ -533,11 +537,11 @@ export class IncrementalCache implements IncrementalCacheType {
       entry = {
         isStale,
         value: null,
-        revalidate,
+        cacheControl,
         revalidateAfter,
         isFallback,
       }
-      this.set(cacheKey, entry.value, { ...ctx, revalidate })
+      this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }
     return entry
   }
@@ -594,10 +598,8 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     try {
-      // Set the value for the revalidate seconds so if it changes we can
-      // update the cache with the new value.
-      if (!ctx.fetchCache && typeof ctx.revalidate !== 'undefined') {
-        this.revalidateTimings.set(toRoute(pathname), ctx.revalidate)
+      if (!ctx.fetchCache && ctx.cacheControl) {
+        this.cacheControls.set(toRoute(pathname), ctx.cacheControl)
       }
 
       await this.cacheHandler?.set(pathname, data, ctx)

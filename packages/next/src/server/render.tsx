@@ -36,7 +36,7 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { Revalidate } from './lib/cache-control'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
@@ -100,7 +100,7 @@ import {
 import { getTracer } from './lib/trace/tracer'
 import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
-import { formatRevalidate } from './lib/revalidate'
+import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayType } from '../client/components/react-dev-overlay/pages/pages-dev-overlay'
@@ -283,7 +283,7 @@ export type RenderOptsPartial = {
   isServerAction?: boolean
   isExperimentalCompile?: boolean
   isPrefetch?: boolean
-  expireTime?: ExpireTime
+  expireTime?: number
   experimental: {
     clientTraceMetadata?: string[]
   }
@@ -557,10 +557,7 @@ export async function renderToHTMLImpl(
   if (isAutoExport && !dev && isExperimentalCompile) {
     res.setHeader(
       'Cache-Control',
-      formatRevalidate({
-        revalidate: false,
-        expireTime,
-      })
+      getCacheControlHeader({ revalidate: false, expire: expireTime })
     )
     isAutoExport = false
   }
@@ -1052,8 +1049,8 @@ export async function renderToHTMLImpl(
       'props' in data ? data.props : undefined
     )
 
-    // pass up revalidate and props for export
-    metadata.revalidate = revalidate
+    // pass up cache control and props for export
+    metadata.cacheControl = { revalidate, expire: undefined }
     metadata.pageData = props
 
     // this must come after revalidate is added to renderResultMeta
@@ -1126,7 +1123,7 @@ export async function renderToHTMLImpl(
           })
       )
       canAccessRes = false
-      metadata.revalidate = 0
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } catch (serverSidePropsError: any) {
       // remove not found error code to prevent triggering legacy
       // 404 rendering
