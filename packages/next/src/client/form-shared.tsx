@@ -93,7 +93,14 @@ export function createFormSubmitDestinationUrl(
     targetUrl.search = ''
   }
 
-  const formData = new FormData(formElement, submitterElement)
+  // Theoretically, it's possible that some old browser that doesn't support the submitter param
+  // could throw if we attempt to pass it. Be defensive.
+  let formData: FormData
+  try {
+    formData = new FormData(formElement, submitterElement)
+  } catch (err) {
+    formData = new FormData(formElement)
+  }
 
   for (let [name, value] of formData) {
     if (typeof value !== 'string') {
