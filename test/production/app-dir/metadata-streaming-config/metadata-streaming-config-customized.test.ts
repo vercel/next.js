@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 describe('app-dir - metadata-streaming-config-customized', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,

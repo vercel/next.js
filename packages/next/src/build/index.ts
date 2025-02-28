@@ -2776,10 +2776,7 @@ export default async function build(
               },
               // If it's PPR rendered non-static page, bypass the PPR cache when streaming metadata is enabled.
               // This will skip the postpone data for those bots requests and instead produce a dynamic render.
-              ...(isRoutePPREnabled &&
-              // Disable streaming metadata for PPR on deployment where we don't have the special env.
-              // TODO: enable streaming metadata in PPR mode by default once it's ready.
-              process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+              ...(isRoutePPREnabled
                 ? [
                     {
                       type: 'header',
