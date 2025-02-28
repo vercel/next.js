@@ -8,10 +8,10 @@ import {
 } from '../../shared/lib/utils/reflect-utils'
 
 interface CacheLifetime {}
+const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
 
 export function makeUntrackedExoticSearchParamsWithDevWarnings(
-  underlyingSearchParams: SearchParams,
-  CachedSearchParams: WeakMap<CacheLifetime, Promise<SearchParams>>
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
   if (cachedSearchParams) {
