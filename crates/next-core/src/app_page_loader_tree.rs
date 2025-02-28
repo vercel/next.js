@@ -136,7 +136,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_manifest_route = get_metadata_route_name(manifest).await?;
         // prefix with base_path if it exists
         let manifest_route = if let Some(base_path) = &self.base_path {
-            format!("{}/{}", base_path, metadata_manifest_route.to_string())
+            format!("{}/{}", base_path, metadata_manifest_route)
         } else {
             metadata_manifest_route.to_string()
         };
