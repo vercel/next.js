@@ -499,7 +499,7 @@ impl EsmExports {
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
         let ParseResult::Ok { eval_context, .. } = &*parsed.await? else {
-            return Err(anyhow::anyhow!("failed to get eval context"));
+            anyhow::bail!("failed to get eval context");
         };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
