@@ -94,9 +94,8 @@ describe('app-dir - metadata-streaming', () => {
     expect((await browser.elementsByCss('head title')).length).toBe(1)
     expect((await browser.elementsByCss('body title')).length).toBe(0)
 
-    const html = await next.render('/parallel-routes')
-    // only one title tag once in the html
-    expect(html.split('<title>').length).toBe(2)
+    const $ = await next.render$('/parallel-routes')
+    expect($('title').length).toBe(1)
   })
 
   describe('dynamic api', () => {
