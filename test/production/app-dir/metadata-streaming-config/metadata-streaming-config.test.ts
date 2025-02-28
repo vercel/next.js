@@ -1,12 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - metadata-streaming-config', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should have the default streaming metadata config output in routes-manifest.json', async () => {
     const requiredServerFiles = JSON.parse(
