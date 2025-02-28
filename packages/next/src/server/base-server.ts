@@ -3352,9 +3352,9 @@ export default abstract class Server<
 
       // If the cache entry has a revalidate value that's a number, use it.
       else if (typeof cacheEntry.revalidate === 'number') {
-        if (cacheEntry.revalidate < 1) {
+        if (cacheEntry.revalidate < 0) {
           throw new Error(
-            `Invalid revalidate configuration provided: ${cacheEntry.revalidate} < 1`
+            `Invalid revalidate configuration provided: ${cacheEntry.revalidate} < 0`
           )
         }
 
