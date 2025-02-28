@@ -657,5 +657,6 @@
   "656": "If providing both the revalidate and expire options, the expire option must be greater than the revalidate option. The expire option indicates how many seconds from the start until it can no longer be used.",
   "657": "revalidate must be a number for image-cache",
   "658": "Pass `Infinity` instead of `false` if you want to cache on the server forever without checking with the origin.",
-  "659": "SSG should not return an image cache value"
+  "659": "SSG should not return an image cache value",
+  "660": "Rspack support is only available in Next.js canary."
 }
