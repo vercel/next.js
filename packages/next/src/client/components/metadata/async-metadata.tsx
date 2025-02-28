@@ -1,50 +1,16 @@
 'use client'
 
 import { Suspense, use } from 'react'
-import { useServerInsertedMetadata } from './use-server-inserted-metadata'
+import type { StreamingMetadataResolvedState } from './types'
 
-export type StreamingMetadataResolvedState = {
-  metadata: React.ReactNode
-  error: unknown | null
-  digest: string | undefined
-}
-
-function ServerInsertMetadata({
-  promise,
-}: {
-  promise: Promise<StreamingMetadataResolvedState>
-}) {
-  // Apply use() to the metadata promise to suspend the rendering in SSR.
-  const { metadata } = use(promise)
-  // Insert metadata into the HTML stream through the `useServerInsertedMetadata`
-  useServerInsertedMetadata(() => metadata)
-
-  return null
-}
-
-function BrowserResolvedMetadata({
-  promise,
-}: {
-  promise: Promise<StreamingMetadataResolvedState>
-}) {
-  const { metadata, error } = use(promise)
-  // If there's metadata error on client, discard the browser metadata
-  // and let metadata outlet deal with the error. This will avoid the duplication metadata.
-  if (error) return null
-  return metadata
-}
-
-export function AsyncMetadata({
-  promise,
-}: {
-  promise: Promise<StreamingMetadataResolvedState>
-}) {
-  return typeof window === 'undefined' ? (
-    <ServerInsertMetadata promise={promise} />
-  ) : (
-    <BrowserResolvedMetadata promise={promise} />
-  )
-}
+export const AsyncMetadata =
+  typeof window === 'undefined'
+    ? (
+        require('./server-inserted-metadata') as typeof import('./server-inserted-metadata')
+      ).ServerInsertMetadata
+    : (
+        require('./browser-resolved-metadata') as typeof import('./browser-resolved-metadata')
+      ).BrowserResolvedMetadata
 
 function MetadataOutlet({
   promise,

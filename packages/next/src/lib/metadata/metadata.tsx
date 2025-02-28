@@ -3,7 +3,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
-import type { StreamingMetadataResolvedState } from '../../client/components/metadata/async-metadata'
+import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
