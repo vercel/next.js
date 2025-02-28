@@ -709,6 +709,9 @@ pub async fn compute_module_batches(
             }
         }
 
+        debug_assert_eq!(graph.capacity().0, graph.node_count());
+        debug_assert_eq!(graph.capacity().1, graph.edge_count());
+
         // Find the NodeIndicies for our entries of the graph
         let mut entries = FxHashMap::default();
         for chunk_group in &chunk_group_info.chunk_groups {
