@@ -1,19 +1,13 @@
-const fs = require('fs')
-const os = require('os')
-const path = require('path')
+const fs = require('node:fs/promises')
+const os = require('node:os')
+const path = require('node:path')
 
 const prettier = require('prettier')
 const execa = require('execa')
 const { bold } = require('kleur')
+const yargs = require('yargs/yargs')
+const { hideBin } = require('yargs/helpers')
 
-async function format(text) {
-  const options = await prettier.resolveConfig(__filename)
-  return prettier.format(text, { ...options, parser: 'json' })
-}
-
-const override = process.argv.includes('--override')
-
-const PASSING_JSON_PATH = `${__dirname}/rspack-dev-tests-manifest.json`
 const WORKING_PATH = '/root/actions-runner/_work/next.js/next.js/'
 
 const INITIALIZING_TEST_CASES = [
@@ -23,6 +17,29 @@ const INITIALIZING_TEST_CASES = [
 
 // please make sure this is sorted alphabetically when making changes.
 const SKIPPED_TEST_SUITES = {}
+
+const { argv } = yargs(hideBin(process.argv))
+  .choices('bundler', ['turbopack', 'rspack'])
+  .describe('bundler', 'The JavaScript bundler the tests were run against')
+  .choices('test-suite', ['dev', 'build'])
+  .describe('test-suite', 'Test group to update')
+  .demandOption(['bundler', 'test-suite'])
+  .string('branch')
+  .describe('branch', 'the git branch to filter CI artifacts to')
+  .default('branch', 'canary')
+  .boolean('override')
+  .describe(
+    'override',
+    "Don't merge with existing test results, allowing tests to transition to " +
+      'a failed state'
+  )
+
+const manifestJsonPath = `${__dirname}/${argv.bundler}-${argv.testSuite}-tests-manifest.json`
+
+async function format(text) {
+  const options = await prettier.resolveConfig(__filename)
+  return prettier.format(text, { ...options, parser: 'json' })
+}
 
 function checkSorted(arr, name) {
   const sorted = [...arr].sort()
@@ -78,27 +95,29 @@ function logCommand(title, command) {
  * @returns {Promise<Artifact>}
  */
 async function fetchLatestTestArtifact() {
+  const artifactSlug = `test-results-${argv.bundler}-${
+    argv.testSuite === 'dev' ? 'development' : 'production'
+  }`
   const { stdout } = await exec(
     'Getting latest test artifacts from GitHub actions',
     'gh',
-    [
-      'api',
-      '/repos/vercel/next.js/actions/artifacts?name=test-results-rspack-development',
-    ]
+    ['api', `/repos/vercel/next.js/actions/artifacts?name=${artifactSlug}`]
   )
 
   /** @type {ListArtifactsResponse} */
   const res = JSON.parse(stdout)
 
   for (const artifact of res.artifacts) {
-    if (artifact.expired || artifact.workflow_run.head_branch !== 'canary') {
+    if (artifact.expired || artifact.workflow_run.head_branch !== argv.branch) {
       continue
     }
 
     return artifact
   }
 
-  throw new Error('no valid test-results artifact was found for branch canary')
+  throw new Error(
+    `no valid test-results artifact was found for branch ${argv.branch}`
+  )
 }
 
 /**
@@ -114,18 +133,27 @@ async function fetchTestResults() {
 
   const filePath = path.join(
     os.tmpdir(),
-    `next-test-results.${Math.floor(Math.random() * 1000).toString(16)}.zip`
+    `next-test-results.${Math.floor(Math.random() * 100000).toString(16)}.zip`
   )
 
-  subprocess.stdout.pipe(fs.createWriteStream(filePath))
+  let file
+  try {
+    file = await fs.open(filePath, 'w')
 
-  await subprocess
+    subprocess.stdout.pipe(file.createWriteStream())
+
+    await subprocess
+  } finally {
+    await file.close()
+  }
 
   const { stdout } = await exec('Extracting test results manifest', 'unzip', [
     '-pj',
     filePath,
     'nextjs-test-results.json',
   ])
+
+  await fs.unlink(filePath)
 
   return JSON.parse(stdout)
 }
@@ -202,10 +230,12 @@ async function updatePassingTests() {
     ].sort()
   }
 
-  if (!override) {
-    const oldPassingData = JSON.parse(
-      fs.readFileSync(PASSING_JSON_PATH, 'utf8')
-    )
+  if (!argv.override) {
+    let oldPassingData = JSON.parse(await fs.readFile(manifestJsonPath, 'utf8'))
+
+    if (oldPassingData.version === 2) {
+      oldPassingData = oldPassingData.suites
+    }
 
     for (const file of Object.keys(oldPassingData)) {
       const newData = passing[file]
@@ -251,8 +281,8 @@ async function updatePassingTests() {
       return obj
     }, {})
 
-  fs.writeFileSync(
-    PASSING_JSON_PATH,
+  await fs.writeFile(
+    manifestJsonPath,
     await format(JSON.stringify(ordered, null, 2))
   )
 }
