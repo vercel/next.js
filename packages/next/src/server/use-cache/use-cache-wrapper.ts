@@ -694,9 +694,22 @@ export function cache(
 
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
-        const entry = forceRevalidate
+        let entry = forceRevalidate
           ? undefined
-          : await cacheHandler.get(serializedCacheKey, implicitTags)
+          : await cacheHandler.get(serializedCacheKey)
+
+        if (entry) {
+          // TODO: Do this once at the start of the request.
+          const implicitTagsExpiration = await cacheHandler.getExpiration(
+            ...implicitTags
+          )
+
+          // If the cache entry was created before any of the implicit tags were
+          // revalidated last, we need to discard it.
+          if (entry.timestamp <= implicitTagsExpiration) {
+            entry = undefined
+          }
+        }
 
         const currentTime = performance.timeOrigin + performance.now()
         if (
