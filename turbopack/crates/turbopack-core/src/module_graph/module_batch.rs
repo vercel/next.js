@@ -28,7 +28,7 @@ use crate::{
 pub enum ModuleOrBatch {
     Module(ResolvedVc<Box<dyn Module>>),
     Batch(ResolvedVc<ModuleBatch>),
-    None,
+    None(usize),
 }
 
 #[derive(
@@ -47,7 +47,7 @@ pub enum ModuleOrBatch {
 pub enum ChunkableModuleOrBatch {
     Module(ResolvedVc<Box<dyn ChunkableModule>>),
     Batch(ResolvedVc<ModuleBatch>),
-    None,
+    None(usize),
 }
 
 impl ChunkableModuleOrBatch {
@@ -55,7 +55,7 @@ impl ChunkableModuleOrBatch {
         match module_or_batch {
             ModuleOrBatch::Module(module) => ResolvedVc::try_downcast(module).map(Self::Module),
             ModuleOrBatch::Batch(batch) => Some(Self::Batch(batch)),
-            ModuleOrBatch::None => Some(Self::None),
+            ModuleOrBatch::None(i) => Some(Self::None(i)),
         }
     }
 
@@ -67,7 +67,7 @@ impl ChunkableModuleOrBatch {
             ChunkableModuleOrBatch::Batch(batch) => {
                 IdentStrings::Multiple(batch.ident_strings().await?)
             }
-            ChunkableModuleOrBatch::None => IdentStrings::None,
+            ChunkableModuleOrBatch::None(_) => IdentStrings::None,
         })
     }
 }
@@ -77,7 +77,7 @@ impl From<ChunkableModuleOrBatch> for ModuleOrBatch {
         match chunkable_module_or_batch {
             ChunkableModuleOrBatch::Module(module) => Self::Module(ResolvedVc::upcast(module)),
             ChunkableModuleOrBatch::Batch(batch) => Self::Batch(batch),
-            ChunkableModuleOrBatch::None => Self::None,
+            ChunkableModuleOrBatch::None(i) => Self::None(i),
         }
     }
 }
@@ -92,8 +92,8 @@ impl Debug for IdentStrings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             IdentStrings::None => write!(f, "None"),
-            IdentStrings::Single(ident) => write!(f, "{}", ident),
-            IdentStrings::Multiple(idents) => write!(f, "{:?}", idents),
+            IdentStrings::Single(ident) => ident.fmt(f),
+            IdentStrings::Multiple(idents) => idents.fmt(f),
         }
     }
 }
@@ -167,7 +167,7 @@ impl ChunkableModuleBatchGroup {
                     ResolvedVc::try_downcast(module).map(ChunkableModuleOrBatch::Module)
                 }
                 ModuleOrBatch::Batch(batch) => Some(ChunkableModuleOrBatch::Batch(batch)),
-                ModuleOrBatch::None => None,
+                ModuleOrBatch::None(_) => None,
             })
             .collect();
         Ok(Self {

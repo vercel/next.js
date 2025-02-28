@@ -565,13 +565,14 @@ pub async fn compute_module_batches(
         let batches = pre_batches
             .batches
             .iter_mut()
-            .map(async |pre_batch| {
+            .enumerate()
+            .map(async |(i, pre_batch)| {
                 let mut modules = pre_batch.items.iter().filter_map(|item| match item {
                     PreBatchItem::ParallelModule(module) => Some(*module),
                     _ => None,
                 });
                 let Some(first) = modules.next() else {
-                    return Ok(ModuleOrBatch::None);
+                    return Ok(ModuleOrBatch::None(i));
                 };
                 if let Some(second) = modules.next() {
                     let batch = ModuleBatch::new(
@@ -640,7 +641,7 @@ pub async fn compute_module_batches(
                 match &batch {
                     ModuleOrBatch::Batch(_) => batches_count += 1,
                     ModuleOrBatch::Module(_) => modules_count += 1,
-                    ModuleOrBatch::None => {}
+                    ModuleOrBatch::None(_) => {}
                 }
                 graph.add_node(batch)
             })
