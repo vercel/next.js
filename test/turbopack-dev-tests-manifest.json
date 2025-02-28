@@ -554,12 +554,13 @@
   },
   "packages/next/src/client/components/react-dev-overlay/utils/css.test.ts": {
     "passed": [
-      "css template literal tag combines strings and interpolations correctly",
-      "css template literal tag handles CSS wildcard selector",
-      "css template literal tag handles empty strings",
-      "css template literal tag handles multiple interpolations",
-      "css template literal tag removes CSS comments",
-      "css template literal tag removes all whitespace"
+      "css template literal tag should combines strings and interpolations correctly",
+      "css template literal tag should handle CSS wildcard selector",
+      "css template literal tag should handle empty strings",
+      "css template literal tag should handle multiple interpolations",
+      "css template literal tag should remove CSS comments",
+      "css template literal tag should remove all whitespace",
+      "css template literal tag should remove multiline comments"
     ],
     "failed": [],
     "pending": [],
@@ -845,6 +846,7 @@
       "accumulateMetadata typing should support both sync and async metadata",
       "accumulateViewport themeColor should support string theme color",
       "accumulateViewport themeColor should support theme color descriptors",
+      "accumulateViewport viewport should skip viewport.initialScale if it is set undefined explicitly",
       "accumulateViewport viewport should support viewport descriptors"
     ],
     "failed": [],
@@ -1771,13 +1773,9 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts": {
-    "passed": [],
+    "passed": ["ReactRefreshLogBox app server-side only compilation errors"],
     "failed": [],
-    "pending": [
-      "ReactRefreshLogBox app <Link> component props errors",
-      "ReactRefreshLogBox app <Link> with multiple children",
-      "ReactRefreshLogBox app server-side only compilation errors"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -1883,30 +1881,18 @@
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
     "passed": [
-      "Error recovery app turbo can recover from a event handler error",
-      "Error recovery app turbo can recover from a syntax error without losing state",
-      "Error recovery app turbo client component can recover from a component error",
-      "Error recovery app turbo client component can recover from syntax error",
-      "Error recovery app turbo displays build error on initial page load",
-      "Error recovery app turbo render error not shown right after syntax error",
-      "Error recovery app turbo server component can recover from a component error",
-      "Error recovery app turbo server component can recover from syntax error",
-      "Error recovery app turbo stuck error",
-      "Error recovery app turbo syntax > runtime error"
+      "Error recovery app can recover from a event handler error",
+      "Error recovery app can recover from a syntax error without losing state",
+      "Error recovery app client component can recover from a component error",
+      "Error recovery app client component can recover from syntax error",
+      "Error recovery app displays build error on initial page load",
+      "Error recovery app render error not shown right after syntax error",
+      "Error recovery app server component can recover from a component error",
+      "Error recovery app server component can recover from syntax error",
+      "Error recovery app stuck error"
     ],
-    "failed": [],
-    "pending": [
-      "Error recovery app default can recover from a event handler error",
-      "Error recovery app default can recover from a syntax error without losing state",
-      "Error recovery app default client component can recover from a component error",
-      "Error recovery app default client component can recover from syntax error",
-      "Error recovery app default displays build error on initial page load",
-      "Error recovery app default render error not shown right after syntax error",
-      "Error recovery app default server component can recover from a component error",
-      "Error recovery app default server component can recover from syntax error",
-      "Error recovery app default stuck error",
-      "Error recovery app default syntax > runtime error"
-    ],
+    "failed": ["Error recovery app syntax > runtime error"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2069,18 +2055,13 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
-      "ReactRefreshLogBox _app _document turbo _app syntax error shows logbox",
-      "ReactRefreshLogBox _app _document turbo _document syntax error shows logbox",
-      "ReactRefreshLogBox _app _document turbo empty _app shows logbox",
-      "ReactRefreshLogBox _app _document turbo empty _document shows logbox"
+      "ReactRefreshLogBox _app _document _app syntax error shows logbox",
+      "ReactRefreshLogBox _app _document _document syntax error shows logbox",
+      "ReactRefreshLogBox _app _document empty _app shows logbox",
+      "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
     "failed": [],
-    "pending": [
-      "ReactRefreshLogBox _app _document default _app syntax error shows logbox",
-      "ReactRefreshLogBox _app _document default _document syntax error shows logbox",
-      "ReactRefreshLogBox _app _document default empty _app shows logbox",
-      "ReactRefreshLogBox _app _document default empty _document shows logbox"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2301,12 +2282,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/dev-indicator/hide-button.test.ts": {
+    "passed": [
+      "dev indicator - Hide DevTools Button should show the dev indicator after cooldown period has passed",
+      "dev indicator - Hide DevTools Button should show the dev indicator when the server is manually restarted",
+      "dev indicator - Hide DevTools Button should still hide the dev indicator after reloading the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/dev-indicator/route-type.test.ts": {
     "passed": [
-      "dev indicator - route type should have route type as dynamic when changing to dynamic page",
-      "dev indicator - route type should have route type as dynamic when on load of dynamic page",
-      "dev indicator - route type should have route type as dynamic when using force-dynamic",
-      "dev indicator - route type should have route type as static by default for static page"
+      "app dir dev indicator - route type should have route type as dynamic when changing to dynamic page",
+      "app dir dev indicator - route type should have route type as dynamic when on load of dynamic page",
+      "app dir dev indicator - route type should have route type as dynamic when using force-dynamic",
+      "app dir dev indicator - route type should have route type as static by default for static page"
     ],
     "failed": [],
     "pending": [],
@@ -3195,6 +3187,23 @@
     "passed": [
       "correct tsconfig.json defaults should add `moduleResolution` when generating tsconfig.json in dev",
       "correct tsconfig.json defaults should not warn for `moduleResolution` when already present and valid"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/dev-indicator/dev-indicator.test.ts": {
+    "passed": [
+      "dev indicator - route type getInitialProps should be marked dynamic on first load",
+      "dev indicator - route type getInitialProps should update when going from dynamic -> static",
+      "dev indicator - route type getInitialProps should update when going from static -> dynamic",
+      "dev indicator - route type getServerSideProps should be marked dynamic on first load",
+      "dev indicator - route type getServerSideProps should update when going from dynamic -> static",
+      "dev indicator - route type getServerSideProps should update when going from static -> dynamic",
+      "dev indicator - route type getStaticPaths should be marked static on first load",
+      "dev indicator - route type getStaticPaths should update when going from dynamic -> static",
+      "dev indicator - route type should have route type as static by default for static page"
     ],
     "failed": [],
     "pending": [],
@@ -5912,7 +5921,8 @@
       "i18n-hybrid does resolve /en-CA/about",
       "i18n-hybrid does resolve /en-US/about",
       "i18n-hybrid does resolve /fr-CA/about",
-      "i18n-hybrid does resolve /fr-FR/about"
+      "i18n-hybrid does resolve /fr-FR/about",
+      "i18n-hybrid should warn about i18n in app dir"
     ],
     "failed": [],
     "pending": [],
@@ -6393,6 +6403,7 @@
       "app dir - metadata twitter should support default twitter app card",
       "app dir - metadata twitter should support default twitter player card",
       "app dir - metadata twitter should support twitter card summary_large_image when image present",
+      "app dir - metadata viewport should skip initial-scale from viewport if it is set to undefined",
       "app dir - metadata viewport should support dynamic viewport export"
     ],
     "failed": [],
@@ -8337,6 +8348,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/mpa-navigations/mpa-navigations.test.ts": {
+    "passed": ["segment cache (MPA navigations) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
     "passed": ["segment cache prefetch scheduling prefetching is disabled"],
     "failed": [],
@@ -9328,6 +9346,7 @@
       "getServerSideProps should navigate between pages successfully",
       "getServerSideProps should navigate to a normal page and back",
       "getServerSideProps should not have gssp in __NEXT_DATA__ for non-GSSP page",
+      "getServerSideProps should not include rewrite query params in `asPath` and `req.url`",
       "getServerSideProps should not re-call getServerSideProps when updating query",
       "getServerSideProps should not show warning from url prop being returned",
       "getServerSideProps should not trigger an error when a data request is cancelled due to another navigation",
