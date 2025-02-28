@@ -425,11 +425,7 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
-            streamingMetadata:
-              // Disable streaming metadata when dynamic IO is enabled.
-              // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
-              // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
-              !nextConfig.experimental.dynamicIO,
+            streamingMetadata: true,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {
