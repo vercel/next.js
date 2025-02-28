@@ -283,7 +283,7 @@ export interface DynamicPrerenderManifestRoute {
   /**
    * When defined, it describes the expire configuration for the fallback route.
    */
-  fallbackExpire: Revalidate | undefined
+  fallbackExpire: number | undefined
 
   /**
    * The headers that should used when serving the fallback.
@@ -2731,7 +2731,7 @@ export default async function build(
               exportResult.byPath.get(exportPath)?.cacheControl
 
             if (!cacheControl) {
-              return { revalidate: defaultRevalidate }
+              return { revalidate: defaultRevalidate, expire: undefined }
             }
 
             if (
@@ -2739,7 +2739,10 @@ export default async function build(
               cacheControl.revalidate > 0 &&
               cacheControl.expire === undefined
             ) {
-              cacheControl.expire = config.expireTime
+              return {
+                revalidate: cacheControl.revalidate,
+                expire: config.expireTime,
+              }
             }
 
             return cacheControl
