@@ -17967,11 +17967,10 @@
     },
     "test/production/emit-decorator-metadata/index.test.ts": {
       "passed": [
-        "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled"
-      ],
-      "failed": [
+        "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled",
         "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled for API"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
