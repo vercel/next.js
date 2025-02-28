@@ -4,7 +4,7 @@ import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Revalidate } from '../server/lib/revalidate'
+import type { CacheControl } from '../server/lib/cache-control'
 import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
@@ -68,7 +68,7 @@ export interface ExportPageInput {
 export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
-      revalidate: Revalidate
+      cacheControl: CacheControl
       metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
@@ -128,9 +128,9 @@ export type ExportAppResult = {
     string,
     {
       /**
-       * The revalidation time for the page in seconds.
+       * The cache control for the page.
        */
-      revalidate?: Revalidate
+      cacheControl?: CacheControl
       /**
        * The metadata for the page.
        */

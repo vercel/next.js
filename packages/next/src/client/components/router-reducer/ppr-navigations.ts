@@ -92,6 +92,7 @@ export function startPPRNavigation(
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
+  isSamePageNavigation: boolean,
   scrollableSegmentsResult: Array<FlightSegmentPath>
 ): Task | null {
   const segmentPath: Array<FlightSegmentPath> = []
@@ -103,6 +104,7 @@ export function startPPRNavigation(
     prefetchData,
     prefetchHead,
     isPrefetchHeadPartial,
+    isSamePageNavigation,
     segmentPath,
     scrollableSegmentsResult
   )
@@ -116,6 +118,7 @@ function updateCacheNodeOnNavigation(
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
+  isSamePageNavigation: boolean,
   segmentPath: FlightSegmentPath,
   scrollableSegmentsResult: Array<FlightSegmentPath>
 ): Task | null {
@@ -235,6 +238,44 @@ function updateCacheNodeOnNavigation(
         )
       }
     } else if (
+      isSamePageNavigation &&
+      // Check if this is a page segment.
+      // TODO: We're not consistent about how we do this check. Some places
+      // check if the segment starts with PAGE_SEGMENT_KEY, but most seem to
+      // check if there any any children, which is why I'm doing it here. We
+      // should probably encode an empty children set as `null` though. Either
+      // way, we should update all the checks to be consistent.
+      Object.keys(newRouterStateChild[1]).length === 0
+    ) {
+      // We special case navigations to the exact same URL as the current
+      // location. It's a common UI pattern for apps to refresh when you click a
+      // link to the current page. So when this happens, we refresh the dynamic
+      // data in the page segments.
+      //
+      // Note that this does not apply if the any part of the hash or search
+      // query has changed. This might feel a bit weird but it makes more sense
+      // when you consider that the way to trigger this behavior is to click
+      // the same link multiple times.
+      //
+      // TODO: We should probably refresh the *entire* route when this case
+      // occurs, not just the page segments. Essentially treating it the same as
+      // a refresh() triggered by an action, which is the more explicit way of
+      // modeling the UI pattern described above.
+      //
+      // Also note that this only refreshes the dynamic data, not static/
+      // cached data. If the page segment is fully static and prefetched, the
+      // request is skipped. (This is also how refresh() works.)
+      taskChild = beginRenderingNewRouteTree(
+        oldRouterStateChild,
+        newRouterStateChild,
+        didFindRootLayout,
+        prefetchDataChild !== undefined ? prefetchDataChild : null,
+        prefetchHead,
+        isPrefetchHeadPartial,
+        newSegmentPathChild,
+        scrollableSegmentsResult
+      )
+    } else if (
       oldRouterStateChild !== undefined &&
       oldSegmentChild !== undefined &&
       matchSegment(newSegmentChild, oldSegmentChild)
@@ -253,6 +294,7 @@ function updateCacheNodeOnNavigation(
           prefetchDataChild,
           prefetchHead,
           isPrefetchHeadPartial,
+          isSamePageNavigation,
           newSegmentPathChild,
           scrollableSegmentsResult
         )
