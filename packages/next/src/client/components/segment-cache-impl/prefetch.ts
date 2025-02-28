@@ -1,7 +1,8 @@
 import type { FlightRouterState } from '../../../server/app-render/types'
-import { createPrefetchURL } from '../../components/app-router'
+import { createPrefetchURL } from '../app-router'
 import { createCacheKey } from './cache-key'
-import { schedulePrefetchTask, PrefetchPriority } from './scheduler'
+import { schedulePrefetchTask } from './scheduler'
+import { PrefetchPriority } from '../segment-cache'
 
 /**
  * Entrypoint for prefetching a URL into the Segment Cache.

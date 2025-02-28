@@ -651,5 +651,6 @@
   "650": "experimental.nodeMiddleware",
   "651": "Unexpected module type %s",
   "652": "Expected cached value for cache key %s not to be a %s kind, got \"FETCH\" instead.",
-  "653": "Expected cached value for cache key %s to be a \"FETCH\" kind, got %s instead."
+  "653": "Expected cached value for cache key %s to be a \"FETCH\" kind, got %s instead.",
+  "654": "Segment Cache experiment is not enabled. This is a bug in Next.js."
 }
