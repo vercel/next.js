@@ -4112,12 +4112,12 @@ dependencies = [
 [[package]]
 name = "mdxjs"
 version = "0.3.2"
-source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-15#2113f02a46ef0299a94248fe3ae064306888fc56"
+source = "git+https://github.com/kdy1/mdxjs-rs.git?branch=swc-core-16#bb0b5dbccd35943d7982b6b5f40f062bf039918a"
 dependencies = [
  "markdown",
  "rustc-hash 2.1.0",
  "serde",
- "swc_core 15.0.1",
+ "swc_core",
 ]
 
 [[package]]
@@ -4437,7 +4437,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shadow-rs",
- "swc_core 16.2.3",
+ "swc_core",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
@@ -4526,7 +4526,7 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
- "swc_core 16.2.3",
+ "swc_core",
  "swc_relay",
  "thiserror",
  "tracing",
@@ -4580,7 +4580,7 @@ dependencies = [
  "sha1",
  "styled_components",
  "styled_jsx",
- "swc_core 16.2.3",
+ "swc_core",
  "swc_emotion",
  "swc_relay",
  "testing",
@@ -4618,7 +4618,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shadow-rs",
- "swc_core 16.2.3",
+ "swc_core",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -7004,12 +7004,12 @@ checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
 name = "swc"
-version = "16.1.0"
+version = "16.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5972bd6b22d5fe9790913b4dcb579e117f7e18ed37d209d8dbe8dbb46ee64efe"
+checksum = "afca37a21a7f4eed3a77bb067e5693fa7dedb98bb85fd90a9bd9a04df4882174"
 dependencies = [
  "anyhow",
- "base64 0.21.4",
+ "base64 0.22.1",
  "dashmap 5.5.3",
  "either",
  "indexmap 2.7.1",
@@ -7065,7 +7065,7 @@ dependencies = [
  "clap",
  "owo-colors 3.5.0",
  "regex",
- "swc_core 16.2.3",
+ "swc_core",
 ]
 
 [[package]]
@@ -7181,12 +7181,12 @@ dependencies = [
 
 [[package]]
 name = "swc_compiler_base"
-version = "13.0.0"
+version = "13.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4cc6e0eaba5b6410fda9c3189145616b3146ac14328ffc000cfe8319e0dea530"
+checksum = "278d50af64cf07f4e9893a294b5b25488de48de56e352fc5cdebff985854ecd8"
 dependencies = [
  "anyhow",
- "base64 0.21.4",
+ "base64 0.22.1",
  "napi",
  "napi-derive",
  "once_cell",
@@ -7236,26 +7236,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "15.0.1"
+version = "16.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a622dbfdda214d472e8da044d5bd5975c831d6e17c5016fcde4b2681c2be1cf2"
-dependencies = [
- "swc_allocator",
- "swc_atoms",
- "swc_common",
- "swc_ecma_ast",
- "swc_ecma_codegen",
- "swc_ecma_parser",
- "swc_ecma_transforms_base",
- "swc_ecma_visit",
- "vergen 9.0.1",
-]
-
-[[package]]
-name = "swc_core"
-version = "16.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a0890fd720ce6a3df52a174f623351634fe8486d0137226de5eb7ea7eef211f3"
+checksum = "3b2d5e3623c45fe6b28e8e2838cae56aed4259d998628a98707f76a3c506dccf"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7446,9 +7429,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "8.0.1"
+version = "8.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "874889c00e41e5ae487886ff4af2533944584e8b479bc469a3f9708cab7ecdb7"
+checksum = "92103aa982740f265d6850bb3ffffbf6c3c1dee30ab0ed25117ca553f0d7467d"
 dependencies = [
  "ascii",
  "compact_str",
@@ -7736,9 +7719,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "12.0.1"
+version = "12.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fc1b838f90630f1c620113c3517eed44f1b36b09274ada47ed7e4cb4ec10899"
+checksum = "617824047b0804f01f74161bb8efff7371abd7281b73d8213d92ac633eda8efb"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -7872,9 +7855,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_base"
-version = "11.1.1"
+version = "11.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53f823fb2ba61099c06f1557f4d7bc3a957147f2e39f92419204682aa62b46fc"
+checksum = "39889063ff4819eae414dfe6426aa5cd72ebb0f9f48739a1fa1e7eb82d0adc78"
 dependencies = [
  "better_scoped_tls",
  "bitflags 2.5.0",
@@ -8033,11 +8016,11 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_react"
-version = "12.0.0"
+version = "12.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "311218980029ea376a1f53292418d852d50b461d15d9d39f830abf0d1c3bdd6c"
+checksum = "3db098e259f9543aaa0f77961e64d351a7fd1394ab7588a691eb15aee2ab236e"
 dependencies = [
- "base64 0.21.4",
+ "base64 0.22.1",
  "dashmap 5.5.3",
  "indexmap 2.7.1",
  "once_cell",
@@ -8060,13 +8043,13 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_testing"
-version = "11.0.0"
+version = "11.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7dce5bbd4417919ff4e7a15500c18d88fc135e57b512f3ebd59cf82439d80ef9"
+checksum = "13c4d8c48a36ad5d02626f853edcf52ae82b65d238389e7e76270ddf564b69ab"
 dependencies = [
  "ansi_term",
  "anyhow",
- "base64 0.21.4",
+ "base64 0.22.1",
  "hex",
  "serde",
  "serde_json",
@@ -9654,7 +9637,7 @@ dependencies = [
  "serde_json",
  "smallvec",
  "sourcemap",
- "swc_core 16.2.3",
+ "swc_core",
  "tokio",
  "tracing",
  "turbo-prehash",
@@ -9693,7 +9676,7 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "smallvec",
- "swc_core 16.2.3",
+ "swc_core",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9767,7 +9750,7 @@ dependencies = [
  "smallvec",
  "sourcemap",
  "strsim 0.11.1",
- "swc_core 16.2.3",
+ "swc_core",
  "tokio",
  "tracing",
  "turbo-rcstr",
@@ -9808,7 +9791,7 @@ dependencies = [
  "serde_json",
  "styled_components",
  "styled_jsx",
- "swc_core 16.2.3",
+ "swc_core",
  "swc_emotion",
  "swc_relay",
  "tracing",
@@ -10002,7 +9985,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "parking_lot",
- "swc_core 16.2.3",
+ "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -10671,7 +10654,7 @@ dependencies = [
  "next-custom-transforms",
  "serde-wasm-bindgen",
  "serde_json",
- "swc_core 16.2.3",
+ "swc_core",
  "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
