@@ -38,11 +38,11 @@ export const styles = `
   }
 
   .error-overlay-bottom-stack-layer-1 {
-    width: calc(100% - var(--size-6));
+    width: calc(100% - var(--size-24));
   }
 
   .error-overlay-bottom-stack-layer-2 {
-    width: calc(100% - var(--size-12));
+    width: calc(100% - var(--size-48));
     z-index: -1;
   }
 
@@ -99,12 +99,6 @@ export const styles = `
       .error-overlay-bottom-stack-layer-2 {
         box-shadow: var(--shadow);
       }
-    }
-  }
-
-  @media (prefers-color-scheme: dark) {
-    .error-overlay-bottom-stack-layer {
-      border-color: var(--color-gray-400);
     }
   }
 `

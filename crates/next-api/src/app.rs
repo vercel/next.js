@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use next_core::{
     all_assets_from_entries,
     app_segment_config::NextSegmentConfig,
@@ -1125,7 +1125,7 @@ impl AppEndpoint {
         let mut server_assets = fxindexset![];
         let mut client_assets = fxindexset![];
         // assets to add to the middleware manifest (to be loaded in the edge runtime).
-        let mut middleware_assets = vec![];
+        let mut middleware_assets = fxindexset![];
 
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
@@ -1314,7 +1314,6 @@ impl AppEndpoint {
                 .values()
             {
                 let ssr_chunks = ssr_chunks.await?;
-
                 middleware_assets.extend(ssr_chunks);
             }
         }
@@ -1387,7 +1386,7 @@ impl AppEndpoint {
                 .await?;
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
-                middleware_assets.push(entry_manifest);
+                middleware_assets.insert(entry_manifest);
             }
             client_reference_manifest = Some(entry_manifest);
 
@@ -1411,13 +1410,13 @@ impl AppEndpoint {
                 // global variables defined in these files
                 //
                 // they are created in `setup-dev-bundler.ts`
-                let mut file_paths_from_root = vec![
+                let mut file_paths_from_root = fxindexset![
                     "server/server-reference-manifest.js".into(),
                     "server/middleware-build-manifest.js".into(),
                     "server/next-font-manifest.js".into(),
                     "server/interception-route-rewrite-manifest.js".into(),
                 ];
-                let mut wasm_paths_from_root = vec![];
+                let mut wasm_paths_from_root = fxindexset![];
 
                 let node_root_value = node_root.await?;
 
@@ -1476,8 +1475,8 @@ impl AppEndpoint {
                         ..Default::default()
                     };
                     let edge_function_definition = EdgeFunctionDefinition {
-                        files: file_paths_from_root,
-                        wasm: wasm_paths_to_bindings(wasm_paths_from_root),
+                        files: file_paths_from_root.into_iter().collect(),
+                        wasm: wasm_paths_to_bindings(wasm_paths_from_root.into_iter().collect()),
                         assets: paths_to_bindings(all_assets),
                         name: app_entry.pathname.clone(),
                         page: app_entry.original_name.clone(),
@@ -1662,7 +1661,12 @@ impl AppEndpoint {
             NextRuntime::NodeJs => {
                 let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
 
+                let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
+                    bail!("rsc_entry must be evaluatable");
+                };
+
                 evaluatable_assets.push(server_action_manifest_loader);
+                evaluatable_assets.push(rsc_entry);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1754,7 +1758,6 @@ impl AppEndpoint {
                                     )
                                     .into(),
                                 ),
-                                *app_entry.rsc_entry,
                                 Vc::cell(evaluatable_assets),
                                 module_graph,
                                 current_chunks,

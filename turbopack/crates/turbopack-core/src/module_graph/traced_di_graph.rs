@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use petgraph::graph::DiGraph;
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -49,4 +49,13 @@ where
     N: NonLocalValue,
     E: NonLocalValue,
 {
+}
+
+/// Iterate the edges of a node REVERSED!
+pub fn iter_neighbors_rev<N, E>(
+    graph: &DiGraph<N, E>,
+    node: NodeIndex,
+) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
+    let mut walker = graph.neighbors(node).detach();
+    std::iter::from_fn(move || walker.next(graph))
 }

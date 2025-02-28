@@ -23,9 +23,8 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
-  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
-    htmlLimitedBots: string | undefined
-  }
+  htmlLimitedBots: string | undefined
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -588,17 +587,6 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * When enabled will cause async metadata calls to stream rather than block the render.
-   */
-  streamingMetadata?: boolean
-
-  /**
-   * User Agent of bots that can handle streaming metadata.
-   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
-   */
-  htmlLimitedBots?: RegExp
-
-  /**
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
@@ -835,13 +823,13 @@ export interface NextConfig extends Record<string, any> {
     | false
     | {
         /**
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          * */
         appIsrStatus?: boolean
 
         /**
          * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          */
         buildActivity?: boolean
 
@@ -1079,6 +1067,15 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   *
+   * @default
+   * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export const defaultConfig: NextConfig = {
@@ -1258,11 +1255,10 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    streamingMetadata: true,
-    htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
   },
+  htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 }
 

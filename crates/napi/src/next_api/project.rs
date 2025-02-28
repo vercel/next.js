@@ -1010,7 +1010,7 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
-enum UpdateMessage {
+pub enum UpdateMessage {
     Start,
     End(UpdateInfo),
 }

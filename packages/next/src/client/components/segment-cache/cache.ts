@@ -52,6 +52,7 @@ import type {
 } from '../../../server/app-render/types'
 import { normalizeFlightData } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
+import { pingVisibleLinks } from './links'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -238,13 +239,25 @@ let segmentCacheLru = createLRU<SegmentCacheEntry>(
   onSegmentLRUEviction
 )
 
+// Incrementing counter used to track cache invalidations.
+let currentCacheVersion = 0
+
+export function getCurrentCacheVersion(): number {
+  return currentCacheVersion
+}
+
 /**
  * Used to clear the client prefetch cache when a server action calls
  * revalidatePath or revalidateTag. Eventually we will support only clearing the
  * segments that were actually affected, but there's more work to be done on the
  * server before the client is able to do this correctly.
  */
-export function revalidateEntireCache() {
+export function revalidateEntireCache(
+  nextUrl: string | null,
+  tree: FlightRouterState
+) {
+  currentCacheVersion++
+
   // Clearing the cache also effectively rejects any pending requests, because
   // when the response is received, it gets written into a cache entry that is
   // no longer reachable.
@@ -254,6 +267,9 @@ export function revalidateEntireCache() {
   routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
   segmentCacheMap = new Map()
   segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
+
+  // Prefetch all the currently visible links again, to re-fill the cache.
+  pingVisibleLinks(nextUrl, tree)
 }
 
 export function readExactRouteCacheEntry(

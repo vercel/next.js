@@ -1,10 +1,9 @@
-import {
-  type IncrementalCache,
-  type ResponseCacheEntry,
-  type ResponseGenerator,
-  type IncrementalCacheItem,
-  type ResponseCacheBase,
-  CachedRouteKind,
+import type {
+  ResponseCacheEntry,
+  ResponseGenerator,
+  ResponseCacheBase,
+  IncrementalResponseCacheEntry,
+  IncrementalResponseCache,
 } from './types'
 
 import { Batcher } from '../../lib/batcher'
@@ -21,7 +20,7 @@ export * from './types'
 export default class ResponseCache implements ResponseCacheBase {
   private readonly batcher = Batcher.create<
     { key: string; isOnDemandRevalidate: boolean },
-    IncrementalCacheItem | null,
+    IncrementalResponseCacheEntry | null,
     string
   >({
     // Ensure on-demand revalidate doesn't block normal requests, it should be
@@ -36,7 +35,7 @@ export default class ResponseCache implements ResponseCacheBase {
 
   private previousCacheItem?: {
     key: string
-    entry: IncrementalCacheItem | null
+    entry: IncrementalResponseCacheEntry | null
     expiresAt: number
   }
 
@@ -56,7 +55,7 @@ export default class ResponseCache implements ResponseCacheBase {
       routeKind: RouteKind
       isOnDemandRevalidate?: boolean
       isPrefetch?: boolean
-      incrementalCache: IncrementalCache
+      incrementalCache: IncrementalResponseCache
       isRoutePPREnabled?: boolean
       isFallback?: boolean
     }
@@ -91,7 +90,7 @@ export default class ResponseCache implements ResponseCacheBase {
         const kind = routeKindToIncrementalCacheKind(context.routeKind)
 
         let resolved = false
-        let cachedResponse: IncrementalCacheItem = null
+        let cachedResponse: IncrementalResponseCacheEntry | null = null
         try {
           cachedResponse = !this.minimalMode
             ? await incrementalCache.get(key, {
@@ -102,16 +101,7 @@ export default class ResponseCache implements ResponseCacheBase {
             : null
 
           if (cachedResponse && !isOnDemandRevalidate) {
-            if (cachedResponse.value?.kind === CachedRouteKind.FETCH) {
-              throw new Error(
-                `invariant: unexpected cachedResponse of kind fetch in response cache`
-              )
-            }
-
-            resolve({
-              ...cachedResponse,
-              revalidate: cachedResponse.curRevalidate,
-            })
+            resolve(cachedResponse)
             resolved = true
 
             if (!cachedResponse.isStale || context.isPrefetch) {

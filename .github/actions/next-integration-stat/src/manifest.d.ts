@@ -4,10 +4,7 @@ interface JobResult {
 }
 
 interface TestResultManifest {
-  nextjsVersion: string
   ref: string
-  buildTime?: string
-  buildSize?: string
   result: Array<JobResult>
   flakyMonitorJobResults: Array<JobResult>
 }

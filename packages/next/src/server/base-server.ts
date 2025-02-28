@@ -602,6 +602,13 @@ export default abstract class Server<
 
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      // `htmlLimitedBots` is passed to server as serialized config in string format
+      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+      streamingMetadata:
+        // Disable streaming metadata when dynamic IO is enabled.
+        // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
+        // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
+        !this.nextConfig.experimental.dynamicIO,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
@@ -610,13 +617,6 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        streamingMetadata:
-          // Disable streaming metadata when dynamic IO is enabled.
-          // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
-          // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
-          !this.nextConfig.experimental.dynamicIO &&
-          !!this.nextConfig.experimental.streamingMetadata,
-        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1443,7 +1443,7 @@ export default abstract class Server<
       // cache handlers.
       const handlers = getCacheHandlers()
       if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] ?? ''
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
         const expiredTags = typeof header === 'string' ? header.split(',') : []
 
         const promises: Promise<void>[] = []
@@ -1769,10 +1769,10 @@ export default abstract class Server<
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
         botType: getBotType(ua),
-        serveStreamingMetadata: shouldServeStreamingMetadata(
-          ua,
-          this.renderOpts.experimental
-        ),
+        serveStreamingMetadata: shouldServeStreamingMetadata(ua, {
+          streamingMetadata: !!this.renderOpts.streamingMetadata,
+          htmlLimitedBots: this.nextConfig.htmlLimitedBots,
+        }),
       },
     }
 
@@ -2535,7 +2535,7 @@ export default abstract class Server<
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
         // only available in dev
-        setAppIsrStatus: (this as any).setAppIsrStatus,
+        setIsrStatus: (this as any).setIsrStatus,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {

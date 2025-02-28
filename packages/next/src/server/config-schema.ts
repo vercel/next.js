@@ -448,8 +448,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
         authInterrupts: z.boolean().optional(),
-        streamingMetadata: z.boolean().optional(),
-        htmlLimitedBots: z.instanceof(RegExp).optional(),
         useCache: z.boolean().optional(),
         slowModuleDetection: z
           .object({
@@ -489,6 +487,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .args()
       .returns(z.promise(z.array(zHeader)))
       .optional(),
+    htmlLimitedBots: z.instanceof(RegExp).optional(),
     httpAgentOptions: z
       .strictObject({ keepAlive: z.boolean().optional() })
       .optional(),

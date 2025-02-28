@@ -42,7 +42,11 @@ export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
   return (
     <FallbackLayout>
       <AppDevOverlay
-        state={{ ...INITIAL_OVERLAY_STATE, rootLayoutMissingTags }}
+        state={{
+          ...INITIAL_OVERLAY_STATE,
+          rootLayoutMissingTags,
+          routerType: 'app',
+        }}
         globalError={[GlobalError, null]}
       >
         {reactEl}
