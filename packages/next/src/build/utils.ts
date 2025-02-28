@@ -82,6 +82,7 @@ import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
+import { formatExpire, formatRevalidate } from './output/format'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -347,7 +348,6 @@ export interface PageInfo {
    */
   isRoutePPREnabled: boolean
   ssgPageRoutes: string[] | null
-  // TODO: initialCacheControl should be set per prerendered route.
   initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
@@ -447,7 +447,7 @@ export async function printTreeView(
   // Collect all the symbols we use so we can print the icons out.
   const usedSymbols = new Set()
 
-  const messages: [string, string, string][] = []
+  const messages: [string, string, string, string, string][] = []
 
   const stats = await computeFromManifest(
     { build: buildManifest, app: appBuildManifest },
@@ -468,12 +468,39 @@ export async function printTreeView(
       return
     }
 
+    let showRevalidate = false
+    let showExpire = false
+
+    for (const page of filteredPages) {
+      const cacheControl = pageInfos.get(page)?.initialCacheControl
+
+      if (cacheControl?.revalidate) {
+        showRevalidate = true
+      }
+
+      if (cacheControl?.expire) {
+        showExpire = true
+      }
+
+      if (showRevalidate && showExpire) {
+        break
+      }
+    }
+
     messages.push(
       [
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => underline(entry)) as [string, string, string]
+        showRevalidate ? 'Revalidate' : '',
+        showExpire ? 'Expire' : '',
+      ].map((entry) => underline(entry)) as [
+        string,
+        string,
+        string,
+        string,
+        string,
+      ]
     )
 
     filteredPages.forEach((item, i, arr) => {
@@ -522,16 +549,8 @@ export async function printTreeView(
 
       usedSymbols.add(symbol)
 
-      // TODO: Rework this to be usable for app router routes.
-      // See https://vercel.slack.com/archives/C02CDC2ALJH/p1739552318644119?thread_ts=1739550179.439319&cid=C02CDC2ALJH
-      if (pageInfo?.initialCacheControl?.revalidate) usedSymbols.add('ISR')
-
       messages.push([
-        `${border} ${symbol} ${
-          pageInfo?.initialCacheControl?.revalidate
-            ? `${item} (ISR: ${pageInfo?.initialCacheControl.revalidate} Seconds)`
-            : item
-        }${
+        `${border} ${symbol} ${item}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -549,6 +568,12 @@ export async function printTreeView(
             : pageInfo.size >= 0
               ? getPrettySize(pageInfo.totalSize, { strong: true })
               : ''
+          : '',
+        showRevalidate && pageInfo?.initialCacheControl
+          ? formatRevalidate(pageInfo.initialCacheControl)
+          : '',
+        showExpire && pageInfo?.initialCacheControl
+          ? formatExpire(pageInfo.initialCacheControl)
           : '',
       ])
 
@@ -568,6 +593,8 @@ export async function printTreeView(
           messages.push([
             `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
             typeof size === 'number' ? getPrettySize(size) : '',
+            '',
+            '',
             '',
           ])
         })
@@ -623,6 +650,10 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+
+            const initialCacheControl =
+              pageInfos.get(route)?.initialCacheControl
+
             messages.push([
               `${contSymbol}   ${innerSymbol} ${route}${
                 duration > MIN_DURATION
@@ -635,6 +666,12 @@ export async function printTreeView(
               }`,
               '',
               '',
+              showRevalidate && initialCacheControl
+                ? formatRevalidate(initialCacheControl)
+                : '',
+              showExpire && initialCacheControl
+                ? formatExpire(initialCacheControl)
+                : '',
             ])
           }
         )
@@ -652,6 +689,8 @@ export async function printTreeView(
       typeof sharedFilesSize === 'number'
         ? getPrettySize(sharedFilesSize, { strong: true })
         : '',
+      '',
+      '',
       '',
     ])
     const sharedCssFiles: string[] = []
@@ -686,13 +725,21 @@ export async function printTreeView(
         return
       }
 
-      messages.push([`  ${innerSymbol} ${cleanName}`, getPrettySize(size), ''])
+      messages.push([
+        `  ${innerSymbol} ${cleanName}`,
+        getPrettySize(size),
+        '',
+        '',
+        '',
+      ])
     })
 
     if (restChunkCount > 0) {
       messages.push([
         `  └ other shared chunks (total)`,
         getPrettySize(restChunkSize),
+        '',
+        '',
         '',
       ])
     }
@@ -705,7 +752,7 @@ export async function printTreeView(
       list: lists.app,
     })
 
-    messages.push(['', '', ''])
+    messages.push(['', '', '', '', ''])
   }
 
   pageInfos.set('/404', {
@@ -735,17 +782,19 @@ export async function printTreeView(
         .map(gzipSize ? fsStatGzip : fsStat)
     )
 
-    messages.push(['', '', ''])
+    messages.push(['', '', '', '', ''])
     messages.push([
       'ƒ Middleware',
       getPrettySize(sum(middlewareSizes), { strong: true }),
+      '',
+      '',
       '',
     ])
   }
 
   print(
     textTable(messages, {
-      align: ['l', 'l', 'r'],
+      align: ['l', 'r', 'r', 'r', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
@@ -765,13 +814,6 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
-        ],
-        usedSymbols.has('ISR') && [
-          '',
-          '(ISR)',
-          `incremental static regeneration (uses revalidate in ${cyan(
-            staticFunctionInfo
-          )})`,
         ],
         usedSymbols.has('◐') && [
           '◐',
