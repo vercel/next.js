@@ -862,6 +862,7 @@ export async function fetchRouteOnCacheMiss(
       const prefetchStream = createPrefetchResponseStream(
         response.body,
         closed.resolve,
+        closed.reject,
         function onResponseSizeUpdate(size) {
           routeCacheLru.updateSize(entry, size)
         }
@@ -899,6 +900,7 @@ export async function fetchRouteOnCacheMiss(
       const prefetchStream = createPrefetchResponseStream(
         response.body,
         closed.resolve,
+        closed.reject,
         function onResponseSizeUpdate(size) {
           routeCacheLru.updateSize(entry, size)
         }
@@ -1006,6 +1008,7 @@ export async function fetchSegmentOnCacheMiss(
     const prefetchStream = createPrefetchResponseStream(
       response.body,
       closed.resolve,
+      closed.reject,
       function onResponseSizeUpdate(size) {
         segmentCacheLru.updateSize(segmentCacheEntry, size)
       }
@@ -1085,6 +1088,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     const prefetchStream = createPrefetchResponseStream(
       response.body,
       closed.resolve,
+      closed.reject,
       function onResponseSizeUpdate(totalBytesReceivedSoFar) {
         // When processing a dynamic response, we don't know how large each
         // individual segment is, so approximate by assiging each segment
@@ -1371,6 +1375,7 @@ async function fetchPrefetchResponse(
 function createPrefetchResponseStream(
   originalFlightStream: ReadableStream<Uint8Array>,
   onStreamClose: () => void,
+  onStreamError: (error: unknown) => void,
   onResponseSizeUpdate: (size: number) => void
 ): ReadableStream<Uint8Array> {
   // When PPR is enabled, prefetch streams may contain references that never
@@ -1391,26 +1396,32 @@ function createPrefetchResponseStream(
   const reader = originalFlightStream.getReader()
   return new ReadableStream({
     async pull(controller) {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (!done) {
-          // Pass to the target stream and keep consuming the Flight response
-          // from the server.
-          controller.enqueue(value)
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (!done) {
+            // Pass to the target stream and keep consuming the Flight response
+            // from the server.
+            controller.enqueue(value)
 
-          // Incrementally update the size of the cache entry in the LRU.
-          // NOTE: Since prefetch responses are delivered in a single chunk,
-          // it's not really necessary to do this streamingly, but I'm doing it
-          // anyway in case this changes in the future.
-          totalByteLength += value.byteLength
-          onResponseSizeUpdate(totalByteLength)
-          continue
+            // Incrementally update the size of the cache entry in the LRU.
+            // NOTE: Since prefetch responses are delivered in a single chunk,
+            // it's not really necessary to do this streamingly, but I'm doing it
+            // anyway in case this changes in the future.
+            totalByteLength += value.byteLength
+            onResponseSizeUpdate(totalByteLength)
+          } else {
+            break
+          }
         }
-        // The server stream has closed. Exit, but intentionally do not close
-        // the target stream. We do notify the caller, though.
-        onStreamClose()
-        return
+      } catch (err) {
+        controller.error(err)
+        return onStreamError(err)
       }
+
+      // The server stream has closed. Exit, but intentionally do not close
+      // the target stream. We do notify the caller, though.
+      return onStreamClose()
     },
   })
 }
