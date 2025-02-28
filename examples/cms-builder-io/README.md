@@ -36,8 +36,6 @@ Copy `env.local.example` into new file `.env.local`
 
 [Signup for Builder.io](https://builder.io/signup), then go to your [organization settings page](https://builder.io/account/organization?root=true), create a private key and copy it and supply it for `[private-key]` below. For `[space-name]` create a name for your space, such as "Blog"
 
-
-
 ```
 cd cms-builder-io-app
 builder create -k [private-key] -n [space-name] -d
