@@ -40,7 +40,7 @@ export class SharedCacheControls {
     let cacheControl = SharedCacheControls.cacheControls.get(route)
     if (cacheControl) return cacheControl
 
-    const prerenderData = this.prerenderManifest.routes[route]
+    let prerenderData = this.prerenderManifest.routes[route]
 
     if (prerenderData) {
       const { initialRevalidateSeconds, initialExpireSeconds } = prerenderData
@@ -50,6 +50,16 @@ export class SharedCacheControls {
           revalidate: initialRevalidateSeconds,
           expire: initialExpireSeconds,
         }
+      }
+    }
+
+    const dynamicPrerenderData = this.prerenderManifest.dynamicRoutes[route]
+
+    if (dynamicPrerenderData) {
+      const { fallbackRevalidate, fallbackExpire } = dynamicPrerenderData
+
+      if (typeof fallbackRevalidate !== 'undefined') {
+        return { revalidate: fallbackRevalidate, expire: fallbackExpire }
       }
     }
 
