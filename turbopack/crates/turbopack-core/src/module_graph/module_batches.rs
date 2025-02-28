@@ -331,7 +331,10 @@ pub async fn compute_module_batches(
 
         // Find all chunk group entries and assign them to batches
         for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-            println!("chunk_group {i}: {}", chunk_group.to_string().await?);
+            println!(
+                "chunk_group {i}: {}",
+                chunk_group.debug_str(&chunk_group_info).await?
+            );
             // Each entry need to be in a separate batch since we don't know the postorder of them.
             // The postorder might also be different depending on the parents.
             for entry in chunk_group.entries() {
