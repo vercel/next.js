@@ -6,6 +6,13 @@ import {
   REDIRECT_ERROR_CODE,
 } from './redirect-error'
 
+const actionAsyncStorage =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
+      ).actionAsyncStorage
+    : undefined
+
 export function getRedirectError(
   url: string,
   type: RedirectType,
@@ -31,18 +38,11 @@ export function getRedirectError(
 export function redirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type?: RedirectType
 ): never {
-  if (typeof window === 'undefined') {
-    const { actionAsyncStorage } =
-      require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
-
-    const actionStore = actionAsyncStorage.getStore()
-
-    if (actionStore?.isAction) {
-      type = RedirectType.push
-    }
-  }
+  type ??= actionAsyncStorage?.getStore()?.isAction
+    ? RedirectType.push
+    : RedirectType.replace
 
   throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
 }

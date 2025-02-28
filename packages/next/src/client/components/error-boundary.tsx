@@ -5,6 +5,13 @@ import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 
+const workAsyncStorage =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+      ).workAsyncStorage
+    : undefined
+
 const styles = {
   error: {
     // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52
@@ -53,10 +60,7 @@ interface ErrorBoundaryHandlerState {
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  if (typeof window === 'undefined') {
-    const { workAsyncStorage } =
-      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
-
+  if (workAsyncStorage) {
     const store = workAsyncStorage.getStore()
     if (store?.isRevalidate || store?.isStaticGeneration) {
       console.error(error)
