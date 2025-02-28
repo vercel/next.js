@@ -149,27 +149,25 @@ function DevToolsPopover({
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
-  useFocusTrap(turbopackRef, triggerTurbopackRef, isTurbopackInfoOpen)
   useClickOutside(
     turbopackRef,
     triggerTurbopackRef,
     isTurbopackInfoOpen,
     closeTurbopackInfo
   )
-  useFocusTrap(routeInfoRef, triggerRouteInfoRef, isRouteInfoOpen)
   useClickOutside(
     routeInfoRef,
     triggerRouteInfoRef,
     isRouteInfoOpen,
     closeRouteInfo
   )
-  useFocusTrap(preferencesRef, triggerPreferencesRef, isPreferencesOpen)
   useClickOutside(
     preferencesRef,
     triggerPreferencesRef,
     isPreferencesOpen,
     closePreferences
   )
+
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
