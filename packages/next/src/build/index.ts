@@ -1419,16 +1419,7 @@ export default async function build(
 
           buildTraceContext = rest.buildTraceContext
 
-          let durationString
-          if (compilerDuration > 120) {
-            durationString = `${Math.round(compilerDuration / 6) / 10}min`
-          } else if (compilerDuration > 20) {
-            durationString = `${Math.round(compilerDuration)}s`
-          } else if (compilerDuration > 2) {
-            durationString = `${Math.round(compilerDuration * 10) / 10}s`
-          } else {
-            durationString = `${Math.round(compilerDuration * 1000)}ms`
-          }
+          const durationString = durationToString(compilerDuration)
           Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
@@ -1515,7 +1506,8 @@ export default async function build(
               traceMemoryUsage('Finished client compilation', nextBuildSpan)
             })
 
-            Log.event('Compiled successfully')
+            const durationString = durationToString(durationInSeconds)
+            Log.event(`Compiled successfully in ${durationString}`)
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
@@ -3632,4 +3624,18 @@ export default async function build(
       })
     }
   }
+}
+
+function durationToString(compilerDuration: number) {
+  let durationString
+  if (compilerDuration > 120) {
+    durationString = `${(compilerDuration / 60).toFixed(1)}min`
+  } else if (compilerDuration > 40) {
+    durationString = `${compilerDuration.toFixed(0)}s`
+  } else if (compilerDuration > 2) {
+    durationString = `${compilerDuration.toFixed(1)}s`
+  } else {
+    durationString = `${(compilerDuration * 1000).toFixed(0)}ms`
+  }
+  return durationString
 }
