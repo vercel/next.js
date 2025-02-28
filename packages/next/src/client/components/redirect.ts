@@ -33,7 +33,7 @@ export function redirect(
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
-  if (!type && typeof window === 'undefined') {
+  if (typeof window === 'undefined') {
     const { actionAsyncStorage } =
       require('../../server/app-render/action-async-storage.external') as typeof import('../../server/app-render/action-async-storage.external')
 
