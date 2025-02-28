@@ -32,17 +32,21 @@ npm install @builder.io/cli -g
 
 ### Step 2 Generate a space
 
+Copy `env.local.example` into new file `.env.local`
+
 [Signup for Builder.io](https://builder.io/signup), then go to your [organization settings page](https://builder.io/account/organization?root=true), create a private key and copy it and supply it for `[private-key]` below. For `[space-name]` create a name for your space, such as "Blog"
+
+
 
 ```
 cd cms-builder-io-app
 builder create -k [private-key] -n [space-name] -d
 ```
 
-This command when done it'll print your new space's public api key, copy it and add as the value for `NEXT_PUBLIC_BUILDER_API_KEY` into the .env files (`.env.production` and `.env.development`)
+This command when done it'll print your new space's public api key, copy it and add as the value for `NEXT_PUBLIC_BUILDER_API_KEY` into the .env file `.env.local`. 
 
 ```
-BUILDER_PUBLIC_KEY=...
+NEXT_PUBLIC_BUILDER_API_KEY=...
 ```
 
 ### Step 3 Run Next.js in development mode
