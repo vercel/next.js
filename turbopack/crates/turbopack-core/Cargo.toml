@@ -2,7 +2,7 @@
 name = "turbopack-core"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -17,12 +17,17 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
+const_format = { workspace = true }
+either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
 lazy_static = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"
+petgraph = { workspace = true, features = ["serde-1"] }
+roaring = { version = "0.10.10", features = ["serde"] }
 ref-cast = "1.0.20"
+rustc-hash ={ workspace = true }
 regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
@@ -30,6 +35,8 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
+turbo-prehash = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }

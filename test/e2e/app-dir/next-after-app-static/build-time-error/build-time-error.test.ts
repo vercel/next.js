@@ -4,7 +4,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 // This test relies on next.build() so it can't work in dev mode.
 const _describe = isNextDev ? describe.skip : describe
 
-_describe('unstable_after() in static pages - thrown errors', () => {
+_describe('after() in static pages - thrown errors', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -13,7 +13,7 @@ _describe('unstable_after() in static pages - thrown errors', () => {
 
   if (skipped) return
 
-  it('fails the build if an error is thrown inside unstable_after', async () => {
+  it('fails the build if an error is thrown inside after', async () => {
     const buildResult = await next.build()
     expect(buildResult?.exitCode).toBe(1)
 
@@ -23,7 +23,7 @@ _describe('unstable_after() in static pages - thrown errors', () => {
         `Error occurred prerendering page "${path}"`
       )
       expect(next.cliOutput).toContain(
-        `My cool error thrown inside unstable_after on route "${path}"`
+        `My cool error thrown inside after on route "${path}"`
       )
     }
 
@@ -33,7 +33,7 @@ _describe('unstable_after() in static pages - thrown errors', () => {
         `Error occurred prerendering page "${path}"`
       )
       expect(next.cliOutput).toContain(
-        `My cool error thrown inside unstable_after on route "${path}"`
+        `My cool error thrown inside after on route "${path}"`
       )
     }
 
@@ -43,7 +43,7 @@ _describe('unstable_after() in static pages - thrown errors', () => {
         `Error occurred prerendering page "${path}"`
       )
       expect(next.cliOutput).toContain(
-        `My cool error thrown inside unstable_after on route "${path}"`
+        `My cool error thrown inside after on route "${path}"`
       )
     }
 
@@ -53,7 +53,7 @@ _describe('unstable_after() in static pages - thrown errors', () => {
         `Error occurred prerendering page "${path}"`
       )
       expect(next.cliOutput).toContain(
-        `My cool error thrown inside unstable_after on route "${path}"`
+        `My cool error thrown inside after on route "${path}"`
       )
     }
   })

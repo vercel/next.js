@@ -1,13 +1,11 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-    ops::Deref,
-};
+use std::{collections::BTreeMap, fmt::Display, ops::Deref};
 
 use anyhow::{bail, Result};
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::{FxIndexMap, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexMap;
 
 use super::{
     alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
@@ -126,7 +124,7 @@ impl SubpathValue {
         &'a self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
         target: &mut Vec<(&'a str, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {
@@ -241,7 +239,7 @@ impl ReplacedSubpathValue {
         &'a self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
         target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {

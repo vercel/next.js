@@ -6,7 +6,10 @@ import type {
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -19,6 +22,9 @@ export type CacheNode = ReadyCacheNode | LazyCacheNode
 export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
+
+/** viewport metadata node */
+export type HeadData = React.ReactNode
 
 export type LazyCacheNode = {
   /**
@@ -50,10 +56,11 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
-  prefetchHead: React.ReactNode
-  head: React.ReactNode
+  prefetchHead: HeadData | null
 
-  loading: LoadingModuleData
+  head: HeadData
+
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   /**
    * Child parallel routes.
@@ -92,10 +99,11 @@ export type ReadyCacheNode = {
    * There should never be a lazy data request in this case.
    */
   lazyData: null
-  prefetchHead: React.ReactNode
-  head: React.ReactNode
+  prefetchHead: HeadData | null
 
-  loading: LoadingModuleData
+  head: HeadData
+
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
 }
@@ -146,14 +154,13 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
 )
 export const LayoutRouterContext = React.createContext<{
-  childNodes: CacheNode['parallelRoutes']
-  tree: FlightRouterState
+  parentTree: FlightRouterState
+  parentCacheNode: CacheNode
+  parentSegmentPath: FlightSegmentPath | null
   url: string
-  loading: LoadingModuleData
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
   tree: FlightRouterState
   changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef

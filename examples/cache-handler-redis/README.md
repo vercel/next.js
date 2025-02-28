@@ -9,7 +9,6 @@ Check out this [repository](https://github.com/ezeparziale/nextjs-k8s) that cont
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-
 npx create-next-app --example cache-handler-redis cache-handler-redis-app
 ```
 

@@ -482,7 +482,7 @@ impl DerefMut for TaskGuard<'_> {
     }
 }
 
-impl<'l> AggregationNodeGuard for TaskGuard<'l> {
+impl AggregationNodeGuard for TaskGuard<'_> {
     type Data = Aggregated;
     type NodeRef = TaskId;
     type DataChange = TaskChange;

@@ -1,6 +1,6 @@
 declare const __turbopack_external_require__: {
   resolve: (name: string, opt: { paths: string[] }) => string;
-} & ((id: string) => any);
+} & ((id: string, thunk: () => any, esm?: boolean) => any);
 
 import type { Ipc } from "../ipc/evaluate";
 import {
@@ -32,6 +32,10 @@ export type IpcInfoMessage =
     glob: string;
   }
   | {
+    type: "envDependency";
+    name: string;
+  }
+  | {
     type: "emittedError";
     severity: "warning" | "error";
     error: StructuredError;
@@ -58,12 +62,7 @@ type LoaderConfig =
     options: { [k: string]: unknown };
   };
 
-let runLoaders: typeof import("loader-runner")["runLoaders"];
-try {
-  ({ runLoaders } = require("@vercel/turbopack/loader-runner"));
-} catch {
-  ({ runLoaders } = __turbopack_external_require__("loader-runner"));
-}
+const { runLoaders }: typeof import("loader-runner") = require("@vercel/turbopack/loader-runner");
 
 const contextDir = process.cwd();
 const toPath = (file: string) => {
@@ -164,12 +163,29 @@ type ResolveOptions = {
   importFields?: string[];
 };
 
+// Patch process.env to track which env vars are read
+const originalEnv = process.env;
+const readEnvVars = new Set<string>();
+process.env = new Proxy(originalEnv, {
+  get(target, prop) {
+    if (typeof prop === 'string' && !readEnvVars.has(prop)) {
+      // We register the env var as dependency on the
+      // current transform and all future transforms
+      // since the env var might be cached in module scope
+      // and influence them all
+      readEnvVars.add(prop);
+    }
+    return Reflect.get(target, prop);
+  },
+})
+
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   content: string,
   name: string,
   query: string,
-  loaders: LoaderConfig[]
+  loaders: LoaderConfig[],
+  sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name);
@@ -190,6 +206,7 @@ const transform = (
           },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
+          sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex];
             return entry.options && typeof entry.options === "object"
@@ -452,7 +469,12 @@ const transform = (
         },
       },
       (err, result) => {
-        if (err) return reject(err);
+        for (const envVar of readEnvVars) {
+          ipc.sendInfo({
+            type: "envDependency",
+            name: envVar,
+          });
+        }
         for (const dep of result.contextDependencies) {
           ipc.sendInfo({
             type: "dirDependency",
@@ -466,6 +488,7 @@ const transform = (
             path: toPath(dep),
           });
         }
+        if (err) return reject(err);
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
         resolve({
@@ -498,11 +521,13 @@ function makeErrorEmitter(
             name: error.name,
             message: error.message,
             stack: error.stack ? parseStackTrace(error.stack) : [],
+            cause: undefined,
           }
           : {
             name: "Error",
             message: error,
             stack: [],
+            cause: undefined,
           },
     });
   };

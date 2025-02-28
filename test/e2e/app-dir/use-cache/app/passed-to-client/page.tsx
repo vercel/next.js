@@ -7,19 +7,20 @@ function getRandomValue() {
 }
 
 export default function Page() {
+  const offset = 100
   return (
     <Form
       foo={async function fooNamed() {
         'use cache'
-        return getRandomValue()
+        return offset + getRandomValue()
       }}
       bar={async function () {
         'use cache'
-        return getRandomValue()
+        return offset + getRandomValue()
       }}
       baz={async () => {
         'use cache'
-        return getRandomValue()
+        return offset + getRandomValue()
       }}
     />
   )

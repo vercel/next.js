@@ -1,10 +1,11 @@
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   type UseCacheCacheStore,
   type FetchCacheStore,
-  stringifyFetchCacheStore,
-  stringifyUseCacheCacheStore,
+  type EncryptedBoundArgsCacheStore,
+  serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
-  parseFetchCacheStore,
+  type DecryptedBoundArgsCacheStore,
 } from './cache-store'
 
 /**
@@ -23,6 +24,20 @@ export interface RenderResumeDataCache {
    * The 'set' operation is omitted to enforce immutability.
    */
   readonly fetch: Omit<FetchCacheStore, 'set'>
+
+  /**
+   * A read-only Map store for encrypted bound args of inline server functions.
+   * The 'set' operation is omitted to enforce immutability.
+   */
+  readonly encryptedBoundArgs: Omit<EncryptedBoundArgsCacheStore, 'set'>
+
+  /**
+   * A read-only Map store for decrypted bound args of inline server functions.
+   * This is only intended for in-memory usage during pre-rendering, and must
+   * not be persisted in the resume store. The 'set' operation is omitted to
+   * enforce immutability.
+   */
+  readonly decryptedBoundArgs: Omit<DecryptedBoundArgsCacheStore, 'set'>
 }
 
 /**
@@ -32,15 +47,32 @@ export interface RenderResumeDataCache {
 export interface PrerenderResumeDataCache {
   /**
    * A mutable Map store for values cached by the 'use cache' React hook.
-   * Supports both get and set operations to build the cache during pre-rendering.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
    */
   readonly cache: UseCacheCacheStore
 
   /**
    * A mutable Map store for cached fetch responses.
-   * Supports both get and set operations to build the cache during pre-rendering.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
    */
   readonly fetch: FetchCacheStore
+
+  /**
+   * A mutable Map store for encrypted bound args of inline server functions.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
+   */
+  readonly encryptedBoundArgs: EncryptedBoundArgsCacheStore
+
+  /**
+   * A mutable Map store for decrypted bound args of inline server functions.
+   * This is only intended for in-memory usage during pre-rendering, and must
+   * not be persisted in the resume store. Supports both 'get' and 'set'
+   * operations to build the cache during pre-rendering.
+   */
+  readonly decryptedBoundArgs: DecryptedBoundArgsCacheStore
 }
 
 type ResumeStoreSerialized = {
@@ -51,35 +83,51 @@ type ResumeStoreSerialized = {
     fetch: {
       [key: string]: any
     }
+    encryptedBoundArgs: {
+      [key: string]: string
+    }
   }
 }
 
 /**
- * Serializes a resume data cache into a JSON string for storage or transmission.
- * Handles both 'use cache' values and fetch responses.
+ * Serializes a resume data cache into a JSON string for storage or
+ * transmission. Handles 'use cache' values, fetch responses, and encrypted
+ * bound args for inline server functions.
  *
  * @param resumeDataCache - The immutable cache to serialize
- * @returns A Promise that resolves to the serialized cache as a JSON string, or 'null' if empty
+ * @returns A Promise that resolves to the serialized cache as a JSON string, or
+ * 'null' if empty
  */
 export async function stringifyResumeDataCache(
   resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
 ): Promise<string> {
-  if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
-    return 'null'
-  }
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`stringifyResumeDataCache` should not be called in edge runtime.'
+    )
+  } else {
+    if (resumeDataCache.fetch.size === 0 && resumeDataCache.cache.size === 0) {
+      return 'null'
+    }
 
-  const json: ResumeStoreSerialized = {
-    store: {
-      fetch: Object.fromEntries(
-        stringifyFetchCacheStore(resumeDataCache.fetch.entries())
-      ),
-      cache: Object.fromEntries(
-        await stringifyUseCacheCacheStore(resumeDataCache.cache.entries())
-      ),
-    },
-  }
+    const json: ResumeStoreSerialized = {
+      store: {
+        fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
+        cache: Object.fromEntries(
+          await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+        ),
+        encryptedBoundArgs: Object.fromEntries(
+          Array.from(resumeDataCache.encryptedBoundArgs.entries())
+        ),
+      },
+    }
 
-  return JSON.stringify(json)
+    // Compress the JSON string using zlib. As the data we already want to
+    // decompress is in memory, we use the synchronous deflateSync function.
+    const { deflateSync } = require('node:zlib') as typeof import('node:zlib')
+
+    return deflateSync(JSON.stringify(json)).toString('base64')
+  }
 }
 
 /**
@@ -93,6 +141,8 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
   return {
     cache: new Map(),
     fetch: new Map(),
+    encryptedBoundArgs: new Map(),
+    decryptedBoundArgs: new Map(),
   }
 }
 
@@ -114,24 +164,44 @@ export function createRenderResumeDataCache(
 export function createRenderResumeDataCache(
   prerenderResumeDataCacheOrPersistedCache: PrerenderResumeDataCache | string
 ): RenderResumeDataCache {
-  if (typeof prerenderResumeDataCacheOrPersistedCache !== 'string') {
-    // If the cache is already a prerender cache, we can return it directly,
-    // we're just performing a type change.
-    return prerenderResumeDataCacheOrPersistedCache
-  }
-
-  if (prerenderResumeDataCacheOrPersistedCache === 'null') {
-    return {
-      cache: new Map(),
-      fetch: new Map(),
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`createRenderResumeDataCache` should not be called in edge runtime.'
+    )
+  } else {
+    if (typeof prerenderResumeDataCacheOrPersistedCache !== 'string') {
+      // If the cache is already a prerender cache, we can return it directly,
+      // we're just performing a type change.
+      return prerenderResumeDataCacheOrPersistedCache
     }
-  }
 
-  const json: ResumeStoreSerialized = JSON.parse(
-    prerenderResumeDataCacheOrPersistedCache
-  )
-  return {
-    cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
-    fetch: parseFetchCacheStore(Object.entries(json.store.fetch)),
+    if (prerenderResumeDataCacheOrPersistedCache === 'null') {
+      return {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      }
+    }
+
+    // This should be a compressed string. Let's decompress it using zlib.
+    // As the data we already want to decompress is in memory, we use the
+    // synchronous inflateSync function.
+    const { inflateSync } = require('node:zlib') as typeof import('node:zlib')
+
+    const json: ResumeStoreSerialized = JSON.parse(
+      inflateSync(
+        Buffer.from(prerenderResumeDataCacheOrPersistedCache, 'base64')
+      ).toString('utf-8')
+    )
+
+    return {
+      cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
+      fetch: new Map(Object.entries(json.store.fetch)),
+      encryptedBoundArgs: new Map(
+        Object.entries(json.store.encryptedBoundArgs)
+      ),
+      decryptedBoundArgs: new Map(),
+    }
   }
 }

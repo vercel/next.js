@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cssmodules/composes/input/index.module.css"],"sourcesContent":[".className {\n  background: red;\n  color: yellow;\n}\n\n.subClass {\n  composes: className;\n  background: blue;\n}\n"],"names":[],"mappings":"AAAA,2DAKA"}},
+    {"offset": {"line": 1, "column": 108}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

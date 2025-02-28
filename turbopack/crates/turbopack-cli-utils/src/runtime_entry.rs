@@ -45,10 +45,8 @@ impl RuntimeEntry {
 
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
-            if let Some(entry) =
-                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?
-            {
-                runtime_entries.push(*entry);
+            if let Some(entry) = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module) {
+                runtime_entries.push(entry);
             } else {
                 bail!(
                     "runtime reference resolved to an asset ({}) that cannot be evaluated",

@@ -10,7 +10,10 @@ use hyper::{
 };
 use mime::Mime;
 use tokio_util::io::{ReaderStream, StreamReader};
-use turbo_tasks::{util::SharedError, CollectiblesSource, ReadRef, TransientInstance, Vc};
+use turbo_tasks::{
+    apply_effects, util::SharedError, CollectiblesSource, OperationVc, ReadRef, TransientInstance,
+    Vc,
+};
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -39,37 +42,39 @@ enum GetFromSourceResult {
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content as a
-#[turbo_tasks::function]
-async fn get_from_source(
-    source: Vc<Box<dyn ContentSource>>,
+#[turbo_tasks::function(operation)]
+async fn get_from_source_operation(
+    source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
 ) -> Result<Vc<GetFromSourceResult>> {
-    Ok(match &*resolve_source_request(source, request).await? {
-        ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
-            let static_content = static_content_vc.await?;
-            if let AssetContent::File(file) = &*static_content.content.content().await? {
-                GetFromSourceResult::Static {
-                    content: file.await?,
-                    status_code: static_content.status_code,
-                    headers: static_content.headers.await?,
-                    header_overwrites: header_overwrites.await?,
+    Ok(
+        match &*resolve_source_request(source, request).connect().await? {
+            ResolveSourceRequestResult::Static(static_content_vc, header_overwrites) => {
+                let static_content = static_content_vc.await?;
+                if let AssetContent::File(file) = &*static_content.content.content().await? {
+                    GetFromSourceResult::Static {
+                        content: file.await?,
+                        status_code: static_content.status_code,
+                        headers: static_content.headers.await?,
+                        header_overwrites: header_overwrites.await?,
+                    }
+                } else {
+                    GetFromSourceResult::NotFound
                 }
-            } else {
-                GetFromSourceResult::NotFound
             }
+            ResolveSourceRequestResult::HttpProxy(proxy) => {
+                GetFromSourceResult::HttpProxy(proxy.connect().await?)
+            }
+            ResolveSourceRequestResult::NotFound => GetFromSourceResult::NotFound,
         }
-        ResolveSourceRequestResult::HttpProxy(proxy) => {
-            GetFromSourceResult::HttpProxy(proxy.await?)
-        }
-        ResolveSourceRequestResult::NotFound => GetFromSourceResult::NotFound,
-    }
-    .cell())
+        .cell(),
+    )
 }
 
 /// Processes an HTTP request within a given content source and returns the
 /// response.
 pub async fn process_request_with_content_source(
-    source: Vc<Box<dyn ContentSource>>,
+    source: OperationVc<Box<dyn ContentSource>>,
     request: Request<hyper::Body>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<(
@@ -78,15 +83,16 @@ pub async fn process_request_with_content_source(
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result = get_from_source(source, TransientInstance::new(request));
-    let resolved_result = result.resolve_strongly_consistent().await?;
-    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result.peek_collectibles();
+    let result_op = get_from_source_operation(source, TransientInstance::new(request));
+    let resolved_result = result_op.resolve_strongly_consistent().await?;
+    apply_effects(result_op).await?;
+    let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result_op.peek_collectibles();
     handle_issues(
-        result,
+        result_op,
         issue_reporter,
         IssueSeverity::Fatal.cell(),
         Some(&original_path),
-        Some("get_from_source"),
+        Some("get_from_source_operation"),
     )
     .await?;
     match &*resolved_result.await? {

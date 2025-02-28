@@ -71,6 +71,29 @@ describe('loadConfig', () => {
       delete process.env.__NEXT_VERSION
     })
 
+    it('should not print a stack trace when throwing an error', async () => {
+      const loadConfigPromise = loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            ppr: true,
+          },
+        },
+      })
+
+      await expect(loadConfigPromise).rejects.toThrow(
+        /The experimental feature "experimental.ppr" can only be enabled when using the latest canary version of Next.js./
+      )
+
+      try {
+        await loadConfigPromise
+      } catch (error: any) {
+        expect(error).toBeInstanceOf(Error)
+
+        // Check that there's no stack trace
+        expect(error.stack).toBeUndefined()
+      }
+    })
+
     it('errors when using PPR if not in canary', async () => {
       await expect(
         loadConfig('', __dirname, {

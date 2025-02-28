@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueDefault, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueDefault, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
@@ -8,7 +9,10 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use super::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkItem};
+use super::{
+    item::EcmascriptChunkItemWithAsyncInfo, EcmascriptChunk, EcmascriptChunkContent,
+    EcmascriptChunkItem,
+};
 
 #[turbo_tasks::value]
 #[derive(Default)]
@@ -41,24 +45,33 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Ecmascript chunking context not found");
         };
+        fn to_ecmascript_chunk_item(
+            chunk_item: &ChunkItemWithAsyncModuleInfo,
+        ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
+            let ChunkItemWithAsyncModuleInfo {
+                chunk_item,
+                module: _,
+                async_info,
+            } = chunk_item;
+            let Some(chunk_item) =
+                ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
+            else {
+                bail!(
+                    "Chunk item is not an ecmascript chunk item but reporting chunk type \
+                     ecmascript"
+                );
+            };
+            Ok(EcmascriptChunkItemWithAsyncInfo {
+                chunk_item,
+                async_info: *async_info,
+            })
+        }
         let content = EcmascriptChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(|(chunk_item, async_info)| async move {
-                    let Some(chunk_item) =
-                        Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
-                            .await?
-                    else {
-                        bail!(
-                            "Chunk item is not an ecmascript chunk item but reporting chunk type \
-                             ecmascript"
-                        );
-                    };
-                    Ok((chunk_item, *async_info))
-                })
-                .try_join()
-                .await?,
-            referenced_output_assets: referenced_output_assets.await?.clone_value(),
+                .map(to_ecmascript_chunk_item)
+                .collect::<Result<Vec<_>>>()?,
+            referenced_output_assets: referenced_output_assets.owned().await?,
         }
         .cell();
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))

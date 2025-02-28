@@ -3,7 +3,7 @@
  */
 
 const nextConfig = {
-  assetPrefix: '/assets/', // intentional trailing slash to ensure we handle this as well
+  assetPrefix: '/assets',
   rewrites() {
     return {
       beforeFiles: [

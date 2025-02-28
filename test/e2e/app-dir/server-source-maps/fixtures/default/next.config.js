@@ -6,6 +6,7 @@ const nextConfig = {
     dynamicIO: true,
     serverSourceMaps: true,
   },
+  serverExternalPackages: ['external-pkg'],
 }
 
 module.exports = nextConfig

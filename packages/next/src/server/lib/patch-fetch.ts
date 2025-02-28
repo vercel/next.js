@@ -15,16 +15,14 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
-import type {
-  WorkUnitAsyncStorage,
-  RequestStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchData,
 } from '../response-cache'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
+import { cloneResponse } from './clone-response'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -536,14 +534,15 @@ export function createPatchedFetcher(
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
 
-        const requestStore: undefined | RequestStore =
-          workUnitStore !== undefined && workUnitStore.type === 'request'
+        const useCacheOrRequestStore =
+          workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
             ? workUnitStore
             : undefined
 
         if (
           incrementalCache &&
-          (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
+          (isCacheableRevalidate ||
+            useCacheOrRequestStore?.serverComponentsHmrCache)
         ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
@@ -609,127 +608,139 @@ export function createPatchedFetcher(
             next: { ...init?.next, fetchType: 'origin', fetchIdx },
           }
 
-          return originFetch(input, clonedInit).then(async (res) => {
-            if (!isStale && fetchStart) {
-              trackFetchMetric(workStore, {
-                start: fetchStart,
-                url: fetchUrl,
-                cacheReason: cacheReasonOverride || cacheReason,
-                cacheStatus:
-                  finalRevalidate === 0 || cacheReasonOverride
-                    ? 'skip'
-                    : 'miss',
-                cacheWarning,
-                status: res.status,
-                method: clonedInit.method || 'GET',
-              })
-            }
-            if (
-              res.status === 200 &&
-              incrementalCache &&
-              cacheKey &&
-              (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
-            ) {
-              const normalizedRevalidate =
-                finalRevalidate >= INFINITE_CACHE
-                  ? CACHE_ONE_YEAR
-                  : finalRevalidate
-              const externalRevalidate =
-                finalRevalidate >= INFINITE_CACHE ? false : finalRevalidate
-
-              if (workUnitStore && workUnitStore.type === 'prerender') {
-                // We are prerendering at build time or revalidate time with dynamicIO so we need to
-                // buffer the response so we can guarantee it can be read in a microtask
-                const bodyBuffer = await res.arrayBuffer()
-
-                const fetchedData = {
-                  headers: Object.fromEntries(res.headers.entries()),
-                  body: Buffer.from(bodyBuffer).toString('base64'),
+          return originFetch(input, clonedInit)
+            .then(async (res) => {
+              if (!isStale && fetchStart) {
+                trackFetchMetric(workStore, {
+                  start: fetchStart,
+                  url: fetchUrl,
+                  cacheReason: cacheReasonOverride || cacheReason,
+                  cacheStatus:
+                    finalRevalidate === 0 || cacheReasonOverride
+                      ? 'skip'
+                      : 'miss',
+                  cacheWarning,
                   status: res.status,
-                  url: res.url,
-                }
-
-                // We can skip checking the serverComponentsHmrCache because we aren't in
-                // dev mode.
-
-                await incrementalCache.set(
-                  cacheKey,
-                  {
-                    kind: CachedRouteKind.FETCH,
-                    data: fetchedData,
-                    revalidate: normalizedRevalidate,
-                  },
-                  {
-                    fetchCache: true,
-                    revalidate: externalRevalidate,
-                    fetchUrl,
-                    fetchIdx,
-                    tags,
-                  }
-                )
-                await handleUnlock()
-
-                // We we return a new Response to the caller.
-                return new Response(bodyBuffer, {
-                  headers: res.headers,
-                  status: res.status,
-                  statusText: res.statusText,
+                  method: clonedInit.method || 'GET',
                 })
-              } else {
-                // We are dynamically rendering including dev mode. We want to return
-                // the response to the caller as soon as possible because it might stream
-                // over a very long time.
-                res
-                  .clone()
-                  .arrayBuffer()
-                  .then(async (arrayBuffer) => {
-                    const bodyBuffer = Buffer.from(arrayBuffer)
-
-                    const fetchedData = {
-                      headers: Object.fromEntries(res.headers.entries()),
-                      body: bodyBuffer.toString('base64'),
-                      status: res.status,
-                      url: res.url,
-                    }
-
-                    requestStore?.serverComponentsHmrCache?.set(
-                      cacheKey,
-                      fetchedData
-                    )
-
-                    if (isCacheableRevalidate) {
-                      await incrementalCache.set(
-                        cacheKey,
-                        {
-                          kind: CachedRouteKind.FETCH,
-                          data: fetchedData,
-                          revalidate: normalizedRevalidate,
-                        },
-                        {
-                          fetchCache: true,
-                          revalidate: externalRevalidate,
-                          fetchUrl,
-                          fetchIdx,
-                          tags,
-                        }
-                      )
-                    }
-                  })
-                  .catch((error) =>
-                    console.warn(`Failed to set fetch cache`, input, error)
-                  )
-                  .finally(handleUnlock)
-
-                return res
               }
-            }
+              if (
+                res.status === 200 &&
+                incrementalCache &&
+                cacheKey &&
+                (isCacheableRevalidate ||
+                  useCacheOrRequestStore?.serverComponentsHmrCache)
+              ) {
+                const normalizedRevalidate =
+                  finalRevalidate >= INFINITE_CACHE
+                    ? CACHE_ONE_YEAR
+                    : finalRevalidate
+                const externalRevalidate =
+                  finalRevalidate >= INFINITE_CACHE ? false : finalRevalidate
 
-            // we had response that we determined shouldn't be cached so we return it
-            // and don't cache it. This also needs to unlock the cache lock we acquired.
-            await handleUnlock()
+                if (workUnitStore && workUnitStore.type === 'prerender') {
+                  // We are prerendering at build time or revalidate time with dynamicIO so we need to
+                  // buffer the response so we can guarantee it can be read in a microtask
+                  const bodyBuffer = await res.arrayBuffer()
 
-            return res
-          })
+                  const fetchedData = {
+                    headers: Object.fromEntries(res.headers.entries()),
+                    body: Buffer.from(bodyBuffer).toString('base64'),
+                    status: res.status,
+                    url: res.url,
+                  }
+
+                  // We can skip checking the serverComponentsHmrCache because we aren't in
+                  // dev mode.
+
+                  await incrementalCache.set(
+                    cacheKey,
+                    {
+                      kind: CachedRouteKind.FETCH,
+                      data: fetchedData,
+                      revalidate: normalizedRevalidate,
+                    },
+                    {
+                      fetchCache: true,
+                      revalidate: externalRevalidate,
+                      fetchUrl,
+                      fetchIdx,
+                      tags,
+                    }
+                  )
+                  await handleUnlock()
+
+                  // We return a new Response to the caller.
+                  return new Response(bodyBuffer, {
+                    headers: res.headers,
+                    status: res.status,
+                    statusText: res.statusText,
+                  })
+                } else {
+                  // We're cloning the response using this utility because there
+                  // exists a bug in the undici library around response cloning.
+                  // See the following pull request for more details:
+                  // https://github.com/vercel/next.js/pull/73274
+
+                  const [cloned1, cloned2] = cloneResponse(res)
+
+                  // We are dynamically rendering including dev mode. We want to return
+                  // the response to the caller as soon as possible because it might stream
+                  // over a very long time.
+                  cloned1
+                    .arrayBuffer()
+                    .then(async (arrayBuffer) => {
+                      const bodyBuffer = Buffer.from(arrayBuffer)
+
+                      const fetchedData = {
+                        headers: Object.fromEntries(cloned1.headers.entries()),
+                        body: bodyBuffer.toString('base64'),
+                        status: cloned1.status,
+                        url: cloned1.url,
+                      }
+
+                      useCacheOrRequestStore?.serverComponentsHmrCache?.set(
+                        cacheKey,
+                        fetchedData
+                      )
+
+                      if (isCacheableRevalidate) {
+                        await incrementalCache.set(
+                          cacheKey,
+                          {
+                            kind: CachedRouteKind.FETCH,
+                            data: fetchedData,
+                            revalidate: normalizedRevalidate,
+                          },
+                          {
+                            fetchCache: true,
+                            revalidate: externalRevalidate,
+                            fetchUrl,
+                            fetchIdx,
+                            tags,
+                          }
+                        )
+                      }
+                    })
+                    .catch((error) =>
+                      console.warn(`Failed to set fetch cache`, input, error)
+                    )
+                    .finally(handleUnlock)
+
+                  return cloned2
+                }
+              }
+
+              // we had response that we determined shouldn't be cached so we return it
+              // and don't cache it. This also needs to unlock the cache lock we acquired.
+              await handleUnlock()
+
+              return res
+            })
+            .catch((error) => {
+              handleUnlock()
+              throw error
+            })
         }
 
         let cacheReasonOverride
@@ -740,11 +751,11 @@ export function createPatchedFetcher(
           let cachedFetchData: CachedFetchData | undefined
 
           if (
-            requestStore?.isHmrRefresh &&
-            requestStore.serverComponentsHmrCache
+            useCacheOrRequestStore?.isHmrRefresh &&
+            useCacheOrRequestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =
-              requestStore.serverComponentsHmrCache.get(cacheKey)
+              useCacheOrRequestStore.serverComponentsHmrCache.get(cacheKey)
 
             isHmrRefreshCache = true
           }
@@ -788,14 +799,23 @@ export function createPatchedFetcher(
                 if (entry.isStale) {
                   workStore.pendingRevalidates ??= {}
                   if (!workStore.pendingRevalidates[cacheKey]) {
-                    workStore.pendingRevalidates[cacheKey] = doOriginalFetch(
-                      true
-                    )
-                      .catch(console.error)
+                    const pendingRevalidate = doOriginalFetch(true)
+                      .then(async (response) => ({
+                        body: await response.arrayBuffer(),
+                        headers: response.headers,
+                        status: response.status,
+                        statusText: response.statusText,
+                      }))
                       .finally(() => {
                         workStore.pendingRevalidates ??= {}
                         delete workStore.pendingRevalidates[cacheKey || '']
                       })
+
+                    // Attach the empty catch here so we don't get a "unhandled
+                    // promise rejection" warning.
+                    pendingRevalidate.catch(console.error)
+
+                    workStore.pendingRevalidates[cacheKey] = pendingRevalidate
                   }
                 }
 
@@ -895,7 +915,7 @@ export function createPatchedFetcher(
         if (cacheKey && isForegroundRevalidate) {
           const pendingRevalidateKey = cacheKey
           workStore.pendingRevalidates ??= {}
-          const pendingRevalidate =
+          let pendingRevalidate =
             workStore.pendingRevalidates[pendingRevalidateKey]
 
           if (pendingRevalidate) {
@@ -914,27 +934,27 @@ export function createPatchedFetcher(
 
           // We used to just resolve the Response and clone it however for
           // static generation with dynamicIO we need the response to be able to
-          // be resolved in a microtask and Response#clone() will never have a
-          // body that can resolve in a microtask in node (as observed through
+          // be resolved in a microtask and cloning the response will never have
+          // a body that can resolve in a microtask in node (as observed through
           // experimentation) So instead we await the body and then when it is
           // available we construct manually cloned Response objects with the
           // body as an ArrayBuffer. This will be resolvable in a microtask
           // making it compatible with dynamicIO.
           const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
+            // We're cloning the response using this utility because there
+            // exists a bug in the undici library around response cloning.
+            // See the following pull request for more details:
+            // https://github.com/vercel/next.js/pull/73274
+            .then(cloneResponse)
 
-          const nextRevalidate = pendingResponse
-            .then(async (response) => {
-              // Clone the response here. It'll run first because we attached
-              // the resolve before we returned below. We have to clone it
-              // because the original response is going to be consumed by
-              // at a later point in time.
-              const clonedResponse = response.clone()
-
+          pendingRevalidate = pendingResponse
+            .then(async (responses) => {
+              const response = responses[0]
               return {
-                body: await clonedResponse.arrayBuffer(),
-                headers: clonedResponse.headers,
-                status: clonedResponse.status,
-                statusText: clonedResponse.statusText,
+                body: await response.arrayBuffer(),
+                headers: response.headers,
+                status: response.status,
+                statusText: response.statusText,
               }
             })
             .finally(() => {
@@ -949,11 +969,11 @@ export function createPatchedFetcher(
 
           // Attach the empty catch here so we don't get a "unhandled promise
           // rejection" warning
-          nextRevalidate.catch(() => {})
+          pendingRevalidate.catch(() => {})
 
-          workStore.pendingRevalidates[pendingRevalidateKey] = nextRevalidate
+          workStore.pendingRevalidates[pendingRevalidateKey] = pendingRevalidate
 
-          return pendingResponse
+          return pendingResponse.then((responses) => responses[1])
         } else {
           return doOriginalFetch(false, cacheReasonOverride)
         }

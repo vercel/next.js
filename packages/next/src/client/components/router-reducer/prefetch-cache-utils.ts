@@ -160,14 +160,10 @@ export function getOrCreatePrefetchCacheEntry({
   url,
   nextUrl,
   tree,
-  buildId,
   prefetchCache,
   kind,
   allowAliasing = true,
-}: Pick<
-  ReadonlyReducerState,
-  'nextUrl' | 'prefetchCache' | 'tree' | 'buildId'
-> & {
+}: Pick<ReadonlyReducerState, 'nextUrl' | 'prefetchCache' | 'tree'> & {
   url: URL
   kind?: PrefetchKind
   allowAliasing: boolean
@@ -206,7 +202,6 @@ export function getOrCreatePrefetchCacheEntry({
           return createLazyPrefetchEntry({
             tree,
             url,
-            buildId,
             nextUrl,
             prefetchCache,
             // If we didn't get an explicit prefetch kind, we want to set a temporary kind
@@ -232,7 +227,6 @@ export function getOrCreatePrefetchCacheEntry({
   return createLazyPrefetchEntry({
     tree,
     url,
-    buildId,
     nextUrl,
     prefetchCache,
     kind: kind || PrefetchKind.TEMPORARY,
@@ -316,12 +310,8 @@ function createLazyPrefetchEntry({
   kind,
   tree,
   nextUrl,
-  buildId,
   prefetchCache,
-}: Pick<
-  ReadonlyReducerState,
-  'nextUrl' | 'tree' | 'buildId' | 'prefetchCache'
-> & {
+}: Pick<ReadonlyReducerState, 'nextUrl' | 'tree' | 'prefetchCache'> & {
   url: URL
   kind: PrefetchKind
 }): PrefetchCacheEntry {
@@ -333,7 +323,6 @@ function createLazyPrefetchEntry({
     fetchServerResponse(url, {
       flightRouterState: tree,
       nextUrl,
-      buildId,
       prefetchKind: kind,
     }).then((prefetchResponse) => {
       // TODO: `fetchServerResponse` should be more tighly coupled to these prefetch cache operations
@@ -408,7 +397,7 @@ export function prunePrefetchCache(
 const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 
-const STATIC_STALETIME_MS =
+export const STATIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME) * 1000
 
 function getPrefetchEntryCacheStatus({

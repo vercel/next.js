@@ -8,7 +8,7 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.1.2
+  TURBO_VERSION: 2.3.3
   NODE_MAINTENANCE_VERSION: 18
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
@@ -16,7 +16,7 @@ env:
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -26,6 +26,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  NEXT_TEST_PREFER_OFFLINE: 1
 
 jobs:
   optimize-ci:
@@ -71,6 +72,17 @@ jobs:
       stepName: 'build-native'
     secrets: inherit
 
+  build-native-windows:
+    name: build-native-windows
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+      stepName: 'build-native-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+
+    secrets: inherit
+
   build-next:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
@@ -96,7 +108,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 18
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
         env:
@@ -149,7 +164,7 @@ jobs:
       stepName: 'rust-check'
     secrets: inherit
 
-  rust-doc-check:
+  rustdoc-check:
     name: rustdoc check
     needs: ['changes', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
@@ -160,7 +175,7 @@ jobs:
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
       afterBuild: ./scripts/deploy-turbopack-docs.sh
-      stepName: 'rust-doc-check'
+      stepName: 'rustdoc-check'
     secrets: inherit
 
   ast-grep:
@@ -172,7 +187,8 @@ jobs:
       - name: ast-grep lint step
         uses: ast-grep/action@v1.5.0
         with:
-          version: 0.26.1
+          # Keep in sync with the next.js repo's root package.json
+          version: 0.31.0
 
   devlow-bench:
     name: Run devlow benchmarks
@@ -188,6 +204,7 @@ jobs:
         selector:
           - '--scenario=heavy-npm-deps-dev --page=homepage'
           - '--scenario=heavy-npm-deps-build --page=homepage'
+          - '--scenario=heavy-npm-deps-build-turbo-cache-enabled --page=homepage'
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: pnpm install && ./node_modules/.bin/devlow-bench ./scripts/devlow-bench.mjs --datadog=ubuntu-latest-16-core ${{ matrix.mode }} ${{ matrix.selector }}
@@ -198,8 +215,6 @@ jobs:
     name: test devlow package
     needs: ['optimize-ci', 'changes']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    strategy:
-      fail-fast: false
     uses: ./.github/workflows/build_reusable.yml
     with:
       stepName: 'test-devlow'
@@ -237,7 +252,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
@@ -258,7 +273,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.include:
@@ -280,7 +295,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -333,6 +348,26 @@ jobs:
 
     secrets: inherit
 
+  test-unit-windows:
+    name: test unit windows
+    needs: ['changes', 'build-native', 'build-native-windows']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      stepName: 'test-unit-windows-${{ matrix.node }}'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+
+    secrets: inherit
+
   test-new-tests-dev:
     name: Test new tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
@@ -341,12 +376,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
       stepName: 'test-new-tests-dev-${{matrix.group}}'
+      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
     secrets: inherit
 
@@ -358,12 +394,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
       stepName: 'test-new-tests-start-${{matrix.group}}'
+      timeout_minutes: 60 # Increase the default timeout as tests are intentionally run multiple times to detect flakes
 
     secrets: inherit
 
@@ -376,7 +413,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -396,13 +433,74 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-dev-windows:
+    name: test dev windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      stepName: 'test-dev-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-integration-windows:
+    name: test integration windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: node run-tests.js -c 4 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/package-manager/pnpm.test.ts
+      stepName: 'test-integration-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-prod-windows:
+    name: test prod windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      stepName: 'test-prod-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod:
@@ -416,7 +514,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -434,18 +532,19 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - 1/12
-          - 2/12
-          - 3/12
-          - 4/12
-          - 5/12
-          - 6/12
-          - 7/12
-          - 8/12
-          - 9/12
-          - 10/12
-          - 11/12
-          - 12/12
+          - 1/13
+          - 2/13
+          - 3/13
+          - 4/13
+          - 5/13
+          - 6/13
+          - 7/13
+          - 8/13
+          - 9/13
+          - 10/13
+          - 11/13
+          - 12/13
+          - 13/13
           # Empty value uses default
           # TODO: Run with React 18.
           # Integration tests use the installed React version in next/package.json.include:
@@ -496,7 +595,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
@@ -511,53 +610,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
-
-  report-test-results-to-datadog:
-    needs:
-      [
-        'changes',
-        'test-unit',
-        'test-dev',
-        'test-prod',
-        'test-integration',
-        'test-ppr-dev',
-        'test-ppr-prod',
-        'test-ppr-integration',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
-        'test-turbopack-production',
-        'test-turbopack-production-integration',
-      ]
-    if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
-
-    runs-on: ubuntu-latest
-    name: report test results to datadog
-    steps:
-      - name: Download test report artifacts
-        id: download-test-reports
-        uses: actions/download-artifact@v4
-        with:
-          pattern: test-reports-*
-          path: test
-          merge-multiple: true
-
-      - name: Upload test report to datadog
-        run: |
-          if [ -d ./test/test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:nextjs --service nextjs ./test/test-junit-report
-          fi
-
-          if [ -d ./test/turbopack-test-junit-report ]; then
-            # Add a `test.type` tag to distinguish between turbopack and next.js runs
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:turbopack --service nextjs ./test/turbopack-test-junit-report
-          fi
 
   tests-pass:
     needs:
@@ -577,6 +635,7 @@ jobs:
         'test-ppr-integration',
         'test-cargo-unit',
         'rust-check',
+        'rustdoc-check',
         'test-next-swc-wasm',
         'test-turbopack-dev',
         'test-turbopack-integration',
@@ -585,6 +644,10 @@ jobs:
         'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
+        'test-unit-windows',
+        'test-dev-windows',
+        'test-integration-windows',
+        'test-prod-windows',
       ]
 
     if: always()

@@ -1,5 +1,5 @@
 ---
-title: <Image> (Legacy)
+title: Image (Legacy)
 description: Backwards compatible Image Optimization with the Legacy Image component.
 ---
 
@@ -313,8 +313,9 @@ const Example = () => {
 
 ### unoptimized
 
-When true, the source image will be served as-is instead of changing quality,
-size, or format. Defaults to `false`.
+When true, the source image will be served as-is from the `src` instead of changing quality, size, or format. Defaults to `false`.
+
+This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
 
 ```js
 import Image from 'next/image'
@@ -511,17 +512,21 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support and still fallback to WebP with the following configuration.
+You can enable AVIF support, which will fallback to the original format of the src image if the browser [does not support AVIF](https://caniuse.com/avif):
 
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    formats: ['image/avif', 'image/webp'],
+    formats: ['image/avif'],
   },
 }
 ```
 
-> **Good to know**: AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> **Good to know**:
+>
+> - We still recommend using WebP for most use cases.
+> - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
 
@@ -555,7 +560,7 @@ module.exports = {
 
 The expiration (or rather Max Age) of the optimized image is defined by either the `minimumCacheTTL` or the upstream image `Cache-Control` header, whichever is larger.
 
-If you need to change the caching behavior per image, you can configure [`headers`](/docs/pages/api-reference/next-config-js/headers) to set the `Cache-Control` header on the upstream image (e.g. `/some-asset.jpg`, not `/_next/image` itself).
+If you need to change the caching behavior per image, you can configure [`headers`](/docs/pages/api-reference/config/next-config-js/headers) to set the `Cache-Control` header on the upstream image (e.g. `/some-asset.jpg`, not `/_next/image` itself).
 
 There is no mechanism to invalidate the cache at this time, so its best to keep `minimumCacheTTL` low. Otherwise you may need to manually change the [`src`](#src) prop or delete `<distDir>/cache/images`.
 
@@ -577,7 +582,7 @@ module.exports = {
 
 ### Dangerously Allow SVG
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
 
 Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
 

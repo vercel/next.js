@@ -1,5 +1,5 @@
 use thiserror::Error;
-use turbo_tasks::RcStr;
+use turbo_rcstr::RcStr;
 
 #[derive(Debug, Error)]
 pub enum FontError {

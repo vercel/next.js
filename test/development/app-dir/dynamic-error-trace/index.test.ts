@@ -1,8 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  getRedboxSource,
+  hasRedboxCallStack,
+} from 'next-test-utils'
 import { outdent } from 'outdent'
-
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 function normalizeStackTrace(trace) {
   return trace.replace(/ \(.*\)/g, '')
@@ -26,6 +28,7 @@ describe('app dir - dynamic error trace', () => {
       )
     ).resolves.toEqual(false)
 
+    await hasRedboxCallStack(browser)
     const stackFrameElements = await browser.elementsByCss(
       '[data-nextjs-call-stack-frame]'
     )
@@ -36,28 +39,16 @@ describe('app dir - dynamic error trace', () => {
         .join('\n')
 
     // TODO: Show useful stack
-    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
-      isReactExperimental ? `""` : `""`
-    )
+    const normalizedStack = normalizeStackTrace(stackFramesContent)
+    expect(normalizedStack).toMatchInlineSnapshot(`
+     "Foo
+     app/lib.js"
+    `)
 
     const codeframe = await getRedboxSource(browser)
-    // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack
     expect(codeframe).toEqual(
-      process.env.TURBOPACK
-        ? outdent`
-            app/lib.js (4:12) @ Foo
-            
-              2 |
-              3 | export function Foo() {
-            > 4 |   useHeaders()
-                |            ^
-              5 |   return 'foo'
-              6 | }
-              7 |
-          `
-        : // TODO: should be "@ Foo" since that's where we put the codeframe and print the source location
-          outdent`
-            app/lib.js (4:13) @ useHeaders
+      outdent`
+            app/lib.js (4:13) @ Foo
 
               2 |
               3 | export function Foo() {

@@ -241,7 +241,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -258,7 +258,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -275,7 +275,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -292,7 +292,7 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
     expect(res.headers.get('Cache-Control')).toBe(
-      `public, max-age=0, must-revalidate`
+      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
     )
     expect(res.headers.get('Vary')).toBe('Accept')
     expect(res.headers.get('etag')).toBeTruthy()
@@ -312,7 +312,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(res.headers.get('Content-Length')).toBe('603')
       expect(res.headers.get('Content-Type')).toContain('image/svg+xml')
       expect(res.headers.get('Cache-Control')).toBe(
-        `public, max-age=0, must-revalidate`
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
       )
       // SVG is compressible so will have accept-encoding set from
       // compression

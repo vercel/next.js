@@ -1,15 +1,19 @@
+use std::future::Future;
+
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::{
     common::GLOBALS,
     ecma::ast::{Expr, Lit, Program},
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, RcStr, TaskInput, ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
+    TaskInput, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystemPath,
+    FileContent, FileSystem, FileSystemPath,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -28,6 +32,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    embed_js::next_js_fs,
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
@@ -91,9 +96,9 @@ pub fn get_asset_path_from_pathname(pathname: &str, ext: &str) -> String {
 #[turbo_tasks::function]
 pub async fn get_transpiled_packages(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().await?.clone_value();
+    let mut transpile_packages: Vec<RcStr> = next_config.transpile_packages().owned().await?;
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
@@ -108,16 +113,19 @@ pub async fn get_transpiled_packages(
 
 pub async fn foreign_code_context_condition(
     next_config: Vc<NextConfig>,
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
 ) -> Result<ContextCondition> {
-    let transpiled_packages = get_transpiled_packages(next_config, project_path).await?;
+    let transpiled_packages = get_transpiled_packages(next_config, *project_path).await?;
 
     // The next template files are allowed to import the user's code via import
     // mapping, and imports must use the project-level [ResolveOptions] instead
     // of the `node_modules` specific resolve options (the template files are
     // technically node module files).
     let not_next_template_dir = ContextCondition::not(ContextCondition::InPath(
-        get_next_package(project_path).join(NEXT_TEMPLATE_PATH.into()),
+        get_next_package(*project_path)
+            .join(NEXT_TEMPLATE_PATH.into())
+            .to_resolved()
+            .await?,
     ));
 
     let result = ContextCondition::all(vec![
@@ -131,6 +139,30 @@ pub async fn foreign_code_context_condition(
         )),
     ]);
     Ok(result)
+}
+
+/// Determines if the module is an internal asset (i.e overlay, fallback) coming from the embedded
+/// FS, don't apply user defined transforms.
+//
+// TODO: Turbopack specific embed fs paths should be handled by internals of Turbopack itself and
+// user config should not try to leak this. However, currently we apply few transform options
+// subject to Next.js's configuration even if it's embedded assets.
+pub async fn internal_assets_conditions() -> Result<ContextCondition> {
+    Ok(ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+        ContextCondition::InPath(
+            turbopack_node::embed_js::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+    ]))
 }
 
 #[derive(
@@ -147,6 +179,7 @@ pub async fn foreign_code_context_condition(
     PartialOrd,
     Ord,
     TaskInput,
+    NonLocalValue,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
@@ -194,8 +227,16 @@ impl ValueDefault for NextSourceConfig {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: Vc<AssetIdent>,
-    detail: Vc<StyledString>,
+    ident: ResolvedVc<AssetIdent>,
+    detail: ResolvedVc<StyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSourceConfigParsingIssue {
+    #[turbo_tasks::function]
+    pub fn new(ident: ResolvedVc<AssetIdent>, detail: ResolvedVc<StyledString>) -> Vc<Self> {
+        Self { ident, detail }.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -228,7 +269,7 @@ impl Issue for NextSourceConfigParsingIssue {
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
@@ -238,20 +279,26 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 }
 
-fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
+async fn emit_invalid_config_warning(
+    ident: Vc<AssetIdent>,
+    detail: &str,
+    value: &JsValue,
+) -> Result<()> {
     let (explainer, hints) = value.explain(2, 0);
-    NextSourceConfigParsingIssue {
+    NextSourceConfigParsingIssue::new(
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
-    }
-    .cell()
-    .emit()
+        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+    )
+    .to_resolved()
+    .await?
+    .emit();
+    Ok(())
 }
 
-fn parse_route_matcher_from_js_value(
+async fn parse_route_matcher_from_js_value(
     ident: Vc<AssetIdent>,
     value: &JsValue,
-) -> Option<Vec<MiddlewareMatcherKind>> {
+) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
     let parse_matcher_kind_matcher = |value: &JsValue| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
@@ -317,7 +364,8 @@ fn parse_route_matcher_from_js_value(
                     ident,
                     "The matcher property must be a string or array of strings",
                     value,
-                );
+                )
+                .await?;
             }
         }
         JsValue::Array { items, .. } => {
@@ -353,28 +401,34 @@ fn parse_route_matcher_from_js_value(
                         ident,
                         "The matcher property must be a string or array of strings",
                         value,
-                    );
+                    )
+                    .await?;
                 }
             }
         }
-        _ => emit_invalid_config_warning(
-            ident,
-            "The matcher property must be a string or array of strings",
-            value,
-        ),
+        _ => {
+            emit_invalid_config_warning(
+                ident,
+                "The matcher property must be a string or array of strings",
+                value,
+            )
+            .await?
+        }
     }
 
-    if matchers.is_empty() {
+    Ok(if matchers.is_empty() {
         None
     } else {
         Some(matchers)
-    }
+    })
 }
 
 #[turbo_tasks::function]
-pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<NextSourceConfig>> {
-    if let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+pub async fn parse_config_from_source(
+    module: ResolvedVc<Box<dyn Module>>,
+    default_runtime: NextRuntime,
+) -> Result<Vc<NextSourceConfig>> {
+    if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),
@@ -399,22 +453,33 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                return GLOBALS.set(globals, || {
-                                    let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(module, &value).cell())
-                                });
+                                return WrapFuture::new(
+                                    async {
+                                        let value = eval_context.eval(init);
+                                        Ok(parse_config_from_js_value(
+                                            *module,
+                                            &value,
+                                            default_runtime,
+                                        )
+                                        .await?
+                                        .cell())
+                                    },
+                                    |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+                                )
+                                .await;
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .into(),
                                     )
                                     .cell(),
-                                }
-                                .cell()
-                                .emit()
+                                )
+                                .to_resolved()
+                                .await?
+                                .emit();
                             }
                         }
                         // Or, check if there is segment runtime option
@@ -423,15 +488,16 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                             .map(|ident| &*ident.sym == "runtime")
                             .unwrap_or_default()
                         {
-                            let runtime_value_issue = NextSourceConfigParsingIssue {
-                                ident: module.ident(),
-                                detail: StyledString::Text(
+                            let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                                module.ident(),
+                                StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
                                 )
                                 .cell(),
-                            }
-                            .cell();
+                            )
+                            .to_resolved()
+                            .await?;
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
@@ -456,17 +522,18 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
                                     runtime_value_issue.emit();
                                 }
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
                                             .into(),
                                     )
                                     .cell(),
-                                }
-                                .cell()
-                                .emit()
+                                )
+                                .to_resolved()
+                                .await?
+                                .emit();
                             }
                         }
                     }
@@ -474,20 +541,35 @@ pub async fn parse_config_from_source(module: Vc<Box<dyn Module>>) -> Result<Vc<
             }
         }
     }
-    Ok(Default::default())
+    let config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
+
+    Ok(config.cell())
 }
 
-fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
-    let mut config = NextSourceConfig::default();
+async fn parse_config_from_js_value(
+    module: Vc<Box<dyn Module>>,
+    value: &JsValue,
+    default_runtime: NextRuntime,
+) -> Result<NextSourceConfig> {
+    let mut config = NextSourceConfig {
+        runtime: default_runtime,
+        ..Default::default()
+    };
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
-                ObjectPart::Spread(_) => emit_invalid_config_warning(
-                    module.ident(),
-                    "Spread properties are not supported in the config export.",
-                    value,
-                ),
+                ObjectPart::Spread(_) => {
+                    emit_invalid_config_warning(
+                        module.ident(),
+                        "Spread properties are not supported in the config export.",
+                        value,
+                    )
+                    .await?
+                }
                 ObjectPart::KeyValue(key, value) => {
                     if let Some(key) = key.as_str() {
                         match key {
@@ -507,7 +589,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "The runtime property must be either \
                                                      \"nodejs\" or \"edge\".",
                                                     value,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                     }
@@ -516,12 +599,14 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                         module.ident(),
                                         "The runtime property must be a constant string.",
                                         value,
-                                    );
+                                    )
+                                    .await?;
                                 }
                             }
                             "matcher" => {
                                 config.matcher =
-                                    parse_route_matcher_from_js_value(module.ident(), value);
+                                    parse_route_matcher_from_js_value(module.ident(), value)
+                                        .await?;
                             }
                             "regions" => {
                                 config.regions = match value {
@@ -544,7 +629,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "Values of the `config.regions` array need to \
                                                      static strings",
                                                     item,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                         Some(regions)
@@ -555,7 +641,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             "`config.regions` needs to be a static string or \
                                              array of static strings",
                                             value,
-                                        );
+                                        )
+                                        .await?;
                                         None
                                     }
                                 };
@@ -567,7 +654,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                             module.ident(),
                             "The exported config object must not contain non-constant strings.",
                             key,
-                        );
+                        )
+                        .await?;
                     }
                 }
             }
@@ -577,10 +665,11 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
             module.ident(),
             "The exported config object must be a valid object literal.",
             value,
-        );
+        )
+        .await?;
     }
 
-    config
+    Ok(config)
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
@@ -595,7 +684,7 @@ pub async fn load_next_js_template(
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
     let content = &*file_content_rope(path.read()).await?;
-    let content = content.to_str()?.to_string();
+    let content = content.to_str()?.into_owned();
 
     let parent_path = path.parent();
     let parent_path_value = &*parent_path.await?;
@@ -860,15 +949,15 @@ pub fn virtual_next_js_template_path(
 }
 
 pub async fn load_next_js_templateon<T: DeserializeOwned>(
-    project_path: Vc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
     path: RcStr,
 ) -> Result<T> {
-    let file_path = get_next_package(project_path).join(path.clone());
+    let file_path = get_next_package(*project_path).join(path.clone());
 
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content at {}", path);
+        bail!("Expected file content at {}", file_path.to_string().await?);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;

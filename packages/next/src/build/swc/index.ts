@@ -21,12 +21,9 @@ import {
   getDefineEnv,
 } from '../webpack/plugins/define-env-plugin'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
-import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
-  ExternalObject,
   NapiPartialProjectOptions,
   NapiProjectOptions,
-  NextTurboTasks,
 } from './generated-native'
 import type {
   Binding,
@@ -43,6 +40,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
+import { TurbopackInternalError } from '../../shared/lib/turbopack/utils'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -167,7 +165,6 @@ let wasmBindings: Binding
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
-let swcHeapProfilerFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
@@ -748,9 +745,14 @@ function bindingToApi(
     }
 
     traceSource(
-      stackFrame: TurbopackStackFrame
+      stackFrame: TurbopackStackFrame,
+      currentDirectoryFileUrl: string
     ): Promise<TurbopackStackFrame | null> {
-      return binding.projectTraceSource(this._nativeProject, stackFrame)
+      return binding.projectTraceSource(
+        this._nativeProject,
+        stackFrame,
+        currentDirectoryFileUrl
+      )
     }
 
     getSourceForAsset(filePath: string): Promise<string | null> {
@@ -759,6 +761,10 @@ function bindingToApi(
 
     getSourceMap(filePath: string): Promise<string | null> {
       return binding.projectGetSourceMap(this._nativeProject, filePath)
+    }
+
+    getSourceMapSync(filePath: string): string | null {
+      return binding.projectGetSourceMapSync(this._nativeProject, filePath)
     }
 
     updateInfoSubscribe(aggregationMs: number) {
@@ -1054,18 +1060,6 @@ async function loadWasm(importPath = '') {
           return undefined
         },
         turbo: {
-          startTrace() {
-            Log.error('Wasm binding does not support trace yet')
-          },
-          createTurboTasks: function (
-            _outputPath: string,
-            _persistentCaching: boolean,
-            _memoryLimit?: number | undefined
-          ): ExternalObject<NextTurboTasks> {
-            throw new Error(
-              '`turbo.createTurboTasks` is not supported by the wasm bindings.'
-            )
-          },
           createProject: function (
             _options: ProjectOptions,
             _turboEngineOptions?: TurboEngineOptions | undefined
@@ -1230,27 +1224,7 @@ function loadNative(importPath?: string) {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
-      initHeapProfiler: bindings.initHeapProfiler,
-      teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
-        startTrace(options = {}, turboTasks: ExternalObject<NextTurboTasks>) {
-          initHeapProfiler()
-          return (customBindings ?? bindings).runTurboTracing(
-            toBuffer({ exact: true, ...options }),
-            turboTasks
-          )
-        },
-        createTurboTasks(
-          outputPath: string,
-          persistentCaching: boolean,
-          memoryLimit?: number
-        ): ExternalObject<NextTurboTasks> {
-          return bindings.createTurboTasks(
-            outputPath,
-            persistentCaching,
-            memoryLimit
-          )
-        },
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(
@@ -1316,7 +1290,10 @@ export function transformSync(src: string, options?: any): any {
   return bindings.transformSync(src, options)
 }
 
-export async function minify(src: string, options: any): Promise<string> {
+export async function minify(
+  src: string,
+  options: any
+): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
 }
@@ -1347,27 +1324,10 @@ export function getBinaryMetadata() {
  *
  */
 export function initCustomTraceSubscriber(traceFileName?: string) {
-  if (!swcTraceFlushGuard) {
+  if (swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)
-  }
-}
-
-/**
- * Initialize heap profiler, if possible.
- * Note this is not available in release build of next-swc by default,
- * only available by manually building next-swc with specific flags.
- * Calling in release build will not do anything.
- */
-export function initHeapProfiler() {
-  try {
-    if (!swcHeapProfilerFlushGuard) {
-      let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler?.()
-    }
-  } catch (_) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
   }
 }
 
@@ -1382,23 +1342,6 @@ function once(fn: () => void): () => void {
     }
   }
 }
-
-/**
- * Teardown heap profiler, if possible.
- *
- * Same as initialization, this is not available in release build of next-swc by default
- * and calling it will not do anything.
- */
-export const teardownHeapProfiler = once(() => {
-  try {
-    let bindings = loadNative()
-    if (swcHeapProfilerFlushGuard) {
-      bindings.teardownHeapProfiler?.(swcHeapProfilerFlushGuard)
-    }
-  } catch (e) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
-  }
-})
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.

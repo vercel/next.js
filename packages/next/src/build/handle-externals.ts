@@ -48,7 +48,6 @@ export async function resolveExternal(
   context: string,
   request: string,
   isEsmRequested: boolean,
-  _optOutBundlingPackages: string[],
   getResolve: (
     options: ResolveOptions
   ) => (
@@ -133,13 +132,11 @@ export async function resolveExternal(
 
 export function makeExternalHandler({
   config,
-  optOutBundlingPackages,
   optOutBundlingPackageRegex,
   transpiledPackages,
   dir,
 }: {
   config: NextConfigComplete
-  optOutBundlingPackages: string[]
   optOutBundlingPackageRegex: RegExp
   transpiledPackages: string[]
   dir: string
@@ -266,7 +263,6 @@ export function makeExternalHandler({
       context,
       request,
       isEsmRequested,
-      optOutBundlingPackages,
       getResolve,
       isLocal ? resolveNextExternal : undefined
     )
@@ -334,7 +330,6 @@ export function makeExternalHandler({
           context,
           pkg + '/package.json',
           isEsmRequested,
-          optOutBundlingPackages,
           getResolve,
           isLocal ? resolveNextExternal : undefined
         )

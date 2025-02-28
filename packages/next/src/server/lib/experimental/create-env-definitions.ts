@@ -1,23 +1,33 @@
-import type { Env } from '@next/env'
+import type { LoadedEnvFiles } from '@next/env'
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
 
 export async function createEnvDefinitions({
   distDir,
-  env,
+  loadedEnvFiles,
 }: {
   distDir: string
-  env: Env
+  loadedEnvFiles: LoadedEnvFiles
 }) {
-  const envKeysStr = Object.keys(env)
-    .map((key) => `      ${key}?: string`)
-    .join('\n')
+  const envLines = []
+  const seenKeys = new Set()
+  // env files are in order of priority
+  for (const { path, env } of loadedEnvFiles) {
+    for (const key in env) {
+      if (!seenKeys.has(key)) {
+        envLines.push(`      /** Loaded from \`${path}\` */`)
+        envLines.push(`      ${key}?: string`)
+        seenKeys.add(key)
+      }
+    }
+  }
+  const envStr = envLines.join('\n')
 
   const definitionStr = `// Type definitions for Next.js environment variables
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-${envKeysStr}
+${envStr}
     }
   }
 }

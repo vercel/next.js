@@ -237,6 +237,7 @@ async function collectNamedSlots(layoutPath: string) {
 // possible to provide the same experience for dynamic routes.
 
 const pluginState = getProxiedPluginState({
+  collectedRootParams: {} as Record<string, string[]>,
   routeTypes: {
     edge: {
       static: '',
@@ -393,9 +394,9 @@ function createRouteDefinitions() {
     dynamicRouteTypes += pluginState.routeTypes[type].dynamic
   }
 
-  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string'.
+  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
   const routeTypesFallback =
-    !staticRouteTypes && !dynamicRouteTypes ? 'string' : ''
+    !staticRouteTypes && !dynamicRouteTypes ? 'string & {}' : ''
 
   return `// Type definitions for Next.js routes
 
@@ -584,6 +585,103 @@ function formatTimespanWithSeconds(seconds: undefined | number): string {
   return text + ' (' + descriptive + ')'
 }
 
+function getRootParamsFromLayouts(layouts: Record<string, string[]>) {
+  // Sort layouts by depth (descending)
+  const sortedLayouts = Object.entries(layouts).sort(
+    (a, b) => b[0].split('/').length - a[0].split('/').length
+  )
+
+  if (!sortedLayouts.length) {
+    return []
+  }
+
+  // we assume the shorted layout path is the root layout
+  let rootLayout = sortedLayouts[sortedLayouts.length - 1][0]
+
+  let rootParams = new Set<string>()
+  let isMultipleRootLayouts = false
+
+  for (const [layoutPath, params] of sortedLayouts) {
+    const allSegmentsAreDynamic = layoutPath
+      .split('/')
+      .slice(1, -1)
+      // match dynamic params but not catch-all or optional catch-all
+      .every((segment) => /^\[[^[.\]]+\]$/.test(segment))
+
+    if (allSegmentsAreDynamic) {
+      if (isSubpath(rootLayout, layoutPath)) {
+        // Current path is a subpath of the root layout, update root
+        rootLayout = layoutPath
+        rootParams = new Set(params)
+      } else {
+        // Found another potential root layout
+        isMultipleRootLayouts = true
+        // Add any new params
+        for (const param of params) {
+          rootParams.add(param)
+        }
+      }
+    }
+  }
+
+  // Create result array
+  const result = Array.from(rootParams).map((param) => ({
+    param,
+    optional: isMultipleRootLayouts,
+  }))
+
+  return result
+}
+
+function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
+  // we strip off the `layout` part of the path as those will always conflict with being a subpath
+  const parentSegments = parentLayoutPath.split('/').slice(1, -1)
+  const childSegments = potentialChildLayoutPath.split('/').slice(1, -1)
+
+  // child segments should be shorter or equal to parent segments to be a subpath
+  if (childSegments.length > parentSegments.length || !childSegments.length)
+    return false
+
+  // Verify all segment values are equal
+  return childSegments.every(
+    (childSegment, index) => childSegment === parentSegments[index]
+  )
+}
+
+function createServerDefinitions(
+  rootParams: { param: string; optional: boolean }[]
+) {
+  return `
+  declare module 'next/server' {
+
+    import type { AsyncLocalStorage as NodeAsyncLocalStorage } from 'async_hooks'
+    declare global {
+      var AsyncLocalStorage: typeof NodeAsyncLocalStorage
+    }
+    export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
+    export { NextRequest } from 'next/dist/server/web/spec-extension/request'
+    export { NextResponse } from 'next/dist/server/web/spec-extension/response'
+    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
+    export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
+    export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
+    export { ImageResponse } from 'next/dist/server/web/spec-extension/image-response'
+    export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
+    export { after } from 'next/dist/server/after'
+    export { connection } from 'next/dist/server/request/connection'
+    export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
+    export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
+    export function unstable_rootParams(): Promise<{ ${rootParams
+      .map(
+        ({ param, optional }) =>
+          // ensure params with dashes are valid keys
+          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
+      )
+      .join(', ')} }>
+  }
+  `
+}
+
 function createCustomCacheLifeDefinitions(cacheLife: {
   [profile: string]: CacheLife
 }) {
@@ -656,13 +754,13 @@ function createCustomCacheLifeDefinitions(cacheLife: {
     /**
      * Cache this \`"use cache"\` using a custom timespan.
      * \`\`\`
-     *   stale: ... // seconds 
+     *   stale: ... // seconds
      *   revalidate: ... // seconds
      *   expire: ... // seconds
      * \`\`\`
-     * 
+     *
      * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-     * 
+     *
      * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
      */
     export function unstable_cacheLife(profile: {
@@ -689,6 +787,8 @@ declare module 'next/cache' {
   export {
     revalidateTag,
     revalidatePath,
+    unstable_expireTag,
+    unstable_expirePath,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
@@ -798,7 +898,10 @@ export class NextTypesPlugin {
         ? '..'
         : '../..'
 
-    const handleModule = async (mod: webpack.NormalModule, assets: any) => {
+    const handleModule = async (
+      mod: webpack.NormalModule,
+      compilation: webpack.Compilation
+    ) => {
       if (!mod.resource) return
 
       const pageExtensionsRegex = new RegExp(
@@ -853,24 +956,49 @@ export class NextTypesPlugin {
       if (!IS_IMPORTABLE) return
 
       if (IS_LAYOUT) {
+        const rootLayoutPath = normalizeAppPath(
+          ensureLeadingSlash(
+            getPageFromPath(
+              path.relative(this.appDir, mod.resource),
+              this.pageExtensions
+            )
+          )
+        )
+
+        const foundParams = Array.from(
+          rootLayoutPath.matchAll(/\[(.*?)\]/g),
+          (match) => match[1]
+        )
+
+        pluginState.collectedRootParams[rootLayoutPath] = foundParams
+
         const slots = await collectNamedSlots(mod.resource)
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'layout',
-            slots,
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'layout',
+              slots,
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_PAGE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'page',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'page',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       } else if (IS_ROUTE) {
-        assets[assetPath] = new sources.RawSource(
-          createTypeGuardFile(mod.resource, relativeImportPath, {
-            type: 'route',
-          })
+        compilation.emitAsset(
+          assetPath,
+          new sources.RawSource(
+            createTypeGuardFile(mod.resource, relativeImportPath, {
+              type: 'route',
+            })
+          ) as unknown as webpack.sources.RawSource
         )
       }
     }
@@ -881,7 +1009,7 @@ export class NextTypesPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
         },
-        async (assets, callback) => {
+        async (_, callback) => {
           const promises: Promise<any>[] = []
 
           // Clear routes
@@ -914,7 +1042,7 @@ export class NextTypesPlugin {
                   chunk
                 ) as Iterable<webpack.NormalModule>
               for (const mod of chunkModules) {
-                promises.push(handleModule(mod, assets))
+                promises.push(handleModule(mod, compilation))
 
                 // If this is a concatenation, register each child to the parent ID.
                 const anyModule = mod as unknown as {
@@ -922,7 +1050,7 @@ export class NextTypesPlugin {
                 }
                 if (anyModule.modules) {
                   anyModule.modules.forEach((concatenatedMod) => {
-                    promises.push(handleModule(concatenatedMod, assets))
+                    promises.push(handleModule(concatenatedMod, compilation))
                   })
                 }
               }
@@ -931,6 +1059,25 @@ export class NextTypesPlugin {
 
           await Promise.all(promises)
 
+          const rootParams = getRootParamsFromLayouts(
+            pluginState.collectedRootParams
+          )
+          // If we discovered rootParams, we'll override the `next/server` types
+          // since we're able to determine the root params at build time.
+          if (rootParams.length > 0) {
+            const serverTypesPath = path.join(
+              assetDirRelative,
+              'types/server.d.ts'
+            )
+
+            compilation.emitAsset(
+              serverTypesPath,
+              new sources.RawSource(
+                createServerDefinitions(rootParams)
+              ) as unknown as webpack.sources.RawSource
+            )
+          }
+
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
 
           const packageJsonAssetPath = path.join(
@@ -938,9 +1085,12 @@ export class NextTypesPlugin {
             'types/package.json'
           )
 
-          assets[packageJsonAssetPath] = new sources.RawSource(
-            '{"type": "module"}'
-          ) as unknown as webpack.sources.RawSource
+          compilation.emitAsset(
+            packageJsonAssetPath,
+            new sources.RawSource(
+              '{"type": "module"}'
+            ) as unknown as webpack.sources.RawSource
+          )
 
           if (this.typedRoutes) {
             if (this.dev && !this.isEdgeServer) {
@@ -951,9 +1101,12 @@ export class NextTypesPlugin {
 
             const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
 
-            assets[linkAssetPath] = new sources.RawSource(
-              createRouteDefinitions()
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              linkAssetPath,
+              new sources.RawSource(
+                createRouteDefinitions()
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           if (this.cacheLifeConfig) {
@@ -962,9 +1115,12 @@ export class NextTypesPlugin {
               'types/cache-life.d.ts'
             )
 
-            assets[cacheLifeAssetPath] = new sources.RawSource(
-              createCustomCacheLifeDefinitions(this.cacheLifeConfig)
-            ) as unknown as webpack.sources.RawSource
+            compilation.emitAsset(
+              cacheLifeAssetPath,
+              new sources.RawSource(
+                createCustomCacheLifeDefinitions(this.cacheLifeConfig)
+              ) as unknown as webpack.sources.RawSource
+            )
           }
 
           callback()

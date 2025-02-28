@@ -4,7 +4,7 @@ This is a demo showing how to utilize `@payloadcms/next-payload` to deploy Paylo
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-payload)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-payload&project-name=cms-payload&repository-name=cms-payload)
 
@@ -51,16 +51,31 @@ From there, you can visit your admin panel via navigating to `http://localhost:3
 
 ### Related examples
 
-- [Strapi](/examples/cms-strapi)
-- [Contentful](/examples/cms-contentful)
-- [WordPress](/examples/cms-wordpress)
-- [Sanity](/examples/cms-sanity)
-- [DatoCMS](/examples/cms-datocms)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Agility CMS](/examples/cms-agilitycms)
-- [Cosmic](/examples/cms-cosmic)
+- [AgilityCMS](/examples/cms-agilitycms)
+- [Builder.io](/examples/cms-builder-io)
 - [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
+- [Contentful](/examples/cms-contentful)
+- [Cosmic](/examples/cms-cosmic)
+- [DatoCMS](/examples/cms-datocms)
+- [DotCMS](/examples/cms-dotcms)
+- [Drupal](/examples/cms-drupal)
+- [Enterspeed](/examples/cms-enterspeed)
+- [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
+- [Prepr](/examples/cms-prepr)
+- [Prismic](/examples/cms-prismic)
+- [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
+- [Sitefinity](/examples/cms-sitefinity)
+- [Storyblok](/examples/cms-storyblok)
+- [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
+- [Umbraco heartcore](/examples/cms-umbraco-heartcore)
+- [Webiny](/examples/cms-webiny)
+- [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)

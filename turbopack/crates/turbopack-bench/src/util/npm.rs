@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde_json::json;
 
 use crate::util::command;
@@ -69,7 +69,7 @@ pub fn install(install_dir: &Path, packages: &[NpmPackage<'_>]) -> Result<()> {
     if !npm.status.success() {
         io::stdout().write_all(&npm.stdout)?;
         io::stderr().write_all(&npm.stderr)?;
-        return Err(anyhow!("npm install failed. See above."));
+        anyhow::bail!("npm install failed. See above.")
     }
 
     Ok(())

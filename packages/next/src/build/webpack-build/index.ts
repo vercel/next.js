@@ -2,11 +2,15 @@ import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import * as Log from '../output/log'
 import { NextBuildContext } from '../build-context'
 import type { BuildTraceContext } from '../webpack/plugins/next-trace-entrypoints-plugin'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../../lib/worker'
 import origDebug from 'next/dist/compiled/debug'
-import type { ChildProcess } from 'child_process'
 import path from 'path'
 import { exportTraceState, recordTraceEvents } from '../../trace'
+import {
+  formatNodeOptions,
+  getParsedNodeOptionsWithoutInspect,
+} from '../../server/lib/utils'
+import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -38,8 +42,15 @@ async function webpackBuildWithWorker(
 
   prunedBuildContext.pluginState = pluginState
 
-  const getWorker = (compilerName: string) => {
-    const _worker = new Worker(path.join(__dirname, 'impl.js'), {
+  const combinedResult = {
+    duration: 0,
+    buildTraceContext: {} as BuildTraceContext,
+  }
+
+  const nodeOptions = getParsedNodeOptionsWithoutInspect()
+
+  for (const compilerName of compilerNames) {
+    const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain'],
       numWorkers: 1,
       maxRetries: 0,
@@ -47,34 +58,10 @@ async function webpackBuildWithWorker(
         env: {
           ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
+          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       },
     }) as Worker & typeof import('./impl')
-    _worker.getStderr().pipe(process.stderr)
-    _worker.getStdout().pipe(process.stdout)
-
-    for (const worker of ((_worker as any)._workerPool?._workers || []) as {
-      _child: ChildProcess
-    }[]) {
-      worker._child.on('exit', (code, signal) => {
-        if (code || (signal && signal !== 'SIGINT')) {
-          debug(
-            `Compiler ${compilerName} unexpectedly exited with code: ${code} and signal: ${signal}`
-          )
-        }
-      })
-    }
-
-    return _worker
-  }
-
-  const combinedResult = {
-    duration: 0,
-    buildTraceContext: {} as BuildTraceContext,
-  }
-
-  for (const compilerName of compilerNames) {
-    const worker = getWorker(compilerName)
 
     const curResult = await worker.workerMain({
       buildContext: prunedBuildContext,
@@ -96,7 +83,13 @@ async function webpackBuildWithWorker(
     prunedBuildContext.pluginState = pluginState
 
     if (curResult.telemetryState) {
-      NextBuildContext.telemetryState = curResult.telemetryState
+      NextBuildContext.telemetryState = {
+        ...curResult.telemetryState,
+        useCacheTracker: mergeUseCacheTrackers(
+          NextBuildContext.telemetryState?.useCacheTracker,
+          curResult.telemetryState.useCacheTracker
+        ),
+      }
     }
 
     combinedResult.duration += curResult.duration
@@ -132,16 +125,29 @@ async function webpackBuildWithWorker(
   return combinedResult
 }
 
-export function webpackBuild(
+export async function webpackBuild(
   withWorker: boolean,
   compilerNames: typeof ORDERED_COMPILER_NAMES | null
 ): ReturnType<typeof webpackBuildWithWorker> {
   if (withWorker) {
     debug('using separate compiler workers')
-    return webpackBuildWithWorker(compilerNames)
+    return await webpackBuildWithWorker(compilerNames)
   } else {
     debug('building all compilers in same process')
     const webpackBuildImpl = require('./impl').webpackBuildImpl
-    return webpackBuildImpl(null, null)
+    const curResult = await webpackBuildImpl(null, null)
+
+    // Mirror what happens in webpackBuildWithWorker
+    if (curResult.telemetryState) {
+      NextBuildContext.telemetryState = {
+        ...curResult.telemetryState,
+        useCacheTracker: mergeUseCacheTrackers(
+          NextBuildContext.telemetryState?.useCacheTracker,
+          curResult.telemetryState.useCacheTracker
+        ),
+      }
+    }
+
+    return curResult
   }
 }

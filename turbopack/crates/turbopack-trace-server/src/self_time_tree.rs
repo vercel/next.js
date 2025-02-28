@@ -1,9 +1,13 @@
 use std::{
     cmp::{max, min},
-    mem::{replace, take},
+    mem::take,
 };
 
+use crate::timestamp::Timestamp;
+
 const SPLIT_COUNT: usize = 128;
+/// Start balancing the tree when there are N times more items on one side. Must be at least 3.
+const BALANCE_THRESHOLD: usize = 3;
 
 pub struct SelfTimeTree<T> {
     entries: Vec<SelfTimeEntry<T>>,
@@ -12,17 +16,19 @@ pub struct SelfTimeTree<T> {
 }
 
 struct SelfTimeEntry<T> {
-    start: u64,
-    end: u64,
+    start: Timestamp,
+    end: Timestamp,
     item: T,
 }
 
 struct SelfTimeChildren<T> {
     /// Entries < split_point
     left: SelfTimeTree<T>,
-    split_point: u64,
+    split_point: Timestamp,
     /// Entries >= split_point
     right: SelfTimeTree<T>,
+    /// Number of entries in the SelfTimeTree::entries list that overlap the split point
+    spanning_entries: usize,
 }
 
 impl<T> Default for SelfTimeTree<T> {
@@ -44,41 +50,60 @@ impl<T> SelfTimeTree<T> {
         self.count
     }
 
-    pub fn insert(&mut self, start: u64, end: u64, item: T) {
+    pub fn insert(&mut self, start: Timestamp, end: Timestamp, item: T) {
         self.count += 1;
-        if let Some(children) = &mut self.children {
-            if end <= children.split_point {
-                children.left.insert(start, end, item);
-            } else if start >= children.split_point {
-                children.right.insert(start, end, item);
+        self.entries.push(SelfTimeEntry { start, end, item });
+        self.check_for_split();
+    }
+
+    fn check_for_split(&mut self) {
+        if self.entries.len() >= SPLIT_COUNT {
+            let spanning_entries = if let Some(children) = &mut self.children {
+                children.spanning_entries
             } else {
-                self.entries.push(SelfTimeEntry { start, end, item });
-            }
-            self.rebalance();
-        } else {
-            self.entries.push(SelfTimeEntry { start, end, item });
-            if self.entries.len() >= SPLIT_COUNT {
+                0
+            };
+            if self.entries.len() - spanning_entries >= SPLIT_COUNT {
                 self.split();
             }
         }
     }
 
     fn split(&mut self) {
-        if self.entries.is_empty() {
-            return;
+        debug_assert!(!self.entries.is_empty());
+        self.distribute_entries();
+        self.rebalance();
+    }
+
+    fn distribute_entries(&mut self) {
+        if self.children.is_none() {
+            let start = self.entries.iter().min_by_key(|e| e.start).unwrap().start;
+            let end = self.entries.iter().max_by_key(|e| e.end).unwrap().end;
+            let middle = (start + end) / 2;
+            self.children = Some(Box::new(SelfTimeChildren {
+                left: SelfTimeTree::new(),
+                split_point: middle,
+                right: SelfTimeTree::new(),
+                spanning_entries: 0,
+            }));
         }
-        let entries = take(&mut self.entries);
-        let start = entries.iter().min_by_key(|e| e.start).unwrap().start;
-        let end = entries.iter().max_by_key(|e| e.end).unwrap().end;
-        let middle = (start + end) / 2;
-        self.children = Some(Box::new(SelfTimeChildren {
-            left: SelfTimeTree::new(),
-            split_point: middle,
-            right: SelfTimeTree::new(),
-        }));
-        self.count = 0;
-        for entry in entries {
-            self.insert(entry.start, entry.end, entry.item);
+        let Some(children) = &mut self.children else {
+            unreachable!();
+        };
+        let mut i = children.spanning_entries;
+        while i < self.entries.len() {
+            let SelfTimeEntry { start, end, .. } = self.entries[i];
+            if end <= children.split_point {
+                let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
+                children.left.insert(start, end, item);
+            } else if start >= children.split_point {
+                let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
+                children.right.insert(start, end, item);
+            } else {
+                self.entries.swap(i, children.spanning_entries);
+                children.spanning_entries += 1;
+                i += 1;
+            }
         }
     }
 
@@ -87,6 +112,7 @@ impl<T> SelfTimeTree<T> {
             left,
             split_point,
             right,
+            spanning_entries,
         }) = &mut self.children
         {
             let SelfTimeTree {
@@ -99,62 +125,72 @@ impl<T> SelfTimeTree<T> {
                 children: right_children,
                 entries: right_entries,
             } = right;
-            if *left_count > *right_count * 3 + left_entries.len() {
+            if *left_count > *right_count * BALANCE_THRESHOLD + *spanning_entries {
+                // The left side has overweight
+                // We want to have a new tree that is:
+                // left' = left.left
+                // right' = (left.right, right) with self.split_point
+                // split_point' = left.split_point
+                // direct entries in self and left are put in self and are redistributed
                 if let Some(box SelfTimeChildren {
                     left: left_left,
                     split_point: left_split_point,
                     right: left_right,
+                    spanning_entries: _,
                 }) = left_children
                 {
-                    let left_entries = take(left_entries);
                     *right = Self {
-                        count: left_right.count + right.count + self.entries.len(),
-                        entries: take(&mut self.entries),
+                        count: left_right.count + right.count,
+                        entries: Vec::new(),
                         children: Some(Box::new(SelfTimeChildren {
                             left: take(left_right),
                             split_point: *split_point,
                             right: take(right),
+                            spanning_entries: 0,
                         })),
                     };
                     *split_point = *left_split_point;
+                    self.entries.append(left_entries);
                     *left = take(left_left);
-                    let entries = replace(&mut self.entries, left_entries);
-                    self.count = left.count + right.count + self.entries.len();
-                    for SelfTimeEntry { start, end, item } in entries {
-                        self.insert(start, end, item);
-                    }
+                    *spanning_entries = 0;
+                    self.distribute_entries();
                 }
-            } else if *right_count > *left_count * 3 + right_entries.len() {
+            } else if *right_count > *left_count * BALANCE_THRESHOLD + *spanning_entries {
+                // The right side has overweight
+                // We want to have a new tree that is:
+                // left' = (left, right.left) with self.split_point
+                // right' = right.right
+                // split_point' = right.split_point
+                // direct entries in self and right are put in self and are redistributed
                 if let Some(box SelfTimeChildren {
                     left: right_left,
                     split_point: right_split_point,
                     right: right_right,
+                    spanning_entries: _,
                 }) = right_children
                 {
-                    let right_entries = take(right_entries);
                     *left = Self {
-                        count: left.count + right_left.count + self.entries.len(),
-                        entries: take(&mut self.entries),
+                        count: left.count + right_left.count,
+                        entries: Vec::new(),
                         children: Some(Box::new(SelfTimeChildren {
                             left: take(left),
                             split_point: *split_point,
                             right: take(right_left),
+                            spanning_entries: 0,
                         })),
                     };
                     *split_point = *right_split_point;
+                    self.entries.append(right_entries);
                     *right = take(right_right);
-                    let entries = replace(&mut self.entries, right_entries);
-                    self.count = left.count + right.count + self.entries.len();
-                    for SelfTimeEntry { start, end, item } in entries {
-                        self.insert(start, end, item);
-                    }
+                    *spanning_entries = 0;
+                    self.check_for_split();
                 }
             }
         }
     }
 
-    pub fn lookup_range_count(&self, start: u64, end: u64) -> u64 {
-        let mut total_count = 0;
+    pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
+        let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
                 let start = max(entry.start, start);
@@ -174,11 +210,21 @@ impl<T> SelfTimeTree<T> {
         total_count
     }
 
-    pub fn for_each_in_range(&self, start: u64, end: u64, mut f: impl FnMut(u64, u64, &T)) {
+    pub fn for_each_in_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        mut f: impl FnMut(Timestamp, Timestamp, &T),
+    ) {
         self.for_each_in_range_ref(start, end, &mut f);
     }
 
-    fn for_each_in_range_ref(&self, start: u64, end: u64, f: &mut impl FnMut(u64, u64, &T)) {
+    fn for_each_in_range_ref(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        f: &mut impl FnMut(Timestamp, Timestamp, &T),
+    ) {
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
                 f(entry.start, entry.end, &entry.item);
@@ -202,10 +248,11 @@ mod tests {
     fn print_tree<T>(tree: &SelfTimeTree<T>, indent: usize) {
         if let Some(children) = &tree.children {
             println!(
-                "{}{} items (split at {}, {} total)",
+                "{}{} items (split at {}, {} overlapping, {} total)",
                 " ".repeat(indent),
                 tree.entries.len(),
                 children.split_point,
+                children.spanning_entries,
                 tree.count
             );
             print_tree(&children.left, indent + 2);
@@ -220,33 +267,100 @@ mod tests {
         }
     }
 
+    fn assert_balanced<T>(tree: &SelfTimeTree<T>) {
+        if let Some(children) = &tree.children {
+            let l = children.left.count;
+            let r = children.right.count;
+            let s = children.spanning_entries;
+            if (l > SPLIT_COUNT || r > SPLIT_COUNT)
+                && ((l > r * BALANCE_THRESHOLD + s) || (r > l * BALANCE_THRESHOLD + s))
+            {
+                print_tree(tree, 0);
+                panic!("Tree is not balanced");
+            }
+            assert_balanced(&children.left);
+            assert_balanced(&children.right);
+        }
+    }
+
     #[test]
     fn test_simple() {
         let mut tree = SelfTimeTree::new();
-        for i in 0..1000 {
-            tree.insert(i, i + 1, i);
+        let count = 10000;
+        for i in 0..count {
+            tree.insert(Timestamp::from_micros(i), Timestamp::from_micros(i + 1), i);
+            assert_eq!(tree.count, (i + 1) as usize);
+            assert_balanced(&tree);
         }
-        assert_eq!(tree.lookup_range_count(0, 1000), 1000);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count)),
+            Timestamp::from_micros(count)
+        );
         print_tree(&tree, 0);
+        assert_balanced(&tree);
+    }
+
+    #[test]
+    fn test_evenly() {
+        let mut tree = SelfTimeTree::new();
+        let count = 10000;
+        for a in 0..10 {
+            for b in 0..10 {
+                for c in 0..10 {
+                    for d in 0..10 {
+                        let i = d * 1000 + c * 100 + b * 10 + a;
+                        tree.insert(Timestamp::from_micros(i), Timestamp::from_micros(i + 1), i);
+                        assert_balanced(&tree);
+                    }
+                }
+            }
+        }
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count)),
+            Timestamp::from_micros(count)
+        );
+        print_tree(&tree, 0);
+        assert_balanced(&tree);
     }
 
     #[test]
     fn test_overlapping() {
         let mut tree = SelfTimeTree::new();
-        for i in 0..1000 {
-            tree.insert(i, i + 100, i);
+        let count = 10000;
+        for i in 0..count {
+            tree.insert(
+                Timestamp::from_micros(i),
+                Timestamp::from_micros(i + 100),
+                i,
+            );
+            assert_eq!(tree.count, (i + 1) as usize);
+            assert_balanced(&tree);
         }
-        assert_eq!(tree.lookup_range_count(0, 1100), 1000 * 100);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count + 100)),
+            Timestamp::from_micros(count * 100)
+        );
         print_tree(&tree, 0);
+        assert_balanced(&tree);
     }
 
     #[test]
     fn test_overlapping_heavy() {
         let mut tree = SelfTimeTree::new();
-        for i in 0..1000 {
-            tree.insert(i, i + 500, i);
+        let count = 10000;
+        for i in 0..count {
+            tree.insert(
+                Timestamp::from_micros(i),
+                Timestamp::from_micros(i + 500),
+                i,
+            );
+            assert_eq!(tree.count, (i + 1) as usize);
         }
-        assert_eq!(tree.lookup_range_count(0, 2000), 1000 * 500);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count + 500)),
+            Timestamp::from_micros(count * 500)
+        );
         print_tree(&tree, 0);
+        assert_balanced(&tree);
     }
 }

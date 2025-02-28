@@ -1,7 +1,7 @@
 'use server'
 
-import { revalidatePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function revalidateSelf() {
-  revalidatePath('/app/self-revalidate')
+  unstable_expirePath('/app/self-revalidate')
 }

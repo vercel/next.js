@@ -1,14 +1,13 @@
-/* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
-import { sandbox } from '../../../lib/development-sandbox'
+import { createSandbox } from '../../../lib/development-sandbox'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
-describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
+describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
@@ -82,7 +81,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     // TODO: server seems to close before the response fully returns?
   })
 
-  it('runs callbacks from nested unstable_after calls', async () => {
+  it('runs callbacks from nested after calls', async () => {
     await next.browser(pathPrefix + '/nested-after')
 
     await retry(() => {
@@ -98,6 +97,9 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   describe('interrupted RSC renders', () => {
+    // This is currently broken with Turbopack.
+    // https://github.com/vercel/next.js/pull/75989
+
     it('runs callbacks if redirect() was called', async () => {
       await next.browser(pathPrefix + '/interrupted/calls-redirect')
 
@@ -122,6 +124,64 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
       await next.browser(pathPrefix + '/interrupted/throws-error')
       expect(getLogs()).toContainEqual({
         source: '[page] /interrupted/throws-error',
+      })
+    })
+
+    it('runs callbacks if a request is aborted before the page finishes streaming', async () => {
+      const abortController = new AbortController()
+      const res = await next.fetch(
+        pathPrefix + '/interrupted/incomplete-stream/hang',
+        { signal: abortController.signal }
+      )
+      expect(res.status).toBe(200)
+
+      const textDecoder = new TextDecoder()
+      for await (const rawChunk of res.body) {
+        const chunk =
+          typeof rawChunk === 'string' ? rawChunk : textDecoder.decode(rawChunk)
+        // we found the loading fallback for the part that hangs forever, so we know we won't progress any further
+        if (chunk.includes('Loading...')) {
+          break
+        }
+      }
+      abortController.abort()
+
+      await retry(() => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/incomplete-stream/hang',
+        })
+      })
+    })
+
+    it('runs callbacks if the browser disconnects before the page finishes streaming', async () => {
+      // `next.browser()` always waits for the `load` event, which we don't want here.
+      // (because the page hangs forever while streaming and will thus never fire `load`)
+      // but we can't easily bypass that, so go to a dummy page first
+      const browser = await next.browser(
+        pathPrefix + '/interrupted/incomplete-stream/start'
+      )
+      expect(await browser.elementByCss('h1').text()).toEqual('Start')
+
+      // navigate to a page that hangs forever while streaming...
+      // NOTE: this needs to be a soft navigation (using Link), playwright seems to hang otherwise
+      await browser.elementByCss('a').click()
+      await retry(async () => {
+        expect(await browser.hasElementByCssSelector('#loading-fallback')).toBe(
+          true
+        )
+      })
+
+      // ...but navigate away before streaming is finished (it hangs forever, so it will never finish)
+      await browser.get(
+        new URL(pathPrefix + '/interrupted/incomplete-stream/end', next.url)
+          .href
+      )
+      expect(await browser.elementByCss('h1').text()).toEqual('End')
+
+      await retry(async () => {
+        expect(getLogs()).toContainEqual({
+          source: '[page] /interrupted/incomplete-stream/hang',
+        })
       })
     })
   })
@@ -244,7 +304,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   it('does not allow modifying cookies in a callback', async () => {
     const EXPECTED_ERROR =
-      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+      /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
     const browser = await next.browser(pathPrefix + '/123/setting-cookies')
     // after() from render
@@ -270,10 +330,29 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   })
 
   describe('uses waitUntil from request context if available', () => {
-    let sanboxed: Awaited<ReturnType<typeof sandbox>>
-    beforeAll(async () => {
+    it.each([
+      {
+        name: 'in a page',
+        path: '/provided-request-context/page',
+        expectedLog: { source: '[page] /provided-request-context/page' },
+      },
+      {
+        name: 'in a route handler',
+        path: '/provided-request-context/route',
+        expectedLog: {
+          source: '[route handler] /provided-request-context/route',
+        },
+      },
+      {
+        name: 'in middleware',
+        path: '/provided-request-context/middleware',
+        expectedLog: {
+          source: '[middleware] /provided-request-context/middleware',
+        },
+      },
+    ])('$name', async ({ path, expectedLog }) => {
       resetLogIsolation() // sandbox resets `next.cliOutput` to empty
-      sanboxed = await sandbox(
+      await using _sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -296,32 +375,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           ],
         ])
       )
-    })
-    afterAll(async () => {
-      await sanboxed.cleanup()
-    })
 
-    it.each([
-      {
-        name: 'in a page',
-        path: '/provided-request-context/page',
-        expectedLog: { source: '[page] /provided-request-context/page' },
-      },
-      {
-        name: 'in a route handler',
-        path: '/provided-request-context/route',
-        expectedLog: {
-          source: '[route handler] /provided-request-context/route',
-        },
-      },
-      {
-        name: 'in middleware',
-        path: '/provided-request-context/middleware',
-        expectedLog: {
-          source: '[middleware] /provided-request-context/middleware',
-        },
-      },
-    ])('$name', async ({ path, expectedLog }) => {
       await next.browser(pathPrefix + path)
       await retry(() => {
         const logs = getLogs()

@@ -29,7 +29,7 @@ Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&ut
 ## Note
 
 You'll notice the configuration in `.babelrc` includes the `babel-macros`
-plugin, then we can use the `preval.macro` in `pages/index.js` to pre-evaluate
+plugin, then we can use the `preval.macro` in `app/page.tsx` to pre-evaluate
 code at build-time. `preval.macro` is effectively transforming our code, but
 we didn't have to configure it to make that happen!
 

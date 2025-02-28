@@ -22,6 +22,7 @@ import { DraftModeProvider } from './draft-mode-provider'
 import { splitCookiesString } from '../web/utils'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import type { Params } from '../request/params'
 
 function getHeaders(headers: Headers | IncomingHttpHeaders): ReadonlyHeaders {
   const cleaned = HeadersAdapter.from(headers)
@@ -106,12 +107,13 @@ export function createRequestStoreForRender(
   req: RequestContext['req'],
   res: RequestContext['res'],
   url: RequestContext['url'],
+  rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
-  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
+  serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
+  renderResumeDataCache: RenderResumeDataCache | undefined
 ): RequestStore {
   return createRequestStoreImpl(
     // Pages start in render phase by default
@@ -119,6 +121,7 @@ export function createRequestStoreForRender(
     req,
     res,
     url,
+    rootParams,
     implicitTags,
     onUpdateCookies,
     renderResumeDataCache,
@@ -141,6 +144,7 @@ export function createRequestStoreForAPI(
     req,
     undefined,
     url,
+    {},
     implicitTags,
     onUpdateCookies,
     undefined,
@@ -155,6 +159,7 @@ function createRequestStoreImpl(
   req: RequestContext['req'],
   res: RequestContext['res'],
   url: RequestContext['url'],
+  rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   renderResumeDataCache: RenderResumeDataCache | undefined,
@@ -184,6 +189,7 @@ function createRequestStoreImpl(
     // to ensure we don't use parts of the URL that we shouldn't. This also
     // lets us avoid requiring an empty string for `search` in the type.
     url: { pathname: url.pathname, search: url.search ?? '' },
+    rootParams,
     get headers() {
       if (!cache.headers) {
         // Seal the headers object that'll freeze out any methods that could
@@ -248,7 +254,6 @@ function createRequestStoreImpl(
       return cache.draftMode
     },
     renderResumeDataCache: renderResumeDataCache ?? null,
-    devWarmupPrerenderResumeDataCache: null,
     isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||

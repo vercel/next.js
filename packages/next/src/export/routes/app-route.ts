@@ -1,4 +1,4 @@
-import type { ExportRouteResult, FileWriter } from '../types'
+import type { ExportRouteResult } from '../types'
 import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
 import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
@@ -27,6 +27,7 @@ import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { Params } from '../../server/request/params'
 import { AfterRunner } from '../../server/after/run-with-after'
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -46,8 +47,10 @@ export async function exportAppRoute(
         [profile: string]: import('../../server/use-cache/cache-life').CacheLife
       },
   htmlFilepath: string,
-  fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after' | 'dynamicIO'>>,
+  fileWriter: MultiFileWriter,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
+  >,
   buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
@@ -85,6 +88,8 @@ export async function exportAppRoute(
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+    },
+    sharedContext: {
       buildId,
     },
   }
@@ -126,13 +131,13 @@ export async function exportAppRoute(
     await afterRunner.executeAfter()
 
     const revalidate =
-      typeof (context.renderOpts as any).collectedRevalidate === 'undefined' ||
-      (context.renderOpts as any).collectedRevalidate >= INFINITE_CACHE
+      typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+      context.renderOpts.collectedRevalidate >= INFINITE_CACHE
         ? false
-        : (context.renderOpts as any).collectedRevalidate
+        : context.renderOpts.collectedRevalidate
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
-    const cacheTags = (context.renderOpts as any).collectedTags
+    const cacheTags = context.renderOpts.collectedTags
 
     if (cacheTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -144,17 +149,11 @@ export async function exportAppRoute(
 
     // Writing response body to a file.
     const body = Buffer.from(await blob.arrayBuffer())
-    await fileWriter(
-      ExportedAppRouteFiles.BODY,
-      htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX),
-      body,
-      'utf8'
-    )
+    fileWriter.append(htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX), body)
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
-    await fileWriter(
-      ExportedAppRouteFiles.META,
+    fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta)
     )

@@ -12,14 +12,14 @@ mod private {
     /// Implements the sealed trait pattern:
     /// <https://rust-lang.github.io/api-guidelines/future-proofing.html>
     pub trait Sealed {}
-    impl<T> Sealed for ResolvedVc<T> where T: Send {}
+    impl<T> Sealed for ResolvedVc<T> where T: ?Sized {}
     impl<T> Sealed for Vec<T> where T: FromTaskInput {}
     impl<T> Sealed for Option<T> where T: FromTaskInput {}
 }
 
 impl<T> FromTaskInput for ResolvedVc<T>
 where
-    T: Send,
+    T: Send + Sync + ?Sized,
 {
     type TaskInput = Vc<T>;
     fn from_task_input(from: Vc<T>) -> ResolvedVc<T> {

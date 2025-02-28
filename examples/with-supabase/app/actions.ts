@@ -12,7 +12,11 @@ export const signUpAction = async (formData: FormData) => {
   const origin = (await headers()).get("origin");
 
   if (!email || !password) {
-    return { error: "Email and password are required" };
+    return encodedRedirect(
+      "error",
+      "/sign-up",
+      "Email and password are required",
+    );
   }
 
   const { error } = await supabase.auth.signUp({

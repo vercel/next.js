@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -13,18 +14,18 @@ pub struct ChunkData {
     pub included: Vec<ReadRef<ModuleId>>,
     pub excluded: Vec<ReadRef<ModuleId>>,
     pub module_chunks: Vec<String>,
-    pub references: Vc<OutputAssets>,
+    pub references: ResolvedVc<OutputAssets>,
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkDataOption(Option<Vc<ChunkData>>);
+pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
 // the end of the type name, but in this case it would be both gramatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]
-pub struct ChunksData(Vec<Vc<ChunkData>>);
+pub struct ChunksData(Vec<ResolvedVc<ChunkData>>);
 
 #[turbo_tasks::function]
 fn module_chunk_reference_description() -> Vc<RcStr> {
@@ -39,7 +40,7 @@ impl ChunkData {
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
         let output_root = output_root.await?;
-        let path = chunk.ident().path().await?;
+        let path = chunk.path().await?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
         // item is one of several that are contained in that chunk file.
@@ -56,9 +57,9 @@ impl ChunkData {
                     included: Vec::new(),
                     excluded: Vec::new(),
                     module_chunks: Vec::new(),
-                    references: OutputAssets::empty(),
+                    references: OutputAssets::empty().to_resolved().await?,
                 }
-                .cell(),
+                .resolved_cell(),
             )));
         };
 
@@ -90,7 +91,7 @@ impl ChunkData {
                     let output_root = output_root.clone();
 
                     async move {
-                        let chunk_path = chunk.ident().path().await?;
+                        let chunk_path = chunk.path().await?;
                         Ok(output_root
                             .get_path_to(&chunk_path)
                             .map(|path| (path.to_owned(), chunk)))
@@ -111,9 +112,9 @@ impl ChunkData {
                 included,
                 excluded,
                 module_chunks,
-                references: Vc::cell(module_chunks_references),
+                references: ResolvedVc::cell(module_chunks_references),
             }
-            .cell(),
+            .resolved_cell(),
         )))
     }
 
@@ -138,6 +139,6 @@ impl ChunkData {
     /// Returns [`OutputAsset`]s that this chunk data references.
     #[turbo_tasks::function]
     pub fn references(&self) -> Vc<OutputAssets> {
-        self.references
+        *self.references
     }
 }

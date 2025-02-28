@@ -10,7 +10,6 @@ import type { PropagateToWorkersField } from './types'
 import type { NextJsHotReloaderInterface } from '../../dev/hot-reloader-types'
 
 import { createDefineEnv } from '../../../build/swc'
-import type { Project } from '../../../build/swc/types'
 import fs from 'fs'
 import { mkdir } from 'fs/promises'
 import url from 'url'
@@ -18,7 +17,6 @@ import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
 import { loadEnvConfig } from '@next/env'
-import isError, { type NextError } from '../../../lib/is-error'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
@@ -30,7 +28,6 @@ import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import { eventCliSession } from '../../../telemetry/events'
 import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
-import { logAppDirError } from '../../dev/log-app-dir-error'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
   getStaticInfoIncludingLayouts,
@@ -49,10 +46,10 @@ import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interc
 
 import {
   CLIENT_STATIC_FILES_PATH,
-  COMPILER_NAMES,
   DEV_CLIENT_PAGES_MANIFEST,
   DEV_CLIENT_MIDDLEWARE_MANIFEST,
   PHASE_DEVELOPMENT_SERVER,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../../../shared/lib/constants'
 
 import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/middleware-route-matcher'
@@ -64,34 +61,21 @@ import {
   getPossibleMiddlewareFilenames,
   getPossibleInstrumentationHookFilenames,
 } from '../../../build/utils'
-import {
-  createOriginalStackFrame,
-  getSourceMapFromCompilation,
-  getSourceMapFromFile,
-  parseStack,
-} from '../../../client/components/react-dev-overlay/server/middleware'
-import {
-  batchedTraceSource,
-  createOriginalStackFrame as createOriginalTurboStackFrame,
-} from '../../../client/components/react-dev-overlay/server/middleware-turbopack'
-import type { OriginalStackFrameResponse } from '../../../client/components/react-dev-overlay/server/shared'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
-import { getErrorSource } from '../../../shared/lib/error-source'
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import {
-  ModuleBuildError,
-  TurbopackInternalError,
-} from '../../dev/turbopack-utils'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../../shared/lib/turbopack/utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -106,7 +90,7 @@ export type SetupOpts = {
   >
   nextConfig: NextConfigComplete
   port: number
-  onCleanup: (listener: () => Promise<void>) => void
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   resetFetch: () => void
 }
 
@@ -125,7 +109,7 @@ export type ServerFields = {
   interceptionRoutes?: ReturnType<
     typeof import('./filesystem').buildCustomRoute
   >[]
-  setAppIsrStatus?: (key: string, value: boolean) => void
+  setIsrStatus?: (key: string, value: boolean) => void
   resetFetch?: () => void
 }
 
@@ -299,7 +283,6 @@ async function startWatcher(opts: SetupOpts) {
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const pagesWithUnsupportedSegments = new Map<string, string[]>()
 
       let envChange = false
       let tsconfigChange = false
@@ -311,7 +294,6 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
-      pagesWithUnsupportedSegments.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
@@ -583,9 +565,9 @@ async function startWatcher(opts: SetupOpts) {
 
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const { parsedEnv } = loadEnvConfig(
+          const { loadedEnvFiles } = loadEnvConfig(
             dir,
-            true,
+            process.env.NODE_ENV === 'development',
             Log,
             true,
             (envFilePath) => {
@@ -597,7 +579,14 @@ async function startWatcher(opts: SetupOpts) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
-              env: { ...parsedEnv, ...nextConfig.env },
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
             })
           }
 
@@ -914,6 +903,9 @@ async function startWatcher(opts: SetupOpts) {
   const devMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${DEV_CLIENT_MIDDLEWARE_MANIFEST}`
   opts.fsChecker.devVirtualFsItems.add(devMiddlewareManifestPath)
 
+  const devTurbopackMiddlewareManifestPath = `/_next/${CLIENT_STATIC_FILES_PATH}/development/${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+  opts.fsChecker.devVirtualFsItems.add(devTurbopackMiddlewareManifestPath)
+
   async function requestHandler(req: IncomingMessage, res: ServerResponse) {
     const parsedUrl = url.parse(req.url || '/')
 
@@ -930,7 +922,10 @@ async function startWatcher(opts: SetupOpts) {
       return { finished: true }
     }
 
-    if (parsedUrl.pathname?.includes(devMiddlewareManifestPath)) {
+    if (
+      parsedUrl.pathname?.includes(devMiddlewareManifestPath) ||
+      parsedUrl.pathname?.includes(devTurbopackMiddlewareManifestPath)
+    ) {
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json; charset=utf-8')
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
@@ -939,126 +934,24 @@ async function startWatcher(opts: SetupOpts) {
     return { finished: false }
   }
 
-  async function logErrorWithOriginalStack(
+  function logErrorWithOriginalStack(
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
-    let usedOriginalStack = false
-
-    if (isError(err) && err.stack) {
-      try {
-        const frames = parseStack(err.stack!)
-        // Filter out internal edge related runtime stack
-        const frame = frames.find(
-          ({ file }) =>
-            !file?.startsWith('eval') &&
-            !file?.includes('web/adapter') &&
-            !file?.includes('web/globals') &&
-            !file?.includes('sandbox/context') &&
-            !file?.includes('<anonymous>')
-        )
-
-        let originalFrame: OriginalStackFrameResponse | null = null
-        let isEdgeCompiler = false
-        const frameFile = frame?.file
-        if (frame?.lineNumber && frameFile) {
-          if (hotReloader.turbopackProject) {
-            try {
-              originalFrame = await createOriginalTurboStackFrame(
-                hotReloader.turbopackProject,
-                {
-                  file: frameFile,
-                  methodName: frame.methodName,
-                  line: frame.lineNumber ?? 0,
-                  column: frame.column ?? undefined,
-                  isServer: true,
-                }
-              )
-            } catch {}
-          } else {
-            const moduleId = frameFile.replace(
-              /^(webpack-internal:\/\/\/|file:\/\/)/,
-              ''
-            )
-            const modulePath = frameFile.replace(
-              /^(webpack-internal:\/\/\/|file:\/\/)(\(.*\)\/)?/,
-              ''
-            )
-
-            const src = getErrorSource(err as Error)
-            isEdgeCompiler = src === COMPILER_NAMES.edgeServer
-            const compilation = (
-              isEdgeCompiler
-                ? hotReloader.edgeServerStats?.compilation
-                : hotReloader.serverStats?.compilation
-            )!
-
-            const sourceMap = await (frame.file?.startsWith(path.sep) ||
-            frame.file?.startsWith('file:')
-              ? getSourceMapFromFile(frame.file)
-              : getSourceMapFromCompilation(moduleId, compilation))
-
-            if (sourceMap) {
-              try {
-                originalFrame = await createOriginalStackFrame({
-                  source: {
-                    type: 'bundle',
-                    sourceMap,
-                    compilation,
-                    moduleId,
-                    modulePath,
-                  },
-                  frame,
-                  rootDirectory: opts.dir,
-                  errorMessage: err.message,
-                })
-              } catch {}
-            }
-          }
-
-          if (
-            originalFrame?.originalCodeFrame &&
-            originalFrame.originalStackFrame
-          ) {
-            const { originalCodeFrame, originalStackFrame } = originalFrame
-            const { file, lineNumber, column, methodName } = originalStackFrame
-
-            Log[type === 'warning' ? 'warn' : 'error'](
-              `${file} (${lineNumber}:${column}) @ ${methodName}`
-            )
-
-            let errorToLog
-            if (isEdgeCompiler) {
-              errorToLog = err.message
-            } else if (isError(err) && hotReloader.turbopackProject) {
-              const stack = await traceTurbopackErrorStack(
-                hotReloader.turbopackProject,
-                err,
-                frames
-              )
-
-              const error: NextError = new Error(err.message)
-              error.stack = stack
-              error.digest = err.digest
-              errorToLog = error
-            } else {
-              errorToLog = err
-            }
-
-            logError(errorToLog, type)
-            console[type === 'warning' ? 'warn' : 'error'](originalCodeFrame)
-            usedOriginalStack = true
-          }
-        }
-      } catch (_) {
-        // failed to load original stack using source maps
-        // this un-actionable by users so we don't show the
-        // internal error and only show the provided stack
-      }
-    }
-
-    if (!usedOriginalStack) {
-      logError(err, type)
+    if (err instanceof ModuleBuildError) {
+      // Errors that may come from issues from the user's code
+      Log.error(err.message)
+    } else if (err instanceof TurbopackInternalError) {
+      // An internal Turbopack error that has been handled by next-swc, written
+      // to disk and a simplified message shown to user on the Rust side.
+    } else if (type === 'warning') {
+      Log.warn(err)
+    } else if (type === 'app-dir') {
+      Log.error(err)
+    } else if (type) {
+      Log.error(`${type}:`, err)
+    } else {
+      Log.error(err)
     }
   }
 
@@ -1077,27 +970,6 @@ async function startWatcher(opts: SetupOpts) {
         url: requestUrl,
       })
     },
-  }
-}
-
-function logError(
-  err: unknown,
-  type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-) {
-  if (err instanceof ModuleBuildError) {
-    // Errors that may come from issues from the user's code
-    Log.error(err.message)
-  } else if (err instanceof TurbopackInternalError) {
-    // An internal Turbopack error that has been handled by next-swc, written
-    // to disk and a simplified message shown to user on the Rust side.
-  } else if (type === 'warning') {
-    Log.warn(err)
-  } else if (type === 'app-dir') {
-    logAppDirError(err)
-  } else if (type) {
-    Log.error(`${type}:`, err)
-  } else {
-    Log.error(err)
   }
 }
 
@@ -1130,68 +1002,3 @@ export async function setupDevBundler(opts: SetupOpts) {
 export type DevBundler = Awaited<ReturnType<typeof setupDevBundler>>
 
 // Returns a trace rewritten through Turbopack's sourcemaps
-async function traceTurbopackErrorStack(
-  project: Project,
-  error: Error,
-  frames: StackFrame[]
-): Promise<string> {
-  let originalFrames = await Promise.all(
-    frames.map(async (f) => {
-      try {
-        const traced = await batchedTraceSource(project, {
-          file: f.file!,
-          methodName: f.methodName,
-          line: f.lineNumber ?? 0,
-          column: f.column ?? undefined,
-          isServer: true,
-        })
-
-        return traced?.frame ?? f
-      } catch {
-        return f
-      }
-    })
-  )
-
-  return (
-    error.name +
-    ': ' +
-    error.message +
-    '\n' +
-    originalFrames
-      .map((f) => {
-        if (f == null) {
-          return null
-        }
-
-        let line = '    at'
-        if (f.methodName != null) {
-          line += ' ' + f.methodName
-        }
-
-        if (f.file != null) {
-          const file =
-            f.file.startsWith('/') ||
-            // Built-in "filenames" like `<anonymous>` shouldn't be made relative
-            f.file.startsWith('<') ||
-            f.file.startsWith('node:')
-              ? f.file
-              : `./${f.file}`
-
-          line += ` (${file}`
-          if (f.lineNumber != null) {
-            line += ':' + f.lineNumber
-
-            if (f.column != null) {
-              line += ':' + f.column
-            }
-          }
-          line += ')'
-        }
-
-        return line
-      })
-      .filter(Boolean)
-      .join('\n')
-  )
-}

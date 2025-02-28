@@ -77,7 +77,7 @@ function hasMatchedSlots(path1: string, path2: string): boolean {
 }
 
 /**
- * Returns true for slots that should be considered when checking for match compatability.
+ * Returns true for slots that should be considered when checking for match compatibility.
  * Excludes children slots because these are similar to having a segment-level `page`
  * which would cause a slot length mismatch when comparing it to a catch-all route.
  */

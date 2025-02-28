@@ -3,7 +3,7 @@
 When you add an example to the [examples](https://github.com/vercel/next.js/tree/canary/examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
-- Examples should not add custom ESLint configuration (we have specific templates for ESLint)
+- Examples should not add custom ESLint configuration (we have [specific templates for ESLint](https://github.com/vercel/next.js/tree/canary/examples/with-eslint))
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
@@ -33,7 +33,7 @@ Description
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
 

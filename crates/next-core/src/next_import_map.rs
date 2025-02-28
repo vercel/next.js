@@ -1,7 +1,9 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
-use turbo_tasks::{fxindexmap, FxIndexMap, RcStr, ResolvedVc, Value, Vc};
+use rustc_hash::FxHashMap;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     reference_type::{CommonJsReferenceSubType, ReferenceType},
@@ -10,7 +12,7 @@ use turbopack_core::{
         options::{ConditionValue, ImportMap, ImportMapping, ResolvedMap},
         parse::Request,
         pattern::Pattern,
-        resolve, AliasPattern, ExternalType, ResolveAliasMap, SubpathValue,
+        resolve, AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
     },
     source::Source,
 };
@@ -119,6 +121,7 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_react_owner_stack().await?
+                || *next_config.enable_view_transition().await?
             {
                 "-experimental"
             } else {
@@ -201,6 +204,14 @@ pub async fn get_next_client_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
+            );
         }
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
@@ -248,15 +259,20 @@ pub async fn get_next_build_import_map() -> Result<Vc<ImportMap>> {
         next_js_fs().root().to_resolved().await?,
     );
 
-    let external = ImportMapping::External(None, ExternalType::CommonJs).resolved_cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next", external);
     import_map.insert_wildcard_alias("next/", external);
     import_map.insert_exact_alias("styled-jsx", external);
     import_map.insert_exact_alias(
         "styled-jsx/style",
-        ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
-            .resolved_cell(),
+        ImportMapping::External(
+            Some("styled-jsx/style.js".into()),
+            ExternalType::CommonJs,
+            ExternalTraced::Traced,
+        )
+        .resolved_cell(),
     );
     import_map.insert_wildcard_alias("styled-jsx/", external);
 
@@ -321,7 +337,8 @@ pub async fn get_next_server_import_map(
 
     let ty = ty.into_value();
 
-    let external = ImportMapping::External(None, ExternalType::CommonJs).resolved_cell();
+    let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
+        .resolved_cell();
 
     import_map.insert_exact_alias("next/dist/server/require-hook", external);
     match ty {
@@ -336,8 +353,12 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias("styled-jsx", external);
             import_map.insert_exact_alias(
                 "styled-jsx/style",
-                ImportMapping::External(Some("styled-jsx/style.js".into()), ExternalType::CommonJs)
-                    .resolved_cell(),
+                ImportMapping::External(
+                    Some("styled-jsx/style.js".into()),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Traced,
+                )
+                .resolved_cell(),
             );
             import_map.insert_wildcard_alias("styled-jsx/", external);
             // TODO: we should not bundle next/dist/build/utils in the pages renderer at all
@@ -353,6 +374,14 @@ pub async fn get_next_server_import_map(
             import_map.insert_exact_alias(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
+            );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            );
+            import_map.insert_exact_alias(
+                "next/form",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/form"),
             );
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => {}
@@ -410,6 +439,7 @@ pub async fn get_next_edge_import_map(
             "next/headers" => "next/dist/api/headers".to_string(),
             "next/image" => "next/dist/api/image".to_string(),
             "next/link" => "next/dist/api/link".to_string(),
+            "next/form" => "next/dist/api/form".to_string(),
             "next/navigation" => "next/dist/api/navigation".to_string(),
             "next/router" => "next/dist/api/router".to_string(),
             "next/script" => "next/dist/api/script".to_string(),
@@ -458,6 +488,10 @@ pub async fn get_next_edge_import_map(
                 "next/dynamic",
                 request_to_import_mapping(project_path, "next/dist/shared/lib/app-dynamic"),
             );
+            import_map.insert_exact_alias(
+                "next/link",
+                request_to_import_mapping(project_path, "next/dist/client/app-dir/link"),
+            )
         }
     }
 
@@ -516,7 +550,7 @@ async fn insert_unsupported_node_internal_aliases(
 
 pub fn get_next_client_resolved_map(
     _context: Vc<FileSystemPath>,
-    _root: Vc<FileSystemPath>,
+    _root: ResolvedVc<FileSystemPath>,
     _mode: NextMode,
 ) -> Vc<ResolvedMap> {
     let glob_mappings = vec![];
@@ -562,12 +596,12 @@ async fn insert_next_server_special_aliases(
     let external_cjs_if_node =
         move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
             NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => external_request_to_cjs_import_mapping(request),
+            NextRuntime::NodeJs => external_request_to_cjs_import_mapping(context_dir, request),
         };
     let external_esm_if_node =
         move |context_dir: ResolvedVc<FileSystemPath>, request: &str| match runtime {
             NextRuntime::Edge => request_to_import_mapping(context_dir, request),
-            NextRuntime::NodeJs => external_request_to_esm_import_mapping(request),
+            NextRuntime::NodeJs => external_request_to_esm_import_mapping(context_dir, request),
         };
 
     import_map.insert_exact_alias(
@@ -696,7 +730,8 @@ async fn rsc_aliases(
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let react_owner_stack = *next_config.enable_react_owner_stack().await?;
-    let react_channel = if ppr || taint || react_owner_stack {
+    let view_transition = *next_config.enable_view_transition().await?;
+    let react_channel = if ppr || taint || react_owner_stack || view_transition {
         "-experimental"
     } else {
         ""
@@ -1026,7 +1061,7 @@ fn export_value_to_import_mapping(
     value.add_results(
         conditions,
         &ConditionValue::Unset,
-        &mut HashMap::new(),
+        &mut FxHashMap::default(),
         &mut result,
     );
     if result.is_empty() {
@@ -1119,12 +1154,30 @@ fn request_to_import_mapping(
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_cjs_import_mapping(request: &str) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::CommonJs).resolved_cell()
+fn external_request_to_cjs_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::CommonJs,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
+    .resolved_cell()
 }
 
 /// Creates a direct import mapping to the result of resolving an external
 /// request.
-fn external_request_to_esm_import_mapping(request: &str) -> ResolvedVc<ImportMapping> {
-    ImportMapping::External(Some(request.into()), ExternalType::EcmaScriptModule).resolved_cell()
+fn external_request_to_esm_import_mapping(
+    context_dir: ResolvedVc<FileSystemPath>,
+    request: &str,
+) -> ResolvedVc<ImportMapping> {
+    ImportMapping::PrimaryAlternativeExternal {
+        name: Some(request.into()),
+        ty: ExternalType::EcmaScriptModule,
+        traced: ExternalTraced::Traced,
+        lookup_dir: context_dir,
+    }
+    .resolved_cell()
 }

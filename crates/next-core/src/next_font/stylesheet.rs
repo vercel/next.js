@@ -1,6 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 
 use super::{
     font_fallback::{FontFallback, FontFallbacks},

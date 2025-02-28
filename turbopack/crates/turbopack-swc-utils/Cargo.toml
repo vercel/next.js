@@ -2,7 +2,7 @@
 name = "turbopack-swc-utils"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -13,6 +13,9 @@ bench = false
 workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+parking_lot = { workspace = true }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbopack-core = { workspace = true }
 

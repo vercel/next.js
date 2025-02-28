@@ -40,7 +40,11 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducer, useUnwrapState } from './use-reducer'
-import { ErrorBoundary, type ErrorComponent } from './error-boundary'
+import {
+  default as DefaultGlobalError,
+  ErrorBoundary,
+  type GlobalErrorComponent,
+} from './error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -54,12 +58,11 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
-import {
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-  RedirectType,
-} from './redirect'
+import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
+import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import { isRedirectError, RedirectType } from './redirect-error'
+import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
+import { pingVisibleLinks } from './segment-cache/links'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -67,6 +70,43 @@ const globalMutable: {
 
 function isExternalURL(url: URL) {
   return url.origin !== window.location.origin
+}
+
+/**
+ * Given a link href, constructs the URL that should be prefetched. Returns null
+ * in cases where prefetching should be disabled, like external URLs, or
+ * during development.
+ * @param href The href passed to <Link>, router.prefetch(), or similar
+ * @returns A URL object to prefetch, or null if prefetching should be disabled
+ */
+export function createPrefetchURL(href: string): URL | null {
+  // Don't prefetch for bots as they don't navigate.
+  if (isBot(window.navigator.userAgent)) {
+    return null
+  }
+
+  let url: URL
+  try {
+    url = new URL(addBasePath(href), window.location.href)
+  } catch (_) {
+    // TODO: Does this need to throw or can we just console.error instead? Does
+    // anyone rely on this throwing? (Seems unlikely.)
+    throw new Error(
+      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
+    )
+  }
+
+  // Don't prefetch during development (improves compilation performance)
+  if (process.env.NODE_ENV === 'development') {
+    return null
+  }
+
+  // External urls can't be prefetched in the same way.
+  if (isExternalURL(url)) {
+    return null
+  }
+
+  return url
 }
 
 function HistoryUpdater({
@@ -103,6 +143,17 @@ function HistoryUpdater({
       window.history.replaceState(historyState, '', canonicalUrl)
     }
   }, [appRouterState])
+
+  useEffect(() => {
+    // The Next-Url and the base tree may affect the result of a prefetch
+    // task. Re-prefetch all visible links with the updated values. In most
+    // cases, this will not result in any new network requests, only if
+    // the prefetch result actually varies on one of these inputs.
+    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
+    }
+  }, [appRouterState.nextUrl, appRouterState.tree])
+
   return null
 }
 
@@ -195,10 +246,6 @@ function Head({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `head`.
   return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
@@ -208,9 +255,11 @@ function Head({
 function Router({
   actionQueue,
   assetPrefix,
+  globalError,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
+  globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
   const [state, dispatch] = useReducer(actionQueue)
   const { canonicalUrl } = useUnwrapState(state)
@@ -241,38 +290,34 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch: (href, options) => {
-        // Don't prefetch for bots as they don't navigate.
-        if (isBot(window.navigator.userAgent)) {
-          return
-        }
-
-        let url: URL
-        try {
-          url = new URL(addBasePath(href), window.location.href)
-        } catch (_) {
-          throw new Error(
-            `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-          )
-        }
-
-        // Don't prefetch during development (improves compilation performance)
-        if (process.env.NODE_ENV === 'development') {
-          return
-        }
-
-        // External urls can't be prefetched in the same way.
-        if (isExternalURL(url)) {
-          return
-        }
-        startTransition(() => {
-          dispatch({
-            type: ACTION_PREFETCH,
-            url,
-            kind: options?.kind ?? PrefetchKind.FULL,
-          })
-        })
-      },
+      prefetch: process.env.__NEXT_CLIENT_SEGMENT_CACHE
+        ? // Unlike the old implementation, the Segment Cache doesn't store its
+          // data in the router reducer state; it writes into a global mutable
+          // cache. So we don't need to dispatch an action.
+          (href, options) =>
+            prefetchWithSegmentCache(
+              href,
+              actionQueue.state.nextUrl,
+              actionQueue.state.tree,
+              options?.kind === PrefetchKind.FULL
+            )
+        : (href, options) => {
+            // Use the old prefetch implementation.
+            const url = createPrefetchURL(href)
+            if (url !== null) {
+              // The prefetch reducer doesn't actually update any state or
+              // trigger a rerender. It just writes to a mutable cache. So we
+              // shouldn't bother calling setState/dispatch; we can just re-run
+              // the reducer directly using the current state.
+              // TODO: Refactor this away from a "reducer" so it's
+              // less confusing.
+              prefetchReducer(actionQueue.state, {
+                type: ACTION_PREFETCH,
+                url,
+                kind: options?.kind ?? PrefetchKind.FULL,
+              })
+            }
+          },
       replace: (href, options = {}) => {
         startTransition(() => {
           navigate(href, 'replace', options.scroll ?? true)
@@ -308,7 +353,7 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch, navigate])
+  }, [actionQueue, dispatch, navigate])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
@@ -530,8 +575,7 @@ function Router({
     }
   }, [dispatch])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, buildId } =
-    useUnwrapState(state)
+  const { cache, tree, nextUrl, focusAndScrollRef } = useUnwrapState(state)
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -544,24 +588,23 @@ function Router({
 
   const layoutRouterContext = useMemo(() => {
     return {
-      childNodes: cache.parallelRoutes,
-      tree,
+      parentTree: tree,
+      parentCacheNode: cache,
+      parentSegmentPath: null,
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
-      loading: cache.loading,
     }
-  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
+  }, [tree, cache, canonicalUrl])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
-      buildId,
       changeByServerResponse,
       tree,
       focusAndScrollRef,
       nextUrl,
     }
-  }, [buildId, changeByServerResponse, tree, focusAndScrollRef, nextUrl])
+  }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
 
   let head
   if (matchingHead !== null) {
@@ -586,15 +629,39 @@ function Router({
   )
 
   if (process.env.NODE_ENV !== 'production') {
+    // In development, we apply few error boundaries and hot-reloader:
+    // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
+    // - HotReloader:
+    //  - hot-reload the app when the code changes
+    //  - render dev overlay
+    //  - catch runtime errors and display global-error when necessary
     if (typeof window !== 'undefined') {
-      const DevRootNotFoundBoundary: typeof import('./dev-root-not-found-boundary').DevRootNotFoundBoundary =
-        require('./dev-root-not-found-boundary').DevRootNotFoundBoundary
-      content = <DevRootNotFoundBoundary>{content}</DevRootNotFoundBoundary>
+      const { DevRootHTTPAccessFallbackBoundary } =
+        require('./dev-root-http-access-fallback-boundary') as typeof import('./dev-root-http-access-fallback-boundary')
+      content = (
+        <DevRootHTTPAccessFallbackBoundary>
+          {content}
+        </DevRootHTTPAccessFallbackBoundary>
+      )
     }
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
       require('./react-dev-overlay/app/hot-reloader-client').default
 
-    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+    content = (
+      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+        {content}
+      </HotReloader>
+    )
+  } else {
+    // In production, we only apply the user-customized global error boundary.
+    content = (
+      <ErrorBoundary
+        errorComponent={globalError[0]}
+        errorStyles={globalError[1]}
+      >
+        {content}
+      </ErrorBoundary>
+    )
   }
 
   return (
@@ -626,17 +693,22 @@ export default function AppRouter({
   assetPrefix,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [ErrorComponent, React.ReactNode | undefined]
+  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
   assetPrefix: string
 }) {
   useNavFailureHandler()
 
   return (
     <ErrorBoundary
-      errorComponent={globalErrorComponent}
-      errorStyles={globalErrorStyles}
+      // At the very top level, use the default GlobalError component as the final fallback.
+      // When the app router itself fails, which means the framework itself fails, we show the default error.
+      errorComponent={DefaultGlobalError}
     >
-      <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
+      <Router
+        actionQueue={actionQueue}
+        assetPrefix={assetPrefix}
+        globalError={[globalErrorComponent, globalErrorStyles]}
+      />
     </ErrorBoundary>
   )
 }

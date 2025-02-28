@@ -3,7 +3,6 @@
  */
 const nextConfig = {
   experimental: {
-    after: true,
     // serverComponentsHmrCache: false,
   },
 }

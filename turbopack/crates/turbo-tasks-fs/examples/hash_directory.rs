@@ -10,7 +10,8 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_tasks::{util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem,
     FileSystemPath,
@@ -64,7 +65,7 @@ async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
 }
 
 async fn filename(path: Vc<FileSystemPath>) -> Result<String> {
-    Ok(path.await?.path.split('/').last().unwrap().to_string())
+    Ok(path.await?.path.split('/').next_back().unwrap().to_string())
 }
 
 #[turbo_tasks::function]
@@ -78,11 +79,11 @@ async fn hash_directory(directory: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
                 match entry {
                     DirectoryEntry::File(path) => {
                         let name = filename(**path).await?;
-                        hashes.insert(name, hash_file(**path).await?.clone_value());
+                        hashes.insert(name, hash_file(**path).owned().await?);
                     }
                     DirectoryEntry::Directory(path) => {
                         let name = filename(**path).await?;
-                        hashes.insert(name, hash_directory(**path).await?.clone_value());
+                        hashes.insert(name, hash_directory(**path).owned().await?);
                     }
                     _ => {}
                 }

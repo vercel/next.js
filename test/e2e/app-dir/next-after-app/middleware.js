@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers'
-import { NextResponse, unstable_after as after } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { cliLog } from './utils/log'
 
 export async function middleware(

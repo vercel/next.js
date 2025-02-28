@@ -36,12 +36,16 @@ describe('per segment prefetching', () => {
     return null
   }
 
-  it('basic prefetching flow', async () => {
+  it('basic route tree prefetch', async () => {
     // To perform a prefetch a page, the client first fetches the route tree.
     // The response is used to construct prefetches of individual segments.
     const routeTreeResponse = await prefetch('/en', '/_tree')
     const routeTreeResponseText = await routeTreeResponse.text()
     const routeTree = extractPseudoJSONFromFlightResponse(routeTreeResponseText)
+
+    // Confirm that the prefetch was successful. This is a basic check to ensure
+    // that the name of an expected field is present in the response.
+    expect(typeof routeTree.staleTime).toBe('number')
 
     // The root segment is a shared segment. Demonstrate that fetching the root
     // segment for two different pages results in the same response.
@@ -50,27 +54,11 @@ describe('per segment prefetching', () => {
     const frResponse = await prefetch('/fr', '/')
     const frResponseText = await frResponse.text()
     expect(enResponseText).toEqual(frResponseText)
-
-    // Now use both the tree response and the root segment data to construct a
-    // request for the child segment.
-    const childSegmentPath = routeTree.tree.slots.children.key
-    const childToken =
-      extractPseudoJSONFromFlightResponse(enResponseText).slots.children
-
-    // The access token, which we extracted from the response for its parent
-    // segment, is appended to the end of the segment path.
-    const fullChildSegmentPath = `${childSegmentPath}.${childToken}`
-    const childResponse = await prefetch('/en', fullChildSegmentPath)
-    const childResponseText = await childResponse.text()
-
-    // Confirm that the prefetch was successful. This is a basic check to ensure
-    // that the name of an expected field is somewhere in the Flight stream.
-    expect(childResponseText).toInclude('"rsc"')
   })
 
-  it('respond with 404 if the segment does not have prefetch data', async () => {
+  it('respond with 204 if the segment does not have prefetch data', async () => {
     const response = await prefetch('/en', '/does-not-exist')
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(204)
     const responseText = await response.text()
     expect(responseText.trim()).toBe('')
   })

@@ -155,7 +155,7 @@ const setupTracing = () => {
  * to prevent relying on modules that shouldn't be
  */
 export async function createNext(
-  opts: NextInstanceOpts & { skipStart?: boolean }
+  opts: NextInstanceOpts & { skipStart?: boolean; patchFileDelay?: number }
 ): Promise<NextInstance> {
   try {
     if (nextInstance) {

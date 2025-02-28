@@ -1,4 +1,5 @@
   x Server Actions must be async functions.
+  | 
    ,-[input.js:1:1]
  1 | ,-> const foo = () => {
  2 | |     'use server'

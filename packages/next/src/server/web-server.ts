@@ -15,9 +15,8 @@ import type { Revalidate, ExpireTime } from './lib/revalidate'
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
 import { generateETag } from './lib/etag'
-import { addRequestMeta } from './request-meta'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
-import { isAPIRoute } from '../lib/is-api-route'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
@@ -37,15 +36,15 @@ import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { getEdgePreviewProps } from './web/get-edge-preview-props'
 
 interface WebServerOptions extends Options {
+  buildId: string
   webServerConfig: {
     page: string
     pathname: string
     pagesType: PAGE_TYPES
     loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
-    extendRenderOpts: Partial<BaseServer['renderOpts']> &
-      Pick<BaseServer['renderOpts'], 'buildId'> & {
-        serverActionsManifest?: any
-      }
+    extendRenderOpts: Partial<BaseServer['renderOpts']> & {
+      serverActionsManifest?: any
+    }
     renderToHTML:
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
@@ -80,12 +79,10 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk: false,
@@ -103,7 +100,7 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected getBuildId() {
-    return this.serverOptions.webServerConfig.extendRenderOpts.buildId
+    return this.serverOptions.buildId
   }
 
   protected getEnabledDirectories() {
@@ -167,16 +164,18 @@ export default class NextWebServer extends BaseServer<
       pathname = normalizedPage
 
       if (isDynamicRoute(pathname)) {
-        const routeRegex = getNamedRouteRegex(pathname, false)
+        const routeRegex = getNamedRouteRegex(pathname, {
+          prefixRouteKeys: false,
+        })
         const dynamicRouteMatcher = getRouteMatcher(routeRegex)
         const defaultRouteMatches = dynamicRouteMatcher(
           pathname
         ) as NextParsedUrlQuery
         const paramsResult = normalizeDynamicRouteParams(
           query,
-          false,
           routeRegex,
-          defaultRouteMatches
+          defaultRouteMatches,
+          false
         )
         const normalizedParams = paramsResult.hasValidParams
           ? paramsResult.params
@@ -187,13 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(
-          req,
-          true,
-          Object.keys(routeRegex.routeKeys),
-          true,
-          routeRegex
-        )
+        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
       }
     }
 
@@ -203,15 +196,11 @@ export default class NextWebServer extends BaseServer<
     if (this.i18nProvider) {
       const { detectedLocale } = await this.i18nProvider.analyze(pathname)
       if (detectedLocale) {
-        parsedUrl.query.__nextLocale = detectedLocale
+        addRequestMeta(req, 'locale', detectedLocale)
       }
     }
 
-    const bubbleNoFallback = !!query._nextBubbleNoFallback
-
-    if (isAPIRoute(pathname)) {
-      delete query._nextBubbleNoFallback
-    }
+    const bubbleNoFallback = getRequestMeta(req, 'bubbleNoFallback')
 
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
@@ -257,7 +246,10 @@ export default class NextWebServer extends BaseServer<
         runtime: 'experimental-edge',
       }),
       undefined,
-      false
+      false,
+      {
+        buildId: this.serverOptions.buildId,
+      }
     )
   }
 
@@ -386,10 +378,10 @@ export default class NextWebServer extends BaseServer<
     return undefined
   }
 
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     // The web server does not need to handle middleware. This is done by the
     // upstream proxy (edge runtime or node server).
-    return undefined
+    return Promise.resolve(undefined)
   }
 
   protected getFilesystemPaths() {

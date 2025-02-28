@@ -224,11 +224,6 @@ export enum PrefetchCacheEntryStatus {
  */
 export type AppRouterState = {
   /**
-   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
-   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
-   */
-  buildId: string
-  /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
    * - Holds which segments and parallel routes are shown on the screen.

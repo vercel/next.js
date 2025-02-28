@@ -7,10 +7,13 @@ use std::{
 
 use anyhow::Result;
 
-use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch};
+use crate::database::{
+    key_value_database::{KeySpace, KeyValueDatabase},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+};
 
 pub fn is_fresh(path: &Path) -> bool {
-    fs::exists(path).map_or(false, |exists| !exists)
+    fs::exists(path).is_ok_and(|exists| !exists)
 }
 
 pub struct FreshDbOptimization<T: KeyValueDatabase> {
@@ -39,6 +42,10 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         T::lower_read_transaction(tx)
     }
 
+    fn is_empty(&self) -> bool {
+        self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
+    }
+
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         self.database.begin_read_transaction()
     }
@@ -63,33 +70,42 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         self.database.get(transaction, key_space, key)
     }
 
-    type WriteBatch<'l>
-        = FreshDbOptimizationWriteBatch<'l, T>
+    type SerialWriteBatch<'l>
+        = FreshDbOptimizationWriteBatch<'l, T::SerialWriteBatch<'l>>
     where
         Self: 'l;
 
-    fn write_batch(&self) -> Result<Self::WriteBatch<'_>> {
-        Ok(FreshDbOptimizationWriteBatch {
-            write_batch: self.database.write_batch()?,
-            fresh_db: &self.fresh_db,
+    type ConcurrentWriteBatch<'l>
+        = FreshDbOptimizationWriteBatch<'l, T::ConcurrentWriteBatch<'l>>
+    where
+        Self: 'l;
+
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        Ok(match self.database.write_batch()? {
+            WriteBatch::Serial(write_batch) => WriteBatch::serial(FreshDbOptimizationWriteBatch {
+                write_batch,
+                fresh_db: &self.fresh_db,
+            }),
+            WriteBatch::Concurrent(write_batch, _) => {
+                WriteBatch::concurrent(FreshDbOptimizationWriteBatch {
+                    write_batch,
+                    fresh_db: &self.fresh_db,
+                })
+            }
         })
     }
 }
 
-pub struct FreshDbOptimizationWriteBatch<'a, T: KeyValueDatabase>
-where
-    T: 'a,
-{
-    write_batch: T::WriteBatch<'a>,
+pub struct FreshDbOptimizationWriteBatch<'a, B> {
+    write_batch: B,
     fresh_db: &'a AtomicBool,
 }
 
-impl<'a, T: KeyValueDatabase> WriteBatch<'a> for FreshDbOptimizationWriteBatch<'a, T>
-where
-    T: 'a,
-{
+impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for FreshDbOptimizationWriteBatch<'a, B> {
     type ValueBuffer<'l>
-        = <T::WriteBatch<'a> as WriteBatch<'a>>::ValueBuffer<'l>
+        = B::ValueBuffer<'l>
     where
         Self: 'l,
         'a: 'l;
@@ -101,6 +117,13 @@ where
         self.write_batch.get(key_space, key)
     }
 
+    fn commit(self) -> Result<()> {
+        self.fresh_db.store(false, Ordering::Release);
+        self.write_batch.commit()
+    }
+}
+
+impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWriteBatch<'a, B> {
     fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
@@ -108,9 +131,16 @@ where
     fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
         self.write_batch.delete(key_space, key)
     }
+}
 
-    fn commit(self) -> Result<()> {
-        self.fresh_db.store(false, Ordering::Release);
-        self.write_batch.commit()
+impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
+    for FreshDbOptimizationWriteBatch<'a, B>
+{
+    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+        self.write_batch.put(key_space, key, value)
+    }
+
+    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+        self.write_batch.delete(key_space, key)
     }
 }

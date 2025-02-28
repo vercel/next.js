@@ -1,0 +1,6 @@
+  x Did you mean "use server"? "use sevrer" is not a supported directive name."
+  | 
+   ,-[input.js:1:1]
+ 1 | 'use sevrer'
+   : ^^^^^^^^^^^^
+   `----

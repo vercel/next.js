@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::version::{VersionedContent, VersionedContentMerger, VersionedContents};
 
 use super::{super::content::EcmascriptDevChunkContent, content::EcmascriptDevMergedChunkContent};
@@ -31,7 +31,7 @@ impl VersionedContentMerger for EcmascriptDevChunkContentMerger {
             .iter()
             .map(|content| async move {
                 if let Some(content) =
-                    Vc::try_resolve_downcast_type::<EcmascriptDevChunkContent>(*content).await?
+                    ResolvedVc::try_downcast_type::<EcmascriptDevChunkContent>(*content)
                 {
                     Ok(content)
                 } else {

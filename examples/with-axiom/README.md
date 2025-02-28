@@ -12,13 +12,17 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/deploym
 
 ## How to use
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example::
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-axiom with-axiom-app
-# or
+```
+
+```bash
 yarn create next-app --example with-axiom with-axiom-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-axiom with-axiom-app
 ```
 

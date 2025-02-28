@@ -70,10 +70,7 @@ impl<'a> PageGuard<'a> {
                     }
                 }
                 Event::EventExceptionThrown(event) => {
-                    return Err(anyhow!(
-                        "Exception throw in page: {}",
-                        event.exception_details
-                    ));
+                    anyhow::bail!("Exception throw in page: {}", event.exception_details)
                 }
             }
         }

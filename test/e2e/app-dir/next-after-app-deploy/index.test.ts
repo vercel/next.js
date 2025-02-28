@@ -6,17 +6,17 @@ const runtimes = ['nodejs', 'edge']
 
 const WAIT_BEFORE_REVALIDATING = 1000
 
-// If we want to verify that `unstable_after()` ran its callback,
+// If we want to verify that `after()` ran its callback,
 // we need it to perform some kind of side effect (because it can't affect the response).
 // In other tests, we often use logs for this, but we don't have access to those in deploy tests.
-// So instead this test relies on calling `revalidatePath` inside `unstable_after`
+// So instead this test relies on calling `unstable_expirePath` inside `after`
 // to revalidate an ISR page '/timestamp/key/[key]', and then checking if the timestamp changed --
 // if it did, we successfully ran the callback (and performed a side effect).
 
 // This test relies on revalidating a static page, so it can't work in dev mode.
 const _describe = isNextDev ? describe.skip : describe
 
-_describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
+_describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     env: { WAIT_BEFORE_REVALIDATING: WAIT_BEFORE_REVALIDATING + '' },

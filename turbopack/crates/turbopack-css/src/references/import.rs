@@ -4,14 +4,8 @@ use lightningcss::{
     rules::{import::ImportRule, layer::LayerName, supports::SupportsCondition},
     traits::ToCss,
 };
-use swc_core::{
-    common::{Spanned, DUMMY_SP},
-    css::codegen::{
-        writer::basic::{BasicCssWriter, BasicCssWriterConfig},
-        CodeGenerator, CodegenConfig, Emit,
-    },
-};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -36,14 +30,6 @@ pub enum ImportAttributes {
         #[turbo_tasks(trace_ignore)]
         media: MediaList<'static>,
     },
-    Swc {
-        #[turbo_tasks(trace_ignore)]
-        layer_name: Option<swc_core::css::ast::LayerName>,
-        #[turbo_tasks(trace_ignore)]
-        supports: Option<swc_core::css::ast::SupportsCondition>,
-        #[turbo_tasks(trace_ignore)]
-        media: Option<Vec<swc_core::css::ast::MediaQuery>>,
-    },
 }
 
 impl PartialEq for ImportAttributes {
@@ -61,80 +47,6 @@ impl ImportAttributes {
         let media = prelude.media.clone();
 
         Self::LightningCss {
-            layer_name,
-            supports,
-            media,
-        }
-    }
-
-    pub fn new_from_swc(prelude: &swc_core::css::ast::ImportPrelude) -> Self {
-        let layer_name = prelude.layer_name.as_ref().map(|l| match l {
-            box swc_core::css::ast::ImportLayerName::Ident(_) => swc_core::css::ast::LayerName {
-                span: DUMMY_SP,
-                name: vec![],
-            },
-            box swc_core::css::ast::ImportLayerName::Function(f) => {
-                assert_eq!(f.value.len(), 1);
-                assert!(matches!(
-                    &f.value[0],
-                    swc_core::css::ast::ComponentValue::LayerName(_)
-                ));
-                if let swc_core::css::ast::ComponentValue::LayerName(layer_name) = &f.value[0] {
-                    *layer_name.clone()
-                } else {
-                    unreachable!()
-                }
-            }
-        });
-
-        let (supports, media) = prelude
-            .import_conditions
-            .as_ref()
-            .map(|c| {
-                let supports = if let Some(supports) = &c.supports {
-                    let v = supports.value.iter().find(|v| {
-                        matches!(
-                            v,
-                            swc_core::css::ast::ComponentValue::SupportsCondition(..)
-                                | swc_core::css::ast::ComponentValue::Declaration(..)
-                        )
-                    });
-
-                    if let Some(supports) = v {
-                        match &supports {
-                            swc_core::css::ast::ComponentValue::SupportsCondition(s) => {
-                                Some(*s.clone())
-                            }
-                            swc_core::css::ast::ComponentValue::Declaration(d) => {
-                                Some(swc_core::css::ast::SupportsCondition {
-                                    span: DUMMY_SP,
-                                    conditions: vec![
-                                        swc_core::css::ast::SupportsConditionType::SupportsInParens(
-                                            swc_core::css::ast::SupportsInParens::Feature(
-                                                swc_core::css::ast::SupportsFeature::Declaration(
-                                                    d.clone(),
-                                                ),
-                                            ),
-                                        ),
-                                    ],
-                                })
-                            }
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                };
-
-                let media = c.media.as_ref().map(|m| m.queries.clone());
-
-                (supports, media)
-            })
-            .unwrap_or_else(|| (None, None));
-
-        Self::Swc {
             layer_name,
             supports,
             media,
@@ -164,55 +76,29 @@ impl ImportAttributes {
                     }
                 },
             },
-            ImportAttributes::Swc {
-                layer_name,
-                supports,
-                media,
-            } => turbopack_core::reference_type::ImportAttributes {
-                layer: layer_name.as_ref().map(gen_swc_node).map(From::from),
-                supports: supports.as_ref().map(gen_swc_node).map(From::from),
-                media: media
-                    .as_ref()
-                    .map(|queries| queries.iter().map(gen_swc_node).collect::<String>().into()),
-            },
         }
     }
-}
-
-fn gen_swc_node<N>(node: N) -> String
-where
-    N: Spanned,
-    for<'a> CodeGenerator<BasicCssWriter<'a, &'a mut String>>: Emit<N>,
-{
-    let mut code = String::new();
-    {
-        let wr = BasicCssWriter::new(&mut code, None, BasicCssWriterConfig::default());
-        let mut gen = CodeGenerator::new(wr, CodegenConfig { minify: true });
-
-        gen.emit(&node).unwrap();
-    }
-    code
 }
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct ImportAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub attributes: Vc<ImportAttributes>,
-    pub import_context: Vc<ImportContext>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub attributes: ResolvedVc<ImportAttributes>,
+    pub import_context: Option<ResolvedVc<ImportContext>>,
+    pub issue_source: IssueSource,
 }
 
 #[turbo_tasks::value_impl]
 impl ImportAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        attributes: Vc<ImportAttributes>,
-        import_context: Vc<ImportContext>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        attributes: ResolvedVc<ImportAttributes>,
+        import_context: Option<ResolvedVc<ImportContext>>,
+        issue_source: IssueSource,
     ) -> Vc<Self> {
         Self::cell(ImportAssetReference {
             origin,
@@ -228,17 +114,32 @@ impl ImportAssetReference {
 impl ModuleReference for ImportAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let import_context = {
-            let own_attrs = (*self.attributes.await?).as_reference_import_attributes();
-            self.import_context
-                .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+        let own_attrs = self.attributes.await?.as_reference_import_attributes();
+        let import_context = match (&self.import_context, own_attrs.is_empty()) {
+            (Some(import_context), true) => Some(*import_context),
+            (None, false) => Some(
+                ImportContext::new(
+                    own_attrs.layer.iter().cloned().collect(),
+                    own_attrs.media.iter().cloned().collect(),
+                    own_attrs.supports.iter().cloned().collect(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+            (Some(import_context), false) => Some(
+                import_context
+                    .add_attributes(own_attrs.layer, own_attrs.media, own_attrs.supports)
+                    .to_resolved()
+                    .await?,
+            ),
+            (None, true) => None,
         };
 
         Ok(css_resolve(
-            self.origin,
-            self.request,
-            Value::new(CssReferenceSubType::AtImport(Some(import_context))),
-            Some(self.issue_source),
+            *self.origin,
+            *self.request,
+            Value::new(CssReferenceSubType::AtImport(import_context)),
+            Some(self.issue_source.clone()),
         ))
     }
 }
@@ -268,7 +169,7 @@ impl CodeGenerateable for ImportAssetReference {
             ..
         } = &*this.request.await?
         {
-            imports.push(CssImport::External(Vc::cell(
+            imports.push(CssImport::External(ResolvedVc::cell(
                 format!("{}{}", protocol, remainder).into(),
             )))
         }

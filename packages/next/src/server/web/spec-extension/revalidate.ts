@@ -17,7 +17,44 @@ import { DynamicServerError } from '../../../client/components/hooks-server-cont
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string) {
-  return revalidate(tag, `revalidateTag ${tag}`)
+  return revalidate([tag], `revalidateTag ${tag}`)
+}
+
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific path.
+ *
+ * Read more: [Next.js Docs: `unstable_expirePath`](https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath)
+ */
+export function unstable_expirePath(
+  originalPath: string,
+  type?: 'layout' | 'page'
+) {
+  if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
+    console.warn(
+      `Warning: expirePath received "${originalPath}" which exceeded max length of ${NEXT_CACHE_SOFT_TAG_MAX_LENGTH}. See more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
+    )
+    return
+  }
+
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
+
+  if (type) {
+    normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`
+  } else if (isDynamicRoute(originalPath)) {
+    console.warn(
+      `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
+    )
+  }
+  return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
+}
+
+/**
+ * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
+ *
+ * Read more: [Next.js Docs: `unstable_expireTag`](https://nextjs.org/docs/app/api-reference/functions/unstable_expireTag)
+ */
+export function unstable_expireTag(...tags: string[]) {
+  return revalidate(tags, `unstable_expireTag ${tags.join(', ')}`)
 }
 
 /**
@@ -42,10 +79,10 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
       `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
-  return revalidate(normalizedPath, `revalidatePath ${originalPath}`)
+  return revalidate([normalizedPath], `revalidatePath ${originalPath}`)
 }
 
-function revalidate(tag: string, expression: string) {
+function revalidate(tags: string[], expression: string) {
   const store = workAsyncStorage.getStore()
   if (!store || !store.incrementalCache) {
     throw new Error(
@@ -111,8 +148,11 @@ function revalidate(tag: string, expression: string) {
   if (!store.revalidatedTags) {
     store.revalidatedTags = []
   }
-  if (!store.revalidatedTags.includes(tag)) {
-    store.revalidatedTags.push(tag)
+
+  for (const tag of tags) {
+    if (!store.revalidatedTags.includes(tag)) {
+      store.revalidatedTags.push(tag)
+    }
   }
 
   // TODO: only revalidate if the path matches

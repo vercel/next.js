@@ -131,7 +131,7 @@ export async function formatResults(
         ? output +
           `\n\n${cyan(
             'info'
-          )}  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/building-your-application/configuring/eslint#disabling-rules`
+          )}  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules`
         : '',
     totalNextPluginErrorCount,
     totalNextPluginWarningCount,

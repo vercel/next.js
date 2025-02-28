@@ -1,7 +1,12 @@
 {
   "name": "@vercel/devlow-bench",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "description": "Benchmarking tool for the developer workflow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "turbopack/packages/devlow-bench"
+  },
   "publishConfig": {
     "access": "public"
   },
@@ -19,7 +24,7 @@
   ],
   "keywords": [],
   "author": "Tobias Koppers",
-  "license": "MPL-2.0",
+  "license": "MIT",
   "exports": {
     ".": "./dist/index.js",
     "./browser": "./dist/browser.js",
@@ -43,7 +48,7 @@
     "minimist": "^1.2.8",
     "picocolors": "1.0.1",
     "pidusage-tree": "^2.0.5",
-    "playwright-chromium": "^1.39.0",
+    "playwright-chromium": "1.48.0",
     "split2": "^4.2.0",
     "tree-kill": "^1.2.2"
   }

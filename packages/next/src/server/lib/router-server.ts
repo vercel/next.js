@@ -2,7 +2,6 @@
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
 import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
-import type { NextServer } from '../next'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -13,6 +12,7 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
+import * as Log from '../../build/output/log'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -47,6 +47,8 @@ import {
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import type { ServerInitResult } from './render-server'
+import { filterInternalHeaders } from './server-ipc/utils'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -70,7 +72,7 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
-  onCleanup: (listener: () => Promise<void>) => void
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
@@ -79,7 +81,7 @@ export async function initialize(opts: {
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
   quiet?: boolean
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
+}): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -145,7 +147,7 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
-        onCleanup: opts.onCleanup,
+        onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
       })
     )
@@ -164,6 +166,11 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // internal headers should not be honored by the request handler
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+
     if (
       !opts.minimalMode &&
       config.i18n &&
@@ -239,7 +246,7 @@ export async function initialize(opts: {
       if (
         config.i18n &&
         removePathPrefix(invokePath, config.basePath).startsWith(
-          `/${parsedUrl.query.__nextLocale}/api`
+          `/${getRequestMeta(req, 'locale')}/api`
         )
       ) {
         invokePath = fsChecker.handleLocale(
@@ -421,12 +428,12 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
+          const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
           await invokeRender(parsedUrl, '/_error', handleIndex, {
             invokeStatus: 500,
-            invokeError: new Error(
-              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-            ),
+            invokeError: new Error(message),
           })
+          Log.error(message)
           return
         }
 
@@ -618,14 +625,14 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
-      setAppIsrStatus:
-        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
+    onDevServerCleanup: opts.onDevServerCleanup,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -641,7 +648,11 @@ export async function initialize(opts: {
       // not really errors. They're just part of rendering.
       return
     }
-    await developmentBundler?.logErrorWithOriginalStack(err, type)
+    if (type === 'unhandledRejection') {
+      Log.error('unhandledRejection: ', err)
+    } else if (type === 'uncaughtException') {
+      Log.error('uncaughtException: ', err)
+    }
   }
 
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
@@ -698,7 +709,7 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
                 } satisfies AppIsrManifestAction)
               )
@@ -739,5 +750,12 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler, handlers.app]
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }

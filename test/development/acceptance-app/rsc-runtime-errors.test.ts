@@ -108,7 +108,7 @@ describe('Error overlay - RSC runtime errors', () => {
 
     await assertHasRedbox(browser)
     const versionText = await getVersionCheckerText(browser)
-    expect(versionText).toMatch(/Next.js \([\w.-]+\)/)
+    expect(versionText).toMatch(/Next.js [\w.-]+/)
   })
 
   it('should not show the bundle layer info in the file trace', async () => {

@@ -2,12 +2,8 @@
 import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
-import {
-  RedirectType,
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-} from './redirect'
+import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import { RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance

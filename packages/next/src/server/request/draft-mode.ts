@@ -42,11 +42,6 @@ export function draftMode(): Promise<DraftMode> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workUnitStore) {
-    if (workStore && workUnitStore.phase === 'after') {
-      throw new Error(
-        `Route ${workStore.route} used "draftMode" inside "unstable_after(...)". This is not supported, because "unstable_after(...)" runs after the request is finished and cannot affect the response. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
-      )
-    }
     if (
       workUnitStore.type === 'cache' ||
       workUnitStore.type === 'unstable-cache' ||
@@ -176,7 +171,7 @@ class DraftMode {
     return false
   }
   public enable() {
-    // We we have a store we want to track dynamic data access to ensure we
+    // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     trackDynamicDraftMode('draftMode().enable()')
     if (this._provider !== null) {
@@ -207,11 +202,9 @@ function syncIODev(route: string | undefined, expression: string) {
   warnForSyncAccess(route, expression)
 }
 
-const noop = () => {}
-
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createDraftModeAccessError
+)
 
 function createDraftModeAccessError(
   route: string | undefined,
@@ -229,7 +222,7 @@ function trackDynamicDraftMode(expression: string) {
   const store = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (store) {
-    // We we have a store we want to track dynamic data access to ensure we
+    // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     if (workUnitStore) {
       if (workUnitStore.type === 'cache') {
@@ -239,6 +232,10 @@ function trackDynamicDraftMode(expression: string) {
       } else if (workUnitStore.type === 'unstable-cache') {
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
         )
       }
     }

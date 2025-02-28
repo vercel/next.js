@@ -17,9 +17,10 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, RcStr, ResolvedVc, Upcast, Value,
-    ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, OperationVc, ResolvedVc,
+    Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -32,13 +33,14 @@ use self::{
 };
 
 /// The result of proxying a request to another HTTP server.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
+    #[turbo_tasks(trace_ignore)]
     pub body: Body,
 }
 
@@ -75,13 +77,13 @@ pub trait GetContentSourceContent {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct GetContentSourceContents(Vec<Vc<Box<dyn GetContentSourceContent>>>);
+pub struct GetContentSourceContents(Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>);
 
 #[turbo_tasks::value]
 pub struct StaticContent {
-    pub content: Vc<Box<dyn VersionedContent>>,
+    pub content: ResolvedVc<Box<dyn VersionedContent>>,
     pub status_code: u16,
-    pub headers: Vc<HeaderList>,
+    pub headers: ResolvedVc<HeaderList>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -90,7 +92,7 @@ pub struct StaticContent {
 pub enum ContentSourceContent {
     NotFound,
     Static(ResolvedVc<StaticContent>),
-    HttpProxy(ResolvedVc<ProxyResult>),
+    HttpProxy(OperationVc<ProxyResult>),
     Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
@@ -119,18 +121,18 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(
+    pub async fn static_content(
         content: ResolvedVc<Box<dyn VersionedContent>>,
-    ) -> Vc<ContentSourceContent> {
-        ContentSourceContent::Static(
+    ) -> Result<Vc<ContentSourceContent>> {
+        Ok(ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code: 200,
-                headers: HeaderList::empty(),
+                headers: HeaderList::empty().to_resolved().await?,
             }
             .resolved_cell(),
         )
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -141,9 +143,9 @@ impl ContentSourceContent {
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
-                content: *content,
+                content,
                 status_code,
-                headers: *headers,
+                headers,
             }
             .resolved_cell(),
         )
@@ -200,7 +202,7 @@ pub struct ContentSourceData {
     /// requested.
     pub raw_headers: Option<Vec<(RcStr, RcStr)>>,
     /// Request body, if requested.
-    pub body: Option<Vc<Body>>,
+    pub body: Option<ResolvedVc<Body>>,
     /// See [ContentSourceDataVary::cache_buster].
     pub cache_buster: u64,
 }
@@ -250,7 +252,7 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize, NonLocalValue)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -417,7 +419,7 @@ pub trait ContentSource {
     }
 }
 
-pub trait ContentSourceExt: Send {
+pub trait ContentSourceExt {
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
@@ -443,7 +445,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ContentSources(Vec<Vc<Box<dyn ContentSource>>>);
+pub struct ContentSources(Vec<ResolvedVc<Box<dyn ContentSource>>>);
 
 #[turbo_tasks::value_impl]
 impl ContentSources {
@@ -473,27 +475,25 @@ impl ContentSource for NoContentSource {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum RewriteType {
     Location {
-        /// The new path and query used to lookup content. This _does not_ need
-        /// to be the original path or query.
+        /// The new path and query used to lookup content. This _does not_ need to be the original
+        /// path or query.
         path_and_query: RcStr,
     },
     ContentSource {
-        /// [Vc<Box<dyn ContentSource>>]s from which to restart the lookup
-        /// process. This _does not_ need to be the original content
-        /// source.
-        source: Vc<Box<dyn ContentSource>>,
+        /// [`ContentSource`]s from which to restart the lookup process. This _does not_ need to be
+        /// the original content source.
+        source: OperationVc<Box<dyn ContentSource>>,
         /// The new path and query used to lookup content. This _does not_ need
         /// to be the original path or query.
         path_and_query: RcStr,
     },
     Sources {
-        /// [GetContentSourceContent]s from which to restart the lookup
-        /// process. This _does not_ need to be the original content
-        /// source.
-        sources: Vc<GetContentSourceContents>,
+        /// [`GetContentSourceContent`]s from which to restart the lookup process. This _does not_
+        /// need to be the original content source.
+        sources: OperationVc<GetContentSourceContents>,
     },
 }
 
@@ -529,7 +529,7 @@ impl RewriteBuilder {
     }
 
     pub fn new_source_with_path_and_query(
-        source: Vc<Box<dyn ContentSource>>,
+        source: OperationVc<Box<dyn ContentSource>>,
         path_and_query: RcStr,
     ) -> Self {
         Self {
@@ -544,7 +544,7 @@ impl RewriteBuilder {
         }
     }
 
-    pub fn new_sources(sources: Vc<GetContentSourceContents>) -> Self {
+    pub fn new_sources(sources: OperationVc<GetContentSourceContents>) -> Self {
         Self {
             rewrite: Rewrite {
                 ty: RewriteType::Sources { sources },

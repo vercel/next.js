@@ -871,7 +871,9 @@ describe('app dir - navigation', () => {
       const scrollPosition = await browser.eval('window.pageYOffset')
 
       await browser.elementByCss("[href='/scroll-restoration/other']").click()
-      await browser.elementById('back-button').click()
+      await retry(async () => {
+        await browser.elementById('back-button').click()
+      })
 
       const newScrollPosition = await browser.eval('window.pageYOffset')
 
@@ -881,29 +883,41 @@ describe('app dir - navigation', () => {
   })
 
   describe('navigating to a page with async metadata', () => {
-    it('should render the final state of the page with correct metadata', async () => {
+    it('shows a fallback when prefetch was pending', async () => {
+      const resolveMetadataDuration = 5000
       const browser = await next.browser('/metadata-await-promise')
 
-      // dev doesn't trigger the loading boundary as it's not prefetched
-      if (isNextDev) {
-        await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-      } else {
-        const loadingText = await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+      // Hopefully this click happened before the prefetch was completed.
+      // TODO: Programmatically trigger prefetch e.g. by mounting the link later.
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
-        expect(loadingText).toBe('Loading')
+      await waitFor(resolveMetadataDuration)
+
+      expect(await browser.elementById('page-content').text()).toBe('Content')
+      expect(await browser.elementByCss('title').text()).toBe('Async Title')
+    })
+
+    it('shows a fallback when prefetch completed', async () => {
+      const resolveMetadataDuration = 5000
+      const browser = await next.browser('/metadata-await-promise')
+
+      if (!isNextDev) {
+        await waitFor(resolveMetadataDuration + 500)
       }
 
-      await retry(async () => {
-        expect(await browser.elementById('page-content').text()).toBe('Content')
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
+      if (!isNextDev) {
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
-      })
+
+        await waitFor(resolveMetadataDuration + 500)
+      }
+
+      expect(await browser.elementById('page-content').text()).toBe('Content')
     })
   })
 
@@ -974,4 +988,27 @@ describe('app dir - navigation', () => {
       )
     })
   })
+
+  if (isNextDev) {
+    describe('locale warnings', () => {
+      it('should warn about using the `locale` prop with `next/link` in app router', async () => {
+        const browser = await next.browser('/locale-app')
+        const logs = await browser.log()
+        expect(logs).toContainEqual(
+          expect.objectContaining({
+            message: expect.stringContaining(
+              'The `locale` prop is not supported in `next/link` while using the `app` router.'
+            ),
+            source: 'warning',
+          })
+        )
+      })
+
+      it('should have no warnings in pages router', async () => {
+        const browser = await next.browser('/locale-pages')
+        const logs = await browser.log()
+        expect(logs.filter((log) => log.source === 'warning')).toHaveLength(0)
+      })
+    })
+  }
 })

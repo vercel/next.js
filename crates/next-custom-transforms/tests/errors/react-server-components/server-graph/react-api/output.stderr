@@ -1,6 +1,6 @@
   x You're importing a component that needs `useState`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
    ,-[input.js:1:1]
@@ -9,7 +9,7 @@
    `----
   x You're importing a component that needs `createContext`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
    ,-[input.js:3:1]
@@ -19,7 +19,7 @@
    `----
   x You're importing a component that needs `useEffect`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
    ,-[input.js:5:1]
@@ -29,7 +29,7 @@
    `----
   x You're importing a component that needs `useImperativeHandle`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
    ,-[input.js:5:1]
@@ -38,7 +38,7 @@
    :                     ^^^^^^^^^^^^^^^^^^^
    `----
   x You’re importing a class component. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
-  | Learn more: https://nextjs.org/docs/getting-started/react-essentials#client-components
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
   | 
   | 
    ,-[input.js:8:1]
@@ -49,7 +49,7 @@
    `----
   x You're importing a component that needs `createFactory`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:9:1]
@@ -60,7 +60,7 @@
     `----
   x You're importing a component that needs `PureComponent`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:10:1]
@@ -71,7 +71,7 @@
     `----
   x You're importing a component that needs `useDeferredValue`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:11:1]
@@ -82,7 +82,7 @@
     `----
   x You're importing a component that needs `useInsertionEffect`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:12:1]
@@ -93,7 +93,7 @@
     `----
   x You're importing a component that needs `useLayoutEffect`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:13:1]
@@ -104,7 +104,7 @@
     `----
   x You're importing a component that needs `useReducer`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:14:1]
@@ -115,7 +115,7 @@
     `----
   x You're importing a component that needs `useRef`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:15:1]
@@ -126,7 +126,7 @@
     `----
   x You're importing a component that needs `useSyncExternalStore`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:16:1]
@@ -137,7 +137,7 @@
     `----
   x You're importing a component that needs `experimental_useOptimistic`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `"use client"` directive.
   | 
-  |  Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components
+  |  Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client
   | 
   | 
     ,-[input.js:19:1]

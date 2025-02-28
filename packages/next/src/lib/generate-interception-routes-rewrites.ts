@@ -13,8 +13,8 @@ function toPathToRegexpPath(path: string): string {
     const paramName = capture.replace(/\W+/g, '_')
 
     // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (paramName.startsWith('...')) {
-      return `:${paramName.slice(3)}*`
+    if (capture.startsWith('...')) {
+      return `:${capture.slice(3)}*`
     }
     return ':' + paramName
   })

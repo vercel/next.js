@@ -1,16 +1,12 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env,
-    str::from_utf8,
-    sync::Arc,
-};
+use std::{env, str::from_utf8, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -91,16 +87,16 @@ struct TraceData {
 pub struct HeaptrackFormat {
     store: Arc<StoreContainer>,
     version: u32,
-    last_timestamp: u64,
+    last_timestamp: Timestamp,
     strings: Vec<String>,
     traces: Vec<TraceData>,
-    ip_parent_map: HashMap<(usize, SpanIndex), usize>,
+    ip_parent_map: FxHashMap<(usize, SpanIndex), usize>,
     trace_instruction_pointers: Vec<usize>,
     instruction_pointers: FxIndexMap<InstructionPointer, InstructionPointerExtraInfo>,
     allocations: Vec<AllocationInfo>,
     spans: usize,
-    collapse_crates: HashSet<String>,
-    expand_crates: HashSet<String>,
+    collapse_crates: FxHashSet<String>,
+    expand_crates: FxHashSet<String>,
     expand_recursion: bool,
     allocated_memory: u64,
     temp_allocated_memory: u64,
@@ -113,14 +109,14 @@ impl HeaptrackFormat {
         Self {
             store,
             version: 0,
-            last_timestamp: 0,
+            last_timestamp: Timestamp::ZERO,
             strings: vec!["".to_string()],
             traces: vec![TraceData {
                 span_index: SpanIndex::new(usize::MAX).unwrap(),
                 ip_index: 0,
                 parent_trace_index: 0,
             }],
-            ip_parent_map: HashMap::new(),
+            ip_parent_map: FxHashMap::default(),
             instruction_pointers: {
                 let mut map = FxIndexMap::with_capacity_and_hasher(2, Default::default());
                 map.insert(
@@ -181,9 +177,11 @@ impl TraceFormat for HeaptrackFormat {
         )
     }
 
-    fn read(&mut self, mut buffer: &[u8]) -> anyhow::Result<usize> {
+    type Reused = ();
+
+    fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
-        let mut outdated_spans = HashSet::new();
+        let mut outdated_spans = FxHashSet::default();
         let mut store = self.store.write();
         'outer: loop {
             let Some(line_end) = buffer.iter().position(|b| *b == b'\n') else {
@@ -413,7 +411,7 @@ impl TraceFormat for HeaptrackFormat {
                 b'c' => {
                     // timestamp
                     let timestamp = read_hex(&mut line)?;
-                    self.last_timestamp = timestamp;
+                    self.last_timestamp = Timestamp::from_micros(timestamp);
                 }
                 b'a' => {
                     // allocation info

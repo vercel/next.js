@@ -2,7 +2,7 @@ use std::{io::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use swc_core::{
-    base::{try_with_handler, Compiler},
+    base::try_with_handler,
     common::{
         comments::{Comments, SingleThreadedComments},
         BytePos, FileName, FilePathMapping, LineCol, Mark, SourceMap as SwcSourceMap, GLOBALS,
@@ -14,7 +14,7 @@ use swc_core::{
             text_writer::{self, JsWriter, WriteJs},
             Emitter,
         },
-        minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
+        minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::base::fixer::paren_remover,
     },
@@ -26,46 +26,50 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
 };
 
-use crate::ParseResultSourceMap;
+use crate::parse::generate_js_source_map;
 
 #[turbo_tasks::function]
-pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
+pub async fn minify(
+    path: Vc<FileSystemPath>,
+    code: Vc<Code>,
+    source_maps: Vc<bool>,
+    mangle: bool,
+) -> Result<Vc<Code>> {
     let path = path.await?;
-    let original_map = code.generate_source_map();
+    let source_maps = source_maps.await?.then(|| code.generate_source_map());
     let code = code.await?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
-    let compiler = Arc::new(Compiler::new(cm.clone()));
-    let fm = compiler.cm.new_source_file(
-        FileName::Custom(path.path.to_string()).into(),
-        code.source_code().to_str()?.to_string(),
-    );
+    let (src, mut src_map_buf) = {
+        let fm = cm.new_source_file(
+            FileName::Custom(path.path.to_string()).into(),
+            code.source_code().to_str()?.into_owned(),
+        );
 
-    let lexer = Lexer::new(
-        Syntax::default(),
-        EsVersion::latest(),
-        StringInput::from(&*fm),
-        None,
-    );
-    let mut parser = Parser::new_from(lexer);
+        let lexer = Lexer::new(
+            Syntax::default(),
+            EsVersion::latest(),
+            StringInput::from(&*fm),
+            None,
+        );
+        let mut parser = Parser::new_from(lexer);
 
-    let program = try_with_handler(cm.clone(), Default::default(), |handler| {
-        GLOBALS.set(&Default::default(), || {
-            let program = match parser.parse_program() {
-                Ok(program) => program,
-                Err(err) => {
-                    err.into_diagnostic(handler).emit();
-                    bail!(
-                        "failed to parse source code\n{}",
-                        code.source_code().to_str()?
-                    )
-                }
-            };
-            let comments = SingleThreadedComments::default();
-            let unresolved_mark = Mark::new();
-            let top_level_mark = Mark::new();
+        let program = try_with_handler(cm.clone(), Default::default(), |handler| {
+            GLOBALS.set(&Default::default(), || {
+                let program = match parser.parse_program() {
+                    Ok(program) => program,
+                    Err(err) => {
+                        err.into_diagnostic(handler).emit();
+                        bail!(
+                            "failed to parse source code\n{}",
+                            code.source_code().to_str()?
+                        )
+                    }
+                };
+                let comments = SingleThreadedComments::default();
+                let unresolved_mark = Mark::new();
+                let top_level_mark = Mark::new();
 
-            Ok(compiler.run_transform(handler, false, || {
                 let program = program.apply(paren_remover(Some(&comments)));
 
                 let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
@@ -80,42 +84,56 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     Some(&comments),
                     None,
                     &MinifyOptions {
-                        compress: Some(Default::default()),
-                        mangle: Some(MangleOptions {
-                            reserved: vec!["AbortSignal".into()],
+                        compress: Some(CompressOptions {
+                            // Only run 2 passes, this is a tradeoff between performance and
+                            // compression size. Default is 3 passes.
+                            passes: 2,
                             ..Default::default()
                         }),
+                        mangle: if mangle {
+                            Some(MangleOptions {
+                                reserved: vec!["AbortSignal".into()],
+                                ..Default::default()
+                            })
+                        } else {
+                            None
+                        },
                         ..Default::default()
                     },
                     &ExtraOptions {
                         top_level_mark,
                         unresolved_mark,
-                        mangle_name_cache: Default::default(),
+                        mangle_name_cache: None,
                     },
                 );
 
-                program.apply(ecma::transforms::base::fixer::fixer(Some(
+                Ok(program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
-                )))
-            }))
-        })
-    })?;
+                ))))
+            })
+        })?;
 
-    let (src, src_map_buf) = print_program(cm.clone(), program)?;
+        print_program(cm.clone(), program, source_maps.is_some())?
+    };
 
     let mut builder = CodeBuilder::default();
-    builder.push_source(
-        &src.into(),
-        Some(Vc::upcast(
-            ParseResultSourceMap::new(cm, src_map_buf, original_map).cell(),
-        )),
-    );
+    if let Some(original_map) = source_maps {
+        src_map_buf.shrink_to_fit();
+        builder.push_source(
+            &src.into(),
+            Some(generate_js_source_map(cm, src_map_buf, original_map.to_resolved().await?).await?),
+        );
 
-    write!(
-        builder,
-        "\n\n//# sourceMappingURL={}.map",
-        urlencoding::encode(path.file_name())
-    )?;
+        write!(
+            builder,
+            // findSourceMapURL assumes this co-located sourceMappingURL,
+            // and needs to be adjusted in case this is ever changed.
+            "\n\n//# sourceMappingURL={}.map",
+            urlencoding::encode(path.file_name())
+        )?;
+    } else {
+        builder.push_source(&src.into(), None);
+    }
     Ok(builder.build().cell())
 }
 
@@ -123,6 +141,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
 fn print_program(
     cm: Arc<SwcSourceMap>,
     program: Program,
+    source_maps: bool,
 ) -> Result<(String, Vec<(BytePos, LineCol)>)> {
     let mut src_map_buf = vec![];
 
@@ -133,7 +152,7 @@ fn print_program(
                 cm.clone(),
                 "\n",
                 &mut buf,
-                Some(&mut src_map_buf),
+                source_maps.then_some(&mut src_map_buf),
             )))) as Box<dyn WriteJs>;
 
             let mut emitter = Emitter {
@@ -148,7 +167,8 @@ fn print_program(
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.
-        String::from_utf8(buf).expect("invalid utf8 character detected")
+        // SAFETY: SWC generates valid utf8.
+        unsafe { String::from_utf8_unchecked(buf) }
     };
 
     Ok((src, src_map_buf))

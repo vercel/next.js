@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::AssetContent,
     version::{Update, Version, VersionedContent},
@@ -17,7 +17,7 @@ use super::{
 /// [`EcmascriptChunkContentMerger`]: super::merger::EcmascriptChunkContentMerger
 #[turbo_tasks::value(serialization = "none", shared)]
 pub(super) struct EcmascriptDevMergedChunkContent {
-    pub contents: Vec<Vc<EcmascriptDevChunkContent>>,
+    pub contents: Vec<ResolvedVc<EcmascriptDevChunkContent>>,
 }
 
 #[turbo_tasks::value_impl]

@@ -15,12 +15,26 @@ let appPort
 const appDir = join(__dirname, '../')
 
 function runTests() {
-  it('should load page correctly', async () => {
+  it('should load a Pages Router page correctly', async () => {
     const browser = await webdriver(appPort, '/')
 
     expect(
       await browser
         .elementByCss('#__next div:nth-child(2)')
+        .getComputedCss('background-color')
+    ).toContain('221, 221, 221')
+
+    expect(await browser.eval('document.documentElement.innerHTML')).toContain(
+      'Where does it come from?'
+    )
+  })
+
+  it('should load a App Router page correctly', async () => {
+    const browser = await webdriver(appPort, '/test-app')
+
+    expect(
+      await browser
+        .elementByCss('body div:nth-child(3)')
         .getComputedCss('background-color')
     ).toContain('221, 221, 221')
 

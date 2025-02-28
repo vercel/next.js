@@ -22,6 +22,11 @@ describe('prerender native module', () => {
         sqlite: '4.0.22',
         sqlite3: '5.0.2',
       },
+      packageJson: {
+        pnpm: {
+          onlyBuiltDependencies: ['sqlite3'],
+        },
+      },
     })
   })
   afterAll(() => next.destroy())
@@ -69,7 +74,7 @@ describe('prerender native module', () => {
         {
           page: '/_app',
           tests: [
-            /webpack-runtime\.js/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             isReact18
@@ -81,7 +86,7 @@ describe('prerender native module', () => {
         {
           page: '/blog/[slug]',
           tests: [
-            /webpack-runtime\.js/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
             isReact18

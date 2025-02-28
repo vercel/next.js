@@ -4,7 +4,8 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{file_source::FileSource, module::Module};
@@ -26,7 +27,7 @@ use crate::{
 pub struct AppPageLoaderTreeBuilder {
     base: BaseLoaderTreeBuilder,
     loader_tree_code: String,
-    pages: Vec<Vc<FileSystemPath>>,
+    pages: Vec<ResolvedVc<FileSystemPath>>,
     /// next.config.js' basePath option to construct og metadata.
     base_path: Option<RcStr>,
 }
@@ -48,7 +49,7 @@ impl AppPageLoaderTreeBuilder {
     async fn write_modules_entry(
         &mut self,
         module_type: AppDirModuleType,
-        path: Option<Vc<FileSystemPath>>,
+        path: Option<ResolvedVc<FileSystemPath>>,
     ) -> Result<()> {
         if let Some(path) = path {
             if matches!(module_type, AppDirModuleType::Page) {
@@ -168,8 +169,14 @@ impl AppPageLoaderTreeBuilder {
     ) -> Result<()> {
         match item {
             MetadataWithAltItem::Static { path, alt_path } => {
-                self.write_static_metadata_item(app_page, name, item, *path, *alt_path)
-                    .await?;
+                self.write_static_metadata_item(
+                    app_page,
+                    name,
+                    item,
+                    **path,
+                    alt_path.as_deref().copied(),
+                )
+                .await?;
             }
             MetadataWithAltItem::Dynamic { path, .. } => {
                 let i = self.base.unique_number();
@@ -182,7 +189,7 @@ impl AppPageLoaderTreeBuilder {
 
                 let source = dynamic_image_metadata_source(
                     Vc::upcast(self.base.module_asset_context),
-                    *path,
+                    **path,
                     name.into(),
                     app_page.clone(),
                 );
@@ -212,7 +219,8 @@ impl AppPageLoaderTreeBuilder {
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import: RcStr = "import { fillMetadataSegment } from \
-                                    \"next/dist/lib/metadata/get-metadata-route\""
+                                    'next/dist/lib/metadata/get-metadata-route' with { \
+                                    'turbopack-transition': 'next-server-utility' }"
             .into();
 
         if !self.base.imports.contains(&helper_import) {
@@ -242,7 +250,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, props.params, {}) + \
+            "{s}  url: fillMetadataSegment({}, await props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),
@@ -319,6 +327,8 @@ impl AppPageLoaderTreeBuilder {
             template,
             not_found,
             metadata,
+            forbidden,
+            unauthorized,
             route: _,
         } = &modules;
 
@@ -342,11 +352,15 @@ impl AppPageLoaderTreeBuilder {
             .await?;
         self.write_modules_entry(AppDirModuleType::NotFound, *not_found)
             .await?;
+        self.write_modules_entry(AppDirModuleType::Forbidden, *forbidden)
+            .await?;
+        self.write_modules_entry(AppDirModuleType::Unauthorized, *unauthorized)
+            .await?;
         self.write_modules_entry(AppDirModuleType::Page, *page)
             .await?;
         self.write_modules_entry(AppDirModuleType::DefaultPage, *default)
             .await?;
-        self.write_modules_entry(AppDirModuleType::GlobalError, global_error.map(|err| *err))
+        self.write_modules_entry(AppDirModuleType::GlobalError, *global_error)
             .await?;
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
@@ -395,7 +409,7 @@ pub struct AppPageLoaderTreeModule {
     pub imports: Vec<RcStr>,
     pub loader_tree_code: RcStr,
     pub inner_assets: FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>,
-    pub pages: Vec<Vc<FileSystemPath>>,
+    pub pages: Vec<ResolvedVc<FileSystemPath>>,
 }
 
 impl AppPageLoaderTreeModule {

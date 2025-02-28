@@ -15,7 +15,7 @@ export function fillLazyItemsTillLeafWithHead(
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
   head: React.ReactNode,
-  prefetchEntry?: PrefetchCacheEntry
+  prefetchEntry: PrefetchCacheEntry | undefined
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {

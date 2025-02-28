@@ -3,6 +3,7 @@ import fs from 'fs'
 import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
+import { createSandbox } from 'development-sandbox'
 
 const cacheReasonRegex = /Cache (missed|skipped) reason: /
 
@@ -42,6 +43,46 @@ function parseLogsFromCli(cliOutput: string) {
     return parsedLogs
   }, [])
 }
+
+describe('app-dir - fetch logging', () => {
+  const { next, isNextDev } = nextTestSetup({
+    skipDeployment: true,
+    files: __dirname,
+  })
+
+  isNextDev &&
+    it('should not log requests for HMR refreshes', async () => {
+      await using sandbox = await createSandbox(
+        next,
+        undefined,
+        '/fetch-no-store'
+      )
+
+      const { browser, session } = sandbox
+
+      let headline = await browser.waitForElementByCss('h1').text()
+      expect(headline).toBe('Hello World!')
+      const outputIndex = next.cliOutput.length
+
+      await session.patch('app/fetch-no-store/page.js', (content) =>
+        content.replace('Hello World!', 'Hello Test!')
+      )
+
+      await retry(async () => {
+        headline = await browser.waitForElementByCss('h1').text()
+        expect(headline).toBe('Hello Test!')
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        expect(logs).toInclude(' GET /fetch-no-store')
+        expect(logs).not.toInclude(` │ GET `)
+        // TODO: remove custom duration in case we increase the default.
+      }, 5000)
+    })
+
+  // TODO: remove when there is a test for isNextDev === false
+  it('placeholder to satisfy at least one test when isNextDev is false', async () => {
+    expect(true).toBe(true)
+  })
+})
 
 describe('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -224,27 +265,6 @@ describe('app-dir - logging', () => {
             const logs = stripAnsi(next.cliOutput.slice(outputIndex))
             expect(logs).toIncludeRepeated(` │ GET ${expectedUrl}`, 7)
           })
-        })
-
-        it('should not log requests for HMR refreshes', async () => {
-          const browser = await next.browser('/fetch-no-store')
-          let headline = await browser.waitForElementByCss('h1').text()
-          expect(headline).toBe('Hello World!')
-          const outputIndex = next.cliOutput.length
-
-          await next.patchFile(
-            'app/fetch-no-store/page.js',
-            (content) => content.replace('Hello World!', 'Hello Test!'),
-            async () =>
-              retry(async () => {
-                headline = await browser.waitForElementByCss('h1').text()
-                expect(headline).toBe('Hello Test!')
-                const logs = stripAnsi(next.cliOutput.slice(outputIndex))
-                expect(logs).toInclude(' GET /fetch-no-store')
-                expect(logs).not.toInclude(` │ GET `)
-                // TODO: remove custom duration in case we increase the default.
-              }, 5000)
-          )
         })
 
         describe('when logging.fetches.hmrRefreshes is true', () => {

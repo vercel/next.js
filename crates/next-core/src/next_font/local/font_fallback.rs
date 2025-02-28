@@ -3,7 +3,7 @@ use allsorts::{
     Font,
 };
 use anyhow::{bail, Context, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 
 use super::{
@@ -38,29 +38,29 @@ pub(super) async fn get_font_fallbacks(
     match options.adjust_font_fallback {
         AdjustFontFallback::Arial => font_fallbacks.push(
             FontFallback::Automatic(AutomaticFontFallback {
-                scoped_font_family,
-                local_font_family: Vc::cell("Arial".into()),
+                scoped_font_family: scoped_font_family.to_resolved().await?,
+                local_font_family: ResolvedVc::cell("Arial".into()),
                 adjustment: Some(
                     get_font_adjustment(lookup_path, options_vc, &DEFAULT_SANS_SERIF_FONT).await?,
                 ),
             })
-            .into(),
+            .resolved_cell(),
         ),
         AdjustFontFallback::TimesNewRoman => font_fallbacks.push(
             FontFallback::Automatic(AutomaticFontFallback {
-                scoped_font_family,
-                local_font_family: Vc::cell("Times New Roman".into()),
+                scoped_font_family: scoped_font_family.to_resolved().await?,
+                local_font_family: ResolvedVc::cell("Times New Roman".into()),
                 adjustment: Some(
                     get_font_adjustment(lookup_path, options_vc, &DEFAULT_SERIF_FONT).await?,
                 ),
             })
-            .into(),
+            .resolved_cell(),
         ),
         AdjustFontFallback::None => (),
     };
 
     if let Some(fallback) = &options.fallback {
-        font_fallbacks.push(FontFallback::Manual(fallback.clone()).into());
+        font_fallbacks.push(FontFallback::Manual(fallback.clone()).resolved_cell());
     }
 
     Ok(Vc::cell(font_fallbacks))
@@ -254,7 +254,7 @@ fn parse_weight_string(weight_str: &str) -> Result<f64> {
 #[cfg(test)]
 mod tests {
     use anyhow::Result;
-    use turbo_tasks::RcStr;
+    use turbo_rcstr::RcStr;
 
     use crate::next_font::local::{
         font_fallback::pick_font_for_fallback_generation,

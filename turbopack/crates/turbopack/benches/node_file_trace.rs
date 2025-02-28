@@ -2,13 +2,13 @@ use std::{fs, path::PathBuf};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
-use turbo_tasks::{RcStr, ReadConsistency, TurboTasks, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -16,6 +16,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -79,13 +80,18 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let input_dir = input.parent().parent();
                 let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
-                let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
-                )))
-                .cell();
+                let compile_time_info = CompileTimeInfo::builder(
+                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    )))
+                    .to_resolved()
+                    .await?,
+                )
+                .cell()
+                .await?;
                 let module_asset_context = ModuleAssetContext::new(
                     Default::default(),
                     compile_time_info,
@@ -109,9 +115,14 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
+                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, *output_dir)
+                    .to_resolved()
+                    .await?;
 
-                emit_with_completion(Vc::upcast(rebased), output_dir).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.read_strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 Ok::<Vc<()>, _>(Default::default())
             });

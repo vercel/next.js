@@ -100,7 +100,7 @@ where
 
 impl<T> TraitRef<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     /// Returns a new cell that points to a value that implements the value
     /// trait `T`.
@@ -124,13 +124,11 @@ pub trait IntoTraitRef {
     type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
 
     fn into_trait_ref(self) -> Self::Future;
-    fn into_trait_ref_untracked(self) -> Self::Future;
-    fn into_trait_ref_strongly_consistent_untracked(self) -> Self::Future;
 }
 
 impl<T> IntoTraitRef for Vc<T>
 where
-    T: VcValueTrait + ?Sized + Send,
+    T: VcValueTrait + ?Sized,
 {
     type ValueTrait = T;
 
@@ -138,13 +136,5 @@ where
 
     fn into_trait_ref(self) -> Self::Future {
         self.node.into_read().into()
-    }
-
-    fn into_trait_ref_untracked(self) -> Self::Future {
-        self.node.into_read_untracked().into()
-    }
-
-    fn into_trait_ref_strongly_consistent_untracked(self) -> Self::Future {
-        self.node.into_strongly_consistent_read_untracked().into()
     }
 }

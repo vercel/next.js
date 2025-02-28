@@ -28,7 +28,9 @@ const styles = {
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  reset: () => void
+  // global-error, there's no `reset` function;
+  // regular error boundary, there's a `reset` function.
+  reset?: () => void
 }>
 
 export interface ErrorBoundaryProps {
@@ -142,6 +144,9 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
+export type GlobalErrorComponent = React.ComponentType<{
+  error: any
+}>
 export function GlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
   return (
@@ -152,11 +157,10 @@ export function GlobalError({ error }: { error: any }) {
         <div style={styles.error}>
           <div>
             <h2 style={styles.text}>
-              {`Application error: a ${
-                digest ? 'server' : 'client'
-              }-side exception has occurred (see the ${
-                digest ? 'server logs' : 'browser console'
-              } for more information).`}
+              Application error: a {digest ? 'server' : 'client'}-side exception
+              has occurred while loading {window.location.hostname} (see the{' '}
+              {digest ? 'server logs' : 'browser console'} for more
+              information).
             </h2>
             {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
           </div>

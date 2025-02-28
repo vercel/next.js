@@ -1,6 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -10,28 +11,28 @@ use crate::next_import_map::get_next_package;
 /// A final route in the pages directory.
 #[turbo_tasks::value]
 pub struct PagesStructureItem {
-    pub base_path: Vc<FileSystemPath>,
-    pub extensions: Vc<Vec<RcStr>>,
+    pub base_path: ResolvedVc<FileSystemPath>,
+    pub extensions: ResolvedVc<Vec<RcStr>>,
     pub fallback_path: Option<ResolvedVc<FileSystemPath>>,
 
     /// Pathname of this item in the Next.js router.
-    pub next_router_path: Vc<FileSystemPath>,
+    pub next_router_path: ResolvedVc<FileSystemPath>,
     /// Unique path corresponding to this item. This differs from
     /// `next_router_path` in that it will include the trailing /index for index
     /// routes, which allows for differentiating with potential /index
     /// directories.
-    pub original_path: Vc<FileSystemPath>,
+    pub original_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl PagesStructureItem {
     #[turbo_tasks::function]
     fn new(
-        base_path: Vc<FileSystemPath>,
-        extensions: Vc<Vec<RcStr>>,
+        base_path: ResolvedVc<FileSystemPath>,
+        extensions: ResolvedVc<Vec<RcStr>>,
         fallback_path: Option<ResolvedVc<FileSystemPath>>,
-        next_router_path: Vc<FileSystemPath>,
-        original_path: Vc<FileSystemPath>,
+        next_router_path: ResolvedVc<FileSystemPath>,
+        original_path: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         PagesStructureItem {
             base_path,
@@ -44,18 +45,23 @@ impl PagesStructureItem {
     }
 
     #[turbo_tasks::function]
-    pub async fn project_path(&self) -> Result<Vc<FileSystemPath>> {
+    pub async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        // Check if the file path + extension exists in the filesystem, if so use that. If not fall
+        // back to the base path.
         for ext in self.extensions.await?.into_iter() {
-            let project_path = self.base_path.append(format!(".{ext}").into());
-            let ty = *project_path.get_type().await?;
+            let file_path: Vc<FileSystemPath> = self.base_path.append(format!(".{ext}").into());
+            let ty = *file_path.get_type().await?;
             if matches!(ty, FileSystemEntryType::File | FileSystemEntryType::Symlink) {
-                return Ok(project_path);
+                return Ok(file_path);
             }
         }
         if let Some(fallback_path) = self.fallback_path {
             Ok(*fallback_path)
         } else {
-            Ok(self.base_path)
+            // If the file path that was passed in already has an extension, for example
+            // `pages/index.js` it won't match the extensions list above because it already had an
+            // extension and for example `.js.js` obviously won't match
+            Ok(*self.base_path)
         }
     }
 }
@@ -64,37 +70,20 @@ impl PagesStructureItem {
 /// folders.
 #[turbo_tasks::value]
 pub struct PagesStructure {
-    pub app: Vc<PagesStructureItem>,
-    pub document: Vc<PagesStructureItem>,
-    pub error: Vc<PagesStructureItem>,
+    pub app: ResolvedVc<PagesStructureItem>,
+    pub document: ResolvedVc<PagesStructureItem>,
+    pub error: ResolvedVc<PagesStructureItem>,
+    pub error_500: Option<ResolvedVc<PagesStructureItem>>,
     pub api: Option<ResolvedVc<PagesDirectoryStructure>>,
     pub pages: Option<ResolvedVc<PagesDirectoryStructure>>,
 }
 
-#[turbo_tasks::value_impl]
-impl PagesStructure {
-    #[turbo_tasks::function]
-    pub fn app(&self) -> Vc<PagesStructureItem> {
-        self.app
-    }
-
-    #[turbo_tasks::function]
-    pub fn document(&self) -> Vc<PagesStructureItem> {
-        self.document
-    }
-
-    #[turbo_tasks::function]
-    pub fn error(&self) -> Vc<PagesStructureItem> {
-        self.error
-    }
-}
-
 #[turbo_tasks::value]
 pub struct PagesDirectoryStructure {
-    pub project_path: Vc<FileSystemPath>,
-    pub next_router_path: Vc<FileSystemPath>,
-    pub items: Vec<Vc<PagesStructureItem>>,
-    pub children: Vec<Vc<PagesDirectoryStructure>>,
+    pub project_path: ResolvedVc<FileSystemPath>,
+    pub next_router_path: ResolvedVc<FileSystemPath>,
+    pub items: Vec<ResolvedVc<PagesStructureItem>>,
+    pub children: Vec<ResolvedVc<PagesDirectoryStructure>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -103,7 +92,7 @@ impl PagesDirectoryStructure {
     /// system.
     #[turbo_tasks::function]
     pub fn project_path(&self) -> Vc<FileSystemPath> {
-        self.project_path
+        *self.project_path
     }
 }
 
@@ -156,6 +145,7 @@ async fn get_pages_structure_for_root_directory(
     let page_extensions_raw = &*page_extensions.await?;
 
     let mut api_directory = None;
+    let mut error_500_item = None;
 
     let project_path = project_path.await?;
     let pages_directory = if let Some(project_path) = &*project_path {
@@ -178,6 +168,23 @@ async fn get_pages_structure_for_root_directory(
                         let base_path = project_path.join(basename.into());
                         match basename {
                             "_app" | "_document" | "_error" => {}
+                            "500" => {
+                                let item_next_router_path =
+                                    next_router_path_for_basename(next_router_path, basename);
+                                let item_original_path = next_router_path.join(basename.into());
+                                let item = PagesStructureItem::new(
+                                    base_path,
+                                    page_extensions,
+                                    None,
+                                    item_next_router_path,
+                                    item_original_path,
+                                );
+
+                                error_500_item = Some(item);
+
+                                items.push((basename, item));
+                            }
+
                             basename => {
                                 let item_next_router_path =
                                     next_router_path_for_basename(next_router_path, basename);
@@ -231,10 +238,18 @@ async fn get_pages_structure_for_root_directory(
 
         Some(
             PagesDirectoryStructure {
-                project_path: **project_path,
-                next_router_path,
-                items: items.into_iter().map(|(_, v)| v).collect(),
-                children: children.into_iter().map(|(_, v)| v).collect(),
+                project_path: *project_path,
+                next_router_path: next_router_path.to_resolved().await?,
+                items: items
+                    .into_iter()
+                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?,
+                children: children
+                    .into_iter()
+                    .map(|(_, v)| async move { v.to_resolved().await })
+                    .try_join()
+                    .await?,
             }
             .resolved_cell(),
         )
@@ -282,9 +297,10 @@ async fn get_pages_structure_for_root_directory(
     };
 
     Ok(PagesStructure {
-        app: app_item,
-        document: document_item,
-        error: error_item,
+        app: app_item.to_resolved().await?,
+        document: document_item.to_resolved().await?,
+        error: error_item.to_resolved().await?,
+        error_500: error_500_item.to_resolved().await?,
         api: api_directory,
         pages: pages_directory,
     }
@@ -357,10 +373,20 @@ async fn get_pages_structure_for_directory(
         children.sort_by_key(|(k, _)| *k);
 
         Ok(PagesDirectoryStructure {
-            project_path,
-            next_router_path,
-            items: items.into_iter().map(|(_, v)| v).collect(),
-            children: children.into_iter().map(|(_, v)| v).collect(),
+            project_path: project_path.to_resolved().await?,
+            next_router_path: next_router_path.to_resolved().await?,
+            items: items
+                .into_iter()
+                .map(|(_, v)| v)
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
+            children: children
+                .into_iter()
+                .map(|(_, v)| v)
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         }
         .cell())
     }

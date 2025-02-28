@@ -1,0 +1,34 @@
+[package]
+name = "turbo-persistence"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[features]
+verify_sst_content = []
+strict_checks = []
+stats = ["quick_cache/stats"]
+print_stats = ["stats"]
+
+[dependencies]
+anyhow = { workspace = true }
+pot = "3.0.0"
+byteorder = "1.5.0"
+lzzzz = "1.1.0"
+memmap2 = "0.9.5"
+parking_lot = { workspace = true }
+qfilter = { version = "0.2.1", features = ["serde"] }
+quick_cache = { version = "0.6.9" }
+rayon = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+thread_local = { workspace = true }
+twox-hash = { version = "2.0.1", features = ["xxhash64"] }
+zstd = { version = "0.13.2", features = ["zdict_builder"] }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["small_rng"] }
+tempfile = "3.14.0"
+
+[lints]
+workspace = true

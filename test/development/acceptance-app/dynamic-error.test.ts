@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -10,7 +10,7 @@ describe('dynamic = "error" in devmode', () => {
   })
 
   it('should show error overlay when dynamic is forced', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -29,12 +29,11 @@ describe('dynamic = "error" in devmode', () => {
       ]),
       '/server'
     )
-
+    const { session } = sandbox
     await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
+    const description = await session.getRedboxDescription()
+    expect(description).toMatchInlineSnapshot(
+      `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
     )
-
-    await cleanup()
   })
 })

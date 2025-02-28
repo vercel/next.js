@@ -1,4 +1,4 @@
-use std::{fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
 use serde::Deserialize;
@@ -6,7 +6,7 @@ use swc_core::{
     common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
     ecma::{
         ast::{EsVersion, Id, Module},
-        atoms::JsWord,
+        atoms::Atom,
         codegen::text_writer::JsWriter,
         parser::{parse_file_as_module, EsSyntax},
         visit::VisitMutWith,
@@ -161,6 +161,8 @@ fn run(input: PathBuf) {
         writeln!(s, "# Phase 4").unwrap();
         writeln!(s, "```mermaid\n{}```", render_graph(&item_ids, analyzer.g)).unwrap();
 
+        analyzer.handle_explicit_deps();
+
         let mut condensed = analyzer.g.finalize(analyzer.items);
 
         writeln!(s, "# Final").unwrap();
@@ -174,7 +176,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module: JsWord = "entry.js".into();
+        let uri_of_module: Atom = "entry.js".into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
@@ -190,7 +192,13 @@ fn run(input: PathBuf) {
                     ..
                 } = g.split_module(&[], analyzer.items);
 
-                writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
+                writeln!(
+                    s,
+                    "# Entrypoints\n\n```\n{:#?}\n```\n\n",
+                    // sort entrypoints for the snapshot
+                    entrypoints.iter().collect::<BTreeMap<_, _>>(),
+                )
+                .unwrap();
 
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();

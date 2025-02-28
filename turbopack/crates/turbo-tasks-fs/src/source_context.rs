@@ -104,17 +104,19 @@ impl Display for SourceContextLines<'_> {
 /// ranges in these lines. (Lines are 0-indexed)
 pub fn get_source_context<'a>(
     lines: impl Iterator<Item = &'a str>,
-    start_line: usize,
-    start_column: usize,
-    end_line: usize,
-    end_column: usize,
+    start_line: u32,
+    start_column: u32,
+    end_line: u32,
+    end_column: u32,
 ) -> SourceContextLines<'a> {
     let mut result = Vec::new();
-    let context_start = start_line.saturating_sub(4);
-    let context_end = end_line + 4;
+    let context_start = (start_line.saturating_sub(4)) as usize;
+    let context_end = (end_line + 4) as usize;
     for (i, l) in lines.enumerate().take(context_end + 1).skip(context_start) {
         let n = i + 1;
-        fn safe_split_at(s: &str, i: usize) -> (&str, &str) {
+        let i = i as u32;
+        fn safe_split_at(s: &str, i: u32) -> (&str, &str) {
+            let i = i as usize;
             if i < s.len() {
                 s.split_at(s.floor_char_boundary(i))
             } else {
@@ -150,7 +152,7 @@ pub fn get_source_context<'a>(
             }
             // start and end line
             (Ordering::Equal, Ordering::Equal) => {
-                let real_start = l.floor_char_boundary(start_column);
+                let real_start = l.floor_char_boundary(start_column as usize) as u32;
                 let (before, temp) = safe_split_at(l, real_start);
                 let (inside, after) = safe_split_at(temp, end_column - real_start);
                 let before = limit_len(before);

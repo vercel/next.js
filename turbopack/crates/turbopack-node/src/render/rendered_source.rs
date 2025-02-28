@@ -1,6 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexSet, RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -26,7 +27,7 @@ use turbopack_dev_server::{
 };
 
 use super::{
-    render_static::{render_static, StaticResult},
+    render_static::{render_static_operation, StaticResult},
     RenderData,
 };
 use crate::{
@@ -67,12 +68,12 @@ pub fn create_node_rendered_source(
         render_data,
         debug,
     }
-    .cell();
+    .resolved_cell();
     Vc::upcast(ConditionalContentSource::new(
-        Vc::upcast(source),
+        Vc::upcast(*source),
         Vc::upcast(
             LazyInstantiatedContentSource {
-                get_source: Vc::upcast(source),
+                get_source: ResolvedVc::upcast(source),
             }
             .cell(),
         ),
@@ -171,11 +172,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
     ) -> Result<Vc<ContentSourceContent>> {
         let pathname = self.pathname.await?;
         let Some(params) = &*self.route_match.params(path.clone()).await? else {
-            return Err(anyhow!(
-                "Non matching path ({}) provided for {}",
-                path,
-                pathname
-            ));
+            anyhow::bail!("Non matching path ({}) provided for {}", path, pathname)
         };
         let ContentSourceData {
             method: Some(method),
@@ -186,20 +183,20 @@ impl GetContentSourceContent for NodeRenderContentSource {
             ..
         } = &*data
         else {
-            return Err(anyhow!("Missing request data"));
+            anyhow::bail!("Missing request data")
         };
         let entry = (*self.entry).entry(data.clone()).await?;
-        let result = render_static(
-            *self.cwd,
-            *self.env,
-            self.server_root.join(path.clone()),
-            *entry.module,
-            *entry.runtime_entries,
-            *self.fallback_page,
-            *entry.chunking_context,
-            *entry.intermediate_output_path,
-            *entry.output_root,
-            *entry.project_dir,
+        let result_op = render_static_operation(
+            self.cwd,
+            self.env,
+            self.server_root.join(path.clone()).to_resolved().await?,
+            ResolvedVc::upcast(entry.module),
+            entry.runtime_entries,
+            self.fallback_page,
+            entry.chunking_context,
+            entry.intermediate_output_path,
+            entry.output_root,
+            entry.project_dir,
             RenderData {
                 params: params.clone(),
                 method: method.clone(),
@@ -210,7 +207,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 path: pathname.as_str().into(),
                 data: Some(self.render_data.await?),
             }
-            .cell(),
+            .resolved_cell(),
             self.debug,
         )
         .issue_file_path(
@@ -218,7 +215,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             format!("server-side rendering {}", pathname),
         )
         .await?;
-        Ok(match *result.await? {
+        Ok(match *result_op.connect().await? {
             StaticResult::Content {
                 content,
                 status_code,
@@ -232,20 +229,33 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 status,
                 headers,
                 ref body,
-            } => ContentSourceContent::HttpProxy(
-                ProxyResult {
-                    status,
-                    headers: headers.await?.clone_value(),
-                    body: body.clone(),
-                }
-                .resolved_cell(),
-            )
-            .cell(),
-            StaticResult::Rewrite(rewrite) => {
-                ContentSourceContent::Rewrite(rewrite.to_resolved().await?).cell()
+            } => {
+                ContentSourceContent::HttpProxy(static_streamed_content_to_proxy_result_operation(
+                    result_op,
+                    ProxyResult {
+                        status,
+                        headers: headers.owned().await?,
+                        body: body.clone(),
+                    }
+                    .resolved_cell(),
+                ))
+                .cell()
             }
+            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }
+}
+
+#[turbo_tasks::function(operation)]
+async fn static_streamed_content_to_proxy_result_operation(
+    result_op: OperationVc<StaticResult>,
+    proxy_result: ResolvedVc<ProxyResult>,
+) -> Result<Vc<ProxyResult>> {
+    // we already assume `result_op`'s value here because we're called inside of a match arm, but
+    // await `result_op` anyways, so that if it generates any collectible issues, they're captured
+    // here.
+    let _ = result_op.connect().await?;
+    Ok(*proxy_result)
 }
 
 #[turbo_tasks::function]
@@ -282,16 +292,20 @@ impl Introspectable for NodeRenderContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                Vc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(*entry.module)),
+                ResolvedVc::cell("module".into()),
+                IntrospectableModule::new(Vc::upcast(*entry.module))
+                    .to_resolved()
+                    .await?,
             ));
             set.insert((
-                Vc::cell("intermediate asset".into()),
+                ResolvedVc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     *entry.module,
                     *entry.runtime_entries,
-                )),
+                ))
+                .to_resolved()
+                .await?,
             ));
         }
         Ok(Vc::cell(set))

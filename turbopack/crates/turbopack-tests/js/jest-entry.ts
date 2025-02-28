@@ -1,12 +1,13 @@
 /// <reference path="./types.d.ts" />
 
-const jest = __turbopack_external_require__("jest-circus");
-const expectMod = __turbopack_external_require__("expect");
+const jest = require("jest-circus");
+const expectMod = require("expect");
 
 function setupGlobals() {
   globalThis.describe = jest.describe;
   globalThis.it = jest.it;
   globalThis.test = jest.test;
+  // @ts-ignore Property 'expect' does not exist on type 'typeof globalThis'
   globalThis.expect = expectMod.expect;
 
   // From https://github.com/webpack/webpack/blob/9fcaa243573005d6fdece9a3f8d89a0e8b399613/test/TestCases.template.js#L422
