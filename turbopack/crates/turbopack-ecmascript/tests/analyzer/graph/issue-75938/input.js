@@ -1,22 +1,21 @@
 "use client";
-
+import { jsx as _jsx } from "https://esm.sh/preact/jsx-runtime";
 import { useMemo } from "react";
 import { fooBar } from "./external";
-
-/** Add your relevant code here for the issue to reproduce */
-export default function Home() {
-  const helloWorld = useMemo(() => new HelloWorld(), []);
-  return <button onClick={() => helloWorld.hi()}>Click me</button>;
-}
-
-class HelloWorld {
-  hi() {
-    this.#wrap(() => {
-      alert(fooBar());
+/** Add your relevant code here for the issue to reproduce */ export default function Home() {
+    const helloWorld = useMemo(()=>new HelloWorld(), []);
+    return /*#__PURE__*/ _jsx("button", {
+        onClick: ()=>helloWorld.hi(),
+        children: "Click me"
     });
-  }
-
-  #wrap(cb: Function) {
-    return cb();
-  }
+}
+class HelloWorld {
+    hi() {
+        this.#wrap(()=>{
+            alert(fooBar());
+        });
+    }
+    #wrap(cb) {
+        return cb();
+    }
 }
