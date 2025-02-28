@@ -532,7 +532,7 @@ impl EsmExports {
                         .exports
                         .get(name)
                         .map(|id| id.1)
-                        .expect("failed to get the correct SyntaxContext");
+                        .context("failed to get the correct SyntaxContext")?;
 
                     if *mutable {
                         Some(quote!(
