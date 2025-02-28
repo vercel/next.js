@@ -8,10 +8,10 @@ import {
 } from '../../shared/lib/utils/reflect-utils'
 
 interface CacheLifetime {}
+const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
 
 export function makeDynamicallyTrackedExoticParamsWithDevWarnings(
-  underlyingParams: Params,
-  CachedParams: WeakMap<CacheLifetime, Promise<Params>>
+  underlyingParams: Params
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
