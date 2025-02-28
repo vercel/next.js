@@ -259,6 +259,7 @@ impl PreBatches {
             items: Vec::new(),
             this: self,
         };
+        let mut visited = FxHashSet::default();
         module_graph
             .traverse_edges_from_entries_topological(
                 std::iter::once(ResolvedVc::upcast(entry)),
@@ -288,7 +289,11 @@ impl PreBatches {
                         state.items.push(PreBatchItem::ParallelReference(idx));
                         return Ok(GraphTraversalAction::Exclude);
                     }
-                    Ok(GraphTraversalAction::Continue)
+                    if visited.insert(chunkable_module) {
+                        Ok(GraphTraversalAction::Continue)
+                    } else {
+                        Ok(GraphTraversalAction::Exclude)
+                    }
                 },
                 |parent_info, node, state| {
                     let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
