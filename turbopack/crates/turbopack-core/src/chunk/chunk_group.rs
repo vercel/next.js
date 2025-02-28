@@ -219,13 +219,13 @@ pub async fn chunk_group_content(
                     if should_trace {
                         result.traced_modules.insert(node.module);
                     }
-                    return Ok(GraphTraversalAction::Skip);
+                    return Ok(GraphTraversalAction::Exclude);
                 }
 
                 let Some(chunkable_module) =
                     ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
                 else {
-                    return Ok(GraphTraversalAction::Skip);
+                    return Ok(GraphTraversalAction::Exclude);
                 };
 
                 let is_available = available_modules
@@ -234,10 +234,14 @@ pub async fn chunk_group_content(
 
                 let Some((_, edge)) = parent_info else {
                     return Ok(if is_available {
-                        GraphTraversalAction::Skip
-                    } else {
-                        unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                        GraphTraversalAction::Exclude
+                    } else if unsorted_chunkable_modules
+                        .try_insert(node.module, chunkable_module)
+                        .is_ok()
+                    {
                         GraphTraversalAction::Continue
+                    } else {
+                        GraphTraversalAction::Exclude
                     });
                 };
 
@@ -246,21 +250,29 @@ pub async fn chunk_group_content(
                     | ChunkingType::ParallelInheritAsync
                     | ChunkingType::Shared { .. } => {
                         if is_available {
-                            GraphTraversalAction::Skip
-                        } else {
-                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                            GraphTraversalAction::Exclude
+                        } else if unsorted_chunkable_modules
+                            .try_insert(node.module, chunkable_module)
+                            .is_ok()
+                        {
                             GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Exclude
                         }
                     }
                     ChunkingType::Async => {
                         if can_split_async {
                             result.async_modules.insert(chunkable_module);
-                            GraphTraversalAction::Skip
+                            GraphTraversalAction::Exclude
                         } else if is_available {
-                            GraphTraversalAction::Skip
-                        } else {
-                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                            GraphTraversalAction::Exclude
+                        } else if unsorted_chunkable_modules
+                            .try_insert(node.module, chunkable_module)
+                            .is_ok()
+                        {
                             GraphTraversalAction::Continue
+                        } else {
+                            GraphTraversalAction::Exclude
                         }
                     }
                     ChunkingType::Traced => {
@@ -269,7 +281,7 @@ pub async fn chunk_group_content(
                     }
                     ChunkingType::Isolated { .. } => {
                         // TODO currently not implemented
-                        GraphTraversalAction::Skip
+                        GraphTraversalAction::Exclude
                     }
                 })
             },

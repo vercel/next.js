@@ -5,6 +5,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
+#![feature(map_try_insert)]
 
 pub mod asset;
 pub mod changed;
