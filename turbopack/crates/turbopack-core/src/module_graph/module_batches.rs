@@ -266,7 +266,11 @@ impl PreBatches {
                 |parent_info, node, state| {
                     let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
                     if !ty.is_parallel() {
-                        return Ok(GraphTraversalAction::Skip);
+                        state.items.push(PreBatchItem::NonParallelEdge(
+                            ty.without_inherit_async(),
+                            node.module,
+                        ));
+                        return Ok(GraphTraversalAction::Exclude);
                     }
                     let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) else {
                         return Ok(GraphTraversalAction::Skip);
@@ -288,9 +292,8 @@ impl PreBatches {
                 },
                 |parent_info, node, state| {
                     let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
-                    let item = if !ty.is_parallel() {
-                        PreBatchItem::NonParallelEdge(ty.without_inherit_async(), node.module)
-                    } else if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) {
+                    let item = if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module)
+                    {
                         PreBatchItem::ParallelModule(chunkable_module)
                     } else {
                         PreBatchItem::NonParallelEdge(ty.without_inherit_async(), node.module)
