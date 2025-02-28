@@ -19,8 +19,8 @@ import {
   CachedRouteKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
-  type IncrementalCacheItem,
   type IncrementalCacheValue,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
@@ -390,7 +390,7 @@ export class ImageOptimizerCache {
     this.nextConfig = nextConfig
   }
 
-  async get(cacheKey: string): Promise<IncrementalCacheEntry | null> {
+  async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
     try {
       const cacheDir = join(this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
@@ -414,7 +414,7 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          curRevalidate: maxAge,
+          revalidate: maxAge,
           isStale: now > expireAt,
           isFallback: false,
         }
@@ -508,7 +508,7 @@ export function getMaxAge(str: string | null | undefined): number {
 }
 export function getPreviouslyCachedImageOrNull(
   upstreamImage: ImageUpstream,
-  previousCacheEntry: IncrementalCacheItem | undefined
+  previousCacheEntry: IncrementalCacheEntry | null | undefined
 ): CachedImageValue | null {
   if (
     previousCacheEntry?.value?.kind === 'IMAGE' &&
@@ -678,7 +678,7 @@ export async function imageOptimizer(
   opts: {
     isDev?: boolean
     silent?: boolean
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   }
 ): Promise<{
   buffer: Buffer
@@ -772,7 +772,7 @@ export async function imageOptimizer(
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
+      maxAge: opts?.previousCacheEntry?.revalidate || maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }
