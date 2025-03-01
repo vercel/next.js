@@ -1095,7 +1095,7 @@ export const defaultConfig: NextConfig = {
   cacheMaxMemorySize: 50 * 1024 * 1024,
   configOrigin: 'default',
   useFileSystemPublicRoutes: true,
-  generateBuildId: () => null,
+  generateBuildId: undefined,
   generateEtags: true,
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
   poweredByHeader: true,

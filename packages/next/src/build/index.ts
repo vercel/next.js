@@ -805,7 +805,7 @@ async function getBuildId(
   }
   return await nextBuildSpan
     .traceChild('generate-buildid')
-    .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
+    .traceAsyncFn(() => generateBuildId(nanoid, config.generateBuildId))
 }
 
 export default async function build(
