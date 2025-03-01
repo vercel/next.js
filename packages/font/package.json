@@ -24,6 +24,6 @@
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
     "fontkit": "2.0.2",
-    "typescript": "5.7.2"
+    "typescript": "5.8.2"
   }
 }

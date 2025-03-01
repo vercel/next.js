@@ -29,7 +29,7 @@
     "next": "15.2.1-canary.4",
     "outdent": "0.8.0",
     "prettier": "2.5.1",
-    "typescript": "5.7.2"
+    "typescript": "5.8.2"
   },
   "peerDependencies": {
     "next": "^13.0.0 || ^14.0.0 || ^15.0.0",
