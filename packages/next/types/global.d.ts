@@ -1,7 +1,5 @@
 /// <reference types="node" />
 
-import type { VersionInfo } from '../src/server/dev/parse-version-info'
-
 // Extend the NodeJS namespace with Next.js-defined properties
 declare namespace NodeJS {
   // only for rust, see https://github.com/napi-rs/napi-rs/issues/1630
@@ -44,22 +42,31 @@ declare module '*.module.scss' {
   export default classes
 }
 
-declare global {
-  interface Window {
-    MSInputMethodContext?: unknown
-    /** @internal */
-    __NEXT_HMR_CB?: null | ((message?: string) => void)
-    /** @internal */
-    __next_root_layout_missing_tags?: ('html' | 'body')[]
-    /** @internal development */
-    __NEXT_VERSION_INFO_INIT?: VersionInfo
-    /** @internal */
-    __NEXT_DEV_INDICATOR_POSITION?:
-      | 'top-left'
-      | 'top-right'
-      | 'bottom-left'
-      | 'bottom-right'
+interface Window {
+  MSInputMethodContext?: unknown
+  /** @internal */
+  __NEXT_HMR_CB?: null | ((message?: string) => void)
+  /** @internal */
+  __next_root_layout_missing_tags?: ('html' | 'body')[]
+  /** @internal development */
+  __NEXT_VERSION_INFO_INIT?: {
+    installed: string
+    staleness:
+      | 'fresh'
+      | 'stale-patch'
+      | 'stale-minor'
+      | 'stale-major'
+      | 'stale-prerelease'
+      | 'newer-than-npm'
+      | 'unknown'
+    expected?: string
   }
+  /** @internal */
+  __NEXT_DEV_INDICATOR_POSITION?:
+    | 'top-left'
+    | 'top-right'
+    | 'bottom-left'
+    | 'bottom-right'
 }
 
 interface NextFetchRequestConfig {
