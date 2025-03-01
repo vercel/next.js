@@ -1,6 +1,7 @@
 use anyhow::Result;
 use swc_core::ecma::ast::Lit;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     file_source::FileSource,
@@ -30,18 +31,18 @@ fn modifier() -> Vc<RcStr> {
 
 #[turbo_tasks::value]
 pub struct WebpackModuleAsset {
-    pub source: Vc<Box<dyn Source>>,
-    pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
 impl WebpackModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<Box<dyn Source>>,
-        runtime: Vc<WebpackRuntime>,
-        transforms: Vc<EcmascriptInputTransforms>,
+        source: ResolvedVc<Box<dyn Source>>,
+        runtime: ResolvedVc<WebpackRuntime>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
     ) -> Vc<Self> {
         Self::cell(WebpackModuleAsset {
             source,
@@ -60,7 +61,7 @@ impl Module for WebpackModuleAsset {
 
     #[turbo_tasks::function]
     fn references(&self) -> Vc<ModuleReferences> {
-        module_references(self.source, self.runtime, self.transforms)
+        module_references(*self.source, *self.runtime, *self.transforms)
     }
 }
 
@@ -76,8 +77,8 @@ impl Asset for WebpackModuleAsset {
 pub struct WebpackChunkAssetReference {
     #[turbo_tasks(trace_ignore)]
     pub chunk_id: Lit,
-    pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
@@ -99,14 +100,13 @@ impl ModuleReference for WebpackChunkAssetReference {
                 let filename = format!("./chunks/{}.js", chunk_id).into();
                 let source = Vc::upcast(FileSource::new(context_path.join(filename)));
 
-                ModuleResolveResult::module(Vc::upcast(WebpackModuleAsset::new(
-                    source,
-                    self.runtime,
-                    self.transforms,
-                )))
-                .into()
+                *ModuleResolveResult::module(ResolvedVc::upcast(
+                    WebpackModuleAsset::new(source, *self.runtime, *self.transforms)
+                        .to_resolved()
+                        .await?,
+                ))
             }
-            WebpackRuntime::None => ModuleResolveResult::unresolveable().into(),
+            WebpackRuntime::None => *ModuleResolveResult::unresolvable(),
         })
     }
 }
@@ -114,50 +114,49 @@ impl ModuleReference for WebpackChunkAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackChunkAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
+    async fn to_string(&self) -> Vc<RcStr> {
         let chunk_id = match &self.chunk_id {
             Lit::Str(str) => str.value.to_string(),
             Lit::Num(num) => format!("{num}"),
             _ => todo!(),
         };
-        Ok(Vc::cell(format!("webpack chunk {}", chunk_id).into()))
+        Vc::cell(format!("webpack chunk {}", chunk_id).into())
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackEntryAssetReference {
-    pub source: Vc<Box<dyn Source>>,
-    pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for WebpackEntryAssetReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(WebpackModuleAsset::new(
-            self.source,
-            self.runtime,
-            self.transforms,
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            WebpackModuleAsset::new(*self.source, *self.runtime, *self.transforms)
+                .to_resolved()
+                .await?,
         )))
-        .into()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("webpack entry".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("webpack entry".into())
     }
 }
 
 #[turbo_tasks::value(shared)]
 pub struct WebpackRuntimeAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub runtime: Vc<WebpackRuntime>,
-    pub transforms: Vc<EcmascriptInputTransforms>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
 #[turbo_tasks::value_impl]
@@ -172,15 +171,17 @@ impl ModuleReference for WebpackRuntimeAssetReference {
         let resolved = resolve(
             self.origin.origin_path().parent().resolve().await?,
             Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined)),
-            self.request,
+            *self.request,
             options,
         );
 
         Ok(resolved
             .await?
             .map_module(|source| async move {
-                Ok(ModuleResolveResultItem::Module(Vc::upcast(
-                    WebpackModuleAsset::new(source, self.runtime, self.transforms),
+                Ok(ModuleResolveResultItem::Module(ResolvedVc::upcast(
+                    WebpackModuleAsset::new(*source, *self.runtime, *self.transforms)
+                        .to_resolved()
+                        .await?,
                 )))
             })
             .await?

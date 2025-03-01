@@ -31,6 +31,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -113,13 +115,6 @@
       var dispatcher = ReactSharedInternalsServer.A;
       return null === dispatcher ? null : dispatcher.getOwner();
     }
-    function hasValidRef(config) {
-      if (hasOwnProperty.call(config, "ref")) {
-        var getter = Object.getOwnPropertyDescriptor(config, "ref").get;
-        if (getter && getter.isReactWarning) return !1;
-      }
-      return void 0 !== config.ref;
-    }
     function hasValidKey(config) {
       if (hasOwnProperty.call(config, "key")) {
         var getter = Object.getOwnPropertyDescriptor(config, "key").get;
@@ -155,7 +150,6 @@
     function ReactElement(
       type,
       key,
-      _ref,
       self,
       source,
       owner,
@@ -163,7 +157,7 @@
       debugStack,
       debugTask
     ) {
-      _ref = props.ref;
+      self = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -171,7 +165,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== _ref ? _ref : null)
+      null !== (void 0 !== self ? self : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -257,22 +251,21 @@
         (checkKeyStringCoercion(maybeKey), (children = "" + maybeKey));
       hasValidKey(config) &&
         (checkKeyStringCoercion(config.key), (children = "" + config.key));
-      hasValidRef(config);
       if ("key" in config) {
         maybeKey = {};
         for (var propName in config)
           "key" !== propName && (maybeKey[propName] = config[propName]);
       } else maybeKey = config;
       children &&
-        ((config =
+        defineKeyPropWarningGetter(
+          maybeKey,
           "function" === typeof type
             ? type.displayName || type.name || "Unknown"
-            : type),
-        children && defineKeyPropWarningGetter(maybeKey, config));
+            : type
+        );
       return ReactElement(
         type,
         children,
-        null,
         self,
         source,
         getOwner(),
@@ -302,6 +295,7 @@
       REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       ReactSharedInternalsServer =
         React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;

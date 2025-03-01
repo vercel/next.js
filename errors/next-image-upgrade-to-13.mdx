@@ -23,13 +23,13 @@ Compared to the legacy component, the new `next/image` component has the followi
 
 Run the [next-image-to-legacy-image](/docs/pages/building-your-application/upgrading/codemods#next-image-to-legacy-image) codemod to automatically change `next/image` imports to `next/legacy/image`, for example:
 
-```
+```bash filename="Terminal"
 npx @next/codemod next-image-to-legacy-image .
 ```
 
 After running this codemod, you can optionally upgrade `next/legacy/image` to the new `next/image` with another codemod, for example:
 
-```
+```bash filename="Terminal"
 npx @next/codemod next-image-experimental .
 ```
 

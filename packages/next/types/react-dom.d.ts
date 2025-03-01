@@ -1,5 +1,5 @@
 declare module 'react-dom/server.edge' {
-  import type { JSX } from 'react'
+  import type { ErrorInfo, JSX } from 'react'
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */
@@ -17,7 +17,7 @@ declare module 'react-dom/server.edge' {
   export type ResumeOptions = {
     nonce?: string
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
+    onError?: (error: unknown) => string | undefined | void
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
   }
@@ -42,7 +42,10 @@ declare module 'react-dom/server.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | void
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {
@@ -71,7 +74,7 @@ declare module 'react-dom/server.edge' {
 }
 
 declare module 'react-dom/static.edge' {
-  import type { JSX } from 'react'
+  import type { ErrorInfo, JSX } from 'react'
   /**
    * https://github.com/facebook/react/blob/aec521a96d3f1bebc2ba38553d14f4989c6e88e0/packages/react-dom-bindings/src/server/ReactFizzConfigDOM.js#L329-L333
    */
@@ -94,7 +97,10 @@ declare module 'react-dom/static.edge' {
     bootstrapModules?: Array<string | BootstrapScriptDescriptor>
     progressiveChunkSize?: number
     signal?: AbortSignal
-    onError?: (error: unknown, errorInfo: unknown) => string | undefined
+    onError?: (
+      error: unknown,
+      errorInfo: ErrorInfo
+    ) => string | undefined | void
     onPostpone?: (reason: string) => void
     unstable_externalRuntimeSrc?: string | BootstrapScriptDescriptor
     importMap?: {

@@ -10,14 +10,10 @@ args = ???*0*
 - *0* args
   ⚠️  pattern without value
 
-clientComponentLoadTimes = (0 | ((0 | ???*0*) + ???*3*))
-- *0* (???*1* + ???*2*)
-  ⚠️  nested operation
-- *1* clientComponentLoadTimes
+clientComponentLoadTimes = (0 | (???*0* + ???*1*))
+- *0* clientComponentLoadTimes
   ⚠️  circular variable reference
-- *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
+- *1* unsupported expression
   ⚠️  This value might have side effects
 
 getClientComponentLoaderMetrics = (...) => metrics

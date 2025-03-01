@@ -1,8 +1,4 @@
-import { getExpectedRequestStore } from '../../client/components/request-async-storage.external'
-import { staticGenerationAsyncStorage } from '../../client/components/static-generation-async-storage.external'
-import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-
-import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 
 export type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
 export type AfterCallback<T = unknown> = () => T | Promise<T>
@@ -10,29 +6,16 @@ export type AfterCallback<T = unknown> = () => T | Promise<T>
 /**
  * This function allows you to schedule callbacks to be executed after the current request finishes.
  */
-export function unstable_after<T>(task: AfterTask<T>) {
-  const callingExpression = 'unstable_after'
+export function after<T>(task: AfterTask<T>): void {
+  const workStore = workAsyncStorage.getStore()
 
-  const requestStore = getExpectedRequestStore(callingExpression)
-
-  const { afterContext } = requestStore
-  if (!afterContext) {
+  if (!workStore) {
+    // TODO(after): the linked docs page talks about *dynamic* APIs, which after soon won't be anymore
     throw new Error(
-      '`unstable_after()` must be explicitly enabled by setting `experimental.after: true` in your next.config.js.'
+      '`after` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context'
     )
   }
 
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-  if (staticGenerationStore) {
-    if (staticGenerationStore.forceStatic) {
-      throw new StaticGenBailoutError(
-        `Route ${staticGenerationStore.route} with \`dynamic = "force-static"\` couldn't be rendered statically because it used \`${callingExpression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
-    } else {
-      markCurrentScopeAsDynamic(staticGenerationStore, callingExpression)
-    }
-  }
-
+  const { afterContext } = workStore
   return afterContext.after(task)
 }

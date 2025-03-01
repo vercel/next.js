@@ -6,11 +6,13 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_tasks::TurboTasks;
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
-use turbopack_trace_utils::{exit::ExitGuard, raw_trace::RawTraceLayer, trace_writer::TraceWriter};
+use turbopack_trace_utils::{
+    exit::ExitGuard, filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+};
 
 #[global_allocator]
 static ALLOC: TurboMalloc = TurboMalloc;
@@ -79,7 +81,7 @@ fn main() {
                 .block_on(async {
                     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
 
-                    let _guard = if let Some(mut trace) = trace {
+                    let _guard = if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
                         // Trace presets
                         match trace.as_str() {
                             "overview" | "1" => {
@@ -99,8 +101,7 @@ fn main() {
 
                         let subscriber = Registry::default();
 
-                        let subscriber =
-                            subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+                        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
                         let trace_file = "trace.log";
                         let trace_writer = std::fs::File::create(trace_file).unwrap();
                         let (trace_writer, guard) = TraceWriter::new(trace_writer);
@@ -117,7 +118,14 @@ fn main() {
                         None
                     };
 
-                    let tt = TurboTasks::new(MemoryBackend::new(usize::MAX));
+                    let tt = TurboTasks::new(TurboTasksBackend::new(
+                        BackendOptions {
+                            dependency_tracking: false,
+                            storage_mode: None,
+                            ..Default::default()
+                        },
+                        noop_backing_storage(),
+                    ));
                     let result = main_inner(&tt, strat, factor, limit, files).await;
                     let memory = TurboMalloc::memory_usage();
                     tracing::info!("memory usage: {} MiB", memory / 1024 / 1024);
@@ -153,7 +161,11 @@ fn main() {
                 },
                 project_path: canonical_path.to_string_lossy().into(),
                 root_path: "/".into(),
-                watch: false,
+                watch: Default::default(),
+                browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 \
+                                     Safari versions, last 1 Edge versions"
+                    .into(),
+                no_mangling: false,
             };
 
             let json = serde_json::to_string_pretty(&options).unwrap();

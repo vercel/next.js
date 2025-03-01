@@ -1,10 +1,9 @@
 //! The following code was mostly generated using GTP-4 from
 //! next.js/packages/next/src/shared/lib/router/utils/route-regex.ts
 
-use std::collections::HashMap;
-
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 
 const INTERCEPTION_ROUTE_MARKERS: [&str; 4] = ["(..)(..)", "(.)", "(..)", "(...)"];
 const NEXT_QUERY_PARAM_PREFIX: &str = "nxtP";
@@ -19,7 +18,7 @@ pub struct Group {
 
 #[derive(Debug)]
 pub struct RouteRegex {
-    pub groups: HashMap<String, Group>,
+    pub groups: FxHashMap<String, Group>,
     pub regex: String,
 }
 
@@ -27,7 +26,7 @@ pub struct RouteRegex {
 pub struct NamedRouteRegex {
     pub regex: RouteRegex,
     pub named_regex: String,
-    pub route_keys: HashMap<String, String>,
+    pub route_keys: FxHashMap<String, String>,
 }
 
 #[derive(Debug)]
@@ -83,9 +82,9 @@ fn remove_trailing_slash(route: &str) -> &str {
 
 static PARAM_MATCH_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
 
-fn get_parametrized_route(route: &str) -> (String, HashMap<String, Group>) {
+fn get_parametrized_route(route: &str) -> (String, FxHashMap<String, Group>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
-    let mut groups: HashMap<String, Group> = HashMap::new();
+    let mut groups: FxHashMap<String, Group> = FxHashMap::default();
     let mut group_index = 1;
     let parameterized_route = segments
         .iter()
@@ -163,7 +162,7 @@ fn build_get_safe_route_key() -> impl FnMut() -> String {
 fn get_safe_key_from_segment(
     get_safe_route_key: &mut impl FnMut() -> String,
     segment: &str,
-    route_keys: &mut HashMap<String, String>,
+    route_keys: &mut FxHashMap<String, String>,
     key_prefix: Option<&'static str>,
 ) -> String {
     let ParsedParameter {
@@ -207,10 +206,10 @@ fn get_safe_key_from_segment(
 fn get_named_parametrized_route(
     route: &str,
     prefix_route_keys: bool,
-) -> (String, HashMap<String, String>) {
+) -> (String, FxHashMap<String, String>) {
     let segments: Vec<&str> = remove_trailing_slash(route)[1..].split('/').collect();
     let get_safe_route_key = &mut build_get_safe_route_key();
-    let mut route_keys: HashMap<String, String> = HashMap::new();
+    let mut route_keys: FxHashMap<String, String> = FxHashMap::default();
     let parameterized_route = segments
         .iter()
         .map(|segment| {
@@ -226,9 +225,8 @@ fn get_named_parametrized_route(
             } else {
                 None
             };
-            let param_matches = Regex::new(r"\[((?:\[.*\])|.+)\]")
-                .unwrap()
-                .captures(segment);
+            static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
+            let param_matches = RE.captures(segment);
             if let Some(matches) = param_matches {
                 return get_safe_key_from_segment(
                     get_safe_route_key,
@@ -246,10 +244,11 @@ fn get_named_parametrized_route(
 
 /// This function extends `getRouteRegex` generating also a named regexp where
 /// each group is named along with a routeKeys object that indexes the assigned
-/// named group with its corresponding key. When the routeKeys need to be
-/// prefixed to uniquely identify internally the "prefixRouteKey" arg should
-/// be "true" currently this is only the case when creating the routes-manifest
-/// during the build
+/// named group with its corresponding key.
+///
+/// When the routeKeys need to be prefixed to uniquely identify internally the
+/// "prefixRouteKey" arg should be "true" currently this is only the case when
+/// creating the routes-manifest during the build
 pub fn get_named_route_regex(normalized_route: &str) -> NamedRouteRegex {
     let (parameterized_route, route_keys) = get_named_parametrized_route(normalized_route, false);
     let regex = get_route_regex(normalized_route);

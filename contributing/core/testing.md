@@ -84,7 +84,7 @@ these can be leveraged by prefixing the `pnpm test` command.
 
 - When investigating failures in isolated tests you can use
   `NEXT_TEST_SKIP_CLEANUP=1` to prevent deleting the temp folder created for the test,
-  then you can run `pnpm next` while inside the temp folder to debug the fully set-up test project.
+  then you can run `pnpm debug` while inside the temp folder to debug the fully set-up test project.
 - You can also use `NEXT_SKIP_ISOLATE=1` if the test doesn't need to be installed to debug,
   and it will run inside the Next.js repo instead of the temp directory,
   this can also reduce test times locally but is not compatible with all tests.
@@ -107,17 +107,6 @@ and then inspected with `pnpm playwright show-trace ./path/to/trace`
 
 Add `NEXT_TEST_TRACE=1` to enable test profiling. It's useful for improving our testing infrastructure.
 
-### Recording the browser using Replay.io
-
-Using [Replay.io](https://www.replay.io/) you can record and time-travel debug the browser.
-
-1. Clear all local replays using `pnpm replay rm-all`
-2. Run the test locally using the `RECORD_REPLAY=1` environment variables.
-   (e.g. `RECORD_REPLAY=1 pnpm test-dev test/e2e/app-dir/app/index.test.ts`)
-3. Upload all the replays to your workspace using your API key:
-   `RECORD_REPLAY_API_KEY=addkeyhere pnpm replay upload-all`
-4. Check the uploaded replays in your workspace, while uploading it provides the URLs.
-
 ### Testing Turbopack
 
 To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment variable:
@@ -125,6 +114,49 @@ To run the test suite using Turbopack, you can use the `TURBOPACK=1` environment
 ```sh
 TURBOPACK=1 pnpm test-dev test/e2e/app-dir/app/
 ```
+
+If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
+
+```sh
+pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
+```
+
+## Integration testing outside the repository with local builds
+
+You can locally generate tarballs for each package in this repository with:
+
+```
+pnpm pack-next
+```
+
+The tarballs will be written to a `tarballs` directory in the root of the repository, and you will
+be shown information about how to use these tarballs in a project by modifying the workspace
+`package.json` file.
+
+Alternatively, you can automatically apply these `package.json` modifications by passing in your
+project directory:
+
+```
+pnpm pack-next --project ~/shadcn-ui/apps/www/
+```
+
+This will find and modify parent workspaces when relevant. These automatic overrides should work
+with `npm` and `pnpm`. There are known issues preventing it from working with `bun` and `yarn`.
+
+On some platforms, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
+known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
+overridden with `PACK_NEXT_COMPRESS=objcopy-zstd` on Linux (which is slower, but retains debuginfo),
+or with `PACK_NEXT_COMPRESS=none` on all platforms (which disables stripping entirely).
+
+These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
+package manager) by using:
+
+```
+pnpm unpack-next ~/shadcn-ui
+```
+
+However, this is not typically recommended, unless you're running into issues like the 2 GiB file
+size limit.
 
 ## Integration testing outside the repository with preview builds
 

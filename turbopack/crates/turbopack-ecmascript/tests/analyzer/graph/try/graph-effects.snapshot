@@ -59,7 +59,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "packages/not-found",
                         ),
                     ),
@@ -104,6 +104,7 @@
         ],
         span: 25..54,
         in_try: true,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -168,7 +169,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "packages/found",
                         ),
                     ),
@@ -216,6 +217,7 @@
         ],
         span: 78..103,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -298,5 +300,6 @@
         ],
         span: 108..116,
         in_try: false,
+        new: false,
     },
 ]

@@ -36,6 +36,7 @@
         ],
         span: 598..615,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -88,7 +89,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -124,6 +125,7 @@
         ],
         span: 12..27,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -176,7 +178,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -212,6 +214,7 @@
         ],
         span: 41..56,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -415,6 +418,7 @@
         ],
         span: 443..476,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -661,6 +665,7 @@
         ],
         span: 515..551,
         in_try: true,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

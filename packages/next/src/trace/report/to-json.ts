@@ -1,10 +1,10 @@
-import { randomBytes } from 'crypto'
-import { traceGlobals } from '../shared'
+import { traceGlobals, traceId } from '../shared'
 import fs from 'fs'
 import path from 'path'
 import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const localEndpoint = {
   serviceName: 'nextjs',
   ipv4: '127.0.0.1',
@@ -43,7 +43,6 @@ export function batcher(reportEvents: (evts: Event[]) => Promise<void>) {
 }
 
 let writeStream: RotatingWriteStream
-let traceId: string
 let batch: ReturnType<typeof batcher> | undefined
 
 const writeStreamOptions = {
@@ -116,10 +115,6 @@ const reportToLocalHost = (event: TraceEvent) => {
     return
   }
 
-  if (!traceId) {
-    traceId = process.env.TRACE_ID || randomBytes(8).toString('hex')
-  }
-
   if (!batch) {
     batch = batcher(async (events: Event[]) => {
       if (!writeStream) {
@@ -147,12 +142,12 @@ const reportToLocalHost = (event: TraceEvent) => {
 }
 
 export default {
-  flushAll: () =>
+  flushAll: (opts?: { end: boolean }) =>
     batch
       ? batch.flushAll().then(() => {
           const phase = traceGlobals.get('phase')
           // Only end writeStream when manually flushing in production
-          if (phase !== PHASE_DEVELOPMENT_SERVER) {
+          if (opts?.end || phase !== PHASE_DEVELOPMENT_SERVER) {
             return writeStream.end()
           }
         })

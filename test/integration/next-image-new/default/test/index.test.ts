@@ -14,12 +14,15 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 import fs from 'fs/promises'
 import { pathExists } from 'fs-extra'
+
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 const appDir = join(__dirname, '../')
 
@@ -899,6 +902,18 @@ function runTests(mode) {
       }, /Image is missing required "src" property/gm)
     })
 
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
@@ -1180,7 +1195,9 @@ function runTests(mode) {
 
       expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('src')).toBe(
+        isReact18 ? '' : null
+      )
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(
@@ -1195,7 +1212,9 @@ function runTests(mode) {
       )
       expect(warnings).toEqual([])
 
-      expect(await browser.elementById('img').getAttribute('src')).toBe(null)
+      expect(await browser.elementById('img').getAttribute('src')).toBe(
+        isReact18 ? '' : null
+      )
       expect(await browser.elementById('img').getAttribute('srcset')).toBe(null)
       expect(await browser.elementById('img').getAttribute('width')).toBe('200')
       expect(await browser.elementById('img').getAttribute('height')).toBe(

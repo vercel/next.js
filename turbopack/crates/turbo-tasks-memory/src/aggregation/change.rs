@@ -92,7 +92,7 @@ pub enum PreparedChangeRef<'l, C: AggregationContext> {
     },
 }
 
-impl<'l, C: AggregationContext> PreparedOperation<C> for PreparedChangeRef<'l, C> {
+impl<C: AggregationContext> PreparedOperation<C> for PreparedChangeRef<'_, C> {
     type Result = ();
     fn apply(self, ctx: &C) {
         let (uppers, change) = match self {

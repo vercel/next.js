@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+// TODO(new-dev-overlay): Remove this once new dev overlay is stable
+const isExperimentalReact = Boolean(process.env.__NEXT_EXPERIMENTAL_PPR)
+
 describe('custom server', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -21,14 +25,20 @@ describe('custom server', () => {
   })
 
   describe('with app dir', () => {
-    it('should render app with react rc', async () => {
-      const $ = await next.render$(`/1`)
-      expect($('body').text()).toMatch(/app: .+-rc/)
-    })
+    if (!isExperimentalReact) {
+      it('should render app with react canary', async () => {
+        const $ = await next.render$(`/1`)
+        expect($('body').text()).toMatch(/app: .+-canary/)
+      })
+    }
 
     it('should render pages with installed react', async () => {
       const $ = await next.render$(`/2`)
-      expect($('body').text()).toMatch(/pages: 19.0.0/)
+      if (isReact18) {
+        expect($('body').text()).toMatch(/pages: 18\.\d+\.\d+\{/)
+      } else {
+        expect($('body').text()).toMatch(/pages: 19.0.0/)
+      }
     })
   })
 })

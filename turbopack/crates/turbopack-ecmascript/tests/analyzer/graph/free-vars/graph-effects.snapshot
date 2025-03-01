@@ -113,7 +113,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "Hello World",
                         ),
                     ),
@@ -149,5 +149,6 @@
         ],
         span: 13..39,
         in_try: false,
+        new: false,
     },
 ]

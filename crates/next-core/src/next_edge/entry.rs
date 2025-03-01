@@ -1,7 +1,6 @@
-use anyhow::Result;
-use indexmap::indexmap;
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent, context::AssetContext, module::Module, reference_type::ReferenceType,
@@ -13,16 +12,32 @@ use turbopack_ecmascript::utils::StringifyJs;
 pub async fn wrap_edge_entry(
     asset_context: Vc<Box<dyn AssetContext>>,
     project_root: Vc<FileSystemPath>,
-    entry: Vc<Box<dyn Module>>,
+    entry: ResolvedVc<Box<dyn Module>>,
     pathname: RcStr,
-) -> Result<Vc<Box<dyn Module>>> {
+) -> Vc<Box<dyn Module>> {
     // The wrapped module could be an async module, we handle that with the proxy
     // here. The comma expression makes sure we don't call the function with the
     // module as the "this" arg.
+    // Turn exports into functions that are also a thenable. This way you can await the whole object
+    // or  exports (e.g. for Components) or call them directly as though they are async functions
+    // (e.g. edge functions/middleware, this is what the Edge Runtime does).
+    // Catch promise to prevent UnhandledPromiseRejectionWarning, this will be propagated through
+    // the awaited export(s) anyway.
     let source = formatdoc!(
         r#"
-            self._ENTRIES ||= {{}}
-            self._ENTRIES[{}] = import('MODULE')
+            self._ENTRIES ||= {{}};
+            const modProm = import('MODULE');
+            modProm.catch(() => {{}});
+            self._ENTRIES[{}] = new Proxy(modProm, {{
+                get(modProm, name) {{
+                    if (name === "then") {{
+                        return (res, rej) => modProm.then(res, rej);
+                    }}
+                    let result = (...args) => modProm.then((mod) => (0, mod[name])(...args));
+                    result.then = (res, rej) => modProm.then((mod) => mod[name]).then(res, rej);
+                    return result;
+                }},
+            }});
         "#,
         StringifyJs(&format_args!("middleware_{}", pathname))
     );
@@ -34,15 +49,14 @@ pub async fn wrap_edge_entry(
         AssetContent::file(file.into()),
     );
 
-    let inner_assets = indexmap! {
+    let inner_assets = fxindexmap! {
         "MODULE".into() => entry
     };
 
-    let module = asset_context
+    asset_context
         .process(
             Vc::upcast(virtual_source),
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
-        .module();
-    Ok(module)
+        .module()
 }

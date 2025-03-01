@@ -1,6 +1,6 @@
 declare const __turbopack_external_require__: {
   resolve: (name: string, opt: { paths: string[] }) => string;
-} & ((id: string) => any);
+} & ((id: string, thunk: () => any, esm?: boolean) => any);
 
 import type { Ipc } from "../ipc/evaluate";
 import {
@@ -19,30 +19,34 @@ import { type StructuredError } from "src/ipc";
 
 export type IpcInfoMessage =
   | {
-      type: "fileDependency";
-      path: string;
-    }
+    type: "fileDependency";
+    path: string;
+  }
   | {
-      type: "buildDependency";
-      path: string;
-    }
+    type: "buildDependency";
+    path: string;
+  }
   | {
-      type: "dirDependency";
-      path: string;
-      glob: string;
-    }
+    type: "dirDependency";
+    path: string;
+    glob: string;
+  }
   | {
-      type: "emittedError";
-      severity: "warning" | "error";
-      error: StructuredError;
-    }
+    type: "envDependency";
+    name: string;
+  }
   | {
-      type: "log";
-      time: number;
-      logType: string;
-      args: any[];
-      trace?: StackFrame[];
-    };
+    type: "emittedError";
+    severity: "warning" | "error";
+    error: StructuredError;
+  }
+  | {
+    type: "log";
+    time: number;
+    logType: string;
+    args: any[];
+    trace?: StackFrame[];
+  };
 
 export type IpcRequestMessage = {
   type: "resolve";
@@ -54,16 +58,11 @@ export type IpcRequestMessage = {
 type LoaderConfig =
   | string
   | {
-      loader: string;
-      options: { [k: string]: unknown };
-    };
+    loader: string;
+    options: { [k: string]: unknown };
+  };
 
-let runLoaders: typeof import("loader-runner")["runLoaders"];
-try {
-  ({ runLoaders } = require("@vercel/turbopack/loader-runner"));
-} catch {
-  ({ runLoaders } = __turbopack_external_require__("loader-runner"));
-}
+const { runLoaders }: typeof import("loader-runner") = require("@vercel/turbopack/loader-runner");
 
 const contextDir = process.cwd();
 const toPath = (file: string) => {
@@ -164,11 +163,29 @@ type ResolveOptions = {
   importFields?: string[];
 };
 
+// Patch process.env to track which env vars are read
+const originalEnv = process.env;
+const readEnvVars = new Set<string>();
+process.env = new Proxy(originalEnv, {
+  get(target, prop) {
+    if (typeof prop === 'string' && !readEnvVars.has(prop)) {
+      // We register the env var as dependency on the
+      // current transform and all future transforms
+      // since the env var might be cached in module scope
+      // and influence them all
+      readEnvVars.add(prop);
+    }
+    return Reflect.get(target, prop);
+  },
+})
+
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   content: string,
   name: string,
-  loaders: LoaderConfig[]
+  query: string,
+  loaders: LoaderConfig[],
+  sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name);
@@ -180,7 +197,7 @@ const transform = (
 
     runLoaders(
       {
-        resource,
+        resource: resource + query,
         context: {
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
@@ -189,6 +206,7 @@ const transform = (
           },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
+          sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex];
             return entry.options && typeof entry.options === "object"
@@ -451,7 +469,12 @@ const transform = (
         },
       },
       (err, result) => {
-        if (err) return reject(err);
+        for (const envVar of readEnvVars) {
+          ipc.sendInfo({
+            type: "envDependency",
+            name: envVar,
+          });
+        }
         for (const dep of result.contextDependencies) {
           ipc.sendInfo({
             type: "dirDependency",
@@ -465,16 +488,17 @@ const transform = (
             path: toPath(dep),
           });
         }
+        if (err) return reject(err);
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
         resolve({
-          source: Buffer.isBuffer(source) ? {binary: source.toString('base64')} : source,
+          source: Buffer.isBuffer(source) ? { binary: source.toString('base64') } : source,
           map:
             typeof map === "string"
               ? map
               : typeof map === "object"
-              ? JSON.stringify(map)
-              : undefined,
+                ? JSON.stringify(map)
+                : undefined,
         });
       }
     );
@@ -494,15 +518,17 @@ function makeErrorEmitter(
       error:
         error instanceof Error
           ? {
-              name: error.name,
-              message: error.message,
-              stack: parseStackTrace(error.stack),
-            }
+            name: error.name,
+            message: error.message,
+            stack: error.stack ? parseStackTrace(error.stack) : [],
+            cause: undefined,
+          }
           : {
-              name: "Error",
-              message: error,
-              stack: [],
-            },
+            name: "Error",
+            message: error,
+            stack: [],
+            cause: undefined,
+          },
     });
   };
 }

@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::version::Version;
 

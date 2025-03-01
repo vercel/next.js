@@ -5,20 +5,45 @@ import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import {
+  isGroupSegment,
+  isParallelRouteSegment,
+} from '../../shared/lib/segment'
 
 /*
  * If there's special convention like (...) or @ in the page path,
  * Give it a unique hash suffix to avoid conflicts
  *
  * e.g.
- * /app/opengraph-image.tsx -> /opengraph-image
- * /app/(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
+ * /opengraph-image -> /opengraph-image
+ * /(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
+ *
+ * Sitemap is an exception, it should not have a suffix.
+ * Each sitemap contains all the urls of sub routes, we don't have the case of duplicates `/(group)/sitemap.[ext]` and `/sitemap.[ext]` since they should be the same.
+ * Hence we always normalize the urls for sitemap and do not append hash suffix, and ensure user-land only contains one sitemap per pathname.
+ *
+ * /sitemap -> /sitemap
+ * /(post)/sitemap -> /sitemap
  */
 function getMetadataRouteSuffix(page: string) {
-  let suffix = ''
+  // Remove the last segment and get the parent pathname
+  // e.g. /parent/a/b/c -> /parent/a/b
+  // e.g. /parent/opengraph-image -> /parent
+  const parentPathname = path.dirname(page)
+  // Only apply suffix to metadata routes except for sitemaps
+  if (page.endsWith('/sitemap')) {
+    return ''
+  }
 
-  if ((page.includes('(') && page.includes(')')) || page.includes('@')) {
-    suffix = djb2Hash(page).toString(36).slice(0, 6)
+  // Calculate the hash suffix based on the parent path
+  let suffix = ''
+  // Check if there's any special characters in the parent pathname.
+  const segments = parentPathname.split('/')
+  if (
+    segments.some((seg) => isGroupSegment(seg) || isParallelRouteSegment(seg))
+  ) {
+    // Hash the parent path to get a unique suffix
+    suffix = djb2Hash(parentPathname).toString(36).slice(0, 6)
   }
   return suffix
 }
@@ -33,15 +58,17 @@ function getMetadataRouteSuffix(page: string) {
 export function fillMetadataSegment(
   segment: string,
   params: any,
-  imageSegment: string
+  lastSegment: string
 ) {
   const pathname = normalizeAppPath(segment)
-  const routeRegex = getNamedRouteRegex(pathname, false)
+  const routeRegex = getNamedRouteRegex(pathname, {
+    prefixRouteKeys: false,
+  })
   const route = interpolateDynamicPath(pathname, params, routeRegex)
-  const suffix = getMetadataRouteSuffix(segment)
+  const { name, ext } = path.parse(lastSegment)
+  const pagePath = path.posix.join(segment, name)
+  const suffix = getMetadataRouteSuffix(pagePath)
   const routeSuffix = suffix ? `-${suffix}` : ''
-
-  const { name, ext } = path.parse(imageSegment)
 
   return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
 }
@@ -66,11 +93,7 @@ export function normalizeMetadataRoute(page: string) {
   } else if (page === '/manifest') {
     route += '.webmanifest'
   } else {
-    // Remove the file extension,
-    // e.g. /path/robots.txt -> /route-path
-    // e.g. /path/opengraph-image.tsx -> /path/opengraph-image
-    const pathnamePrefix = page.slice(0, -(path.basename(page).length + 1))
-    suffix = getMetadataRouteSuffix(pathnamePrefix)
+    suffix = getMetadataRouteSuffix(page)
   }
   // Support both /<metadata-route.ext> and custom routes /<metadata-route>/route.ts.
   // If it's a metadata file route, we need to append /[id]/route to the page.

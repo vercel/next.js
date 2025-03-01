@@ -136,6 +136,9 @@ export function getRequiredConfiguration(
   return res
 }
 
+const localDevTestFilesExcludeAction =
+  'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
+
 export async function writeConfigurationDefaults(
   ts: typeof import('typescript'),
   tsConfigPath: string,
@@ -279,7 +282,7 @@ export async function writeConfigurationDefaults(
           'tsconfig.json'
         )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${cyan(
           '"plugins": [{ "name": "next" }]'
-        )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/building-your-application/configuring/typescript#the-typescript-plugin\n`
+        )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#the-typescript-plugin\n`
       )
     } else if (!hasNextPlugin) {
       if (!('plugins' in userTsConfig.compilerOptions)) {
@@ -311,6 +314,25 @@ export async function writeConfigurationDefaults(
     suggestedActions.push(
       cyan('exclude') + ' was set to ' + bold(`['node_modules']`)
     )
+  }
+
+  // During local development inside Next.js repo, exclude the test files coverage by the local tsconfig
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV && userTsConfig.exclude) {
+    const tsGlob = '**/*.test.ts'
+    const tsxGlob = '**/*.test.tsx'
+    let hasUpdates = false
+    if (!userTsConfig.exclude.includes(tsGlob)) {
+      userTsConfig.exclude.push(tsGlob)
+      hasUpdates = true
+    }
+    if (!userTsConfig.exclude.includes(tsxGlob)) {
+      userTsConfig.exclude.push(tsxGlob)
+      hasUpdates = true
+    }
+
+    if (hasUpdates) {
+      requiredActions.push(localDevTestFilesExcludeAction)
+    }
   }
 
   if (suggestedActions.length < 1 && requiredActions.length < 1) {
@@ -354,14 +376,20 @@ export async function writeConfigurationDefaults(
     Log.info('')
   }
 
-  if (requiredActions.length) {
+  const requiredActionsToBeLogged = process.env.NEXT_PRIVATE_LOCAL_DEV
+    ? requiredActions.filter(
+        (action) => action !== localDevTestFilesExcludeAction
+      )
+    : requiredActions
+
+  if (requiredActionsToBeLogged.length) {
     Log.info(
       `The following ${white('mandatory changes')} were made to your ${cyan(
         'tsconfig.json'
       )}:\n`
     )
 
-    requiredActions.forEach((action) => Log.info(`\t- ${action}`))
+    requiredActionsToBeLogged.forEach((action) => Log.info(`\t- ${action}`))
 
     Log.info('')
   }

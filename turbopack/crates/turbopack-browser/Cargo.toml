@@ -2,7 +2,7 @@
 name = "turbopack-browser"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -22,12 +22,14 @@ workspace = true
 anyhow = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }
 tracing = { workspace = true }
 urlencoding = { workspace = true }
 
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }

@@ -5,5 +5,6 @@ module.exports = {
     'conditional-exports-optout',
     'dual-pkg-optout',
     'transitive-external',
+    'esm',
   ],
 }

@@ -5,7 +5,6 @@ import type {
 } from '../types/metadata-interface'
 import type { ViewportLayout } from '../types/extra-types'
 
-import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
 import { ViewportMetaKeys } from '../constants'
 import { getOrigin } from './utils'
@@ -20,9 +19,15 @@ function resolveViewportLayout(viewport: Viewport) {
       const viewportKey = viewportKey_ as keyof ViewportLayout
       if (viewportKey in viewport) {
         let value = viewport[viewportKey]
-        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
-        if (resolved) resolved += ', '
-        resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        if (typeof value === 'boolean') {
+          value = value ? 'yes' : 'no'
+        } else if (!value && viewportKey === 'initialScale') {
+          value = undefined
+        }
+        if (value) {
+          if (resolved) resolved += ', '
+          resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+        }
       }
     }
   }
@@ -31,6 +36,7 @@ function resolveViewportLayout(viewport: Viewport) {
 
 export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
   return MetaFilter([
+    <meta charSet="utf-8" />,
     Meta({ name: 'viewport', content: resolveViewportLayout(viewport) }),
     ...(viewport.themeColor
       ? viewport.themeColor.map((themeColor) =>
@@ -51,7 +57,6 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
     : undefined
 
   return MetaFilter([
-    <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
       <title>{metadata.title.absolute}</title>
     ) : null,
@@ -98,6 +103,16 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
       ? metadata.bookmarks.map((bookmark) => (
           <link rel="bookmarks" href={bookmark} />
         ))
+      : []),
+    ...(metadata.pagination
+      ? [
+          metadata.pagination.previous ? (
+            <link rel="prev" href={metadata.pagination.previous} />
+          ) : null,
+          metadata.pagination.next ? (
+            <link rel="next" href={metadata.pagination.next} />
+          ) : null,
+        ]
       : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
@@ -175,9 +190,7 @@ export function AppleWebAppMeta({
   const { capable, title, startupImage, statusBarStyle } = appleWebApp
 
   return MetaFilter([
-    capable
-      ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
-      : null,
+    capable ? Meta({ name: 'mobile-web-app-capable', content: 'yes' }) : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
     startupImage
       ? startupImage.map((image) => (

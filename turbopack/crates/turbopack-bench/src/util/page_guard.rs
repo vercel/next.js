@@ -70,10 +70,7 @@ impl<'a> PageGuard<'a> {
                     }
                 }
                 Event::EventExceptionThrown(event) => {
-                    return Err(anyhow!(
-                        "Exception throw in page: {}",
-                        event.exception_details
-                    ));
+                    anyhow::bail!("Exception throw in page: {}", event.exception_details)
                 }
             }
         }
@@ -94,7 +91,7 @@ impl<'a> PageGuard<'a> {
     }
 }
 
-impl<'a> Drop for PageGuard<'a> {
+impl Drop for PageGuard<'_> {
     fn drop(&mut self) {
         // The page might have been closed already in `close_page`.
         if let Some(page) = self.page.take() {

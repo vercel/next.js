@@ -269,9 +269,7 @@ description#105 = arguments[0]
 
 description#111 = arguments[0]
 
-descriptions = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+descriptions = new FreeVar(Array)(expected["length"])
 
 details = (
   | peg$posDetailsCache[pos]
@@ -495,13 +493,9 @@ peg$SyntaxError = (...) => undefined
 
 peg$anyExpectation = (...) => {"type": "any"}
 
-peg$buildSimpleError = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+peg$buildSimpleError = (...) => new peg$SyntaxError(message, null, null, location)
 
-peg$buildStructuredError = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+peg$buildStructuredError = (...) => new peg$SyntaxError(peg$SyntaxError["buildMessage"](expected, found), expected, found, location)
 
 peg$c0 = *anonymous function 3852*
 

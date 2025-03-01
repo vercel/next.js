@@ -7,17 +7,16 @@
 export interface DeprecatedMetadataFields {
   /**
    * Deprecated options that have a preferred method
-   * @deprecated Use appWebApp to configure apple-mobile-web-app-capable which provides
-   * @see https://www.appsloveworld.com/coding/iphone/11/difference-between-apple-mobile-web-app-capable-and-apple-touch-fullscreen-ipho
+   * @deprecated Use appWebApp to configure mobile-web-app-capable which provides
    */
-  'apple-touch-fullscreen'?: never
+  'apple-touch-fullscreen'?: never | undefined
 
   /**
    * Obsolete since iOS 7.
    * @see https://web.dev/apple-touch-icon/
    * @deprecated use icons.apple or instead
    */
-  'apple-touch-icon-precomposed'?: never
+  'apple-touch-icon-precomposed'?: never | undefined
 }
 
 export type TemplateString =
@@ -38,9 +37,9 @@ export type AbsoluteString = {
 
 export type Author = {
   // renders as <link rel="author"...
-  url?: string | URL
+  url?: string | URL | undefined
   // renders as <meta name="author"...
-  name?: string
+  name?: string | undefined
 }
 
 // does not include "unsafe-URL". to use this users should
@@ -64,29 +63,29 @@ export type ColorSchemeEnum =
 
 type RobotsInfo = {
   // all and none will be inferred from index/follow boolean options
-  index?: boolean
-  follow?: boolean
+  index?: boolean | undefined
+  follow?: boolean | undefined
 
   /** @deprecated set index to false instead */
-  noindex?: never
+  noindex?: never | undefined
   /** @deprecated set follow to false instead */
-  nofollow?: never
+  nofollow?: never | undefined
 
-  noarchive?: boolean
-  nosnippet?: boolean
-  noimageindex?: boolean
-  nocache?: boolean
-  notranslate?: boolean
-  indexifembedded?: boolean
-  nositelinkssearchbox?: boolean
-  unavailable_after?: string
-  'max-video-preview'?: number | string
-  'max-image-preview'?: 'none' | 'standard' | 'large'
-  'max-snippet'?: number
+  noarchive?: boolean | undefined
+  nosnippet?: boolean | undefined
+  noimageindex?: boolean | undefined
+  nocache?: boolean | undefined
+  notranslate?: boolean | undefined
+  indexifembedded?: boolean | undefined
+  nositelinkssearchbox?: boolean | undefined
+  unavailable_after?: string | undefined
+  'max-video-preview'?: number | string | undefined
+  'max-image-preview'?: 'none' | 'standard' | 'large' | undefined
+  'max-snippet'?: number | undefined
 }
 export type Robots = RobotsInfo & {
   // if you want to specify an alternate robots just for google
-  googleBot?: string | RobotsInfo
+  googleBot?: string | RobotsInfo | undefined
 }
 
 export type ResolvedRobots = {
@@ -98,61 +97,95 @@ export type IconURL = string | URL
 export type Icon = IconURL | IconDescriptor
 export type IconDescriptor = {
   url: string | URL
-  type?: string
-  sizes?: string
-  color?: string
+  type?: string | undefined
+  sizes?: string | undefined
+  color?: string | undefined
   /** defaults to rel="icon" unless superseded by Icons map */
-  rel?: string
-  media?: string
+  rel?: string | undefined
+  media?: string | undefined
   /**
    * @see https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority
    */
-  fetchPriority?: 'high' | 'low' | 'auto'
+  fetchPriority?: 'high' | 'low' | 'auto' | undefined
 }
 
 export type Icons = {
   /** rel="icon" */
-  icon?: Icon | Icon[]
+  icon?: Icon | Icon[] | undefined
   /** rel="shortcut icon" */
-  shortcut?: Icon | Icon[]
+  shortcut?: Icon | Icon[] | undefined
   /**
    * @see https://developer.apple.com/library/archive/documentation/AppleApplications/Reference/SafariWebContent/ConfiguringWebApplications/ConfiguringWebApplications.html
    * rel="apple-touch-icon"
    */
-  apple?: Icon | Icon[]
+  apple?: Icon | Icon[] | undefined
   /** rel inferred from descriptor, defaults to "icon" */
-  other?: IconDescriptor | IconDescriptor[]
+  other?: IconDescriptor | IconDescriptor[] | undefined
 }
 
 export type Verification = {
-  google?: null | string | number | (string | number)[]
-  yahoo?: null | string | number | (string | number)[]
-  yandex?: null | string | number | (string | number)[]
-  me?: null | string | number | (string | number)[]
+  google?: null | string | number | (string | number)[] | undefined
+  yahoo?: null | string | number | (string | number)[] | undefined
+  yandex?: null | string | number | (string | number)[] | undefined
+  me?: null | string | number | (string | number)[] | undefined
   // if you ad-hoc additional verification
-  other?: {
-    [name: string]: string | number | (string | number)[]
-  }
+  other?:
+    | {
+        [name: string]: string | number | (string | number)[]
+      }
+    | undefined
 }
 
 export type ResolvedVerification = {
-  google?: null | (string | number)[]
-  yahoo?: null | (string | number)[]
-  yandex?: null | (string | number)[]
-  me?: null | (string | number)[]
-  other?: {
-    [name: string]: (string | number)[]
-  }
+  google?: null | (string | number)[] | undefined
+  yahoo?: null | (string | number)[] | undefined
+  yandex?: null | (string | number)[] | undefined
+  me?: null | (string | number)[] | undefined
+  other?:
+    | {
+        [name: string]: (string | number)[]
+      }
+    | undefined
 }
 
 export type ResolvedIcons = {
   icon: IconDescriptor[]
   apple: IconDescriptor[]
-  shortcut?: IconDescriptor[]
-  other?: IconDescriptor[]
+  shortcut?: IconDescriptor[] | undefined
+  other?: IconDescriptor[] | undefined
 }
 
 export type ThemeColorDescriptor = {
   color: string
-  media?: string
+  media?: string | undefined
+}
+
+export type Restriction = {
+  relationship: 'allow' | 'deny'
+  content: string
+}
+
+export type Videos = {
+  title: string
+  thumbnail_loc: string
+  description: string
+  content_loc?: string | undefined
+  player_loc?: string | undefined
+  duration?: number | undefined
+  expiration_date?: Date | string | undefined
+  rating?: number | undefined
+  view_count?: number | undefined
+  publication_date?: Date | string | undefined
+  family_friendly?: 'yes' | 'no' | undefined
+  restriction?: Restriction | undefined
+  platform?: Restriction | undefined
+  requires_subscription?: 'yes' | 'no' | undefined
+  uploader?:
+    | {
+        info?: string | undefined
+        content?: string | undefined
+      }
+    | undefined
+  live?: 'yes' | 'no' | undefined
+  tag?: string | undefined
 }

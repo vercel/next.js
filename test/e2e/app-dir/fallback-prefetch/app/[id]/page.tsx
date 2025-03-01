@@ -7,12 +7,13 @@ export async function generateStaticParams() {
 }
 
 export default async function IdPage({
-  params: { id },
+  params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
   await new Promise((resolve) => setTimeout(resolve, Math.random() * 5000))
 
+  const { id } = await params
   return (
     <div id="random-page">
       <h1>{id} page</h1>

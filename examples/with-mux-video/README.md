@@ -9,15 +9,33 @@ This example uses Mux Video, an API-first platform for video. The example featur
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com/home):
+### New to Mux
+
+If you do not already have a Mux account, the easiest way to get started with Mux is through the native integration in the [Vercel Marketplace](https://vercel.com/marketplace/mux). Vercel Marketplace users will get $20 of usage/month for $0. [Learn more](https://vercel.com/marketplace/mux).
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mux-video&project-name=with-mux-video&repository-name=with-mux-video&products=[{"type":"integration","productSlug":"mux","integrationSlug":"mux","protocol":"video"}])
+
+### Existing Mux user
+
+If you have an existing Mux account, you can still deploy easily with [Vercel](https://vercel.com/home):
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mux-video&project-name=with-mux-video&repository-name=with-mux-video)
 
+Once deployed, continue with step 3 below.
+
 ## How to use
 
-### Step 1. Create a Next app with this example
+If you deployed with the native Mux integration, you're all set! However, if you have your own Mux account already, or want to set up things manually, you can follow the following steps.
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+### Step 1. Create your Mux account
+
+The easiest way to get started with Mux is through the native integration in the [Vercel Marketplace](https://vercel.com/marketplace/mux). Vercel Marketplace users will get $20 of usage/month for $0. [Learn more](https://vercel.com/marketplace/mux).
+
+You can also get started by creating an account directly in [Mux](https://www.mux.com/?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app).
+
+### Step 2. Create a Next app with this example
+
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mux-video with-mux-video-app
@@ -34,12 +52,6 @@ pnpm create next-app --example with-mux-video with-mux-video-app
 ```bash
 bunx create-next-app --example with-mux-video with-mux-video-app
 ```
-
-### Step 2. Create an account in Mux
-
-All you need to run this example is a [Mux account](https://www.mux.com?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app). You can sign up for free. There are no upfront charges -- you get billed monthly only for what you use.
-
-Without entering a credit card on your Mux account all videos are in “test mode” which means they are watermarked and clipped to 10 seconds. If you enter a credit card all limitations are lifted and you get \$20 of free credit. The free credit should be plenty for you to test out and play around with everything.
 
 ### Step 3. Set up environment variables
 
@@ -60,14 +72,7 @@ At this point, you're good to `npm run dev` or `yarn dev` or `pnpm dev`. However
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
-
-Install the [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
-
-```bash
-vercel secrets add next_example_mux_token_id <MUX_TOKEN_ID>
-vercel secrets add next_example_mux_token_secret <MUX_TOKEN_SECRET>
-```
+To deploy on Vercel, you need to set the `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET` environment variables using either the [Vercel Dashboard](https://vercel.com/docs/projects/environment-variables/managing-environment-variables?utm_source=github&utm_medium=readme&utm_campaign=next-example) or the [Vercel CLI](https://vercel.com/docs/cli/env?utm_source=github&utm_medium=readme&utm_campaign=next-example)
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 

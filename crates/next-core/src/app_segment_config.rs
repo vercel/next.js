@@ -1,14 +1,17 @@
-use std::ops::Deref;
+use std::{future::Future, ops::Deref};
 
 use anyhow::{bail, Result};
-use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
     common::{source_map::SmallPos, Span, Spanned, GLOBALS},
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TryJoinIterExt, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    trace::TraceRawVcs, util::WrapFuture, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
+    Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -25,9 +28,11 @@ use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
-use crate::{app_structure::LoaderTree, util::NextRuntime};
+use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
     #[default]
@@ -37,7 +42,9 @@ pub enum NextSegmentDynamic {
     ForceStatic,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
     #[default]
@@ -50,7 +57,9 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum NextRevalidate {
     #[default]
     Never,
@@ -70,7 +79,7 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub experimental_ppr: Option<bool>,
-    /// Wether these metadata exports are defined in the source file.
+    /// Whether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
 }
@@ -106,7 +115,7 @@ impl NextSegmentConfig {
         *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
-    /// Applies a config from a paralllel route to this config, returning an
+    /// Applies a config from a parallel route to this config, returning an
     /// error if there are conflicting values.
     pub fn apply_parallel_config(&mut self, parallel_config: &Self) -> Result<()> {
         fn merge_parallel<T: PartialEq + Clone>(
@@ -166,9 +175,26 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
-    ident: Vc<AssetIdent>,
-    detail: Vc<StyledString>,
-    source: Vc<IssueSource>,
+    ident: ResolvedVc<AssetIdent>,
+    detail: ResolvedVc<StyledString>,
+    source: IssueSource,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSegmentConfigParsingIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        detail: ResolvedVc<StyledString>,
+        source: IssueSource,
+    ) -> Vc<Self> {
+        Self {
+            ident,
+            detail,
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -197,11 +223,11 @@ impl Issue for NextSegmentConfigParsingIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text(
-                "The exported configuration object in a source file need to have a very specific \
+                "The exported configuration object in a source file needs to have a very specific \
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
@@ -219,14 +245,16 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(Some(
+            self.source.resolve_source_map().await?.into_owned(),
+        )))
     }
 }
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let path = source.ident().path().await?;
 
@@ -242,7 +270,7 @@ pub async fn parse_segment_config_from_source(
     }
 
     let result = &*parse(
-        source,
+        *source,
         turbo_tasks::Value::new(if path.path.ends_with(".ts") {
             EcmascriptModuleAssetType::Typescript {
                 tsx: false,
@@ -270,91 +298,121 @@ pub async fn parse_segment_config_from_source(
         return Ok(Default::default());
     };
 
-    let config = GLOBALS.set(globals, || {
-        let mut config = NextSegmentConfig::default();
+    let config = WrapFuture::new(
+        async {
+            let mut config = NextSegmentConfig::default();
 
-        for item in &module_ast.body {
-            let Some(export_decl) = item
-                .as_module_decl()
-                .and_then(|mod_decl| mod_decl.as_export_decl())
-            else {
-                continue;
-            };
+            for item in &module_ast.body {
+                let Some(export_decl) = item
+                    .as_module_decl()
+                    .and_then(|mod_decl| mod_decl.as_export_decl())
+                else {
+                    continue;
+                };
 
-            match &export_decl.decl {
-                Decl::Var(var_decl) => {
-                    for decl in &var_decl.decls {
-                        let Some(ident) = decl.name.as_ident().map(|ident| ident.deref()) else {
-                            continue;
-                        };
+                match &export_decl.decl {
+                    Decl::Var(var_decl) => {
+                        for decl in &var_decl.decls {
+                            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref())
+                            else {
+                                continue;
+                            };
 
-                        if let Some(init) = decl.init.as_ref() {
-                            parse_config_value(source, &mut config, ident, init, eval_context);
+                            if let Some(init) = decl.init.as_ref() {
+                                parse_config_value(source, &mut config, ident, init, eval_context)
+                                    .await?;
+                            }
                         }
                     }
+                    Decl::Fn(fn_decl) => {
+                        let ident = &fn_decl.ident;
+                        // create an empty expression of {}, we don't need init for function
+                        let init = Expr::Fn(FnExpr {
+                            ident: None,
+                            function: fn_decl.function.clone(),
+                        });
+                        parse_config_value(source, &mut config, ident, &init, eval_context).await?;
+                    }
+                    _ => {}
                 }
-                Decl::Fn(fn_decl) => {
-                    let ident = &fn_decl.ident;
-                    // create an empty expression of {}, we don't need init for function
-                    let init = Expr::Fn(FnExpr {
-                        ident: None,
-                        function: fn_decl.function.clone(),
-                    });
-                    parse_config_value(source, &mut config, ident, &init, eval_context);
-                }
-                _ => {}
             }
-        }
-        config
-    });
+            anyhow::Ok(config)
+        },
+        |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+    )
+    .await?;
 
     Ok(config.cell())
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
-    IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
-}
-
-fn parse_config_value(
-    source: Vc<Box<dyn Source>>,
+async fn parse_config_value(
+    source: ResolvedVc<Box<dyn Source>>,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
     eval_context: &EvalContext,
-) {
+) -> Result<()> {
     let span = init.span();
-    let invalid_config = |detail: &str, value: &JsValue| {
+    async fn invalid_config(
+        source: ResolvedVc<Box<dyn Source>>,
+        span: Span,
+        detail: &str,
+        value: &JsValue,
+    ) -> Result<()> {
         let (explainer, hints) = value.explain(2, 0);
-        NextSegmentConfigParsingIssue {
-            ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
-            source: issue_source(source, span),
-        }
-        .cell()
+        let detail =
+            StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
+
+        NextSegmentConfigParsingIssue::new(
+            source.ident(),
+            *detail,
+            IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
+        )
+        .to_resolved()
+        .await?
         .emit();
-    };
+        Ok(())
+    }
 
     match &*ident.sym {
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`dynamic` needs to be a static string", &value);
-                return;
+                invalid_config(
+                    source,
+                    span,
+                    "`dynamic` needs to be a static string",
+                    &value,
+                )
+                .await?;
+                return Ok(());
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    invalid_config(&format!("`dynamic` has an invalid value: {}", err), &value);
-                    return;
+                    invalid_config(
+                        source,
+                        span,
+                        &format!("`dynamic` has an invalid value: {}", err),
+                        &value,
+                    )
+                    .await?;
+                    return Ok(());
                 }
             };
         }
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`dynamicParams` needs to be a static boolean", &value);
-                return;
+                invalid_config(
+                    source,
+                    span,
+                    "`dynamicParams` needs to be a static boolean",
+                    &value,
+                )
+                .await?;
+                return Ok(());
             };
 
             config.dynamic_params = Some(val);
@@ -382,33 +440,50 @@ fn parse_config_value(
         "fetchCache" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`fetchCache` needs to be a static string", &value);
-                return;
+                return invalid_config(
+                    source,
+                    span,
+                    "`fetchCache` needs to be a static string",
+                    &value,
+                )
+                .await;
             };
 
             config.fetch_cache = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(fetch_cache) => Some(fetch_cache),
                 Err(err) => {
-                    invalid_config(
+                    return invalid_config(
+                        source,
+                        span,
                         &format!("`fetchCache` has an invalid value: {}", err),
                         &value,
-                    );
-                    return;
+                    )
+                    .await;
                 }
             };
         }
         "runtime" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config("`runtime` needs to be a static string", &value);
-                return;
+                return invalid_config(
+                    source,
+                    span,
+                    "`runtime` needs to be a static string",
+                    &value,
+                )
+                .await;
             };
 
             config.runtime = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(runtime) => Some(runtime),
                 Err(err) => {
-                    invalid_config(&format!("`runtime` has an invalid value: {}", err), &value);
-                    return;
+                    return invalid_config(
+                        source,
+                        span,
+                        &format!("`runtime` has an invalid value: {}", err),
+                        &value,
+                    )
+                    .await;
                 }
             };
         }
@@ -426,21 +501,25 @@ fn parse_config_value(
                         if let JsValue::Constant(ConstantValue::Str(str)) = item {
                             regions.push(str.to_string().into());
                         } else {
-                            invalid_config(
+                            return invalid_config(
+                                source,
+                                span,
                                 "Values of the `preferredRegion` array need to static strings",
                                 &item,
-                            );
-                            return;
+                            )
+                            .await;
                         }
                     }
                     regions
                 }
                 _ => {
-                    invalid_config(
+                    return invalid_config(
+                        source,
+                        span,
                         "`preferredRegion` needs to be a static string or array of static strings",
                         &value,
-                    );
-                    return;
+                    )
+                    .await;
                 }
             };
 
@@ -457,19 +536,26 @@ fn parse_config_value(
         "experimental_ppr" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config("`experimental_ppr` needs to be a static boolean", &value);
-                return;
+                return invalid_config(
+                    source,
+                    span,
+                    "`experimental_ppr` needs to be a static boolean",
+                    &value,
+                )
+                .await;
             };
 
             config.experimental_ppr = Some(val);
         }
         _ => {}
     }
+
+    Ok(())
 }
 
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
-    loader_tree: Vc<LoaderTree>,
+    loader_tree: Vc<AppPageLoaderTree>,
 ) -> Result<Vc<NextSegmentConfig>> {
     let loader_tree = &*loader_tree.await?;
 
@@ -478,9 +564,8 @@ pub async fn parse_segment_config_from_loader_tree(
         .cell())
 }
 
-#[async_recursion]
 pub async fn parse_segment_config_from_loader_tree_internal(
-    loader_tree: &LoaderTree,
+    loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
 
@@ -488,7 +573,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         .parallel_routes
         .values()
         .map(|loader_tree| async move {
-            parse_segment_config_from_loader_tree_internal(loader_tree).await
+            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
         })
         .try_join()
         .await?;
@@ -497,12 +582,12 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree)?;
     }
 
-    let components = &loader_tree.components;
-    for component in [components.page, components.default, components.layout]
+    let modules = &loader_tree.modules;
+    for path in [modules.page, modules.default, modules.layout]
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(component));
+        let source = Vc::upcast(FileSource::new(*path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

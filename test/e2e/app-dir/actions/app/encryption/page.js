@@ -1,27 +1,40 @@
+import { Client } from './client'
+import Form from './form'
+
+async function otherAction() {
+  'use server'
+  return 'hi'
+}
+
 // Test top-level encryption (happens during the module load phase)
-function wrapAction(value) {
+function wrapAction(value, action, element) {
   return async function () {
     'use server'
-    console.log(value)
+    const v = await action()
+    if (v === 'hi') {
+      console.log(value)
+    }
+    return element
   }
 }
 
-const action = wrapAction('some-module-level-encryption-value')
+const action = wrapAction(
+  'some-module-level-encryption-value',
+  otherAction,
+  <Client />
+)
 
 // Test runtime encryption (happens during the rendering phase)
 export default function Page() {
   const secret = 'my password is qwerty123'
 
   return (
-    <form
+    <Form
       action={async () => {
         'use server'
         console.log(secret)
-        await action()
-        return 'success'
+        return action()
       }}
-    >
-      <button type="submit">Submit</button>
-    </form>
+    />
   )
 }

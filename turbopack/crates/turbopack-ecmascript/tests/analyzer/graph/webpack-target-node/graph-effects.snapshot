@@ -485,6 +485,7 @@
         ],
         span: 259..301,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -755,6 +756,7 @@
         ],
         span: 327..426,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -885,7 +887,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "fs/promises",
                         ),
                     ),
@@ -999,6 +1001,7 @@
         ],
         span: 515..537,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -1186,7 +1189,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./hello.txt",
                         ),
                     ),
@@ -1195,7 +1198,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "utf-8",
                         ),
                     ),
@@ -1332,6 +1335,7 @@
         ],
         span: 824..916,
         in_try: false,
+        new: false,
     },
     Member {
         obj: MemberCall(
@@ -1803,6 +1807,7 @@
         ],
         span: 965..980,
         in_try: false,
+        new: false,
     },
     MemberCall {
         obj: MemberCall(
@@ -1993,6 +1998,7 @@
         ],
         span: 965..1032,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -2080,7 +2086,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../../webpack-api-runtime.js",
                         ),
                     ),
@@ -2151,6 +2157,7 @@
         ],
         span: 1113..1152,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2312,6 +2319,7 @@
         ],
         span: 1156..1186,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -2516,6 +2524,7 @@
         ],
         span: 1231..1286,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -2599,6 +2608,7 @@
         ],
         span: 1316..1338,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(

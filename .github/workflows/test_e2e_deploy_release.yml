@@ -25,7 +25,9 @@ jobs:
           check-latest: true
 
       - name: Setup pnpm
-        run: corepack enable
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,10 +48,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5, 6/6]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     with:
-      afterBuild: NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
+      afterBuild: npm i -g vercel@latest && NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=deploy NEXT_EXTERNAL_TESTS_FILTERS="test/deploy-tests-manifest.json" node run-tests.js --timings -g ${{ matrix.group }} -c 2 --type e2e
       skipNativeBuild: 'yes'
+      skipNativeInstall: 'no'
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'

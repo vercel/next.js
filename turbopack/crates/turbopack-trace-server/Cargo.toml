@@ -2,7 +2,7 @@
 name = "turbopack-trace-server"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -18,8 +18,9 @@ flate2 = { version = "1.0.28" }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }
-rayon = "1"
+rayon = { workspace = true }
 rustc-demangle = "0.1"
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tungstenite = { version = "0.21.0" }

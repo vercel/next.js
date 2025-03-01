@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
 
 use crate::{
@@ -12,23 +13,30 @@ use crate::{
 /// references to other [Source]s.
 #[turbo_tasks::value]
 pub struct FileSource {
-    pub path: Vc<FileSystemPath>,
-    pub query: Vc<RcStr>,
+    pub path: ResolvedVc<FileSystemPath>,
+    pub query: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSource {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(FileSource {
             path,
-            query: Vc::<RcStr>::default(),
+            query: ResolvedVc::cell(RcStr::default()),
         })
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_query(path: Vc<FileSystemPath>, query: Vc<RcStr>) -> Vc<Self> {
-        Self::cell(FileSource { path, query })
+    pub async fn new_with_query(
+        path: ResolvedVc<FileSystemPath>,
+        query: ResolvedVc<RcStr>,
+    ) -> Result<Vc<Self>> {
+        if query.await?.is_empty() {
+            Ok(Self::new(*path))
+        } else {
+            Ok(Self::cell(FileSource { path, query }))
+        }
     }
 }
 
@@ -36,7 +44,7 @@ impl FileSource {
 impl Source for FileSource {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path).with_query(self.query)
+        AssetIdent::from_path(*self.path).with_query(*self.query)
     }
 }
 
@@ -54,9 +62,11 @@ impl Asset for FileSource {
                 .cell()),
                 _ => Err(anyhow::anyhow!("Invalid symlink")),
             },
-            FileSystemEntryType::File => Ok(AssetContent::File(self.path.read()).cell()),
+            FileSystemEntryType::File => {
+                Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
+            }
             FileSystemEntryType::NotFound => {
-                Ok(AssetContent::File(FileContent::NotFound.cell()).cell())
+                Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
             _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
         }

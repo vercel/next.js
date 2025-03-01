@@ -2,7 +2,7 @@ use std::mem::take;
 
 use anyhow::{bail, Result};
 use serde_json::Value as JsonValue;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
@@ -12,11 +12,19 @@ pub async fn maybe_add_sass_loader(
     webpack_rules: Option<Vc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let sass_options = sass_options.await?;
-    let Some(sass_options) = sass_options.as_object() else {
+    let Some(mut sass_options) = sass_options.as_object().cloned() else {
         bail!("sass_options must be an object");
     };
+    // TODO: Remove this once we upgrade to sass-loader 16
+    let silence_deprecations = if let Some(v) = sass_options.get("silenceDeprecations") {
+        v.clone()
+    } else {
+        serde_json::json!(["legacy-js-api"])
+    };
+
+    sass_options.insert("silenceDeprecations".into(), silence_deprecations);
     let mut rules = if let Some(webpack_rules) = webpack_rules {
-        webpack_rules.await?.clone_value()
+        webpack_rules.owned().await?
     } else {
         Default::default()
     };
@@ -50,7 +58,7 @@ pub async fn maybe_add_sass_loader(
             options: take(
                 serde_json::json!({
                     //https://github.com/vercel/turbo/blob/d527eb54be384a4658243304cecd547d09c05c6b/crates/turbopack-node/src/transforms/webpack.rs#L191
-                    "sourceMap": false
+                    "sourceMap": true
                 })
                 .as_object_mut()
                 .unwrap(),
@@ -68,20 +76,20 @@ pub async fn maybe_add_sass_loader(
             if rename_as != "*" {
                 continue;
             }
-            let mut loaders = rule.loaders.await?.clone_value();
+            let mut loaders = rule.loaders.owned().await?;
             loaders.push(resolve_url_loader);
             loaders.push(sass_loader);
-            rule.loaders = Vc::cell(loaders);
+            rule.loaders = ResolvedVc::cell(loaders);
         } else {
             rules.insert(
                 pattern.into(),
                 LoaderRuleItem {
-                    loaders: Vc::cell(vec![resolve_url_loader, sass_loader]),
+                    loaders: ResolvedVc::cell(vec![resolve_url_loader, sass_loader]),
                     rename_as: Some(format!("*{rename}").into()),
                 },
             );
         }
     }
 
-    Ok(Vc::cell(Some(Vc::cell(rules))))
+    Ok(Vc::cell(Some(ResolvedVc::cell(rules))))
 }

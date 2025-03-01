@@ -59,7 +59,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_resolved() &&
+                        turbo_tasks::TaskInput::is_resolved(#fields) &&
                     )* true}
                 },
             )
@@ -70,7 +70,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_resolved() &&
+                        turbo_tasks::TaskInput::is_resolved(#fields) &&
                     )* true}
                 },
             )
@@ -85,7 +85,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_transient() ||
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
                     )* false}
                 },
             )
@@ -96,7 +96,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 capture,
                 quote! {
                     {#(
-                        #fields.is_transient() ||
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
                     )* false}
                 },
             )
@@ -112,7 +112,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = #fields.resolve().await?;
+                            let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
                         )*
                         Ok(#ident { #(#fields),* })
                     }
@@ -126,7 +126,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = #fields.resolve().await?;
+                            let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
                         )*
                         Ok(#ident(#(#fields),*))
                     }
@@ -168,8 +168,17 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
 
             #[allow(non_snake_case)]
             #[allow(unreachable_code)] // This can occur for enums with no variants.
-            async fn resolve(&self) -> turbo_tasks::Result<Self> {
-                #resolve_impl
+            #[allow(clippy::manual_async_fn)] // some impls need the manual return type to work :(
+            fn resolve_input(
+                &self,
+            ) -> impl
+                ::std::future::Future<Output = turbo_tasks::Result<Self>> +
+                ::std::marker::Send +
+                '_
+            {
+                async move {
+                    #resolve_impl
+                }
             }
         }
     }

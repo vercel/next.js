@@ -1,11 +1,11 @@
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
-    common::{collections::AHashMap, BytePos, Spanned},
+    common::{BytePos, Spanned},
     ecma::{
-        ast::{Id, ModuleItem},
-        atoms::JsWord,
-        visit::{as_folder, noop_visit_mut_type, Fold, VisitMut, VisitWith},
+        ast::{Id, ModuleItem, Pass},
+        atoms::Atom,
+        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitWith},
     },
 };
 
@@ -16,12 +16,12 @@ mod font_imports_generator;
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
-    pub font_loaders: Vec<JsWord>,
-    pub relative_file_path_from_root: JsWord,
+    pub font_loaders: Vec<Atom>,
+    pub relative_file_path_from_root: Atom,
 }
 
-pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
-    as_folder(NextFontLoaders {
+pub fn next_font_loaders(config: Config) -> impl Pass + VisitMut {
+    visit_mut_pass(NextFontLoaders {
         config,
         state: State {
             ..Default::default()
@@ -31,12 +31,12 @@ pub fn next_font_loaders(config: Config) -> impl Fold + VisitMut {
 
 #[derive(Debug)]
 pub struct FontFunction {
-    loader: JsWord,
-    function_name: Option<JsWord>,
+    loader: Atom,
+    function_name: Option<Atom>,
 }
 #[derive(Debug, Default)]
 pub struct State {
-    font_functions: AHashMap<Id, FontFunction>,
+    font_functions: FxHashMap<Id, FontFunction>,
     removeable_module_items: FxHashSet<BytePos>,
     font_imports: Vec<ModuleItem>,
     font_exports: Vec<ModuleItem>,
@@ -74,15 +74,24 @@ impl VisitMut for NextFontLoaders {
                 };
             items.visit_with(&mut wrong_scope);
 
+            fn is_removable(ctx: &NextFontLoaders, item: &ModuleItem) -> bool {
+                ctx.state.removeable_module_items.contains(&item.span_lo())
+            }
+
+            let first_removable_index = items
+                .iter()
+                .position(|item| is_removable(self, item))
+                .unwrap();
+
             // Remove marked module items
-            items.retain(|item| !self.state.removeable_module_items.contains(&item.span_lo()));
+            items.retain(|item| !is_removable(self, item));
 
             // Add font imports and exports
-            let mut new_items = Vec::new();
-            new_items.append(&mut self.state.font_imports);
-            new_items.append(items);
-            new_items.append(&mut self.state.font_exports);
-            *items = new_items;
+            items.splice(
+                first_removable_index..first_removable_index,
+                std::mem::take(&mut self.state.font_imports),
+            );
+            items.append(&mut self.state.font_exports);
         }
     }
 }

@@ -14,11 +14,22 @@ const repoOwner = 'vercel'
 const repoName = 'next.js'
 const pullRequestLabels = ['type: react-sync']
 const pullRequestReviewers = ['eps1lon']
+/**
+ * Set to `null` to automatically sync the React version of Pages Router with App Router React version.
+ * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
+ * @type {string | null}
+ */
+const pagesRouterReact = '^19.0.0'
 
+const defaultLatestChannel = 'canary'
 const filesReferencingReactPeerDependencyVersion = [
   'run-tests.js',
   'packages/create-next-app/templates/index.ts',
   'test/lib/next-modes/base.ts',
+]
+const libraryManifestsSupportingNextjsReact = [
+  'packages/third-parties/package.json',
+  'packages/next/package.json',
 ]
 const appManifestsInstallingNextjsPeerDependencies = [
   'examples/reproduction-template/package.json',
@@ -28,6 +39,24 @@ const appManifestsInstallingNextjsPeerDependencies = [
   'test/e2e/next-test/first-time-setup-ts/package.json',
 ]
 
+async function getSchedulerVersion(reactVersion) {
+  const url = `https://registry.npmjs.org/react-dom/${reactVersion}`
+  const response = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+    },
+  })
+  if (!response.ok) {
+    throw new Error(
+      `${url}: ${response.status} ${response.statusText}\n${await response.text()}`
+    )
+  }
+
+  const manifest = await response.json()
+
+  return manifest.dependencies['scheduler']
+}
+
 // Use this script to update Next's vendored copy of React and related packages:
 //
 // Basic usage (defaults to most recent React canary version):
@@ -36,13 +65,7 @@ const appManifestsInstallingNextjsPeerDependencies = [
 // Update package.json but skip installing the dependencies automatically:
 //   pnpm run sync-react --no-install
 
-async function sync({
-  channel,
-  newVersionStr,
-  newSha,
-  newDateString,
-  noInstall,
-}) {
+async function sync({ channel, newVersionStr, noInstall }) {
   const useExperimental = channel === 'experimental'
   const cwd = process.cwd()
   const pkgJson = JSON.parse(
@@ -54,38 +77,35 @@ async function sync({
     useExperimental ? 'react-experimental-builtin' : 'react-builtin'
   ].replace(/^npm:react@/, '')
 
-  const baseVersionInfo = extractInfoFromReactVersion(baseVersionStr)
-  if (!baseVersionInfo) {
-    throw new Error(
-      'Base react version does not match expected format: ' + baseVersionStr
-    )
-  }
-
-  const {
-    sha: baseSha,
-    releaseLabel: baseReleaseLabel,
-    dateString: baseDateString,
-  } = baseVersionInfo
-
-  console.log(`Updating "react@${channel}" to ${newSha}...\n`)
-  if (newSha === baseSha) {
+  console.log(`Updating "react@${channel}" to ${newVersionStr}...`)
+  if (newVersionStr === baseVersionStr) {
     console.log('Already up to date.')
     return
   }
 
+  const baseSchedulerVersionStr = devDependencies[
+    useExperimental ? 'scheduler-experimental-builtin' : 'scheduler-builtin'
+  ].replace(/^npm:scheduler@/, '')
+  const newSchedulerVersionStr = await getSchedulerVersion(newVersionStr)
+  console.log(`Updating "scheduler@${channel}" to ${newSchedulerVersionStr}...`)
+
   for (const [dep, version] of Object.entries(devDependencies)) {
-    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
+    if (version.endsWith(baseVersionStr)) {
+      devDependencies[dep] = version.replace(baseVersionStr, newVersionStr)
+    } else if (version.endsWith(baseSchedulerVersionStr)) {
       devDependencies[dep] = version.replace(
-        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
-        `${channel}-${newSha}-${newDateString}`
+        baseSchedulerVersionStr,
+        newSchedulerVersionStr
       )
     }
   }
   for (const [dep, version] of Object.entries(pnpmOverrides)) {
-    if (version.endsWith(`${baseReleaseLabel}-${baseSha}-${baseDateString}`)) {
+    if (version.endsWith(baseVersionStr)) {
+      pnpmOverrides[dep] = version.replace(baseVersionStr, newVersionStr)
+    } else if (version.endsWith(baseSchedulerVersionStr)) {
       pnpmOverrides[dep] = version.replace(
-        `${baseReleaseLabel}-${baseSha}-${baseDateString}`,
-        `${channel}-${newSha}-${newDateString}`
+        baseSchedulerVersionStr,
+        newSchedulerVersionStr
       )
     }
   }
@@ -183,7 +203,14 @@ async function main() {
 
   async function commitEverything(message) {
     await execa('git', ['add', '-A'])
-    await execa('git', ['commit', '--message', message, '--no-verify'])
+    await execa('git', [
+      'commit',
+      '--message',
+      message,
+      '--no-verify',
+      // Some steps can be empty, e.g. when we don't sync Pages router
+      '--allow-empty',
+    ])
   }
 
   if (createPull && !actor) {
@@ -207,7 +234,7 @@ async function main() {
   ) {
     const { stdout, stderr } = await execa(
       'npm',
-      ['view', 'react@canary', 'version'],
+      ['--silent', 'view', `react@${defaultLatestChannel}`, 'version'],
       {
         // Avoid "Usage Error: This project is configured to use pnpm".
         cwd: '/tmp',
@@ -219,7 +246,7 @@ async function main() {
     }
     newVersionStr = stdout.trim()
     console.log(
-      `--version was not provided. Using react@canary: ${newVersionStr}`
+      `--version was not provided. Using react@${defaultLatestChannel}: ${newVersionStr}`
     )
   }
 
@@ -236,7 +263,7 @@ Or, run this command with no arguments to use the most recently published versio
   }
   const { sha: newSha, dateString: newDateString } = newVersionInfo
 
-  const branchName = `update/react/${newSha}-${newDateString}`
+  const branchName = `update/react/${newVersionStr}`
   if (createPull) {
     const { exitCode, all, command } = await execa(
       'git',
@@ -275,9 +302,7 @@ Or, run this command with no arguments to use the most recently published versio
   )
 
   await sync({
-    newDateString,
-    newSha,
-    newVersionStr,
+    newVersionStr: `0.0.0-experimental-${newSha}-${newDateString}`,
     noInstall: !install,
     channel: 'experimental',
   })
@@ -285,14 +310,12 @@ Or, run this command with no arguments to use the most recently published versio
     await commitEverything('Update `react@experimental`')
   }
   await sync({
-    newDateString,
-    newSha,
     newVersionStr,
     noInstall: !install,
-    channel: 'rc',
+    channel: '<framework-stable>',
   })
   if (commit) {
-    await commitEverything('Update `react@rc`')
+    await commitEverything('Update `react`')
   }
 
   const baseVersionInfo = extractInfoFromReactVersion(baseVersionStr)
@@ -302,49 +325,42 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
+  const syncPagesRouterReact = pagesRouterReact === null
+  const pagesRouterReactVersion = syncPagesRouterReact
+    ? newVersionStr
+    : pagesRouterReact
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
-  for (const fileName of filesReferencingReactPeerDependencyVersion) {
-    const filePath = path.join(cwd, fileName)
-    const previousSource = await fsp.readFile(filePath, 'utf-8')
-    const updatedSource = previousSource.replace(
-      `const nextjsReactPeerVersion = "${baseVersionStr}";`,
-      `const nextjsReactPeerVersion = "${newVersionStr}";`
-    )
-    if (updatedSource === previousSource) {
-      errors.push(
-        new Error(
-          `${fileName}: Failed to update ${baseVersionStr} to ${newVersionStr}. Is this file still referencing the React peer dependency version?`
-        )
+
+  if (syncPagesRouterReact) {
+    for (const fileName of filesReferencingReactPeerDependencyVersion) {
+      const filePath = path.join(cwd, fileName)
+      const previousSource = await fsp.readFile(filePath, 'utf-8')
+      const updatedSource = previousSource.replace(
+        `const nextjsReactPeerVersion = "${baseVersionStr}";`,
+        `const nextjsReactPeerVersion = "${pagesRouterReactVersion}";`
       )
-    } else {
-      await fsp.writeFile(filePath, updatedSource)
+      if (pagesRouterReact === null && updatedSource === previousSource) {
+        errors.push(
+          new Error(
+            `${fileName}: Failed to update ${baseVersionStr} to ${pagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
+          )
+        )
+      } else {
+        await fsp.writeFile(filePath, updatedSource)
+      }
     }
   }
-
-  const nextjsPackageJsonPath = path.join(
-    process.cwd(),
-    'packages',
-    'next',
-    'package.json'
-  )
-  const nextjsPackageJson = JSON.parse(
-    await fsp.readFile(nextjsPackageJsonPath, 'utf-8')
-  )
-  nextjsPackageJson.peerDependencies.react = `${newVersionStr}`
-  nextjsPackageJson.peerDependencies['react-dom'] = `${newVersionStr}`
-  await fsp.writeFile(
-    nextjsPackageJsonPath,
-    JSON.stringify(nextjsPackageJson, null, 2) +
-      // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
-      '\n'
-  )
 
   for (const fileName of appManifestsInstallingNextjsPeerDependencies) {
     const packageJsonPath = path.join(cwd, fileName)
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
-    manifest.dependencies['react'] = newVersionStr
-    manifest.dependencies['react-dom'] = newVersionStr
+    if (manifest.dependencies['react']) {
+      manifest.dependencies['react'] = pagesRouterReactVersion
+    }
+    if (manifest.dependencies['react-dom']) {
+      manifest.dependencies['react-dom'] = pagesRouterReactVersion
+    }
     await fsp.writeFile(
       packageJsonPath,
       JSON.stringify(manifest, null, 2) +
@@ -354,14 +370,39 @@ Or, run this command with no arguments to use the most recently published versio
   }
 
   if (commit) {
-    await commitEverything('Updated peer dependency references')
+    await commitEverything('Updated peer dependency references in apps')
+  }
+
+  for (const fileName of libraryManifestsSupportingNextjsReact) {
+    const packageJsonPath = path.join(cwd, fileName)
+    const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
+    const manifest = JSON.parse(packageJson)
+    // Need to specify last supported RC version to avoid breaking changes.
+    if (manifest.peerDependencies['react']) {
+      manifest.peerDependencies['react'] =
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
+    }
+    if (manifest.peerDependencies['react-dom']) {
+      manifest.peerDependencies['react-dom'] =
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
+    }
+    await fsp.writeFile(
+      packageJsonPath,
+      JSON.stringify(manifest, null, 2) +
+        // Prettier would add a newline anyway so do it manually to skip the additional `pnpm prettier-write`
+        '\n'
+    )
+  }
+
+  if (commit) {
+    await commitEverything('Updated peer dependency references in libraries')
   }
 
   // Install the updated dependencies and build the vendored React files.
   if (!install) {
-    console.log('Skipping install step because --no-install flag was passed.\n')
+    console.log('Skipping install step because --no-install flag was passed.')
   } else {
-    console.log('Installing dependencies...\n')
+    console.log('Installing dependencies...')
 
     const installSubprocess = execa('pnpm', [
       'install',
@@ -405,7 +446,10 @@ Or, run this command with no arguments to use the most recently published versio
     console.log()
   }
 
-  let prDescription = `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${newVersionStr}\`**\n\n`
+  let prDescription = ''
+  if (syncPagesRouterReact) {
+    prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
+  }
 
   // Fetch the changelog from GitHub and print it to the console.
   prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`

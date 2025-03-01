@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     cmp::min,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::hash_map::Entry,
     fmt::Write as _,
     path::{Path, PathBuf},
     str::FromStr,
@@ -11,6 +11,7 @@ use std::{
 use anyhow::{anyhow, Result};
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{RawVc, ReadRef, TransientInstance, TransientValue, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{source_context::get_source_context, FileLinesContent};
 use turbopack_core::issue::{
@@ -186,7 +187,8 @@ pub fn format_issue(
     issue_text
 }
 
-pub type GroupedIssues = HashMap<IssueSeverity, HashMap<String, HashMap<String, Vec<String>>>>;
+pub type GroupedIssues =
+    FxHashMap<IssueSeverity, FxHashMap<String, FxHashMap<String, Vec<String>>>>;
 
 const DEFAULT_SHOW_COUNT: usize = 3;
 
@@ -231,13 +233,13 @@ pub struct LogOptions {
 struct SeenIssues {
     /// Keeps track of all issue pulled from the source. Used so that we can
     /// decrement issues that are not pulled in the current synchronization.
-    source_to_issue_ids: HashMap<RawVc, HashSet<u64>>,
+    source_to_issue_ids: FxHashMap<RawVc, FxHashSet<u64>>,
 
     /// Counts the number of times a particular issue is seen across all
     /// sources. As long as the count is positive, an issue is considered
     /// "seen" and will not be relogged. Once the count reaches zero, the
     /// issue is removed and the next time its seen it will be considered new.
-    issues_count: HashMap<u64, usize>,
+    issues_count: FxHashMap<u64, usize>,
 }
 
 impl SeenIssues {
@@ -247,7 +249,7 @@ impl SeenIssues {
 
     /// Synchronizes state between the issues previously pulled from this
     /// source, to the issues now pulled.
-    fn new_ids(&mut self, source: RawVc, issue_ids: HashSet<u64>) -> HashSet<u64> {
+    fn new_ids(&mut self, source: RawVc, issue_ids: FxHashSet<u64>) -> FxHashSet<u64> {
         let old = self.source_to_issue_ids.entry(source).or_default();
 
         // difference is the issues that were never counted before.
@@ -274,7 +276,7 @@ impl SeenIssues {
                 }
             })
             .cloned()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
 
         // Old now contains only the ids that were not present in the new issue_ids.
         for id in old.iter() {
@@ -301,8 +303,10 @@ impl SeenIssues {
 }
 
 /// Logs emitted issues to console logs, deduplicating issues between peeks of
-/// the collected issues. The ConsoleUi can be shared and capture issues from
-/// multiple sources, with deduplication operating across all issues.
+/// the collected issues.
+///
+/// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
+/// operating across all issues.
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {
@@ -348,7 +352,7 @@ impl IssueReporter for ConsoleUi {
             log_level,
             ..
         } = self.options;
-        let mut grouped_issues: GroupedIssues = HashMap::new();
+        let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
         let issues = issues
             .iter_with_shortest_path()
@@ -360,7 +364,7 @@ impl IssueReporter for ConsoleUi {
             .try_join()
             .await?;
 
-        let issue_ids = issues.iter().map(|(_, id)| *id).collect::<HashSet<_>>();
+        let issue_ids = issues.iter().map(|(_, id)| *id).collect::<FxHashSet<_>>();
         let mut new_ids = self
             .seen
             .lock()

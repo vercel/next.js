@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
@@ -9,37 +9,18 @@ use turbopack_css::CssModuleAssetType;
 use turbopack_ecmascript::{EcmascriptInputTransforms, EcmascriptOptions};
 use turbopack_wasm::source::WebAssemblySourceType;
 
-use super::{CustomModuleType, ModuleRuleCondition};
+use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub struct ModuleRule {
-    condition: ModuleRuleCondition,
+    condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
     match_mode: MatchMode,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
-enum MatchMode {
-    // Match all but internal references.
-    NonInternal,
-    // Only match internal references.
-    Internal,
-    // Match both internal and non-internal references.
-    All,
-}
-
-impl MatchMode {
-    fn matches(&self, reference_type: &ReferenceType) -> bool {
-        matches!(
-            (self, reference_type.is_internal()),
-            (MatchMode::All, _) | (MatchMode::NonInternal, false) | (MatchMode::Internal, true)
-        )
-    }
-}
-
 impl ModuleRule {
     /// Creates a new module rule. Will not match internal references.
-    pub fn new(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,
@@ -47,8 +28,8 @@ impl ModuleRule {
         }
     }
 
-    /// Creates a new module rule. Will only matches internal references.
-    pub fn new_internal(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    /// Creates a new module rule. Will only match internal references.
+    pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,
@@ -56,8 +37,8 @@ impl ModuleRule {
         }
     }
 
-    /// Creates a new module rule. Will only matches internal references.
-    pub fn new_all(condition: ModuleRuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    /// Creates a new module rule. Will match all references.
+    pub fn new_all(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
         ModuleRule {
             condition,
             effects,
@@ -71,7 +52,7 @@ impl ModuleRule {
 
     pub async fn matches(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -88,45 +69,45 @@ pub enum ModuleRuleEffect {
     /// transforms. First argument will prepend the existing transforms, and
     /// the second argument will append the new transforms.
     ExtendEcmascriptTransforms {
-        prepend: Vc<EcmascriptInputTransforms>,
-        append: Vc<EcmascriptInputTransforms>,
+        prepend: ResolvedVc<EcmascriptInputTransforms>,
+        append: ResolvedVc<EcmascriptInputTransforms>,
     },
-    SourceTransforms(Vc<SourceTransforms>),
+    SourceTransforms(ResolvedVc<SourceTransforms>),
+    Ignore,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         // parse JSX syntax.
         tsx: bool,
         // follow references to imported types.
         analyze_types: bool,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
-        transforms: Vc<EcmascriptInputTransforms>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
-        options: Vc<EcmascriptOptions>,
+        options: ResolvedVc<EcmascriptOptions>,
     },
     Json,
     Raw,
-    CssGlobal,
     CssModule,
     Css {
         ty: CssModuleAssetType,
-        use_swc_css: bool,
     },
-    Static,
+    StaticUrlJs,
+    StaticUrlCss,
     WebAssembly {
         source_ty: WebAssemblySourceType,
     },
-    Custom(Vc<Box<dyn CustomModuleType>>),
+    Custom(ResolvedVc<Box<dyn CustomModuleType>>),
 }

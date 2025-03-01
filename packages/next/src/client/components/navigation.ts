@@ -1,5 +1,5 @@
 import type { FlightRouterState } from '../../server/app-render/types'
-import type { Params } from './params'
+import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo } from 'react'
 import {
@@ -15,7 +15,7 @@ import {
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import { ReadonlyURLSearchParams } from './navigation.react-server'
-import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
+import { useDynamicRouteParams } from '../../server/app-render/dynamic-rendering'
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -65,27 +65,6 @@ export function useSearchParams(): ReadonlyURLSearchParams {
   return readonlySearchParams
 }
 
-function trackParamsAccessed(expression: string) {
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { staticGenerationAsyncStorage } =
-      require('./static-generation-async-storage.external') as typeof import('./static-generation-async-storage.external')
-
-    const staticGenerationStore = staticGenerationAsyncStorage.getStore()
-
-    if (
-      staticGenerationStore &&
-      staticGenerationStore.isStaticGeneration &&
-      staticGenerationStore.fallbackRouteParams &&
-      staticGenerationStore.fallbackRouteParams.size > 0
-    ) {
-      // There are fallback route params, we should track these as dynamic
-      // accesses.
-      trackFallbackParamAccessed(staticGenerationStore, expression)
-    }
-  }
-}
-
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
  * that lets you read the current URL's pathname.
@@ -105,7 +84,7 @@ function trackParamsAccessed(expression: string) {
  */
 // Client components API
 export function usePathname(): string {
-  trackParamsAccessed('usePathname()')
+  useDynamicRouteParams('usePathname()')
 
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
@@ -165,21 +144,19 @@ export function useRouter(): AppRouterInstance {
  */
 // Client components API
 export function useParams<T extends Params = Params>(): T {
-  trackParamsAccessed('useParams()')
+  useDynamicRouteParams('useParams()')
 
   return useContext(PathParamsContext) as T
 }
 
 /** Get the canonical parameters from the current level to the leaf node. */
 // Client components API
-export function getSelectedLayoutSegmentPath(
+function getSelectedLayoutSegmentPath(
   tree: FlightRouterState,
   parallelRouteKey: string,
   first = true,
   segmentPath: string[] = []
 ): string[] {
-  trackParamsAccessed('getSelectedLayoutSegmentPath()')
-
   let node: FlightRouterState
   if (first) {
     // Use the provided parallel route key on the first parallel route
@@ -238,13 +215,13 @@ export function getSelectedLayoutSegmentPath(
 export function useSelectedLayoutSegments(
   parallelRouteKey: string = 'children'
 ): string[] {
-  trackParamsAccessed('useSelectedLayoutSegments()')
+  useDynamicRouteParams('useSelectedLayoutSegments()')
 
   const context = useContext(LayoutRouterContext)
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  return getSelectedLayoutSegmentPath(context.tree, parallelRouteKey)
+  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
 /**
@@ -269,7 +246,7 @@ export function useSelectedLayoutSegments(
 export function useSelectedLayoutSegment(
   parallelRouteKey: string = 'children'
 ): string | null {
-  trackParamsAccessed('useSelectedLayoutSegment()')
+  useDynamicRouteParams('useSelectedLayoutSegment()')
 
   const selectedLayoutSegments = useSelectedLayoutSegments(parallelRouteKey)
 
@@ -292,6 +269,8 @@ export function useSelectedLayoutSegment(
 // Shared components APIs
 export {
   notFound,
+  forbidden,
+  unauthorized,
   redirect,
   permanentRedirect,
   RedirectType,

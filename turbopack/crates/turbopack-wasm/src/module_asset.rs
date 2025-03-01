@@ -1,22 +1,27 @@
 use anyhow::{bail, Context, Result};
-use indexmap::indexmap;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        chunk_group::references_to_output_assets, AsyncModuleInfo, ChunkItem, ChunkType,
+        ChunkableModule, ChunkingContext,
+    },
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
-    reference::ModuleReferences,
+    module_graph::ModuleGraph,
+    output::OutputAssets,
+    reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
     },
     references::async_module::OptionAsyncModule,
 };
@@ -38,16 +43,16 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct WebAssemblyModuleAsset {
-    source: Vc<WebAssemblySource>,
-    asset_context: Vc<Box<dyn AssetContext>>,
+    source: ResolvedVc<WebAssemblySource>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     pub fn new(
-        source: Vc<WebAssemblySource>,
-        asset_context: Vc<Box<dyn AssetContext>>,
+        source: ResolvedVc<WebAssemblySource>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Self> {
         Self::cell(WebAssemblyModuleAsset {
             source,
@@ -57,7 +62,7 @@ impl WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     fn wasm_asset(&self, chunking_context: Vc<Box<dyn ChunkingContext>>) -> Vc<WebAssemblyAsset> {
-        WebAssemblyAsset::new(self.source, chunking_context)
+        WebAssemblyAsset::new(*self.source, chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -66,15 +71,15 @@ impl WebAssemblyModuleAsset {
         let query = &*this.source.ident().query().await?;
 
         let loader_source = if query == "?module" {
-            compiling_loader_source(this.source)
+            compiling_loader_source(*this.source)
         } else {
-            instantiating_loader_source(this.source)
+            instantiating_loader_source(*this.source)
         };
 
         let module = this.asset_context.process(
             loader_source,
-            Value::new(ReferenceType::Internal(Vc::cell(indexmap! {
-                "WASM_PATH".into() => Vc::upcast(RawWebAssemblyModuleAsset::new(this.source, this.asset_context)),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
+                "WASM_PATH".into() => ResolvedVc::upcast(RawWebAssemblyModuleAsset::new(*this.source, *this.asset_context).to_resolved().await?),
             }))),
         ).module();
 
@@ -104,6 +109,18 @@ impl WebAssemblyModuleAsset {
 
         Ok(esm_asset)
     }
+
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                Vc::upcast(self.loader()),
+                Vc::cell("wasm loader".into()),
+            )
+            .to_resolved()
+            .await?,
+        )]))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -117,8 +134,13 @@ impl Module for WebAssemblyModuleAsset {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
+    fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
+    }
+
+    #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
     }
 }
 
@@ -133,17 +155,19 @@ impl Asset for WebAssemblyModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             ModuleChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }
 
@@ -169,7 +193,7 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.asset_context
+        *self.asset_context
     }
 
     #[turbo_tasks::function]
@@ -180,8 +204,9 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: Vc<WebAssemblyModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<WebAssemblyModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -192,18 +217,14 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let loader = self
-            .module
-            .loader()
-            .as_chunk_item(Vc::upcast(self.chunking_context));
-
-        Ok(loader.references())
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let loader_references = self.module.loader().references().await?;
+        references_to_output_assets(&*loader_references).await
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -215,22 +236,12 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
+        Vc::upcast(*self.module)
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for ModuleChunkItem {
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
-    }
-
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent> {
         panic!("content() should not be called");
@@ -242,23 +253,20 @@ impl EcmascriptChunkItem for ModuleChunkItem {
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let loader_asset = self.module.loader();
-        let item = loader_asset.as_chunk_item(Vc::upcast(self.chunking_context));
+        let item =
+            loader_asset.as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context));
 
         let ecmascript_item = Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkItem>>(item)
             .await?
             .context("EcmascriptModuleAsset must implement EcmascriptChunkItem")?;
 
-        let chunk_item_content = ecmascript_item
+        let mut chunk_item_content = ecmascript_item
             .content_with_async_module_info(async_module_info)
+            .owned()
             .await?;
 
-        Ok(EcmascriptChunkItemContent {
-            options: EcmascriptChunkItemOptions {
-                wasm: true,
-                ..chunk_item_content.options.clone()
-            },
-            ..chunk_item_content.clone_value()
-        }
-        .into())
+        chunk_item_content.options.wasm = true;
+
+        Ok(chunk_item_content.cell())
     }
 }

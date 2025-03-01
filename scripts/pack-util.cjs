@@ -82,6 +82,19 @@ function execAsyncWithOutput(title, command, opts) {
 exports.execAsyncWithOutput = execAsyncWithOutput
 
 /**
+ * @template T
+ * @param {string} title
+ * @param {() => T} fn
+ * @returns {T}
+ */
+function execFn(title, fn) {
+  logCommand(title, fn.toString())
+  return fn()
+}
+
+exports.execFn = execFn
+
+/**
  * @param {string | string[]} command
  */
 function prettyCommand(command) {
@@ -118,6 +131,19 @@ function booleanArg(args, name) {
 
 exports.booleanArg = booleanArg
 
+/**
+ * @param {string[]} args
+ * @param {string} name
+ * @returns {?string}
+ */
+function namedValueArg(args, name) {
+  const index = args.indexOf(name)
+  if (index === -1) return null
+  return args.splice(index, 2)[1]
+}
+
+exports.namedValueArg = namedValueArg
+
 const DEFAULT_GLOBS = ['**', '!target', '!node_modules', '!crates', '!.turbo']
 const FORCED_GLOBS = ['package.json', 'README*', 'LICENSE*', 'LICENCE*']
 
@@ -138,7 +164,16 @@ async function packageFiles(path) {
     .filter((f) => !isGlob(f) && existsSync(join(path, f)))
     .map((f) => f.replace(/^\.\//, ''))
   const globFiles = allFiles.filter(isGlob)
-  const globbedFiles = await glob(`+(${globFiles.join('|')})`, { cwd: path })
+  const globbedFiles = await glob(
+    `+(${globFiles.filter((f) => !f.startsWith('!')).join('|')})`,
+    {
+      cwd: path,
+      ignore: `+(${globFiles
+        .filter((f) => f.startsWith('!'))
+        .map((f) => f.slice(1))
+        .join('|')})`,
+    }
+  )
   const packageFiles = [...globbedFiles, ...simpleFiles].sort()
   const set = new Set()
   return packageFiles.filter((f) => {

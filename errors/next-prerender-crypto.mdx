@@ -1,0 +1,105 @@
+---
+title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously while prerendering
+---
+
+## Why This Error Occurred
+
+An API that produces a random value synchronously from the Web Crypto API or from Node's `crypto` API was called outside of a `"use cache"` scope and without first calling `await connection()`. Random values that are produced synchronously must either be inside a `"use cache"` scope or be preceded with `await connection()` to explicitly communicate to Next.js whether the random values produced can be reused across many requests (cached) or if they must be unique per Request (`await connection()`).
+
+If the API used has an async version you can also switch to that in instead of using `await connection()`.
+
+## Possible Ways to Fix It
+
+### Cache the token value
+
+If you are generating a token to talk to a database that itself should be cached move the token generation inside the `"use cache"`.
+
+Before:
+
+```jsx filename="app/page.js"
+async function getCachedDate(token: string) {
+  "use cache"
+  return db.query(token, ...)
+}
+
+export default async function Page() {
+  const token = crypto.getRandomUUID()
+  const data = await getCachedData(token);
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+async function getCachedDate(token: string) {
+  "use cache"
+  const token = crypto.getRandomUUID()
+  return db.query(token, ...)
+}
+
+export default async function Page() {
+  const data = await getCachedData();
+  return ...
+}
+```
+
+### Use an async API at request-time
+
+If you require this random value to be unique per Request and an async version of the API exists switch to it instead. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
+
+Before:
+
+```jsx filename="app/page.js"
+import { generateKeySync } from 'node:crypto'
+
+export default async function Page() {
+  const key = generateKeySync('hmac', { ... })
+  const digestedData = await digestDataWithKey(data, key);
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { generateKey } from 'node:crypto'
+
+export default async function Page() {
+  const key = await new Promise(resolve => generateKey('hmac', { ... }, key => resolve(key)))
+  const digestedData = await digestDataWithKey(data, key);
+  return ...
+}
+```
+
+### Use `await connection()` at request-time
+
+If you require this random value to be unique per Request and an async version of the API does not exist, call `await connection()`. Also ensure that there is a parent Suspense boundary that defines a fallback UI Next.js can use while rendering this component on each Request.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const uuid = crypto.randomUUID()
+  return <RequestId id={uuid}>
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { connection } from 'next/server'
+
+export default async function Page() {
+  await connection()
+  const uuid = crypto.randomUUID()
+  return <RequestId id={uuid}>
+}
+```
+
+## Useful Links
+
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
+- [Node Crypto API](https://nodejs.org/docs/latest/api/crypto.html)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)

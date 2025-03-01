@@ -2,8 +2,10 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, TryJoinIterExt, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -13,29 +15,43 @@ use super::{
     plugin::BeforeResolvePlugin,
     AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
+use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug)]
+pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
+
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
+    TraceRawVcs,
+    Hash,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
     /// resolve inside these
-    Nested(Vc<FileSystemPath>, Vec<RcStr>),
-    /// look into that directory
-    Path(Vc<FileSystemPath>),
-    /// lookup versions based on lockfile in the registry filesystem
-    /// registry filesystem is assumed to have structure like
-    /// @scope/module/version/<path-in-package>
-    Registry(Vc<FileSystemPath>, Vc<LockedVersions>),
+    Nested(ResolvedVc<FileSystemPath>, Vec<RcStr>),
+    /// look into that directory, unless the request has an excluded extension
+    Path {
+        dir: ResolvedVc<FileSystemPath>,
+        excluded_extensions: ResolvedVc<ExcludedExtensions>,
+    },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -55,7 +71,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -73,7 +89,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request withing a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -89,17 +105,28 @@ pub enum ResolveInPackage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ImportMapping {
-    External(Option<RcStr>, ExternalType),
+    /// If specified, the optional name overrides the request, importing that external instead.
+    External(Option<RcStr>, ExternalType, ExternalTraced),
+    /// Try to make the request external if it is is resolvable from the specified
+    /// directory, and fall back to resolving the original request if it fails.
+    ///
+    /// If specified, the optional name overrides the request, importing that external instead.
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     /// An already resolved result that will be returned directly.
-    Direct(Vc<ResolveResult>),
+    Direct(ResolvedVc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
     /// the original request if it fails. Useful for the tsconfig.json
     /// `compilerOptions.paths` option and Next aliases.
-    PrimaryAlternative(RcStr, Option<Vc<FileSystemPath>>),
+    PrimaryAlternative(RcStr, Option<ResolvedVc<FileSystemPath>>),
     Ignore,
     Empty,
-    Alternatives(Vec<Vc<ImportMapping>>),
-    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+    Alternatives(Vec<ResolvedVc<ImportMapping>>),
+    Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
 }
 
 /// An `ImportMapping` that was applied to a pattern. See `ImportMapping` for
@@ -107,19 +134,25 @@ pub enum ImportMapping {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
-    External(Option<RcStr>, ExternalType),
-    Direct(Vc<ResolveResult>),
-    PrimaryAlternative(Pattern, Option<Vc<FileSystemPath>>),
+    External(Option<RcStr>, ExternalType, ExternalTraced),
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
+    Direct(ResolvedVc<ResolveResult>),
+    PrimaryAlternative(Pattern, Option<ResolvedVc<FileSystemPath>>),
     Ignore,
     Empty,
-    Alternatives(Vec<Vc<ReplacedImportMapping>>),
-    Dynamic(Vc<Box<dyn ImportMappingReplacement>>),
+    Alternatives(Vec<ResolvedVc<ReplacedImportMapping>>),
+    Dynamic(ResolvedVc<Box<dyn ImportMappingReplacement>>),
 }
 
 impl ImportMapping {
     pub fn primary_alternatives(
         list: Vec<RcStr>,
-        lookup_path: Option<Vc<FileSystemPath>>,
+        lookup_path: Option<ResolvedVc<FileSystemPath>>,
     ) -> ImportMapping {
         if list.is_empty() {
             ImportMapping::Ignore
@@ -128,25 +161,49 @@ impl ImportMapping {
         } else {
             ImportMapping::Alternatives(
                 list.into_iter()
-                    .map(|s| ImportMapping::PrimaryAlternative(s, lookup_path).cell())
+                    .map(|s| ImportMapping::PrimaryAlternative(s, lookup_path).resolved_cell())
                     .collect(),
             )
         }
     }
 }
 
+impl AliasTemplate for ResolvedVc<ImportMapping> {
+    type Output<'a> = <Vc<ImportMapping> as AliasTemplate>::Output<'a>;
+
+    fn convert(&self) -> Self::Output<'_> {
+        (**self).convert()
+    }
+
+    fn replace<'a>(&'a self, capture: &Pattern) -> Self::Output<'a> {
+        (**self).replace(capture)
+    }
+}
+
 impl AliasTemplate for Vc<ImportMapping> {
-    type Output<'a> = Pin<Box<dyn Future<Output = Result<Vc<ReplacedImportMapping>>> + Send + 'a>>;
+    type Output<'a> =
+        Pin<Box<dyn Future<Output = Result<ResolvedVc<ReplacedImportMapping>>> + Send + 'a>>;
 
     fn convert(&self) -> Self::Output<'_> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty) => {
-                    ReplacedImportMapping::External(name.clone(), *ty)
+                ImportMapping::External(name, ty, traced) => {
+                    ReplacedImportMapping::External(name.clone(), *ty, *traced)
                 }
-                ImportMapping::PrimaryAlternative(name, context) => {
-                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *context)
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => ReplacedImportMapping::PrimaryAlternativeExternal {
+                    name: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                    lookup_dir: *lookup_dir,
+                },
+                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
+                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *lookup_dir)
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
@@ -160,7 +217,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 ),
                 ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
             }
-            .cell())
+            .resolved_cell())
         })
     }
 
@@ -169,20 +226,43 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty) => {
+                ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
                         ReplacedImportMapping::External(
                             capture.spread_into_star(name).as_string().map(|s| s.into()),
                             *ty,
+                            *traced,
                         )
                     } else {
-                        ReplacedImportMapping::External(None, *ty)
+                        ReplacedImportMapping::External(None, *ty, *traced)
                     }
                 }
-                ImportMapping::PrimaryAlternative(name, context) => {
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => {
+                    if let Some(name) = name {
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
+                    } else {
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: None,
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
+                    }
+                }
+                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
                     ReplacedImportMapping::PrimaryAlternative(
                         capture.spread_into_star(name),
-                        *context,
+                        *lookup_dir,
                     )
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
@@ -199,7 +279,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                     (*replacement.replace(capture.clone().cell()).await?).clone()
                 }
             }
-            .cell())
+            .resolved_cell())
         })
     }
 }
@@ -207,12 +287,12 @@ impl AliasTemplate for Vc<ImportMapping> {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ImportMap {
-    map: AliasMap<Vc<ImportMapping>>,
+    map: AliasMap<ResolvedVc<ImportMapping>>,
 }
 
 impl ImportMap {
     /// Creates a new import map.
-    pub fn new(map: AliasMap<Vc<ImportMapping>>) -> ImportMap {
+    pub fn new(map: AliasMap<ResolvedVc<ImportMapping>>) -> ImportMap {
         Self { map }
     }
 
@@ -228,7 +308,7 @@ impl ImportMap {
     }
 
     /// Inserts an alias into the import map.
-    pub fn insert_alias(&mut self, alias: AliasPattern, mapping: Vc<ImportMapping>) {
+    pub fn insert_alias(&mut self, alias: AliasPattern, mapping: ResolvedVc<ImportMapping>) {
         self.map.insert(alias, mapping);
     }
 
@@ -236,7 +316,7 @@ impl ImportMap {
     pub fn insert_exact_alias<'a>(
         &mut self,
         pattern: impl Into<RcStr> + 'a,
-        mapping: Vc<ImportMapping>,
+        mapping: ResolvedVc<ImportMapping>,
     ) {
         self.map.insert(AliasPattern::exact(pattern), mapping);
     }
@@ -245,7 +325,7 @@ impl ImportMap {
     pub fn insert_wildcard_alias<'a>(
         &mut self,
         prefix: impl Into<RcStr> + 'a,
-        mapping: Vc<ImportMapping>,
+        mapping: ResolvedVc<ImportMapping>,
     ) {
         self.map.insert(AliasPattern::wildcard(prefix, ""), mapping);
     }
@@ -255,7 +335,7 @@ impl ImportMap {
         &mut self,
         prefix: impl Into<RcStr> + 'p,
         suffix: impl Into<RcStr> + 's,
-        mapping: Vc<ImportMapping>,
+        mapping: ResolvedVc<ImportMapping>,
     ) {
         self.map
             .insert(AliasPattern::wildcard(prefix, suffix), mapping);
@@ -266,18 +346,18 @@ impl ImportMap {
     pub fn insert_singleton_alias<'a>(
         &mut self,
         prefix: impl Into<RcStr> + 'a,
-        context_path: Vc<FileSystemPath>,
+        context_path: ResolvedVc<FileSystemPath>,
     ) {
         let prefix: RcStr = prefix.into();
         let wildcard_prefix: RcStr = (prefix.to_string() + "/").into();
         let wildcard_alias: RcStr = (prefix.to_string() + "/*").into();
         self.insert_exact_alias(
             prefix.clone(),
-            ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path)).cell(),
+            ImportMapping::PrimaryAlternative(prefix.clone(), Some(context_path)).resolved_cell(),
         );
         self.insert_wildcard_alias(
             wildcard_prefix,
-            ImportMapping::PrimaryAlternative(wildcard_alias, Some(context_path)).cell(),
+            ImportMapping::PrimaryAlternative(wildcard_alias, Some(context_path)).resolved_cell(),
         );
     }
 }
@@ -286,8 +366,8 @@ impl ImportMap {
 impl ImportMap {
     /// Extends the underlying [ImportMap] with another [ImportMap].
     #[turbo_tasks::function]
-    pub async fn extend(self: Vc<Self>, other: Vc<ImportMap>) -> Result<Vc<Self>> {
-        let mut import_map = self.await?.clone_value();
+    pub async fn extend(self: Vc<Self>, other: ResolvedVc<ImportMap>) -> Result<Vc<Self>> {
+        let mut import_map = self.owned().await?;
         import_map.extend_ref(&*other.await?);
         Ok(import_map.cell())
     }
@@ -296,14 +376,25 @@ impl ImportMap {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct ResolvedMap {
-    pub by_glob: Vec<(Vc<FileSystemPath>, Vc<Glob>, Vc<ImportMapping>)>,
+    pub by_glob: Vec<(
+        ResolvedVc<FileSystemPath>,
+        ResolvedVc<Glob>,
+        ResolvedVc<ImportMapping>,
+    )>,
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ImportMapResult {
-    Result(Vc<ResolveResult>),
-    Alias(Vc<Request>, Option<Vc<FileSystemPath>>),
+    Result(ResolvedVc<ResolveResult>),
+    External(RcStr, ExternalType, ExternalTraced),
+    AliasExternal {
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
+    Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
 }
@@ -315,35 +406,54 @@ async fn import_mapping_to_result(
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
-            ResolveResult::primary(if let Some(name) = name {
-                ResolveResultItem::External(name.clone(), *ty)
+        ReplacedImportMapping::External(name, ty, traced) => ImportMapResult::External(
+            if let Some(name) = name {
+                name.clone()
             } else if let Some(request) = request.await?.request() {
-                ResolveResultItem::External(request, *ty)
+                request
             } else {
                 bail!("Cannot resolve external reference without request")
-            })
-            .cell(),
+            },
+            *ty,
+            *traced,
         ),
+        ReplacedImportMapping::PrimaryAlternativeExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir,
+        } => ImportMapResult::AliasExternal {
+            name: if let Some(name) = name {
+                name.clone()
+            } else if let Some(request) = request.await?.request() {
+                request
+            } else {
+                bail!("Cannot resolve external reference without request")
+            },
+            ty: *ty,
+            traced: *traced,
+            lookup_dir: *lookup_dir,
+        },
         ReplacedImportMapping::Ignore => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore).into())
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Ignore))
         }
         ReplacedImportMapping::Empty => {
-            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty).into())
+            ImportMapResult::Result(ResolveResult::primary(ResolveResultItem::Empty))
         }
         ReplacedImportMapping::PrimaryAlternative(name, context) => {
-            let request = Request::parse(Value::new(name.clone()));
-
+            let request = Request::parse(Value::new(name.clone()))
+                .to_resolved()
+                .await?;
             ImportMapResult::Alias(request, *context)
         }
         ReplacedImportMapping::Alternatives(list) => ImportMapResult::Alternatives(
             list.iter()
-                .map(|mapping| import_mapping_to_result_boxed(*mapping, lookup_path, request))
+                .map(|mapping| Box::pin(import_mapping_to_result(**mapping, lookup_path, request)))
                 .try_join()
                 .await?,
         ),
         ReplacedImportMapping::Dynamic(replacement) => {
-            (*replacement.result(lookup_path, request).await?).clone()
+            replacement.result(lookup_path, request).owned().await?
         }
     })
 }
@@ -354,6 +464,8 @@ impl ValueToString for ImportMapResult {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".into())),
+            ImportMapResult::External(_, _, _) => Ok(Vc::cell("TODO external".into())),
+            ImportMapResult::AliasExternal { .. } => Ok(Vc::cell("TODO external".into())),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
                     let path = path.to_string().await?;
@@ -382,18 +494,6 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::NoEntry => Ok(Vc::cell("No import map entry".into())),
         }
     }
-}
-
-// This cannot be inlined within `import_mapping_to_result`, otherwise we run
-// into the following error:
-//     cycle detected when computing type of
-//     `resolve::options::import_mapping_to_result::{opaque#0}`
-fn import_mapping_to_result_boxed(
-    mapping: Vc<ReplacedImportMapping>,
-    lookup_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
-) -> Pin<Box<dyn Future<Output = Result<ImportMapResult>> + Send>> {
-    Box::pin(async move { import_mapping_to_result(mapping, lookup_path, request).await })
 }
 
 impl ImportMap {
@@ -429,8 +529,8 @@ impl ImportMap {
             .into_iter()
             .chain(lookup_rel_parent.into_iter())
             .chain(lookup.into_iter())
-            .map(async |result: super::AliasMatch<Vc<ImportMapping>>| {
-                import_mapping_to_result(result.try_join_into_self().await?, lookup_path, request)
+            .map(async |result| {
+                import_mapping_to_result(*result.try_join_into_self().await?, lookup_path, request)
                     .await
             })
             .try_join()
@@ -448,19 +548,18 @@ impl ImportMap {
 impl ResolvedMap {
     #[turbo_tasks::function]
     pub async fn lookup(
-        self: Vc<Self>,
+        &self,
         resolved: Vc<FileSystemPath>,
         lookup_path: Vc<FileSystemPath>,
         request: Vc<Request>,
     ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
         let resolved = resolved.await?;
-        for (root, glob, mapping) in this.by_glob.iter() {
+        for (root, glob, mapping) in self.by_glob.iter() {
             let root = root.await?;
             if let Some(path) = root.get_path_to(&resolved) {
                 if glob.await?.execute(path) {
                     return Ok(import_mapping_to_result(
-                        mapping.convert().await?,
+                        *mapping.convert().await?,
                         lookup_path,
                         request,
                     )
@@ -493,14 +592,16 @@ pub struct ResolveOptions {
     /// The default files to resolve in a folder.
     pub default_files: Vec<RcStr>,
     /// An import map to use before resolving a request.
-    pub import_map: Option<Vc<ImportMap>>,
-    /// An import map to use when a request is otherwise unresolveable.
-    pub fallback_import_map: Option<Vc<ImportMap>>,
-    pub resolved_map: Option<Vc<ResolvedMap>>,
-    pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
-    pub plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
+    pub import_map: Option<ResolvedVc<ImportMap>>,
+    /// An import map to use when a request is otherwise unresolvable.
+    pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
+    pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
+    pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
+    pub plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
     /// Support resolving *.js requests to *.ts files
     pub enable_typescript_with_output_extension: bool,
+    /// Warn instead of error for resolve errors
+    pub loose_errors: bool,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -514,12 +615,14 @@ impl ResolveOptions {
         self: Vc<Self>,
         import_map: Vc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
+        let mut resolve_options = self.owned().await?;
         resolve_options.import_map = Some(
             resolve_options
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
-                .unwrap_or(import_map),
+                .unwrap_or(import_map)
+                .to_resolved()
+                .await?,
         );
         Ok(resolve_options.into())
     }
@@ -529,22 +632,27 @@ impl ResolveOptions {
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,
-        import_map: Vc<ImportMap>,
+        extended_import_map: ResolvedVc<ImportMap>,
     ) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
-        resolve_options.fallback_import_map = Some(
-            resolve_options
-                .fallback_import_map
-                .map(|current_import_map| current_import_map.extend(import_map))
-                .unwrap_or(import_map),
-        );
+        let mut resolve_options = self.owned().await?;
+        resolve_options.fallback_import_map =
+            if let Some(current_fallback) = resolve_options.fallback_import_map {
+                Some(
+                    current_fallback
+                        .extend(*extended_import_map)
+                        .to_resolved()
+                        .await?,
+                )
+            } else {
+                Some(extended_import_map)
+            };
         Ok(resolve_options.into())
     }
 
     /// Overrides the extensions used for resolving
     #[turbo_tasks::function]
     pub async fn with_extensions(self: Vc<Self>, extensions: Vec<RcStr>) -> Result<Vc<Self>> {
-        let mut resolve_options = self.await?.clone_value();
+        let mut resolve_options = self.owned().await?;
         resolve_options.extensions = extensions;
         Ok(resolve_options.into())
     }
@@ -552,11 +660,10 @@ impl ResolveOptions {
     /// Overrides the fully_specified flag for resolving
     #[turbo_tasks::function]
     pub async fn with_fully_specified(self: Vc<Self>, fully_specified: bool) -> Result<Vc<Self>> {
-        let resolve_options = self.await?;
+        let mut resolve_options = self.owned().await?;
         if resolve_options.fully_specified == fully_specified {
             return Ok(self);
         }
-        let mut resolve_options = resolve_options.clone_value();
         resolve_options.fully_specified = fully_specified;
         Ok(resolve_options.cell())
     }

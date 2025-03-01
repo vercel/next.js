@@ -19,6 +19,21 @@ export default function isError(err: unknown): err is NextError {
   )
 }
 
+function safeStringify(obj: any) {
+  const seen = new WeakSet()
+
+  return JSON.stringify(obj, (_key, value) => {
+    // If value is an object and already seen, replace with "[Circular]"
+    if (typeof value === 'object' && value !== null) {
+      if (seen.has(value)) {
+        return '[Circular]'
+      }
+      seen.add(value)
+    }
+    return value
+  })
+}
+
 export function getProperError(err: unknown): Error {
   if (isError(err)) {
     return err
@@ -42,5 +57,5 @@ export function getProperError(err: unknown): Error {
     }
   }
 
-  return new Error(isPlainObject(err) ? JSON.stringify(err) : err + '')
+  return new Error(isPlainObject(err) ? safeStringify(err) : err + '')
 }

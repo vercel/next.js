@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: no-vc-struct
+message: Don't use a Vc directly in a struct
+note: 'Prefer using ResolvedVc, or add a `// no-resolved-vc(<AUTHOR>): <REASON>` comment'
+severity: warning
+language: rust
+
+rule:
+  pattern:
+    context: 'let x: Vc<$A> = 1;'
+    selector: generic_type
+  inside:
+    stopBy: end
+    not:
+      follows:
+        kind: line_comment
+        regex: \s*//\s*no-resolved-vc\((.+)\):.+
+    inside:
+      inside:
+        any:
+          - kind: struct_item
+            follows:
+              stopBy:
+                not:
+                  kind: attribute_item
+              kind: attribute_item
+              has:
+                kind: attribute
+                regex: '^turbo_tasks::value(\(.*\))?$'
+          - inside:
+              kind: enum_variant_list
+              inside:
+                follows:
+                  stopBy:
+                    not:
+                      kind: attribute_item
+                  kind: attribute_item
+                  has:
+                    kind: attribute
+                    regex: '^turbo_tasks::value(\(.*\))?$'
+fix: ResolvedVc<$A>
+
+ignores:
+  - turbopack/crates/turbo-tasks-macros-tests/**/*.rs

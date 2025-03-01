@@ -117,29 +117,26 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(0, ImportOfModule)]"];
-    N1["Items: [ItemId(ModuleEvaluation)]"];
-    N2["Items: [ItemId(2, VarDeclarator(0))]"];
-    N3["Items: [ItemId(Export((&quot;runtime&quot;, #2), &quot;runtime&quot;))]"];
-    N4["Items: [ItemId(0, ImportBinding(0))]"];
-    N5["Items: [ItemId(1, VarDeclarator(0))]"];
-    N6["Items: [ItemId(Export((&quot;GET&quot;, #2), &quot;GET&quot;))]"];
-    N5 --> N4;
-    N6 --> N5;
-    N3 --> N2;
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(Export((&quot;GET&quot;, #2), &quot;GET&quot;))]"];
+    N3["Items: [ItemId(2, VarDeclarator(0)), ItemId(Export((&quot;runtime&quot;, #2), &quot;runtime&quot;))]"];
+    N4["Items: [ItemId(ModuleEvaluation)]"];
+    N2 --> N1;
     N1 --> N0;
+    N4 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 1,
-    Exports: 7,
+    ModuleEvaluation: 4,
+    Export(
+        "GET",
+    ): 2,
     Export(
         "runtime",
     ): 3,
-    Export(
-        "GET",
-    ): 6,
+    Exports: 5,
 }
 ```
 
@@ -155,72 +152,53 @@ import "next/server";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
+import { NextResponse } from "next/server";
+export { NextResponse as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 2
 ```js
-const runtime = "edge";
-export { runtime } from "__TURBOPACK_VAR__" assert {
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { NextResponse } from "next/server";
+const GET = (req)=>{
+    return NextResponse.json({
+        pathname: req.nextUrl.pathname
+    });
+};
+export { GET };
+export { GET as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
+const runtime = "edge";
 export { runtime };
+export { runtime as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 4
 ```js
-import { NextResponse } from "next/server";
-export { NextResponse } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
+"module evaluation";
 
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-const GET = (req)=>{
-    return NextResponse.json({
-        pathname: req.nextUrl.pathname
-    });
-};
-export { GET } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-export { GET };
-
-```
-## Part 7
-```js
-export { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export runtime"
-};
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
+};
+export { runtime } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export runtime"
 };
 
 ```
@@ -236,14 +214,14 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 1,
-    Exports: 7,
+    ModuleEvaluation: 4,
+    Export(
+        "GET",
+    ): 2,
     Export(
         "runtime",
     ): 3,
-    Export(
-        "GET",
-    ): 6,
+    Exports: 5,
 }
 ```
 
@@ -259,72 +237,53 @@ import "next/server";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
+import { NextResponse } from "next/server";
+export { NextResponse as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 2
 ```js
-const runtime = "edge";
-export { runtime } from "__TURBOPACK_VAR__" assert {
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { NextResponse } from "next/server";
+const GET = (req)=>{
+    return NextResponse.json({
+        pathname: req.nextUrl.pathname
+    });
+};
+export { GET };
+export { GET as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
+const runtime = "edge";
 export { runtime };
+export { runtime as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 4
 ```js
-import { NextResponse } from "next/server";
-export { NextResponse } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
+"module evaluation";
 
 ```
 ## Part 5
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { NextResponse } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-const GET = (req)=>{
-    return NextResponse.json({
-        pathname: req.nextUrl.pathname
-    });
-};
-export { GET } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 6
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-import { GET } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
-};
-export { GET };
-
-```
-## Part 7
-```js
-export { runtime } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export runtime"
-};
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
+};
+export { runtime } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export runtime"
 };
 
 ```

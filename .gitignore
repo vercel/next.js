@@ -5,7 +5,8 @@ dist
 target
 packages/next/wasm/@next
 tarballs/
-packages/next/*.tgz
+packages/**/*.tgz
+.errors/
 
 # dependencies
 node_modules
@@ -55,3 +56,6 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+
+# Storybook
+*storybook.log

@@ -7,11 +7,57 @@
 
 export class CacheSignal {
   private count: number
+  private earlyListeners: Array<() => void>
   private listeners: Array<() => void>
+  private tickPending: boolean
+  private taskPending: boolean
 
   constructor() {
     this.count = 0
+    this.earlyListeners = []
     this.listeners = []
+    this.tickPending = false
+    this.taskPending = false
+  }
+
+  private noMorePendingCaches() {
+    if (!this.tickPending) {
+      this.tickPending = true
+      process.nextTick(() => {
+        this.tickPending = false
+        if (this.count === 0) {
+          for (let i = 0; i < this.earlyListeners.length; i++) {
+            this.earlyListeners[i]()
+          }
+          this.earlyListeners.length = 0
+        }
+      })
+    }
+    if (!this.taskPending) {
+      this.taskPending = true
+      setTimeout(() => {
+        this.taskPending = false
+        if (this.count === 0) {
+          for (let i = 0; i < this.listeners.length; i++) {
+            this.listeners[i]()
+          }
+          this.listeners.length = 0
+        }
+      }, 0)
+    }
+  }
+
+  /**
+   * This promise waits until there are no more in progress cache reads but no later.
+   * This allows for adding more cache reads after to delay cacheReady.
+   */
+  inputReady() {
+    return new Promise<void>((resolve) => {
+      this.earlyListeners.push(resolve)
+      if (this.count === 0) {
+        this.noMorePendingCaches()
+      }
+    })
   }
 
   /**
@@ -19,23 +65,11 @@ export class CacheSignal {
    * if there are no inflight cache reads then we wait at least one task to allow initial
    * cache reads to be initiated.
    */
-  async cacheReady() {
+  cacheReady() {
     return new Promise<void>((resolve) => {
       this.listeners.push(resolve)
       if (this.count === 0) {
-        // We increment the count here in case a read begin/end cycle happens before the
-        // next scheduled task. This ensures we only ever have one task scheduled at a time.
-        this.count++
-        setTimeout(() => {
-          // We need to decrement our own increment here
-          this.count--
-          if (this.count === 0) {
-            for (let i = 0; i < this.listeners.length; i++) {
-              this.listeners[i]()
-            }
-            this.listeners.length = 0
-          }
-        })
+        this.noMorePendingCaches()
       }
     })
   }
@@ -51,19 +85,9 @@ export class CacheSignal {
     // after at least one task.
     // We only want one task scheduled at a time so when we hit count 1 we don't decrement the counter immediately.
     // If intervening reads happen before the scheduled task runs they will never observe count 1 preventing reentrency
-    if (this.count === 1) {
-      setTimeout(() => {
-        // We deferred the decrement above and need to do it now for proper balancing
-        this.count--
-        if (this.count === 0) {
-          for (let i = 0; i < this.listeners.length; i++) {
-            this.listeners[i]()
-          }
-          this.listeners.length = 0
-        }
-      }, 0)
-    } else {
-      this.count--
+    this.count--
+    if (this.count === 0) {
+      this.noMorePendingCaches()
     }
   }
 }

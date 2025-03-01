@@ -4,7 +4,7 @@ export default function Root({ children }: { children: React.ReactNode }) {
   return (
     <html>
       <body>
-        {children}
+        <main>{children}</main>
         <div id="layout">{getSentinelValue()}</div>
       </body>
     </html>

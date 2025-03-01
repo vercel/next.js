@@ -34,9 +34,13 @@ pub async fn get_next_react_server_components_transform_rule(
     app_dir: Option<Vc<FileSystemPath>>,
 ) -> Result<ModuleRule> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
     Ok(get_ecma_transform_rule(
         Box::new(NextJsReactServerComponents::new(
             is_react_server_layer,
+            dynamic_io_enabled,
+            use_cache_enabled,
             app_dir,
         )),
         enable_mdx_rs,
@@ -47,13 +51,22 @@ pub async fn get_next_react_server_components_transform_rule(
 #[derive(Debug)]
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
+    dynamic_io_enabled: bool,
+    use_cache_enabled: bool,
     app_dir: Option<Vc<FileSystemPath>>,
 }
 
 impl NextJsReactServerComponents {
-    fn new(is_react_server_layer: bool, app_dir: Option<Vc<FileSystemPath>>) -> Self {
+    fn new(
+        is_react_server_layer: bool,
+        dynamic_io_enabled: bool,
+        use_cache_enabled: bool,
+        app_dir: Option<Vc<FileSystemPath>>,
+    ) -> Self {
         Self {
             is_react_server_layer,
+            dynamic_io_enabled,
+            use_cache_enabled,
             app_dir,
         }
     }
@@ -73,6 +86,8 @@ impl CustomTransformer for NextJsReactServerComponents {
             file_name,
             Config::WithOptions(Options {
                 is_react_server_layer: self.is_react_server_layer,
+                dynamic_io_enabled: self.dynamic_io_enabled,
+                use_cache_enabled: self.use_cache_enabled,
             }),
             match self.app_dir {
                 None => None,

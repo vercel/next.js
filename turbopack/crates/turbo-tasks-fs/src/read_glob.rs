@@ -1,15 +1,15 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
-use turbo_tasks::{RcStr, Vc};
+use rustc_hash::FxHashMap;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
 pub struct ReadGlobResult {
-    pub results: HashMap<String, DirectoryEntry>,
-    pub inner: HashMap<String, Vc<ReadGlobResult>>,
+    pub results: FxHashMap<String, DirectoryEntry>,
+    pub inner: FxHashMap<String, ResolvedVc<ReadGlobResult>>,
 }
 
 /// Reads matches of a glob pattern.
@@ -22,7 +22,7 @@ pub async fn read_glob(
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal("", directory, glob, include_dot_files).await
+    Ok(*read_glob_internal("", directory, glob, include_dot_files).await?)
 }
 
 #[turbo_tasks::function(fs)]
@@ -32,7 +32,7 @@ async fn read_glob_inner(
     glob: Vc<Glob>,
     include_dot_files: bool,
 ) -> Result<Vc<ReadGlobResult>> {
-    read_glob_internal(&prefix, directory, glob, include_dot_files).await
+    Ok(*read_glob_internal(&prefix, directory, glob, include_dot_files).await?)
 }
 
 async fn read_glob_internal(
@@ -40,7 +40,7 @@ async fn read_glob_internal(
     directory: Vc<FileSystemPath>,
     glob: Vc<Glob>,
     include_dot_files: bool,
-) -> Result<Vc<ReadGlobResult>> {
+) -> Result<ResolvedVc<ReadGlobResult>> {
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.await?;
@@ -63,7 +63,9 @@ async fn read_glob_internal(
                         if glob_value.execute(&full_path_prefix) {
                             result.inner.insert(
                                 full_path,
-                                read_glob_inner(full_path_prefix, path, glob, include_dot_files),
+                                read_glob_inner(full_path_prefix, *path, glob, include_dot_files)
+                                    .to_resolved()
+                                    .await?,
                             );
                         }
                     }
@@ -78,5 +80,5 @@ async fn read_glob_internal(
         }
         DirectoryContent::NotFound => {}
     }
-    Ok(ReadGlobResult::cell(result))
+    Ok(ReadGlobResult::resolved_cell(result))
 }

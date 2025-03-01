@@ -217,6 +217,7 @@
         ],
         span: 50..63,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -369,7 +370,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "true",
                     ),
                 ),
@@ -659,7 +660,7 @@
                                 StrictEqual,
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
@@ -687,7 +688,7 @@
                                     StrictEqual,
                                     Constant(
                                         Str(
-                                            Word(
+                                            Atom(
                                                 "true",
                                             ),
                                         ),
@@ -695,14 +696,14 @@
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "false",
                                         ),
                                     ),
@@ -763,6 +764,7 @@
         ],
         span: 273..398,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -829,7 +831,7 @@
                             ),
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "false",
                                     ),
                                 ),
@@ -869,5 +871,6 @@
         ],
         span: 416..453,
         in_try: false,
+        new: false,
     },
 ]

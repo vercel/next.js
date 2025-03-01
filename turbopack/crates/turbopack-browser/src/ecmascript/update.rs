@@ -1,19 +1,19 @@
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, Vc};
 use turbopack_core::{chunk::ModuleId, code_builder::Code};
 
 use super::{content::EcmascriptDevChunkContent, version::EcmascriptDevChunkVersion};
 
+#[allow(clippy::large_enum_variant)]
 pub(super) enum EcmascriptChunkUpdate {
     None,
     Partial(EcmascriptChunkPartialUpdate),
 }
 
 pub(super) struct EcmascriptChunkPartialUpdate {
-    pub added: IndexMap<ReadRef<ModuleId>, (u64, Vc<Code>)>,
-    pub deleted: IndexMap<ReadRef<ModuleId>, u64>,
-    pub modified: IndexMap<ReadRef<ModuleId>, Vc<Code>>,
+    pub added: FxIndexMap<ReadRef<ModuleId>, (u64, ResolvedVc<Code>)>,
+    pub deleted: FxIndexMap<ReadRef<ModuleId>, u64>,
+    pub modified: FxIndexMap<ReadRef<ModuleId>, ResolvedVc<Code>>,
 }
 
 pub(super) async fn update_ecmascript_chunk(
@@ -22,10 +22,9 @@ pub(super) async fn update_ecmascript_chunk(
 ) -> Result<EcmascriptChunkUpdate> {
     let to = content.own_version().await?;
 
-    // When to and from point to the same value we can skip comparing them.
-    // This will happen since `TraitRef<Vc<Box<dyn Version>>>::cell` will not clone
-    // the value, but only make the cell point to the same immutable value
-    // (Arc).
+    // When to and from point to the same value we can skip comparing them. This will happen since
+    // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
+    // to the same immutable value (`Arc`).
     if from.ptr_eq(&to) {
         return Ok(EcmascriptChunkUpdate::None);
     }
@@ -33,9 +32,9 @@ pub(super) async fn update_ecmascript_chunk(
     let content = content.await?;
 
     let entries = content.entries.await?;
-    let mut added = IndexMap::default();
-    let mut modified = IndexMap::default();
-    let mut deleted = IndexMap::default();
+    let mut added = FxIndexMap::default();
+    let mut modified = FxIndexMap::default();
+    let mut deleted = FxIndexMap::default();
 
     for (id, from_hash) in &from.entries_hashes {
         if let Some(entry) = entries.get(id) {

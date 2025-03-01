@@ -8,14 +8,17 @@ use hyper::{
     header::{HeaderName as HyperHeaderName, HeaderValue as HyperHeaderValue},
     Uri,
 };
-use turbo_tasks::{RcStr, TransientInstance, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},
     query::Query,
     request::SourceRequest,
+    route_tree::RouteTree,
     ContentSource, ContentSourceContent, ContentSourceData, ContentSourceDataVary,
-    GetContentSourceContent, HeaderList, ProxyResult, RewriteType, StaticContent,
+    GetContentSourceContent, GetContentSourceContents, HeaderList, ProxyResult, RewriteType,
+    StaticContent,
 };
 
 /// The result of [`resolve_source_request`]. Similar to a
@@ -24,8 +27,39 @@ use super::{
 #[turbo_tasks::value(serialization = "none")]
 pub enum ResolveSourceRequestResult {
     NotFound,
-    Static(Vc<StaticContent>, Vc<HeaderList>),
-    HttpProxy(Vc<ProxyResult>),
+    Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
+    HttpProxy(OperationVc<ProxyResult>),
+}
+
+#[turbo_tasks::function(operation)]
+fn content_source_get_routes_operation(
+    source: OperationVc<Box<dyn ContentSource>>,
+) -> Vc<RouteTree> {
+    source.connect().get_routes()
+}
+
+#[turbo_tasks::function(operation)]
+fn route_tree_get_operation(
+    route_tree: ResolvedVc<RouteTree>,
+    asset_path: RcStr,
+) -> Vc<GetContentSourceContents> {
+    route_tree.get(asset_path)
+}
+
+#[turbo_tasks::function(operation)]
+fn get_content_source_content_vary_operation(
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
+) -> Vc<ContentSourceDataVary> {
+    get_content.vary()
+}
+
+#[turbo_tasks::function(operation)]
+fn get_content_source_content_get_operation(
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
+    path: RcStr,
+    data: Value<ContentSourceData>,
+) -> Vc<ContentSourceContent> {
+    get_content.get(path, data)
 }
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
@@ -36,9 +70,9 @@ pub enum ResolveSourceRequestResult {
 /// version of the content. We don't make resolve_source_request strongly
 /// consistent as we want get_routes and get to be independent consistent and
 /// any side effect in get should not wait for recomputing of get_routes.
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 pub async fn resolve_source_request(
-    source: Vc<Box<dyn ContentSource>>,
+    source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
 ) -> Result<Vc<ResolveSourceRequestResult>> {
     let original_path = request.uri.path().to_string();
@@ -46,16 +80,24 @@ pub async fn resolve_source_request(
     let mut current_asset_path: RcStr = urlencoding::decode(&original_path[1..])?.into();
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
-    let mut route_tree = source.get_routes().resolve_strongly_consistent().await?;
+    let mut route_tree = content_source_get_routes_operation(source)
+        .resolve_strongly_consistent()
+        .await?;
     'routes: loop {
-        let mut sources = route_tree.get(current_asset_path.clone());
+        let mut sources_op = route_tree_get_operation(route_tree, current_asset_path.clone());
         'sources: loop {
-            for get_content in sources.strongly_consistent().await?.iter() {
-                let content_vary = get_content.vary().strongly_consistent().await?;
+            for &get_content in sources_op.read_strongly_consistent().await?.iter() {
+                let content_vary = get_content_source_content_vary_operation(get_content)
+                    .read_strongly_consistent()
+                    .await?;
                 let content_data =
                     request_to_data(&request_overwrites, &request, &content_vary).await?;
-                let content = get_content.get(current_asset_path.clone(), Value::new(content_data));
-                match &*content.strongly_consistent().await? {
+                let content_op = get_content_source_content_get_operation(
+                    get_content,
+                    current_asset_path.clone(),
+                    Value::new(content_data),
+                );
+                match &*content_op.read_strongly_consistent().await? {
                     ContentSourceContent::Rewrite(rewrite) => {
                         let rewrite = rewrite.await?;
                         // apply rewrite extras
@@ -90,14 +132,15 @@ pub async fn resolve_source_request(
                                     urlencoding::decode(&new_uri.path()[1..])?.into_owned();
                                 request_overwrites.uri = new_uri;
                                 current_asset_path = new_asset_path.into();
-                                route_tree =
-                                    source.get_routes().resolve_strongly_consistent().await?;
+                                route_tree = content_source_get_routes_operation(*source)
+                                    .resolve_strongly_consistent()
+                                    .await?;
                                 continue 'routes;
                             }
                             RewriteType::Sources {
                                 sources: new_sources,
                             } => {
-                                sources = *new_sources;
+                                sources_op = *new_sources;
                                 continue 'sources;
                             }
                         }
@@ -108,7 +151,9 @@ pub async fn resolve_source_request(
                     ContentSourceContent::Static(static_content) => {
                         return Ok(ResolveSourceRequestResult::Static(
                             *static_content,
-                            HeaderList::new(response_header_overwrites),
+                            HeaderList::new(response_header_overwrites)
+                                .to_resolved()
+                                .await?,
                         )
                         .cell());
                     }
@@ -143,7 +188,7 @@ async fn request_to_data(
         data.original_url = Some(original_request.uri.to_string().into());
     }
     if vary.body {
-        data.body = Some(request.body.clone().into());
+        data.body = Some(request.body.clone().resolved_cell());
     }
     if vary.raw_query {
         data.raw_query = Some(request.uri.query().unwrap_or("").into());

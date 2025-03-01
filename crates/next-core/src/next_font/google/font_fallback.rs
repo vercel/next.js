@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -34,9 +34,9 @@ pub(super) struct FontMetricsMapEntry {
 }
 
 #[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
+pub(super) struct FontMetricsMap(pub FxHashMap<RcStr, FontMetricsMapEntry>);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
@@ -44,7 +44,7 @@ struct Fallback {
 
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    lookup_path: Vc<FileSystemPath>,
+    lookup_path: ResolvedVc<FileSystemPath>,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
@@ -67,8 +67,10 @@ pub(super) async fn get_font_fallback(
                     scoped_font_family: get_scoped_font_family(
                         FontFamilyType::Fallback.cell(),
                         options_vc.font_family(),
-                    ),
-                    local_font_family: Vc::cell(fallback.font_family),
+                    )
+                    .to_resolved()
+                    .await?,
+                    local_font_family: ResolvedVc::cell(fallback.font_family),
                     adjustment: fallback.adjustment,
                 })
                 .cell(),
@@ -82,14 +84,14 @@ pub(super) async fn get_font_fallback(
                             )
                             .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                         description: StyledString::Text(
                             "Skipping generating a fallback font.".into(),
                         )
-                        .cell(),
-                        severity: IssueSeverity::Warning.cell(),
+                        .resolved_cell(),
+                        severity: IssueSeverity::Warning.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     FontFallback::Error.cell()
                 }

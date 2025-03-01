@@ -109,11 +109,7 @@ describe('Valid Global CSS from npm', () => {
           .trim()
 
         if (process.env.TURBOPACK) {
-          expect(cssContent).toMatchInlineSnapshot(`
-            ".red-text {
-              color: "red";
-            }"
-          `)
+          expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
         } else {
           expect(cssContent).toMatchInlineSnapshot(`".red-text{color:"red"}"`)
         }

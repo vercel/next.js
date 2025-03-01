@@ -2,7 +2,8 @@ export function generateStaticParams() {
   return [{ slug: 'foo' }]
 }
 
-export default async function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <div id="container">
       Hello World!

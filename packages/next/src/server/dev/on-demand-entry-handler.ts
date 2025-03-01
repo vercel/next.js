@@ -4,6 +4,7 @@ import type { NextConfigComplete } from '../config-shared'
 import type {
   DynamicParamTypesShort,
   FlightRouterState,
+  FlightSegmentPath,
 } from '../app-render/types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
@@ -43,6 +44,7 @@ import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
+import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -54,7 +56,7 @@ const keys = Object.keys as <T>(o: T) => Extract<keyof T, string>[]
 const COMPILER_KEYS = keys(COMPILER_INDEXES)
 
 function treePathToEntrypoint(
-  segmentPath: string[],
+  segmentPath: FlightSegmentPath,
   parentPath?: string
 ): string {
   const [parallelRouteKey, segment] = segmentPath
@@ -72,7 +74,7 @@ function treePathToEntrypoint(
     return path
   }
 
-  const childSegmentPath = segmentPath.slice(2)
+  const childSegmentPath = getNextFlightSegmentPath(segmentPath)
   return treePathToEntrypoint(childSegmentPath, path)
 }
 
@@ -304,7 +306,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
@@ -416,7 +421,7 @@ export async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }
@@ -544,7 +549,7 @@ export function onDemandEntryHandler({
 
   function getPagePathsFromEntrypoints(
     type: CompilerNameValues,
-    entrypoints: Map<string, { name?: string }>
+    entrypoints: Map<string, { name?: string | null }>
   ) {
     const pagePaths: string[] = []
     for (const entrypoint of entrypoints.values()) {
@@ -800,9 +805,15 @@ export function onDemandEntryHandler({
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      let pageRuntime = staticInfo.runtime
+
+      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
+        pageRuntime = 'edge'
+      }
+
       runDependingOnPageType({
         page: route.page,
-        pageRuntime: staticInfo.runtime,
+        pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
           // Skip adding the client entry for app / Server Components.

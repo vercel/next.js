@@ -34,6 +34,8 @@ You could use the inspection tools for XState: ([`@xstate/inspect`](https://xsta
 npm install @xstate/inspect
 # or
 yarn add @xstate/inspect
+# or
+pnpm add @xstate/inspect
 ```
 
 #### Import it at the top of the project

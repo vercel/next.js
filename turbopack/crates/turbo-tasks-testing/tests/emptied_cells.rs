@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
 use turbo_tasks::{State, Vc};
@@ -49,12 +51,14 @@ struct ChangingInput {
 
 #[turbo_tasks::function]
 async fn compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+    println!("compute()");
     let value = *inner_compute(input).await?;
     Ok(Vc::cell(value))
 }
 
 #[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
+    println!("inner_compute()");
     let state_value = *input.await?.state.get();
     let mut last = None;
     for i in 0..=state_value {
@@ -65,6 +69,7 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 
 #[turbo_tasks::function]
 async fn compute2(input: Vc<u32>) -> Result<Vc<u32>> {
+    println!("compute2()");
     let value = *input.await?;
     Ok(Vc::cell(value))
 }

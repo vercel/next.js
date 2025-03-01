@@ -1,8 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use hyper::{Method, Uri};
-use indexmap::IndexSet;
-use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind};
+use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
 
 /// Computation was caused by a request to the server.
 #[derive(PartialEq, Eq, Hash)]
@@ -32,7 +31,7 @@ static SERVER_REQUEST_KIND: ServerRequestKind = ServerRequestKind;
 impl InvalidationReasonKind for ServerRequestKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         let example = reasons
@@ -79,7 +78,7 @@ static SERVER_REQUEST_SIDE_EFFECTS_KIND: ServerRequestSideEffectsKind =
 impl InvalidationReasonKind for ServerRequestSideEffectsKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         let example = reasons

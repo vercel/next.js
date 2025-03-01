@@ -1,11 +1,12 @@
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fmt::{Debug, Formatter},
     vec,
 };
 
-use indexmap::IndexMap;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     bottom_up::build_bottom_up_graph,
@@ -13,6 +14,8 @@ use crate::{
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
+    timestamp::Timestamp,
+    FxIndexMap,
 };
 
 #[derive(Copy, Clone)]
@@ -39,7 +42,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn start(&self) -> u64 {
+    pub fn start(&self) -> Timestamp {
         self.span.start
     }
 
@@ -55,7 +58,7 @@ impl<'a> SpanRef<'a> {
         self.span.names()
     }
 
-    pub fn end(&self) -> u64 {
+    pub fn end(&self) -> Timestamp {
         let time_data = self.time_data();
         *time_data.end.get_or_init(|| {
             max(
@@ -135,7 +138,7 @@ impl<'a> SpanRef<'a> {
         self.span.args.iter().map(|(k, v)| (k.as_str(), v.as_str()))
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         self.time_data().self_time
     }
 
@@ -194,7 +197,18 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn total_time(&self) -> u64 {
+    pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
+        self.span.events.par_iter().filter_map(|event| match event {
+            SpanEvent::SelfTime { .. } => None,
+            SpanEvent::Child { index } => Some(SpanRef {
+                span: &self.store.spans[index.get()],
+                store: self.store,
+                index: index.get(),
+            }),
+        })
+    }
+
+    pub fn total_time(&self) -> Timestamp {
         *self.time_data().total_time.get_or_init(|| {
             self.children()
                 .map(|child| child.total_time())
@@ -254,31 +268,40 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         let store = self.store;
         *self.time_data().corrected_self_time.get_or_init(|| {
-            let mut self_time = 0;
-            for event in self.span.events.iter() {
-                if let SpanEvent::SelfTime { start, end } = event {
-                    let duration = end - start;
-                    if duration == 0 {
-                        continue;
+            let mut self_time = self
+                .span
+                .events
+                .par_iter()
+                .filter_map(|event| {
+                    if let SpanEvent::SelfTime { start, end } = event {
+                        let duration = *end - *start;
+                        if !duration.is_zero() {
+                            store.set_max_self_time_lookup(*end);
+                            let concurrent_time = store
+                                .self_time_tree
+                                .as_ref()
+                                .map_or(duration, |tree| tree.lookup_range_count(*start, *end));
+                            return Some(duration * *duration / *concurrent_time);
+                        }
                     }
-                    store.set_max_self_time_lookup(*end);
-                    let concurrent_time = store.self_time_tree.lookup_range_count(*start, *end);
-                    self_time += duration * duration / concurrent_time;
-                }
+                    None
+                })
+                .sum();
+            if self.children().next().is_none() {
+                self_time = max(self_time, Timestamp::from_value(1));
             }
             self_time
         })
     }
 
-    pub fn corrected_total_time(&self) -> u64 {
+    pub fn corrected_total_time(&self) -> Timestamp {
         *self.time_data().corrected_total_time.get_or_init(|| {
-            self.children()
+            self.children_par()
                 .map(|child| child.corrected_total_time())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
+                .sum::<Timestamp>()
                 + self.corrected_self_time()
         })
     }
@@ -296,22 +319,46 @@ impl<'a> SpanRef<'a> {
         self.extra()
             .graph
             .get_or_init(|| {
-                let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
-                let mut queue = VecDeque::with_capacity(8);
-                for child in self.children() {
-                    let name = child.group_name();
-                    let (list, recursive_list) = map.entry(name).or_default();
-                    list.push(child.index());
-                    queue.push_back(child);
-                    while let Some(child) = queue.pop_front() {
-                        for nested_child in child.children() {
+                struct Entry<'a> {
+                    span: SpanRef<'a>,
+                    recursive: Vec<SpanIndex>,
+                }
+                let entries = self
+                    .children_par()
+                    .map(|span| {
+                        let name = span.group_name();
+                        let mut recursive = Vec::new();
+                        let mut queue = VecDeque::with_capacity(0);
+                        for nested_child in span.children() {
                             let nested_name = nested_child.group_name();
                             if name == nested_name {
-                                recursive_list.push(nested_child.index());
+                                recursive.push(nested_child.index());
                                 queue.push_back(nested_child);
                             }
                         }
-                    }
+                        while let Some(child) = queue.pop_front() {
+                            for nested_child in child.children() {
+                                let nested_name = nested_child.group_name();
+                                if name == nested_name {
+                                    recursive.push(nested_child.index());
+                                    queue.push_back(nested_child);
+                                }
+                            }
+                        }
+                        Entry { span, recursive }
+                    })
+                    .collect_vec_list();
+                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                    FxIndexMap::default();
+                for Entry {
+                    span,
+                    mut recursive,
+                } in entries.into_iter().flatten()
+                {
+                    let name = span.group_name();
+                    let (list, recursive_list) = map.entry(name).or_default();
+                    list.push(span.index());
+                    recursive_list.append(&mut recursive);
                 }
                 event_map_to_list(map)
             })
@@ -341,12 +388,23 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
+        let mut query_items = query.split(",").map(str::trim);
         let index = self.search_index();
-        let mut result = HashSet::new();
+        let mut result = FxHashSet::default();
+        let query = query_items.next().unwrap();
         for (key, spans) in index {
             if key.contains(query) {
                 result.extend(spans.iter().copied());
             }
+        }
+        for query in query_items {
+            let mut and_result = FxHashSet::default();
+            for (key, spans) in index {
+                if key.contains(query) {
+                    and_result.extend(spans.iter().copied());
+                }
+            }
+            result.retain(|index| and_result.contains(index));
         }
         let store = self.store;
         result.into_iter().map(move |index| SpanRef {
@@ -356,9 +414,9 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    fn search_index(&self) -> &HashMap<String, Vec<SpanIndex>> {
+    fn search_index(&self) -> &FxHashMap<String, Vec<SpanIndex>> {
         self.extra().search_index.get_or_init(|| {
-            let mut index: HashMap<String, Vec<SpanIndex>> = HashMap::new();
+            let mut index: FxHashMap<String, Vec<SpanIndex>> = FxHashMap::default();
             let mut queue = VecDeque::with_capacity(8);
             queue.push_back(*self);
             while let Some(span) = queue.pop_front() {
@@ -385,8 +443,8 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (value.to_string(), vec![span.index()]));
                     }
-                    if !span.is_complete() {
-                        let name = "incomplete";
+                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                        let name = "incomplete_span";
                         index
                             .raw_entry_mut()
                             .from_key(name)
@@ -403,7 +461,7 @@ impl<'a> SpanRef<'a> {
     }
 }
 
-impl<'a> Debug for SpanRef<'a> {
+impl Debug for SpanRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanRef")
             .field("id", &self.id())
@@ -421,6 +479,6 @@ impl<'a> Debug for SpanRef<'a> {
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum SpanEventRef<'a> {
-    SelfTime { start: u64, end: u64 },
+    SelfTime { start: Timestamp, end: Timestamp },
     Child { span: SpanRef<'a> },
 }

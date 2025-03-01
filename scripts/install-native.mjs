@@ -43,22 +43,21 @@ import fsp from 'fs/promises'
       name: 'dummy-package',
       version: '1.0.0',
       optionalDependencies: {
-        '@next/swc-darwin-arm64': 'canary',
-        '@next/swc-darwin-x64': 'canary',
-        '@next/swc-linux-arm64-gnu': 'canary',
-        '@next/swc-linux-arm64-musl': 'canary',
-        '@next/swc-linux-x64-gnu': 'canary',
-        '@next/swc-linux-x64-musl': 'canary',
-        '@next/swc-win32-arm64-msvc': 'canary',
-        '@next/swc-win32-ia32-msvc': 'canary',
-        '@next/swc-win32-x64-msvc': 'canary',
+        '@next/swc-darwin-arm64': nextVersion,
+        '@next/swc-darwin-x64': nextVersion,
+        '@next/swc-linux-arm64-gnu': nextVersion,
+        '@next/swc-linux-arm64-musl': nextVersion,
+        '@next/swc-linux-x64-gnu': nextVersion,
+        '@next/swc-linux-x64-musl': nextVersion,
+        '@next/swc-win32-arm64-msvc': nextVersion,
+        '@next/swc-win32-x64-msvc': nextVersion,
       },
       packageManager,
     }
     fs.writeFileSync(path.join(tmpdir, 'package.json'), JSON.stringify(pkgJson))
     fs.writeFileSync(path.join(tmpdir, '.npmrc'), 'node-linker=hoisted')
 
-    let { stdout } = await execa('pnpm', ['add', 'next@canary'], {
+    let { stdout } = await execa('pnpm', ['add', `next@${nextVersion}`], {
       cwd: tmpdir,
     })
     console.log(stdout)

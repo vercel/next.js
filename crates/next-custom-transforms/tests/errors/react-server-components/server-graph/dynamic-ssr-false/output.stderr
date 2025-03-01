@@ -1,0 +1,7 @@
+  x `ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component.
+   ,-[input.js:4:1]
+ 3 | export default function () {
+ 4 |   return dynamic(() => import('client-only'), { ssr: false })
+   :          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 5 | }
+   `----

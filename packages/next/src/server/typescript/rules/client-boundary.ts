@@ -52,12 +52,23 @@ const clientBoundary = {
 
         if (typeDeclarationNode) {
           if (ts.isFunctionTypeNode(typeDeclarationNode)) {
-            // By convention, props named "action" can accept functions since we assume these are Server Actions.
-            // Structurally, there's no difference between a Server Action and a normal function until TypeScript exposes directives in the type of a function.
-            // This will miss accidentally passing normal functions but a false negative is better than a false positive given how frequent the false-positive would be.
+            // By convention, props named "action" can accept functions since we
+            // assume these are Server Actions. Structurally, there's no
+            // difference between a Server Action and a normal function until
+            // TypeScript exposes directives in the type of a function. This
+            // will miss accidentally passing normal functions but a false
+            // negative is better than a false positive given how frequent the
+            // false-positive would be.
             const maybeServerAction =
               propName === 'action' || /.+Action$/.test(propName)
-            if (!maybeServerAction) {
+
+            // There's a special case for the error file that the `reset` prop
+            // is allowed to be a function:
+            // https://github.com/vercel/next.js/issues/46573
+            const isErrorReset =
+              (isErrorFile || isGlobalErrorFile) && propName === 'reset'
+
+            if (!maybeServerAction && !isErrorReset) {
               diagnostics.push({
                 file: source,
                 category: ts.DiagnosticCategory.Warning,
@@ -75,19 +86,14 @@ const clientBoundary = {
             ts.isConstructorTypeNode(typeDeclarationNode) ||
             ts.isClassDeclaration(typeDeclarationNode)
           ) {
-            // There's a special case for the error file that the `reset` prop is allowed
-            // to be a function:
-            // https://github.com/vercel/next.js/issues/46573
-            if (!(isErrorFile || isGlobalErrorFile) || propName !== 'reset') {
-              diagnostics.push({
-                file: source,
-                category: ts.DiagnosticCategory.Warning,
-                code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-                messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
-                start: prop.getStart(),
-                length: prop.getWidth(),
-              })
-            }
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
+              messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
+              start: prop.getStart(),
+              length: prop.getWidth(),
+            })
           }
         }
       }

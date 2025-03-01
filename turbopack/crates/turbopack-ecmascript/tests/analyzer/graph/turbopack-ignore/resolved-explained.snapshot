@@ -1,3 +1,5 @@
+exported_t_r = module<exported_t_r, {}>
+
 t_i = module<"t_i", {}>
 
 t_r = (module<w_i_f, {}> | module<t_i_f, {}> | module<t_r_t, {}> | module<t_r_f, {}>)

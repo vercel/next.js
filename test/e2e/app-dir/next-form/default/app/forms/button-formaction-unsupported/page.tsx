@@ -2,12 +2,14 @@
 import * as React from 'react'
 import Form from 'next/form'
 
+type AnySearchParams = { [key: string]: string | Array<string> | undefined }
+
 export default function Home({
   searchParams,
 }: {
-  searchParams: Record<string, string>
+  searchParams: Promise<AnySearchParams>
 }) {
-  const attribute = searchParams.attribute as string | undefined
+  const attribute = React.use(searchParams).attribute
   return (
     <div
       onSubmit={(e) => {

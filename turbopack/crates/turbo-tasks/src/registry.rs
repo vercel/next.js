@@ -1,32 +1,35 @@
 use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref};
 
-use dashmap::{mapref::entry::Entry, DashMap};
+use dashmap::mapref::entry::Entry;
 use once_cell::sync::Lazy;
 
 use crate::{
     id::{FunctionId, TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
+    native_function::NativeFunction,
     no_move_vec::NoMoveVec,
-    NativeFunction, TraitType, ValueType,
+    FxDashMap, TraitType, ValueType,
 };
 
 static FUNCTION_ID_FACTORY: IdFactory<FunctionId> = IdFactory::new(1, u32::MAX as u64);
-static FUNCTIONS_BY_NAME: Lazy<DashMap<&'static str, FunctionId>> = Lazy::new(DashMap::new);
-static FUNCTIONS_BY_VALUE: Lazy<DashMap<&'static NativeFunction, FunctionId>> =
-    Lazy::new(DashMap::new);
+static FUNCTIONS_BY_NAME: Lazy<FxDashMap<&'static str, FunctionId>> = Lazy::new(FxDashMap::default);
+static FUNCTIONS_BY_VALUE: Lazy<FxDashMap<&'static NativeFunction, FunctionId>> =
+    Lazy::new(FxDashMap::default);
 static FUNCTIONS: Lazy<NoMoveVec<(&'static NativeFunction, &'static str)>> =
     Lazy::new(NoMoveVec::new);
 
 static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new(1, u32::MAX as u64);
-static VALUE_TYPES_BY_NAME: Lazy<DashMap<&'static str, ValueTypeId>> = Lazy::new(DashMap::new);
-static VALUE_TYPES_BY_VALUE: Lazy<DashMap<&'static ValueType, ValueTypeId>> =
-    Lazy::new(DashMap::new);
+static VALUE_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, ValueTypeId>> =
+    Lazy::new(FxDashMap::default);
+static VALUE_TYPES_BY_VALUE: Lazy<FxDashMap<&'static ValueType, ValueTypeId>> =
+    Lazy::new(FxDashMap::default);
 static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
 static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new(1, u32::MAX as u64);
-static TRAIT_TYPES_BY_NAME: Lazy<DashMap<&'static str, TraitTypeId>> = Lazy::new(DashMap::new);
-static TRAIT_TYPES_BY_VALUE: Lazy<DashMap<&'static TraitType, TraitTypeId>> =
-    Lazy::new(DashMap::new);
+static TRAIT_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, TraitTypeId>> =
+    Lazy::new(FxDashMap::default);
+static TRAIT_TYPES_BY_VALUE: Lazy<FxDashMap<&'static TraitType, TraitTypeId>> =
+    Lazy::new(FxDashMap::default);
 static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
 fn register_thing<
@@ -38,8 +41,8 @@ fn register_thing<
     value: V,
     id_factory: &IdFactory<K>,
     store: &NoMoveVec<(V, &'static str), INITIAL_CAPACITY_BITS>,
-    map_by_name: &DashMap<&'static str, K>,
-    map_by_value: &DashMap<V, K>,
+    map_by_name: &FxDashMap<&'static str, K>,
+    map_by_value: &FxDashMap<V, K>,
 ) {
     if let Entry::Vacant(e) = map_by_value.entry(value) {
         let new_id = id_factory.get();
@@ -57,7 +60,7 @@ fn get_thing_id<
     V: Clone + Hash + Eq + Debug + Sync + Send + Debug,
 >(
     value: V,
-    map_by_value: &DashMap<V, K>,
+    map_by_value: &FxDashMap<V, K>,
 ) -> K {
     if let Some(id) = map_by_value.get(&value) {
         *id

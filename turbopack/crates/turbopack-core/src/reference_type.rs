@@ -1,22 +1,23 @@
 use std::fmt::Display;
 
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 
 use crate::{module::Module, resolve::ModulePart};
 
 /// Named references to inner assets. Modules can used them to allow to
 /// per-module aliases of some requests to already created module assets.
+///
 /// Name is usually in UPPER_CASE to make it clear that this is an inner asset.
 #[turbo_tasks::value(transparent)]
-pub struct InnerAssets(IndexMap<RcStr, Vc<Box<dyn Module>>>);
+pub struct InnerAssets(FxIndexMap<RcStr, ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl InnerAssets {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
@@ -42,7 +43,7 @@ pub enum ImportWithType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
-    ImportPart(Vc<ModulePart>),
+    ImportPart(ModulePart),
     Import,
     ImportWithType(ImportWithType),
     DynamicImport,
@@ -58,6 +59,12 @@ pub struct ImportAttributes {
     pub layer: Option<RcStr>,
     pub supports: Option<RcStr>,
     pub media: Option<RcStr>,
+}
+
+impl ImportAttributes {
+    pub fn is_empty(&self) -> bool {
+        self.layer.is_none() && self.supports.is_none() && self.media.is_none()
+    }
 }
 
 /// The accumulated list of conditions that should be applied to this module
@@ -165,14 +172,14 @@ impl ImportContext {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
-    AtImport(Option<Vc<ImportContext>>),
+    AtImport(Option<ResolvedVc<ImportContext>>),
+    /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
+    /// class name
     Compose,
-    /// Reference from any asset to a CSS-parseable asset.
-    ///
-    /// This marks the boundary between non-CSS and CSS assets. The Next.js App
-    /// Router implementation uses this to inject client references in-between
-    /// Global/Module CSS assets and the underlying CSS assets.
+    /// Reference from ModuleCssAsset to the CssModuleAsset
     Internal,
+    /// Used for generating the list of classes in a ModuleCssAsset
+    Analyze,
     Custom(u8),
     Undefined,
 }
@@ -189,6 +196,16 @@ pub enum UrlReferenceSubType {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum TypeScriptReferenceSubType {
+    Custom(u8),
+    Undefined,
+}
+
+#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(Debug, Clone, Hash)]
+pub enum WorkerReferenceSubType {
+    WebWorker,
+    SharedWorker,
+    ServiceWorker,
     Custom(u8),
     Undefined,
 }
@@ -219,9 +236,10 @@ pub enum ReferenceType {
     Css(CssReferenceSubType),
     Url(UrlReferenceSubType),
     TypeScript(TypeScriptReferenceSubType),
+    Worker(WorkerReferenceSubType),
     Entry(EntryReferenceSubType),
     Runtime,
-    Internal(Vc<InnerAssets>),
+    Internal(ResolvedVc<InnerAssets>),
     Custom(u8),
     Undefined,
 }
@@ -238,6 +256,7 @@ impl Display for ReferenceType {
             ReferenceType::Css(_) => "css",
             ReferenceType::Url(_) => "url",
             ReferenceType::TypeScript(_) => "typescript",
+            ReferenceType::Worker(_) => "worker",
             ReferenceType::Entry(_) => "entry",
             ReferenceType::Runtime => "runtime",
             ReferenceType::Internal(_) => "internal",
@@ -277,6 +296,10 @@ impl ReferenceType {
             ReferenceType::TypeScript(sub_type) => {
                 matches!(other, ReferenceType::TypeScript(_))
                     && matches!(sub_type, TypeScriptReferenceSubType::Undefined)
+            }
+            ReferenceType::Worker(sub_type) => {
+                matches!(other, ReferenceType::Worker(_))
+                    && matches!(sub_type, WorkerReferenceSubType::Undefined)
             }
             ReferenceType::Entry(sub_type) => {
                 matches!(other, ReferenceType::Entry(_))

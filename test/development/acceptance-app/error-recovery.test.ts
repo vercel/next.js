@@ -1,18 +1,19 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { check, describeVariants as describe } from 'next-test-utils'
+import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-describe.each(['default', 'turbo'])('Error recovery app %s', () => {
-  const { next } = nextTestSetup({
+describe('Error recovery app', () => {
+  const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
 
   test('can recover from a syntax error without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { browser, session } = sandbox
 
     await session.patch(
       'index.js',
@@ -39,10 +40,41 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     await session.patch('index.js', `export default () => <div/`)
 
-    await session.assertHasRedbox()
-    expect(await session.getRedboxSource()).toInclude(
-      'export default () => <div/'
-    )
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js (1:27)
+       Parsing ecmascript source code failed
+       > 1 | export default () => <div/
+           |                           ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Unexpected eof",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+       Error:   x Unexpected eof
+          ,----
+        1 | export default () => <div/
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
+    }
 
     await session.patch(
       'index.js',
@@ -68,46 +100,142 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       () => session.evaluate(() => document.querySelector('p').textContent),
       /Count: 1/
     )
-
-    await cleanup()
   })
 
-  test.each([['client'], ['server']])(
-    '%s component can recover from syntax error',
-    async (type: string) => {
-      const { session, browser, cleanup } = await sandbox(
-        next,
-        undefined,
-        '/' + type
-      )
-
-      // Add syntax error
-      await session.patch(
-        `app/${type}/page.js`,
-        outdent`
+  test('server component can recover from syntax error', async () => {
+    const type = 'server'
+    await using sandbox = await createSandbox(next, undefined, '/' + type)
+    const { browser, session } = sandbox
+    // Add syntax error
+    await session.patch(
+      `app/${type}/page.js`,
+      outdent`
           export default function Page() {
             return <p>Hello world</p>
         `
-      )
-      await session.assertHasRedbox()
+    )
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/server/page.js (2:27)
+       Parsing ecmascript source code failed
+       > 2 |   return <p>Hello world</p>
+           |                           ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/server/page.js
+       Error:   x Expected '}', got '<eof>'
+          ,-[2:1]
+        1 | export default function Page() {
+        2 |   return <p>Hello world</p>
+          :                           ^
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./app/server/page.js",
+         "stack": [],
+       }
+      `)
+    }
 
-      // Fix syntax error
-      await session.patch(
-        `app/${type}/page.js`,
-        outdent`
+    // Fix syntax error
+    await session.patch(
+      `app/${type}/page.js`,
+      outdent`
           export default function Page() {
             return <p>Hello world 2</p>
           }
         `
-      )
+    )
 
-      await check(() => browser.elementByCss('p').text(), 'Hello world 2')
-      await cleanup()
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Hello world 2'
+    )
+  })
+
+  test('client component can recover from syntax error', async () => {
+    const type = 'client'
+    await using sandbox = await createSandbox(next, undefined, '/' + type)
+    const { browser, session } = sandbox
+    // Add syntax error
+    await session.patch(
+      `app/${type}/page.js`,
+      outdent`
+          export default function Page() {
+            return <p>Hello world</p>
+        `
+    )
+
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js (2:27)
+       Parsing ecmascript source code failed
+       > 2 |   return <p>Hello world</p>
+           |                           ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/client/page.js
+       Error:   x Expected '}', got '<eof>'
+          ,-[2:1]
+        1 | export default function Page() {
+        2 |   return <p>Hello world</p>
+          :                           ^
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./app/client/page.js",
+         "stack": [],
+       }
+      `)
     }
-  )
+
+    // Fix syntax error
+    await session.patch(
+      `app/${type}/page.js`,
+      outdent`
+          export default function Page() {
+            return <p>Hello world 2</p>
+          }
+        `
+    )
+
+    await check(
+      () => session.evaluate(() => document.querySelector('p').textContent),
+      'Hello world 2'
+    )
+  })
 
   test('can recover from a event handler error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { browser, session } = sandbox
 
     await session.patch(
       'index.js',
@@ -138,19 +266,48 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
 
-    await session.waitForAndOpenRuntimeError()
-
-    expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-      "index.js (7:11) @ eval
-
-         5 |   const increment = useCallback(() => {
-         6 |     setCount(c => c + 1)
-      >  7 |     throw new Error('oops')
-           |           ^
-         8 |   }, [setCount])
-         9 |   return (
-        10 |     <main>"
-    `)
+    if (isTurbopack) {
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "count": 1,
+         "description": "Error: oops",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "index.js (7:11) @ Index.useCallback[increment]
+       >  7 |     throw new Error('oops')
+            |           ^",
+         "stack": [
+           "Index.useCallback[increment] index.js (7:11)",
+           "UtilityScript.evaluate <anonymous> (236:17)",
+           "UtilityScript.<anonymous> <anonymous> (1:44)",
+           "button <anonymous> (0:0)",
+           "Index index.js (12:7)",
+           "Page index.js (10:6)",
+         ],
+       }
+      `)
+    } else {
+      // TODO(veil): Location of Page should be app/page.js
+      await expect(browser).toDisplayCollapsedRedbox(`
+       {
+         "count": 1,
+         "description": "Error: oops",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "index.js (7:11) @ Index.useCallback[increment]
+       >  7 |     throw new Error('oops')
+            |           ^",
+         "stack": [
+           "Index.useCallback[increment] index.js (7:11)",
+           "UtilityScript.evaluate <anonymous> (236:17)",
+           "UtilityScript.<anonymous> <anonymous> (1:44)",
+           "button <anonymous> (0:0)",
+           "Index index.js (12:7)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
+    }
 
     await session.patch(
       'index.js',
@@ -183,31 +340,25 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     await session.assertNoRedbox()
     expect(await session.hasErrorToast()).toBe(false)
-
-    await cleanup()
   })
 
-  test.each([['client'], ['server']])(
-    '%s component can recover from a component error',
-    async (type: string) => {
-      const { session, cleanup, browser } = await sandbox(
-        next,
-        undefined,
-        '/' + type
-      )
+  test('server component can recover from a component error', async () => {
+    const type = 'server'
+    await using sandbox = await createSandbox(next, undefined, '/' + type)
+    const { session, browser } = sandbox
 
-      await session.write(
-        'child.js',
-        outdent`
+    await session.write(
+      'child.js',
+      outdent`
           export default function Child() {
             return <p>Hello</p>;
           }
         `
-      )
+    )
 
-      await session.patch(
-        'index.js',
-        outdent`
+    await session.patch(
+      'index.js',
+      outdent`
           import Child from './child'
   
           export default function Index() {
@@ -218,49 +369,153 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
             )
           }
         `
-      )
+    )
 
-      expect(await browser.elementByCss('p').text()).toBe('Hello')
+    expect(await browser.elementByCss('p').text()).toBe('Hello')
 
-      await session.patch(
-        'child.js',
-        outdent`
+    await session.patch(
+      'child.js',
+      outdent`
           // hello
           export default function Child() {
             throw new Error('oops')
           }
         `
-      )
+    )
 
-      await session.assertHasRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        'export default function Child()'
-      )
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: oops",
+       "environmentLabel": "Server",
+       "label": "Unhandled Runtime Error",
+       "source": "child.js (3:9) @ Child
+     > 3 |   throw new Error('oops')
+         |         ^",
+       "stack": [
+         "Child child.js (3:9)",
+         "Page app/server/page.js (3:10)",
+       ],
+     }
+    `)
 
-      // TODO-APP: re-enable when error recovery doesn't reload the page.
-      /* const didNotReload = */ await session.patch(
-        'child.js',
-        outdent`
+    // TODO-APP: re-enable when error recovery doesn't reload the page.
+    /* const didNotReload = */ await session.patch(
+      'child.js',
+      outdent`
           export default function Child() {
             return <p>Hello</p>;
           }
         `
-      )
+    )
 
-      // TODO-APP: re-enable when error recovery doesn't reload the page.
-      // expect(didNotReload).toBe(true)
-      await session.assertNoRedbox()
-      expect(
-        await session.evaluate(() => document.querySelector('p').textContent)
-      ).toBe('Hello')
+    // TODO-APP: re-enable when error recovery doesn't reload the page.
+    // expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello')
+  })
 
-      await cleanup()
+  test('client component can recover from a component error', async () => {
+    const type = 'client'
+    await using sandbox = await createSandbox(next, undefined, '/' + type)
+    const { session, browser } = sandbox
+
+    await session.write(
+      'child.js',
+      outdent`
+          export default function Child() {
+            return <p>Hello</p>;
+          }
+        `
+    )
+
+    await session.patch(
+      'index.js',
+      outdent`
+          import Child from './child'
+  
+          export default function Index() {
+            return (
+              <main>
+                <Child />
+              </main>
+            )
+          }
+        `
+    )
+
+    expect(await browser.elementByCss('p').text()).toBe('Hello')
+
+    await session.patch(
+      'child.js',
+      outdent`
+          // hello
+          export default function Child() {
+            throw new Error('oops')
+          }
+        `
+    )
+
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: oops",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+         "stack": [
+           "Child child.js (3:9)",
+           "Index index.js (6:7)",
+           "<FIXME-file-protocol>",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: oops",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+         "stack": [
+           "Child child.js (3:9)",
+           "Index index.js (6:7)",
+           "Page app/client/page.js (4:10)",
+         ],
+       }
+      `)
     }
-  )
+
+    // TODO-APP: re-enable when error recovery doesn't reload the page.
+    /* const didNotReload = */ await session.patch(
+      'child.js',
+      outdent`
+          export default function Child() {
+            return <p>Hello</p>;
+          }
+        `
+    )
+
+    // TODO-APP: re-enable when error recovery doesn't reload the page.
+    // expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(() => document.querySelector('p').textContent)
+    ).toBe('Hello')
+  })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554150098
   test('syntax > runtime error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { browser, session } = sandbox
 
     // Start here.
     await session.patch(
@@ -290,10 +545,20 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    await session.waitForAndOpenRuntimeError()
-    expect(await session.getRedboxSource()).not.toInclude(
-      "Expected '}', got '<eof>'"
-    )
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "count": 1,
+       "description": "Error: no 1",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "index.js (5:9) @ eval
+     > 5 |   throw Error('no ' + i)
+         |         ^",
+       "stack": [
+         "eval index.js (5:9)",
+       ],
+     }
+    `)
 
     // Make a syntax error.
     await session.patch(
@@ -310,24 +575,93 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    await session.assertHasRedbox()
-    expect(await session.getRedboxSource()).toInclude(
-      "Expected '}', got '<eof>'"
-    )
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js (7:41)
+       Parsing ecmascript source code failed
+       > 7 | export default function FunctionNamed() {
+           |                                         ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+       Error:   x Expected '}', got '<eof>'
+          ,-[7:1]
+        4 |   i++
+        5 |   throw Error('no ' + i)
+        6 | }, 1000)
+        7 | export default function FunctionNamed() {
+          :                                         ^
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
+    }
 
     // Test that runtime error does not take over:
     await new Promise((resolve) => setTimeout(resolve, 2000))
-    await session.assertHasRedbox()
-    expect(await session.getRedboxSource()).toInclude(
-      "Expected '}', got '<eof>'"
-    )
-
-    await cleanup()
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js (7:41)
+       Parsing ecmascript source code failed
+       > 7 | export default function FunctionNamed() {
+           |                                         ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+       Error:   x Expected '}', got '<eof>'
+          ,-[7:1]
+        4 |   i++
+        5 |   throw Error('no ' + i)
+        6 | }, 1000)
+        7 | export default function FunctionNamed() {
+          :                                         ^
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
+    }
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554144016
   test('stuck error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { browser, session } = sandbox
 
     // We start here.
     await session.patch(
@@ -368,10 +702,41 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
     )
 
     // We get an error because Foo didn't import React. Fair.
-    await session.assertHasRedbox()
-    expect(await session.getRedboxSource()).toInclude(
-      "return React.createElement('h1', null, 'Foo');"
-    )
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: React is not defined",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "Foo.js (3:3) @ Foo
+       > 3 |   return React.createElement('h1', null, 'Foo');
+           |   ^",
+         "stack": [
+           "Foo Foo.js (3:3)",
+           "FunctionDefault index.js (4:10)",
+           "<FIXME-file-protocol>",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: React is not defined",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "Foo.js (3:3) @ Foo
+       > 3 |   return React.createElement('h1', null, 'Foo');
+           |   ^",
+         "stack": [
+           "Foo Foo.js (3:3)",
+           "FunctionDefault index.js (4:10)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
+    }
 
     // Let's add that to Foo.
     await session.patch(
@@ -386,13 +751,12 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
 
     // Expected: this fixes the problem
     await session.assertNoRedbox()
-
-    await cleanup()
   })
 
   // https://github.com/pmmmwh/react-refresh-webpack-plugin/pull/3#issuecomment-554137262
   test('render error not shown right after syntax error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { browser, session } = sandbox
 
     // Starting here:
     await session.patch(
@@ -428,7 +792,47 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    await session.assertHasRedbox()
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js (5:5)
+       Parsing ecmascript source code failed
+       > 5 |     return <h1>Default Export</h1>;
+           |     ^^^^^^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '{', got 'return'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+       Error:   x Expected '{', got 'return'
+          ,-[5:1]
+        2 |
+        3 | class ClassDefault extends React.Component {
+        4 |   render()
+        5 |     return <h1>Default Export</h1>;
+          :     ^^^^^^
+        6 |   }
+        7 | }
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
+    }
 
     // Now change the code to introduce a runtime error without fixing the syntax error:
     await session.patch(
@@ -446,7 +850,48 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    await session.assertHasRedbox()
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js (5:5)
+       Parsing ecmascript source code failed
+       > 5 |     throw new Error('nooo');
+           |     ^^^^^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '{', got 'throw'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+       Error:   x Expected '{', got 'throw'
+          ,-[5:1]
+        2 |
+        3 | class ClassDefault extends React.Component {
+        4 |   render()
+        5 |     throw new Error('nooo');
+          :     ^^^^^
+        6 |     return <h1>Default Export</h1>;
+        7 |   }
+        8 | }
+          \`----
+       Caused by:
+           Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
+         "stack": [],
+       }
+      `)
+    }
 
     // Now fix the syntax error:
     await session.patch(
@@ -464,29 +909,80 @@ describe.each(['default', 'turbo'])('Error recovery app %s', () => {
         export default ClassDefault;
       `
     )
-    await session.assertHasRedbox()
-
-    await check(async () => {
-      const source = await session.getRedboxSource()
-      return source?.includes('render() {') ? 'success' : source
-    }, 'success')
-
-    expect(await session.getRedboxSource()).toInclude(
-      "throw new Error('nooo');"
-    )
-
-    await cleanup()
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: nooo",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "index.js (5:11) @ ClassDefault.render
+       > 5 |     throw new Error('nooo');
+           |           ^",
+         "stack": [
+           "ClassDefault.render index.js (5:11)",
+           "Page index.js (10:16)",
+         ],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: nooo",
+         "environmentLabel": null,
+         "label": "Unhandled Runtime Error",
+         "source": "index.js (5:11) @ ClassDefault.render
+       > 5 |     throw new Error('nooo');
+           |           ^",
+         "stack": [
+           "ClassDefault.render index.js (5:11)",
+           "Page app/page.js (4:10)",
+         ],
+       }
+      `)
+    }
   })
 
   test('displays build error on initial page load', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([['app/page.js', '{{{']])
     )
+    const { browser } = sandbox
 
-    await session.assertHasRedbox()
-    await check(() => session.getRedboxSource(true), /Failed to compile/)
-
-    await cleanup()
+    if (isTurbopack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Parsing ecmascript source code failed",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js (1:3)
+       Parsing ecmascript source code failed
+       > 1 | {{{
+           |   ^",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error:   x Expected '}', got '<eof>'",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./app/page.js
+       Error:   x Expected '}', got '<eof>'
+          ,----
+        1 | {{{
+          :   ^
+          \`----
+       Caused by:
+           Syntax Error",
+         "stack": [],
+       }
+      `)
+    }
   })
 })

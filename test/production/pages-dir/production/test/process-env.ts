@@ -1,10 +1,9 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import {
-  readNextBuildClientPageFile,
-  readNextBuildServerPageFile,
-} from 'next-test-utils'
+import { getContentOfPageFilesFromBuildManifest } from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
+import path from 'node:path'
+import fs from 'fs-extra'
 
 export default (next: NextInstance) => {
   describe('process.env', () => {
@@ -18,27 +17,57 @@ export default (next: NextInstance) => {
 
   describe('process.browser', () => {
     it('should eliminate server only code on the client', async () => {
-      const clientCode = await readNextBuildClientPageFile(
+      const allClientCodeForPage = getContentOfPageFilesFromBuildManifest(
         next.testDir,
         '/process-env'
       )
-      expect(clientCode).toMatch(
+      expect(allClientCodeForPage).toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
       )
-      expect(clientCode).not.toMatch(
+      expect(allClientCodeForPage).not.toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/
       )
     })
 
     it('should eliminate client only code on the server', async () => {
-      const serverCode = await readNextBuildServerPageFile(
+      let allServerCodeForPage = ''
+      const chunksFilesDir = path.join(
         next.testDir,
-        '/process-env'
+        '.next',
+        'server',
+        'chunks'
       )
-      expect(serverCode).not.toMatch(
+      const allFilesInDotNextServerChunks = await fs
+        .readdirSync(chunksFilesDir, {
+          recursive: true,
+        })
+        .filter((item) => item.toString().endsWith('.js'))
+      for (const file of allFilesInDotNextServerChunks) {
+        const content = await fs.readFile(
+          path.join(chunksFilesDir, file.toString()),
+          'utf8'
+        )
+        allServerCodeForPage += content
+      }
+
+      const pagesFilesDir = path.join(next.testDir, '.next', 'server', 'pages')
+      const allFilesInDotNextServerPages = await fs
+        .readdirSync(pagesFilesDir, {
+          recursive: true,
+        })
+        .filter((item) => item.toString().endsWith('.js'))
+      for (const file of allFilesInDotNextServerPages) {
+        const content = await fs.readFile(
+          path.join(pagesFilesDir, file.toString()),
+          'utf8'
+        )
+        allServerCodeForPage += content
+      }
+
+      expect(allServerCodeForPage).not.toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_BROWSER_CONTEXT__/
       )
-      expect(serverCode).toMatch(
+      expect(allServerCodeForPage).toMatch(
         /__THIS_SHOULD_ONLY_BE_DEFINED_IN_SERVER_CONTEXT__/
       )
     })

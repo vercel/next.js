@@ -10,27 +10,18 @@ use turbo_tasks_fs::rope::{Rope, RopeBuilder};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap, SourceMapSection},
+    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap},
     source_pos::SourcePos,
 };
 
 /// A mapping of byte-offset in the code string to an associated source map.
-pub type Mapping = (usize, Option<Vc<Box<dyn GenerateSourceMap>>>);
+pub type Mapping = (usize, Option<Rope>);
 
 /// Code stores combined output code and the source map of that output code.
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct Code {
     code: Rope,
-
-    mappings: Vec<Mapping>,
-}
-
-/// CodeBuilder provides a mutable container to append source code.
-#[derive(Default)]
-pub struct CodeBuilder {
-    code: RopeBuilder,
-
     mappings: Vec<Mapping>,
 }
 
@@ -45,6 +36,13 @@ impl Code {
     }
 }
 
+/// CodeBuilder provides a mutable container to append source code.
+#[derive(Default)]
+pub struct CodeBuilder {
+    code: RopeBuilder,
+    mappings: Vec<Mapping>,
+}
+
 impl CodeBuilder {
     /// Pushes synthetic runtime code without an associated source map. This is
     /// the default concatenation operation, but it's designed to be used
@@ -57,7 +55,7 @@ impl CodeBuilder {
     /// Pushes original user code with an optional source map if one is
     /// available. If it's not, this is no different than pushing Synthetic
     /// code.
-    pub fn push_source(&mut self, code: &Rope, map: Option<Vc<Box<dyn GenerateSourceMap>>>) {
+    pub fn push_source(&mut self, code: &Rope, map: Option<Rope>) {
         self.push_map(map);
         self.code += code;
     }
@@ -78,7 +76,7 @@ impl CodeBuilder {
                 prebuilt
                     .mappings
                     .iter()
-                    .map(|(index, map)| (index + len, *map)),
+                    .map(|(index, map)| (index + len, map.clone())),
             );
         } else {
             self.push_map(None);
@@ -92,7 +90,7 @@ impl CodeBuilder {
     /// original code section. By inserting an empty source map when reaching a
     /// synthetic section directly after an original section, we tell Chrome
     /// that the previous map ended at this point.
-    fn push_map(&mut self, map: Option<Vc<Box<dyn GenerateSourceMap>>>) {
+    fn push_map(&mut self, map: Option<Rope>) {
         if map.is_none() && matches!(self.mappings.last(), None | Some((_, None))) {
             // No reason to push an empty map directly after an empty map
             return;
@@ -152,7 +150,24 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
+    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.generate_source_map_ref()?)))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Code {
+    /// Returns the hash of the source code of this Code.
+    #[turbo_tasks::function]
+    pub fn source_code_hash(&self) -> Vc<u64> {
+        let code = self;
+        let hash = hash_xxh3_hash64(code.source_code());
+        Vc::cell(hash)
+    }
+}
+
+impl Code {
+    pub fn generate_source_map_ref(&self) -> Result<Rope> {
         let mut pos = SourcePos::new();
         let mut last_byte_pos = 0;
 
@@ -172,28 +187,9 @@ impl GenerateSourceMap for Code {
             }
             last_byte_pos = *byte_pos;
 
-            let encoded = match map {
-                None => SourceMap::empty(),
-                Some(map) => match *map.generate_source_map().await? {
-                    None => SourceMap::empty(),
-                    Some(map) => map,
-                },
-            };
-
-            sections.push(SourceMapSection::new(pos, encoded))
+            sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
         }
 
-        Ok(Vc::cell(Some(SourceMap::new_sectioned(sections).cell())))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Code {
-    /// Returns the hash of the source code of this Code.
-    #[turbo_tasks::function]
-    pub async fn source_code_hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        let code = self.await?;
-        let hash = hash_xxh3_hash64(code.source_code());
-        Ok(Vc::cell(hash))
+        SourceMap::sections_to_rope(sections)
     }
 }

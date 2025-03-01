@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/commonjs.js"],"sourcesContent":["// commonjs.js\nexports.hello = \"World\";\n\n"],"names":[],"mappings":"AAAA,cAAc;AACd,QAAQ,KAAK,GAAG"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js"],"sourcesContent":["// c.js\nexport * from \"./commonjs.js\";\n// This would be handled by existing logic\n"],"names":[],"mappings":"AAAA,OAAO;;AACP,gWACA,0CAA0C"}},
+    {"offset": {"line": 19, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js"],"sourcesContent":["// b.js\nexport * from \"./c\";\n// This would not be handled, but still need __turbopack__cjs__\n// as there are properties dynamically added by __turbopack__cjs__ in c.js\n"],"names":[],"mappings":"AAAA,OAAO;;AACP,kVACA,+DAA+D;CAC/D,0EAA0E"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 37, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js"],"sourcesContent":["// a.js\nimport * as B from \"./b\";\nconsole.log(B);"],"names":[],"mappings":"AAAA,OAAO;;AACP;;AACA,QAAQ,GAAG,CAAC"}},
+    {"offset": {"line": 42, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

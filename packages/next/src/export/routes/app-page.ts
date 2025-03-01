@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders } from 'node:http'
-import type { ExportRouteResult, FileWriter } from '../types'
+import type { ExportRouteResult } from '../types'
 import type { RenderOpts } from '../../server/app-render/types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
 import type { RouteMetadata } from './types'
@@ -14,22 +14,72 @@ import {
   NEXT_META_SUFFIX,
   RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
-import { hasNextSupport } from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../server/ci-info'
 import { lazyRenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
-import type { FallbackRouteParams } from '../../client/components/fallback-params'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import { AfterRunner } from '../../server/after/run-with-after'
+import type { RequestLifecycleOpts } from '../../server/base-server'
+import type { AppSharedContext } from '../../server/app-render/app-render'
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
-export const enum ExportedAppPageFiles {
-  HTML = 'HTML',
-  FLIGHT = 'FLIGHT',
-  PREFETCH_FLIGHT = 'PREFETCH_FLIGHT',
-  META = 'META',
-  POSTPONED = 'POSTPONED',
+export async function prospectiveRenderAppPage(
+  req: MockedRequest,
+  res: MockedResponse,
+  page: string,
+  pathname: string,
+  query: NextParsedUrlQuery,
+  fallbackRouteParams: FallbackRouteParams | null,
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
+  sharedContext: AppSharedContext
+): Promise<undefined> {
+  const afterRunner = new AfterRunner()
+
+  // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
+  if (page === '/_not-found/page') {
+    pathname = '/404'
+  }
+
+  try {
+    await lazyRenderAppPage(
+      new NodeNextRequest(req),
+      new NodeNextResponse(res),
+      pathname,
+      query,
+      fallbackRouteParams,
+      {
+        ...partialRenderOpts,
+        waitUntil: afterRunner.context.waitUntil,
+        onClose: afterRunner.context.onClose,
+        onAfterTaskError: afterRunner.context.onTaskError,
+      },
+      undefined,
+      false,
+      sharedContext
+    )
+
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
+  } catch (err) {
+    if (!isDynamicUsageError(err)) {
+      throw err
+    }
+
+    // We should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (isBailoutToCSRError(err)) {
+      throw err
+    }
+  }
 }
 
 /**
@@ -43,12 +93,22 @@ export async function exportAppPage(
   pathname: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: FallbackRouteParams | null,
-  renderOpts: RenderOpts,
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter,
+  sharedContext: AppSharedContext
 ): Promise<ExportRouteResult> {
+  const afterRunner = new AfterRunner()
+
+  const renderOpts: RenderOpts = {
+    ...partialRenderOpts,
+    waitUntil: afterRunner.context.waitUntil,
+    onClose: afterRunner.context.onClose,
+    onAfterTaskError: afterRunner.context.onTaskError,
+  }
+
   let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
@@ -64,18 +124,26 @@ export async function exportAppPage(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts
+      renderOpts,
+      undefined,
+      false,
+      sharedContext
     )
 
     const html = result.toUnchunkedString()
 
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
+
     const { metadata } = result
     const {
       flightData,
-      revalidate = false,
+      cacheControl = { revalidate: false, expire: undefined },
       postponed,
       fetchTags,
       fetchMetrics,
+      segmentData,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -83,7 +151,7 @@ export async function exportAppPage(
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
-    if (revalidate === 0) {
+    if (cacheControl.revalidate === 0) {
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
@@ -91,7 +159,7 @@ export async function exportAppPage(
       }
       const { staticBailoutInfo = {} } = metadata
 
-      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+      if (debugOutput && staticBailoutInfo?.description) {
         logDynamicUsageWarning({
           path,
           description: staticBailoutInfo.description,
@@ -99,7 +167,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0, fetchMetrics }
+      return { cacheControl, fetchMetrics }
     }
 
     // If page data isn't available, it means that the page couldn't be rendered
@@ -120,18 +188,37 @@ export async function exportAppPage(
       if (renderOpts.experimental.isRoutePPREnabled) {
         // If PPR is enabled, we should emit the flight data as the prefetch
         // payload.
-        await fileWriter(
-          ExportedAppPageFiles.PREFETCH_FLIGHT,
+        // TODO: This will eventually be replaced by the per-segment prefetch
+        // output below.
+        fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
           flightData
         )
       } else {
         // Writing the RSC payload to a file if we don't have PPR enabled.
-        await fileWriter(
-          ExportedAppPageFiles.FLIGHT,
+        fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
         )
+      }
+    }
+
+    let segmentPaths
+    if (segmentData) {
+      // Emit the per-segment prefetch data. We emit them as separate files
+      // so that the cache handler has the option to treat each as a
+      // separate entry.
+      segmentPaths = []
+      const segmentsDir = htmlFilepath.replace(
+        /\.html$/,
+        RSC_SEGMENTS_DIR_SUFFIX
+      )
+
+      for (const [segmentPath, buffer] of segmentData) {
+        segmentPaths.push(segmentPath)
+        const segmentDataFilePath =
+          segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+        fileWriter.append(segmentDataFilePath, buffer)
       }
     }
 
@@ -145,12 +232,7 @@ export async function exportAppPage(
     }
 
     // Writing static HTML to a file.
-    await fileWriter(
-      ExportedAppPageFiles.HTML,
-      htmlFilepath,
-      html ?? '',
-      'utf8'
-    )
+    fileWriter.append(htmlFilepath, html ?? '')
 
     const isParallelRoute = /\/@\w+/.test(page)
     const isNonSuccessfulStatusCode = res.statusCode > 300
@@ -175,10 +257,10 @@ export async function exportAppPage(
       status,
       headers,
       postponed,
+      segmentPaths,
     }
 
-    await fileWriter(
-      ExportedAppPageFiles.META,
+    fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta, null, 2)
     )
@@ -188,7 +270,7 @@ export async function exportAppPage(
       metadata: hasNextSupport ? meta : undefined,
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
-      revalidate,
+      cacheControl,
       fetchMetrics,
     }
   } catch (err) {
@@ -205,7 +287,7 @@ export async function exportAppPage(
     let fetchMetrics: FetchMetrics | undefined
 
     if (debugOutput) {
-      const store = (renderOpts as any).store as StaticGenerationStore
+      const store = (renderOpts as any).store as WorkStore
       const { dynamicUsageDescription, dynamicUsageStack } = store
       fetchMetrics = store.fetchMetrics
 
@@ -216,7 +298,7 @@ export async function exportAppPage(
       })
     }
 
-    return { revalidate: 0, fetchMetrics }
+    return { cacheControl: { revalidate: 0, expire: undefined }, fetchMetrics }
   }
 }
 

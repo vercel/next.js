@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::{
@@ -6,10 +6,12 @@ use swc_core::{
         visit::AstParentKind,
     },
 };
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
 use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, ModuleValue, WellKnownFunctionKind, WellKnownObjectKind,
+    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+    WellKnownObjectKind,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -31,9 +33,10 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Null => "null".into(),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
-            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => "undefined".into(),
         }),
+        JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
         JsValue::Alternatives {
             total_nodes: _,
             values,
@@ -53,9 +56,21 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
     result
 }
 
+const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+
 pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     Expr::Lit(match module_id {
-        ModuleId::Number(n) => Lit::Num((*n as f64).into()),
+        ModuleId::Number(n) => {
+            if *n <= JS_MAX_SAFE_INTEGER {
+                Lit::Num((*n as f64).into())
+            } else {
+                Lit::Str(Str {
+                    span: DUMMY_SP,
+                    value: n.to_string().into(),
+                    raw: None,
+                })
+            }
+        }
         ModuleId::String(s) => Lit::Str(Str {
             span: DUMMY_SP,
             value: (s as &str).into(),
@@ -64,11 +79,28 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
     })
 }
 
+pub struct StringifyModuleId<'a>(pub &'a ModuleId);
+
+impl std::fmt::Display for StringifyModuleId<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            ModuleId::Number(n) => {
+                if *n <= JS_MAX_SAFE_INTEGER {
+                    n.fmt(f)
+                } else {
+                    write!(f, "\"{n}\"")
+                }
+            }
+            ModuleId::String(s) => StringifyJs(s).fmt(f),
+        }
+    }
+}
+
 pub struct StringifyJs<'a, T>(pub &'a T)
 where
     T: ?Sized;
 
-impl<'a, T> std::fmt::Display for StringifyJs<'a, T>
+impl<T> std::fmt::Display for StringifyJs<'_, T>
 where
     T: Serialize + ?Sized,
 {
@@ -79,7 +111,7 @@ where
             f: &'a mut std::fmt::Formatter<'b>,
         }
 
-        impl<'a, 'b> std::io::Write for DisplayWriter<'a, 'b> {
+        impl std::io::Write for DisplayWriter<'_, '_> {
             fn write(&mut self, bytes: &[u8]) -> std::result::Result<usize, std::io::Error> {
                 self.f
                     .write_str(
@@ -132,8 +164,7 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[turbo_tasks::value(shared, serialization = "none")]
-#[derive(Debug, Clone)]
+#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
     Exact(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>),

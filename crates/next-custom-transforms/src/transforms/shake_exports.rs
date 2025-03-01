@@ -3,34 +3,35 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{atom, Atom},
         transforms::optimization::simplify::dce::{dce, Config as DCEConfig},
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith, VisitMutWith},
     },
 };
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub ignore: Vec<JsWord>,
+    pub ignore: Vec<Atom>,
 }
 
-pub fn shake_exports(config: Config) -> impl Fold {
-    ExportShaker {
+pub fn shake_exports(config: Config) -> impl Pass {
+    fold_pass(ExportShaker {
         ignore: config.ignore,
         ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
 struct ExportShaker {
-    ignore: Vec<JsWord>,
+    ignore: Vec<Atom>,
     remove_export: bool,
 }
 
 impl Fold for ExportShaker {
-    fn fold_module(&mut self, module: Module) -> Module {
-        let module = module.fold_children_with(self);
-        module.fold_with(&mut dce(DCEConfig::default(), Mark::new()))
+    fn fold_module(&mut self, mut module: Module) -> Module {
+        module = module.fold_children_with(self);
+        module.visit_mut_with(&mut dce(DCEConfig::default(), Mark::new()));
+        module
     }
 
     fn fold_module_items(&mut self, items: Vec<ModuleItem>) -> Vec<ModuleItem> {
@@ -107,14 +108,14 @@ impl Fold for ExportShaker {
     }
 
     fn fold_export_default_decl(&mut self, decl: ExportDefaultDecl) -> ExportDefaultDecl {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         decl
     }
 
     fn fold_export_default_expr(&mut self, expr: ExportDefaultExpr) -> ExportDefaultExpr {
-        if !self.ignore.contains(&js_word!("default")) {
+        if !self.ignore.contains(&atom!("default")) {
             self.remove_export = true
         }
         expr

@@ -1,8 +1,13 @@
-import type { ExportRouteResult, FileWriter } from '../types'
-import type { RenderOpts } from '../../server/render'
+import type { ExportRouteResult } from '../types'
+import type {
+  PagesRenderContext,
+  PagesSharedContext,
+  RenderOpts,
+} from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
+import type { Params } from '../../server/request/params'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
@@ -19,13 +24,7 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
-
-export const enum ExportedPagesFiles {
-  HTML = 'HTML',
-  DATA = 'DATA',
-  AMP_HTML = 'AMP_HTML',
-  AMP_DATA = 'AMP_PAGE_DATA',
-}
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -36,6 +35,7 @@ export async function exportPagesPage(
   path: string,
   page: string,
   query: NextParsedUrlQuery,
+  params: Params | undefined,
   htmlFilepath: string,
   htmlFilename: string,
   ampPath: string,
@@ -45,15 +45,23 @@ export async function exportPagesPage(
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext,
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
   components: LoadComponentsReturnType,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const ampState = {
     ampFirst: components.pageConfig?.amp === true,
     hasQuery: Boolean(query.amp),
     hybrid: components.pageConfig?.amp === 'hybrid',
+  }
+
+  if (!ampValidatorPath) {
+    ampValidatorPath = require.resolve(
+      'next/dist/compiled/amphtml-validator/validator_wasm.js'
+    )
   }
 
   const inAmpMode = isInAmpMode(ampState)
@@ -67,6 +75,15 @@ export async function exportPagesPage(
   // prerendered the file
   if (!buildExport && components.getStaticProps && !isDynamic) {
     return
+  }
+
+  // Pages router merges page params (e.g. [lang]) with query params
+  // primarily to support them both being accessible on `useRouter().query`.
+  // If we extracted dynamic params from the path, we need to merge them
+  // back into the query object.
+  const searchAndDynamicParams = {
+    ...query,
+    ...params,
   }
 
   if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
@@ -99,8 +116,10 @@ export async function exportPagesPage(
         req,
         res,
         page,
-        query,
-        renderOpts
+        searchAndDynamicParams,
+        renderOpts,
+        sharedContext,
+        renderContext
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
@@ -155,8 +174,10 @@ export async function exportPagesPage(
           req,
           res,
           page,
-          { ...query, amp: '1' },
-          renderOpts
+          { ...searchAndDynamicParams, amp: '1' },
+          renderOpts,
+          sharedContext,
+          renderContext
         )
       } catch (err) {
         if (!isBailoutToCSRError(err)) throw err
@@ -170,12 +191,7 @@ export async function exportPagesPage(
         await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
-      await fileWriter(
-        ExportedPagesFiles.AMP_HTML,
-        ampHtmlFilepath,
-        ampHtml,
-        'utf8'
-      )
+      fileWriter.append(ampHtmlFilepath, ampHtml)
     }
   }
 
@@ -186,31 +202,27 @@ export async function exportPagesPage(
       htmlFilename.replace(/\.html$/, NEXT_DATA_SUFFIX)
     )
 
-    await fileWriter(
-      ExportedPagesFiles.DATA,
-      dataFile,
-      JSON.stringify(metadata.pageData),
-      'utf8'
-    )
+    fileWriter.append(dataFile, JSON.stringify(metadata.pageData))
 
     if (hybridAmp) {
-      await fileWriter(
-        ExportedPagesFiles.AMP_DATA,
+      fileWriter.append(
         dataFile.replace(/\.json$/, '.amp.json'),
-        JSON.stringify(metadata.pageData),
-        'utf8'
+        JSON.stringify(metadata.pageData)
       )
     }
   }
 
   if (!ssgNotFound) {
     // don't attempt writing to disk if getStaticProps returned not found
-    await fileWriter(ExportedPagesFiles.HTML, htmlFilepath, html, 'utf8')
+    fileWriter.append(htmlFilepath, html)
   }
 
   return {
     ampValidations,
-    revalidate: metadata.revalidate ?? false,
+    cacheControl: metadata.cacheControl ?? {
+      revalidate: false,
+      expire: undefined,
+    },
     ssgNotFound,
   }
 }

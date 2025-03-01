@@ -50,10 +50,20 @@ bitRotateLeft = (...) => ???*0*
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-bytes = (???*0* | ???*1*)
+bytes = (???*0* | new ???*1*(???*2*))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* unknown new expression
+- *1* FreeVar(Array)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+- *2* ???*3*["length"]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *3* ???*4*(FreeVar(encodeURIComponent)(bytes))
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *4* FreeVar(unescape)
+  ⚠️  unknown global
   ⚠️  This value might have side effects
 
 bytesToWords = (...) => output
@@ -125,40 +135,24 @@ i#3 = (0 | ???*0*)
 - *0* updated with update expression
   ⚠️  This value might have side effects
 
-i#5 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 8))
+i#5 = (???*0* | 0 | (???*1* + 8))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 8)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
 
-i#7 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 16))
+i#7 = (???*0* | 0 | (???*1* + 16))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 16)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
 
-i#9 = (???*0* | 0 | ((???*1* | 0 | ???*2*) + 1) | ((???*4* | 0 | ???*5*) + 8))
+i#9 = (???*0* | 0 | (???*1* + 1) | (???*2* + 8))
 - *0* i
   ⚠️  pattern without value
 - *1* i
-  ⚠️  pattern without value
-- *2* (???*3* + 1)
-  ⚠️  nested operation
-- *3* i
   ⚠️  circular variable reference
-- *4* i
-  ⚠️  pattern without value
-- *5* (???*6* + 1)
-  ⚠️  nested operation
-- *6* i
+- *2* i
   ⚠️  circular variable reference
 
 input#5 = ???*0*

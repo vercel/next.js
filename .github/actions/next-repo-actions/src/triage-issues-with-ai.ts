@@ -1,12 +1,12 @@
 import { WebClient } from '@slack/web-api'
 import { info, setFailed } from '@actions/core'
 import { context } from '@actions/github'
-import { generateText, tool } from 'ai'
+import { generateObject } from 'ai'
 import { openai } from '@ai-sdk/openai'
+import { z } from 'zod'
 import { BlockCollection, Divider, Section } from 'slack-block-builder'
 
 import { getLatestCanaryVersion, getLatestVersion } from '../lib/util.mjs'
-import { issueSchema } from '../lib/types'
 
 async function main() {
   if (!process.env.OPENAI_API_KEY) throw new TypeError('OPENAI_API_KEY not set')
@@ -19,9 +19,6 @@ async function main() {
   const channel = '#next-info'
 
   const issue = context.payload.issue
-  const html_url = issue.html_url
-  const number = issue.number
-  const title = issue.title
 
   let latestVersion: string
   let latestCanaryVersion: string
@@ -42,15 +39,17 @@ async function main() {
 
     const guidelines = await res.text()
 
-    const result = await generateText({
+    const {
+      object: { explanation, isSevere, number, title, html_url },
+    } = await generateObject({
       model: openai(model),
-      maxToolRoundtrips: 1,
-      tools: {
-        report_to_slack: tool({
-          description: 'Report to Slack.',
-          parameters: issueSchema,
-        }),
-      },
+      schema: z.object({
+        explanation: z.string().describe('The explanation of the severity.'),
+        isSevere: z.boolean().describe('Whether the issue is severe.'),
+        number: z.number().describe('The issue number.'),
+        title: z.string().describe('The issue title.'),
+        html_url: z.string().describe('The issue html URL.'),
+      }),
       system:
         'Your job is to determine the severity of a GitHub issue using the triage guidelines and the latest versions of Next.js. Succinctly explain why you chose the severity, without paraphrasing the triage guidelines. Report to Slack the explanation only if the severity is considered severe.',
       prompt:
@@ -61,14 +60,14 @@ async function main() {
     })
 
     // the ai determined that the issue was severe enough to report on slack
-    if (result.roundtrips.length > 1) {
+    if (isSevere) {
       const blocks = BlockCollection([
         Section({
           text: `:github2: <${html_url}|#${number}>: ${title}\n_Note: This issue was evaluated and reported on Slack with *${model}*._`,
         }),
         Divider(),
         Section({
-          text: `_${result.text}_`,
+          text: `_${explanation}_`,
         }),
       ])
 
@@ -79,12 +78,12 @@ async function main() {
         username: 'GitHub Notifier',
       })
 
-      info('Posted to Slack!')
+      info('Reported to Slack!')
     }
 
     // the ai will also provide a reason why the issue was not severe enough to report on slack
     info(
-      `result.text: ${result.text}\nhtml_url: ${html_url}\nnumber: ${number}\ntitle: ${title}`
+      `Explanation: ${explanation}\nhtml_url: ${html_url}\nnumber: ${number}\ntitle: ${title}`
     )
   } catch (error) {
     setFailed(error)

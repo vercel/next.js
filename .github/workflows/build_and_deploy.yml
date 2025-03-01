@@ -9,11 +9,11 @@ on:
 
 env:
   NAPI_CLI_VERSION: 2.16.2
-  TURBO_VERSION: 2.0.9
+  TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
 
 jobs:
   deploy-target:
@@ -29,7 +29,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
         # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
@@ -45,6 +48,9 @@ jobs:
           elif [ '${{ github.event_name }}' == 'workflow_dispatch' ]
           then
             echo "value=force-preview" >> $GITHUB_OUTPUT
+          elif [[ $(node scripts/run-for-change.js --not --type docs --exec echo 'false') != 'false' ]];
+          then
+            echo "value=skipped" >> $GITHUB_OUTPUT
           else
             echo "value=automated-preview" >> $GITHUB_OUTPUT
           fi
@@ -52,6 +58,9 @@ jobs:
         run: echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
 
   build:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
     runs-on: ubuntu-latest
     env:
       NEXT_TELEMETRY_DISABLED: 1
@@ -64,7 +73,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - uses: actions/checkout@v4
         with:
@@ -96,6 +108,7 @@ jobs:
 
   # Build binaries for publishing
   build-native:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
     needs:
       - deploy-target
     defaults:
@@ -106,16 +119,23 @@ jobs:
       fail-fast: false
       matrix:
         exclude:
-          # Exclude slow builds for automated previews
-          # These are rarely needed for the standard preview usage (e.g. Front sync)
+          # only build the binaries we run automated tests against
+          # linux GNU x64
           - settings:
-              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'i686-pc-windows-msvc' }}
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-apple-darwin' }}
           - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-pc-windows-msvc' }}
           - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-gnu' }}
+          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'aarch64-unknown-linux-musl' }}
           - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-pc-windows-msvc' }}
+          - settings:
               target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-unknown-linux-musl' }}
+          - settings:
+              target: ${{ needs.deploy-target.outputs.value == 'automated-preview' && 'x86_64-apple-darwin' }}
+
         settings:
           - host:
               - 'self-hosted'
@@ -126,8 +146,8 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -139,12 +159,8 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              export CC=$(xcrun -f clang);
-              export CXX=$(xcrun -f clang++);
-              SYSROOT=$(xcrun --sdk macosx --show-sdk-path);
-              export CFLAGS="-isysroot $SYSROOT -isystem $SYSROOT";
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -156,22 +172,9 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
-
-          - host:
-              - 'self-hosted'
-              - 'windows'
-              - 'x64'
-
-            # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
-            # TODO: we should add the relevant envs later to to switch to strict mode
-            build: |
-              corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target i686-pc-windows-msvc
-            target: 'i686-pc-windows-msvc'
 
           - host:
               - 'self-hosted'
@@ -183,8 +186,8 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -224,10 +227,11 @@ jobs:
             build: >-
               set -ex &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
               rustup show &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static' &&
               cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip native/next-swc.*.node
 
@@ -264,11 +268,12 @@ jobs:
             build: >-
               set -ex &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup show &&
               rustup target add aarch64-unknown-linux-musl &&
+              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Zunstable-options -Csymbol-mangling-version=v0 -Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker' &&
               cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x native/next-swc.*.node
 
@@ -299,7 +304,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # we always want to run this to set environment variables
       - name: Install Rust
@@ -329,7 +338,7 @@ jobs:
       # issues with turbo caching
       - name: pull build cache
         if: ${{ matrix.settings.docker }}
-        run: npm i -g turbo@${{ env.TURBO_VERSION }} && node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
         if: ${{ matrix.settings.docker }}
@@ -338,7 +347,7 @@ jobs:
 
       - name: Build in docker
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
 
       - name: cache build
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
@@ -390,6 +399,9 @@ jobs:
           path: .turbo/runs
 
   build-wasm:
+    if: ${{ needs.deploy-target.outputs.value != 'skipped' }}
+    needs:
+      - deploy-target
     strategy:
       matrix:
         target: [web, nodejs]
@@ -415,8 +427,6 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
@@ -426,7 +436,7 @@ jobs:
       - name: Build
         # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
         # TODO: we should add the relevant envs later to to switch to strict mode
-        run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
@@ -458,7 +468,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -518,7 +531,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -562,6 +578,40 @@ jobs:
           name: npm-publish-logs
           path: /home/runner/.npm/_logs/*
 
+  publish-turbopack-npm-packages:
+    # Matches the commit message written by turbopack/xtask/src/publish.rs:377
+    if: "${{(github.ref == 'refs/heads/canary') && startsWith(github.event.head_commit.message, 'chore: release turbopack npm packages')}}"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - uses: ./.github/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build packages
+        run: pnpx turbo@canary run build --only --filter='./turbopack/packages/*'
+
+      - name: Write NPM_TOKEN
+        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN_ELEVATED }}" > ~/.npmrc
+
+      - name: Publish
+        run: cargo xtask workspace --publish
+
   deployExamples:
     if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}
     name: Deploy examples
@@ -603,7 +653,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: next-swc-binaries
+          pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 

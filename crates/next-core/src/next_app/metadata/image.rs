@@ -4,7 +4,8 @@
 
 use anyhow::{bail, Result};
 use indoc::formatdoc;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -82,7 +83,7 @@ pub async fn dynamic_image_metadata_source(
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
-                const {{ __metadata_id__: _, ...params }} = props.params
+                const {{ __metadata_id__: _, ...params }} = await props.params
                 const imageUrl = fillMetadataSegment({pathname_prefix}, params, {page_segment})
 
                 const {{ generateImageMetadata }} = imageModule

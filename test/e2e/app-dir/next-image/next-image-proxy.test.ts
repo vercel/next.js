@@ -103,6 +103,7 @@ describe('next-image-proxy', () => {
 
     const expected = JSON.stringify({ fulfilledCount: 4, failCount: 0 })
     await check(() => JSON.stringify({ fulfilledCount, failCount }), expected)
+    await browser.close()
   })
 
   it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {

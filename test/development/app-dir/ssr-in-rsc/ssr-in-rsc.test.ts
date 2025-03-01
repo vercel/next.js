@@ -9,6 +9,8 @@ import {
 
 const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('react-dom/server in React Server environment', () => {
   const dependencies = (global as any).isNextDeploy
     ? // `link` is incompatible with the npm version used when this test is deployed
@@ -280,21 +282,21 @@ describe('react-dom/server in React Server environment', () => {
     }
     if (isTurbopack) {
       expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Failed to compile",
-          "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js:3:1
-        Ecmascript file had an error
-          1 | import * as ReactDOMServerEdge from 'react-dom/server'
-          2 | // Fine to drop once React is on ESM
-        > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
-            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-          4 |
-          5 | export const runtime = 'edge'
-          6 |
+       {
+         "description": "Ecmascript file had an error",
+         "source": "./app/exports/app-code/react-dom-server-edge-implicit/page.js (3:1)
+       Ecmascript file had an error
+         1 | import * as ReactDOMServerEdge from 'react-dom/server'
+         2 | // Fine to drop once React is on ESM
+       > 3 | import ReactDOMServerEdgeDefault from 'react-dom/server'
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         4 |
+         5 | export const runtime = 'edge'
+         6 |
 
-        You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials",
-        }
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+       }
       `)
     } else {
       expect(redbox).toMatchInlineSnapshot(`
@@ -317,23 +319,49 @@ describe('react-dom/server in React Server environment', () => {
       source: await getRedboxSource(browser),
     }
     if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (0:0) @ <unknown>
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ [project]/app/exports/app-code/react-dom-server-node-explicit/page.js [app-rsc] (ecmascript)
 
-          1 | import * as ReactDOMServerNode from 'react-dom/server.node'
-          2 | // Fine to drop once React is on ESM
-          3 | import ReactDOMServerNodeDefault from 'react-dom/server.node'",
-        }
-      `)
+          > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerNodeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": "app/exports/app-code/react-dom-server-node-explicit/page.js (1:1) @ [project]/app/exports/app-code/react-dom-server-node-explicit/page.js [app-rsc] (ecmascript)
+
+          > 1 | import * as ReactDOMServerNode from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerNodeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      }
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -349,46 +377,46 @@ describe('react-dom/server in React Server environment', () => {
     }
     if (isTurbopack) {
       expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Failed to compile",
-          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js:3:1
-        Ecmascript file had an error
-          1 | import * as ReactDOMServerNode from 'react-dom/server'
-          2 | // Fine to drop once React is on ESM
-        > 3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-          4 |
-          5 | export const runtime = 'nodejs'
-          6 |
+       {
+         "description": "Ecmascript file had an error",
+         "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js (3:1)
+       Ecmascript file had an error
+         1 | import * as ReactDOMServerNode from 'react-dom/server'
+         2 | // Fine to drop once React is on ESM
+       > 3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         4 |
+         5 | export const runtime = 'nodejs'
+         6 |
 
-        You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-        Learn more: https://nextjs.org/docs/getting-started/react-essentials",
-        }
+       You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering",
+       }
       `)
     } else {
       expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Failed to compile",
-          "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
-        Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-          | Learn more: https://nextjs.org/docs/getting-started/react-essentials
-           ,-[1:1]
-         1 | import * as ReactDOMServerNode from 'react-dom/server'
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         2 | // Fine to drop once React is on ESM
-         3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-           \`----
-          x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
-          | Learn more: https://nextjs.org/docs/getting-started/react-essentials
-           ,-[3:1]
-         1 | import * as ReactDOMServerNode from 'react-dom/server'
-         2 | // Fine to drop once React is on ESM
-         3 | import ReactDOMServerNodeDefault from 'react-dom/server'
-           : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-         4 | 
-         5 | export const runtime = 'nodejs'
-           \`----",
-        }
+       {
+         "description": "Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.",
+         "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
+       Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[1:1]
+        1 | import * as ReactDOMServerNode from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+          \`----
+         x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[3:1]
+        1 | import * as ReactDOMServerNode from 'react-dom/server'
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        4 | 
+        5 | export const runtime = 'nodejs'
+          \`----",
+       }
       `)
     }
   })
@@ -404,23 +432,49 @@ describe('react-dom/server in React Server environment', () => {
       source: await getRedboxSource(browser),
     }
     if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": "internal-pkg/server.node.js (0:0) @ <unknown>
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
 
-          1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-          2 | // Fine to drop once React is on ESM
-          3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'",
-        }
-      `)
+          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+
+          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      }
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -501,26 +555,27 @@ describe('react-dom/server in React Server environment', () => {
           }"
         `)
       } else {
+        await assertNoRedbox(browser)
         expect(await browser.elementByCss('main').text())
           .toMatchInlineSnapshot(`
-          "{
-            "default": {
-              "default": [
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ],
-              "named": [
-                "default",
-                "renderToReadableStream",
-                "renderToStaticMarkup",
-                "renderToString",
-                "version"
-              ]
-            }
-          }"
-        `)
+            "{
+              "default": {
+                "default": [
+                  "renderToReadableStream",
+                  "renderToStaticMarkup",
+                  "renderToString",
+                  "version"
+                ],
+                "named": [
+                  "default",
+                  "renderToReadableStream",
+                  "renderToStaticMarkup",
+                  "renderToString",
+                  "version"
+                ]
+              }
+            }"
+          `)
       }
     }
     const redbox = {
@@ -675,23 +730,49 @@ describe('react-dom/server in React Server environment', () => {
       source: await getRedboxSource(browser),
     }
     if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": "internal-pkg/server.node.js (0:0) @ <unknown>
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
 
-          1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-          2 | // Fine to drop once React is on ESM
-          3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'",
-        }
-      `)
+          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+
+          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      }
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 
@@ -707,23 +788,49 @@ describe('react-dom/server in React Server environment', () => {
     }
 
     if (isTurbopack) {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": "internal-pkg/server.node.js (0:0) @ <unknown>
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
 
-          1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
-          2 | // Fine to drop once React is on ESM
-          3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'",
-        }
-      `)
+          > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+              | ^
+            2 | // Fine to drop once React is on ESM
+            3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+            4 |",
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+         {
+           "description": "Error: react-dom/server is not supported in React Server Components.",
+           "source": "internal-pkg/server.node.js (1:1) @ [project]/internal-pkg/server.node.js [app-rsc] (ecmascript)
+
+         > 1 | import * as ReactDOMServerEdge from 'react-dom/server.node'
+             | ^
+           2 | // Fine to drop once React is on ESM
+           3 | import ReactDOMServerEdgeDefault from 'react-dom/server.node'
+           4 |",
+         }
+        `)
+      }
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
-        {
-          "description": "Error: react-dom/server is not supported in React Server Components.",
-          "source": null,
-        }
-      `)
+      if (isReact18) {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "TypeError: Cannot read properties of undefined (reading 'ReactCurrentDispatcher')",
+            "source": null,
+          }
+        `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
+          {
+            "description": "Error: react-dom/server is not supported in React Server Components.",
+            "source": null,
+          }
+        `)
+      }
     }
   })
 })

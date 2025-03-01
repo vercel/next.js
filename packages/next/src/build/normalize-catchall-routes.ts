@@ -6,7 +6,7 @@ import { AppPathnameNormalizer } from '../server/normalizers/built/app/app-pathn
  * It will traverse the appPaths, looking for catch-all routes and try to find parallel routes that could match
  * the catch-all. If it finds a match, it will add the catch-all to the parallel route's list of possible routes.
  *
- * @param appPaths  The appPaths to transform
+ * @param appPaths The appPaths to transform
  */
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
@@ -77,7 +77,7 @@ function hasMatchedSlots(path1: string, path2: string): boolean {
 }
 
 /**
- * Returns true for slots that should be considered when checking for match compatability.
+ * Returns true for slots that should be considered when checking for match compatibility.
  * Excludes children slots because these are similar to having a segment-level `page`
  * which would cause a slot length mismatch when comparing it to a catch-all route.
  */

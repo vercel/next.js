@@ -10,7 +10,7 @@ function generateBlocks(issues) {
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: '*A list of the top 15 issues sorted by the most reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-info/src/popular-issues.mjs|action> will run every Monday at 10AM UTC (6AM EST). These issues are automatically synced to Linear._',
+        text: '*A list of the top 15 issues sorted by the most reactions over the last 90 days.*\n_Note: This :github2: <https://github.com/vercel/next.js/blob/canary/.github/workflows/popular.yml|workflow> → <https://github.com/vercel/next.js/blob/canary/.github/actions/next-repo-actions/src/popular-issues.mjs|action> will run every Monday at 10AM UTC (6AM EST). These issues are automatically synced to Linear._',
       },
     },
     {
@@ -72,7 +72,7 @@ async function run() {
 
       await slackClient.chat.postMessage({
         blocks: generateBlocks(data.items),
-        channel: '#next-info',
+        channel: '#coord-next-triage',
         icon_emoji: ':github:',
         username: 'GitHub Notifier',
       })

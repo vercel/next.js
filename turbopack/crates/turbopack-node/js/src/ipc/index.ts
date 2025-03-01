@@ -7,6 +7,7 @@ export type StructuredError = {
   name: string;
   message: string;
   stack: StackFrame[];
+  cause: StructuredError | undefined
 };
 
 export function structuredError(e: Error): StructuredError {
@@ -16,6 +17,7 @@ export function structuredError(e: Error): StructuredError {
     name: e.name,
     message: e.message,
     stack: typeof e.stack === "string" ? parseStackTrace(e.stack!) : [],
+    cause: e.cause ? structuredError(getProperError(e.cause)) : undefined,
   };
 }
 

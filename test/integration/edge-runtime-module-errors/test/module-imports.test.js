@@ -78,7 +78,7 @@ describe('Edge runtime code with imports', () => {
       },
     },
   ])('$title statically importing node.js module', ({ init, url }) => {
-    const moduleName = 'path'
+    const moduleName = 'fs'
     const importStatement = `import { basename } from "${moduleName}"`
 
     beforeEach(() => init(importStatement))

@@ -168,6 +168,10 @@ impl ValueType {
         }
     }
 
+    pub fn is_serializable(&self) -> bool {
+        self.any_serialization.is_some()
+    }
+
     pub fn get_magic_deserialize_seed(&self) -> Option<MagicAnyDeserializeSeed> {
         self.magic_serialization.map(|s| s.1)
     }

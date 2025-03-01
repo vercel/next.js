@@ -51,6 +51,7 @@ it("should allow to import the whole module and pick without duplicating the mod
   expect(fullModule.a).toEqual("a");
   expect(fullModule.b).toEqual("b");
   expect(fullModule.c).toEqual({ c: 1 });
+  expect(fullModule.d).toEqual("x");
   expect(fullModule.local).toEqual("local");
   expect(fullModule.default).toEqual("local-default");
   expect(fullModule.def).toEqual("default");

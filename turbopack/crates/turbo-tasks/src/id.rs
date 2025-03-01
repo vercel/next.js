@@ -10,8 +10,16 @@ use serde::{de::Visitor, Deserialize, Serialize};
 use crate::{registry, TaskPersistence};
 
 macro_rules! define_id {
-    ($name:ident : $primitive:ty $(,derive($($derive:ty),*))?) => {
+    (
+        $name:ident : $primitive:ty
+        $(,derive($($derive:ty),*))?
+        $(,serde($serde:tt))?
+        $(,doc = $doc:literal)*
+        $(,)?
+    ) => {
+        $(#[doc = $doc])*
         #[derive(Hash, Clone, Copy, PartialEq, Eq, PartialOrd, Ord $($(,$derive)*)? )]
+        $(#[serde($serde)])?
         pub struct $name {
             id: NonZero<$primitive>,
         }
@@ -22,7 +30,7 @@ macro_rules! define_id {
             /// # Safety
             ///
             /// The passed `id` must not be zero.
-            pub unsafe fn new_unchecked(id: $primitive) -> Self {
+            pub const unsafe fn new_unchecked(id: $primitive) -> Self {
                 Self { id: unsafe { NonZero::<$primitive>::new_unchecked(id) } }
             }
         }
@@ -64,13 +72,18 @@ macro_rules! define_id {
     };
 }
 
-define_id!(TaskId: u32);
+define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
 define_id!(FunctionId: u32);
 define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(BackendJobId: u32);
-define_id!(ExecutionId: u64, derive(Debug));
-define_id!(LocalCellId: u32, derive(Debug));
+define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
+define_id!(
+    LocalTaskId: u32,
+    derive(Debug, Serialize, Deserialize),
+    serde(transparent),
+    doc = "Represents the nth `local` function call inside a task.",
+);
 
 impl Debug for TaskId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -160,38 +173,3 @@ make_serializable!(
     registry::get_trait_type_id_by_global_name,
     TraitTypeVisitor
 );
-
-impl Serialize for TaskId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_u32(**self)
-    }
-}
-
-impl<'de> Deserialize<'de> for TaskId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl Visitor<'_> for V {
-            type Value = TaskId;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "task id")
-            }
-
-            fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
-            where
-                E: serde::de::Error,
-            {
-                Ok(TaskId::from(v))
-            }
-        }
-
-        deserializer.deserialize_u32(V)
-    }
-}

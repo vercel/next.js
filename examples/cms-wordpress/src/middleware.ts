@@ -8,13 +8,13 @@ export async function middleware(request: NextRequest) {
 
   const basicAuth = `${process.env.WP_USER}:${process.env.WP_APP_PASS}`;
 
-  const pathNameWithoutTrailingSlash = request.nextUrl.pathname.replace(
+  const pathnameWithoutTrailingSlash = request.nextUrl.pathname.replace(
     /\/$/,
     "",
   );
 
   const response = await fetch(
-    `${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/wp-json/redirection/v1/redirect/?filterBy%5Burl-match%5D=plain&filterBy%5Burl%5D=${pathNameWithoutTrailingSlash}`,
+    `${process.env.NEXT_PUBLIC_WORDPRESS_API_URL}/wp-json/redirection/v1/redirect/?filterBy%5Burl-match%5D=plain&filterBy%5Burl%5D=${pathnameWithoutTrailingSlash}`,
     {
       headers: {
         Authorization: `Basic ${Buffer.from(basicAuth).toString("base64")}`,
@@ -27,7 +27,7 @@ export async function middleware(request: NextRequest) {
 
   if (data?.items?.length > 0) {
     const redirect = data.items.find(
-      (item: any) => item.url === pathNameWithoutTrailingSlash,
+      (item: any) => item.url === pathnameWithoutTrailingSlash,
     );
 
     if (!redirect) {

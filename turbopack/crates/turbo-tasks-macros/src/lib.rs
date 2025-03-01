@@ -3,6 +3,7 @@
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
 
+mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
@@ -22,9 +23,14 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
-#[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
-pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
-    derive::derive_resolved_value(input)
+#[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
+pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_non_local_value(input)
+}
+
+#[proc_macro_derive(OperationValue, attributes(turbo_tasks))]
+pub fn derive_operation_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_operation_value(input)
 }
 
 #[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
@@ -47,83 +53,17 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
     derive::derive_task_input(input)
 }
 
-/// Creates a Vc<Value> struct for a `struct` or `enum` that represent
-/// that type placed into a cell in a Task.
+/// Derives the `turbo_tasks::KeyValuePair` trait for a enum. Each variant need to have a `value`
+/// field which becomes part of the value enum and all remaining fields become part of the key.
 ///
-/// That Vc<Value> object can be `await`ed to get a readonly reference
-/// to the value contained in the cell.
-///
-/// ## Arguments
-///
-/// Example: `#[turbo_tasks::value(into = "new", eq = "manual")]`
-///
-/// ### `cell`
-///
-/// Possible values:
-///
-/// - "new": Always overrides the value in the cell. Invalidating all
-/// dependent tasks.
-/// - "shared" (default): Compares with the existing value in the cell, before
-/// overriding it. Requires Value to implement [Eq].
-///
-/// ### `eq`
-///
-/// Possible values:
-///
-/// - "manual": Prevents deriving [Eq] so you can do it manually.
-///
-/// ### `into`
-///
-/// When provided the Vc<Value> implement `From<Value>` to allow to convert
-/// a Value to a Vc<Value> by placing it into a cell in a Task.
-///
-/// Possible values:
-///
-/// - "new": Always overrides the value in the cell. Invalidating all
-/// dependent tasks.
-/// - "shared": Compares with the existing value in the cell, before
-/// overriding it. Requires Value to implement [Eq].
-/// - "none" (default): Prevents implementing `From<Value>`.
-///
-/// ### `serialization`
-///
-/// Affects serialization via [serde::Serialize] and [serde::Deserialize].
-///
-/// Possible values:
-///
-/// - "auto" (default): Derives the serialization traits and enabled serialization.
-/// - "auto_for_input": Same as "auto", but also adds the marker trait [turbo_tasks::TypedForInput].
-/// - "custom": Prevents deriving the serialization traits, but still enables serialization (you
-///   need to manually implement [serde::Serialize] and [serde::Deserialize]).
-/// - "custom_for_input":Same as "auto", but also adds the marker trait
-///   [turbo_tasks::TypedForInput].
-/// - "none": Disables serialization and prevents deriving the traits.
-///
-/// ### `shared`
-///
-/// Sets both `cell = "shared"` and `into = "shared"`
-///
-/// No value.
-///
-/// Example: `#[turbo_tasks::value(shared)]`
-///
-/// ### `transparent`
-///
-/// If applied to a unit struct (e.g. `struct Wrapper(Value)`) the outer struct
-/// is skipped for all operations (cell, into, reading).
-///
-/// No value.
-///
-/// Example: `#[turbo_tasks::value(transparent)]`
-///
-/// ### `resolved`
-///
-/// A shorthand syntax for
-/// [`#[derive(turbo_tasks::ResolvedValue)]`][macro@turbo_tasks::ResolvedValue]
-///
-/// Example: `#[turbo_tasks::value(resolved)]`
-///
-/// TODO: add more documentation: presets, traits
+/// Assuming the enum is called `Abc` it exposes `AbcKey` and `AbcValue` types for it too. The key
+/// enum will have `Debug, Clone, PartialEq, Eq, Hash` derived and the value enum will have `Debug,
+/// Clone` derived. It's expected that all fields implement these traits.
+#[proc_macro_derive(KeyValuePair)]
+pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
+    derive::derive_key_value_pair(input)
+}
+
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]
 #[proc_macro_error]
 #[proc_macro_attribute]
@@ -146,7 +86,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ### 'resolved`
 ///
-/// Adds [`turbo_tasks::ResolvedValue`] as a supertrait of this trait.
+/// Adds [`turbo_tasks::NonLocalValue`] as a supertrait of this trait.
 ///
 /// Example: `#[turbo_tasks::value_trait(resolved)]`
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]

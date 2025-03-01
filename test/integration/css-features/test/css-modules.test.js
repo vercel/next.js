@@ -101,12 +101,9 @@ describe('CSS Modules: Import Global CSS', () => {
           .trim()
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            "a .foo {
-              all: initial;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`"a .foo{all:initial}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -181,7 +178,7 @@ describe('CSS Modules: Importing Invalid Global CSS', () => {
 
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000}"`)
+          ).toMatchInlineSnapshot(`".styles_blk__480DC{color:#000000}"`)
         })
       }
     )

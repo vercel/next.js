@@ -1,6 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{util::take::Take, Spanned},
     ecma::{
@@ -16,37 +17,32 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::Vc;
-use turbopack_core::chunk::ChunkingContext;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     utils::AstPathRange,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+
 pub struct Unreachable {
-    range: Vc<AstPathRange>,
+    range: AstPathRange,
 }
 
-#[turbo_tasks::value_impl]
 impl Unreachable {
-    #[turbo_tasks::function]
-    pub fn new(range: Vc<AstPathRange>) -> Vc<Self> {
-        Self::cell(Unreachable { range })
+    pub fn new(range: AstPathRange) -> Self {
+        Unreachable { range }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for Unreachable {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let range = self.range.await?;
-        let visitors = match &*range {
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let visitors = match &self.range {
             AstPathRange::Exact(path) => {
                 [
                     // Unreachable might be used on Stmt or Expr
@@ -124,7 +120,13 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl From<Unreachable> for CodeGen {
+    fn from(val: Unreachable) -> Self {
+        CodeGen::Unreachable(val)
     }
 }
 
@@ -133,7 +135,7 @@ struct ExtractDeclarations<'a> {
     in_nested_block_scope: bool,
 }
 
-impl<'a> VisitMut for ExtractDeclarations<'a> {
+impl VisitMut for ExtractDeclarations<'_> {
     fn visit_mut_var_decl(&mut self, decl: &mut VarDecl) {
         let VarDecl {
             span,

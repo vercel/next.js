@@ -452,6 +452,7 @@ var REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -462,7 +463,7 @@ function getIteratorFn(maybeIterable) {
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   SuspenseException = Error(
-    "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+    "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
   );
 function noop$1() {}
 function trackUsedThenable(thenableState, thenable, index) {
@@ -525,36 +526,42 @@ function getThenableStateAfterSuspending() {
   return state;
 }
 var HooksDispatcher = {
-  useMemo: function (nextCreate) {
-    return nextCreate();
-  },
+  readContext: unsupportedContext,
+  use: use,
   useCallback: function (callback) {
     return callback;
   },
-  useDebugValue: function () {},
-  useDeferredValue: unsupportedHook,
-  useTransition: unsupportedHook,
-  readContext: unsupportedContext,
   useContext: unsupportedContext,
+  useEffect: unsupportedHook,
+  useImperativeHandle: unsupportedHook,
+  useLayoutEffect: unsupportedHook,
+  useInsertionEffect: unsupportedHook,
+  useMemo: function (nextCreate) {
+    return nextCreate();
+  },
   useReducer: unsupportedHook,
   useRef: unsupportedHook,
   useState: unsupportedHook,
-  useInsertionEffect: unsupportedHook,
-  useLayoutEffect: unsupportedHook,
-  useImperativeHandle: unsupportedHook,
-  useEffect: unsupportedHook,
-  useId: useId,
+  useDebugValue: function () {},
+  useDeferredValue: unsupportedHook,
+  useTransition: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
-  useCacheRefresh: function () {
-    return unsupportedRefresh;
-  },
+  useId: useId,
+  useHostTransitionStatus: unsupportedHook,
+  useFormState: unsupportedHook,
+  useActionState: unsupportedHook,
+  useOptimistic: unsupportedHook,
   useMemoCache: function (size) {
     for (var data = Array(size), i = 0; i < size; i++)
       data[i] = REACT_MEMO_CACHE_SENTINEL;
     return data;
   },
-  use: use
+  useCacheRefresh: function () {
+    return unsupportedRefresh;
+  }
 };
+HooksDispatcher.useEffectEvent = unsupportedHook;
+HooksDispatcher.useSwipeTransition = unsupportedHook;
 function unsupportedHook() {
   throw Error("This Hook is not supported in Server Components.");
 }
@@ -647,6 +654,8 @@ function describeElementType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_VIEW_TRANSITION_TYPE:
+      return "ViewTransition";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {
@@ -823,21 +832,9 @@ function serializeThenable(request, task, thenable) {
         (newTask.model = thenable.value), pingTask(request, newTask), newTask.id
       );
     case "rejected":
-      return (
-        (task = thenable.reason),
-        "object" === typeof task &&
-        null !== task &&
-        task.$$typeof === REACT_POSTPONE_TYPE
-          ? (logPostpone(request, task.message, newTask),
-            emitPostponeChunk(request, newTask.id))
-          : ((task = logRecoverableError(request, task, null)),
-            emitErrorChunk(request, newTask.id, task)),
-        (newTask.status = 4),
-        request.abortableTasks.delete(newTask),
-        newTask.id
-      );
+      return erroredTask(request, newTask, thenable.reason), newTask.id;
     default:
-      if (11 === request.status)
+      if (12 === request.status)
         return (
           request.abortableTasks.delete(newTask),
           (newTask.status = 3),
@@ -867,16 +864,8 @@ function serializeThenable(request, task, thenable) {
       pingTask(request, newTask);
     },
     function (reason) {
-      "object" === typeof reason &&
-      null !== reason &&
-      reason.$$typeof === REACT_POSTPONE_TYPE
-        ? (logPostpone(request, reason.message, newTask),
-          emitPostponeChunk(request, newTask.id))
-        : ((reason = logRecoverableError(request, reason, newTask)),
-          emitErrorChunk(request, newTask.id, reason));
-      newTask.status = 4;
-      request.abortableTasks.delete(newTask);
-      enqueueFlush(request);
+      0 === newTask.status &&
+        (erroredTask(request, newTask, reason), enqueueFlush(request));
     }
   );
   return newTask.id;
@@ -897,43 +886,26 @@ function serializeReadableStream(request, task, stream) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$9) {
-          error(x$9);
+        } catch (x$7) {
+          error(x$7);
         }
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortStream);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortStream),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   function abortStream(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortStream);
-      if (
-        "object" === typeof reason &&
-        null !== reason &&
-        reason.$$typeof === REACT_POSTPONE_TYPE
-      )
-        logPostpone(request, reason.message, streamTask),
-          21 === request.type
-            ? request.pendingChunks--
-            : (emitPostponeChunk(request, streamTask.id),
-              enqueueFlush(request));
-      else {
-        var digest = logRecoverableError(request, reason, streamTask);
-        21 === request.type
-          ? request.pendingChunks--
-          : (emitErrorChunk(request, streamTask.id, digest),
-            enqueueFlush(request));
-      }
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortStream),
+      21 === request.type
+        ? request.pendingChunks--
+        : (erroredTask(request, streamTask, reason), enqueueFlush(request)),
+      reader.cancel(reason).then(error, error));
   }
   var supportsBYOB = stream.supportsBYOB;
   if (void 0 === supportsBYOB)
@@ -988,45 +960,28 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$10) {
-          error(x$10);
+        } catch (x$8) {
+          error(x$8);
         }
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortIterable);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortIterable),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
       "function" === typeof iterator.throw &&
-        iterator.throw(reason).then(error, error);
-    }
+        iterator.throw(reason).then(error, error));
   }
   function abortIterable(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortIterable);
-      if (
-        "object" === typeof reason &&
-        null !== reason &&
-        reason.$$typeof === REACT_POSTPONE_TYPE
-      )
-        logPostpone(request, reason.message, streamTask),
-          21 === request.type
-            ? request.pendingChunks--
-            : (emitPostponeChunk(request, streamTask.id),
-              enqueueFlush(request));
-      else {
-        var digest = logRecoverableError(request, reason, streamTask);
-        21 === request.type
-          ? request.pendingChunks--
-          : (emitErrorChunk(request, streamTask.id, digest),
-            enqueueFlush(request));
-      }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortIterable),
+      21 === request.type
+        ? request.pendingChunks--
+        : (erroredTask(request, streamTask, reason), enqueueFlush(request)),
       "function" === typeof iterator.throw &&
-        iterator.throw(reason).then(error, error);
-    }
+        iterator.throw(reason).then(error, error));
   }
   iterable = iterable === iterator;
   var streamTask = createTask(
@@ -1047,10 +1002,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
 }
 function emitHint(request, code, model) {
   model = stringify(model);
-  var id = request.nextChunkId++;
-  code = "H" + code;
-  code = id.toString(16) + ":" + code;
-  request.completedHintChunks.push(code + model + "\n");
+  request.completedHintChunks.push(":H" + code + model + "\n");
   enqueueFlush(request);
 }
 function readThenable(thenable) {
@@ -1081,63 +1033,57 @@ function createLazyWrapperAroundWakeable(wakeable) {
   return { $$typeof: REACT_LAZY_TYPE, _payload: wakeable, _init: readThenable };
 }
 function voidHandler() {}
+function processServerComponentReturnValue(request, task, Component, result) {
+  if (
+    "object" !== typeof result ||
+    null === result ||
+    result.$$typeof === CLIENT_REFERENCE_TAG$1
+  )
+    return result;
+  if ("function" === typeof result.then)
+    return "fulfilled" === result.status
+      ? result.value
+      : createLazyWrapperAroundWakeable(result);
+  var iteratorFn = getIteratorFn(result);
+  return iteratorFn
+    ? ((request = {}),
+      (request[Symbol.iterator] = function () {
+        return iteratorFn.call(result);
+      }),
+      request)
+    : "function" !== typeof result[ASYNC_ITERATOR] ||
+        ("function" === typeof ReadableStream &&
+          result instanceof ReadableStream)
+      ? result
+      : ((request = {}),
+        (request[ASYNC_ITERATOR] = function () {
+          return result[ASYNC_ITERATOR]();
+        }),
+        request);
+}
 function renderFunctionComponent(request, task, key, Component, props) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
-  Component = Component(props, void 0);
-  if (11 === request.status)
+  props = Component(props, void 0);
+  if (12 === request.status)
     throw (
-      ("object" === typeof Component &&
-        null !== Component &&
-        "function" === typeof Component.then &&
-        Component.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
-        Component.then(voidHandler, voidHandler),
+      ("object" === typeof props &&
+        null !== props &&
+        "function" === typeof props.then &&
+        props.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+        props.then(voidHandler, voidHandler),
       null)
     );
-  if (
-    "object" === typeof Component &&
-    null !== Component &&
-    Component.$$typeof !== CLIENT_REFERENCE_TAG$1
-  ) {
-    if ("function" === typeof Component.then) {
-      props = Component;
-      if ("fulfilled" === props.status) return props.value;
-      Component = createLazyWrapperAroundWakeable(Component);
-    }
-    var iteratorFn = getIteratorFn(Component);
-    if (iteratorFn) {
-      var iterableChild = Component;
-      Component = {};
-      Component =
-        ((Component[Symbol.iterator] = function () {
-          return iteratorFn.call(iterableChild);
-        }),
-        Component);
-    } else if (
-      !(
-        "function" !== typeof Component[ASYNC_ITERATOR] ||
-        ("function" === typeof ReadableStream &&
-          Component instanceof ReadableStream)
-      )
-    ) {
-      var iterableChild$11 = Component;
-      Component = {};
-      Component =
-        ((Component[ASYNC_ITERATOR] = function () {
-          return iterableChild$11[ASYNC_ITERATOR]();
-        }),
-        Component);
-    }
-  }
-  props = task.keyPath;
+  props = processServerComponentReturnValue(request, task, Component, props);
+  Component = task.keyPath;
   prevThenableState = task.implicitSlot;
   null !== key
-    ? (task.keyPath = null === props ? key : props + "," + key)
-    : null === props && (task.implicitSlot = !0);
-  request = renderModelDestructive(request, task, emptyRoot, "", Component);
-  task.keyPath = props;
+    ? (task.keyPath = null === Component ? key : Component + "," + key)
+    : null === Component && (task.implicitSlot = !0);
+  request = renderModelDestructive(request, task, emptyRoot, "", props);
+  task.keyPath = Component;
   task.implicitSlot = prevThenableState;
   return request;
 }
@@ -1186,7 +1132,7 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_LAZY_TYPE:
         var init = type._init;
         type = init(type._payload);
-        if (11 === request.status) throw null;
+        if (12 === request.status) throw null;
         return renderElement(request, task, type, key, ref, props);
       case REACT_FORWARD_REF_TYPE:
         return renderFunctionComponent(request, task, key, type.render, props);
@@ -1207,7 +1153,7 @@ function pingTask(request, task) {
   pingedTasks.push(task);
   1 === pingedTasks.length &&
     ((request.flushScheduled = null !== request.destination),
-    21 === request.type
+    21 === request.type || 10 === request.status
       ? scheduleMicrotask(function () {
           return performWork(request);
         })
@@ -1233,7 +1179,79 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
       return pingTask(request, task);
     },
     toJSON: function (parentPropertyName, value) {
-      return renderModel(request, task, this, parentPropertyName, value);
+      var prevKeyPath = task.keyPath,
+        prevImplicitSlot = task.implicitSlot;
+      try {
+        var JSCompiler_inline_result = renderModelDestructive(
+          request,
+          task,
+          this,
+          parentPropertyName,
+          value
+        );
+      } catch (thrownValue) {
+        if (
+          ((parentPropertyName = task.model),
+          (parentPropertyName =
+            "object" === typeof parentPropertyName &&
+            null !== parentPropertyName &&
+            (parentPropertyName.$$typeof === REACT_ELEMENT_TYPE ||
+              parentPropertyName.$$typeof === REACT_LAZY_TYPE)),
+          12 === request.status)
+        )
+          (task.status = 3),
+            21 === request.type
+              ? ((prevKeyPath = request.nextChunkId++),
+                (prevKeyPath = parentPropertyName
+                  ? "$L" + prevKeyPath.toString(16)
+                  : serializeByValueID(prevKeyPath)),
+                (JSCompiler_inline_result = prevKeyPath))
+              : ((prevKeyPath = request.fatalError),
+                (JSCompiler_inline_result = parentPropertyName
+                  ? "$L" + prevKeyPath.toString(16)
+                  : serializeByValueID(prevKeyPath)));
+        else if (
+          ((value =
+            thrownValue === SuspenseException
+              ? getSuspendedThenable()
+              : thrownValue),
+          "object" === typeof value &&
+            null !== value &&
+            "function" === typeof value.then)
+        ) {
+          JSCompiler_inline_result = createTask(
+            request,
+            task.model,
+            task.keyPath,
+            task.implicitSlot,
+            request.abortableTasks
+          );
+          var ping = JSCompiler_inline_result.ping;
+          value.then(ping, ping);
+          JSCompiler_inline_result.thenableState =
+            getThenableStateAfterSuspending();
+          task.keyPath = prevKeyPath;
+          task.implicitSlot = prevImplicitSlot;
+          JSCompiler_inline_result = parentPropertyName
+            ? "$L" + JSCompiler_inline_result.id.toString(16)
+            : serializeByValueID(JSCompiler_inline_result.id);
+        } else
+          (task.keyPath = prevKeyPath),
+            (task.implicitSlot = prevImplicitSlot),
+            request.pendingChunks++,
+            (prevKeyPath = request.nextChunkId++),
+            "object" === typeof value &&
+            null !== value &&
+            value.$$typeof === REACT_POSTPONE_TYPE
+              ? (logPostpone(request, value.message, task),
+                emitPostponeChunk(request, prevKeyPath))
+              : ((prevImplicitSlot = logRecoverableError(request, value, task)),
+                emitErrorChunk(request, prevKeyPath, prevImplicitSlot)),
+            (JSCompiler_inline_result = parentPropertyName
+              ? "$L" + prevKeyPath.toString(16)
+              : serializeByValueID(prevKeyPath));
+      }
+      return JSCompiler_inline_result;
     },
     thenableState: null
   };
@@ -1242,9 +1260,6 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
 }
 function serializeByValueID(id) {
   return "$" + id.toString(16);
-}
-function serializeLazyID(id) {
-  return "$L" + id.toString(16);
 }
 function encodeReferenceChunk(request, id, reference) {
   request = stringify(reference);
@@ -1263,7 +1278,7 @@ function serializeClientReference(
     existingId = writtenClientReferences.get(clientReferenceKey);
   if (void 0 !== existingId)
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? serializeLazyID(existingId)
+      ? "$L" + existingId.toString(16)
       : serializeByValueID(existingId);
   try {
     var config = request.bundlerConfig,
@@ -1283,8 +1298,14 @@ function serializeClientReference(
             '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
         );
     }
+    if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
+      throw Error(
+        'The module "' +
+          modulePath +
+          '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
+      );
     var JSCompiler_inline_result =
-      !0 === clientReference.$$async
+      !0 === resolvedModuleData.async || !0 === clientReference.$$async
         ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
         : [resolvedModuleData.id, resolvedModuleData.chunks, existingId];
     request.pendingChunks++;
@@ -1294,7 +1315,7 @@ function serializeClientReference(
     request.completedImportChunks.push(processedChunk);
     writtenClientReferences.set(clientReferenceKey, importId);
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
-      ? serializeLazyID(importId)
+      ? "$L" + importId.toString(16)
       : serializeByValueID(importId);
   } catch (x) {
     return (
@@ -1330,37 +1351,21 @@ function serializeBlob(request, blob) {
         );
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortBlob);
-      var digest = logRecoverableError(request, reason, newTask);
-      emitErrorChunk(request, newTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortBlob),
+      erroredTask(request, newTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   function abortBlob(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortBlob);
-      if (
-        "object" === typeof reason &&
-        null !== reason &&
-        reason.$$typeof === REACT_POSTPONE_TYPE
-      )
-        logPostpone(request, reason.message, newTask),
-          21 === request.type
-            ? request.pendingChunks--
-            : (emitPostponeChunk(request, newTask.id), enqueueFlush(request));
-      else {
-        var digest = logRecoverableError(request, reason, newTask);
-        21 === request.type
-          ? request.pendingChunks--
-          : (emitErrorChunk(request, newTask.id, digest),
-            enqueueFlush(request));
-      }
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortBlob),
+      21 === request.type
+        ? request.pendingChunks--
+        : (erroredTask(request, newTask, reason), enqueueFlush(request)),
+      reader.cancel(reason).then(error, error));
   }
   var model = [blob.type],
     newTask = createTask(request, model, null, !1, request.abortableTasks),
@@ -1371,70 +1376,6 @@ function serializeBlob(request, blob) {
   return "$B" + newTask.id.toString(16);
 }
 var modelRoot = !1;
-function renderModel(request, task, parent, key, value) {
-  var prevKeyPath = task.keyPath,
-    prevImplicitSlot = task.implicitSlot;
-  try {
-    return renderModelDestructive(request, task, parent, key, value);
-  } catch (thrownValue) {
-    parent = task.model;
-    parent =
-      "object" === typeof parent &&
-      null !== parent &&
-      (parent.$$typeof === REACT_ELEMENT_TYPE ||
-        parent.$$typeof === REACT_LAZY_TYPE);
-    if (11 === request.status) {
-      task.status = 3;
-      if (21 === request.type)
-        return (
-          (task = request.nextChunkId++),
-          (task = parent ? serializeLazyID(task) : serializeByValueID(task)),
-          task
-        );
-      task = request.fatalError;
-      return parent ? serializeLazyID(task) : serializeByValueID(task);
-    }
-    key =
-      thrownValue === SuspenseException ? getSuspendedThenable() : thrownValue;
-    if ("object" === typeof key && null !== key) {
-      if ("function" === typeof key.then)
-        return (
-          (request = createTask(
-            request,
-            task.model,
-            task.keyPath,
-            task.implicitSlot,
-            request.abortableTasks
-          )),
-          (value = request.ping),
-          key.then(value, value),
-          (request.thenableState = getThenableStateAfterSuspending()),
-          (task.keyPath = prevKeyPath),
-          (task.implicitSlot = prevImplicitSlot),
-          parent ? serializeLazyID(request.id) : serializeByValueID(request.id)
-        );
-      if (key.$$typeof === REACT_POSTPONE_TYPE)
-        return (
-          request.pendingChunks++,
-          (value = request.nextChunkId++),
-          logPostpone(request, key.message, task),
-          emitPostponeChunk(request, value),
-          (task.keyPath = prevKeyPath),
-          (task.implicitSlot = prevImplicitSlot),
-          parent ? serializeLazyID(value) : serializeByValueID(value)
-        );
-    }
-    task.keyPath = prevKeyPath;
-    task.implicitSlot = prevImplicitSlot;
-    request.pendingChunks++;
-    prevKeyPath = request.nextChunkId++;
-    task = logRecoverableError(request, key, task);
-    emitErrorChunk(request, prevKeyPath, task);
-    return parent
-      ? serializeLazyID(prevKeyPath)
-      : serializeByValueID(prevKeyPath);
-  }
-}
 function renderModelDestructive(
   request,
   task,
@@ -1482,7 +1423,7 @@ function renderModelDestructive(
         task.thenableState = null;
         parentPropertyName = value._init;
         value = parentPropertyName(value._payload);
-        if (11 === request.status) throw null;
+        if (12 === request.status) throw null;
         return renderModelDestructive(request, task, emptyRoot, "", value);
       case REACT_LEGACY_ELEMENT_TYPE:
         throw Error(
@@ -1536,6 +1477,9 @@ function renderModelDestructive(
             break;
           case "3":
             existingReference = "props";
+            break;
+          case "4":
+            existingReference = "_owner";
         }
       elementReference.set(value, writtenObjects + ":" + existingReference);
     }
@@ -1555,6 +1499,7 @@ function renderModelDestructive(
         (value = Array.from(value.entries())),
         "$K" + outlineModel(request, value).toString(16)
       );
+    if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
       return serializeTypedArray(request, "A", new Uint8Array(value));
     if (value instanceof Int8Array)
@@ -1613,6 +1558,7 @@ function renderModelDestructive(
             ))),
         value
       );
+    if (value instanceof Date) return "$D" + value.toJSON();
     request = getPrototypeOf(value);
     if (
       request !== ObjectPrototype &&
@@ -1769,8 +1715,8 @@ function fatalError(request, error) {
   onFatalError(error);
   cleanupTaintQueue(request);
   null !== request.destination
-    ? ((request.status = 13), request.destination.destroy(error))
-    : ((request.status = 12), (request.fatalError = error));
+    ? ((request.status = 14), request.destination.destroy(error))
+    : ((request.status = 13), (request.fatalError = error));
 }
 function emitPostponeChunk(request, id) {
   id = id.toString(16) + ":P\n";
@@ -1854,6 +1800,17 @@ function emitChunk(request, task, value) {
                               : ((value = stringify(value, task.toJSON)),
                                 emitModelChunk(request, task.id, value));
 }
+function erroredTask(request, task, error) {
+  request.abortableTasks.delete(task);
+  task.status = 4;
+  "object" === typeof error &&
+  null !== error &&
+  error.$$typeof === REACT_POSTPONE_TYPE
+    ? (logPostpone(request, error.message, task),
+      emitPostponeChunk(request, task.id))
+    : ((error = logRecoverableError(request, error, task)),
+      emitErrorChunk(request, task.id, error));
+}
 var emptyRoot = {};
 function retryTask(request, task) {
   if (0 === task.status) {
@@ -1880,7 +1837,7 @@ function retryTask(request, task) {
       request.abortableTasks.delete(task);
       task.status = 1;
     } catch (thrownValue) {
-      if (11 === request.status)
+      if (12 === request.status)
         if (
           (request.abortableTasks.delete(task),
           (task.status = 3),
@@ -1896,26 +1853,16 @@ function retryTask(request, task) {
           thrownValue === SuspenseException
             ? getSuspendedThenable()
             : thrownValue;
-        if ("object" === typeof x && null !== x) {
-          if ("function" === typeof x.then) {
-            task.status = 0;
-            task.thenableState = getThenableStateAfterSuspending();
-            var ping = task.ping;
-            x.then(ping, ping);
-            return;
-          }
-          if (x.$$typeof === REACT_POSTPONE_TYPE) {
-            request.abortableTasks.delete(task);
-            task.status = 4;
-            logPostpone(request, x.message, task);
-            emitPostponeChunk(request, task.id);
-            return;
-          }
-        }
-        request.abortableTasks.delete(task);
-        task.status = 4;
-        var digest = logRecoverableError(request, x, task);
-        emitErrorChunk(request, task.id, digest);
+        if (
+          "object" === typeof x &&
+          null !== x &&
+          "function" === typeof x.then
+        ) {
+          task.status = 0;
+          task.thenableState = getThenableStateAfterSuspending();
+          var ping = task.ping;
+          x.then(ping, ping);
+        } else erroredTask(request, task, x);
       }
     } finally {
     }
@@ -2014,19 +1961,18 @@ function flushCompletedChunks(request, destination) {
   "function" === typeof destination.flush && destination.flush();
   0 === request.pendingChunks &&
     (cleanupTaintQueue(request),
-    (request.status = 13),
+    (request.status = 14),
     destination.end(),
     (request.destination = null));
 }
 function startWork(request) {
   request.flushScheduled = null !== request.destination;
-  21 === request.type
-    ? scheduleMicrotask(function () {
-        requestStorage.run(request, performWork, request);
-      })
-    : setImmediate(function () {
-        return requestStorage.run(request, performWork, request);
-      });
+  scheduleMicrotask(function () {
+    requestStorage.run(request, performWork, request);
+  });
+  setImmediate(function () {
+    10 === request.status && (request.status = 11);
+  });
 }
 function enqueueFlush(request) {
   !1 === request.flushScheduled &&
@@ -2040,9 +1986,9 @@ function enqueueFlush(request) {
     }));
 }
 function startFlowing(request, destination) {
-  if (12 === request.status)
-    (request.status = 13), destination.destroy(request.fatalError);
-  else if (13 !== request.status && null === request.destination) {
+  if (13 === request.status)
+    (request.status = 14), destination.destroy(request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
     request.destination = destination;
     try {
       flushCompletedChunks(request, destination);
@@ -2053,28 +1999,27 @@ function startFlowing(request, destination) {
 }
 function abort(request, reason) {
   try {
-    10 === request.status && (request.status = 11);
+    11 >= request.status && (request.status = 12);
     var abortableTasks = request.abortableTasks;
     if (0 < abortableTasks.size) {
-      if (
+      if (21 === request.type)
+        abortableTasks.forEach(function (task) {
+          5 !== task.status && ((task.status = 3), request.pendingChunks--);
+        });
+      else if (
         "object" === typeof reason &&
         null !== reason &&
         reason.$$typeof === REACT_POSTPONE_TYPE
-      )
-        if ((logPostpone(request, reason.message, null), 21 === request.type))
-          abortableTasks.forEach(function (task) {
-            5 !== task.status && ((task.status = 3), request.pendingChunks--);
-          });
-        else {
-          var errorId = request.nextChunkId++;
-          request.fatalError = errorId;
-          request.pendingChunks++;
-          emitPostponeChunk(request, errorId, reason);
-          abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId);
-          });
-        }
-      else {
+      ) {
+        logPostpone(request, reason.message, null);
+        var errorId = request.nextChunkId++;
+        request.fatalError = errorId;
+        request.pendingChunks++;
+        emitPostponeChunk(request, errorId, reason);
+        abortableTasks.forEach(function (task) {
+          return abortTask(task, request, errorId);
+        });
+      } else {
         var error =
             void 0 === reason
               ? Error("The render was aborted by the server without a reason.")
@@ -2083,20 +2028,14 @@ function abort(request, reason) {
                   "function" === typeof reason.then
                 ? Error("The render was aborted by the server with a promise.")
                 : reason,
-          digest = logRecoverableError(request, error, null);
-        if (21 === request.type)
-          abortableTasks.forEach(function (task) {
-            5 !== task.status && ((task.status = 3), request.pendingChunks--);
-          });
-        else {
-          var errorId$27 = request.nextChunkId++;
-          request.fatalError = errorId$27;
-          request.pendingChunks++;
-          emitErrorChunk(request, errorId$27, digest, error);
-          abortableTasks.forEach(function (task) {
-            return abortTask(task, request, errorId$27);
-          });
-        }
+          digest = logRecoverableError(request, error, null),
+          errorId$25 = request.nextChunkId++;
+        request.fatalError = errorId$25;
+        request.pendingChunks++;
+        emitErrorChunk(request, errorId$25, digest, error);
+        abortableTasks.forEach(function (task) {
+          return abortTask(task, request, errorId$25);
+        });
       }
       abortableTasks.clear();
       var onAllReady = request.onAllReady;
@@ -2104,7 +2043,7 @@ function abort(request, reason) {
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
-      var error$28 =
+      var error$26 =
         "object" === typeof reason &&
         null !== reason &&
         reason.$$typeof === REACT_POSTPONE_TYPE
@@ -2117,14 +2056,14 @@ function abort(request, reason) {
               ? Error("The render was aborted by the server with a promise.")
               : reason;
       abortListeners.forEach(function (callback) {
-        return callback(error$28);
+        return callback(error$26);
       });
       abortListeners.clear();
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$29) {
-    logRecoverableError(request, error$29, null), fatalError(request, error$29);
+  } catch (error$27) {
+    logRecoverableError(request, error$27, null), fatalError(request, error$27);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2143,7 +2082,9 @@ function resolveServerReference(bundlerConfig, id) {
           '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
       );
   }
-  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  return resolvedModuleData.async
+    ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+    : [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
 var chunkCache = new Map();
 function requireAsyncModule(id) {
@@ -2399,6 +2340,8 @@ function initializeModelChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -2411,7 +2354,9 @@ function getChunk(response, id) {
     (chunk =
       null != chunk
         ? new Chunk("resolved_model", chunk, id, response)
-        : createPendingChunk(response)),
+        : response._closed
+          ? new Chunk("rejected", null, response._closedReason, response)
+          : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -2567,8 +2512,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$32 = createPendingChunk(response);
-        chunk$32.then(
+        var chunk$30 = createPendingChunk(response);
+        chunk$30.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2576,10 +2521,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$32;
+        previousBlockedChunk = chunk$30;
         chunk.then(function () {
-          previousBlockedChunk === chunk$32 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$32, json, -1);
+          previousBlockedChunk === chunk$30 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$30, json, -1);
         });
       }
     },
@@ -2808,6 +2753,8 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
     _prefix: formFieldPrefix,
     _formData: backingFormData,
     _chunks: chunks,
+    _closed: !1,
+    _closedReason: null,
     _temporaryReferences: temporaryReferences
   };
 }
@@ -2950,12 +2897,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_229 = [];
+    var JSCompiler_object_inline_chunks_234 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_229.push(chunk);
+      JSCompiler_object_inline_chunks_234.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_229, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_234, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);
@@ -2974,43 +2921,6 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
     reportGlobalError(response, err);
   });
   return getChunk(response, 0);
-};
-exports.prerenderToNodeStream = function (model, webpackMap, options) {
-  return new Promise(function (resolve, reject) {
-    var request = new RequestInstance(
-      21,
-      model,
-      webpackMap,
-      options ? options.onError : void 0,
-      options ? options.identifierPrefix : void 0,
-      options ? options.onPostpone : void 0,
-      options ? options.temporaryReferences : void 0,
-      void 0,
-      void 0,
-      function () {
-        var readable = new stream.Readable({
-            read: function () {
-              startFlowing(request, writable);
-            }
-          }),
-          writable = createFakeWritable(readable);
-        resolve({ prelude: readable });
-      },
-      reject
-    );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
-    startWork(request);
-  });
 };
 exports.registerClientReference = function (
   proxyImplementation,
@@ -3076,4 +2986,41 @@ exports.renderToPipeableStream = function (model, webpackMap, options) {
       abort(request, reason);
     }
   };
+};
+exports.unstable_prerenderToNodeStream = function (model, webpackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      webpackMap,
+      options ? options.onError : void 0,
+      options ? options.identifierPrefix : void 0,
+      options ? options.onPostpone : void 0,
+      options ? options.temporaryReferences : void 0,
+      void 0,
+      void 0,
+      function () {
+        var readable = new stream.Readable({
+            read: function () {
+              startFlowing(request, writable);
+            }
+          }),
+          writable = createFakeWritable(readable);
+        resolve({ prelude: readable });
+      },
+      reject
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
 };

@@ -5,7 +5,7 @@ use swc_core::{
     common::SyntaxContext,
     ecma::{ast::*, utils::ExprCtx, visit::VisitWith},
 };
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
@@ -14,15 +14,18 @@ use super::module_rule_match_js_no_url;
 pub fn next_edge_node_api_assert(
     enable_mdx_rs: bool,
     should_error_for_node_apis: bool,
+    is_production: bool,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextEdgeNodeApiAssert {
-        should_error_for_node_apis,
-    }) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextEdgeNodeApiAssert {
+            should_error_for_node_apis,
+            is_production,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![]),
-            append: Vc::cell(vec![transformer]),
+            prepend: ResolvedVc::cell(vec![]),
+            append: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }
@@ -30,6 +33,7 @@ pub fn next_edge_node_api_assert(
 #[derive(Debug)]
 struct NextEdgeNodeApiAssert {
     should_error_for_node_apis: bool,
+    is_production: bool,
 }
 
 #[async_trait]
@@ -41,8 +45,11 @@ impl CustomTransformer for NextEdgeNodeApiAssert {
             ExprCtx {
                 is_unresolved_ref_safe: false,
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(ctx.unresolved_mark),
+                in_strict: false,
+                remaining_depth: 4,
             },
             self.should_error_for_node_apis,
+            self.is_production,
         );
         program.visit_with(&mut visitor);
         Ok(())

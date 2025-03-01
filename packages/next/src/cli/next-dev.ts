@@ -37,9 +37,12 @@ import os from 'os'
 import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
+import { traceId } from '../trace/shared'
 
 export type NextDevOptions = {
+  disableSourceMaps: boolean
   turbo?: boolean
+  turbopack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
@@ -86,7 +89,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   }
 
   sessionSpan.stop()
-  await flushAllTraces()
+  await flushAllTraces({ end: true })
 
   try {
     const { eventCliSessionStopped } =
@@ -136,6 +139,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
+      isTurboSession,
     })
   }
 
@@ -202,7 +206,7 @@ const nextDev = async (
     }
   }
 
-  const port = options.port
+  let port = options.port
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
@@ -232,7 +236,7 @@ const nextDev = async (
     hostname: host,
   }
 
-  if (options.turbo) {
+  if (options.turbo || options.turbopack) {
     process.env.TURBOPACK = '1'
   }
 
@@ -264,6 +268,12 @@ const nextDev = async (
         delete nodeOptions['max_old_space_size']
       }
 
+      if (options.disableSourceMaps) {
+        delete nodeOptions['enable-source-maps']
+      } else {
+        nodeOptions['enable-source-maps'] = true
+      }
+
       if (nodeDebugType) {
         const address = getParsedDebugAddress()
         address.port = address.port + 1
@@ -276,10 +286,16 @@ const nextDev = async (
           ...defaultEnv,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
+          NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
+          // This limits the number of watchers to mitigate the issue.
+          // https://github.com/nodejs/node/issues/29949
+          WATCHPACK_WATCHER_LIMIT:
+            os.platform() === 'darwin' ? '20' : undefined,
         },
       })
 
@@ -288,6 +304,12 @@ const nextDev = async (
           if (msg.nextWorkerReady) {
             child?.send({ nextWorkerOptions: startServerOptions })
           } else if (msg.nextServerReady && !resolved) {
+            if (msg.port) {
+              // Store the used port in case a random one was selected, so that
+              // it can be re-used on automatic dev server restarts.
+              port = parseInt(msg.port, 10)
+            }
+
             resolved = true
             resolve()
           }
@@ -308,10 +330,12 @@ const nextDev = async (
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
+              isTurboSession,
               sync: true,
             })
           }
-          return startServer(startServerOptions)
+
+          return startServer({ ...startServerOptions, port })
         }
         // Call handler (e.g. upload telemetry). Don't try to send a signal to
         // the child, as it has already exited.

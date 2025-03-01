@@ -7,48 +7,32 @@ use swc_core::{
             ComputedPropName, Expr, Ident, KeyValueProp, Lit, MemberExpr, MemberProp, Number, Prop,
             PropName, SeqExpr, SimpleAssignTarget, Str,
         },
-        visit::{
-            fields::{CalleeField, PropField},
-            AstParentKind,
-        },
+        visit::fields::{CalleeField, PropField},
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::EsmAssetReference;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration, VisitorFactory},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::AstPath,
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct EsmBindings {
-    pub bindings: Vec<EsmBinding>,
-}
-
-#[turbo_tasks::value_impl]
-impl EsmBindings {
-    #[turbo_tasks::function]
-    pub fn new(bindings: Vec<EsmBinding>) -> Vc<Self> {
-        EsmBindings { bindings }.cell()
-    }
-}
-
-#[derive(Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs)]
+#[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
 pub struct EsmBinding {
-    pub reference: Vc<EsmAssetReference>,
+    pub reference: ResolvedVc<EsmAssetReference>,
     pub export: Option<RcStr>,
-    pub ast_path: Vc<AstPath>,
+    pub ast_path: AstPath,
 }
 
 impl EsmBinding {
     pub fn new(
-        reference: Vc<EsmAssetReference>,
+        reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: Vc<AstPath>,
+        ast_path: AstPath,
     ) -> Self {
         EsmBinding {
             reference,
@@ -57,16 +41,18 @@ impl EsmBinding {
         }
     }
 
-    async fn to_visitors(
+    pub async fn code_generation(
         &self,
-        visitors: &mut Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
-    ) -> Result<()> {
-        let item = self.clone();
+        _module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        let mut visitors = vec![];
+
+        let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset();
+        let imported_module = imported_module.await?.get_ident(chunking_context).await?;
 
-        let mut ast_path = item.ast_path.await?.clone_value();
-        let imported_module = imported_module.await?.get_ident().await?;
-
+        let mut ast_path = self.ast_path.0.clone();
         loop {
             match ast_path.last() {
                 // Shorthand properties get special treatment because we need to rewrite them to
@@ -80,7 +66,7 @@ impl EsmBinding {
                             if let Some(imported_ident) = imported_module.as_deref() {
                                 *prop = Prop::KeyValue(KeyValueProp {
                                     key: PropName::Ident(ident.clone().into()),
-                                    value: Box::new(make_expr(imported_ident, item.export.as_deref(), ident.span, false))
+                                    value: Box::new(make_expr(imported_ident, export.as_deref(), ident.span, false))
                                 });
                             }
                         }
@@ -98,15 +84,16 @@ impl EsmBinding {
                     );
 
                     visitors.push(
-                    create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
-                        if let Some(ident) = imported_module.as_deref() {
-                            use swc_core::common::Spanned;
-                            *expr = make_expr(ident, item.export.as_deref(), expr.span(), in_call);
-                        }
-                        // If there's no identifier for the imported module,
-                        // resolution failed and will insert code that throws
-                        // before this expression is reached. Leave behind the original identifier.
-                    }));
+                        create_visitor!(exact ast_path, visit_mut_expr(expr: &mut Expr) {
+                            if let Some(ident) = imported_module.as_deref() {
+                                use swc_core::common::Spanned;
+                                *expr = make_expr(ident, export.as_deref(), expr.span(), in_call);
+                            }
+                            // If there's no identifier for the imported module,
+                            // resolution failed and will insert code that throws
+                            // before this expression is reached. Leave behind the original identifier.
+                        }),
+                    );
                     break;
                 }
                 Some(swc_core::ecma::visit::AstParentKind::BindingIdent(
@@ -126,7 +113,7 @@ impl EsmBinding {
                         create_visitor!(exact ast_path, visit_mut_simple_assign_target(l: &mut SimpleAssignTarget) {
                                 if let Some(ident) = imported_module.as_deref() {
                                     use swc_core::common::Spanned;
-                                    *l = match make_expr(ident, item.export.as_deref(), l.span(), false) {
+                                    *l = match make_expr(ident, export.as_deref(), l.span(), false) {
                                         Expr::Ident(ident) => SimpleAssignTarget::Ident(ident.into()),
                                         Expr::Member(member) => SimpleAssignTarget::Member(member),
                                         _ => unreachable!(),
@@ -143,26 +130,13 @@ impl EsmBinding {
             }
         }
 
-        Ok(())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmBindings {
-    #[turbo_tasks::function]
-    async fn code_generation(
-        self: Vc<Self>,
-        _context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
-        let mut visitors = Vec::new();
-        let bindings = this.bindings.clone();
-
-        for item in bindings.into_iter() {
-            item.to_visitors(&mut visitors).await?;
-        }
-
-        Ok(CodeGeneration { visitors }.into())
+impl From<EsmBinding> for CodeGen {
+    fn from(val: EsmBinding) -> Self {
+        CodeGen::EsmBinding(val)
     }
 }
 

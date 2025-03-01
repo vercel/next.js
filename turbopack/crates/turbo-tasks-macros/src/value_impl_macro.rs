@@ -6,7 +6,7 @@ use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
-    Attribute, Error, ExprPath, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
+    Attribute, Error, Generics, ImplItem, ImplItemMethod, ItemImpl, Lit, LitStr, Meta,
     MetaNameValue, Path, Result, Token, Type,
 };
 use turbo_tasks_macros_shared::{
@@ -15,7 +15,10 @@ use turbo_tasks_macros_shared::{
     get_trait_impl_function_ident, get_type_ident,
 };
 
-use crate::func::{DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn, TurboFn};
+use crate::func::{
+    filter_inline_attributes, DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn,
+    TurboFn,
+};
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
@@ -119,14 +122,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let func_args = func_args
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
-                let local_cells = func_args.local_cells.is_some();
-
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
-                let inline_function_path: ExprPath = parse_quote! { <#ty>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
+                let local = func_args.local.is_some();
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueInherentImpl, func_args)
@@ -135,22 +131,26 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // An error occurred while parsing the function signature.
                     };
                 };
+                let inline_function_ident = turbo_fn.inline_ident();
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
-                let native_fn = NativeFn::new(
-                    &format!("{ty}::{ident}", ty = ty.to_token_stream()),
-                    &inline_function_path,
-                    turbo_fn.is_method(),
-                    local_cells,
-                );
+                let native_fn = NativeFn {
+                    function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    function_path: parse_quote! { <#ty>::#inline_function_ident },
+                    is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: None, // not a trait method
+                    local,
+                };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
+
                 let native_function_id_ident = get_inherent_impl_function_id_ident(ty_ident, ident);
                 let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def = native_fn.id_definition(&parse_quote! {
-                    #native_function_ident
-                });
+                let native_function_id_def =
+                    native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
                 let turbo_block = turbo_fn.static_block(&native_function_id_ident);
@@ -162,26 +162,23 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 all_definitions.push(quote! {
                     #[doc(hidden)]
                     impl #ty {
-                        // By declaring the native function's body within an `impl` block, we ensure that `Self` refers
-                        // to `#ty`. This is necessary because the function's body is originally declared within an
-                        // `impl` block already.
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_ident: #native_function_ty = #native_function_def;
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
-
-                        #(#attrs)*
+                        // By declaring the native function's body within an `impl` block, we ensure
+                        // that `Self` refers to `#ty`. This is necessary because the function's
+                        // body is originally declared within an `impl` block already.
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        pub(self) #inline_signature #block
+                        pub(self) #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]
-                    pub(crate) static #native_function_ident: #native_function_ty = <#ty>::#native_function_ident;
+                    pub(crate) static #native_function_ident:
+                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
                     #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident: #native_function_id_ty = <#ty>::#native_function_id_ident;
+                    pub(crate) static #native_function_id_ident:
+                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 })
             }
         }
@@ -225,7 +222,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let func_args = func_args
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
-                let local_cells = func_args.local_cells.is_some();
+                let local = func_args.local.is_some();
 
                 let Some(turbo_fn) =
                     TurboFn::new(sig, DefinitionContext::ValueTraitImpl, func_args)
@@ -235,40 +232,38 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     };
                 };
 
-                // TODO(alexkirsz) These should go into their own utilities.
-                let inline_function_ident: Ident =
-                    Ident::new(&format!("{}_inline", ident), ident.span());
+                let inline_function_ident = turbo_fn.inline_ident();
                 let inline_extension_trait_ident = Ident::new(
                     &format!("{}_{}_{}_inline", ty_ident, trait_ident, ident),
                     ident.span(),
                 );
-                let inline_function_path: ExprPath =
-                    parse_quote! { <#ty as #inline_extension_trait_ident>::#inline_function_ident };
-                let mut inline_signature = sig.clone();
-                inline_signature.ident = inline_function_ident;
+                let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
-                let native_fn = NativeFn::new(
-                    &format!(
+                let native_fn = NativeFn {
+                    function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
                         trait_path = trait_path.to_token_stream()
                     ),
-                    &inline_function_path,
-                    turbo_fn.is_method(),
-                    local_cells,
-                );
+                    function_path: parse_quote! {
+                        <#ty as #inline_extension_trait_ident>::#inline_function_ident
+                    },
+                    is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                    local,
+                };
 
                 let native_function_ident =
                     get_trait_impl_function_ident(ty_ident, &trait_ident, ident);
-
                 let native_function_ty = native_fn.ty();
                 let native_function_def = native_fn.definition();
+
                 let native_function_id_ident =
                     get_trait_impl_function_id_ident(ty_ident, &trait_ident, ident);
                 let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def = native_fn.id_definition(&parse_quote! {
-                    #native_function_ident
-                });
+                let native_function_id_def =
+                    native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
                 let turbo_block = turbo_fn.static_block(&native_function_id_ident);
@@ -282,37 +277,27 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #inline_extension_trait_ident: std::marker::Send {
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_ident: #native_function_ty;
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_id_ident: #native_function_id_ty;
-
-                        #(#attrs)*
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #inline_signature;
                     }
 
                     #[doc(hidden)]
                     impl #impl_generics #inline_extension_trait_ident for #ty #where_clause  {
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_ident: #native_function_ty = #native_function_def;
-                        #[allow(declare_interior_mutable_const)]
-                        #[doc(hidden)]
-                        const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
-
-                        #(#attrs)*
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
-                        #inline_signature #block
+                        #inline_signature #inline_block
                     }
 
                     #[doc(hidden)]
-                    pub(crate) static #native_function_ident: #native_function_ty = <#ty as #inline_extension_trait_ident>::#native_function_ident;
+                    pub(crate) static #native_function_ident:
+                        turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
                     #[doc(hidden)]
-                    pub(crate) static #native_function_id_ident: #native_function_id_ty = <#ty as #inline_extension_trait_ident>::#native_function_id_ident;
+                    pub(crate) static #native_function_id_ident:
+                        turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 });
 
                 trait_registers.push(quote! {

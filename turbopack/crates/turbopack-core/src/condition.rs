@@ -1,17 +1,16 @@
 use anyhow::Result;
-use async_recursion::async_recursion;
 use futures::{stream, StreamExt};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub enum ContextCondition {
     All(Vec<ContextCondition>),
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
     InDirectory(String),
-    InPath(Vc<FileSystemPath>),
+    InPath(ResolvedVc<FileSystemPath>),
 }
 
 impl ContextCondition {
@@ -31,7 +30,6 @@ impl ContextCondition {
         ContextCondition::Not(Box::new(condition))
     }
 
-    #[async_recursion]
     /// Returns true if the condition matches the context.
     pub async fn matches(&self, path: &FileSystemPath) -> Result<bool> {
         match self {
@@ -40,7 +38,7 @@ impl ContextCondition {
                 #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(true), |acc, c| async move {
-                        Ok(acc? && c.matches(path).await?)
+                        Ok(acc? && Box::pin(c.matches(path)).await?)
                     })
                     .await
             }
@@ -49,11 +47,11 @@ impl ContextCondition {
                 #[allow(clippy::manual_try_fold)]
                 stream::iter(conditions)
                     .fold(Ok(false), |acc, c| async move {
-                        Ok(acc? || c.matches(path).await?)
+                        Ok(acc? || Box::pin(c.matches(path)).await?)
                     })
                     .await
             }
-            ContextCondition::Not(condition) => condition.matches(path).await.map(|b| !b),
+            ContextCondition::Not(condition) => Box::pin(condition.matches(path)).await.map(|b| !b),
             ContextCondition::InPath(other_path) => {
                 Ok(path.is_inside_or_equal_ref(&*other_path.await?))
             }

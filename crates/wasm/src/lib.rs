@@ -13,7 +13,7 @@ use swc_core::{
         errors::ColorConfig,
         FileName, FilePathMapping, Mark, SourceMap, GLOBALS,
     },
-    ecma::transforms::base::pass::noop,
+    ecma::ast::noop_pass,
 };
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
@@ -107,9 +107,10 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     comments.clone(),
                                     Default::default(),
                                     unresolved_mark,
+                                    Default::default(),
                                 )
                             },
-                            |_| noop(),
+                            |_| noop_pass(),
                         )
                         .context("failed to process js file")?
                     }

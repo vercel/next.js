@@ -20,14 +20,40 @@ export interface RequestLoggingOptions {
   readonly requestDurationInMs: number
 }
 
+/**
+ * Returns true if the incoming request should be ignored for logging.
+ */
+export function ignoreLoggingIncomingRequests(
+  request: NodeNextRequest,
+  loggingConfig: LoggingConfig | undefined
+): boolean {
+  // If it's boolean use the boolean value
+  if (typeof loggingConfig?.incomingRequests === 'boolean') {
+    return !loggingConfig.incomingRequests
+  }
+
+  // Any of the value on the chain is falsy, will not ignore the request.
+  const ignore = loggingConfig?.incomingRequests?.ignore
+
+  // If ignore is not set, don't ignore anything
+  if (!ignore) {
+    return false
+  }
+
+  // If array of RegExp, ignore if any pattern matches
+  return ignore.some((pattern) => pattern.test(request.url))
+}
+
 export function logRequests(options: RequestLoggingOptions): void {
   const { request, response, loggingConfig, requestDurationInMs } = options
 
-  logIncomingRequest({
-    request,
-    requestDurationInMs,
-    statusCode: response.statusCode,
-  })
+  if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
+    logIncomingRequests({
+      request,
+      requestDurationInMs,
+      statusCode: response.statusCode,
+    })
+  }
 
   if (request.fetchMetrics) {
     for (const fetchMetric of request.fetchMetrics) {
@@ -42,7 +68,7 @@ interface IncomingRequestOptions {
   readonly statusCode: number
 }
 
-function logIncomingRequest(options: IncomingRequestOptions): void {
+function logIncomingRequests(options: IncomingRequestOptions): void {
   const { request, requestDurationInMs, statusCode } = options
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url
@@ -93,7 +119,7 @@ function logFetchMetric(
 
     writeLine(
       white(
-        `${method} ${url} ${status} in ${end - start}ms ${formatCacheStatus(cacheStatus)}`
+        `${method} ${url} ${status} in ${Math.round(end - start)}ms ${formatCacheStatus(cacheStatus)}`
       ),
       1
     )

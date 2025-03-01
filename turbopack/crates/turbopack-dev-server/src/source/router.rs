@@ -1,7 +1,8 @@
 use std::iter::once;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -11,37 +12,38 @@ use super::{
 };
 use crate::source::{route_tree::MapGetContentSourceContent, ContentSources};
 
-/// Binds different ContentSources to different subpaths. The request path must
-/// begin with the prefix, which will be stripped (along with the subpath)
+/// Binds different ContentSources to different subpaths.
+///
+/// The request path must begin with the prefix, which will be stripped (along with the subpath)
 /// before querying the ContentSource. A fallback ContentSource will serve all
 /// other subpaths, including if the request path does not include the prefix.
 #[turbo_tasks::value(shared)]
 pub struct PrefixedRouterContentSource {
-    pub prefix: Vc<RcStr>,
-    pub routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
-    pub fallback: Vc<Box<dyn ContentSource>>,
+    pub prefix: ResolvedVc<RcStr>,
+    pub routes: Vec<(RcStr, ResolvedVc<Box<dyn ContentSource>>)>,
+    pub fallback: ResolvedVc<Box<dyn ContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
 impl PrefixedRouterContentSource {
     #[turbo_tasks::function]
-    pub async fn new(
-        prefix: Vc<RcStr>,
-        routes: Vec<(RcStr, Vc<Box<dyn ContentSource>>)>,
-        fallback: Vc<Box<dyn ContentSource>>,
-    ) -> Result<Vc<Self>> {
-        Ok(PrefixedRouterContentSource {
+    pub fn new(
+        prefix: ResolvedVc<RcStr>,
+        routes: Vec<(RcStr, ResolvedVc<Box<dyn ContentSource>>)>,
+        fallback: ResolvedVc<Box<dyn ContentSource>>,
+    ) -> Vc<Self> {
+        PrefixedRouterContentSource {
             prefix,
             routes,
             fallback,
         }
-        .cell())
+        .cell()
     }
 }
 
 fn get_children(
-    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
-    fallback: &Vc<Box<dyn ContentSource>>,
+    routes: &[(RcStr, ResolvedVc<Box<dyn ContentSource>>)],
+    fallback: &ResolvedVc<Box<dyn ContentSource>>,
 ) -> Vc<ContentSources> {
     Vc::cell(
         routes
@@ -53,8 +55,8 @@ fn get_children(
 }
 
 async fn get_introspection_children(
-    routes: &[(RcStr, Vc<Box<dyn ContentSource>>)],
-    fallback: &Vc<Box<dyn ContentSource>>,
+    routes: &[(RcStr, ResolvedVc<Box<dyn ContentSource>>)],
+    fallback: &ResolvedVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<IntrospectableChildren>> {
     Ok(Vc::cell(
         routes
@@ -62,9 +64,8 @@ async fn get_introspection_children(
             .cloned()
             .chain(std::iter::once((RcStr::default(), *fallback)))
             .map(|(path, source)| async move {
-                Ok(Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(source)
-                    .await?
-                    .map(|i| (Vc::cell(path), i)))
+                Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
+                    .map(|i| (ResolvedVc::cell(path), i)))
             })
             .try_join()
             .await?
@@ -83,9 +84,13 @@ impl ContentSource for PrefixedRouterContentSource {
             debug_assert!(prefix.is_empty() || prefix.ends_with('/'));
             debug_assert!(!prefix.starts_with('/'));
         }
-        let prefix = (!prefix.is_empty())
-            .then(|| BaseSegment::from_static_pathname(prefix.as_str()).collect())
-            .unwrap_or(Vec::new());
+
+        let prefix = if prefix.is_empty() {
+            Vec::new()
+        } else {
+            BaseSegment::from_static_pathname(prefix.as_str()).collect()
+        };
+
         let inner_trees = self.routes.iter().map(|(path, source)| {
             let prepended_base = prefix
                 .iter()
@@ -106,7 +111,9 @@ impl ContentSource for PrefixedRouterContentSource {
         Ok(Vc::<RouteTrees>::cell(
             inner_trees
                 .chain(once(self.fallback.get_routes()))
-                .collect(),
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         )
         .merge())
     }
@@ -119,7 +126,7 @@ impl ContentSource for PrefixedRouterContentSource {
 
 #[turbo_tasks::value]
 struct PrefixedRouterContentSourceMapper {
-    prefix: Vc<RcStr>,
+    prefix: ResolvedVc<RcStr>,
     path: RcStr,
 }
 
@@ -127,8 +134,8 @@ struct PrefixedRouterContentSourceMapper {
 impl MapGetContentSourceContent for PrefixedRouterContentSourceMapper {
     #[turbo_tasks::function]
     fn map_get_content(
-        self: Vc<Self>,
-        get_content: Vc<Box<dyn GetContentSourceContent>>,
+        self: ResolvedVc<Self>,
+        get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Box<dyn GetContentSourceContent>> {
         Vc::upcast(
             PrefixedRouterGetContentSourceContent {
@@ -142,8 +149,8 @@ impl MapGetContentSourceContent for PrefixedRouterContentSourceMapper {
 
 #[turbo_tasks::value]
 struct PrefixedRouterGetContentSourceContent {
-    mapper: Vc<PrefixedRouterContentSourceMapper>,
-    get_content: Vc<Box<dyn GetContentSourceContent>>,
+    mapper: ResolvedVc<PrefixedRouterContentSourceMapper>,
+    get_content: ResolvedVc<Box<dyn GetContentSourceContent>>,
 }
 
 #[turbo_tasks::value_impl]

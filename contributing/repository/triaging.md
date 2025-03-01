@@ -14,7 +14,7 @@ Issues are opened with one of these labels:
 
 ### Automated triaging
 
-In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
+In case of a bug report, **if the reproduction is missing or insufficient, the issue is automatically closed**, and a comment is added with a correct course of action. The issue will receive [this comment](https://github.com/vercel/next.js/blob/canary/.github/comments/invalid-link.md). We also add an `invalid link` label to mark the issue. To avoid your issue being closed, please follow the [bug report template](https://github.com/vercel/next.js/blob/canary/.github/ISSUE_TEMPLATE/1.bug_report.yml) carefully.
 
 If you fill out the "Which area(s) are affected? (Select all that apply)" section of the bug report template, we will add the corresponding [label(s)](https://github.com/vercel/next.js/labels).
 

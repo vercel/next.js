@@ -8,6 +8,7 @@ import type {
   Options,
 } from 'jscodeshift'
 import { basename, extname } from 'path'
+import { createParserFromPath } from '../lib/parser'
 
 const camelCase = (value: string): string => {
   const val = value.replace(/[-_\s.]+(.)?/g, (_match, chr) =>
@@ -21,10 +22,10 @@ const isValidIdentifier = (value: string): boolean =>
 
 export default function transformer(
   file: FileInfo,
-  api: API,
+  _api: API,
   options: Options
 ) {
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   let hasModifications: boolean

@@ -2,6 +2,7 @@ import type { ActionManifest } from '../../build/webpack/plugins/flight-client-e
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { workAsyncStorage } from './work-async-storage.external'
 
 // This function creates a Flight-acceptable server module map proxy from our
 // Server Reference Manifest similar to our client module map.
@@ -9,22 +10,44 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 // are relevant to the runtime, workers, etc. that React doesn't need to know.
 export function createServerModuleMap({
   serverActionsManifest,
-  pageName,
 }: {
   serverActionsManifest: ActionManifest
-  pageName: string
 }) {
   return new Proxy(
     {},
     {
       get: (_, id: string) => {
-        return {
-          id: serverActionsManifest[
+        const workers =
+          serverActionsManifest[
             process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          ][id].workers[normalizeWorkerPageName(pageName)],
-          name: id,
-          chunks: [],
+          ][id].workers
+
+        const workStore = workAsyncStorage.getStore()
+
+        let workerEntry:
+          | { moduleId: string | number; async: boolean }
+          | undefined
+
+        if (workStore) {
+          workerEntry = workers[normalizeWorkerPageName(workStore.page)]
+        } else {
+          // If there's no work store defined, we can assume that a server
+          // module map is needed during module evaluation, e.g. to create a
+          // server action using a higher-order function. Therefore it should be
+          // safe to return any entry from the manifest that matches the action
+          // ID. They all refer to the same module ID, which must also exist in
+          // the current page bundle. TODO: This is currently not guaranteed in
+          // Turbopack, and needs to be fixed.
+          workerEntry = Object.values(workers).at(0)
         }
+
+        if (!workerEntry) {
+          return undefined
+        }
+
+        const { moduleId, async } = workerEntry
+
+        return { id: moduleId, name: id, chunks: [], async }
       },
     }
   )

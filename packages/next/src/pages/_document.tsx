@@ -22,6 +22,8 @@ import {
 import type { HtmlProps } from '../shared/lib/html-context.shared-runtime'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getTracer } from '../server/lib/trace/tracer'
+import { getTracedMetadata } from '../server/lib/trace/utils'
 
 export type { DocumentContext, DocumentInitialProps, DocumentProps }
 
@@ -427,6 +429,7 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix,
       assetQueryString,
       dynamicImports,
+      dynamicCssManifest,
       crossOrigin,
       optimizeCss,
     } = this.context
@@ -435,22 +438,24 @@ export class Head extends React.Component<HeadProps> {
 
     // Unmanaged files are CSS files that will be handled directly by the
     // webpack runtime (`mini-css-extract-plugin`).
-    let unmangedFiles: Set<string> = new Set([])
-    let dynamicCssFiles = Array.from(
+    let unmanagedFiles: Set<string> = new Set([])
+    let localDynamicCssFiles = Array.from(
       new Set(dynamicImports.filter((file) => file.endsWith('.css')))
     )
-    if (dynamicCssFiles.length) {
+    if (localDynamicCssFiles.length) {
       const existing = new Set(cssFiles)
-      dynamicCssFiles = dynamicCssFiles.filter(
+      localDynamicCssFiles = localDynamicCssFiles.filter(
         (f) => !(existing.has(f) || sharedFiles.has(f))
       )
-      unmangedFiles = new Set(dynamicCssFiles)
-      cssFiles.push(...dynamicCssFiles)
+      unmanagedFiles = new Set(localDynamicCssFiles)
+      cssFiles.push(...localDynamicCssFiles)
     }
 
     let cssLinkElements: JSX.Element[] = []
     cssFiles.forEach((file) => {
       const isSharedFile = sharedFiles.has(file)
+      const isUnmanagedFile = unmanagedFiles.has(file)
+      const isFileInDynamicCssManifest = dynamicCssManifest.has(file)
 
       if (!optimizeCss) {
         cssLinkElements.push(
@@ -467,7 +472,6 @@ export class Head extends React.Component<HeadProps> {
         )
       }
 
-      const isUnmanagedFile = unmangedFiles.has(file)
       cssLinkElements.push(
         <link
           key={file}
@@ -478,7 +482,11 @@ export class Head extends React.Component<HeadProps> {
           )}${assetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
-          data-n-p={isUnmanagedFile ? undefined : isSharedFile ? undefined : ''}
+          data-n-p={
+            isSharedFile || isUnmanagedFile || isFileInDynamicCssManifest
+              ? undefined
+              : ''
+          }
         />
       )
     })
@@ -758,6 +766,17 @@ export class Head extends React.Component<HeadProps> {
       assetPrefix
     )
 
+    const tracingMetadata = getTracedMetadata(
+      getTracer().getTracePropagationData(),
+      this.context.experimentalClientTraceMetadata
+    )
+
+    const traceMetaTags = (tracingMetadata || []).map(
+      ({ key, value }, index) => (
+        <meta key={`next-trace-data-${index}`} name={key} content={value} />
+      )
+    )
+
     return (
       <head {...getHeadHTMLProps(this.props)}>
         {this.context.isDevelopment && (
@@ -882,6 +901,7 @@ export class Head extends React.Component<HeadProps> {
               // (by default, style-loader injects at the bottom of <head />)
               <noscript id="__next_css__DO_NOT_USE__" />
             )}
+            {traceMetaTags}
             {styles || null}
           </>
         )}

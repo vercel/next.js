@@ -1,5 +1,5 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
-const OUTPUT_ROOT = "turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
+const RELATIVE_ROOT_PATH = "../../../../../../..";
 const ASSET_PREFIX = "/";
 /**
  * This file contains runtime types and functions that are shared between all
@@ -139,7 +139,8 @@ function esmImport(sourceModule, id) {
 }
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
-const runtimeRequire = typeof require === "function" ? require : function require1() {
+const runtimeRequire = // @ts-ignore
+typeof require === "function" ? require : function require1() {
     throw new Error("Unexpected use of runtime require");
 };
 function commonJsRequire(sourceModule, id) {
@@ -203,7 +204,7 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-var QueueStatus;
+;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -330,6 +331,11 @@ relativeURL.prototype = URL.prototype;
  */ function invariant(never, computeMessage) {
     throw new Error(`Invariant: ${computeMessage(never)}`);
 }
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */ function requireStub(_moduleId) {
+    throw new Error("dynamic usage of require is not supported");
+}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime-utils.ts" />
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -345,15 +351,15 @@ async function externalImport(id) {
         // compilation error.
         throw new Error(`Failed to load external module ${id}: ${err}`);
     }
-    if (raw && raw.__esModule && raw.default && "default" in raw.default) {
+    if (raw && raw.__esModule && raw.default && 'default' in raw.default) {
         return interopEsm(raw.default, createNS(raw), true);
     }
     return raw;
 }
-function externalRequire(id, esm = false) {
+function externalRequire(id, thunk, esm = false) {
     let raw;
     try {
-        raw = require(id);
+        raw = thunk();
     } catch (err) {
         // TODO(alexkirsz) This can happen when a client-side module tries to load
         // an external module we don't provide a shim for (e.g. querystring, url).
@@ -372,7 +378,7 @@ externalRequire.resolve = (id, options)=>{
 /* eslint-disable @typescript-eslint/no-unused-vars */ const path = require("path");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 // Compute the relative path to the `distDir`.
-const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
+const relativePathToDistRoot = path.join(relativePathToRuntimeRoot, RELATIVE_ROOT_PATH);
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 // Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
 const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
@@ -414,8 +420,7 @@ async function instantiateWebAssemblyFromPath(path, importsObj) {
 /// <reference path="../shared-node/base-externals-utils.ts" />
 /// <reference path="../shared-node/node-externals-utils.ts" />
 /// <reference path="../shared-node/node-wasm-utils.ts" />
-var SourceType;
-(function(SourceType) {
+var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
@@ -423,7 +428,8 @@ var SourceType;
     /**
    * The module was instantiated because a parent module imported it.
    */ SourceType[SourceType["Parent"] = 1] = "Parent";
-})(SourceType || (SourceType = {}));
+    return SourceType;
+}(SourceType || {});
 function stringifySourceInfo(source) {
     switch(source.type){
         case 0:
@@ -436,7 +442,6 @@ function stringifySourceInfo(source) {
 }
 const url = require("url");
 const fs = require("fs/promises");
-const vm = require("vm");
 const moduleFactories = Object.create(null);
 const moduleCache = Object.create(null);
 /**
@@ -449,8 +454,8 @@ const moduleCache = Object.create(null);
             return exported;
         }
         const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
-        const resolved = path.resolve(ABSOLUTE_ROOT, OUTPUT_ROOT, strippedAssetPrefix);
-        return url.pathToFileURL(resolved);
+        const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
+        return url.pathToFileURL(resolved).href;
     };
 }
 function loadChunk(chunkData, source) {
@@ -494,10 +499,20 @@ async function loadChunkAsync(source, chunkData) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     try {
         const contents = await fs.readFile(resolved, "utf-8");
+        const localRequire = (id)=>{
+            let resolvedId = require.resolve(id, {
+                paths: [
+                    path.dirname(resolved)
+                ]
+            });
+            return require(resolvedId);
+        };
         const module1 = {
             exports: {}
         };
-        vm.runInThisContext("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})", resolved)(module1, module1.exports, require, path.dirname(resolved), resolved);
+        // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+        // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+        (0, eval)("(function(module, exports, require, __dirname, __filename) {" + contents + "\n})" + "\n//# sourceURL=" + url.pathToFileURL(resolved))(module1, module1.exports, localRequire, path.dirname(resolved), resolved);
         const chunkModules = module1.exports;
         for (const [moduleId, moduleFactory] of Object.entries(chunkModules)){
             if (!moduleFactories[moduleId]) {
@@ -521,6 +536,9 @@ function loadWebAssembly(chunkPath, imports) {
 function loadWebAssemblyModule(chunkPath) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
     return compileWebAssemblyFromPath(resolved);
+}
+function getWorkerBlobURL(_chunks) {
+    throw new Error("Worker blobs are not implemented yet for Node.js");
 }
 function instantiateModule(id, source) {
     const moduleFactory = moduleFactories[id];
@@ -595,7 +613,9 @@ function instantiateModule(id, source) {
             P: resolveAbsolutePath,
             U: relativeURL,
             R: createResolvePathFromModule(r),
-            __dirname: module1.id.replace(/(^|\/)\/+$/, "")
+            b: getWorkerBlobURL,
+            z: requireStub,
+            __dirname: typeof module1.id === "string" ? module1.id.replace(/(^|\/)\/+$/, "") : module1.id
         });
     } catch (error) {
         module1.error = error;
@@ -610,7 +630,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it if it is not cached.
- */ function getOrInstantiateModuleFromParent(id, sourceModule) {
+ */ // @ts-ignore
+function getOrInstantiateModuleFromParent(id, sourceModule) {
     const module1 = moduleCache[id];
     if (sourceModule.children.indexOf(id) === -1) {
         sourceModule.children.push(id);
@@ -636,7 +657,8 @@ function instantiateModule(id, source) {
 }
 /**
  * Retrieves a module from the cache, or instantiate it as a runtime module if it is not cached.
- */ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
+ */ // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
+function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
     const module1 = moduleCache[moduleId];
     if (module1) {
         if (module1.error) {

@@ -1,0 +1,24 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+/.*
+/bench/
+/crates/**/tests/
+/docs/
+/errors/
+/examples/
+/packages/create-next-app/templates/
+/packages/next/src/compiled/
+/packages/next-codemod/bin/__testfixtures__/
+/packages/next-codemod/transforms/__testfixtures__/
+/packages/next-codemod/transforms/__tests__/
+/scripts/
+/test/
+/turbo/
+/turbopack/**/tests/
+
+**/*.test.*
+**/*.md
+**/*.mdx
+**/*.toml
+**/*.txt
+**/*.yaml
+**/*.yml

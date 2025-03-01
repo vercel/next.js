@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fmt::Debug,
     hash::Hash,
     iter::once,
@@ -11,11 +10,12 @@ use std::{
     time::Instant,
 };
 
-use indexmap::IndexSet;
 use parking_lot::{Mutex, MutexGuard};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 use ref_cast::RefCast;
 use rstest::*;
+use rustc_hash::FxHashSet;
+use turbo_tasks::FxIndexSet;
 
 use self::aggregation_data::prepare_aggregation_data;
 use super::{
@@ -42,7 +42,7 @@ fn check_invariants(ctx: &NodeAggregationContext<'_>, node_ids: impl IntoIterato
     let mut queue = node_ids.into_iter().collect::<Vec<_>>();
     // print(ctx, &queue[0], true);
     #[allow(clippy::mutable_key_type, reason = "this is a test")]
-    let mut visited = HashSet::new();
+    let mut visited = FxHashSet::default();
     while let Some(node_id) = queue.pop() {
         assert_eq!(node_id.0.atomic.load(Ordering::SeqCst), 0);
         let node = ctx.node(&node_id);
@@ -165,7 +165,7 @@ fn print_graph<C: AggregationContext>(
     name_fn: impl Fn(&C::NodeRef) -> String,
 ) {
     let mut queue = entries.into_iter().collect::<Vec<_>>();
-    let mut visited = queue.iter().cloned().collect::<HashSet<_>>();
+    let mut visited = queue.iter().cloned().collect::<FxHashSet<_>>();
     while let Some(node_id) = queue.pop() {
         let name = name_fn(&node_id);
         let node = ctx.node(&node_id);
@@ -491,8 +491,11 @@ impl AggregationNodeGuard for NodeGuard {
     }
 }
 
-impl<'a> AggregationContext for NodeAggregationContext<'a> {
-    type Guard<'l> = NodeGuard where Self: 'l;
+impl AggregationContext for NodeAggregationContext<'_> {
+    type Guard<'l>
+        = NodeGuard
+    where
+        Self: 'l;
     type Data = Aggregated;
     type NodeRef = NodeRef;
     type DataChange = Change;
@@ -501,6 +504,33 @@ impl<'a> AggregationContext for NodeAggregationContext<'a> {
         let r = reference.0.clone();
         let guard = reference.0.inner.lock();
         unsafe { NodeGuard::new(guard, r) }
+    }
+
+    fn node_pair<'b>(
+        &'b self,
+        id1: &Self::NodeRef,
+        id2: &Self::NodeRef,
+    ) -> (Self::Guard<'b>, Self::Guard<'b>) {
+        let r1 = id1.0.clone();
+        let r2 = id2.0.clone();
+        loop {
+            {
+                let guard1 = id1.0.inner.lock();
+                if let Some(guard2) = id2.0.inner.try_lock() {
+                    return (unsafe { NodeGuard::new(guard1, r1) }, unsafe {
+                        NodeGuard::new(guard2, r2)
+                    });
+                }
+            }
+            {
+                let guard2 = id2.0.inner.lock();
+                if let Some(guard1) = id1.0.inner.try_lock() {
+                    return (unsafe { NodeGuard::new(guard1, r1) }, unsafe {
+                        NodeGuard::new(guard2, r2)
+                    });
+                }
+            }
+        }
     }
 
     fn atomic_in_progress_counter<'l>(&self, id: &'l Self::NodeRef) -> &'l AtomicU32
@@ -1002,7 +1032,7 @@ fn fuzzy(#[case] seed: u32, #[case] count: u32) {
     }
     prepare_aggregation_data(&ctx, &NodeRef(nodes[0].clone()));
 
-    let mut edges = IndexSet::new();
+    let mut edges = FxIndexSet::default();
 
     for _ in 0..1000 {
         match r.gen_range(0..=2) {

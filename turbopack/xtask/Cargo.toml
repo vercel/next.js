@@ -2,7 +2,7 @@
 name = "xtask"
 version = "0.1.0"
 description = "https://github.com/matklad/cargo-xtask/"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 
 # don't publish this crate
@@ -17,17 +17,26 @@ bench = false
 workspace = true
 
 [dependencies]
-anyhow = "1.0.65"
+anyhow = { workspace = true }
 cargo-lock = "8.0.2"
-chrono = "0.4.22"
-clap = { version = "4.0.18", features = ["derive"] }
+chrono = { workspace = true }
+clap = { workspace = true }
 indexmap = { workspace = true }
 inquire = { version = "0.5.1" }
 num-format = "0.4.4"
-owo-colors = "3"
-plotters = { version = "0.3.4", features = ["full_palette"] }
-semver = "1"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.85"
+owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
 tabled = { version = "0.10.0", features = ["color"] }
 walkdir = "2.3.2"
+
+[dependencies.plotters]
+version = "0.3.4"
+default-features = false
+features = [
+  "full_palette",
+  "line_series",
+  "svg_backend",
+]

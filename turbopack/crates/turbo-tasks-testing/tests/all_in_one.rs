@@ -1,7 +1,10 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
-use anyhow::{anyhow, bail, Result};
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use anyhow::{bail, Result};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -15,12 +18,12 @@ async fn all_in_one() {
         let a: Vc<MyTransparentValue> = Vc::cell(4242);
         assert_eq!(*a.await?, 4242);
 
-        let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).into()));
+        let b = MyEnumValue::cell(MyEnumValue::More(MyEnumValue::Yeah(42).resolved_cell()));
         assert_eq!(*b.to_string().await?, "42");
 
         let c = MyStructValue {
             value: 42,
-            next: Some(MyStructValue::new(a)),
+            next: Some(MyStructValue::new(a).to_resolved().await?),
         }
         .into();
 
@@ -69,7 +72,7 @@ struct MyTransparentValue(u32);
 enum MyEnumValue {
     Yeah(u32),
     Nah,
-    More(Vc<MyEnumValue>),
+    More(ResolvedVc<MyEnumValue>),
 }
 
 #[turbo_tasks::value_impl]
@@ -78,7 +81,7 @@ impl MyEnumValue {
     pub async fn get_last(self: Vc<Self>) -> Result<Vc<Self>> {
         let mut current = self;
         while let MyEnumValue::More(more) = &*current.await? {
-            current = *more;
+            current = **more;
         }
         Ok(current)
     }
@@ -99,7 +102,7 @@ impl ValueToString for MyEnumValue {
 #[turbo_tasks::value(shared)]
 struct MyStructValue {
     value: u32,
-    next: Option<Vc<MyStructValue>>,
+    next: Option<ResolvedVc<MyStructValue>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -141,9 +144,7 @@ trait MyTrait: ValueToString {
     // TODO #[turbo_tasks::function]
     async fn my_trait_function(self: Vc<Self>) -> Result<Vc<RcStr>> {
         if *self.to_string().await? != "42" {
-            return Err(anyhow!(
-                "my_trait_function must only be called with 42 as value"
-            ));
+            bail!("my_trait_function must only be called with 42 as value")
         }
         // Calling a function twice
         Ok(self.to_string())

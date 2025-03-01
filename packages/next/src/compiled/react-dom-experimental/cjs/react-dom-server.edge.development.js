@@ -81,6 +81,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -873,8 +875,7 @@
         segmentPrefix: stringToPrecomputedChunk(idPrefix + "S:"),
         boundaryPrefix: stringToPrecomputedChunk(idPrefix + "B:"),
         startInlineScript: inlineScriptWithNonce,
-        htmlChunks: null,
-        headChunks: null,
+        preamble: createPreambleState(),
         externalRuntimeScript: externalRuntimeScript,
         bootstrapChunks: bootstrapChunks,
         importMapChunks: externalRuntimeConfig,
@@ -1045,6 +1046,14 @@
         moduleScriptResources: {}
       };
     }
+    function createPreambleState() {
+      return {
+        htmlChunks: null,
+        headChunks: null,
+        bodyChunks: null,
+        contribution: NoContribution
+      };
+    }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
         insertionMode: insertionMode,
@@ -1115,16 +1124,26 @@
             null,
             parentContext.tagScope
           );
+        case "head":
+          if (parentContext.insertionMode < HTML_MODE)
+            return createFormatContext(
+              HTML_HEAD_MODE,
+              null,
+              parentContext.tagScope
+            );
+          break;
+        case "html":
+          if (parentContext.insertionMode === ROOT_HTML_MODE)
+            return createFormatContext(
+              HTML_HTML_MODE,
+              null,
+              parentContext.tagScope
+            );
       }
-      return parentContext.insertionMode >= HTML_TABLE_MODE
+      return parentContext.insertionMode >= HTML_TABLE_MODE ||
+        parentContext.insertionMode < HTML_MODE
         ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-        : parentContext.insertionMode === ROOT_HTML_MODE
-          ? "html" === type
-            ? createFormatContext(HTML_HTML_MODE, null, parentContext.tagScope)
-            : createFormatContext(HTML_MODE, null, parentContext.tagScope)
-          : parentContext.insertionMode === HTML_HTML_MODE
-            ? createFormatContext(HTML_MODE, null, parentContext.tagScope)
-            : parentContext;
+        : parentContext;
     }
     function pushTextInstance(target, text, renderState, textEmbedded) {
       if ("" === text) return textEmbedded;
@@ -1776,6 +1795,29 @@
       target.push(endChunkForTag("script"));
       return null;
     }
+    function pushStartSingletonElement(target, props, tag) {
+      target.push(startChunkForTag(tag));
+      var innerHTML = (tag = null),
+        propKey;
+      for (propKey in props)
+        if (hasOwnProperty.call(props, propKey)) {
+          var propValue = props[propKey];
+          if (null != propValue)
+            switch (propKey) {
+              case "children":
+                tag = propValue;
+                break;
+              case "dangerouslySetInnerHTML":
+                innerHTML = propValue;
+                break;
+              default:
+                pushAttribute(target, propKey, propValue);
+            }
+        }
+      target.push(endOfStartTag);
+      pushInnerHTML(target, innerHTML, tag);
+      return tag;
+    }
     function pushStartGenericElement(target, props, tag) {
       target.push(startChunkForTag(tag));
       var innerHTML = (tag = null),
@@ -1816,6 +1858,7 @@
       props,
       resumableState,
       renderState,
+      preambleState,
       hoistableState,
       formatContext,
       textEmbedded,
@@ -2459,7 +2502,7 @@
                 : children$jscomp$6;
             Array.isArray(children$jscomp$6) && 1 < children$jscomp$6.length
               ? console.error(
-                  "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.",
+                  "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.",
                   children$jscomp$6.length
                 )
               : "function" === typeof child || "symbol" === typeof child
@@ -2924,6 +2967,7 @@
                 header;
               headers &&
               0 < headers.remainingCapacity &&
+              "string" !== typeof props.srcSet &&
               ("high" === props.fetchPriority ||
                 500 > headers.highImagePreloads.length) &&
               ((header = getPreloadAsHeader(src, "image", {
@@ -2984,13 +3028,13 @@
         case "missing-glyph":
           break;
         case "head":
-          if (
-            formatContext.insertionMode < HTML_MODE &&
-            null === renderState.headChunks
-          ) {
-            renderState.headChunks = [];
-            var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
-              renderState.headChunks,
+          if (formatContext.insertionMode < HTML_MODE) {
+            var preamble = preambleState || renderState.preamble;
+            if (preamble.headChunks)
+              throw Error("The `<head>` tag may only be rendered once.");
+            preamble.headChunks = [];
+            var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
+              preamble.headChunks,
               props,
               "head"
             );
@@ -3001,24 +3045,42 @@
               "head"
             );
           return JSCompiler_inline_result$jscomp$9;
-        case "html":
-          if (
-            formatContext.insertionMode === ROOT_HTML_MODE &&
-            null === renderState.htmlChunks
-          ) {
-            renderState.htmlChunks = [doctypeChunk];
-            var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
-              renderState.htmlChunks,
+        case "body":
+          if (formatContext.insertionMode < HTML_MODE) {
+            var preamble$jscomp$0 = preambleState || renderState.preamble;
+            if (preamble$jscomp$0.bodyChunks)
+              throw Error("The `<body>` tag may only be rendered once.");
+            preamble$jscomp$0.bodyChunks = [];
+            var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
+              preamble$jscomp$0.bodyChunks,
               props,
-              "html"
+              "body"
             );
           } else
             JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
               target$jscomp$0,
               props,
-              "html"
+              "body"
             );
           return JSCompiler_inline_result$jscomp$10;
+        case "html":
+          if (formatContext.insertionMode === ROOT_HTML_MODE) {
+            var preamble$jscomp$1 = preambleState || renderState.preamble;
+            if (preamble$jscomp$1.htmlChunks)
+              throw Error("The `<html>` tag may only be rendered once.");
+            preamble$jscomp$1.htmlChunks = [doctypeChunk];
+            var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
+              preamble$jscomp$1.htmlChunks,
+              props,
+              "html"
+            );
+          } else
+            JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
+              target$jscomp$0,
+              props,
+              "html"
+            );
+          return JSCompiler_inline_result$jscomp$11;
         default:
           if (-1 !== type.indexOf("-")) {
             target$jscomp$0.push(startChunkForTag(type));
@@ -3088,6 +3150,21 @@
         endTagCache.set(tag, chunk));
       return chunk;
     }
+    function hoistPreambleState(renderState, preambleState) {
+      renderState = renderState.preamble;
+      null === renderState.htmlChunks &&
+        preambleState.htmlChunks &&
+        ((renderState.htmlChunks = preambleState.htmlChunks),
+        (preambleState.contribution |= 1));
+      null === renderState.headChunks &&
+        preambleState.headChunks &&
+        ((renderState.headChunks = preambleState.headChunks),
+        (preambleState.contribution |= 4));
+      null === renderState.bodyChunks &&
+        preambleState.bodyChunks &&
+        ((renderState.bodyChunks = preambleState.bodyChunks),
+        (preambleState.contribution |= 2));
+    }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
       for (var i = 0; i < renderState.length - 1; i++)
@@ -3108,10 +3185,18 @@
       writeChunk(destination, stringToChunk(id.toString(16)));
       return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
     }
+    function writePreambleContribution(destination, preambleState) {
+      preambleState = preambleState.contribution;
+      preambleState !== NoContribution &&
+        (writeChunk(destination, boundaryPreambleContributionChunkStart),
+        writeChunk(destination, stringToChunk("" + preambleState)),
+        writeChunk(destination, boundaryPreambleContributionChunkEnd));
+    }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
         case ROOT_HTML_MODE:
         case HTML_HTML_MODE:
+        case HTML_HEAD_MODE:
         case HTML_MODE:
           return (
             writeChunk(destination, startSegmentHTML),
@@ -3169,6 +3254,7 @@
       switch (formatContext.insertionMode) {
         case ROOT_HTML_MODE:
         case HTML_HTML_MODE:
+        case HTML_HEAD_MODE:
         case HTML_MODE:
           return writeChunkAndReturn(destination, endSegmentHTML);
         case SVG_MODE:
@@ -3700,6 +3786,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -4174,6 +4262,9 @@
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
     }
+    function unsupportedStartGesture() {
+      throw Error("startGesture cannot be called during server rendering.");
+    }
     function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
@@ -4222,6 +4313,12 @@
           "disabledDepth fell below zero. This is a bug in React. Please file an issue."
         );
     }
+    function prepareStackTrace(error, structuredStackTrace) {
+      error = (error.name || "Error") + ": " + (error.message || "");
+      for (var i = 0; i < structuredStackTrace.length; i++)
+        error += "\n    at " + structuredStackTrace[i].toString();
+      return error;
+    }
     function describeBuiltInComponentFrame(name) {
       if (void 0 === prefix)
         try {
@@ -4244,69 +4341,69 @@
       if (void 0 !== frame) return frame;
       reentry = !0;
       frame = Error.prepareStackTrace;
-      Error.prepareStackTrace = void 0;
+      Error.prepareStackTrace = prepareStackTrace;
       var previousDispatcher = null;
       previousDispatcher = ReactSharedInternals.H;
       ReactSharedInternals.H = null;
       disableLogs();
-      var RunInRootFrame = {
-        DetermineComponentFrameRoot: function () {
-          try {
-            if (construct) {
-              var Fake = function () {
-                throw Error();
-              };
-              Object.defineProperty(Fake.prototype, "props", {
-                set: function () {
+      try {
+        var RunInRootFrame = {
+          DetermineComponentFrameRoot: function () {
+            try {
+              if (construct) {
+                var Fake = function () {
                   throw Error();
+                };
+                Object.defineProperty(Fake.prototype, "props", {
+                  set: function () {
+                    throw Error();
+                  }
+                });
+                if ("object" === typeof Reflect && Reflect.construct) {
+                  try {
+                    Reflect.construct(Fake, []);
+                  } catch (x) {
+                    var control = x;
+                  }
+                  Reflect.construct(fn, [], Fake);
+                } else {
+                  try {
+                    Fake.call();
+                  } catch (x$0) {
+                    control = x$0;
+                  }
+                  fn.call(Fake.prototype);
                 }
-              });
-              if ("object" === typeof Reflect && Reflect.construct) {
-                try {
-                  Reflect.construct(Fake, []);
-                } catch (x) {
-                  var control = x;
-                }
-                Reflect.construct(fn, [], Fake);
               } else {
                 try {
-                  Fake.call();
-                } catch (x$0) {
-                  control = x$0;
+                  throw Error();
+                } catch (x$1) {
+                  control = x$1;
                 }
-                fn.call(Fake.prototype);
+                (Fake = fn()) &&
+                  "function" === typeof Fake.catch &&
+                  Fake.catch(function () {});
               }
-            } else {
-              try {
-                throw Error();
-              } catch (x$1) {
-                control = x$1;
-              }
-              (Fake = fn()) &&
-                "function" === typeof Fake.catch &&
-                Fake.catch(function () {});
+            } catch (sample) {
+              if (sample && control && "string" === typeof sample.stack)
+                return [sample.stack, control.stack];
             }
-          } catch (sample) {
-            if (sample && control && "string" === typeof sample.stack)
-              return [sample.stack, control.stack];
+            return [null, null];
           }
-          return [null, null];
-        }
-      };
-      RunInRootFrame.DetermineComponentFrameRoot.displayName =
-        "DetermineComponentFrameRoot";
-      var namePropDescriptor = Object.getOwnPropertyDescriptor(
-        RunInRootFrame.DetermineComponentFrameRoot,
-        "name"
-      );
-      namePropDescriptor &&
-        namePropDescriptor.configurable &&
-        Object.defineProperty(
+        };
+        RunInRootFrame.DetermineComponentFrameRoot.displayName =
+          "DetermineComponentFrameRoot";
+        var namePropDescriptor = Object.getOwnPropertyDescriptor(
           RunInRootFrame.DetermineComponentFrameRoot,
-          "name",
-          { value: "DetermineComponentFrameRoot" }
+          "name"
         );
-      try {
+        namePropDescriptor &&
+          namePropDescriptor.configurable &&
+          Object.defineProperty(
+            RunInRootFrame.DetermineComponentFrameRoot,
+            "name",
+            { value: "DetermineComponentFrameRoot" }
+          );
         var _RunInRootFrame$Deter =
             RunInRootFrame.DetermineComponentFrameRoot(),
           sampleStack = _RunInRootFrame$Deter[0],
@@ -4315,54 +4412,58 @@
           var sampleLines = sampleStack.split("\n"),
             controlLines = controlStack.split("\n");
           for (
-            sampleStack = _RunInRootFrame$Deter = 0;
-            _RunInRootFrame$Deter < sampleLines.length &&
-            !sampleLines[_RunInRootFrame$Deter].includes(
+            _RunInRootFrame$Deter = namePropDescriptor = 0;
+            namePropDescriptor < sampleLines.length &&
+            !sampleLines[namePropDescriptor].includes(
+              "DetermineComponentFrameRoot"
+            );
+
+          )
+            namePropDescriptor++;
+          for (
+            ;
+            _RunInRootFrame$Deter < controlLines.length &&
+            !controlLines[_RunInRootFrame$Deter].includes(
               "DetermineComponentFrameRoot"
             );
 
           )
             _RunInRootFrame$Deter++;
-          for (
-            ;
-            sampleStack < controlLines.length &&
-            !controlLines[sampleStack].includes("DetermineComponentFrameRoot");
-
-          )
-            sampleStack++;
           if (
-            _RunInRootFrame$Deter === sampleLines.length ||
-            sampleStack === controlLines.length
+            namePropDescriptor === sampleLines.length ||
+            _RunInRootFrame$Deter === controlLines.length
           )
             for (
-              _RunInRootFrame$Deter = sampleLines.length - 1,
-                sampleStack = controlLines.length - 1;
-              1 <= _RunInRootFrame$Deter &&
-              0 <= sampleStack &&
-              sampleLines[_RunInRootFrame$Deter] !== controlLines[sampleStack];
+              namePropDescriptor = sampleLines.length - 1,
+                _RunInRootFrame$Deter = controlLines.length - 1;
+              1 <= namePropDescriptor &&
+              0 <= _RunInRootFrame$Deter &&
+              sampleLines[namePropDescriptor] !==
+                controlLines[_RunInRootFrame$Deter];
 
             )
-              sampleStack--;
+              _RunInRootFrame$Deter--;
           for (
             ;
-            1 <= _RunInRootFrame$Deter && 0 <= sampleStack;
-            _RunInRootFrame$Deter--, sampleStack--
+            1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter;
+            namePropDescriptor--, _RunInRootFrame$Deter--
           )
             if (
-              sampleLines[_RunInRootFrame$Deter] !== controlLines[sampleStack]
+              sampleLines[namePropDescriptor] !==
+              controlLines[_RunInRootFrame$Deter]
             ) {
-              if (1 !== _RunInRootFrame$Deter || 1 !== sampleStack) {
+              if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
                 do
                   if (
-                    (_RunInRootFrame$Deter--,
-                    sampleStack--,
-                    0 > sampleStack ||
-                      sampleLines[_RunInRootFrame$Deter] !==
-                        controlLines[sampleStack])
+                    (namePropDescriptor--,
+                    _RunInRootFrame$Deter--,
+                    0 > _RunInRootFrame$Deter ||
+                      sampleLines[namePropDescriptor] !==
+                        controlLines[_RunInRootFrame$Deter])
                   ) {
                     var _frame =
                       "\n" +
-                      sampleLines[_RunInRootFrame$Deter].replace(
+                      sampleLines[namePropDescriptor].replace(
                         " at new ",
                         " at "
                       );
@@ -4373,7 +4474,7 @@
                       componentFrameCache.set(fn, _frame);
                     return _frame;
                   }
-                while (1 <= _RunInRootFrame$Deter && 0 <= sampleStack);
+                while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
               }
               break;
             }
@@ -4392,7 +4493,7 @@
     }
     function formatOwnerStack(error) {
       var prevPrepareStackTrace = Error.prepareStackTrace;
-      Error.prepareStackTrace = void 0;
+      Error.prepareStackTrace = prepareStackTrace;
       error = error.stack;
       Error.prepareStackTrace = prevPrepareStackTrace;
       error.startsWith("Error: react-stack-top-frame\n") &&
@@ -4415,7 +4516,7 @@
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
       if ("function" === typeof type)
         return type.prototype && type.prototype.isReactComponent
-          ? ((type = describeNativeComponentFrame(type, !0)), type)
+          ? describeNativeComponentFrame(type, !0)
           : describeNativeComponentFrame(type, !1);
       if ("object" === typeof type && null !== type) {
         switch (type.$$typeof) {
@@ -4447,6 +4548,8 @@
           return describeBuiltInComponentFrame("SuspenseList");
         case REACT_SUSPENSE_TYPE:
           return describeBuiltInComponentFrame("Suspense");
+        case REACT_VIEW_TRANSITION_TYPE:
+          return describeBuiltInComponentFrame("ViewTransition");
       }
       return "";
     }
@@ -4483,7 +4586,6 @@
     }
     function noop() {}
     function RequestInstance(
-      children,
       resumableState,
       renderState,
       rootFormatContext,
@@ -4496,8 +4598,7 @@
       onPostpone,
       formState
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
+      var abortSet = new Set();
       this.destination = null;
       this.flushScheduled = !1;
       this.resumableState = resumableState;
@@ -4505,12 +4606,12 @@
       this.rootFormatContext = rootFormatContext;
       this.progressiveChunkSize =
         void 0 === progressiveChunkSize ? 12800 : progressiveChunkSize;
-      this.status = 0;
+      this.status = 10;
       this.fatalError = null;
       this.pendingRootTasks = this.allPendingTasks = this.nextSegmentId = 0;
-      this.completedRootSegment = null;
+      this.completedPreambleSegments = this.completedRootSegment = null;
       this.abortableTasks = abortSet;
-      this.pingedTasks = pingedTasks;
+      this.pingedTasks = [];
       this.clientRenderedBoundaries = [];
       this.completedBoundaries = [];
       this.partialBoundaries = [];
@@ -4523,35 +4624,6 @@
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
-      resumableState = createPendingSegment(
-        this,
-        0,
-        null,
-        rootFormatContext,
-        !1,
-        !1
-      );
-      resumableState.parentFlushed = !0;
-      children = createRenderTask(
-        this,
-        null,
-        children,
-        -1,
-        null,
-        resumableState,
-        null,
-        abortSet,
-        null,
-        rootFormatContext,
-        null,
-        emptyTreeContext,
-        null,
-        !1,
-        emptyContextObject,
-        null
-      );
-      pushComponentStack(children);
-      pingedTasks.push(children);
     }
     function createRequest(
       children,
@@ -4567,8 +4639,7 @@
       onPostpone,
       formState
     ) {
-      return new RequestInstance(
-        children,
+      resumableState = new RequestInstance(
         resumableState,
         renderState,
         rootFormatContext,
@@ -4581,6 +4652,37 @@
         onPostpone,
         formState
       );
+      renderState = createPendingSegment(
+        resumableState,
+        0,
+        null,
+        rootFormatContext,
+        !1,
+        !1
+      );
+      renderState.parentFlushed = !0;
+      children = createRenderTask(
+        resumableState,
+        null,
+        children,
+        -1,
+        null,
+        renderState,
+        null,
+        null,
+        resumableState.abortableTasks,
+        null,
+        rootFormatContext,
+        null,
+        emptyTreeContext,
+        null,
+        !1,
+        emptyContextObject,
+        null
+      );
+      pushComponentStack(children);
+      resumableState.pingedTasks.push(children);
+      return resumableState;
     }
     function createPrerenderRequest(
       children,
@@ -4627,35 +4729,20 @@
       onFatalError,
       onPostpone
     ) {
-      var pingedTasks = [],
-        abortSet = new Set();
-      renderState = {
-        destination: null,
-        flushScheduled: !1,
-        resumableState: postponedState.resumableState,
-        renderState: renderState,
-        rootFormatContext: postponedState.rootFormatContext,
-        progressiveChunkSize: postponedState.progressiveChunkSize,
-        status: 0,
-        fatalError: null,
-        nextSegmentId: postponedState.nextSegmentId,
-        allPendingTasks: 0,
-        pendingRootTasks: 0,
-        completedRootSegment: null,
-        abortableTasks: abortSet,
-        pingedTasks: pingedTasks,
-        clientRenderedBoundaries: [],
-        completedBoundaries: [],
-        partialBoundaries: [],
-        trackedPostpones: null,
-        onError: void 0 === onError ? defaultErrorHandler : onError,
-        onPostpone: void 0 === onPostpone ? noop : onPostpone,
-        onAllReady: void 0 === onAllReady ? noop : onAllReady,
-        onShellReady: void 0 === onShellReady ? noop : onShellReady,
-        onShellError: void 0 === onShellError ? noop : onShellError,
-        onFatalError: void 0 === onFatalError ? noop : onFatalError,
-        formState: null
-      };
+      renderState = new RequestInstance(
+        postponedState.resumableState,
+        renderState,
+        postponedState.rootFormatContext,
+        postponedState.progressiveChunkSize,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone,
+        null
+      );
+      renderState.nextSegmentId = postponedState.nextSegmentId;
       if ("number" === typeof postponedState.replaySlots)
         return (
           (onError = postponedState.replaySlots),
@@ -4677,7 +4764,8 @@
             null,
             onAllReady,
             null,
-            abortSet,
+            null,
+            renderState.abortableTasks,
             null,
             postponedState.rootFormatContext,
             null,
@@ -4688,7 +4776,7 @@
             null
           )),
           pushComponentStack(children),
-          pingedTasks.push(children),
+          renderState.pingedTasks.push(children),
           renderState
         );
       children = createReplayTask(
@@ -4703,7 +4791,7 @@
         -1,
         null,
         null,
-        abortSet,
+        renderState.abortableTasks,
         null,
         postponedState.rootFormatContext,
         null,
@@ -4714,8 +4802,37 @@
         null
       );
       pushComponentStack(children);
-      pingedTasks.push(children);
+      renderState.pingedTasks.push(children);
       return renderState;
+    }
+    function resumeAndPrerenderRequest(
+      children,
+      postponedState,
+      renderState,
+      onError,
+      onAllReady,
+      onShellReady,
+      onShellError,
+      onFatalError,
+      onPostpone
+    ) {
+      children = resumeRequest(
+        children,
+        postponedState,
+        renderState,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone
+      );
+      children.trackedPostpones = {
+        workingMap: new Map(),
+        rootNodes: [],
+        rootSlots: null
+      };
+      return children;
     }
     function resolveRequest() {
       if (currentRequest) return currentRequest;
@@ -4729,7 +4846,7 @@
       request.pingedTasks.push(task);
       1 === request.pingedTasks.length &&
         ((request.flushScheduled = null !== request.destination),
-        null !== request.trackedPostpones
+        null !== request.trackedPostpones || 10 === request.status
           ? scheduleMicrotask(function () {
               return performWork(request);
             })
@@ -4737,7 +4854,12 @@
               return performWork(request);
             }, 0));
     }
-    function createSuspenseBoundary(request, fallbackAbortableTasks) {
+    function createSuspenseBoundary(
+      request,
+      fallbackAbortableTasks,
+      contentPreamble,
+      fallbackPreamble
+    ) {
       return {
         status: PENDING,
         rootSegmentID: -1,
@@ -4749,6 +4871,8 @@
         errorDigest: null,
         contentState: createHoistableState(),
         fallbackState: createHoistableState(),
+        contentPreamble: contentPreamble,
+        fallbackPreamble: fallbackPreamble,
         trackedContentKeyPath: null,
         trackedFallbackNode: null,
         errorMessage: null,
@@ -4763,6 +4887,7 @@
       childIndex,
       blockedBoundary,
       blockedSegment,
+      blockedPreamble,
       hoistableState,
       abortSet,
       keyPath,
@@ -4787,6 +4912,7 @@
         },
         blockedBoundary: blockedBoundary,
         blockedSegment: blockedSegment,
+        blockedPreamble: blockedPreamble,
         hoistableState: hoistableState,
         abortSet: abortSet,
         keyPath: keyPath,
@@ -4833,6 +4959,7 @@
         },
         blockedBoundary: blockedBoundary,
         blockedSegment: null,
+        blockedPreamble: null,
         hoistableState: hoistableState,
         abortSet: abortSet,
         keyPath: keyPath,
@@ -4857,11 +4984,12 @@
     ) {
       return {
         status: PENDING,
+        parentFlushed: !1,
         id: -1,
         index: index,
-        parentFlushed: !1,
         chunks: [],
         children: [],
+        preambleChildren: [],
         parentFormatContext: parentFormatContext,
         boundary: boundary,
         lastPushedText: lastPushedText,
@@ -5029,7 +5157,7 @@
       null !== request.destination
         ? ((request.status = CLOSED),
           closeWithError(request.destination, error))
-        : ((request.status = 2), (request.fatalError = error));
+        : ((request.status = 13), (request.fatalError = error));
     }
     function renderWithHooks(
       request,
@@ -5462,7 +5590,7 @@
             } else internalInstance.queue = null;
           }
           var nextChildren = callRenderInDEV(instance);
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           instance.props !== resolvedProps &&
             (didWarnAboutReassigningProps ||
               console.error(
@@ -5494,7 +5622,7 @@
             props,
             void 0
           );
-          if (1 === request.status) throw null;
+          if (12 === request.status) throw null;
           var hasId = 0 !== localIdCounter,
             actionStateCount = actionStateCounter,
             actionStateMatchingIndex$jscomp$0 = actionStateMatchingIndex;
@@ -5565,6 +5693,7 @@
             props,
             request.resumableState,
             request.renderState,
+            task.blockedPreamble,
             task.hoistableState,
             task.formatContext,
             segment.lastPushedText,
@@ -5573,9 +5702,45 @@
           segment.lastPushedText = !1;
           var _prevContext = task.formatContext,
             _prevKeyPath2 = task.keyPath;
-          task.formatContext = getChildFormatContext(_prevContext, type, props);
           task.keyPath = keyPath;
-          renderNode(request, task, _children, -1);
+          if (
+            (task.formatContext = getChildFormatContext(
+              _prevContext,
+              type,
+              props
+            )).insertionMode === HTML_HEAD_MODE
+          ) {
+            var preambleSegment = createPendingSegment(
+              request,
+              0,
+              null,
+              task.formatContext,
+              !1,
+              !1
+            );
+            segment.preambleChildren.push(preambleSegment);
+            var preambleTask = createRenderTask(
+              request,
+              null,
+              _children,
+              -1,
+              task.blockedBoundary,
+              preambleSegment,
+              task.blockedPreamble,
+              task.hoistableState,
+              request.abortableTasks,
+              task.keyPath,
+              task.formatContext,
+              task.context,
+              task.treeContext,
+              task.componentStack,
+              task.isFallback,
+              emptyContextObject,
+              task.debugTask
+            );
+            pushComponentStack(preambleTask);
+            request.pingedTasks.push(preambleTask);
+          } else renderNode(request, task, _children, -1);
           task.formatContext = _prevContext;
           task.keyPath = _prevKeyPath2;
           a: {
@@ -5612,6 +5777,9 @@
                   resumableState.hasHtml = !0;
                   break a;
                 }
+                break;
+              case "head":
+                if (_prevContext.insertionMode <= HTML_HTML_MODE) break a;
             }
             target.push(endChunkForTag(type));
           }
@@ -5620,7 +5788,6 @@
       } else {
         switch (type) {
           case REACT_LEGACY_HIDDEN_TYPE:
-          case REACT_DEBUG_TRACING_MODE_TYPE:
           case REACT_STRICT_MODE_TYPE:
           case REACT_PROFILER_TYPE:
           case REACT_FRAGMENT_TYPE:
@@ -5643,6 +5810,12 @@
             renderNodeDestructive(request, task, props.children, -1);
             task.keyPath = _prevKeyPath3;
             return;
+          case REACT_VIEW_TRANSITION_TYPE:
+            var _prevKeyPath4 = task.keyPath;
+            task.keyPath = keyPath;
+            renderNodeDestructive(request, task, props.children, -1);
+            task.keyPath = _prevKeyPath4;
+            return;
           case REACT_SCOPE_TYPE:
             throw Error(
               "ReactDOMServer does not yet support scope components."
@@ -5660,12 +5833,26 @@
             } else {
               var prevKeyPath$jscomp$3 = task.keyPath,
                 parentBoundary = task.blockedBoundary,
+                parentPreamble = task.blockedPreamble,
                 parentHoistableState = task.hoistableState,
                 parentSegment = task.blockedSegment,
                 fallback = props.fallback,
                 content = props.children,
-                fallbackAbortSet = new Set(),
-                newBoundary = createSuspenseBoundary(request, fallbackAbortSet);
+                fallbackAbortSet = new Set();
+              var newBoundary =
+                task.formatContext.insertionMode < HTML_MODE
+                  ? createSuspenseBoundary(
+                      request,
+                      fallbackAbortSet,
+                      createPreambleState(),
+                      createPreambleState()
+                    )
+                  : createSuspenseBoundary(
+                      request,
+                      fallbackAbortSet,
+                      null,
+                      null
+                    );
               null !== request.trackedPostpones &&
                 (newBoundary.trackedContentKeyPath = keyPath);
               var boundarySegment = createPendingSegment(
@@ -5705,6 +5892,7 @@
                 );
                 newBoundary.trackedFallbackNode = fallbackReplayNode;
                 task.blockedSegment = boundarySegment;
+                task.blockedPreamble = newBoundary.fallbackPreamble;
                 task.keyPath = fallbackKeyPath;
                 boundarySegment.status = 6;
                 try {
@@ -5715,11 +5903,12 @@
                     (boundarySegment.status = COMPLETED);
                 } catch (thrownValue) {
                   throw (
-                    ((boundarySegment.status = 1 === request.status ? 3 : 4),
+                    ((boundarySegment.status = 12 === request.status ? 3 : 4),
                     thrownValue)
                   );
                 } finally {
                   (task.blockedSegment = parentSegment),
+                    (task.blockedPreamble = parentPreamble),
                     (task.keyPath = prevKeyPath$jscomp$3);
                 }
                 var suspendedPrimaryTask = createRenderTask(
@@ -5729,6 +5918,7 @@
                   -1,
                   newBoundary,
                   contentRootSegment,
+                  newBoundary.contentPreamble,
                   newBoundary.contentState,
                   task.abortSet,
                   keyPath,
@@ -5744,6 +5934,7 @@
                 request.pingedTasks.push(suspendedPrimaryTask);
               } else {
                 task.blockedBoundary = newBoundary;
+                task.blockedPreamble = newBoundary.contentPreamble;
                 task.hoistableState = newBoundary.contentState;
                 task.blockedSegment = contentRootSegment;
                 task.keyPath = keyPath;
@@ -5760,11 +5951,14 @@
                       newBoundary.status === PENDING)
                   ) {
                     newBoundary.status = COMPLETED;
+                    0 === request.pendingRootTasks &&
+                      task.blockedPreamble &&
+                      preparePreamble(request);
                     break a;
                   }
                 } catch (thrownValue$2) {
                   newBoundary.status = CLIENT_RENDERED;
-                  if (1 === request.status) {
+                  if (12 === request.status) {
                     contentRootSegment.status = 3;
                     var error = request.fatalError;
                   } else
@@ -5799,6 +5993,7 @@
                   untrackBoundary(request, newBoundary);
                 } finally {
                   (task.blockedBoundary = parentBoundary),
+                    (task.blockedPreamble = parentPreamble),
                     (task.hoistableState = parentHoistableState),
                     (task.blockedSegment = parentSegment),
                     (task.keyPath = prevKeyPath$jscomp$3);
@@ -5810,6 +6005,7 @@
                   -1,
                   parentBoundary,
                   boundarySegment,
+                  newBoundary.fallbackPreamble,
                   newBoundary.fallbackState,
                   fallbackAbortSet,
                   [keyPath[0], "Suspense Fallback", keyPath[2]],
@@ -5925,7 +6121,7 @@
               return;
             case REACT_LAZY_TYPE:
               var Component = callLazyInitInDEV(type);
-              if (1 === request.status) throw null;
+              if (12 === request.status) throw null;
               renderElement(request, task, keyPath, Component, props, ref);
               return;
           }
@@ -6048,17 +6244,28 @@
                 previousReplaySet = task.replay,
                 parentBoundary = task.blockedBoundary,
                 parentHoistableState = task.hoistableState,
-                content = props.children;
-              props = props.fallback;
-              var fallbackAbortSet = new Set(),
-                resumedBoundary = createSuspenseBoundary(
-                  request,
-                  fallbackAbortSet
-                );
-              resumedBoundary.parentFlushed = !0;
-              resumedBoundary.rootSegmentID = type;
-              task.blockedBoundary = resumedBoundary;
-              task.hoistableState = resumedBoundary.contentState;
+                content = props.children,
+                fallback = props.fallback,
+                fallbackAbortSet = new Set();
+              props =
+                task.formatContext.insertionMode < HTML_MODE
+                  ? createSuspenseBoundary(
+                      request,
+                      fallbackAbortSet,
+                      createPreambleState(),
+                      createPreambleState()
+                    )
+                  : createSuspenseBoundary(
+                      request,
+                      fallbackAbortSet,
+                      null,
+                      null
+                    );
+              props.parentFlushed = !0;
+              props.rootSegmentID = type;
+              task.blockedBoundary = props;
+              task.hoistableState = props.contentState;
+              task.keyPath = keyPath;
               task.replay = { nodes: ref, slots: name, pendingTasks: 1 };
               try {
                 renderNode(request, task, content, -1);
@@ -6070,16 +6277,13 @@
                     "Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering."
                   );
                 task.replay.pendingTasks--;
-                if (
-                  0 === resumedBoundary.pendingTasks &&
-                  resumedBoundary.status === PENDING
-                ) {
-                  resumedBoundary.status = COMPLETED;
-                  request.completedBoundaries.push(resumedBoundary);
+                if (0 === props.pendingTasks && props.status === PENDING) {
+                  props.status = COMPLETED;
+                  request.completedBoundaries.push(props);
                   break a;
                 }
               } catch (error) {
-                (resumedBoundary.status = CLIENT_RENDERED),
+                (props.status = CLIENT_RENDERED),
                   (childNodes = getThrownInfo(task.componentStack)),
                   "object" === typeof error &&
                   null !== error &&
@@ -6097,15 +6301,9 @@
                         childNodes,
                         task.debugTask
                       )),
-                  encodeErrorForBoundary(
-                    resumedBoundary,
-                    replay,
-                    error,
-                    childNodes,
-                    !1
-                  ),
+                  encodeErrorForBoundary(props, replay, error, childNodes, !1),
                   task.replay.pendingTasks--,
-                  request.clientRenderedBoundaries.push(resumedBoundary);
+                  request.clientRenderedBoundaries.push(props);
               } finally {
                 (task.blockedBoundary = parentBoundary),
                   (task.hoistableState = parentHoistableState),
@@ -6116,10 +6314,10 @@
                 request,
                 null,
                 { nodes: keyOrIndex, slots: node, pendingTasks: 0 },
-                props,
+                fallback,
                 -1,
                 parentBoundary,
-                resumedBoundary.fallbackState,
+                props.fallbackState,
                 fallbackAbortSet,
                 [keyPath[0], "Suspense Fallback", keyPath[2]],
                 task.formatContext,
@@ -6161,8 +6359,8 @@
               var type = node.type,
                 key = node.key;
               node = node.props;
-              var ref = node.ref;
-              ref = void 0 !== ref ? ref : null;
+              var refProp = node.ref;
+              refProp = void 0 !== refProp ? refProp : null;
               var debugTask = task.debugTask,
                 name = getComponentNameFromType(type);
               key = null == key ? (-1 === childIndex ? 0 : childIndex) : key;
@@ -6180,7 +6378,7 @@
                         childIndex,
                         type,
                         node,
-                        ref,
+                        refProp,
                         task.replay
                       )
                     )
@@ -6193,7 +6391,7 @@
                       childIndex,
                       type,
                       node,
-                      ref,
+                      refProp,
                       task.replay
                     )
                 : debugTask
@@ -6205,10 +6403,10 @@
                         keyPath,
                         type,
                         node,
-                        ref
+                        refProp
                       )
                     )
-                  : renderElement(request, task, keyPath, type, node, ref);
+                  : renderElement(request, task, keyPath, type, node, refProp);
               return;
             case REACT_PORTAL_TYPE:
               throw Error(
@@ -6216,7 +6414,7 @@
               );
             case REACT_LAZY_TYPE:
               node = callLazyInitInDEV(node);
-              if (1 === request.status) throw null;
+              if (12 === request.status) throw null;
               renderNodeDestructive(request, task, node, childIndex);
               return;
           }
@@ -6283,17 +6481,17 @@
             thenableIndexCounter = 0;
             thenableState = key;
             key = [];
-            ref = !1;
+            refProp = !1;
             if (type === node)
               for (node = readPreviousThenableFromState(); void 0 !== node; ) {
                 if (node.done) {
-                  ref = !0;
+                  refProp = !0;
                   break;
                 }
                 key.push(node.value);
                 node = readPreviousThenableFromState();
               }
-            if (!ref)
+            if (!refProp)
               for (node = unwrapThenable(type.next()); !node.done; )
                 key.push(node.value), (node = unwrapThenable(type.next()));
             renderChildrenArray(request, task, key, childIndex);
@@ -6664,6 +6862,7 @@
         task.childIndex,
         task.blockedBoundary,
         newSegment,
+        task.blockedPreamble,
         task.hoistableState,
         task.abortSet,
         task.keyPath,
@@ -6881,7 +7080,12 @@
             errorDigest = errorDigest$jscomp$0,
             errorInfo = errorInfo$jscomp$0,
             wasAborted = aborted,
-            resumedBoundary = createSuspenseBoundary(request, new Set());
+            resumedBoundary = createSuspenseBoundary(
+              request,
+              new Set(),
+              null,
+              null
+            );
           resumedBoundary.parentFlushed = !0;
           resumedBoundary.rootSegmentID = node;
           resumedBoundary.status = CLIENT_RENDERED;
@@ -6924,52 +7128,51 @@
         if (6 === segment.status) return;
         segment.status = 3;
       }
+      var errorInfo = getThrownInfo(task.componentStack);
       if (null === boundary) {
-        if (
-          ((boundary = {}), 2 !== request.status && request.status !== CLOSED)
-        ) {
-          var replay = task.replay;
-          if (null === replay) {
+        if (13 !== request.status && request.status !== CLOSED) {
+          boundary = task.replay;
+          if (null === boundary) {
             "object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? ((replay = request.trackedPostpones),
-                null !== replay && null !== segment
-                  ? (logPostpone(request, error.message, boundary, null),
-                    trackPostpone(request, replay, task, segment),
+              ? ((boundary = request.trackedPostpones),
+                null !== boundary && null !== segment
+                  ? (logPostpone(request, error.message, errorInfo, null),
+                    trackPostpone(request, boundary, task, segment),
                     finishedTask(request, null, segment))
                   : ((task = Error(
                       "The render was aborted with postpone when the shell is incomplete. Reason: " +
                         error.message
                     )),
-                    logRecoverableError(request, task, boundary, null),
-                    fatalError(request, task, boundary, null)))
+                    logRecoverableError(request, task, errorInfo, null),
+                    fatalError(request, task, errorInfo, null)))
               : null !== request.trackedPostpones && null !== segment
-                ? ((replay = request.trackedPostpones),
-                  logRecoverableError(request, error, boundary, null),
-                  trackPostpone(request, replay, task, segment),
+                ? ((boundary = request.trackedPostpones),
+                  logRecoverableError(request, error, errorInfo, null),
+                  trackPostpone(request, boundary, task, segment),
                   finishedTask(request, null, segment))
-                : (logRecoverableError(request, error, boundary, null),
-                  fatalError(request, error, boundary, null));
+                : (logRecoverableError(request, error, errorInfo, null),
+                  fatalError(request, error, errorInfo, null));
             return;
           }
-          replay.pendingTasks--;
-          0 === replay.pendingTasks &&
-            0 < replay.nodes.length &&
+          boundary.pendingTasks--;
+          0 === boundary.pendingTasks &&
+            0 < boundary.nodes.length &&
             ("object" === typeof error &&
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
-              ? (logPostpone(request, error.message, boundary, null),
+              ? (logPostpone(request, error.message, errorInfo, null),
                 (task = "POSTPONE"))
-              : (task = logRecoverableError(request, error, boundary, null)),
+              : (task = logRecoverableError(request, error, errorInfo, null)),
             abortRemainingReplayNodes(
               request,
               null,
-              replay.nodes,
-              replay.slots,
+              boundary.nodes,
+              boundary.slots,
               error,
               task,
-              boundary,
+              errorInfo,
               !0
             ));
           request.pendingRootTasks--;
@@ -6977,7 +7180,6 @@
         }
       } else {
         boundary.pendingTasks--;
-        replay = getThrownInfo(task.componentStack);
         var _trackedPostpones2 = request.trackedPostpones;
         if (boundary.status !== CLIENT_RENDERED) {
           if (null !== _trackedPostpones2 && null !== segment)
@@ -6985,8 +7187,8 @@
               "object" === typeof error &&
               null !== error &&
               error.$$typeof === REACT_POSTPONE_TYPE
-                ? logPostpone(request, error.message, replay, null)
-                : logRecoverableError(request, error, replay, null),
+                ? logPostpone(request, error.message, errorInfo, null)
+                : logRecoverableError(request, error, errorInfo, null),
               trackPostpone(request, _trackedPostpones2, task, segment),
               boundary.fallbackAbortableTasks.forEach(function (fallbackTask) {
                 return abortTask(fallbackTask, request, error);
@@ -7000,7 +7202,7 @@
             null !== error &&
             error.$$typeof === REACT_POSTPONE_TYPE
           ) {
-            logPostpone(request, error.message, replay, null);
+            logPostpone(request, error.message, errorInfo, null);
             if (null !== request.trackedPostpones && null !== segment) {
               trackPostpone(request, request.trackedPostpones, task, segment);
               finishedTask(request, task.blockedBoundary, segment);
@@ -7011,9 +7213,9 @@
               return;
             }
             task = "POSTPONE";
-          } else task = logRecoverableError(request, error, replay, null);
+          } else task = logRecoverableError(request, error, errorInfo, null);
           boundary.status = CLIENT_RENDERED;
-          encodeErrorForBoundary(boundary, task, error, replay, !0);
+          encodeErrorForBoundary(boundary, task, error, errorInfo, !0);
           untrackBoundary(request, boundary);
           boundary.parentFlushed &&
             request.clientRenderedBoundaries.push(boundary);
@@ -7093,6 +7295,7 @@
     }
     function completeShell(request) {
       null === request.trackedPostpones && safelyEmitEarlyPreloads(request, !0);
+      null === request.trackedPostpones && preparePreamble(request);
       request.onShellError = noop;
       request = request.onShellReady;
       request();
@@ -7105,6 +7308,7 @@
           : null === request.completedRootSegment ||
               request.completedRootSegment.status !== POSTPONED
       );
+      preparePreamble(request);
       request = request.onAllReady;
       request();
     }
@@ -7149,7 +7353,11 @@
                     abortTaskSoft,
                     request
                   ),
-                  boundary.fallbackAbortableTasks.clear()))
+                  boundary.fallbackAbortableTasks.clear(),
+                  0 === request.pendingRootTasks &&
+                    null === request.trackedPostpones &&
+                    null !== boundary.contentPreamble &&
+                    preparePreamble(request)))
               : null !== segment &&
                 segment.parentFlushed &&
                 segment.status === COMPLETED &&
@@ -7161,7 +7369,10 @@
       0 === request.allPendingTasks && completeAll(request);
     }
     function performWork(request$jscomp$1) {
-      if (request$jscomp$1.status !== CLOSED && 2 !== request$jscomp$1.status) {
+      if (
+        request$jscomp$1.status !== CLOSED &&
+        13 !== request$jscomp$1.status
+      ) {
         var prevContext = currentActiveSnapshot,
           prevDispatcher = ReactSharedInternals.H;
         ReactSharedInternals.H = HooksDispatcher;
@@ -7229,7 +7440,7 @@
                     erroredReplay(
                       request$jscomp$0,
                       request.blockedBoundary,
-                      1 === request$jscomp$0.status
+                      12 === request$jscomp$0.status
                         ? request$jscomp$0.fatalError
                         : x,
                       errorInfo,
@@ -7279,11 +7490,11 @@
                     var x$jscomp$0 =
                       thrownValue === SuspenseException
                         ? getSuspendedThenable()
-                        : 1 === request.status
+                        : 12 === request.status
                           ? request.fatalError
                           : thrownValue;
                     if (
-                      1 === request.status &&
+                      12 === request.status &&
                       null !== request.trackedPostpones
                     ) {
                       var trackedPostpones = request.trackedPostpones,
@@ -7401,7 +7612,11 @@
                             ),
                             untrackBoundary(request, boundary),
                             boundary.parentFlushed &&
-                              request.clientRenderedBoundaries.push(boundary)));
+                              request.clientRenderedBoundaries.push(boundary),
+                            0 === request.pendingRootTasks &&
+                              null === request.trackedPostpones &&
+                              null !== boundary.contentPreamble &&
+                              preparePreamble(request)));
                       request.allPendingTasks--;
                       0 === request.allPendingTasks && completeAll(request);
                     }
@@ -7429,6 +7644,85 @@
             prevDispatcher === HooksDispatcher && switchContext(prevContext),
             (currentRequest = prevRequest);
         }
+      }
+    }
+    function preparePreambleFromSubtree(
+      request,
+      segment,
+      collectedPreambleSegments
+    ) {
+      segment.preambleChildren.length &&
+        collectedPreambleSegments.push(segment.preambleChildren);
+      for (var pendingPreambles = !1, i = 0; i < segment.children.length; i++)
+        pendingPreambles =
+          preparePreambleFromSegment(
+            request,
+            segment.children[i],
+            collectedPreambleSegments
+          ) || pendingPreambles;
+      return pendingPreambles;
+    }
+    function preparePreambleFromSegment(
+      request,
+      segment,
+      collectedPreambleSegments
+    ) {
+      var boundary = segment.boundary;
+      if (null === boundary)
+        return preparePreambleFromSubtree(
+          request,
+          segment,
+          collectedPreambleSegments
+        );
+      var preamble = boundary.contentPreamble,
+        fallbackPreamble = boundary.fallbackPreamble;
+      if (null === preamble || null === fallbackPreamble) return !1;
+      switch (boundary.status) {
+        case COMPLETED:
+          hoistPreambleState(request.renderState, preamble);
+          segment = boundary.completedSegments[0];
+          if (!segment)
+            throw Error(
+              "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+            );
+          return preparePreambleFromSubtree(
+            request,
+            segment,
+            collectedPreambleSegments
+          );
+        case POSTPONED:
+          if (null !== request.trackedPostpones) return !0;
+        case CLIENT_RENDERED:
+          if (segment.status === COMPLETED)
+            return (
+              hoistPreambleState(request.renderState, fallbackPreamble),
+              preparePreambleFromSubtree(
+                request,
+                segment,
+                collectedPreambleSegments
+              )
+            );
+        default:
+          return !0;
+      }
+    }
+    function preparePreamble(request) {
+      if (
+        request.completedRootSegment &&
+        null === request.completedPreambleSegments
+      ) {
+        var collectedPreambleSegments = [],
+          hasPendingPreambles = preparePreambleFromSegment(
+            request,
+            request.completedRootSegment,
+            collectedPreambleSegments
+          ),
+          preamble = request.renderState.preamble;
+        if (
+          !1 === hasPendingPreambles ||
+          (preamble.headChunks && preamble.bodyChunks)
+        )
+          request.completedPreambleSegments = collectedPreambleSegments;
       }
     }
     function flushSubtree(request, destination, segment, hoistableState) {
@@ -7478,8 +7772,8 @@
       if (boundary.status === CLIENT_RENDERED) {
         var errorDigest = boundary.errorDigest,
           errorMessage = boundary.errorMessage,
-          errorStack = boundary.errorStack;
-        boundary = boundary.errorComponentStack;
+          errorStack = boundary.errorStack,
+          errorComponentStack = boundary.errorComponentStack;
         writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
         writeChunk(destination, clientRenderedSuspenseBoundaryError1);
         errorDigest &&
@@ -7512,11 +7806,11 @@
             destination,
             clientRenderedSuspenseBoundaryErrorAttrInterstitial
           ));
-        boundary &&
+        errorComponentStack &&
           (writeChunk(destination, clientRenderedSuspenseBoundaryError1D),
           writeChunk(
             destination,
-            stringToChunk(escapeTextForBrowser(boundary))
+            stringToChunk(escapeTextForBrowser(errorComponentStack))
           ),
           writeChunk(
             destination,
@@ -7524,9 +7818,14 @@
           ));
         writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
         flushSubtree(request, destination, segment, hoistableState);
-      } else if (boundary.status !== COMPLETED)
-        boundary.status === PENDING &&
-          (boundary.rootSegmentID = request.nextSegmentId++),
+        (request = boundary.fallbackPreamble) &&
+          writePreambleContribution(destination, request);
+        return writeChunkAndReturn(destination, endSuspenseBoundary);
+      }
+      if (boundary.status !== COMPLETED)
+        return (
+          boundary.status === PENDING &&
+            (boundary.rootSegmentID = request.nextSegmentId++),
           0 < boundary.completedSegments.length &&
             request.partialBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7541,32 +7840,34 @@
               hoistStylesheetDependency,
               hoistableState
             )),
-          flushSubtree(request, destination, segment, hoistableState);
-      else if (boundary.byteSize > request.progressiveChunkSize)
-        (boundary.rootSegmentID = request.nextSegmentId++),
+          flushSubtree(request, destination, segment, hoistableState),
+          writeChunkAndReturn(destination, endSuspenseBoundary)
+        );
+      if (boundary.byteSize > request.progressiveChunkSize)
+        return (
+          (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
             destination,
             request.renderState,
             boundary.rootSegmentID
           ),
-          flushSubtree(request, destination, segment, hoistableState);
-      else {
-        hoistableState &&
-          ((segment = boundary.contentState),
-          segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-          segment.stylesheets.forEach(
-            hoistStylesheetDependency,
-            hoistableState
-          ));
-        writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-        segment = boundary.completedSegments;
-        if (1 !== segment.length)
-          throw Error(
-            "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-          );
-        flushSegment(request, destination, segment[0], hoistableState);
-      }
+          flushSubtree(request, destination, segment, hoistableState),
+          writeChunkAndReturn(destination, endSuspenseBoundary)
+        );
+      hoistableState &&
+        ((segment = boundary.contentState),
+        segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+        segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+      writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+      segment = boundary.completedSegments;
+      if (1 !== segment.length)
+        throw Error(
+          "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+        );
+      flushSegment(request, destination, segment[0], hoistableState);
+      (request = boundary.contentPreamble) &&
+        writePreambleContribution(destination, request);
       return writeChunkAndReturn(destination, endSuspenseBoundary);
     }
     function flushSegmentContainer(
@@ -7727,6 +8028,8 @@
             completedRootSegment = request.completedRootSegment;
           if (null !== completedRootSegment) {
             if (completedRootSegment.status === POSTPONED) return;
+            var completedPreambleSegments = request.completedPreambleSegments;
+            if (null === completedPreambleSegments) return;
             var renderState = request.renderState;
             if (
               (0 !== request.allPendingTasks ||
@@ -7741,8 +8044,9 @@
                 ((resumableState.scriptResources[src] = EXISTS),
                 renderState.scripts.add(chunks));
             }
-            var htmlChunks = renderState.htmlChunks,
-              headChunks = renderState.headChunks,
+            var preamble = renderState.preamble,
+              htmlChunks = preamble.htmlChunks,
+              headChunks = preamble.headChunks,
               i$jscomp$0;
             if (htmlChunks) {
               for (i$jscomp$0 = 0; i$jscomp$0 < htmlChunks.length; i$jscomp$0++)
@@ -7803,10 +8107,36 @@
               i$jscomp$0++
             )
               writeChunk(destination, hoistableChunks[i$jscomp$0]);
-            hoistableChunks.length = 0;
-            htmlChunks &&
-              null === headChunks &&
+            for (
+              renderState = hoistableChunks.length = 0;
+              renderState < completedPreambleSegments.length;
+              renderState++
+            ) {
+              var segments = completedPreambleSegments[renderState];
+              for (
+                _renderState$external = 0;
+                _renderState$external < segments.length;
+                _renderState$external++
+              )
+                flushSegment(
+                  request,
+                  destination,
+                  segments[_renderState$external],
+                  null
+                );
+            }
+            var preamble$jscomp$0 = request.renderState.preamble,
+              headChunks$jscomp$0 = preamble$jscomp$0.headChunks;
+            (preamble$jscomp$0.htmlChunks || headChunks$jscomp$0) &&
               writeChunk(destination, endChunkForTag("head"));
+            var bodyChunks = preamble$jscomp$0.bodyChunks;
+            if (bodyChunks)
+              for (
+                completedPreambleSegments = 0;
+                completedPreambleSegments < bodyChunks.length;
+                completedPreambleSegments++
+              )
+                writeChunk(destination, bodyChunks[completedPreambleSegments]);
             flushSegment(request, destination, completedRootSegment, null);
             request.completedRootSegment = null;
             writeBootstrap(destination, request.renderState);
@@ -8063,32 +8393,24 @@
     }
     function startWork(request) {
       request.flushScheduled = null !== request.destination;
-      null !== request.trackedPostpones
-        ? supportsRequestStorage
-          ? scheduleMicrotask(function () {
-              return requestStorage.run(request, performWork, request);
-            })
-          : scheduleMicrotask(function () {
-              return performWork(request);
-            })
-        : (supportsRequestStorage
-            ? setTimeoutOrImmediate(function () {
-                return requestStorage.run(request, performWork, request);
-              }, 0)
-            : setTimeoutOrImmediate(function () {
-                return performWork(request);
-              }, 0),
-          supportsRequestStorage
-            ? setTimeoutOrImmediate(function () {
-                return requestStorage.run(
-                  request,
-                  enqueueEarlyPreloadsAfterInitialWork,
-                  request
-                );
-              }, 0)
-            : setTimeoutOrImmediate(function () {
-                return enqueueEarlyPreloadsAfterInitialWork(request);
-              }, 0));
+      supportsRequestStorage
+        ? scheduleMicrotask(function () {
+            return requestStorage.run(request, performWork, request);
+          })
+        : scheduleMicrotask(function () {
+            return performWork(request);
+          });
+      setTimeoutOrImmediate(function () {
+        10 === request.status && (request.status = 11);
+        null === request.trackedPostpones &&
+          (supportsRequestStorage
+            ? requestStorage.run(
+                request,
+                enqueueEarlyPreloadsAfterInitialWork,
+                request
+              )
+            : enqueueEarlyPreloadsAfterInitialWork(request));
+      }, 0);
     }
     function enqueueEarlyPreloadsAfterInitialWork(request) {
       safelyEmitEarlyPreloads(request, 0 === request.pendingRootTasks);
@@ -8106,7 +8428,7 @@
         }, 0));
     }
     function startFlowing(request, destination) {
-      if (2 === request.status)
+      if (13 === request.status)
         (request.status = CLOSED),
           closeWithError(destination, request.fatalError);
       else if (request.status !== CLOSED && null === request.destination) {
@@ -8121,7 +8443,7 @@
       }
     }
     function abort(request, reason) {
-      0 === request.status && (request.status = 1);
+      if (11 === request.status || 10 === request.status) request.status = 12;
       try {
         var abortableTasks = request.abortableTasks;
         if (0 < abortableTasks.size) {
@@ -8168,11 +8490,19 @@
       )
         return (request.trackedPostpones = null);
       if (
-        null !== request.completedRootSegment &&
-        request.completedRootSegment.status === POSTPONED
+        null === request.completedRootSegment ||
+        (request.completedRootSegment.status !== POSTPONED &&
+          null !== request.completedPreambleSegments)
       ) {
-        var resumableState = request.resumableState,
-          renderState = request.renderState;
+        var replaySlots = trackedPostpones.rootSlots;
+        var resumableState = request.resumableState;
+        resumableState.bootstrapScriptContent = void 0;
+        resumableState.bootstrapScripts = void 0;
+        resumableState.bootstrapModules = void 0;
+      } else {
+        replaySlots = request.completedRootSegment.id;
+        resumableState = request.resumableState;
+        var renderState = request.renderState;
         resumableState.nextFormID = 0;
         resumableState.hasBody = !1;
         resumableState.hasHtml = !1;
@@ -8184,31 +8514,27 @@
         resumableState.scriptResources = {};
         resumableState.moduleUnknownResources = {};
         resumableState.moduleScriptResources = {};
-      } else
-        (resumableState = request.resumableState),
-          (resumableState.bootstrapScriptContent = void 0),
-          (resumableState.bootstrapScripts = void 0),
-          (resumableState.bootstrapModules = void 0);
+      }
       return {
         nextSegmentId: request.nextSegmentId,
         rootFormatContext: request.rootFormatContext,
         progressiveChunkSize: request.progressiveChunkSize,
         resumableState: request.resumableState,
         replayNodes: trackedPostpones.rootNodes,
-        replaySlots: trackedPostpones.rootSlots
+        replaySlots: replaySlots
       };
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-7771d3a7-20240827" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-22e39ea7-20250225" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-7771d3a7-20240827\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-22e39ea7-20250225\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
-      ReactDOM = require("react-dom"),
+      ReactDOM = require("next/dist/compiled/react-dom-experimental"),
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -8223,11 +8549,11 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-      REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
       REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
       REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -9045,6 +9371,7 @@
                 var header;
                 resumableState &&
                 0 < resumableState.remainingCapacity &&
+                "string" !== typeof imageSrcSet &&
                 "high" === fetchPriority &&
                 ((header = getPreloadAsHeader(href, as, options)),
                 0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -9307,15 +9634,17 @@
       ),
       importMapScriptEnd = stringToPrecomputedChunk("\x3c/script>");
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var ROOT_HTML_MODE = 0,
+    var NoContribution = 0,
+      ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
-      SVG_MODE = 3,
-      MATHML_MODE = 4,
-      HTML_TABLE_MODE = 5,
-      HTML_TABLE_BODY_MODE = 6,
-      HTML_TABLE_ROW_MODE = 7,
-      HTML_COLGROUP_MODE = 8,
+      HTML_HEAD_MODE = 3,
+      SVG_MODE = 4,
+      MATHML_MODE = 5,
+      HTML_TABLE_MODE = 6,
+      HTML_TABLE_BODY_MODE = 7,
+      HTML_TABLE_ROW_MODE = 8,
+      HTML_COLGROUP_MODE = 9,
       textSeparator = stringToPrecomputedChunk("\x3c!-- --\x3e"),
       styleNameCache = new Map(),
       styleAttributeStart = stringToPrecomputedChunk(' style="'),
@@ -9381,6 +9710,9 @@
         stringToPrecomputedChunk(' data-cstck="'),
       clientRenderedSuspenseBoundaryError2 =
         stringToPrecomputedChunk("></template>"),
+      boundaryPreambleContributionChunkStart =
+        stringToPrecomputedChunk("\x3c!--"),
+      boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e"),
       startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
       startSegmentHTML2 = stringToPrecomputedChunk('">'),
       endSegmentHTML = stringToPrecomputedChunk("</div>"),
@@ -9509,9 +9841,6 @@
     var didWarnAboutInvalidateContextType = new Set();
     var didWarnOnInvalidCallback = new Set();
     var classComponentUpdater = {
-        isMounted: function () {
-          return !1;
-        },
         enqueueSetState: function (inst, payload, callback) {
           var internals = inst._reactInternals;
           null === internals.queue
@@ -9542,7 +9871,7 @@
       log = Math.log,
       LN2 = Math.LN2,
       SuspenseException = Error(
-        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
       suspendedThenable = null,
       objectIs = "function" === typeof Object.is ? Object.is : is,
@@ -9642,29 +9971,33 @@
             );
           return getServerSnapshot();
         },
-        useCacheRefresh: function () {
-          return unsupportedRefresh;
+        useOptimistic: function (passthrough) {
+          resolveCurrentlyRenderingComponent();
+          return [passthrough, unsupportedSetOptimisticState];
         },
-        useEffectEvent: function () {
-          return throwOnUseEffectEventCall;
+        useActionState: useActionState,
+        useFormState: useActionState,
+        useHostTransitionStatus: function () {
+          resolveCurrentlyRenderingComponent();
+          return NotPending;
         },
         useMemoCache: function (size) {
           for (var data = Array(size), i = 0; i < size; i++)
             data[i] = REACT_MEMO_CACHE_SENTINEL;
           return data;
         },
-        useHostTransitionStatus: function () {
-          resolveCurrentlyRenderingComponent();
-          return NotPending;
+        useCacheRefresh: function () {
+          return unsupportedRefresh;
         },
-        useOptimistic: function (passthrough) {
+        useEffectEvent: function () {
+          return throwOnUseEffectEventCall;
+        },
+        useSwipeTransition: function (previous, current) {
           resolveCurrentlyRenderingComponent();
-          return [passthrough, unsupportedSetOptimisticState];
+          return [current, unsupportedStartGesture];
         }
-      };
-    HooksDispatcher.useFormState = useActionState;
-    HooksDispatcher.useActionState = useActionState;
-    var currentResumableState = null,
+      },
+      currentResumableState = null,
       currentTaskInDEV = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function () {
@@ -9717,7 +10050,7 @@
       COMPLETED = 1,
       FLUSHED = 2,
       POSTPONED = 5,
-      CLOSED = 3,
+      CLOSED = 14,
       currentRequest = null,
       didWarnAboutBadClass = {},
       didWarnAboutContextTypes = {},
@@ -9930,6 +10263,56 @@
         startWork(request);
       });
     };
+    exports.resumeAndPrerender = function (children, postponedState, options) {
+      return new Promise(function (resolve, reject) {
+        var request = resumeAndPrerenderRequest(
+          children,
+          postponedState,
+          createRenderState(
+            postponedState.resumableState,
+            options ? options.nonce : void 0,
+            void 0,
+            void 0,
+            void 0,
+            void 0
+          ),
+          options ? options.onError : void 0,
+          function () {
+            var stream = new ReadableStream(
+              {
+                type: "bytes",
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+            stream = { postponed: getPostponedState(request), prelude: stream };
+            resolve(stream);
+          },
+          void 0,
+          void 0,
+          reject,
+          options ? options.onPostpone : void 0
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
 
 // This is a patch added by Next.js
 const setTimeoutOrImmediate =
@@ -9941,5 +10324,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.0.0-experimental-7771d3a7-20240827";
+    exports.version = "19.1.0-experimental-22e39ea7-20250225";
   })();

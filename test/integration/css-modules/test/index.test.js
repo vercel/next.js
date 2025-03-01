@@ -59,12 +59,9 @@ describe('Basic CSS Module Support', () => {
         )
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ".index-module__VJHdSq__redText {
-              color: red;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -137,25 +134,11 @@ describe('3rd Party CSS Module Support', () => {
           res.text()
         )
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ".index-module__jAE1EW__foo {
-              position: relative;
-            }
-
-            .index-module__jAE1EW__foo .bar, .index-module__jAE1EW__foo .baz {
-              height: 100%;
-              overflow: hidden;
-            }
-
-            .index-module__jAE1EW__foo .lol {
-              width: 80%;
-            }
-
-            .index-module__jAE1EW__foo > .lel {
-              width: 80%;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+          )
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -416,12 +399,9 @@ describe('Valid CSS Module Usage from within node_modules', () => {
         )
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ".index-module__kwuKnq__redText {
-              color: red;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -440,24 +420,22 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
 
       let appPort
       let app
-      let stdout
-      let code
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
-        ;({ code, stdout } = await nextBuild(appDir, [], {
+        const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
-        }))
+        })
+
+        if (code !== 0) {
+          console.error(stdout)
+          throw new Error('Build failed')
+        }
 
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
         await killApp(app)
-      })
-
-      it('should have compiled successfully', () => {
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
       })
 
       it(`should've prerendered with relevant data`, async () => {
@@ -492,7 +470,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
           )
         }
       })
@@ -541,22 +519,16 @@ describe('CSS Module Composes Usage (Basic)', () => {
         )
 
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ".index-module__QppuLW__className {
-              background: red;
-              color: #ff0;
-            }
-
-            .index-module__QppuLW__subClass {
-              background: #00f;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".index-module__QppuLW__className{background:red;color:#ff0}.index-module__QppuLW__subClass{background:#00f;}"`
+          )
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".index_className__jjcZ1{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -573,23 +545,21 @@ describe('CSS Module Composes Usage (External)', () => {
 
       let appPort
       let app
-      let stdout
-      let code
       beforeAll(async () => {
         await remove(join(appDir, '.next'))
-        ;({ code, stdout } = await nextBuild(appDir, [], {
+        console.log({ appDir })
+        const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
-        }))
+        })
+        if (code !== 0) {
+          console.error(stdout)
+          throw new Error('Build failed')
+        }
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
       afterAll(async () => {
         await killApp(app)
-      })
-
-      it('should have compiled successfully', () => {
-        expect(code).toBe(0)
-        expect(stdout).toMatch(/Compiled successfully/)
       })
 
       it(`should've emitted a single CSS file`, async () => {
@@ -614,7 +584,7 @@ describe('CSS Module Composes Usage (External)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -670,16 +640,15 @@ describe('Dynamic Route CSS Module Usage', () => {
           res.text()
         )
         if (process.env.TURBOPACK) {
-          expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
-            .toMatchInlineSnapshot(`
-            ".index-module__Iury9a__home {
-              background: red;
-            }"
-          `)
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `".index-module__Iury9a__home{background:red}"`
+          )
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:red}"`)
+          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:#f00}"`)
         }
       })
     }
@@ -739,21 +708,16 @@ describe('Catch-all Route CSS Module Usage', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
             .toMatchInlineSnapshot(`
-            ".index-module___rV4CG__home {
-              background: red;
-            }
+            ".index-module___rV4CG__home{background:red}
 
 
-
-            .\\35 5css-module__qe774W__home {
-              color: green;
-            }"
+            .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
+            `".___post__home__e4zfx{background:#f00}.__55css_home__r8Rnq{color:green}"`
           )
         }
       })

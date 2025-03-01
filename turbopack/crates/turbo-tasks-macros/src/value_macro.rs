@@ -110,10 +110,8 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
-    /// Should we `#[derive(turbo_tasks::ResolvedValue)]`?
-    ///
-    /// `Some(...)` if enabled, containing the span that enabled the derive.
-    resolved: Option<Span>,
+    /// Should we `#[derive(turbo_tasks::OperationValue)]`?
+    operation: Option<Span>,
 }
 
 impl Parse for ValueArguments {
@@ -123,8 +121,8 @@ impl Parse for ValueArguments {
             into_mode: IntoMode::None,
             cell_mode: CellMode::Shared,
             manual_eq: false,
-            resolved: None,
             transparent: false,
+            operation: None,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
         for meta in punctuated {
@@ -179,15 +177,15 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                ("resolved", Meta::Path(path)) => {
-                    result.resolved = Some(path.span());
+                ("operation", Meta::Path(path)) => {
+                    result.operation = Some(path.span());
                 }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
                             "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\"",
+                             \"cell\", \"eq\", \"transparent\", or \"operation\"",
                             meta
                         ),
                     ))
@@ -207,7 +205,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
-        resolved,
+        operation,
     } = parse_macro_input!(args as ValueArguments);
 
     let mut inner_type = None;
@@ -317,22 +315,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::Vc::cell_private(#cell_access_content)
         }
 
-        /// Places a value in a task-local cell stored in the current task.
+        /// Places a value in a cell of the current task. Returns a
+        /// [`ResolvedVc`][turbo_tasks::ResolvedVc].
         ///
-        /// Task-local cells are stored in a task-local arena, and do not persist outside the
-        /// lifetime of the current task (including child tasks). Task-local cells can be resolved
-        /// to be converted into normal cells.
-        #cell_prefix fn local_cell(self) -> turbo_tasks::Vc<Self> {
+        /// Cell is selected based on the value type and call order of `cell`.
+        #cell_prefix fn resolved_cell(self) -> turbo_tasks::ResolvedVc<Self> {
             let content = self;
-            turbo_tasks::Vc::local_cell_private(#cell_access_content)
+            turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
         }
     };
 
     let into = if let IntoMode::New | IntoMode::Shared = into_mode {
         quote! {
-            impl Into<turbo_tasks::Vc<#ident>> for #ident {
-                fn into(self) -> turbo_tasks::Vc<#ident> {
-                    self.cell()
+            impl ::std::convert::From<#ident> for turbo_tasks::Vc<#ident> {
+                fn from(value: #ident) -> Self {
+                    value.cell()
                 }
             }
         }
@@ -340,49 +337,51 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let derive = match serialization_mode {
+    let mut struct_attributes = vec![quote! {
+        #[derive(
+            turbo_tasks::ShrinkToFit,
+            turbo_tasks::trace::TraceRawVcs,
+            turbo_tasks::NonLocalValue,
+        )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
+    }];
+    match serialization_mode {
+        SerializationMode::Auto | SerializationMode::AutoForInput => {
+            struct_attributes.push(quote! {
+                #[derive(
+                    turbo_tasks::macro_helpers::serde::Serialize,
+                    turbo_tasks::macro_helpers::serde::Deserialize,
+                )]
+                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+            })
+        }
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
-            quote! {
-                #[derive(turbo_tasks::trace::TraceRawVcs)]
-            }
         }
-        SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(
-                turbo_tasks::trace::TraceRawVcs,
-                turbo_tasks::macro_helpers::serde::Serialize,
-                turbo_tasks::macro_helpers::serde::Deserialize,
-            )]
-            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-        },
     };
-    let debug_derive = if inner_type.is_some() {
+    if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
-        quote! {
+        struct_attributes.push(quote! {
             #[repr(transparent)]
-        }
+        });
     } else {
-        quote! {
+        struct_attributes.push(quote! {
             #[derive(
                 turbo_tasks::debug::ValueDebugFormat,
                 turbo_tasks::debug::internal::ValueDebug,
             )]
-        }
-    };
-    let eq_derive = if manual_eq {
-        quote!()
-    } else {
-        quote!(
+        });
+    }
+    if !manual_eq {
+        struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
-        )
-    };
-    let resolved_derive = if let Some(span) = resolved {
-        quote_spanned!(
+        });
+    }
+    if let Some(span) = operation {
+        struct_attributes.push(quote_spanned! {
             span =>
-            #[derive(turbo_tasks::ResolvedValue)]
-        )
-    } else {
-        quote!()
-    };
+            #[derive(turbo_tasks::OperationValue)]
+        });
+    }
 
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
@@ -440,10 +439,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     );
 
     let expanded = quote! {
-        #derive
-        #debug_derive
-        #eq_derive
-        #resolved_derive
+        #(#struct_attributes)*
         #item
 
         impl #ident {

@@ -50,7 +50,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./libvips",
                         ),
                     ),
@@ -86,6 +86,7 @@
         ],
         span: 33..53,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -124,6 +125,7 @@
         ],
         span: 79..100,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -223,7 +225,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "runtimePlatform:",
                         ),
                     ),
@@ -259,6 +261,7 @@
         ],
         span: 102..150,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -392,6 +395,7 @@
         ],
         span: 429..442,
         in_try: true,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -539,5 +543,6 @@
         ],
         span: 508..524,
         in_try: false,
+        new: false,
     },
 ]

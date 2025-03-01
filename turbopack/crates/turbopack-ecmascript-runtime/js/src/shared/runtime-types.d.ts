@@ -10,6 +10,12 @@
 type ChunkPath = string;
 type ModuleId = string;
 
+interface Exports {
+  __esModule?: boolean;
+
+  [key: string]: any;
+}
+
 type ChunkData =
   | ChunkPath
   | {
@@ -37,8 +43,8 @@ type LoadWebAssembly = (
 ) => Exports;
 type LoadWebAssemblyModule = (wasmChunkPath: ChunkPath) => WebAssembly.Module;
 
-type ModuleCache = Record<ModuleId, Module>;
-type ModuleFactories = Record<ModuleId, ModuleFactory>;
+type ModuleCache<M> = Record<ModuleId, M>;
+type ModuleFactories = Record<ModuleId, unknown>;
 
 type RelativeURL = (inputUrl: string) => void;
 type ResolvePathFromModule = (moduleId: string) => string;
@@ -54,8 +60,27 @@ type AsyncModule = (
 ) => void;
 
 type ResolveAbsolutePath = (modulePath?: string) => string;
+type GetWorkerBlobURL = (chunks: ChunkPath[]) => string;
 
-interface TurbopackBaseContext {
+interface Module {
+  exports: Function | Exports | Promise<Exports> | AsyncModulePromise;
+  error: Error | undefined;
+  loaded: boolean;
+  id: ModuleId;
+  namespaceObject?:
+    | EsmNamespaceObject
+    | Promise<EsmNamespaceObject>
+    | AsyncModulePromise<EsmNamespaceObject>;
+  [REEXPORTED_OBJECTS]?: any[];
+}
+
+interface ModuleWithDirection extends Module {
+  children: ModuleId[];
+  parents: ModuleId[];
+}
+
+
+interface TurbopackBaseContext<M> {
   a: AsyncModule;
   e: Module["exports"];
   r: CommonJsRequire;
@@ -67,7 +92,7 @@ interface TurbopackBaseContext {
   v: ExportValue;
   n: ExportNamespace;
   m: Module;
-  c: ModuleCache;
+  c: ModuleCache<M>;
   M: ModuleFactories;
   l: LoadChunk;
   w: LoadWebAssembly;
@@ -75,5 +100,7 @@ interface TurbopackBaseContext {
   g: typeof globalThis;
   P: ResolveAbsolutePath;
   U: RelativeURL;
-  __dirname: string;
+  b: GetWorkerBlobURL,
+  z: CommonJsRequire
+  d: string;
 }

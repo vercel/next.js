@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath};
 use turbopack::module_options::{LoaderRuleItem, OptionWebpackRules, WebpackRules};
 use turbopack_core::{
@@ -27,7 +27,7 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 #[turbo_tasks::function]
 pub async fn maybe_add_babel_loader(
     project_root: Vc<FileSystemPath>,
-    webpack_rules: Option<Vc<WebpackRules>>,
+    webpack_rules: Option<ResolvedVc<WebpackRules>>,
 ) -> Result<Vc<OptionWebpackRules>> {
     let has_babel_config = {
         let mut has_babel_config = false;
@@ -43,7 +43,7 @@ pub async fn maybe_add_babel_loader(
 
     if has_babel_config {
         let mut rules = if let Some(webpack_rules) = webpack_rules {
-            webpack_rules.await?.clone_value()
+            webpack_rules.owned().await?
         } else {
             Default::default()
         };
@@ -65,18 +65,18 @@ pub async fn maybe_add_babel_loader(
                     && !*is_babel_loader_available(project_root).await?
                 {
                     BabelIssue {
-                        path: project_root,
+                        path: project_root.to_resolved().await?,
                         title: StyledString::Text(
                             "Unable to resolve babel-loader, but a babel config is present".into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                         description: StyledString::Text(
                             "Make sure babel-loader is installed via your package manager.".into(),
                         )
-                        .cell(),
-                        severity: IssueSeverity::Fatal.cell(),
+                        .resolved_cell(),
+                        severity: IssueSeverity::Fatal.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
 
                     has_emitted_babel_resolve_issue = true;
@@ -87,14 +87,14 @@ pub async fn maybe_add_babel_loader(
                     options: Default::default(),
                 };
                 if let Some(rule) = rule {
-                    let mut loaders = rule.loaders.await?.clone_value();
+                    let mut loaders = rule.loaders.owned().await?;
                     loaders.push(loader);
-                    rule.loaders = Vc::cell(loaders);
+                    rule.loaders = ResolvedVc::cell(loaders);
                 } else {
                     rules.insert(
                         pattern.into(),
                         LoaderRuleItem {
-                            loaders: Vc::cell(vec![loader]),
+                            loaders: ResolvedVc::cell(vec![loader]),
                             rename_as: Some("*".into()),
                         },
                     );
@@ -104,7 +104,7 @@ pub async fn maybe_add_babel_loader(
         }
 
         if has_changed {
-            return Ok(Vc::cell(Some(Vc::cell(rules))));
+            return Ok(Vc::cell(Some(ResolvedVc::cell(rules))));
         }
     }
     Ok(Vc::cell(webpack_rules))
@@ -126,10 +126,10 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: Vc<FileSystemPath>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-    severity: Vc<IssueSeverity>,
+    path: ResolvedVc<FileSystemPath>,
+    title: ResolvedVc<StyledString>,
+    description: ResolvedVc<StyledString>,
+    severity: ResolvedVc<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
@@ -141,17 +141,17 @@ impl Issue for BabelIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        self.title
+        *self.title
     }
 
     #[turbo_tasks::function]

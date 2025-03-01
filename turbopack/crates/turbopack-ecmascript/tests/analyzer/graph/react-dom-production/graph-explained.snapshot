@@ -55,9 +55,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
   | undefined
   | ???*0*
   | b
-  | null
   | pj(a, b, c)
-  | b["child"]
   | cj(a, b, b["type"], b["pendingProps"], c)
   | yj(a, b, c)
   | ej(a, b, c)
@@ -105,9 +103,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 129753* = (...) => dl(a, b, null, c)
 
-*anonymous function 129905* = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+*anonymous function 129905* = (...) => new ml(b)
 
 *anonymous function 130256* = (...) => (null | a)
 
@@ -115,13 +111,14 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 130565* = (...) => sl(null, a, b, !(0), c)
 
-*anonymous function 130658* = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+*anonymous function 130658* = (...) => new nl(b)
 
 *anonymous function 131212* = (...) => sl(null, a, b, !(1), c)
 
-*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? !(0) : !(1))
+*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? ???*0* : !(1))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 *anonymous function 131389* = (...) => undefined
 
@@ -394,9 +391,7 @@ Be = (...) => undefined
 
 Bf = (...) => undefined
 
-Bg = (...) => ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+Bg = (...) => new al(a, b, c, d)
 
 Bh = vh(!(0))
 
@@ -583,14 +578,17 @@ Fh = Uf(Dh)
 
 Fi = (...) => di()["memoizedState"]
 
-Fj = (...) => (undefined | null | (???*0* ? b : null) | ???*1* | b["child"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* b
+Fj = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b["child"])
+- *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
 
-Fk = (...) => null
+Fk = (...) => (???*0* | null)
+- *0* null
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 G = (...) => undefined
 
@@ -728,7 +726,7 @@ Jh = (...) => undefined
 
 Ji = (...) => undefined
 
-Jj = (...) => (undefined | ???*0* | null | (???*3* ? ???*4* : null))
+Jj = (...) => (undefined | ???*0* | (???*3* ? ???*4* : null) | null)
 - *0* (???*1* ? ???*2* : null)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -934,9 +932,7 @@ Oa = (...) => ("" | k | (???*0* ? Ma(a) : ""))
 
 Ob = (!(1) | !(0))
 
-Oc = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+Oc = new FreeVar(Map)()
 
 Od = {"Alt": "altKey", "Control": "ctrlKey", "Meta": "metaKey", "Shift": "shiftKey"}
 
@@ -967,9 +963,7 @@ Pa = (...) => (undefined | Ma(a["type"]) | Ma("Lazy") | Ma("Suspense") | Ma("Sus
 
 Pb = (null | a)
 
-Pc = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+Pc = new FreeVar(Map)()
 
 Pd = (...) => (b["getModifierState"] ? b["getModifierState"](a) : (???*0* ? !(!(b[a])) : !(1)))
 - *0* unsupported expression
@@ -1142,8 +1136,8 @@ Sg = (...) => undefined
 
 Sh = (!(1) | !(0))
 
-Si = (???*0* | null)
-- *0* unknown new expression
+Si = (new FreeVar(Set)([???*0*]) | null)
+- *0* unsupported expression
   ⚠️  This value might have side effects
 
 Sj = (...) => undefined
@@ -1299,7 +1293,10 @@ Vk = (...) => undefined
 
 W = (...) => undefined
 
-Wa = (...) => (!(1) | !(0) | ((a !== c) ? !(0) : !(1)))
+Wa = (...) => (!(1) | !(0) | ((a !== c) ? ???*0* : !(1)))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Wb = (...) => (b["dehydrated"] | null)
 
@@ -1383,7 +1380,10 @@ Ya = (...) => A(
 - *2* unsupported expression
   ⚠️  This value might have side effects
 
-Yb = (...) => (((b !== a) ? null : a) | a | b | ((c["stateNode"]["current"] === c) ? a : b))
+Yb = (...) => (((b !== a) ? null : a) | ???*0* | ((c["stateNode"]["current"] === c) ? a : b))
+- *0* a
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Yc = (...) => (
   | a
@@ -1956,9 +1956,7 @@ a#430 = arguments[0]
 
 a#431 = arguments[0]
 
-a#435 = (arguments[0] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+a#435 = (arguments[0] | new FreeVar(Map)())
 
 a#436 = (arguments[0] | wh(a, b))
 
@@ -2451,9 +2449,7 @@ a#951 = arguments[0]
 
 a#952 = arguments[0]
 
-a#953 = (arguments[0] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+a#953 = (arguments[0] | new bl(a, b, c, h, k))
 
 a#954 = arguments[0]
 
@@ -2727,9 +2723,7 @@ b#265 = (a && a["nodeName"] && a["nodeName"]["toLowerCase"]())
 
 b#266 = (Me() | d["start"] | (c["ownerDocument"] || FreeVar(document)) | b["createRange"]() | [])
 
-b#269 = (arguments[1] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+b#269 = (arguments[1] | new td("onSelect", "select", null, b, c))
 
 b#27 = c["stack"]["trim"]()["match"](/\n( *(at )?)/)
 
@@ -2872,9 +2866,7 @@ b#419 = (arguments[1] | dh(a, e, d))
 
 b#420 = arguments[1]
 
-b#421 = (arguments[1] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+b#421 = (arguments[1] | new b(c, f))
 
 b#422 = arguments[1]
 
@@ -3344,10 +3336,14 @@ b#994 = Zg(a, 134217728)
 
 b#997 = lh(a)
 
-ba = ("onCompositionStart" | "onCompositionEnd" | "onCompositionUpdate" | ???*0* | ???*1*)
+ba = (
+  | "onCompositionStart"
+  | "onCompositionEnd"
+  | "onCompositionUpdate"
+  | ???*0*
+  | new Ld(ba, a, null, c, e)
+)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unknown new expression
   ⚠️  This value might have side effects
 
 bb = (...) => (undefined | FreeVar(undefined))
@@ -3474,9 +3470,7 @@ c#212 = ???*0*
 - *0* c
   ⚠️  pattern without value
 
-c#236 = (arguments[2] | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+c#236 = (arguments[2] | new td("onChange", "change", null, c, d))
 
 c#246 = arguments[2]
 
@@ -4077,9 +4071,7 @@ d#175 = arguments[3]
 
 d#176 = arguments[3]
 
-d#183 = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+d#183 = new c["constructor"](c["type"], c)
 
 d#189 = (Kc[c] | Qc[c])
 
@@ -4548,9 +4540,7 @@ d#986 = arguments[3]
 
 d#997 = L()
 
-da = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+da = new FreeVar(Set)()
 
 db = (...) => (undefined | FreeVar(undefined))
 
@@ -4564,9 +4554,7 @@ de = (ia && (!(ae) || (be && ???*0* && ???*1*)))
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-df = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+df = new FreeVar(Map)()
 
 dg = (...) => undefined
 
@@ -4649,9 +4637,7 @@ e#285 = (ed | gd | fd | ???*0* | !(0))
 
 e#286 = arguments[4]
 
-e#292 = (xb(c) | ???*0*)
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+e#292 = (xb(c) | new Ld("onBeforeInput", "beforeinput", null, c, e))
 
 e#30 = l["stack"]["split"]("\n")
 
@@ -4745,9 +4731,7 @@ ${f["stack"]}`
 
 e#580 = b["value"]
 
-e#585 = (???*0* | d["get"](b))
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+e#585 = (new FreeVar(Set)() | d["get"](b))
 
 e#589 = arguments[4]
 
@@ -5425,15 +5409,14 @@ h#286 = (d["stateNode"]["containerInfo"] | h["parentNode"])
 
 h#292 = (
   | df["get"](a)
-  | ???*0*
+  | new k(h, n, null, c, e)
   | (("mouseover" === a) || ("pointerover" === a))
-  | ((e["window"] === e) ? e : (???*1* ? (h["defaultView"] || h["parentWindow"]) : FreeVar(window)))
+  | ((e["window"] === e) ? e : (???*0* ? (h["defaultView"] || h["parentWindow"]) : FreeVar(window)))
   | e["ownerDocument"]
+  | new t(F, `${w}leave`, k, c, e)
   | (d ? ue(d) : FreeVar(window))
 )
-- *0* unknown new expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
+- *0* unsupported expression
   ⚠️  This value might have side effects
 
 h#30 = (???*0* | ???*1*)
@@ -5612,9 +5595,7 @@ jf = hf["toLowerCase"]()
 
 jg = (...) => null
 
-jh = ???*0*["refs"]
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+jh = new aa["Component"]()["refs"]
 
 ji = (...) => ui(2048, 8, a, b)
 
@@ -5792,7 +5773,10 @@ kh = (...) => undefined
 
 ki = (...) => c(*anonymous function 67764*)
 
-kj = (...) => ($i(a, b, f) | b["child"])
+kj = (...) => (???*0* | b["child"])
+- *0* $i(a, b, f)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 kk = (...) => undefined
 
@@ -5988,9 +5972,9 @@ md = (null | e["slice"](a, (???*0* ? ???*1* : ???*2*)) | ???*3*)
 
 me = (...) => (("input" === b) ? !(!(le[a["type"]])) : (("textarea" === b) ? !(0) : !(1)))
 
-mf = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+mf = new FreeVar(Set)(
+    "cancel close invalid load scroll toggle"["split"](" ")["concat"](lf)
+)
 
 mg = (null | a | kg[???*0*])
 - *0* unsupported expression
@@ -6019,7 +6003,10 @@ n#292 = (
 
 n#404 = (a | t["payload"])
 
-n#431 = (...) => l
+n#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 n#449 = r(e, u, h[w], k)
 
@@ -6379,15 +6366,16 @@ sk = (0 | ???*0* | ???*1*)
 
 sl = (...) => hl(g)
 
-t#292 = ((0 !== ???*0*) | [] | Bd | Td | ???*1* | k | vf(t) | null)
+t#292 = ((0 !== ???*0*) | [] | Bd | Td | new t(x, `${w}enter`, n, c, e) | k | vf(t) | null)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unknown new expression
   ⚠️  This value might have side effects
 
 t#404 = h
 
-t#431 = (...) => l
+t#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 t#454 = r(e, m, n["value"], k)
 
@@ -6429,9 +6417,7 @@ t#753 = ???*0*
 - *0* t
   ⚠️  pattern without value
 
-t#843 = ???*0*
-- *0* unknown new expression
-  ⚠️  This value might have side effects
+t#843 = new FreeVar(Set)()
 
 t#883 = (n["child"] | J)
 

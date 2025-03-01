@@ -1,9 +1,8 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
-import type { RequestStore } from '../../client/components/request-async-storage.external'
-import type { StaticGenerationStore } from '../../client/components/static-generation-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { IncrementalCache } from './incremental-cache'
 import { createPatchedFetcher } from './patch-fetch'
-import type { PrerenderStore } from '../app-render/prerender-async-storage.external'
 
 describe('createPatchedFetcher', () => {
   it('should not buffer a streamed response', async () => {
@@ -22,16 +21,14 @@ describe('createPatchedFetcher', () => {
 
     mockFetch.mockResolvedValue(new Response(readableStream))
 
-    const staticGenerationAsyncStorage =
-      new AsyncLocalStorage<StaticGenerationStore>()
+    const workAsyncStorage = new AsyncLocalStorage<WorkStore>()
 
-    const prerenderAsyncStorage = new AsyncLocalStorage<PrerenderStore>()
+    const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
 
     const patchedFetch = createPatchedFetcher(mockFetch, {
-      // requestAsyncStorage does not need to provide a store for this test.
-      requestAsyncStorage: new AsyncLocalStorage<RequestStore>(),
-      staticGenerationAsyncStorage,
-      prerenderAsyncStorage,
+      // workUnitAsyncStorage does not need to provide a store for this test.
+      workAsyncStorage,
+      workUnitAsyncStorage,
     })
 
     let resolveIncrementalCacheSet: () => void
@@ -47,56 +44,52 @@ describe('createPatchedFetcher', () => {
       lock: jest.fn(() => resolveIncrementalCacheSet),
     } as unknown as IncrementalCache
 
-    // We only need to provide a few of the StaticGenerationStore properties.
-    const staticGenerationStore: Partial<StaticGenerationStore> = {
+    // We only need to provide a few of the WorkStore properties.
+    const workStore: Partial<WorkStore> = {
       page: '/',
       route: '/',
       incrementalCache,
     }
 
-    await staticGenerationAsyncStorage.run(
-      staticGenerationStore as StaticGenerationStore,
-      async () => {
-        const response = await patchedFetch('https://example.com', {
-          cache: 'force-cache',
-        })
+    await workAsyncStorage.run(workStore as WorkStore, async () => {
+      const response = await patchedFetch('https://example.com', {
+        cache: 'force-cache',
+      })
 
-        if (!response.body) {
-          throw new Error(`Response body is ${JSON.stringify(response.body)}.`)
-        }
-
-        const reader = response.body.getReader()
-        let result = await reader.read()
-        const textDecoder = new TextDecoder()
-        expect(textDecoder.decode(result.value)).toBe('stream start')
-        streamChunk()
-        result = await reader.read()
-        expect(textDecoder.decode(result.value)).toBe('stream end')
-
-        await incrementalCacheSetPromise
-
-        expect(incrementalCache.set).toHaveBeenCalledWith(
-          'test-cache-key',
-          {
-            data: {
-              body: btoa('stream startstream end'),
-              headers: {},
-              status: 200,
-              url: '', // the mocked response does not have a URL
-            },
-            kind: 'FETCH',
-            revalidate: 31536000, // default of one year
-          },
-          {
-            fetchCache: true,
-            fetchIdx: 1,
-            fetchUrl: 'https://example.com/',
-            revalidate: false,
-            tags: [],
-          }
-        )
+      if (!response.body) {
+        throw new Error(`Response body is ${JSON.stringify(response.body)}.`)
       }
-    )
+
+      const reader = response.body.getReader()
+      let result = await reader.read()
+      const textDecoder = new TextDecoder()
+      expect(textDecoder.decode(result.value)).toBe('stream start')
+      streamChunk()
+      result = await reader.read()
+      expect(textDecoder.decode(result.value)).toBe('stream end')
+
+      await incrementalCacheSetPromise
+
+      expect(incrementalCache.set).toHaveBeenCalledWith(
+        'test-cache-key',
+        {
+          data: {
+            body: btoa('stream startstream end'),
+            headers: {},
+            status: 200,
+            url: '', // the mocked response does not have a URL
+          },
+          kind: 'FETCH',
+          revalidate: 31536000, // default of one year
+        },
+        {
+          fetchCache: true,
+          fetchIdx: 1,
+          fetchUrl: 'https://example.com/',
+          tags: [],
+        }
+      )
+    })
     // Setting a lower timeout than default, because the test will fail with a
     // timeout when we regress and buffer the response.
   }, 1000)

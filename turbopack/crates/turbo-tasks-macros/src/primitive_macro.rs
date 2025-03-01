@@ -62,7 +62,6 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         #value_type_and_register
 
         #value_debug_impl
-
         #value_default_impl
     }
     .into()

@@ -67,17 +67,9 @@ module.exports = {
             .trim()
 
           if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else {
@@ -146,17 +138,9 @@ module.exports = {
             .trim()
 
           if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else {
@@ -220,17 +204,9 @@ module.exports = {
             .trim()
 
           if (process.env.TURBOPACK && useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (process.env.TURBOPACK && !useLightningcss) {
-            expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }"
-            `)
+            expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`".red-text{color:red}"`)
           } else {
@@ -296,27 +272,17 @@ module.exports = {
 
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }
+             ".red-text{color:red}
 
 
-
-              .blue-text {
-                color: #00f;
-              }"
+             .blue-text{color:#00f}"
             `)
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-              }
+             ".red-text{color:red}
 
 
-
-              .blue-text {
-                color: #00f;
-              }"
+             .blue-text{color:#00f}"
             `)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(
@@ -387,55 +353,29 @@ module.exports = {
 
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: purple;
-                font-weight: bolder;
-              }
+             ".red-text{color:purple;font-weight:bolder}
 
 
-
-              .red-text {
-                color: red;
-              }
+             .red-text{color:red}
 
 
-
-              .blue-text {
-                color: orange;
-                font-weight: bolder;
-              }
+             .blue-text{color:orange;font-weight:bolder}
 
 
-
-              .blue-text {
-                color: #00f;
-              }"
+             .blue-text{color:#00f}"
             `)
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: purple;
-                font-weight: bolder;
-              }
+             ".red-text{color:purple;font-weight:bolder}
 
 
-
-              .red-text {
-                color: red;
-              }
+             .red-text{color:red}
 
 
-
-              .blue-text {
-                color: orange;
-                font-weight: bolder;
-              }
+             .blue-text{color:orange;font-weight:bolder}
 
 
-
-              .blue-text {
-                color: #00f;
-              }"
+             .blue-text{color:#00f}"
             `)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(
@@ -507,27 +447,17 @@ module.exports = {
 
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".blue-text {
-                color: #00f;
-              }
+             ".blue-text{color:#00f}
 
 
-
-              .red-text {
-                color: red;
-              }"
+             .red-text{color:red}"
             `)
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".blue-text {
-                color: #00f;
-              }
+             ".blue-text{color:#00f}
 
 
-
-              .red-text {
-                color: red;
-              }"
+             .red-text{color:red}"
             `)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(
@@ -598,45 +528,29 @@ module.exports = {
 
           if (process.env.TURBOPACK && useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-                background-image: url("../media/dark.993bedd3.svg") url("../media/dark2.993bedd3.svg");
-              }
+             ".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
 
 
-              .blue-text {
-                color: orange;
-                font-weight: bolder;
-                background-image: url("../media/light.180573e4.svg");
-              }
 
 
+             .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
 
-              .blue-text {
-                color: #00f;
-              }"
+
+             .blue-text{color:#00f}"
             `)
           } else if (process.env.TURBOPACK && !useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(`
-              ".red-text {
-                color: red;
-                background-image: url("../media/dark.993bedd3.svg") url("../media/dark2.993bedd3.svg");
-              }
+             ".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
 
 
-              .blue-text {
-                color: orange;
-                font-weight: bolder;
-                background-image: url("../media/light.180573e4.svg");
-              }
 
 
+             .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
 
-              .blue-text {
-                color: #00f;
-              }"
+
+             .blue-text{color:#00f}"
             `)
           } else if (useLightningcss) {
             expect(cssContent).toMatchInlineSnapshot(
@@ -689,29 +603,17 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
             (res) => res.text()
           )
         )
-          .replace(/\/\*.*?\*\//g, '')
+          .replace(/\/\*.*?\*\/\n?/g, '')
           .trim()
 
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
-            ".red-text {
-              color: red;
-              background-image: url("../media/dark.993bedd3.svg") url("../media/dark2.993bedd3.svg");
-            }
+           ".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
 
+           .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
 
-            .blue-text {
-              color: orange;
-              font-weight: bolder;
-              background-image: url("../media/light.180573e4.svg");
-            }
-
-
-
-            .blue-text {
-              color: #00f;
-            }"
+           .blue-text{color:#00f}"
           `)
         } else {
           expect(cssContent).toMatchInlineSnapshot(
@@ -762,24 +664,16 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
 
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
-            ".red-text {
-              color: red;
-              background-image: url("../media/dark.993bedd3.svg") url("../media/dark2.993bedd3.svg");
-            }
+           ".red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
 
 
 
-            .blue-text {
-              color: orange;
-              font-weight: bolder;
-              background-image: url("../media/light.180573e4.svg");
-            }
 
 
+           .blue-text{color:orange;font-weight:bolder;background-image:url(../media/light.180573e4.svg)}
 
-            .blue-text {
-              color: #00f;
-            }"
+
+           .blue-text{color:#00f}"
           `)
         } else {
           expect(cssContent).toMatchInlineSnapshot(

@@ -43,16 +43,14 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, Normal)]"];
-    N1["Items: [ItemId(ModuleEvaluation)]"];
-    N1 --> N0;
+    N0["Items: [ItemId(0, Normal), ItemId(ModuleEvaluation)]"];
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 1,
-    Exports: 2,
+    ModuleEvaluation: 0,
+    Exports: 1,
 }
 ```
 
@@ -61,25 +59,16 @@ graph TD
 ## Part 0
 ```js
 process.turbopack = {};
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 "module evaluation";
 
 ```
-## Part 2
+## Part 1
 ```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
+process.turbopack = {};
 "module evaluation";
 
 ```
@@ -87,8 +76,8 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 1,
-    Exports: 2,
+    ModuleEvaluation: 0,
+    Exports: 1,
 }
 ```
 
@@ -97,25 +86,16 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 process.turbopack = {};
-
-```
-## Part 1
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 "module evaluation";
 
 ```
-## Part 2
+## Part 1
 ```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
+process.turbopack = {};
 "module evaluation";
 
 ```

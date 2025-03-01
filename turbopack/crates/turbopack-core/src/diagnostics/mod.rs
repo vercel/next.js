@@ -2,15 +2,15 @@ use std::cmp::Ordering;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
-use turbo_tasks::{emit, CollectiblesSource, RcStr, Upcast, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
 pub struct PlainDiagnostic {
     pub category: RcStr,
     pub name: RcStr,
-    pub payload: IndexMap<RcStr, RcStr>,
+    pub payload: FxIndexMap<RcStr, RcStr>,
 }
 
 impl Ord for PlainDiagnostic {
@@ -44,7 +44,7 @@ impl PartialOrd for PlainDiagnostic {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub IndexMap<RcStr, RcStr>);
+pub struct DiagnosticPayload(pub FxIndexMap<RcStr, RcStr>);
 
 /// An arbitrary payload can be used to analyze, diagnose
 /// Turbopack's behavior.
@@ -64,9 +64,9 @@ pub trait Diagnostic {
 
     async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainDiagnostic>> {
         Ok(PlainDiagnostic {
-            category: self.category().await?.clone_value(),
-            name: self.name().await?.clone_value(),
-            payload: self.payload().await?.clone_value(),
+            category: self.category().owned().await?,
+            name: self.name().owned().await?,
+            payload: self.payload().owned().await?,
         }
         .cell())
     }
@@ -76,12 +76,12 @@ pub trait DiagnosticExt {
     fn emit(self);
 }
 
-impl<T> DiagnosticExt for Vc<T>
+impl<T> DiagnosticExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Diagnostic>>,
 {
     fn emit(self) {
-        let diagnostic = Vc::upcast::<Box<dyn Diagnostic>>(self);
+        let diagnostic = ResolvedVc::upcast::<Box<dyn Diagnostic>>(self);
         emit(diagnostic);
     }
 }
@@ -101,7 +101,14 @@ where
 {
     async fn peek_diagnostics(self) -> Result<CapturedDiagnostics> {
         Ok(CapturedDiagnostics {
-            diagnostics: self.peek_collectibles(),
+            diagnostics: self
+                .peek_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Diagnostic>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
         })
     }
 }
@@ -111,5 +118,5 @@ where
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {
-    pub diagnostics: auto_hash_map::AutoSet<Vc<Box<dyn Diagnostic>>>,
+    pub diagnostics: auto_hash_map::AutoSet<ResolvedVc<Box<dyn Diagnostic>>>,
 }

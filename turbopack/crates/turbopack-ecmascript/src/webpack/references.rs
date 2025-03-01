@@ -6,7 +6,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     source::Source,
@@ -21,14 +21,14 @@ use crate::{
 
 #[turbo_tasks::function]
 pub async fn module_references(
-    source: Vc<Box<dyn Source>>,
-    runtime: Vc<WebpackRuntime>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    source: ResolvedVc<Box<dyn Source>>,
+    runtime: ResolvedVc<WebpackRuntime>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
-        source,
+        *source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
-        transforms,
+        *transforms,
     )
     .await?;
     match &*parsed {
@@ -43,18 +43,16 @@ pub async fn module_references(
                 runtime,
                 transforms,
             };
-            let handler = Handler::with_emitter(
-                true,
-                false,
-                Box::new(IssueEmitter::new(
-                    source,
-                    source_map.clone(),
-                    Some("Parsing webpack bundle failed".into()),
-                )),
+            let (emitter, collector) = IssueEmitter::new(
+                source,
+                source_map.clone(),
+                Some("Parsing webpack bundle failed".into()),
             );
+            let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
+            collector.emit().await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparseable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
@@ -62,25 +60,25 @@ pub async fn module_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    runtime: Vc<WebpackRuntime>,
-    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    runtime: ResolvedVc<WebpackRuntime>,
+    references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
-impl<'a> Visit for ModuleReferencesVisitor<'a> {
+impl Visit for ModuleReferencesVisitor<'_> {
     fn visit_call_expr(&mut self, call: &CallExpr) {
         if let Some(member) = call.callee.as_expr().and_then(|e| e.as_member()) {
             if let (Some(obj), Some(prop)) = (member.obj.as_ident(), member.prop.as_ident()) {
                 if &*obj.sym == "__webpack_require__" && &*prop.sym == "e" {
                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                         if let Expr::Lit(lit) = &**expr {
-                            self.references.push(Vc::upcast(
+                            self.references.push(ResolvedVc::upcast(
                                 WebpackChunkAssetReference {
                                     chunk_id: lit.clone(),
                                     runtime: self.runtime,
                                     transforms: self.transforms,
                                 }
-                                .cell(),
+                                .resolved_cell(),
                             ));
                         }
                     }

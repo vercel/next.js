@@ -3,7 +3,7 @@ import { unstable_rethrow } from 'next/navigation'
 
 export default async function Page() {
   try {
-    cookies()
+    await cookies()
   } catch (err) {
     console.log('[test assertion]: checking error')
     unstable_rethrow(err)

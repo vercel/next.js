@@ -5,14 +5,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -72,14 +72,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -237,6 +237,7 @@
         ],
         span: 53..123,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Array {
@@ -244,14 +245,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -311,14 +312,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -476,6 +477,7 @@
         ],
         span: 135..207,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Array {
@@ -483,14 +485,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -550,14 +552,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -824,6 +826,7 @@
                             ],
                             span: 281..302,
                             in_try: false,
+                            new: false,
                         },
                         Unreachable {
                             start_ast_path: [
@@ -958,6 +961,7 @@
         ],
         span: 219..306,
         in_try: false,
+        new: false,
     },
     Member {
         obj: FreeVar(
@@ -1135,6 +1139,7 @@
         ],
         span: 339..360,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

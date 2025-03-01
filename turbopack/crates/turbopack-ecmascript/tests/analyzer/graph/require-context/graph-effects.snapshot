@@ -113,7 +113,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./test",
                         ),
                     ),
@@ -127,8 +127,10 @@
             Value(
                 Constant(
                     Regex(
-                        "\\.test\\.js$",
-                        "",
+                        (
+                            "\\.test\\.js$",
+                            "",
+                        ),
                     ),
                 ),
             ),
@@ -162,6 +164,7 @@
         ],
         span: 70..117,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -209,6 +212,7 @@
         ],
         span: 133..151,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Variable(
@@ -281,7 +285,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./a",
                         ),
                     ),
@@ -317,6 +321,7 @@
         ],
         span: 164..186,
         in_try: false,
+        new: false,
     },
     Member {
         obj: MemberCall(
@@ -536,6 +541,7 @@
         ],
         span: 34..42,
         in_try: false,
+        new: false,
     },
     MemberCall {
         obj: MemberCall(
@@ -610,6 +616,7 @@
         ],
         span: 34..49,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

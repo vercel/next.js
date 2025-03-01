@@ -10,7 +10,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "a",
                         ),
                     ),
@@ -46,6 +46,7 @@
         ],
         span: 295..305,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -187,6 +188,7 @@
         ],
         span: 77..81,
         in_try: false,
+        new: false,
     },
     Call {
         func: Call(
@@ -247,6 +249,7 @@
         ],
         span: 77..84,
         in_try: false,
+        new: false,
     },
     Conditional {
         condition: Binary(
@@ -440,6 +443,7 @@
                         ],
                         span: 159..167,
                         in_try: false,
+                        new: false,
                     },
                     Unreachable {
                         start_ast_path: [
@@ -640,6 +644,7 @@
         ],
         span: 190..194,
         in_try: false,
+        new: false,
     },
     Call {
         func: Variable(
@@ -652,7 +657,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "b",
                         ),
                     ),
@@ -697,6 +702,7 @@
         ],
         span: 271..281,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

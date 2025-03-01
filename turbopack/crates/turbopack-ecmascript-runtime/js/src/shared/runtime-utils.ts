@@ -9,31 +9,15 @@
 
 /// <reference path="./runtime-types.d.ts" />
 
-interface Exports {
-  __esModule?: boolean;
-
-  [key: string]: any;
-}
-
 type EsmNamespaceObject = Record<string, any>;
 
+// @ts-ignore Defined in `dev-base.ts`
+declare function getOrInstantiateModuleFromParent<M>(
+  id: ModuleId,
+  sourceModule: M
+): M;
+
 const REEXPORTED_OBJECTS = Symbol("reexported objects");
-
-interface BaseModule {
-  exports: Function | Exports | Promise<Exports> | AsyncModulePromise;
-  error: Error | undefined;
-  loaded: boolean;
-  id: ModuleId;
-  children: ModuleId[];
-  parents: ModuleId[];
-  namespaceObject?:
-    | EsmNamespaceObject
-    | Promise<EsmNamespaceObject>
-    | AsyncModulePromise<EsmNamespaceObject>;
-  [REEXPORTED_OBJECTS]?: any[];
-}
-
-interface Module extends BaseModule {}
 
 type ModuleContextMap = Record<ModuleId, ModuleContextEntry>;
 
@@ -54,10 +38,12 @@ interface ModuleContext {
   resolve(moduleId: ModuleId): ModuleId;
 }
 
-type GetOrInstantiateModuleFromParent = (
+type GetOrInstantiateModuleFromParent<M> = (
   moduleId: ModuleId,
-  parentModule: Module
-) => Module;
+  parentModule: M
+) => M;
+
+declare function getOrInstantiateRuntimeModule(moduleId: ModuleId, chunkPath: ChunkPath): Module;
 
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== "undefined" && Symbol.toStringTag;
@@ -211,7 +197,7 @@ function interopEsm(
   return ns;
 }
 
-function createNS(raw: BaseModule["exports"]): EsmNamespaceObject {
+function createNS(raw: Module["exports"]): EsmNamespaceObject {
   if (typeof raw === "function") {
     return function (this: any, ...args: any[]) {
       return raw.apply(this, args);
@@ -243,7 +229,9 @@ function esmImport(
 // Add a simple runtime require so that environments without one can still pass
 // `typeof require` CommonJS checks so that exports are correctly registered.
 const runtimeRequire =
+  // @ts-ignore
   typeof require === "function"
+    // @ts-ignore
     ? require
     : function require() {
         throw new Error("Unexpected use of runtime require");
@@ -520,4 +508,11 @@ relativeURL.prototype = URL.prototype;
  */
 function invariant(never: never, computeMessage: (arg: any) => string): never {
   throw new Error(`Invariant: ${computeMessage(never)}`);
+}
+
+/**
+ * A stub function to make `require` available but non-functional in ESM.
+ */
+function requireStub(_moduleId: ModuleId): never {
+  throw new Error("dynamic usage of require is not supported");
 }

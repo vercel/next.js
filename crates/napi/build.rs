@@ -1,10 +1,19 @@
+use std::fs;
+
 extern crate napi_build;
 
 fn main() {
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),
     // So failing build if this fails.
-    shadow_rs::new().expect("Should able to generate build time information");
+    shadow_rs::ShadowBuilder::builder()
+        .build()
+        .expect("Should able to generate build time information");
+
+    let git_head = fs::read_to_string("../../.git/HEAD").unwrap_or_default();
+    if !git_head.is_empty() && !git_head.starts_with("ref: ") {
+        println!("cargo:warning=git version {}", git_head);
+    }
 
     #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
     napi_build::setup();

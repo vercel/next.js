@@ -1,4 +1,6 @@
-use std::{collections::HashMap, fs::OpenOptions, path::PathBuf};
+use std::{fs::OpenOptions, path::PathBuf};
+
+use rustc_hash::FxHashMap;
 
 use crate::{lsp_client::RAClient, Identifier, IdentifierReference};
 
@@ -7,12 +9,12 @@ use crate::{lsp_client::RAClient, Identifier, IdentifierReference};
 /// store.
 pub struct CallResolver<'a> {
     client: &'a mut RAClient,
-    state: HashMap<Identifier, Vec<IdentifierReference>>,
+    state: FxHashMap<Identifier, Vec<IdentifierReference>>,
     path: Option<PathBuf>,
 }
 
 /// On drop, serialize the state to disk
-impl<'a> Drop for CallResolver<'a> {
+impl Drop for CallResolver<'_> {
     fn drop(&mut self) {
         let file = OpenOptions::new()
             .create(true)
@@ -26,7 +28,7 @@ impl<'a> Drop for CallResolver<'a> {
 
 impl<'a> CallResolver<'a> {
     pub fn new(client: &'a mut RAClient, path: Option<PathBuf>) -> Self {
-        // load bincode-encoded HashMap from path
+        // load bincode-encoded FxHashMap from path
         let state = path
             .as_ref()
             .and_then(|path| {
@@ -38,7 +40,7 @@ impl<'a> CallResolver<'a> {
                     .open(path)
                     .unwrap();
                 let reader = std::io::BufReader::new(file);
-                bincode::deserialize_from::<_, HashMap<Identifier, Vec<IdentifierReference>>>(
+                bincode::deserialize_from::<_, FxHashMap<Identifier, Vec<IdentifierReference>>>(
                     reader,
                 )
                 .inspect_err(|_| {

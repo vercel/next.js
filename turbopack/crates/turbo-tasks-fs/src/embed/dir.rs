@@ -2,7 +2,8 @@ pub use ::include_dir::{
     include_dir, {self},
 };
 use anyhow::Result;
-use turbo_tasks::{RcStr, TransientInstance, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 
 use crate::{embed::EmbeddedFileSystem, DiskFileSystem, FileSystem};
 
@@ -12,17 +13,16 @@ pub async fn directory_from_relative_path(
     path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
     let disk_fs = DiskFileSystem::new(name, path, vec![]);
-    disk_fs.await?.start_watching()?;
+    disk_fs.await?.start_watching(None).await?;
 
     Ok(Vc::upcast(disk_fs))
 }
 
-#[turbo_tasks::function]
-pub async fn directory_from_include_dir(
+pub fn directory_from_include_dir(
     name: RcStr,
-    dir: TransientInstance<&'static include_dir::Dir<'static>>,
-) -> Result<Vc<Box<dyn FileSystem>>> {
-    Ok(Vc::upcast(EmbeddedFileSystem::new(name, dir)))
+    dir: &'static include_dir::Dir<'static>,
+) -> Vc<Box<dyn FileSystem>> {
+    Vc::upcast(EmbeddedFileSystem::new(name, dir))
 }
 
 /// Returns an embedded [Vc<Box<dyn FileSystem>>] for the given path.
@@ -57,7 +57,7 @@ macro_rules! embed_directory_internal {
 
         let path = $path.replace("$CARGO_MANIFEST_DIR", env!("CARGO_MANIFEST_DIR"));
 
-        turbo_tasks_fs::embed::directory_from_relative_path($name.to_string(), path)
+        turbo_tasks_fs::embed::directory_from_relative_path($name.into(), path.into())
     }};
 }
 
@@ -71,9 +71,6 @@ macro_rules! embed_directory_internal {
 
         static dir: include_dir::Dir<'static> = turbo_tasks_fs::embed::include_dir!($path);
 
-        turbo_tasks_fs::embed::directory_from_include_dir(
-            $name.into(),
-            turbo_tasks::TransientInstance::new(&dir),
-        )
+        turbo_tasks_fs::embed::directory_from_include_dir($name.into(), &dir)
     }};
 }

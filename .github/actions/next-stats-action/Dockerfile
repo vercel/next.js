@@ -1,3 +1,5 @@
+# syntax=docker.io/docker/dockerfile:1
+
 FROM ubuntu:22.04
 
 LABEL com.github.actions.name="Next.js PR Stats"
@@ -10,6 +12,7 @@ RUN apt install unzip wget curl nano htop screen build-essential pkg-config libs
 RUN ln $(which python3) /usr/bin/python
 
 RUN curl -sfLS https://install-node.vercel.app/v18.18.2 | bash -s -- -f
+RUN npm i -g corepack@0.31
 RUN corepack enable
 
 WORKDIR /next-stats

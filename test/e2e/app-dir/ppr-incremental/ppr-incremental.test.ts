@@ -145,7 +145,7 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').parent('[hidden]')).toHaveLength(0)
+            expect($('#dynamic').closest('[hidden]')).toHaveLength(0)
           })
         })
       }
@@ -197,7 +197,7 @@ describe('ppr-incremental', () => {
           it.each(pathnames)('%s', async (pathname) => {
             const $ = await next.render$(pathname)
             expect($('#dynamic')).toHaveLength(1)
-            expect($('#dynamic').parent('[hidden]')).toHaveLength(1)
+            expect($('#dynamic').closest('[hidden]')).toHaveLength(1)
           })
         })
       }

@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Next Build production mode first time setup 1`] = `
+exports[`Next Build production mode first time setup - ESLint v8 1`] = `
 {
   "env": {
     "browser": true,
@@ -200,7 +200,207 @@ exports[`Next Build production mode first time setup 1`] = `
 }
 `;
 
-exports[`Next Build production mode first time setup with TypeScript 1`] = `
+exports[`Next Build production mode first time setup - ESLint v9 1`] = `
+{
+  "env": {
+    "browser": true,
+    "node": true,
+  },
+  "globals": {},
+  "ignorePatterns": [],
+  "parserOptions": {
+    "allowImportExportEverywhere": true,
+    "babelOptions": {
+      "caller": {
+        "supportsTopLevelAwait": true,
+      },
+      "presets": [
+        "next/babel",
+      ],
+    },
+    "ecmaFeatures": {
+      "jsx": true,
+    },
+    "requireConfigFile": false,
+    "sourceType": "module",
+  },
+  "plugins": [
+    "react-hooks",
+    "jsx-a11y",
+    "react",
+    "import",
+    "@next/next",
+  ],
+  "rules": {
+    "@next/next/google-font-display": [
+      "warn",
+    ],
+    "@next/next/google-font-preconnect": [
+      "warn",
+    ],
+    "@next/next/inline-script-id": [
+      "error",
+    ],
+    "@next/next/next-script-for-ga": [
+      "warn",
+    ],
+    "@next/next/no-assign-module-variable": [
+      "error",
+    ],
+    "@next/next/no-async-client-component": [
+      "warn",
+    ],
+    "@next/next/no-before-interactive-script-outside-document": [
+      "warn",
+    ],
+    "@next/next/no-css-tags": [
+      "warn",
+    ],
+    "@next/next/no-document-import-in-page": [
+      "error",
+    ],
+    "@next/next/no-duplicate-head": [
+      "error",
+    ],
+    "@next/next/no-head-element": [
+      "warn",
+    ],
+    "@next/next/no-head-import-in-document": [
+      "error",
+    ],
+    "@next/next/no-html-link-for-pages": [
+      "error",
+    ],
+    "@next/next/no-img-element": [
+      "warn",
+    ],
+    "@next/next/no-page-custom-font": [
+      "warn",
+    ],
+    "@next/next/no-script-component-in-head": [
+      "error",
+    ],
+    "@next/next/no-styled-jsx-in-document": [
+      "warn",
+    ],
+    "@next/next/no-sync-scripts": [
+      "error",
+    ],
+    "@next/next/no-title-in-document-head": [
+      "warn",
+    ],
+    "@next/next/no-typos": [
+      "warn",
+    ],
+    "@next/next/no-unwanted-polyfillio": [
+      "warn",
+    ],
+    "import/no-anonymous-default-export": [
+      "warn",
+    ],
+    "jsx-a11y/alt-text": [
+      "warn",
+      {
+        "elements": [
+          "img",
+        ],
+        "img": [
+          "Image",
+        ],
+      },
+    ],
+    "jsx-a11y/aria-props": [
+      "warn",
+    ],
+    "jsx-a11y/aria-proptypes": [
+      "warn",
+    ],
+    "jsx-a11y/aria-unsupported-elements": [
+      "warn",
+    ],
+    "jsx-a11y/role-has-required-aria-props": [
+      "warn",
+    ],
+    "jsx-a11y/role-supports-aria-props": [
+      "warn",
+    ],
+    "react-hooks/exhaustive-deps": [
+      "warn",
+    ],
+    "react-hooks/rules-of-hooks": [
+      "error",
+    ],
+    "react/display-name": [
+      2,
+    ],
+    "react/jsx-key": [
+      2,
+    ],
+    "react/jsx-no-comment-textnodes": [
+      2,
+    ],
+    "react/jsx-no-duplicate-props": [
+      2,
+    ],
+    "react/jsx-no-target-blank": [
+      "off",
+    ],
+    "react/jsx-no-undef": [
+      2,
+    ],
+    "react/jsx-uses-react": [
+      2,
+    ],
+    "react/jsx-uses-vars": [
+      2,
+    ],
+    "react/no-children-prop": [
+      2,
+    ],
+    "react/no-danger-with-children": [
+      2,
+    ],
+    "react/no-deprecated": [
+      2,
+    ],
+    "react/no-direct-mutation-state": [
+      2,
+    ],
+    "react/no-find-dom-node": [
+      2,
+    ],
+    "react/no-is-mounted": [
+      2,
+    ],
+    "react/no-render-return-value": [
+      2,
+    ],
+    "react/no-string-refs": [
+      2,
+    ],
+    "react/no-unescaped-entities": [
+      2,
+    ],
+    "react/no-unknown-property": [
+      "off",
+    ],
+    "react/no-unsafe": [
+      0,
+    ],
+    "react/prop-types": [
+      "off",
+    ],
+    "react/react-in-jsx-scope": [
+      "off",
+    ],
+    "react/require-render-return": [
+      2,
+    ],
+  },
+}
+`;
+
+exports[`Next Build production mode first time setup with TypeScript - ESLint v8 1`] = `
 {
   "env": {
     "browser": true,
@@ -299,22 +499,19 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "@typescript-eslint/ban-ts-comment": [
       "error",
     ],
-    "@typescript-eslint/ban-types": [
-      "error",
-    ],
     "@typescript-eslint/no-array-constructor": [
       "error",
     ],
     "@typescript-eslint/no-duplicate-enum-values": [
       "error",
     ],
+    "@typescript-eslint/no-empty-object-type": [
+      "error",
+    ],
     "@typescript-eslint/no-explicit-any": [
       "error",
     ],
     "@typescript-eslint/no-extra-non-null-assertion": [
-      "error",
-    ],
-    "@typescript-eslint/no-loss-of-precision": [
       "error",
     ],
     "@typescript-eslint/no-misused-new": [
@@ -326,6 +523,9 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "@typescript-eslint/no-non-null-asserted-optional-chain": [
       "error",
     ],
+    "@typescript-eslint/no-require-imports": [
+      "error",
+    ],
     "@typescript-eslint/no-this-alias": [
       "error",
     ],
@@ -335,13 +535,22 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "@typescript-eslint/no-unsafe-declaration-merging": [
       "error",
     ],
+    "@typescript-eslint/no-unsafe-function-type": [
+      "error",
+    ],
+    "@typescript-eslint/no-unused-expressions": [
+      "error",
+    ],
     "@typescript-eslint/no-unused-vars": [
       "error",
     ],
-    "@typescript-eslint/no-var-requires": [
+    "@typescript-eslint/no-wrapper-object-types": [
       "error",
     ],
     "@typescript-eslint/prefer-as-const": [
+      "error",
+    ],
+    "@typescript-eslint/prefer-namespace-keyword": [
       "error",
     ],
     "@typescript-eslint/triple-slash-reference": [
@@ -385,6 +594,9 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
     "no-array-constructor": [
       "off",
     ],
+    "no-class-assign": [
+      "off",
+    ],
     "no-const-assign": [
       "off",
     ],
@@ -401,9 +613,6 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
       "off",
     ],
     "no-import-assign": [
-      "off",
-    ],
-    "no-loss-of-precision": [
       "off",
     ],
     "no-new-native-nonconstructor": [
@@ -431,6 +640,345 @@ exports[`Next Build production mode first time setup with TypeScript 1`] = `
       "off",
     ],
     "no-unsafe-negation": [
+      "off",
+    ],
+    "no-unused-expressions": [
+      "off",
+    ],
+    "no-unused-vars": [
+      "off",
+    ],
+    "no-var": [
+      "error",
+    ],
+    "prefer-const": [
+      "error",
+    ],
+    "prefer-rest-params": [
+      "error",
+    ],
+    "prefer-spread": [
+      "error",
+    ],
+    "react-hooks/exhaustive-deps": [
+      "warn",
+    ],
+    "react-hooks/rules-of-hooks": [
+      "error",
+    ],
+    "react/display-name": [
+      2,
+    ],
+    "react/jsx-key": [
+      2,
+    ],
+    "react/jsx-no-comment-textnodes": [
+      2,
+    ],
+    "react/jsx-no-duplicate-props": [
+      2,
+    ],
+    "react/jsx-no-target-blank": [
+      "off",
+    ],
+    "react/jsx-no-undef": [
+      2,
+    ],
+    "react/jsx-uses-react": [
+      2,
+    ],
+    "react/jsx-uses-vars": [
+      2,
+    ],
+    "react/no-children-prop": [
+      2,
+    ],
+    "react/no-danger-with-children": [
+      2,
+    ],
+    "react/no-deprecated": [
+      2,
+    ],
+    "react/no-direct-mutation-state": [
+      2,
+    ],
+    "react/no-find-dom-node": [
+      2,
+    ],
+    "react/no-is-mounted": [
+      2,
+    ],
+    "react/no-render-return-value": [
+      2,
+    ],
+    "react/no-string-refs": [
+      2,
+    ],
+    "react/no-unescaped-entities": [
+      2,
+    ],
+    "react/no-unknown-property": [
+      "off",
+    ],
+    "react/no-unsafe": [
+      0,
+    ],
+    "react/prop-types": [
+      "off",
+    ],
+    "react/react-in-jsx-scope": [
+      "off",
+    ],
+    "react/require-render-return": [
+      2,
+    ],
+  },
+}
+`;
+
+exports[`Next Build production mode first time setup with TypeScript - ESLint v9 1`] = `
+{
+  "env": {
+    "browser": true,
+    "node": true,
+  },
+  "globals": {},
+  "ignorePatterns": [],
+  "parserOptions": {
+    "allowImportExportEverywhere": true,
+    "babelOptions": {
+      "caller": {
+        "supportsTopLevelAwait": true,
+      },
+      "presets": [
+        "next/babel",
+      ],
+    },
+    "ecmaFeatures": {
+      "jsx": true,
+    },
+    "requireConfigFile": false,
+    "sourceType": "module",
+  },
+  "plugins": [
+    "react-hooks",
+    "jsx-a11y",
+    "react",
+    "import",
+    "@next/next",
+    "@typescript-eslint",
+  ],
+  "rules": {
+    "@next/next/google-font-display": [
+      "warn",
+    ],
+    "@next/next/google-font-preconnect": [
+      "warn",
+    ],
+    "@next/next/inline-script-id": [
+      "error",
+    ],
+    "@next/next/next-script-for-ga": [
+      "warn",
+    ],
+    "@next/next/no-assign-module-variable": [
+      "error",
+    ],
+    "@next/next/no-async-client-component": [
+      "warn",
+    ],
+    "@next/next/no-before-interactive-script-outside-document": [
+      "warn",
+    ],
+    "@next/next/no-css-tags": [
+      "warn",
+    ],
+    "@next/next/no-document-import-in-page": [
+      "error",
+    ],
+    "@next/next/no-duplicate-head": [
+      "error",
+    ],
+    "@next/next/no-head-element": [
+      "warn",
+    ],
+    "@next/next/no-head-import-in-document": [
+      "error",
+    ],
+    "@next/next/no-html-link-for-pages": [
+      "error",
+    ],
+    "@next/next/no-img-element": [
+      "warn",
+    ],
+    "@next/next/no-page-custom-font": [
+      "warn",
+    ],
+    "@next/next/no-script-component-in-head": [
+      "error",
+    ],
+    "@next/next/no-styled-jsx-in-document": [
+      "warn",
+    ],
+    "@next/next/no-sync-scripts": [
+      "error",
+    ],
+    "@next/next/no-title-in-document-head": [
+      "warn",
+    ],
+    "@next/next/no-typos": [
+      "warn",
+    ],
+    "@next/next/no-unwanted-polyfillio": [
+      "warn",
+    ],
+    "@typescript-eslint/ban-ts-comment": [
+      "error",
+    ],
+    "@typescript-eslint/no-array-constructor": [
+      "error",
+    ],
+    "@typescript-eslint/no-duplicate-enum-values": [
+      "error",
+    ],
+    "@typescript-eslint/no-empty-object-type": [
+      "error",
+    ],
+    "@typescript-eslint/no-explicit-any": [
+      "error",
+    ],
+    "@typescript-eslint/no-extra-non-null-assertion": [
+      "error",
+    ],
+    "@typescript-eslint/no-misused-new": [
+      "error",
+    ],
+    "@typescript-eslint/no-namespace": [
+      "error",
+    ],
+    "@typescript-eslint/no-non-null-asserted-optional-chain": [
+      "error",
+    ],
+    "@typescript-eslint/no-require-imports": [
+      "error",
+    ],
+    "@typescript-eslint/no-this-alias": [
+      "error",
+    ],
+    "@typescript-eslint/no-unnecessary-type-constraint": [
+      "error",
+    ],
+    "@typescript-eslint/no-unsafe-declaration-merging": [
+      "error",
+    ],
+    "@typescript-eslint/no-unsafe-function-type": [
+      "error",
+    ],
+    "@typescript-eslint/no-unused-expressions": [
+      "error",
+    ],
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+    ],
+    "@typescript-eslint/no-wrapper-object-types": [
+      "error",
+    ],
+    "@typescript-eslint/prefer-as-const": [
+      "error",
+    ],
+    "@typescript-eslint/prefer-namespace-keyword": [
+      "error",
+    ],
+    "@typescript-eslint/triple-slash-reference": [
+      "error",
+    ],
+    "constructor-super": [
+      "off",
+    ],
+    "getter-return": [
+      "off",
+    ],
+    "import/no-anonymous-default-export": [
+      "warn",
+    ],
+    "jsx-a11y/alt-text": [
+      "warn",
+      {
+        "elements": [
+          "img",
+        ],
+        "img": [
+          "Image",
+        ],
+      },
+    ],
+    "jsx-a11y/aria-props": [
+      "warn",
+    ],
+    "jsx-a11y/aria-proptypes": [
+      "warn",
+    ],
+    "jsx-a11y/aria-unsupported-elements": [
+      "warn",
+    ],
+    "jsx-a11y/role-has-required-aria-props": [
+      "warn",
+    ],
+    "jsx-a11y/role-supports-aria-props": [
+      "warn",
+    ],
+    "no-array-constructor": [
+      "off",
+    ],
+    "no-class-assign": [
+      "off",
+    ],
+    "no-const-assign": [
+      "off",
+    ],
+    "no-dupe-args": [
+      "off",
+    ],
+    "no-dupe-class-members": [
+      "off",
+    ],
+    "no-dupe-keys": [
+      "off",
+    ],
+    "no-func-assign": [
+      "off",
+    ],
+    "no-import-assign": [
+      "off",
+    ],
+    "no-new-native-nonconstructor": [
+      "off",
+    ],
+    "no-new-symbol": [
+      "off",
+    ],
+    "no-obj-calls": [
+      "off",
+    ],
+    "no-redeclare": [
+      "off",
+    ],
+    "no-setter-return": [
+      "off",
+    ],
+    "no-this-before-super": [
+      "off",
+    ],
+    "no-undef": [
+      "off",
+    ],
+    "no-unreachable": [
+      "off",
+    ],
+    "no-unsafe-negation": [
+      "off",
+    ],
+    "no-unused-expressions": [
       "off",
     ],
     "no-unused-vars": [

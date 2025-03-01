@@ -57,7 +57,7 @@ export const DotImage = ({ attrs: { textAlign, data } }) => {
       height="400"
       alt={`Cover Image for ${title}`}
       className={cn("shadow-small", {
-        "hover:shadow-medium transition-shadow  duration-200": imgTitle,
+        "hover:shadow-medium transition-shadow duration-200": imgTitle,
       })}
       src={asset}
     />

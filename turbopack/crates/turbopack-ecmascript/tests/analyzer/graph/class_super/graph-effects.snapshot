@@ -216,6 +216,7 @@
                             ],
                             span: 152..159,
                             in_try: false,
+                            new: false,
                         },
                     ],
                     range: Exact(
@@ -336,5 +337,6 @@
         ],
         span: 132..167,
         in_try: false,
+        new: false,
     },
 ]

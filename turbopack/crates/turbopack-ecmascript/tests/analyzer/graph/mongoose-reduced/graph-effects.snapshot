@@ -152,7 +152,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/connection",
                                 ),
                             ),
@@ -190,6 +190,7 @@
         ],
         span: 123..154,
         in_try: false,
+        new: false,
     },
     FreeVar {
         var: FreeVar(
@@ -251,7 +252,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/collection",
                                 ),
                             ),
@@ -289,5 +290,6 @@
         ],
         span: 199..230,
         in_try: false,
+        new: false,
     },
 ]

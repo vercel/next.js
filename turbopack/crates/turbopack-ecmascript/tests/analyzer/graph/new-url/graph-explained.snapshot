@@ -1,0 +1,2 @@
+asset = new FreeVar(URL)("./worker.ts", import.meta*0*["url"])
+- *0* import.meta: The import.meta object

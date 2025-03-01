@@ -1,17 +1,16 @@
 use anyhow::Result;
-use async_recursion::async_recursion;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, ReadRef, Vc};
+use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
-pub enum ModuleRuleCondition {
-    All(Vec<ModuleRuleCondition>),
-    Any(Vec<ModuleRuleCondition>),
-    Not(Box<ModuleRuleCondition>),
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+pub enum RuleCondition {
+    All(Vec<RuleCondition>),
+    Any(Vec<RuleCondition>),
+    Not(Box<RuleCondition>),
     ReferenceType(ReferenceType),
     ResourceIsVirtualSource,
     ResourcePathEquals(ReadRef<FileSystemPath>),
@@ -34,52 +33,51 @@ pub enum ModuleRuleCondition {
     ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
 }
 
-impl ModuleRuleCondition {
-    pub fn all(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
-        ModuleRuleCondition::All(conditions)
+impl RuleCondition {
+    pub fn all(conditions: Vec<RuleCondition>) -> RuleCondition {
+        RuleCondition::All(conditions)
     }
 
-    pub fn any(conditions: Vec<ModuleRuleCondition>) -> ModuleRuleCondition {
-        ModuleRuleCondition::Any(conditions)
+    pub fn any(conditions: Vec<RuleCondition>) -> RuleCondition {
+        RuleCondition::Any(conditions)
     }
 
     #[allow(clippy::should_implement_trait)]
-    pub fn not(condition: ModuleRuleCondition) -> ModuleRuleCondition {
-        ModuleRuleCondition::Not(Box::new(condition))
+    pub fn not(condition: RuleCondition) -> RuleCondition {
+        RuleCondition::Not(Box::new(condition))
     }
 }
 
-impl ModuleRuleCondition {
-    #[async_recursion]
+impl RuleCondition {
     pub async fn matches(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
         Ok(match self {
-            ModuleRuleCondition::All(conditions) => {
+            RuleCondition::All(conditions) => {
                 for condition in conditions {
-                    if !condition.matches(source, path, reference_type).await? {
+                    if !Box::pin(condition.matches(source, path, reference_type)).await? {
                         return Ok(false);
                     }
                 }
                 true
             }
-            ModuleRuleCondition::Any(conditions) => {
+            RuleCondition::Any(conditions) => {
                 for condition in conditions {
-                    if condition.matches(source, path, reference_type).await? {
+                    if Box::pin(condition.matches(source, path, reference_type)).await? {
                         return Ok(true);
                     }
                 }
                 false
             }
-            ModuleRuleCondition::Not(condition) => {
-                !condition.matches(source, path, reference_type).await?
+            RuleCondition::Not(condition) => {
+                !Box::pin(condition.matches(source, path, reference_type)).await?
             }
-            ModuleRuleCondition::ResourcePathEquals(other) => path == &**other,
-            ModuleRuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
-            ModuleRuleCondition::ResourcePathHasNoExtension => {
+            RuleCondition::ResourcePathEquals(other) => path == &**other,
+            RuleCondition::ResourcePathEndsWith(end) => path.path.ends_with(end),
+            RuleCondition::ResourcePathHasNoExtension => {
                 if let Some(i) = path.path.rfind('.') {
                     if let Some(j) = path.path.rfind('/') {
                         j > i
@@ -90,28 +88,24 @@ impl ModuleRuleCondition {
                     true
                 }
             }
-            ModuleRuleCondition::ResourcePathInDirectory(dir) => {
+            RuleCondition::ResourcePathInDirectory(dir) => {
                 path.path.starts_with(&format!("{dir}/")) || path.path.contains(&format!("/{dir}/"))
             }
-            ModuleRuleCondition::ResourcePathInExactDirectory(parent_path) => {
+            RuleCondition::ResourcePathInExactDirectory(parent_path) => {
                 path.is_inside_ref(parent_path)
             }
-            ModuleRuleCondition::ReferenceType(condition_ty) => {
-                condition_ty.includes(reference_type)
+            RuleCondition::ReferenceType(condition_ty) => condition_ty.includes(reference_type),
+            RuleCondition::ResourceIsVirtualSource => {
+                ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
-            ModuleRuleCondition::ResourceIsVirtualSource => {
-                Vc::try_resolve_downcast_type::<VirtualSource>(source)
-                    .await?
-                    .is_some()
-            }
-            ModuleRuleCondition::ResourcePathGlob { glob, base } => {
+            RuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {
                     glob.execute(&path)
                 } else {
                     glob.execute(&path.path)
                 }
             }
-            ModuleRuleCondition::ResourceBasePathGlob(glob) => {
+            RuleCondition::ResourceBasePathGlob(glob) => {
                 let basename = path
                     .path
                     .rsplit_once('/')

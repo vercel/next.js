@@ -6,15 +6,16 @@ use futures::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, RcStr, TaskInput,
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
     ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -26,24 +27,24 @@ use super::{
     ResponseHeaders,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation,
+    get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
     render::error_page::error_html, source_map::trace_stack,
 };
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_proxy(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+#[turbo_tasks::function(operation)]
+pub async fn render_proxy_operation(
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
+    body: ResolvedVc<Body>,
     debug: bool,
 ) -> Result<Vc<ProxyResult>> {
     let render = render_stream(RenderStreamOptions {
@@ -94,7 +95,7 @@ pub async fn render_proxy(
 }
 
 async fn proxy_error(
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
 ) -> Result<(u16, RcStr)> {
@@ -116,15 +117,15 @@ async fn proxy_error(
         "An error occurred while proxying the request to Node.js".into(),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
-    .await?
-    .clone_value();
+    .owned()
+    .await?;
 
     RenderingIssue {
         file_path: path,
-        message: StyledString::Text(message.into()).cell(),
+        message: StyledString::Text(message.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 
     Ok((status_code, body))
@@ -150,17 +151,17 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct RenderStreamOptions {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
+    body: ResolvedVc<Body>,
     debug: bool,
 }
 
@@ -234,11 +235,11 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            chunking_context,
-            module,
-            runtime_entries,
-        );
-        let pool = get_renderer_pool(
+            *chunking_context,
+            *module,
+            *runtime_entries,
+        ).to_resolved().await?;
+        let pool_op = get_renderer_pool_operation(
             cwd,
             env,
             intermediate_asset,
@@ -250,7 +251,7 @@ async fn render_stream_internal(
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
-        let pool = pool.strongly_consistent().await?;
+        let pool = pool_op.read_strongly_consistent().await?;
         let data = data.await?;
         let mut operation = pool.operation().await?;
 
@@ -278,9 +279,9 @@ async fn render_stream_internal(
                 // 500 proxy error as if it were the proper result.
                 let trace = trace_stack(
                     error,
-                    intermediate_asset,
-                    intermediate_output_path,
-                    project_dir
+                    *intermediate_asset,
+                    *intermediate_output_path,
+                    *project_dir
                 )
                 .await?;
                 let (status, body) =  proxy_error(path, anyhow!("error rendering: {}", trace), Some(operation)).await?;
@@ -313,7 +314,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                        trace_stack(error, *intermediate_asset, *intermediate_output_path, *project_dir).await?;
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;
                 }

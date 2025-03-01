@@ -1,5 +1,4 @@
-use indexmap::IndexSet;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
@@ -17,16 +16,17 @@ pub trait Module: Asset {
         ModuleReferences::empty()
     }
 
-    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![])
+    /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModule(Option<Vc<Box<dyn Module>>>);
+pub struct OptionModule(Option<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct Modules(Vec<Vc<Box<dyn Module>>>);
+pub struct Modules(Vec<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl Modules {
@@ -35,17 +35,3 @@ impl Modules {
         Vc::cell(Vec::new())
     }
 }
-
-/// A set of [Module]s
-#[turbo_tasks::value(transparent)]
-pub struct ModulesSet(IndexSet<Vc<Box<dyn Module>>>);
-
-#[turbo_tasks::value_impl]
-impl ModulesSet {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexSet::new())
-    }
-}
-
-// TODO All Vc::try_resolve_downcast::<Box<dyn Module>> calls should be removed

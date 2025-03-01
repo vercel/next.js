@@ -79,26 +79,22 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(1, VarDeclarator(0))]"];
-    N1["Items: [ItemId(Export((&quot;cat&quot;, #2), &quot;cat&quot;))]"];
-    N2["Items: [ItemId(0, VarDeclarator(0))]"];
-    N3["Items: [ItemId(Export((&quot;dog&quot;, #2), &quot;DOG&quot;))]"];
-    N4["Items: [ItemId(ModuleEvaluation)]"];
-    N3 --> N2;
-    N1 --> N0;
+    N0["Items: [ItemId(0, VarDeclarator(0)), ItemId(Export((&quot;dog&quot;, #2), &quot;DOG&quot;))]"];
+    N1["Items: [ItemId(1, VarDeclarator(0)), ItemId(Export((&quot;cat&quot;, #2), &quot;cat&quot;))]"];
+    N2["Items: [ItemId(ModuleEvaluation)]"];
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
+    ModuleEvaluation: 2,
+    Export(
+        "DOG",
+    ): 0,
     Export(
         "cat",
     ): 1,
-    Export(
-        "DOG",
-    ): 3,
+    Exports: 3,
 }
 ```
 
@@ -106,54 +102,34 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-const cat = "cat";
-export { cat } from "__TURBOPACK_VAR__" assert {
+const dog = "dog";
+export { dog as DOG };
+export { dog as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-export { cat as cat };
-
-```
-## Part 2
-```js
-const dog = "dog";
-export { dog } from "__TURBOPACK_VAR__" assert {
+const cat = "cat";
+export { cat };
+export { cat as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-export { dog as DOG };
-
-```
-## Part 4
+## Part 2
 ```js
 "module evaluation";
 
 ```
-## Part 5
+## Part 3
 ```js
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
-};
 export { DOG } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export DOG"
+};
+export { cat } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 
 ```
@@ -166,14 +142,14 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
+    ModuleEvaluation: 2,
+    Export(
+        "DOG",
+    ): 0,
     Export(
         "cat",
     ): 1,
-    Export(
-        "DOG",
-    ): 3,
+    Exports: 3,
 }
 ```
 
@@ -181,54 +157,34 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-const cat = "cat";
-export { cat } from "__TURBOPACK_VAR__" assert {
+const dog = "dog";
+export { dog as DOG };
+export { dog as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-export { cat as cat };
-
-```
-## Part 2
-```js
-const dog = "dog";
-export { dog } from "__TURBOPACK_VAR__" assert {
+const cat = "cat";
+export { cat };
+export { cat as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { dog } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-export { dog as DOG };
-
-```
-## Part 4
+## Part 2
 ```js
 "module evaluation";
 
 ```
-## Part 5
+## Part 3
 ```js
-export { cat } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export cat"
-};
 export { DOG } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export DOG"
+};
+export { cat } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export cat"
 };
 
 ```

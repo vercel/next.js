@@ -1,6 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
 declare module 'next/package.json'
-declare module 'next/dist/compiled/@napi-rs/triples'
 declare module 'next/dist/compiled/postcss-value-parser'
 declare module 'next/dist/compiled/icss-utils'
 declare module 'next/dist/compiled/postcss-modules-values'
@@ -22,31 +21,334 @@ declare module 'next/dist/compiled/react-server-dom-turbopack/client.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.browser'
 declare module 'next/dist/compiled/react-server-dom-turbopack/server.edge'
 declare module 'next/dist/compiled/react-server-dom-turbopack/static.edge'
-declare module 'next/dist/client/app-call-server'
+declare module 'next/dist/client/app-call-server' {
+  export function callServer(
+    actionId: string,
+    actionArgs: unknown[]
+  ): Promise<unknown>
+}
+declare module 'next/dist/client/app-find-source-map-url' {
+  export function findSourceMapURL(filename: string): string | null
+}
 declare module 'next/dist/compiled/react-dom/server'
 declare module 'next/dist/compiled/react-dom/server.edge'
 declare module 'next/dist/compiled/browserslist'
 
-declare module 'react-server-dom-webpack/client'
-declare module 'react-server-dom-webpack/server.edge'
-declare module 'react-server-dom-webpack/server.node'
-declare module 'react-server-dom-webpack/static.edge'
-declare module 'react-server-dom-webpack/client.edge'
+declare module 'react-server-dom-webpack/client' {
+  export interface Options {
+    callServer?: CallServerCallback
+    temporaryReferences?: TemporaryReferenceSet
+    findSourceMapURL?: FindSourceMapURLCallback
+    replayConsoleLogs?: boolean
+    environmentName?: string
+  }
+
+  type TemporaryReferenceSet = Map<string, unknown>
+
+  export type CallServerCallback = (
+    id: string,
+    args: unknown[]
+  ) => Promise<unknown>
+
+  export type EncodeFormActionCallback = <A>(
+    id: any,
+    args: Promise<A>
+  ) => ReactCustomFormAction
+
+  export type ReactCustomFormAction = {
+    name?: string
+    action?: string
+    encType?: string
+    method?: string
+    target?: string
+    data?: null | FormData
+  }
+
+  export type FindSourceMapURLCallback = (
+    fileName: string,
+    environmentName: string
+  ) => null | string
+
+  export function createFromFetch<T>(
+    promiseForResponse: Promise<Response>,
+    options?: Options
+  ): Promise<T>
+
+  export function createFromReadableStream<T>(
+    stream: ReadableStream,
+    options?: Options
+  ): Promise<T>
+
+  export function createServerReference(
+    id: string,
+    callServer: CallServerCallback,
+    encodeFormAction?: EncodeFormActionCallback,
+    findSourceMapURL?: FindSourceMapURLCallback, // DEV-only
+    functionName?: string
+  ): (...args: unknown[]) => Promise<unknown>
+
+  export function createTemporaryReferenceSet(
+    ...args: unknown[]
+  ): TemporaryReferenceSet
+
+  export function encodeReply(
+    value: unknown,
+    options?: { temporaryReferences?: TemporaryReferenceSet }
+  ): Promise<string | FormData>
+}
+
+declare module 'react-server-dom-webpack/server.edge' {
+  export type ImportManifestEntry = {
+    id: string | number
+    // chunks is a double indexed array of chunkId / chunkFilename pairs
+    chunks: ReadonlyArray<string>
+    name: string
+    async?: boolean
+  }
+
+  export type ClientManifest = {
+    [id: string]: ImportManifestEntry
+  }
+
+  export type ServerManifest = {
+    [id: string]: ImportManifestEntry
+  }
+
+  export type TemporaryReferenceSet = WeakMap<any, string>
+
+  export function renderToReadableStream(
+    model: any,
+    webpackMap: ClientManifest,
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      environmentName?: string | (() => string)
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+      signal?: AbortSignal
+    }
+  ): ReadableStream<Uint8Array>
+
+  export function createTemporaryReferenceSet(
+    ...args: unknown[]
+  ): TemporaryReferenceSet
+
+  export function decodeReply<T>(
+    body: string | FormData,
+    webpackMap: ServerManifest,
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+    }
+  ): Promise<T>
+  export function decodeReplyFromAsyncIterable<T>(
+    iterable: AsyncIterable<[string, string | File]>,
+    webpackMap: ServerManifest,
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+    }
+  ): Promise<T>
+  export function decodeAction<T>(
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<() => T> | null
+  export function decodeFormState<S>(
+    actionResult: S,
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<unknown | null>
+
+  export function registerServerReference<T>(
+    reference: T,
+    id: string,
+    exportName: string | null
+  ): unknown
+
+  export function createClientModuleProxy(moduleId: string): unknown
+}
+declare module 'react-server-dom-webpack/server.node' {
+  import type { Busboy } from 'busboy'
+
+  export type TemporaryReferenceSet = WeakMap<any, string>
+
+  export type ImportManifestEntry = {
+    id: string
+    // chunks is a double indexed array of chunkId / chunkFilename pairs
+    chunks: Array<string>
+    name: string
+    async?: boolean
+  }
+
+  export type ServerManifest = {
+    [id: string]: ImportManifestEntry
+  }
+
+  export type ReactFormState = [
+    unknown /* actual state value */,
+    string /* key path */,
+    string /* Server Reference ID */,
+    number /* number of bound arguments */,
+  ]
+
+  export function createTemporaryReferenceSet(
+    ...args: unknown[]
+  ): TemporaryReferenceSet
+
+  export function decodeReplyFromBusboy(
+    busboyStream: Busboy,
+    webpackMap: ServerManifest,
+    options?: { temporaryReferences?: TemporaryReferenceSet }
+  ): Promise<unknown[]>
+
+  export function decodeReply(
+    body: string | FormData,
+    webpackMap: ServerManifest,
+    options?: { temporaryReferences?: TemporaryReferenceSet }
+  ): Promise<unknown[]>
+
+  export function decodeAction(
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<() => unknown> | null
+
+  export function decodeFormState(
+    actionResult: unknown,
+    body: FormData,
+    serverManifest: ServerManifest
+  ): Promise<ReactFormState | null>
+}
+declare module 'react-server-dom-webpack/static.edge' {
+  export function unstable_prerender(
+    children: any,
+    webpackMap: {
+      readonly [id: string]: {
+        readonly id: string | number
+        readonly chunks: readonly string[]
+        readonly name: string
+        readonly async?: boolean
+      }
+    },
+    options?: {
+      environmentName?: string | (() => string)
+      filterStackFrame?: (url: string, functionName: string) => boolean
+      identifierPrefix?: string
+      signal?: AbortSignal
+      onError?: (error: unknown) => void
+      onPostpone?: (reason: string) => void
+    }
+  ): Promise<{
+    prelude: ReadableStream<Uint8Array>
+  }>
+}
+declare module 'react-server-dom-webpack/client.edge' {
+  export interface Options {
+    serverConsumerManifest: ServerConsumerManifest
+    nonce?: string
+    encodeFormAction?: EncodeFormActionCallback
+    temporaryReferences?: TemporaryReferenceSet
+    findSourceMapURL?: FindSourceMapURLCallback
+    replayConsoleLogs?: boolean
+    environmentName?: string
+  }
+
+  export type EncodeFormActionCallback = <A>(
+    id: any,
+    args: Promise<A>
+  ) => ReactCustomFormAction
+
+  export type ReactCustomFormAction = {
+    name?: string
+    action?: string
+    encType?: string
+    method?: string
+    target?: string
+    data?: null | FormData
+  }
+
+  export type ImportManifestEntry = {
+    id: string | number
+    // chunks is a double indexed array of chunkId / chunkFilename pairs
+    chunks: ReadonlyArray<string>
+    name: string
+    async?: boolean
+  }
+
+  export type ServerManifest = {
+    [id: string]: ImportManifestEntry
+  }
+
+  export interface ServerConsumerManifest {
+    moduleMap: ServerConsumerModuleMap
+    moduleLoading: ModuleLoading | null
+    serverModuleMap: null | ServerManifest
+  }
+
+  export interface ServerConsumerModuleMap {
+    [clientId: string]: {
+      [clientExportName: string]: ImportManifestEntry
+    }
+  }
+
+  export interface ModuleLoading {
+    prefix: string
+    crossOrigin?: 'use-credentials' | ''
+  }
+
+  type TemporaryReferenceSet = Map<string, unknown>
+
+  export type CallServerCallback = (
+    id: string,
+    args: unknown[]
+  ) => Promise<unknown>
+
+  export type FindSourceMapURLCallback = (
+    fileName: string,
+    environmentName: string
+  ) => null | string
+
+  export function createFromFetch<T>(
+    promiseForResponse: Promise<Response>,
+    options?: Options
+  ): Promise<T>
+
+  export function createFromReadableStream<T>(
+    stream: ReadableStream,
+    options?: Options
+  ): Promise<T>
+
+  export function createServerReference(
+    id: string,
+    callServer: CallServerCallback
+  ): (...args: unknown[]) => Promise<unknown>
+
+  export function createTemporaryReferenceSet(
+    ...args: unknown[]
+  ): TemporaryReferenceSet
+
+  export function encodeReply(
+    value: unknown,
+    options?: {
+      temporaryReferences?: TemporaryReferenceSet
+      signal?: AbortSignal
+    }
+  ): Promise<string | FormData>
+}
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'
 declare module 'VAR_MODULE_DOCUMENT'
 declare module 'VAR_MODULE_APP'
 
+declare module 'next/dist/server/ReactDOMServerPages' {
+  export * from 'react-dom/server.edge'
+}
+
+declare module 'next/dist/compiled/@napi-rs/triples' {
+  export * from '@napi-rs/triples'
+}
+
 declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWebpackPlugin' {
   import m from '@next/react-refresh-utils/ReactRefreshWebpackPlugin'
   export = m
-}
-
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
 }
 
 declare module 'next/dist/compiled/commander' {
@@ -111,7 +413,7 @@ declare module 'next/dist/compiled/amphtml-validator' {
 }
 
 declare module 'next/dist/compiled/superstruct' {
-  import m from 'superstruct'
+  import * as m from 'superstruct'
   export = m
 }
 declare module 'next/dist/compiled/async-retry'
@@ -238,16 +540,12 @@ declare module 'next/dist/compiled/lodash.curry' {
   import m from 'lodash.curry'
   export = m
 }
-declare module 'next/dist/compiled/lru-cache' {
-  import m from 'lru-cache'
-  export = m
-}
 declare module 'next/dist/compiled/picomatch' {
   import m from 'picomatch'
   export = m
 }
 declare module 'next/dist/compiled/nanoid/index.cjs' {
-  import m from 'nanoid'
+  import * as m from 'nanoid'
   export = m
 }
 declare module 'next/dist/compiled/ora' {
@@ -293,7 +591,7 @@ declare module 'next/dist/compiled/tar' {
 }
 
 declare module 'next/dist/compiled/terser' {
-  import m from 'terser'
+  import * as m from 'terser'
   export = m
 }
 declare module 'next/dist/compiled/semver' {
@@ -322,7 +620,7 @@ declare module 'next/dist/compiled/unistore' {
   export = m
 }
 declare module 'next/dist/compiled/web-vitals' {
-  import m from 'web-vitals'
+  import * as m from 'web-vitals'
   export = m
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
@@ -445,8 +743,13 @@ declare module 'next/dist/compiled/@opentelemetry/api' {
 }
 
 declare module 'next/dist/compiled/zod' {
-  import * as m from 'zod'
-  export = m
+  import * as z from 'zod'
+  export = z
+}
+
+declare module 'next/dist/compiled/zod-validation-error' {
+  import * as zve from 'zod-validation-error'
+  export = zve
 }
 
 declare module 'mini-css-extract-plugin'
@@ -463,12 +766,108 @@ declare module 'next/dist/compiled/webpack-sources3' {
 }
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import type webpackSources from 'webpack-sources1'
+  import { type Compilation, Module } from 'webpack'
+
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  export let sources: typeof webpackSources
   export let StringXor: any
+  export class ConcatenatedModule extends Module {
+    rootModule: Module
+  }
+
+  /**
+   * Include source maps for modules based on their extension (defaults to .js and .css).
+   */
+  export type Rules = Rule[] | Rule
+  /**
+   * Include source maps for modules based on their extension (defaults to .js and .css).
+   */
+  export type Rule = RegExp | string
+
+  type PathData = unknown
+  type AssetInfo = unknown
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/declarations/plugins/SourceMapDevToolPlugin.d.ts#L16
+  export interface SourceMapDevToolPluginOptions {
+    /**
+     * Appends the given value to the original asset. Usually the #sourceMappingURL comment. [url] is replaced with a URL to the source map file. false disables the appending.
+     */
+    append?:
+      | (false | null)
+      | string
+      | ((pathData: PathData, assetInfo?: AssetInfo) => string)
+    /**
+     * Indicates whether column mappings should be used (defaults to true).
+     */
+    columns?: boolean
+    /**
+     * Exclude modules that match the given value from source map generation.
+     */
+    exclude?: Rules
+    /**
+     * Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap used only if 'moduleFilenameTemplate' would result in a conflict.
+     */
+    fallbackModuleFilenameTemplate?: string | Function
+    /**
+     * Path prefix to which the [file] placeholder is relative to.
+     */
+    fileContext?: string
+    /**
+     * Defines the output filename of the SourceMap (will be inlined if no value is provided).
+     */
+    filename?: (false | null) | string
+    /**
+     * Include source maps for module paths that match the given value.
+     */
+    include?: Rules
+    /**
+     * Indicates whether SourceMaps from loaders should be used (defaults to true).
+     */
+    module?: boolean
+    /**
+     * Generator string or function to create identifiers of modules for the 'sources' array in the SourceMap.
+     */
+    moduleFilenameTemplate?: string | Function
+    /**
+     * Namespace prefix to allow multiple webpack roots in the devtools.
+     */
+    namespace?: string
+    /**
+     * Omit the 'sourceContents' array from the SourceMap.
+     */
+    noSources?: boolean
+    /**
+     * Provide a custom public path for the SourceMapping comment.
+     */
+    publicPath?: string
+    /**
+     * Provide a custom value for the 'sourceRoot' property in the SourceMap.
+     */
+    sourceRoot?: string
+    /**
+     * Include source maps for modules based on their extension (defaults to .js and .css).
+     */
+    test?: Rules
+  }
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/SourceMapDevToolModuleOptionsPlugin.js#L13
+  export class SourceMapDevToolModuleOptionsPlugin {
+    constructor(options: SourceMapDevToolPluginOptions)
+    apply(compiler: Compilation): void
+  }
+
+  // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/util/identifier.js#L288-L299
+  /**
+   * @param context context for relative path
+   * @param identifier identifier for path
+   * @returns a converted relative path
+   */
+  export function makePathsAbsolute(
+    context: string,
+    identifier: string,
+    associatedObjectForCache: object
+  ): string
   export {
     default as webpack,
     Compiler,
@@ -481,10 +880,15 @@ declare module 'next/dist/compiled/webpack/webpack' {
     NormalModule,
     ResolvePluginInstance,
     ModuleFilenameHelpers,
+    WebpackError,
+    sources,
   } from 'webpack'
   export type {
+    javascript,
     LoaderDefinitionFunction,
     LoaderContext,
     ModuleGraph,
   } from 'webpack'
+
+  export type CacheFacade = ReturnType<Compilation['getCache']>
 }

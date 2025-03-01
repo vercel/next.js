@@ -1,4 +1,4 @@
-use std::{collections::HashMap, future::Future, ops::Deref, sync::Arc};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -6,10 +6,16 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
+use rustc_hash::FxHashMap;
 use serde::Serialize;
-use turbo_tasks::{ReadRef, TaskId, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{
+    task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
+    TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
+};
+use turbo_tasks_backend::{
+    default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
+};
 use turbo_tasks_fs::FileContent;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
     error::PrettyPrintError,
@@ -17,28 +23,183 @@ use turbopack_core::{
     source_pos::SourcePos,
 };
 
+use crate::util::log_internal_error_and_inform;
+
+#[derive(Clone)]
+pub enum NextTurboTasks {
+    Memory(Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<NoopBackingStorage>>>),
+    PersistentCaching(
+        Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
+    ),
+}
+
+impl NextTurboTasks {
+    pub fn dispose_root_task(&self, task: TaskId) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.dispose_root_task(task),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.dispose_root_task(task),
+        }
+    }
+
+    pub fn spawn_root_task<T, F, Fut>(&self, functor: F) -> TaskId
+    where
+        T: Send,
+        F: Fn() -> Fut + Send + Sync + Clone + 'static,
+        Fut: Future<Output = Result<Vc<T>>> + Send,
+    {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_root_task(functor),
+        }
+    }
+
+    pub async fn run_once<T: TraceRawVcs + Send + 'static>(
+        &self,
+        future: impl Future<Output = Result<T>> + Send + 'static,
+    ) -> Result<T> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.run_once(future).await,
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.run_once(future).await,
+        }
+    }
+
+    pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
+    where
+        T: Send,
+        Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
+    {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.spawn_once_task(future),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.spawn_once_task(future),
+        }
+    }
+
+    pub async fn aggregated_update_info(
+        &self,
+        aggregation: Duration,
+        timeout: Duration,
+    ) -> Option<UpdateInfo> {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks
+                    .aggregated_update_info(aggregation, timeout)
+                    .await
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks
+                    .aggregated_update_info(aggregation, timeout)
+                    .await
+            }
+        }
+    }
+
+    pub async fn get_or_wait_aggregated_update_info(&self, aggregation: Duration) -> UpdateInfo {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => {
+                turbo_tasks
+                    .get_or_wait_aggregated_update_info(aggregation)
+                    .await
+            }
+            NextTurboTasks::PersistentCaching(turbo_tasks) => {
+                turbo_tasks
+                    .get_or_wait_aggregated_update_info(aggregation)
+                    .await
+            }
+        }
+    }
+
+    pub async fn stop_and_wait(&self) {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.stop_and_wait().await,
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.stop_and_wait().await,
+        }
+    }
+
+    pub fn task_statistics(&self) -> &TaskStatisticsApi {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.task_statistics(),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
+        }
+    }
+}
+
+pub fn create_turbo_tasks(
+    output_path: PathBuf,
+    persistent_caching: bool,
+    _memory_limit: usize,
+    dependency_tracking: bool,
+) -> Result<NextTurboTasks> {
+    Ok(if persistent_caching {
+        let dirty_suffix = if crate::build::GIT_CLEAN
+            || option_env!("CI").is_some_and(|value| !value.is_empty())
+        {
+            ""
+        } else {
+            "-dirty"
+        };
+        #[allow(
+            clippy::const_is_empty,
+            reason = "LAST_TAG might be empty if the tag can't be determined"
+        )]
+        let version_info = if crate::build::LAST_TAG.is_empty() {
+            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
+        } else {
+            format!(
+                "{}-{}{}",
+                crate::build::LAST_TAG,
+                crate::build::SHORT_COMMIT,
+                dirty_suffix
+            )
+        };
+        NextTurboTasks::PersistentCaching(TurboTasks::new(
+            turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                        turbo_tasks_backend::StorageMode::ReadOnly
+                    } else {
+                        turbo_tasks_backend::StorageMode::ReadWrite
+                    }),
+                    dependency_tracking,
+                    ..Default::default()
+                },
+                default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
+            ),
+        ))
+    } else {
+        NextTurboTasks::Memory(TurboTasks::new(
+            turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: None,
+                    dependency_tracking,
+                    ..Default::default()
+                },
+                noop_backing_storage(),
+            ),
+        ))
+    })
+}
+
 /// A helper type to hold both a Vc operation and the TurboTasks root process.
 /// Without this, we'd need to pass both individually all over the place
 #[derive(Clone)]
 pub struct VcArc<T> {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-    /// The Vc. Must be resolved, otherwise you are referencing an inactive
-    /// operation.
-    vc: T,
+    turbo_tasks: NextTurboTasks,
+    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
+    vc: OperationVc<T>,
 }
 
 impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: Arc<TurboTasks<MemoryBackend>>, vc: T) -> Self {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
         Self { turbo_tasks, vc }
     }
 
-    pub fn turbo_tasks(&self) -> &Arc<TurboTasks<MemoryBackend>> {
+    pub fn turbo_tasks(&self) -> &NextTurboTasks {
         &self.turbo_tasks
     }
 }
 
 impl<T> Deref for VcArc<T> {
-    type Target = T;
+    type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.vc
@@ -55,7 +216,7 @@ pub fn serde_enum_to_string<T: Serialize>(value: &T) -> Result<String> {
 /// The root of our turbopack computation.
 pub struct RootTask {
     #[allow(dead_code)]
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     #[allow(dead_code)]
     task_id: Option<TaskId>,
 }
@@ -76,7 +237,7 @@ pub fn root_task_dispose(
     Ok(())
 }
 
-pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
+pub async fn get_issues<T: Send>(source: OperationVc<T>) -> Result<Arc<Vec<ReadRef<PlainIssue>>>> {
     let issues = source.peek_issues_with_path().await?;
     Ok(Arc::new(issues.get_plain_issues().await?))
 }
@@ -85,7 +246,9 @@ pub async fn get_issues<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainI
 /// by the given source and returns it as a
 /// [turbopack_core::diagnostics::PlainDiagnostic]. It does
 /// not consume any Diagnostics held by the source.
-pub async fn get_diagnostics<T: Send>(source: Vc<T>) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
+pub async fn get_diagnostics<T: Send>(
+    source: OperationVc<T>,
+) -> Result<Arc<Vec<ReadRef<PlainDiagnostic>>>> {
     let captured_diags = source.peek_diagnostics().await?;
     let mut diags = captured_diags
         .diagnostics
@@ -127,7 +290,7 @@ impl From<&PlainIssue> for NapiIssue {
                 .map(|styled| serde_json::to_value(StyledStringSerialize::from(styled)).unwrap()),
             documentation_link: issue.documentation_link.to_string(),
             severity: issue.severity.as_str().to_string(),
-            source: issue.source.as_deref().map(|source| source.into()),
+            source: issue.source.as_ref().map(|source| source.into()),
             title: serde_json::to_value(StyledStringSerialize::from(&issue.title)).unwrap(),
             sub_issues: issue
                 .sub_issues
@@ -239,8 +402,8 @@ pub struct NapiSourcePos {
 impl From<SourcePos> for NapiSourcePos {
     fn from(pos: SourcePos) -> Self {
         Self {
-            line: pos.line as u32,
-            column: pos.column as u32,
+            line: pos.line,
+            column: pos.column,
         }
     }
 }
@@ -249,7 +412,8 @@ impl From<SourcePos> for NapiSourcePos {
 pub struct NapiDiagnostic {
     pub category: String,
     pub name: String,
-    pub payload: HashMap<String, String>,
+    #[napi(ts_type = "Record<string, string>")]
+    pub payload: FxHashMap<String, String>,
 }
 
 impl NapiDiagnostic {
@@ -299,7 +463,7 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
 }
 
 pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: NextTurboTasks,
     func: JsFunction,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
@@ -312,7 +476,11 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             let result = handler().await;
 
             let status = func.call(
-                result.map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string())),
+                result.map_err(|e| {
+                    let error = PrettyPrintError(&e).to_string();
+                    log_internal_error_and_inform(&error);
+                    napi::Error::from_reason(error)
+                }),
                 ThreadsafeFunctionCallMode::NonBlocking,
             );
             if !matches!(status, Status::Ok) {

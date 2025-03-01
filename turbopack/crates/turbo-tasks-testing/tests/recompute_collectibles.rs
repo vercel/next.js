@@ -1,7 +1,10 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // clippy bug causes false positive
 
 use anyhow::{bail, Result};
-use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -54,9 +57,9 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function]
-fn inner_compute(input: Vc<ChangingInput>) -> Vc<u32> {
-    inner_compute2(input, 1000)
+#[turbo_tasks::function(operation)]
+fn inner_compute(input: ResolvedVc<ChangingInput>) -> Vc<u32> {
+    inner_compute2(*input, 1000)
 }
 
 #[turbo_tasks::function]
@@ -64,11 +67,11 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     if innerness > 0 {
         return Ok(inner_compute2(input, innerness - 1));
     }
-    let collectible: Vc<Box<dyn ValueToString>> = Vc::upcast(
+    let collectible: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
         Collectible {
             value: *input.await?.state.get(),
         }
-        .cell(),
+        .resolved_cell(),
     );
     emit(collectible);
 
@@ -76,12 +79,12 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
 }
 
 #[turbo_tasks::function]
-async fn compute(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<Output>> {
+async fn compute(input: ResolvedVc<ChangingInput>, innerness: u32) -> Result<Vc<Output>> {
     if innerness > 0 {
-        return Ok(compute(input, innerness - 1));
+        return Ok(compute(*input, innerness - 1));
     }
     let operation = inner_compute(input);
-    let value = *operation.await?;
+    let value = *operation.connect().await?;
     let collectibles = operation.peek_collectibles::<Box<dyn ValueToString>>();
     if collectibles.len() != 1 {
         bail!("expected 1 collectible, found {}", collectibles.len());

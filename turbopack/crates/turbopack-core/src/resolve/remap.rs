@@ -1,14 +1,11 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-    ops::Deref,
-};
+use std::{collections::BTreeMap, fmt::Display, ops::Deref};
 
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use turbo_tasks::RcStr;
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexMap;
 
 use super::{
     alias_map::{AliasMap, AliasMapIter, AliasPattern, AliasTemplate},
@@ -71,7 +68,10 @@ pub enum ReplacedSubpathValue {
 }
 
 impl AliasTemplate for SubpathValue {
-    type Output<'a> = Result<ReplacedSubpathValue> where Self: 'a;
+    type Output<'a>
+        = Result<ReplacedSubpathValue>
+    where
+        Self: 'a;
 
     fn convert(&self) -> Result<ReplacedSubpathValue> {
         Ok(match self {
@@ -124,7 +124,7 @@ impl SubpathValue {
         &'a self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
         target: &mut Vec<(&'a str, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {
@@ -239,7 +239,7 @@ impl ReplacedSubpathValue {
         &'a self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut HashMap<&'a str, ConditionValue>,
+        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
         target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
     ) -> bool {
         match self {
@@ -522,10 +522,10 @@ fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasP
 #[derive(Default)]
 pub struct ResolveAliasMap(#[turbo_tasks(trace_ignore)] AliasMap<SubpathValue>);
 
-impl TryFrom<&IndexMap<RcStr, Value>> for ResolveAliasMap {
+impl TryFrom<&FxIndexMap<RcStr, Value>> for ResolveAliasMap {
     type Error = anyhow::Error;
 
-    fn try_from(object: &IndexMap<RcStr, Value>) -> Result<Self> {
+    fn try_from(object: &FxIndexMap<RcStr, Value>) -> Result<Self> {
         let mut map = AliasMap::new();
 
         for (key, value) in object.iter() {

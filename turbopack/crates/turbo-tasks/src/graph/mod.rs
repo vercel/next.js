@@ -9,6 +9,6 @@ mod with_future;
 pub use adjacency_map::AdjacencyMap;
 pub use control_flow::VisitControlFlow;
 pub use graph_store::{GraphStore, SkipDuplicates};
-pub use graph_traversal::{GraphTraversal, GraphTraversalResult};
+pub use graph_traversal::{GraphTraversal, GraphTraversalResult, VisitedNodes};
 pub use non_deterministic::NonDeterministic;
 pub use visit::Visit;

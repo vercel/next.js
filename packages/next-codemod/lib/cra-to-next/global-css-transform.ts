@@ -1,5 +1,6 @@
 import nodePath from 'path'
 import type { API, FileInfo, Options } from 'jscodeshift'
+import { createParserFromPath } from '../parser'
 
 export const globalCssContext = {
   cssImports: new Set<string>(),
@@ -9,10 +10,10 @@ const globalStylesRegex = /(?<!\.module)\.(css|scss|sass)$/i
 
 export default function transformer(
   file: FileInfo,
-  api: API,
+  _api: API,
   options: Options
 ) {
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
   let hasModifications = false
 

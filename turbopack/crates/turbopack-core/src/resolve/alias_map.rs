@@ -10,10 +10,12 @@ use serde::{
     ser::SerializeMap,
     Deserialize, Deserializer, Serialize, Serializer,
 };
+use serde_bytes::{ByteBuf, Bytes};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    RcStr,
+    NonLocalValue,
 };
 
 use super::pattern::Pattern;
@@ -61,7 +63,8 @@ where
         S: Serializer,
     {
         let mut map = serializer.serialize_map(Some(self.map.len()))?;
-        for (key, value) in self.map.iter() {
+        for (prefix, value) in self.map.iter() {
+            let key = ByteBuf::from(prefix);
             map.serialize_entry(&key, value)?;
         }
         map.end()
@@ -87,8 +90,8 @@ where
         M: MapAccess<'de>,
     {
         let mut map = AliasMap::new();
-        while let Some((key, value)) = access.next_entry()? {
-            map.insert(key, value);
+        while let Some((key, value)) = access.next_entry::<&Bytes, _>()? {
+            map.map.insert(key, value);
         }
         Ok(map)
     }
@@ -120,6 +123,8 @@ where
         }
     }
 }
+
+unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
 
 impl<T> ValueDebugFormat for AliasMap<T>
 where
@@ -405,7 +410,7 @@ struct AliasMapIterItem<'a, T> {
     iterator: std::collections::btree_map::Iter<'a, AliasKey, T>,
 }
 
-impl<'a, T> AliasMapIter<'a, T> {
+impl<T> AliasMapIter<'_, T> {
     fn advance_iter(&mut self) -> bool {
         let Some((prefix, map)) = self.iter.next() else {
             return false;
@@ -572,7 +577,7 @@ impl AliasPattern {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 enum AliasKey {
     Exact,
     Wildcard { suffix: RcStr },
@@ -613,7 +618,7 @@ where
     }
 
     /// Returns the wrapped value.
-    pub fn as_self(&'a self) -> &T::Output<'a> {
+    pub fn as_self(&self) -> &T::Output<'a> {
         match self {
             Self::Exact(v) => v,
             Self::Replaced(v) => v,
@@ -745,7 +750,10 @@ mod test {
     }
 
     impl<'a> AliasTemplate for &'a str {
-        type Output<'b> = Pattern where Self: 'b;
+        type Output<'b>
+            = Pattern
+        where
+            Self: 'b;
 
         fn replace(&self, capture: &Pattern) -> Self::Output<'a> {
             capture.spread_into_star(self)

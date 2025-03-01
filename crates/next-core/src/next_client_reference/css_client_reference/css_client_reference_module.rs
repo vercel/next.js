@@ -1,21 +1,22 @@
-use anyhow::{bail, Context, Result};
-use turbo_tasks::{RcStr, Vc};
-use turbopack::css::{
-    chunk::CssChunkPlaceable, CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult,
-    ProcessCss,
-};
+use anyhow::{bail, Result};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     ident::AssetIdent,
     module::Module,
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
 #[turbo_tasks::value]
 pub struct CssClientReferenceModule {
-    pub client_module: Vc<Box<dyn CssChunkPlaceable>>,
+    /// The CSS module (in the client context)
+    pub client_module: ResolvedVc<Box<dyn CssChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -23,7 +24,9 @@ impl CssClientReferenceModule {
     /// Create a new [`CssClientReferenceModule`] from the given source CSS
     /// module.
     #[turbo_tasks::function]
-    pub fn new(client_module: Vc<Box<dyn CssChunkPlaceable>>) -> Vc<CssClientReferenceModule> {
+    pub fn new(
+        client_module: ResolvedVc<Box<dyn CssChunkPlaceable>>,
+    ) -> Vc<CssClientReferenceModule> {
         CssClientReferenceModule { client_module }.cell()
     }
 }
@@ -41,6 +44,17 @@ impl Module for CssClientReferenceModule {
             .ident()
             .with_modifier(css_client_reference_modifier())
     }
+
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        let CssClientReferenceModule { client_module, .. } = &*self.await?;
+
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            CssClientReference::new(*ResolvedVc::upcast(*client_module))
+                .to_resolved()
+                .await?,
+        )]))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -52,40 +66,42 @@ impl Asset for CssClientReferenceModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ParseCss for CssClientReferenceModule {
-    #[turbo_tasks::function]
-    async fn parse_css(&self) -> Result<Vc<ParseCssResult>> {
-        let Some(parse_css) =
-            Vc::try_resolve_sidecast::<Box<dyn ParseCss>>(self.client_module).await?
-        else {
-            bail!("CSS client reference client module must be CSS parseable");
-        };
+#[turbo_tasks::value]
+pub(crate) struct CssClientReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
 
-        Ok(parse_css.parse_css())
+#[turbo_tasks::value_impl]
+impl CssClientReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(CssClientReference { module })
     }
 }
 
 #[turbo_tasks::value_impl]
-impl ProcessCss for CssClientReferenceModule {
+impl ChunkableModuleReference for CssClientReference {
     #[turbo_tasks::function]
-    async fn get_css_with_placeholder(&self) -> Result<Vc<CssWithPlaceholderResult>> {
-        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
-            .await?
-            .context("CSS client reference client module must be CSS processable")?;
-
-        Ok(imp.get_css_with_placeholder())
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Isolated {
+            _ty: ChunkGroupType::Evaluated,
+            merge_tag: Some("client".into()),
+        }))
     }
+}
 
+#[turbo_tasks::value_impl]
+impl ModuleReference for CssClientReference {
     #[turbo_tasks::function]
-    async fn finalize_css(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<FinalCssResult>> {
-        let imp = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(self.client_module)
-            .await?
-            .context("CSS client reference client module must be CSS processable")?;
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+}
 
-        Ok(imp.finalize_css(chunking_context))
+#[turbo_tasks::value_impl]
+impl ValueToString for CssClientReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("css client reference to client".into())
     }
 }

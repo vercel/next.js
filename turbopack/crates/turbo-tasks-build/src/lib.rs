@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     env::{self, current_dir},
     fmt::{Display, Write},
     fs::read_dir,
@@ -10,6 +9,7 @@ use std::{
 use anyhow::{Context, Result};
 use glob::glob;
 use quote::ToTokens;
+use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
     parse_quote, Attribute, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod,
     ItemStruct, ItemTrait, TraitItem, TraitItemMethod,
@@ -98,7 +98,7 @@ pub fn generate_register() {
         let prefix = format!("{crate_name}@{hash}::");
 
         let mut register_code = String::new();
-        let mut values = HashMap::new();
+        let mut values = FxHashMap::default();
 
         let out_file = out_dir.join(filename);
 
@@ -184,7 +184,7 @@ pub fn rerun_if_glob(globs: &str, root: &str) {
     let globs = cwd.join(globs.replace('/', PATH_SEP.to_string().as_str()));
     let root = cwd.join(root.replace('/', PATH_SEP.to_string().as_str()));
     println!("cargo:rerun-if-changed={}", root.display());
-    let mut seen = HashSet::from([root]);
+    let mut seen = FxHashSet::from_iter([root]);
     for entry in glob(globs.to_str().unwrap()).unwrap() {
         let path = entry.unwrap();
         for ancestor in path.ancestors() {
@@ -225,10 +225,10 @@ struct RegisterContext<'a> {
     prefix: &'a str,
 
     register: &'a mut String,
-    values: &'a mut HashMap<ValueKey, ValueEntry>,
+    values: &'a mut FxHashMap<ValueKey, ValueEntry>,
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn process_item(&mut self, item: &Item) -> Result<()> {
         match item {
             Item::Enum(enum_item) => self.process_enum(enum_item),
@@ -437,7 +437,7 @@ impl<'a> RegisterContext<'a> {
     }
 }
 
-impl<'a> RegisterContext<'a> {
+impl RegisterContext<'_> {
     fn get_global_name(&self, parts: &[&Ident]) -> String {
         format!(
             "r##\"{}{}::{}\"##",

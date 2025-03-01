@@ -70,17 +70,18 @@ graph TD
 ```mermaid
 graph TD
     N0["Items: [ItemId(0, ImportOfModule)]"];
-    N1["Items: [ItemId(ModuleEvaluation)]"];
-    N2["Items: [ItemId(0, ImportBinding(0))]"];
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(ModuleEvaluation)]"];
     N3["Items: [ItemId(Export((&quot;__TURBOPACK__reexport__cat__&quot;, #3), &quot;fakeCat&quot;))]"];
-    N3 --> N2;
+    N3 --> N1;
+    N2 --> N0;
     N1 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 1,
+    ModuleEvaluation: 2,
     Export(
         "fakeCat",
     ): 3,
@@ -100,24 +101,24 @@ import "./lib";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
-
-```
-## Part 2
-```js
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
-export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
+## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+"module evaluation";
+
+```
+## Part 3
+```js
+import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 
@@ -141,7 +142,7 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 1,
+    ModuleEvaluation: 2,
     Export(
         "fakeCat",
     ): 3,
@@ -161,24 +162,24 @@ import "./lib";
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-"module evaluation";
-
-```
-## Part 2
-```js
 import { cat as __TURBOPACK__reexport__cat__ } from "./lib";
-export { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_VAR__" assert {
+export { __TURBOPACK__reexport__cat__ as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 3
+## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import { __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+"module evaluation";
+
+```
+## Part 3
+```js
+import { a as __TURBOPACK__reexport__cat__ } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
 export { __TURBOPACK__reexport__cat__ as fakeCat };
 

@@ -37,6 +37,7 @@
         "${input:nextCommand}",
         "${input:appDirname}"
       ],
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
         "webpack:///./*": "${workspaceFolder}/${input:appDirname}/*",
@@ -46,9 +47,10 @@
         "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         // Enable the following environment variables to use turbopack instead of webpack:
@@ -56,6 +58,7 @@
         // "TURBOPACK_DEV": "1",
         // "TURBOPACK_BUILD": "1",
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_PRIVATE_SKIP_CANARY_CHECK": "1",
         "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
@@ -70,6 +73,7 @@
         "${input:nextCommand}",
         "${fileDirname}"
       ],
+      "console": "integratedTerminal",
       "skipFiles": ["<node_internals>/**"],
       "sourceMapPathOverrides": {
         "webpack:///./*": "${workspaceFolder}/${fileDirname}/*",
@@ -79,12 +83,14 @@
         "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        "NEXT_PRIVATE_SKIP_CANARY_CHECK": "1",
         "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
@@ -105,9 +111,10 @@
         "webpack://(?:_N_E)?/(?:../)*src/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack://next/./dist/src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack://next/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
+        "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         "HEADLESS": "true",

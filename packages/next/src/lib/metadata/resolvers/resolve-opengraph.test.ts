@@ -44,7 +44,11 @@ describe('resolveOpenGraph', () => {
         // pass authors as empty string
         { type: 'article', authors: '' },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        {
+          trailingSlash: false,
+          pathname: '',
+          isStaticMetadataRouteFile: false,
+        },
         ''
       )
     ).toEqual({
@@ -63,7 +67,11 @@ describe('resolveOpenGraph', () => {
       resolveOpenGraph(
         { type: 'article', authors: null },
         null,
-        { isStandaloneMode: false, trailingSlash: false, pathname: '' },
+        {
+          trailingSlash: false,
+          pathname: '',
+          isStaticMetadataRouteFile: false,
+        },
         ''
       )
     ).toEqual({

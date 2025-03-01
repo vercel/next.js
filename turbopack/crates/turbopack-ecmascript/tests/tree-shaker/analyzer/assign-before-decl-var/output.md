@@ -77,12 +77,10 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(1, VarDeclarator(0))]"];
-    N1["Items: [ItemId(2, Normal)]"];
-    N2["Items: [ItemId(ModuleEvaluation)]"];
-    N3["Items: [ItemId(0, Normal)]"];
-    N3 --> N0;
-    N1 --> N0;
+    N0["Items: [ItemId(0, Normal)]"];
+    N1["Items: [ItemId(1, VarDeclarator(0))]"];
+    N2["Items: [ItemId(2, Normal), ItemId(ModuleEvaluation)]"];
+    N0 --> N1;
     N2 --> N1;
 ```
 # Entrypoints
@@ -90,7 +88,7 @@ graph TD
 ```
 {
     ModuleEvaluation: 2,
-    Exports: 4,
+    Exports: 3,
 }
 ```
 
@@ -98,51 +96,39 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-var a;
-export { a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+a = 1;
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+var a;
+export { a as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-import { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-console.log(a);
 
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+console.log(a);
 "module evaluation";
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-a = 1;
-
-```
-## Part 4
-```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+console.log(a);
 "module evaluation";
 
 ```
@@ -151,7 +137,7 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 2,
-    Exports: 4,
+    Exports: 3,
 }
 ```
 
@@ -159,51 +145,39 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-var a;
-export { a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+a = 1;
 
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+var a;
+export { a as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
 };
-import { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-console.log(a);
 
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+console.log(a);
 "module evaluation";
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-a = 1;
-
-```
-## Part 4
-```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
+console.log(a);
 "module evaluation";
 
 ```

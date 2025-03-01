@@ -319,6 +319,7 @@
         ],
         span: 212..229,
         in_try: false,
+        new: false,
     },
     Member {
         obj: Member(
@@ -687,6 +688,7 @@
         ],
         span: 257..301,
         in_try: true,
+        new: false,
     },
     Unreachable {
         start_ast_path: [
@@ -1139,6 +1141,7 @@
         ],
         span: 356..373,
         in_try: false,
+        new: false,
     },
     Unreachable {
         start_ast_path: [

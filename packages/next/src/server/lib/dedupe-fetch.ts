@@ -2,9 +2,9 @@
  * Based on https://github.com/facebook/react/blob/d4e78c42a94be027b4dc7ed2659a5fddfbf9bd4e/packages/react/src/ReactFetch.js
  */
 import * as React from 'react'
+import { cloneResponse } from './clone-response'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
-const getCacheEntries = React.cache((url: string): Array<any> => [])
 const simpleCacheKey = '["GET",[],null,"follow",null,null,null,null]' // generateCacheKey(new Request('https://blank'));
 
 function generateCacheKey(request: Request): string {
@@ -26,11 +26,22 @@ function generateCacheKey(request: Request): string {
   ])
 }
 
+type CacheEntry = [
+  key: string,
+  promise: Promise<Response>,
+  response: Response | null,
+]
+
 export function createDedupeFetch(originalFetch: typeof fetch) {
+  const getCacheEntries = React.cache(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- url is the cache key
+    (url: string): CacheEntry[] => []
+  )
+
   return function dedupeFetch(
     resource: URL | RequestInfo,
     options?: RequestInit
-  ) {
+  ): Promise<Response> {
     if (options && options.signal) {
       // If we're passed a signal, then we assume that
       // someone else controls the lifetime of this object and opts out of
@@ -59,7 +70,6 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
           : resource
       if (
         (request.method !== 'GET' && request.method !== 'HEAD') ||
-        // $FlowFixMe[prop-missing]: keepalive is real
         request.keepalive
       ) {
         // We currently don't dedupe requests that might have side-effects. Those
@@ -73,29 +83,38 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     }
 
     const cacheEntries = getCacheEntries(url)
-    let match
-    if (cacheEntries.length === 0) {
-      // We pass the original arguments here in case normalizing the Request
-      // doesn't include all the options in this environment.
-      match = originalFetch(resource, options)
-      cacheEntries.push(cacheKey, match)
-    } else {
-      // We use an array as the inner data structure since it's lighter and
-      // we typically only expect to see one or two entries here.
-      for (let i = 0, l = cacheEntries.length; i < l; i += 2) {
-        const key = cacheEntries[i]
-        const value = cacheEntries[i + 1]
-        if (key === cacheKey) {
-          match = value
-          // I would've preferred a labelled break but lint says no.
-          return match.then((response: Response) => response.clone())
-        }
+    for (let i = 0, j = cacheEntries.length; i < j; i += 1) {
+      const [key, promise] = cacheEntries[i]
+      if (key === cacheKey) {
+        return promise.then(() => {
+          const response = cacheEntries[i][2]
+          if (!response) throw new InvariantError('No cached response')
+
+          // We're cloning the response using this utility because there exists
+          // a bug in the undici library around response cloning. See the
+          // following pull request for more details:
+          // https://github.com/vercel/next.js/pull/73274
+          const [cloned1, cloned2] = cloneResponse(response)
+          cacheEntries[i][2] = cloned2
+          return cloned1
+        })
       }
-      match = originalFetch(resource, options)
-      cacheEntries.push(cacheKey, match)
     }
-    // We clone the response so that each time you call this you get a new read
-    // of the body so that it can be read multiple times.
-    return match.then((response) => response.clone())
+
+    // We pass the original arguments here in case normalizing the Request
+    // doesn't include all the options in this environment.
+    const promise = originalFetch(resource, options)
+    const entry: CacheEntry = [cacheKey, promise, null]
+    cacheEntries.push(entry)
+
+    return promise.then((response) => {
+      // We're cloning the response using this utility because there exists
+      // a bug in the undici library around response cloning. See the
+      // following pull request for more details:
+      // https://github.com/vercel/next.js/pull/73274
+      const [cloned1, cloned2] = cloneResponse(response)
+      entry[2] = cloned2
+      return cloned1
+    })
   }
 }

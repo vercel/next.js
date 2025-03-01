@@ -1,16 +1,16 @@
 use std::{
-    collections::hash_map::RandomState,
     fmt::Debug,
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     marker::PhantomData,
 };
 
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 
 use crate::AutoMap;
 
 #[derive(Clone)]
-pub struct AutoSet<K, H = RandomState, const I: usize = 0> {
+pub struct AutoSet<K, H = BuildHasherDefault<FxHasher>, const I: usize = 0> {
     map: AutoMap<K, (), H, I>,
 }
 
@@ -28,7 +28,7 @@ impl<K: Debug, H, const I: usize> Debug for AutoSet<K, H, I> {
     }
 }
 
-impl<K> AutoSet<K, RandomState, 0> {
+impl<K> AutoSet<K, BuildHasherDefault<FxHasher>, 0> {
     /// see [HashSet::new](https://doc.rust-lang.org/std/collections/hash_set/struct.HashSet.html#method.new)
     pub const fn new() -> Self {
         Self {
@@ -141,7 +141,7 @@ impl<'a, K> Iterator for Iter<'a, K> {
     }
 }
 
-impl<'a, K> Clone for Iter<'a, K> {
+impl<K> Clone for Iter<'_, K> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
     }

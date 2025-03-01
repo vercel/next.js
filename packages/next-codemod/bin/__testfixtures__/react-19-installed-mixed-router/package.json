@@ -1,0 +1,11 @@
+{
+  "name": "react-19-installed-mixed-router",
+  "scripts": {
+    "dev": "next dev --turbo"
+  },
+  "dependencies": {
+    "next": "14.3.0-canary.45",
+    "react": "19.0.0-beta-4508873393-20240430",
+    "react-dom": "19.0.0-beta-4508873393-20240430"
+  }
+}

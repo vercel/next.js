@@ -1,5 +1,5 @@
 import { red } from './picocolors'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { Worker } from './worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
 import { ESLINT_DEFAULT_DIRS } from './constants'
@@ -15,17 +15,21 @@ export async function verifyAndLint(
   enableWorkerThreads: boolean | undefined,
   telemetry: Telemetry
 ): Promise<void> {
+  let lintWorkers:
+    | (Worker & {
+        runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
+      })
+    | undefined
+
   try {
-    const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+    lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+      exposedMethods: ['runLintCheck'],
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }) as Worker & {
       runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
     }
-
-    lintWorkers.getStdout().pipe(process.stdout)
-    lintWorkers.getStderr().pipe(process.stderr)
 
     const lintDirs = (configLintDirs ?? ESLINT_DEFAULT_DIRS).reduce(
       (res: string[], d: string) => {
@@ -37,7 +41,7 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, {
+    const lintResults = await lintWorkers?.runLintCheck(dir, lintDirs, {
       lintDuringBuild: true,
       eslintOptions: {
         cacheLocation,
@@ -63,8 +67,6 @@ export async function verifyAndLint(
     if (lintOutput) {
       console.log(lintOutput)
     }
-
-    lintWorkers.end()
   } catch (err) {
     if (isError(err)) {
       if (err.type === 'CompileError' || err instanceof CompileError) {
@@ -77,5 +79,9 @@ export async function verifyAndLint(
       }
     }
     throw err
+  } finally {
+    try {
+      lintWorkers?.end()
+    } catch {}
   }
 }

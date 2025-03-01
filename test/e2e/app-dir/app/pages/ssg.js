@@ -10,6 +10,9 @@ export default function Page(props) {
 }
 
 export function getStaticProps() {
+  if (!process.env.LEGACY_ENV_KEY) {
+    throw new Error('missing env key LEGACY_ENV_KEY!!')
+  }
   return {
     props: {},
   }

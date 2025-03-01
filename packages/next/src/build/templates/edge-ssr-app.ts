@@ -13,9 +13,13 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
+
+// Initialize the cache handlers interface.
+initializeCacheHandlers()
 
 const Document: DocumentType = null!
 const appMod = null
@@ -50,11 +54,11 @@ const interceptionRouteRewrites =
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
       serverActionsManifest: rscServerManifest,
-      pageName: 'VAR_PAGE',
     }),
   })
 }

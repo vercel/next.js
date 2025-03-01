@@ -1,28 +1,31 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::{OutputAsset, OutputAssets},
     version::VersionedContent,
 };
 
-/// An [`Asset`] with an overwritten path. This is helpful to expose an asset at
-/// a different path than it was originally set up to be, e.g. to expose layout
-/// CSS chunks under the server FS instead of the output FS when rendering
+/// An [`Asset`] with an overwritten path.
+///
+/// This is helpful to expose an asset at a different path than it was originally set up to be, e.g.
+/// to expose layout CSS chunks under the server FS instead of the output FS when rendering
 /// Next.js apps.
 #[turbo_tasks::value]
 pub struct ProxiedAsset {
-    asset: Vc<Box<dyn OutputAsset>>,
-    path: Vc<FileSystemPath>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProxiedAsset {
     /// Creates a new [`ProxiedAsset`] from an [`Asset`] and a path.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Vc<Self> {
         ProxiedAsset { asset, path }.cell()
     }
 }
@@ -30,8 +33,8 @@ impl ProxiedAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for ProxiedAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 
     #[turbo_tasks::function]

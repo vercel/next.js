@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import type { Route, Page } from 'playwright'
 
 describe('searchparams-reuse-loading', () => {
@@ -29,6 +30,61 @@ describe('searchparams-reuse-loading', () => {
 
     const newSearchValue = await browser.waitForElementByCss('#search-value')
     expect(await newSearchValue.text()).toBe('Search Value: another')
+  })
+
+  it('should properly render root page with searchParams when prefetch is aliased', async () => {
+    const browser = await next.browser('/search-params')
+    await browser.elementByCss("[href='/?id=1']").click()
+    const params = await browser.waitForElementByCss('#root-params').text()
+    expect(params).toBe('{"id":"1"}')
+  })
+
+  it('should reflect the correct searchParams when re-using the same page segment', async () => {
+    const browser = await next.browser('/')
+    await browser.elementByCss("[href='/params-first']").click()
+    await browser.elementByCss("[href='/params-first?page=2']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/params-first?page=2')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('You are on page "2".')
+    await browser.elementByCss("[href='/params-first?page=3']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/params-first?page=3')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('You are on page "3".')
+    await browser.elementByCss("[href='/params-first?page=4']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/params-first?page=4')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('You are on page "4".')
+    await browser.elementByCss("[href='/params-first']").click()
+    await retry(async () => {
+      const currentUrl = new URL(await browser.url())
+      expect(currentUrl.pathname).toBe('/params-first')
+      expect(currentUrl.search).toBe('')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'You are on the root page.'
+    )
+  })
+
+  it('should reflect the correct searchParams when the root page is prefetched first', async () => {
+    const browser = await next.browser('/')
+    await browser.elementByCss("[href='/root-page-first']").click()
+    await browser.elementByCss("[href='/root-page-first?page=2']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/root-page-first?page=2')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe('You are on page "2".')
+    await browser.elementByCss("[href='/root-page-first']").click()
+    await retry(async () => {
+      const currentUrl = new URL(await browser.url())
+      expect(currentUrl.pathname).toBe('/root-page-first')
+      expect(currentUrl.search).toBe('')
+    })
+    expect(await browser.elementByCss('h1').text()).toBe(
+      'You are on the root page.'
+    )
   })
 
   // Dev doesn't perform prefetching, so this test is skipped, as it relies on intercepting

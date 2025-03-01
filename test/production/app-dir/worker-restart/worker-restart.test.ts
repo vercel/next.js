@@ -43,4 +43,20 @@ describe('worker-restart', () => {
     )
     expect(output).toContain('Failed to build /page: / after 3 attempts.')
   })
+
+  it('should fail the build if a worker process is killed', async () => {
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/worker-kill',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain(
+      'Next.js build worker exited with code: null and signal: SIGKILL'
+    )
+  })
 })

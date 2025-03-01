@@ -9,7 +9,7 @@
   (func $set (export "set") (type $t1) (param $p i32)
     (i32.store
       (i32.const 0)
-      (get_local $p)))
+      (local.get $p)))
   (func $getNumber (export "getNumber") (type $t0) (result i32)
     (call $getRandomNumber))
 )

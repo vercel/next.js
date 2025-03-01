@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import { outdent } from 'outdent'
@@ -12,7 +12,8 @@ describe('ReactRefreshRegression', () => {
     dependencies: {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
-      '@mdx-js/loader': '0.18.0',
+      '@mdx-js/loader': '2.2.1',
+      '@mdx-js/react': '2.2.1',
     },
   })
 
@@ -55,7 +56,8 @@ describe('ReactRefreshRegression', () => {
       ],
     ])
 
-    const { session, cleanup } = await sandbox(next, files)
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
 
     // We start here.
     await session.patch(
@@ -75,13 +77,12 @@ describe('ReactRefreshRegression', () => {
 
     // Verify no hydration mismatch:
     await session.assertNoRedbox()
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with getStaticProps', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -138,13 +139,12 @@ describe('ReactRefreshRegression', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with getServerSideProps', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -201,13 +201,12 @@ describe('ReactRefreshRegression', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with config', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -264,13 +263,12 @@ describe('ReactRefreshRegression', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/11504
   test('shows an overlay for a server-side error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -286,26 +284,21 @@ describe('ReactRefreshRegression', () => {
     await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
-      "> 1 | export default function () { throw new Error('boom'); }
-          |                                    ^"
+    expect(source.split(/\r?\n/g).slice(2).join('\n').replace(/^\n+/, ''))
+      .toMatchInlineSnapshot(`
+     "> 1 | export default function () { throw new Error('boom'); }
+         |                                    ^"
     `)
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13574
-  // Test is skipped with Turbopack as the package uses webpack loaders
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'Turbopack skipped tests',
-    () => {
-      test('custom loader (mdx) should have Fast Refresh enabled', async () => {
-        const { session, cleanup } = await sandbox(
-          next,
-          new Map([
-            [
-              'next.config.js',
-              outdent`
+  test('custom loader mdx should have Fast Refresh enabled', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'next.config.js',
+          outdent`
               const withMDX = require("@next/mdx")({
                 extension: /\\.mdx?$/,
               });
@@ -313,37 +306,34 @@ describe('ReactRefreshRegression', () => {
                 pageExtensions: ["js", "mdx"],
               });
             `,
-            ],
-            ['pages/mdx.mdx', `Hello World!`],
-          ]),
-          '/mdx'
-        )
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#__next').textContent
-          )
-        ).toBe('Hello World!')
+        ],
+        ['pages/mdx.mdx', `Hello World!`],
+      ]),
+      '/mdx'
+    )
+    const { session } = sandbox
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#__next').textContent
+      )
+    ).toBe('Hello World!')
 
-        let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
-        expect(didNotReload).toBe(true)
-        await session.assertNoRedbox()
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#__next').textContent
-          )
-        ).toBe('Hello Foo!')
+    let didNotReload = await session.patch('pages/mdx.mdx', `Hello Foo!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#__next').textContent
+      )
+    ).toBe('Hello Foo!')
 
-        didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
-        expect(didNotReload).toBe(true)
-        await session.assertNoRedbox()
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#__next').textContent
-          )
-        ).toBe('Hello Bar!')
-
-        await cleanup()
-      })
-    }
-  )
+    didNotReload = await session.patch('pages/mdx.mdx', `Hello Bar!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#__next').textContent
+      )
+    ).toBe('Hello Bar!')
+  })
 })

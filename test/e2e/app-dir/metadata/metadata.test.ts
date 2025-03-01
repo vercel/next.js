@@ -82,6 +82,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -117,6 +119,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -132,7 +136,7 @@ describe('app dir - metadata', () => {
 
       await matchMultiDom('meta', 'name', 'content', {
         'apple-itunes-app': 'app-id=myAppStoreID, app-argument=myAppArgument',
-        'apple-mobile-web-app-capable': 'yes',
+        'mobile-web-app-capable': 'yes',
         'apple-mobile-web-app-title': 'Apple Web App',
         'apple-mobile-web-app-status-bar-style': 'black-translucent',
       })
@@ -340,6 +344,10 @@ describe('app dir - metadata', () => {
         'og:image:width': ['800', '1800'],
         'og:image:height': ['600', '1600'],
         'og:image:alt': 'My custom alt',
+        'og:video': 'https://example.com/video.mp4',
+        'og:video:width': '800',
+        'og:video:height': '450',
+        'og:audio': 'https://example.com/audio.mp3',
       })
 
       await matchMultiDom('meta', 'name', 'content', {
@@ -435,6 +443,15 @@ describe('app dir - metadata', () => {
 
       expect(favicon).toMatch('/favicon.ico')
       expect(icons).toEqual(['https://custom-icon-1.png'])
+    })
+
+    it('metadataBase should override fallback base for resolving OG images', async () => {
+      const browser = await next.browser('/metadata-base/opengraph')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'property', 'content', {
+        'og:image': 'https://acme.com/og-image.png',
+      })
     })
   })
 
@@ -756,6 +773,14 @@ describe('app dir - metadata', () => {
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
         'theme-color': '#000',
+      })
+    })
+
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
       })
     })
   })

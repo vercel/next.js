@@ -1,14 +1,18 @@
 use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
-use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, RcStr, ReadRef, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, NonLocalValue, OperationValue,
+    ReadRef, ResolvedVc, State, TraitRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::asset::AssetContent;
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
@@ -31,7 +35,7 @@ pub trait VersionedContent {
         let to_ref = to.into_trait_ref().await?;
 
         // Fast path: versions are the same.
-        if from_ref == to_ref {
+        if TraitRef::ptr_eq(&from_ref, &to_ref) {
             return Ok(Update::None.into());
         }
 
@@ -115,8 +119,10 @@ impl VersionedContentExt for AssetContent {
     }
 }
 
-/// Describes the current version of an object, and how to update them from an
-/// earlier version.
+/// Describes the current version of an object, and how to update them from an earlier version.
+///
+/// **Important:** Implementations must not contain instances of [`Vc`]! This should describe a
+/// specific version, and the value of a [`Vc`] can change due to invalidations or cache eviction.
 #[turbo_tasks::value_trait]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
@@ -143,9 +149,9 @@ pub trait VersionedContentMerger {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct VersionedContents(Vec<Vc<Box<dyn VersionedContent>>>);
+pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 pub struct NotFoundVersion;
 
 #[turbo_tasks::value_impl]
@@ -165,7 +171,7 @@ impl Version for NotFoundVersion {
 }
 
 /// Describes an update to a versioned object.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(serialization = "none", shared)]
 #[derive(Debug)]
 pub enum Update {
     /// The asset can't be meaningfully updated while the app is running, so the
@@ -176,22 +182,30 @@ pub enum Update {
     /// specific set of instructions.
     Partial(PartialUpdate),
 
+    // The asset is now missing, so it can't be updated. A full reload is required.
+    Missing,
+
     /// No update required.
     None,
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
+    //
+    // TODO: This trace_ignore is wrong, and could cause problems if/when we add a GC. While
+    // `Version` assumes the implementation does not contain `Vc`, `EcmascriptDevChunkListVersion`
+    // is broken and violates this assumption.
     #[turbo_tasks(trace_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
+    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC
     #[turbo_tasks(trace_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
     /// The instructions to be passed to a remote system in order to update the
@@ -202,7 +216,7 @@ pub struct PartialUpdate {
 
 /// [`Version`] implementation that hashes a file at a given path and returns
 /// the hex encoded hash as a version identifier.
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 #[derive(Clone)]
 pub struct FileHashVersion {
     hash: RcStr,
@@ -230,37 +244,45 @@ impl FileHashVersion {
 #[turbo_tasks::value_impl]
 impl Version for FileHashVersion {
     #[turbo_tasks::function]
-    async fn id(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(self.hash.clone()))
+    fn id(&self) -> Vc<RcStr> {
+        Vc::cell(self.hash.clone())
     }
 }
 
-#[turbo_tasks::value]
+/// This is a dummy wrapper type to (incorrectly) implement [`OperationValue`] (required by
+/// [`State`]), because the [`Version`] trait is not (yet?) a subtype of [`OperationValue`].
+#[derive(Debug, Eq, PartialEq, TraceRawVcs, NonLocalValue, OperationValue)]
+struct VersionRef(
+    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC.
+    // It also allows to `Version`s that don't implement `OperationValue`, which could lead to
+    // incorrect results when attempting to strongly resolve Vcs.
+    #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
+);
+
+#[turbo_tasks::value(serialization = "none")]
 pub struct VersionState {
-    #[turbo_tasks(trace_ignore)]
-    version: State<TraitRef<Box<dyn Version>>>,
+    version: State<VersionRef>,
 }
 
 #[turbo_tasks::value_impl]
 impl VersionState {
     #[turbo_tasks::function]
-    pub async fn get(self: Vc<Self>) -> Result<Vc<Box<dyn Version>>> {
-        let this = self.await?;
-        let version = TraitRef::cell(this.version.get().clone());
-        Ok(version)
+    pub fn get(&self) -> Vc<Box<dyn Version>> {
+        let version = TraitRef::cell(self.version.get().0.clone());
+        version
     }
 }
 
 impl VersionState {
     pub async fn new(version: TraitRef<Box<dyn Version>>) -> Result<Vc<Self>> {
         Ok(Self::cell(VersionState {
-            version: State::new(version),
+            version: State::new(VersionRef(version)),
         }))
     }
 
     pub async fn set(self: Vc<Self>, new_version: TraitRef<Box<dyn Version>>) -> Result<()> {
         let this = self.await?;
-        this.version.set(new_version);
+        this.version.set(VersionRef(new_version));
         Ok(())
     }
 }

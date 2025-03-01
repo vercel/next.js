@@ -1,25 +1,19 @@
-use std::{
-    fmt::Write,
-    hash::{BuildHasherDefault, Hash},
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
-use indexmap::IndexSet;
-use rustc_hash::FxHasher;
 use serde::Deserialize;
 use swc_core::{
-    common::{util::take::Take, Mark, SourceMap, SyntaxContext},
+    common::{comments::SingleThreadedComments, util::take::Take, Mark, SourceMap, SyntaxContext},
     ecma::{
         ast::{EsVersion, Id, Module},
-        atoms::JsWord,
+        atoms::Atom,
         codegen::text_writer::JsWriter,
-        parser::parse_file_as_module,
+        parser::{parse_file_as_module, EsSyntax},
         visit::VisitMutWith,
     },
     testing::{self, fixture, NormalizedOutput},
 };
+use turbo_tasks::FxIndexSet;
 
 use super::{
     graph::{
@@ -52,11 +46,15 @@ fn run(input: PathBuf) {
     testing::run_test(false, |cm, _handler| {
         let fm = cm.load_file(&input).unwrap();
 
+        let comments = SingleThreadedComments::default();
         let mut module = parse_file_as_module(
             &fm,
-            Default::default(),
+            swc_core::ecma::parser::Syntax::Es(EsSyntax {
+                jsx: true,
+                ..Default::default()
+            }),
             EsVersion::latest(),
-            None,
+            Some(&comments),
             &mut vec![],
         )
         .unwrap();
@@ -73,7 +71,7 @@ fn run(input: PathBuf) {
         ));
 
         let mut g = DepGraph::default();
-        let (item_ids, mut items) = g.init(&module, unresolved_ctxt, top_level_ctxt);
+        let (item_ids, mut items) = g.init(&module, &comments, unresolved_ctxt, top_level_ctxt);
 
         let mut s = String::new();
 
@@ -100,7 +98,7 @@ fn run(input: PathBuf) {
                 writeln!(s, "- Side effects").unwrap();
             }
 
-            let f = |ids: &IndexSet<Id, BuildHasherDefault<FxHasher>>| {
+            let f = |ids: &FxIndexSet<Id>| {
                 let mut s = String::new();
                 for (i, id) in ids.iter().enumerate() {
                     if i == 0 {
@@ -163,7 +161,9 @@ fn run(input: PathBuf) {
         writeln!(s, "# Phase 4").unwrap();
         writeln!(s, "```mermaid\n{}```", render_graph(&item_ids, analyzer.g)).unwrap();
 
-        let mut condensed = analyzer.g.finalize();
+        analyzer.handle_explicit_deps();
+
+        let mut condensed = analyzer.g.finalize(analyzer.items);
 
         writeln!(s, "# Final").unwrap();
         writeln!(
@@ -176,7 +176,7 @@ fn run(input: PathBuf) {
         )
         .unwrap();
 
-        let uri_of_module: JsWord = "entry.js".into();
+        let uri_of_module: Atom = "entry.js".into();
 
         let mut describe =
             |is_debug: bool, title: &str, entries: Vec<ItemIdGroupKind>, skip_parts: bool| {
@@ -190,9 +190,15 @@ fn run(input: PathBuf) {
                     modules,
                     entrypoints,
                     ..
-                } = g.split_module(analyzer.items);
+                } = g.split_module(&[], analyzer.items);
 
-                writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
+                writeln!(
+                    s,
+                    "# Entrypoints\n\n```\n{:#?}\n```\n\n",
+                    // sort entrypoints for the snapshot
+                    entrypoints.iter().collect::<BTreeMap<_, _>>(),
+                )
+                .unwrap();
 
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();

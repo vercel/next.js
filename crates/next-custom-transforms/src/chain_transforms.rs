@@ -1,30 +1,33 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use either::Either;
-use fxhash::FxHashSet;
 use modularize_imports;
 use preset_env_base::query::targets_to_versions;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
+    atoms::Atom,
     common::{
-        chain,
         comments::{Comments, NoopComments},
         pass::Optional,
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::EsVersion,
+        ast::{fn_pass, noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
-        transforms::base::pass::noop,
-        visit::{as_folder, Fold},
+        visit::visit_mut_pass,
     },
 };
 
-use crate::transforms::{
-    cjs_finder::contains_cjs,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::next_font_loaders,
-    react_server_components,
+use crate::{
+    linter::linter,
+    transforms::{
+        cjs_finder::contains_cjs,
+        dynamic::{next_dynamic, NextDynamicMode},
+        fonts::next_font_loaders,
+        lint_codemod_comments::lint_codemod_comments,
+        react_server_components,
+    },
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -111,6 +114,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub debug_function_name: bool,
+
+    #[serde(default)]
+    pub lint_codemod_comments: bool,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -118,14 +124,17 @@ pub fn custom_before_pass<'a, C>(
     file: Arc<SourceFile>,
     opts: &'a TransformOptions,
     comments: C,
-    eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
+    eliminated_packages: Rc<RefCell<FxHashSet<Atom>>>,
     unresolved_mark: Mark,
-) -> impl Fold + 'a
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
+) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
 {
+    let file_path_str = file.name.to_string();
+
     #[cfg(target_arch = "wasm32")]
-    let relay_plugin = noop();
+    let relay_plugin = noop_pass();
 
     #[cfg(not(target_arch = "wasm32"))]
     let relay_plugin = {
@@ -138,15 +147,8 @@ where
                 None,
             ))
         } else {
-            Either::Right(noop())
+            Either::Right(noop_pass())
         }
-    };
-
-    let modularize_imports_config = match &opts.modularize_imports {
-        Some(config) => config.clone(),
-        None => modularize_imports::Config {
-            packages: std::collections::HashMap::new(),
-        },
     };
 
     let target_browsers = opts
@@ -157,157 +159,191 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
-        Either::Left(styled_jsx::visitor::styled_jsx(
-            cm.clone(),
-            (*file.name).clone(),
-            styled_jsx::visitor::Config {
-                use_lightningcss: config.use_lightningcss,
-                browsers: target_browsers,
-            },
-            styled_jsx::visitor::NativeConfig { process_css: None },
-        ))
-    } else {
-        Either::Right(noop())
+    let styled_jsx = {
+        let cm = cm.clone();
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.styled_jsx.to_option() {
+                program.mutate(styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    &file.name,
+                    &styled_jsx::visitor::Config {
+                        use_lightningcss: config.use_lightningcss,
+                        browsers: *target_browsers,
+                    },
+                    &styled_jsx::visitor::NativeConfig { process_css: None },
+                ))
+            }
+        })
     };
 
-    chain!(
-        crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
-            opts.is_page_file
-        ),
-        match &opts.server_components {
-            Some(config) if config.truthy() =>
-                Either::Left(react_server_components::server_components(
-                    file.name.clone(),
-                    config.clone(),
-                    comments.clone(),
-                    opts.app_dir.clone(),
-                )),
-            _ => Either::Right(noop()),
-        },
-        styled_jsx,
-        match &opts.styled_components {
-            Some(config) => Either::Left(styled_components::styled_components(
-                file.name.clone(),
-                file.src_hash,
-                config.clone(),
-                NoopComments
-            )),
-            None => Either::Right(noop()),
-        },
-        Optional::new(
-            crate::transforms::next_ssg::next_ssg(eliminated_packages),
-            !opts.disable_next_ssg
-        ),
-        crate::transforms::amp_attributes::amp_attributes(),
-        next_dynamic(
-            opts.is_development,
-            opts.is_server_compiler,
-            match &opts.server_components {
-                Some(config) if config.truthy() => match config {
-                    // Always enable the Server Components mode for both
-                    // server and client layers.
-                    react_server_components::Config::WithOptions(config) =>
-                        config.is_react_server_layer,
-                    _ => false,
-                },
-                _ => false,
-            },
-            opts.prefer_esm,
-            NextDynamicMode::Webpack,
-            file.name.clone(),
-            opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
-        ),
-        Optional::new(
-            crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-            !opts.disable_page_config
-        ),
-        relay_plugin,
-        match &opts.remove_console {
-            Some(config) if config.truthy() => Either::Left(remove_console::remove_console(
-                config.clone(),
-                SyntaxContext::empty().apply_mark(unresolved_mark)
-            )),
-            _ => Either::Right(noop()),
-        },
-        match &opts.react_remove_properties {
-            Some(config) if config.truthy() => Either::Left(
-                react_remove_properties::react_remove_properties(config.clone())
-            ),
-            _ => Either::Right(noop()),
-        },
-        match &opts.shake_exports {
-            Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(
-                config.clone()
-            )),
-            None => Either::Right(noop()),
-        },
-        match &opts.auto_modularize_imports {
-            Some(config) => Either::Left(
-                crate::transforms::named_import_transform::named_import_transform(config.clone())
-            ),
-            None => Either::Right(noop()),
-        },
-        match &opts.optimize_barrel_exports {
-            Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(
-                config.clone()
-            )),
-            _ => Either::Right(noop()),
-        },
-        match &opts.optimize_server_react {
-            Some(config) => Either::Left(
-                crate::transforms::optimize_server_react::optimize_server_react(config.clone())
-            ),
-            _ => Either::Right(noop()),
-        },
-        opts.emotion
-            .as_ref()
-            .and_then(|config| {
+    let styled_components = {
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = &opts.styled_components {
+                program.mutate(styled_components::styled_components(
+                    Some(&file_path_str),
+                    file.src_hash,
+                    config,
+                    NoopComments,
+                ))
+            }
+        })
+    };
+
+    let emotion = {
+        let cm = cm.clone();
+        let file = file.clone();
+        let comments = comments.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.emotion.as_ref() {
                 if !config.enabled.unwrap_or(false) {
-                    return None;
+                    return;
                 }
                 if let FileName::Real(path) = &*file.name {
-                    path.to_str().map(|_| {
-                        Either::Left(swc_emotion::EmotionTransformer::new(
-                            config.clone(),
-                            path,
-                            file.src_hash as u32,
-                            cm,
-                            comments.clone(),
-                        ))
-                    })
-                } else {
-                    None
+                    program.mutate(swc_emotion::emotion(
+                        config,
+                        path,
+                        file.src_hash as u32,
+                        cm.clone(),
+                        comments.clone(),
+                    ));
                 }
-            })
-            .unwrap_or_else(|| Either::Right(noop())),
-        modularize_imports::modularize_imports(modularize_imports_config),
-        match &opts.font_loaders {
-            Some(config) => Either::Left(next_font_loaders(config.clone())),
-            None => Either::Right(noop()),
-        },
-        match &opts.server_actions {
-            Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
-                &file.name,
-                config.clone(),
-                comments.clone(),
-            )),
-            None => Either::Right(noop()),
-        },
-        match &opts.cjs_require_optimizer {
-            Some(config) => {
-                Either::Left(as_folder(crate::transforms::cjs_optimizer::cjs_optimizer(
+            }
+        })
+    };
+
+    let modularize_imports = fn_pass(move |program| {
+        if let Some(config) = opts.modularize_imports.as_ref() {
+            program.mutate(modularize_imports::modularize_imports(config));
+        }
+    });
+
+    (
+        (
+            crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
+                opts.is_page_file,
+            ),
+            match &opts.server_components {
+                Some(config) if config.truthy() => {
+                    Either::Left(react_server_components::server_components(
+                        file.name.clone(),
+                        config.clone(),
+                        comments.clone(),
+                        opts.app_dir.clone(),
+                    ))
+                }
+                _ => Either::Right(noop_pass()),
+            },
+            styled_jsx,
+            styled_components,
+            Optional::new(
+                crate::transforms::next_ssg::next_ssg(eliminated_packages),
+                !opts.disable_next_ssg,
+            ),
+            crate::transforms::amp_attributes::amp_attributes(),
+            next_dynamic(
+                opts.is_development,
+                opts.is_server_compiler,
+                match &opts.server_components {
+                    Some(config) if config.truthy() => match config {
+                        // Always enable the Server Components mode for both
+                        // server and client layers.
+                        react_server_components::Config::WithOptions(config) => {
+                            config.is_react_server_layer
+                        }
+                        _ => false,
+                    },
+                    _ => false,
+                },
+                opts.prefer_esm,
+                NextDynamicMode::Webpack,
+                file.name.clone(),
+                opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
+            ),
+            Optional::new(
+                crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
+                !opts.disable_page_config,
+            ),
+            relay_plugin,
+            match &opts.remove_console {
+                Some(config) if config.truthy() => Either::Left(remove_console::remove_console(
                     config.clone(),
                     SyntaxContext::empty().apply_mark(unresolved_mark),
-                )))
-            }
-            None => Either::Right(noop()),
-        },
-        Optional::new(
-            crate::transforms::debug_fn_name::debug_fn_name(),
-            opts.debug_function_name
+                )),
+                _ => Either::Right(noop_pass()),
+            },
+            match &opts.react_remove_properties {
+                Some(config) if config.truthy() => Either::Left(
+                    react_remove_properties::react_remove_properties(config.clone()),
+                ),
+                _ => Either::Right(noop_pass()),
+            },
+            match &opts.shake_exports {
+                Some(config) => Either::Left(crate::transforms::shake_exports::shake_exports(
+                    config.clone(),
+                )),
+                None => Either::Right(noop_pass()),
+            },
         ),
-        as_folder(crate::transforms::pure::pure_magic(comments)),
+        (
+            match &opts.auto_modularize_imports {
+                Some(config) => Either::Left(
+                    crate::transforms::named_import_transform::named_import_transform(
+                        config.clone(),
+                    ),
+                ),
+                None => Either::Right(noop_pass()),
+            },
+            match &opts.optimize_barrel_exports {
+                Some(config) => Either::Left(crate::transforms::optimize_barrel::optimize_barrel(
+                    config.clone(),
+                )),
+                _ => Either::Right(noop_pass()),
+            },
+            match &opts.optimize_server_react {
+                Some(config) => Either::Left(
+                    crate::transforms::optimize_server_react::optimize_server_react(config.clone()),
+                ),
+                _ => Either::Right(noop_pass()),
+            },
+            emotion,
+            modularize_imports,
+            match &opts.font_loaders {
+                Some(config) => Either::Left(next_font_loaders(config.clone())),
+                None => Either::Right(noop_pass()),
+            },
+            match &opts.server_actions {
+                Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
+                    &file.name,
+                    config.clone(),
+                    comments.clone(),
+                    use_cache_telemetry_tracker,
+                )),
+                None => Either::Right(noop_pass()),
+            },
+            match &opts.cjs_require_optimizer {
+                Some(config) => Either::Left(visit_mut_pass(
+                    crate::transforms::cjs_optimizer::cjs_optimizer(
+                        config.clone(),
+                        SyntaxContext::empty().apply_mark(unresolved_mark),
+                    ),
+                )),
+                None => Either::Right(noop_pass()),
+            },
+            Optional::new(
+                crate::transforms::debug_fn_name::debug_fn_name(),
+                opts.debug_function_name,
+            ),
+            visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
+            Optional::new(
+                linter(lint_codemod_comments(comments)),
+                opts.lint_codemod_comments,
+            ),
+        ),
     )
 }
 

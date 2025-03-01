@@ -1,13 +1,14 @@
 use swc_core::ecma::{
     ast::{
         Ident, IdentName, JSXAttr, JSXAttrName, JSXAttrOrSpread, JSXElementName, JSXOpeningElement,
+        Pass,
     },
-    atoms::JsWord,
-    visit::Fold,
+    atoms::Atom,
+    visit::{fold_pass, Fold},
 };
 
-pub fn amp_attributes() -> impl Fold {
-    AmpAttributePatcher::default()
+pub fn amp_attributes() -> impl Pass {
+    fold_pass(AmpAttributePatcher::default())
 }
 
 #[derive(Debug, Default)]
@@ -36,7 +37,7 @@ impl Fold for AmpAttributePatcher {
                         if sym as &str == "className" {
                             *i = JSXAttrOrSpread::JSXAttr(JSXAttr {
                                 name: JSXAttrName::Ident(IdentName {
-                                    sym: JsWord::from("class"),
+                                    sym: Atom::from("class"),
                                     span: *s,
                                 }),
                                 span: *span,

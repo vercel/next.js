@@ -9,7 +9,7 @@ async function getData() {
   }
 }
 
-export default function gsspLayout(props) {
+export default function GsspLayout(props) {
   // TODO-APP: refactor this test page to `async function` instead.
   if (!i) {
     i = getData()

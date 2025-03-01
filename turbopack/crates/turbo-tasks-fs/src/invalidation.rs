@@ -1,7 +1,10 @@
-use std::fmt::{Display, Formatter};
+use std::{
+    fmt::{Display, Formatter},
+    hash::Hash,
+};
 
-use indexmap::IndexSet;
-use turbo_tasks::{util::StaticOrArc, InvalidationReason, InvalidationReasonKind, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::StaticOrArc, FxIndexSet, InvalidationReason, InvalidationReasonKind};
 
 /// Invalidation was caused by a file change detected by the file watcher
 #[derive(PartialEq, Eq, Hash)]
@@ -30,7 +33,7 @@ static WATCH_CHANGE_KIND: WatchChangeKind = WatchChangeKind;
 impl InvalidationReasonKind for WatchChangeKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(
@@ -48,9 +51,10 @@ impl InvalidationReasonKind for WatchChangeKind {
 
 /// Invalidation was caused by a directory starting to watch from which was read
 /// before.
-#[derive(PartialEq, Eq, Hash)]
+#[derive(PartialEq, Eq, Hash, Clone)]
 pub struct WatchStart {
     pub name: RcStr,
+    pub path: RcStr,
 }
 
 impl InvalidationReason for WatchStart {
@@ -61,7 +65,7 @@ impl InvalidationReason for WatchStart {
 
 impl Display for WatchStart {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} started watching", self.name)
+        write!(f, "started watching {} in {}", self.path, self.name)
     }
 }
 
@@ -74,18 +78,16 @@ static WATCH_START_KIND: WatchStartKind = WatchStartKind;
 impl InvalidationReasonKind for WatchStartKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
+        let example = reasons[0].as_any().downcast_ref::<WatchStart>().unwrap();
         write!(
             f,
-            "{} directories started watching (e. g. {})",
+            "{} items started watching (e. g. {} in {})",
             reasons.len(),
-            reasons[0]
-                .as_any()
-                .downcast_ref::<WatchStart>()
-                .unwrap()
-                .name
+            example.path,
+            example.name
         )
     }
 }
@@ -117,7 +119,7 @@ static WRITE_KIND: WriteKind = WriteKind;
 impl InvalidationReasonKind for WriteKind {
     fn fmt(
         &self,
-        reasons: &IndexSet<StaticOrArc<dyn InvalidationReason>>,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
         write!(
@@ -125,6 +127,49 @@ impl InvalidationReasonKind for WriteKind {
             "{} files written ({}, ...)",
             reasons.len(),
             reasons[0].as_any().downcast_ref::<Write>().unwrap().path
+        )
+    }
+}
+
+/// Invalidation was caused by a invalidate operation on the filesystem
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct InvalidateFilesystem {
+    pub path: RcStr,
+}
+
+impl InvalidationReason for InvalidateFilesystem {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&INVALIDATE_FILESYSTEM_KIND))
+    }
+}
+
+impl Display for InvalidateFilesystem {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} in filesystem invalidated", self.path)
+    }
+}
+
+/// Invalidation kind for [InvalidateFilesystem]
+#[derive(PartialEq, Eq, Hash)]
+struct InvalidateFilesystemKind;
+
+static INVALIDATE_FILESYSTEM_KIND: InvalidateFilesystemKind = InvalidateFilesystemKind;
+
+impl InvalidationReasonKind for InvalidateFilesystemKind {
+    fn fmt(
+        &self,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        write!(
+            f,
+            "{} items in filesystem invalidated ({}, ...)",
+            reasons.len(),
+            reasons[0]
+                .as_any()
+                .downcast_ref::<InvalidateFilesystem>()
+                .unwrap()
+                .path
         )
     }
 }

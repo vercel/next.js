@@ -11,7 +11,7 @@ This example showcases Next.js's [Static Generation](https://nextjs.org/docs/bas
 
 ## Deploy your own
 
-Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the environment variables you'll need](#step-15-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-agilitycms)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-agilitycms&project-name=cms-agilitycms&repository-name=cms-agilitycms&env=AGILITY_CMS_GUID,AGILITY_CMS_API_FETCH_KEY,AGILITY_CMS_API_PREVIEW_KEY,AGILITY_CMS_SECURITY_KEY&envDescription=API%20Keys%20required%20by%20Agility%20CMS&envLink=https://vercel.link/agility-cms-env)
 
@@ -28,13 +28,19 @@ Once you have access to [the environment variables you'll need](#step-15-set-up-
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
 - [WordPress](/examples/cms-wordpress)

@@ -2,8 +2,8 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
+import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -112,6 +112,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  allowAliasing: boolean
 }
 
 /**
@@ -204,10 +205,11 @@ export type PrefetchCacheEntry = {
   data: Promise<FetchServerResponseResult>
   kind: PrefetchKind
   prefetchTime: number
+  staleTime: number
   lastUsedTime: number | null
   key: string
   status: PrefetchCacheEntryStatus
-  pathname: string
+  url: URL
 }
 
 export enum PrefetchCacheEntryStatus {
@@ -221,11 +223,6 @@ export enum PrefetchCacheEntryStatus {
  * Handles keeping the state of app-router.
  */
 export type AppRouterState = {
-  /**
-   * The buildId is used to do a mpaNavigation when the server returns a different buildId.
-   * It is used to avoid issues where an older version of the app is loaded in the browser while the server has a new version.
-   */
-  buildId: string
   /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
@@ -272,15 +269,3 @@ export type ReducerActions = Readonly<
   | HmrRefreshAction
   | ServerActionAction
 >
-
-export function isThenable(value: any): value is Promise<AppRouterState> {
-  // TODO: We don't gain anything from this abstraction. It's unsound, and only
-  // makes sense in the specific places where we use it. So it's better to keep
-  // the type coercion inline, instead of leaking this to other places in
-  // the codebase.
-  return (
-    value &&
-    (typeof value === 'object' || typeof value === 'function') &&
-    typeof value.then === 'function'
-  )
-}

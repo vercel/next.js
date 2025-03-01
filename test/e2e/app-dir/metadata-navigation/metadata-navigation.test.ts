@@ -3,6 +3,7 @@ import {
   createMultiDomMatcher,
   createMultiHtmlMatcher,
   getTitle,
+  retry,
 } from 'next-test-utils'
 
 describe('app dir - metadata navigation', () => {
@@ -28,7 +29,8 @@ describe('app dir - metadata navigation', () => {
 
     it('should support notFound in generateMetadata', async () => {
       const res = await next.fetch('/async/not-found')
-      expect(res.status).toBe(404)
+      // metadata is suspended in SSR, it won't affect the response status
+      expect(res.status).toBe(200)
       const $ = await next.render$('/async/not-found')
 
       // TODO-APP: support render custom not-found in SSR for generateMetadata.
@@ -75,7 +77,35 @@ describe('app dir - metadata navigation', () => {
       const res = await next.fetch('/async/redirect', {
         redirect: 'manual',
       })
-      expect(res.status).toBe(307)
+      // metadata is suspended in SSR, it won't affect the response status
+      expect(res.status).toBe(200)
+      const browser = await next.browser('/async/redirect')
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe(
+          'redirect dest page'
+        )
+      })
+    })
+
+    it('should show the index title', async () => {
+      const browser = await next.browser('/parallel-route')
+      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
+    })
+
+    it('should show target page metadata after navigation', async () => {
+      const browser = await next.browser('/parallel-route')
+      await browser.elementByCss('#product-link').click()
+      await browser.waitForElementByCss('#product-title')
+      expect(await browser.elementByCss('title').text()).toBe('Product Layout')
+    })
+
+    it('should show target page metadata after navigation with back', async () => {
+      const browser = await next.browser('/parallel-route')
+      await browser.elementByCss('#product-link').click()
+      await browser.waitForElementByCss('#product-title')
+      await browser.elementByCss('#home-link').click()
+      await browser.waitForElementByCss('#home-title')
+      expect(await browser.elementByCss('title').text()).toBe('Home Layout')
     })
   })
 })

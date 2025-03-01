@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/another.css"],"sourcesContent":[".bar {\n  background-color: green;\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 1, "column": 28}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

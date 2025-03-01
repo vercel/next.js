@@ -121,7 +121,6 @@ pub(super) fn increase_aggregation_number_immediately<C: AggregationContext>(
                     node_id,
                     uppers: uppers_copy,
                     followers,
-                    target_aggregation_number,
                 })
             }
         }
@@ -139,7 +138,6 @@ pub(super) fn increase_aggregation_number_immediately<C: AggregationContext>(
                 node_id,
                 uppers,
                 followers,
-                target_aggregation_number,
             })
         }
     }
@@ -162,7 +160,6 @@ pub enum PreparedInternalIncreaseAggregationNumber<C: AggregationContext> {
         node_id: C::NodeRef,
         uppers: StackVec<C::NodeRef>,
         followers: StackVec<C::NodeRef>,
-        target_aggregation_number: u32,
     },
 }
 
@@ -262,15 +259,10 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                     }
                 };
                 for follower_id in followers {
-                    balance_queue.balance(
-                        node_id.clone(),
-                        target_aggregation_number,
-                        follower_id,
-                        0,
-                    );
+                    balance_queue.balance(node_id.clone(), follower_id);
                 }
                 for upper_id in uppers {
-                    balance_queue.balance(upper_id, 0, node_id.clone(), target_aggregation_number);
+                    balance_queue.balance(upper_id, node_id.clone());
                 }
             }
             PreparedInternalIncreaseAggregationNumber::Leaf {
@@ -293,18 +285,12 @@ impl<C: AggregationContext> PreparedInternalOperation<C>
                 node_id,
                 uppers,
                 followers,
-                target_aggregation_number,
             } => {
                 for follower_id in followers {
-                    balance_queue.balance(
-                        node_id.clone(),
-                        target_aggregation_number,
-                        follower_id,
-                        0,
-                    );
+                    balance_queue.balance(node_id.clone(), follower_id);
                 }
                 for upper_id in uppers {
-                    balance_queue.balance(upper_id, 0, node_id.clone(), target_aggregation_number);
+                    balance_queue.balance(upper_id, node_id.clone());
                 }
             }
         }

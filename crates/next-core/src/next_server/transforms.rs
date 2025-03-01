@@ -1,17 +1,18 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
-use turbo_tasks::Vc;
-use turbopack::module_options::ModuleRule;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 
 use crate::{
     mode::NextMode,
-    next_client_reference::css_client_reference::css_client_reference_rule::get_next_css_client_reference_transforms_rule,
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
-        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
+        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_next_pages_transforms_rule, get_server_actions_transform_rule,
+        next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
@@ -30,18 +31,43 @@ pub async fn get_next_server_transforms_rules(
     mode: Vc<NextMode>,
     foreign_code: bool,
     next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.await?.modularize_imports;
+    let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
-    if let Some(modularize_imports_config) = modularize_imports_config {
+
+    rules.push(get_next_lint_transform_rule(mdx_rs));
+
+    if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
             mdx_rs,
         ));
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
+
+    if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
+        rules.extend([
+            // Ignore the internal ModuleCssAsset -> CssModuleAsset references
+            // The CSS Module module itself is still needed for class names
+            ModuleRule::new_internal(
+                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+        rules.extend([
+            // Ignore all non-module CSS references
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".css".into()),
+                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+                ]),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+    }
 
     if !foreign_code {
         rules.push(get_next_page_static_info_assert_rule(
@@ -51,6 +77,8 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
+    let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
@@ -67,7 +95,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        pages_dir,
+                        *pages_dir,
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                     )
@@ -83,33 +111,54 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                mdx_rs,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Client,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
+
             is_app_dir = true;
 
             false
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                mdx_rs,
-            ));
+        ServerContextType::AppRSC { .. } => {
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
             is_app_dir = true;
 
             true
         }
         ServerContextType::AppRoute { .. } => {
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
+
             is_app_dir = true;
+
             false
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
@@ -130,15 +179,18 @@ pub async fn get_next_server_transforms_rules(
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
 
-        rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule().await?);
+    }
 
-        if let NextRuntime::Edge = next_runtime {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+    if let NextRuntime::Edge = next_runtime {
+        rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
 
+        if !foreign_code {
             rules.push(next_edge_node_api_assert(
                 mdx_rs,
                 matches!(context_ty, ServerContextType::Middleware { .. })
                     && matches!(*mode.await?, NextMode::Build),
+                matches!(*mode.await?, NextMode::Build),
             ));
         }
     }
@@ -164,16 +216,8 @@ pub async fn get_next_server_internal_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
-        ServerContextType::AppRSC {
-            client_transition, ..
-        } => {
+        ServerContextType::AppRSC { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
-            if let Some(client_transition) = client_transition {
-                rules.push(get_next_css_client_reference_transforms_rule(
-                    client_transition,
-                ));
-            }
-            {}
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

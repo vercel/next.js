@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+
 use turbo_tasks::debug::ValueDebugFormat;
 use turbo_tasks_testing::{register, run, Registration};
 

@@ -1,6 +1,7 @@
-  x Only async functions are allowed to be exported in a "use server" file.
+  x Server Actions must be async functions.
+  | 
    ,-[input.js:3:1]
  2 | 
  3 | export default () => {}
-   : ^^^^^^^^^^^^^^^^^^^^^^^
+   :                ^^^^^^^^
    `----

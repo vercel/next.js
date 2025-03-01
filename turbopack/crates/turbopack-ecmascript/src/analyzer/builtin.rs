@@ -1,8 +1,9 @@
 use std::mem::take;
 
-use swc_core::ecma::atoms::js_word;
+use swc_core::ecma::atoms::atom;
 
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
+use crate::analyzer::JsValueUrlKind;
 
 /// Replaces some builtin values with their resulting values. Called early
 /// without lazy nested values. This allows to skip a lot of work to process the
@@ -26,7 +27,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 // We known that these callee will lead to an error at runtime, so we can skip
                 // processing them
                 JsValue::Constant(_)
-                | JsValue::Url(_)
+                | JsValue::Url(_, _)
                 | JsValue::WellKnownObject(_)
                 | JsValue::Array { .. }
                 | JsValue::Object { .. }
@@ -96,6 +97,19 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
 /// processed.
 pub fn replace_builtin(value: &mut JsValue) -> bool {
     match value {
+        JsValue::Add(_, list) => {
+            // numeric addition
+            let mut sum = 0f64;
+            for arg in list {
+                let JsValue::Constant(ConstantValue::Num(num)) = arg else {
+                    return false;
+                };
+                sum += num.0;
+            }
+            *value = JsValue::Constant(ConstantValue::Num(ConstantNumber(sum)));
+            true
+        }
+
         // matching property access like `obj.prop`
         // Accessing a property on something can be handled in some cases
         JsValue::Member(_, box ref mut obj, ref mut prop) => match obj {
@@ -289,7 +303,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                             }
                         }
                         if potential_values.is_empty() {
-                            *value = JsValue::FreeVar(js_word!("undefined"));
+                            *value = JsValue::FreeVar(atom!("undefined"));
                         } else {
                             *value = potential_values_to_alternatives(
                                 potential_values,
@@ -341,7 +355,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         arg,
                                         JsValue::Array { .. }
                                             | JsValue::Constant(_)
-                                            | JsValue::Url(_)
+                                            | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
@@ -360,7 +374,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                                 *mutable |= *inner_mutable;
                                             }
                                             JsValue::Constant(_)
-                                            | JsValue::Url(_)
+                                            | JsValue::Url(_, JsValueUrlKind::Absolute)
                                             | JsValue::Concat(..)
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
@@ -636,8 +650,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
         },
 
         JsValue::Iterated(_, iterable) => {
-            if let JsValue::Array { items, .. } = &mut **iterable {
-                *value = JsValue::alternatives(take(items));
+            if let JsValue::Array { items, mutable, .. } = &mut **iterable {
+                let mut new_value = JsValue::alternatives(take(items));
+                if *mutable {
+                    new_value.add_unknown_mutations(true);
+                }
+                *value = new_value;
                 true
             } else {
                 false

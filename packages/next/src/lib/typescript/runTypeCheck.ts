@@ -74,18 +74,16 @@ export async function runTypeCheck(
 
   const result = program.emit()
 
-  // Intended to match:
-  // - pages/test.js
-  // - pages/apples.test.js
-  // - pages/__tests__/a.js
-  //
-  // But not:
-  // - pages/contest.js
-  // - pages/other.js
-  // - pages/test/a.js
-  //
-  const regexIgnoredFile =
-    /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
+  const ignoreRegex = [
+    // matches **/__(tests|mocks)__/**
+    /[\\/]__(?:tests|mocks)__[\\/]/,
+    // matches **/*.(spec|test).*
+    /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
+  ]
+  const regexIgnoredFile = new RegExp(
+    ignoreRegex.map((r) => r.source).join('|')
+  )
+
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)

@@ -1,0 +1,11 @@
+{
+  "name": "suggest-turbopack",
+  "scripts": {
+    "dev": "next dev"
+  },
+  "dependencies": {
+    "next": "15.0.0-canary.0",
+    "react": "19.0.0-rc.0",
+    "react-dom": "19.0.0-rc.0"
+  }
+}

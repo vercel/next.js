@@ -1,6 +1,5 @@
 //@ts-check
 
-const os = require('os')
 const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
@@ -20,7 +19,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-7771d3a7-20240827";
+const nextjsReactPeerVersion = "^19.0.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -52,7 +51,7 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 const externalTestsFilter = getTestFilter()
 
 const timings = []
-const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -76,7 +75,7 @@ const TIMINGS_API_HEADERS = {
 
 const testFilters = {
   development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   production: new RegExp(
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
@@ -382,9 +381,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(tests.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      tests = tests.slice(offset, offset + numPerGroup)
+      // assign every nth test "round-robin" to the group, so that similar slow
+      // tests tend not to get clustered together
+      tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
     }
   }
@@ -451,12 +450,7 @@ ${ENDGROUP}`)
       const start = new Date().getTime()
       let outputChunks = []
 
-      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
-
       const args = [
-        ...(shouldRecordTestWithReplay
-          ? [`--config=jest.replay.config.js`]
-          : []),
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
@@ -480,13 +474,15 @@ ${ENDGROUP}`)
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
+        // But some tests need to fork based on machine? CI? behavior differences
+        // Only use read this in tests.
+        // For implementation forks, use `process.env.CI` instead
+        NEXT_TEST_CI: process.env.CI,
 
         ...(options.local
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              RECORD_REPLAY: shouldRecordTestWithReplay,
-
               TRACE_PLAYWRIGHT:
                 process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
               CIRCLECI: '',

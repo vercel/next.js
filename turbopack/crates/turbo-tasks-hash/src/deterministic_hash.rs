@@ -25,8 +25,9 @@ macro_rules! impl_write_number {
 }
 
 /// DeterministicHash is a custom trait that signals the implementor can safely
-/// be hashed in a replicatable way across platforms and process runs. Note that
-/// the default Hash trait used by Rust is not deterministic for our purposes.
+/// be hashed in a replicatable way across platforms and process runs.
+///
+/// Note that the default Hash trait used by Rust is not deterministic for our purposes.
 ///
 /// It's very important that Vcs never implement this, since they cannot be
 /// deterministic. The value that they wrap, however, can implement the trait.
@@ -36,9 +37,10 @@ pub trait DeterministicHash {
     fn deterministic_hash<H: DeterministicHasher>(&self, state: &mut H);
 }
 
-/// DeterministicHasher is a custom trait that signals the implementor can
-/// safely hash in a replicatable way across platforms and process runs. Note
-/// that the default Hasher trait used by Rust allows for non-deterministic
+/// A custom trait that signals the implementor can safely hash in a replicatable way across
+/// platforms and process runs.
+///
+/// Note that the default Hasher trait used by Rust allows for non-deterministic
 /// hashing, so it is not suitable for our purposes.
 pub trait DeterministicHasher {
     fn finish(&self) -> u64;
@@ -180,7 +182,7 @@ tuple_impls! { A B C D E F G H I J K L }
 /// HasherWrapper allows the DeterministicHasher to be used as a Hasher, for
 /// standard types that do not allow us to directly access their internals.
 struct HasherWrapper<'a, D: DeterministicHasher>(&'a mut D);
-impl<'a, D: DeterministicHasher> std::hash::Hasher for HasherWrapper<'a, D> {
+impl<D: DeterministicHasher> std::hash::Hasher for HasherWrapper<'_, D> {
     fn write(&mut self, bytes: &[u8]) {
         self.0.write_bytes(bytes);
     }

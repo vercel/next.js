@@ -1,19 +1,18 @@
-use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{transition::Transition, ModuleAssetContext};
 
 /// A transition that only affects the asset context.
 #[turbo_tasks::value(shared)]
 pub struct FullContextTransition {
-    module_context: Vc<ModuleAssetContext>,
+    module_context: ResolvedVc<ModuleAssetContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl FullContextTransition {
     #[turbo_tasks::function]
-    pub async fn new(module_context: Vc<ModuleAssetContext>) -> Result<Vc<FullContextTransition>> {
-        Ok(FullContextTransition { module_context }.cell())
+    pub fn new(module_context: ResolvedVc<ModuleAssetContext>) -> Vc<FullContextTransition> {
+        FullContextTransition { module_context }.cell()
     }
 }
 
@@ -24,6 +23,6 @@ impl Transition for FullContextTransition {
         &self,
         _module_asset_context: Vc<ModuleAssetContext>,
     ) -> Vc<ModuleAssetContext> {
-        self.module_context
+        *self.module_context
     }
 }

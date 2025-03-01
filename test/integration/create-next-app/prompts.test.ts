@@ -25,7 +25,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -64,7 +64,7 @@ describe('create-next-app prompts', () => {
           projectName,
           '--app',
           '--eslint',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
@@ -101,7 +101,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
         ],
@@ -117,7 +117,7 @@ describe('create-next-app prompts', () => {
           projectFilesShouldExist({
             cwd,
             projectName,
-            files: ['tailwind.config.ts'],
+            files: ['postcss.config.mjs'],
           })
           resolve()
         })
@@ -137,7 +137,7 @@ describe('create-next-app prompts', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-tailwind',
           '--no-src-dir',
         ],
@@ -194,9 +194,8 @@ describe('create-next-app prompts', () => {
             projectName,
             files: [
               'app',
-              '.eslintrc.json',
               'package.json',
-              'tailwind.config.ts',
+              'postcss.config.mjs',
               'tsconfig.json',
             ],
           })

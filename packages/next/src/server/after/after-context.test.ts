@@ -1,42 +1,45 @@
 import { DetachedPromise } from '../../lib/detached-promise'
 import { AsyncLocalStorage } from 'async_hooks'
 
-import type { RequestStore } from '../../client/components/request-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
+import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import type { AfterContext } from './after-context'
 
 describe('AfterContext', () => {
   // 'async-local-storage.ts' needs `AsyncLocalStorage` on `globalThis` at import time,
   // so we have to do some contortions here to set it up before running anything else
-  type RASMod =
-    typeof import('../../client/components/request-async-storage.external')
+  type WASMod = typeof import('../app-render/work-async-storage.external')
+  type WSMod = typeof import('../app-render/work-unit-async-storage.external')
   type AfterMod = typeof import('./after')
   type AfterContextMod = typeof import('./after-context')
 
-  let requestAsyncStorage: RASMod['requestAsyncStorage']
+  let workAsyncStorage: WASMod['workAsyncStorage']
+  let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
-  let after: AfterMod['unstable_after']
+  let after: AfterMod['after']
 
   beforeAll(async () => {
     // @ts-expect-error
     globalThis.AsyncLocalStorage = AsyncLocalStorage
 
-    const RASMod = await import(
-      '../../client/components/request-async-storage.external'
-    )
-    requestAsyncStorage = RASMod.requestAsyncStorage
+    const WASMod = await import('../app-render/work-async-storage.external')
+    workAsyncStorage = WASMod.workAsyncStorage
+
+    const WSMod = await import('../app-render/work-unit-async-storage.external')
+    workUnitAsyncStorage = WSMod.workUnitAsyncStorage
 
     const AfterContextMod = await import('./after-context')
     AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
-    after = AfterMod.unstable_after
+    after = AfterMod.after
   })
 
   const createRun =
-    (afterContext: AfterContext, requestStore: RequestStore) =>
+    (_afterContext: AfterContext, workStore: WorkStore) =>
     <T>(cb: () => T): T => {
-      return afterContext.run(requestStore, () =>
-        requestAsyncStorage.run(requestStore, cb)
+      return workAsyncStorage.run(workStore, () =>
+        workUnitAsyncStorage.run(createMockWorkUnitStore(), cb)
       )
     }
 
@@ -52,10 +55,11 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -118,11 +122,12 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -165,11 +170,12 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -255,10 +261,11 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -314,11 +321,12 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -348,37 +356,45 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
+    const onTaskError = jest.fn()
+
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
     // ==================================
 
     const promise1 = new DetachedPromise<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
+    const thrownFromCallback2 = new Error('2')
     const afterCallback2 = jest.fn(() => {
-      throw new Error('2')
+      throw thrownFromCallback2
     })
 
     const promise3 = new DetachedPromise<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
 
-    requestAsyncStorage.run(requestStore, () =>
-      afterContext.run(requestStore, () => {
+    const thrownFromPromise4 = new Error('4')
+    const promise4 = Promise.reject(thrownFromPromise4)
+
+    workAsyncStorage.run(workStore, () =>
+      workUnitAsyncStorage.run(createMockWorkUnitStore(), () => {
         after(afterCallback1)
         after(afterCallback2)
         after(afterCallback3)
+        after(promise4)
       })
     )
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
     expect(afterCallback3).not.toHaveBeenCalled()
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
     // the response is done.
     onCloseCallback!()
@@ -387,13 +403,18 @@ describe('AfterContext', () => {
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(afterCallback3).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
-    promise1.reject(new Error('1'))
+    // resolve any pending promises we have
+    const thrownFromCallback1 = new Error('1')
+    promise1.reject(thrownFromCallback1)
     promise3.resolve('3')
 
     const results = await Promise.all(waitUntilPromises)
     expect(results).toEqual([undefined])
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback2)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback1)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromPromise4)
   })
 
   it('throws from after() if waitUntil is not provided', async () => {
@@ -403,11 +424,12 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
+    const workStore = createMockWorkStore(afterContext)
 
-    const run = createRun(afterContext, requestStore)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
@@ -423,36 +445,7 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
   })
 
-  it('throws from after() if onClose is not provided', async () => {
-    const waitUntilPromises: Promise<unknown>[] = []
-    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
-
-    const onClose = undefined
-
-    const afterContext = new AfterContext({
-      waitUntil,
-      onClose,
-    })
-
-    const requestStore = createMockRequestStore(afterContext)
-
-    const run = createRun(afterContext, requestStore)
-
-    // ==================================
-
-    const afterCallback1 = jest.fn()
-
-    expect(() =>
-      run(() => {
-        after(afterCallback1)
-      })
-    ).toThrow(/Missing `onClose` implementation/)
-
-    expect(waitUntil).not.toHaveBeenCalled()
-    expect(afterCallback1).not.toHaveBeenCalled()
-  })
-
-  it('shadows requestAsyncStorage within after callbacks', async () => {
+  it('does NOT shadow workAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
 
     let onCloseCallback: (() => void) | undefined = undefined
@@ -463,21 +456,22 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
-    const requestStore = createMockRequestStore(afterContext)
-    const run = createRun(afterContext, requestStore)
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
 
     // ==================================
 
     const stores = new DetachedPromise<
-      [RequestStore | undefined, RequestStore | undefined]
+      [WorkStore | undefined, WorkStore | undefined]
     >()
 
     await run(async () => {
-      const store1 = requestAsyncStorage.getStore()
+      const store1 = workAsyncStorage.getStore()
       after(() => {
-        const store2 = requestAsyncStorage.getStore()
+        const store2 = workAsyncStorage.getStore()
         stores.resolve([store1, store2])
       })
     })
@@ -486,33 +480,86 @@ describe('AfterContext', () => {
     onCloseCallback!()
 
     const [store1, store2] = await stores.promise
-    // if we use .toBe, the proxy from createMockRequestStore throws because jest checks '$$typeof'
+    // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
     expect(store1).toBeTruthy()
     expect(store2).toBeTruthy()
-    expect(store1 === requestStore).toBe(true)
-    expect(store2 !== store1).toBe(true)
+    expect(store1 === workStore).toBe(true)
+    expect(store2 === store1).toBe(true)
+  })
+
+  it('preserves the ALS context the callback was created in', async () => {
+    type TestStore = string
+    const testStorage = new AsyncLocalStorage<TestStore>()
+
+    const waitUntil = jest.fn()
+
+    let onCloseCallback: (() => void) | undefined = undefined
+    const onClose = jest.fn((cb) => {
+      onCloseCallback = cb
+    })
+
+    const afterContext = new AfterContext({
+      waitUntil,
+      onClose,
+      onTaskError: undefined,
+    })
+
+    const workStore = createMockWorkStore(afterContext)
+    const run = createRun(afterContext, workStore)
+
+    // ==================================
+
+    const stores = new DetachedPromise<
+      [TestStore | undefined, TestStore | undefined]
+    >()
+
+    await testStorage.run('value', () =>
+      run(async () => {
+        const store1 = testStorage.getStore()
+        after(() => {
+          const store2 = testStorage.getStore()
+          stores.resolve([store1, store2])
+        })
+      })
+    )
+
+    // the response is done.
+    onCloseCallback!()
+
+    const [store1, store2] = await stores.promise
+    // if we use .toBe, the proxy from createMockWorkStore throws because jest checks '$$typeof'
+    expect(store1).toBeDefined()
+    expect(store2).toBeDefined()
+    expect(store1 === 'value').toBe(true)
+    expect(store2 === store1).toBe(true)
   })
 })
 
-const createMockRequestStore = (afterContext: AfterContext): RequestStore => {
-  const partialStore: Partial<RequestStore> = {
-    url: { pathname: '/', search: '' },
+const createMockWorkStore = (afterContext: AfterContext): WorkStore => {
+  const partialStore: Partial<WorkStore> = {
     afterContext: afterContext,
-    assetPrefix: '',
-    reactLoadableManifest: {},
-    draftMode: undefined,
-    isHmrRefresh: false,
-    serverComponentsHmrCache: undefined,
+    forceStatic: false,
+    forceDynamic: false,
+    dynamicShouldError: false,
+    isStaticGeneration: false,
+    revalidatedTags: [],
+    pendingRevalidates: undefined,
+    pendingRevalidateWrites: undefined,
+    incrementalCache: undefined,
   }
 
-  return new Proxy(partialStore as RequestStore, {
+  return new Proxy(partialStore as WorkStore, {
     get(target, key) {
       if (key in target) {
         return target[key as keyof typeof target]
       }
       throw new Error(
-        `RequestStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
+        `WorkStore property not mocked: '${typeof key === 'symbol' ? key.toString() : key}'`
       )
     },
   })
+}
+
+const createMockWorkUnitStore = () => {
+  return { phase: 'render' } as WorkUnitStore
 }

@@ -16,6 +16,7 @@ import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { refreshInactiveParallelSegments } from '../refetch-inactive-parallel-segments'
+import { revalidateEntireCache } from '../../segment-cache'
 
 export function refreshReducer(
   state: ReadonlyReducerState,
@@ -45,7 +46,6 @@ export function refreshReducer(
       'refetch',
     ],
     nextUrl: includeNextUrl ? state.nextUrl : null,
-    buildId: state.buildId,
   })
 
   return cache.lazyData.then(
@@ -63,16 +63,20 @@ export function refreshReducer(
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
 
-      for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 3) {
+      for (const normalizedFlightData of flightData) {
+        const {
+          tree: treePatch,
+          seedData: cacheNodeSeedData,
+          head,
+          isRootRender,
+        } = normalizedFlightData
+
+        if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
@@ -102,9 +106,6 @@ export function refreshReducer(
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
 
-        // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head] = flightDataPath.slice(-2)
-
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
           const rsc = cacheNodeSeedData[1]
@@ -118,9 +119,14 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head
+            head,
+            undefined
           )
-          mutable.prefetchCache = new Map()
+          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+            revalidateEntireCache(state.nextUrl, newTree)
+          } else {
+            mutable.prefetchCache = new Map()
+          }
         }
 
         await refreshInactiveParallelSegments({

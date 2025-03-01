@@ -1,8 +1,0 @@
-{
-  "extends": "../../../../tsconfig.base.json",
-  "compilerOptions": {
-    // environment
-    "lib": ["ESNext", "DOM"]
-  },
-  "include": ["*.ts"]
-}

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::{TryFlatJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -33,12 +33,12 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
 enum SideEffectsValue {
     None,
     Constant(bool),
-    Glob(Vc<Glob>),
+    Glob(ResolvedVc<Glob>),
 }
 
 #[turbo_tasks::function]
 async fn side_effects_from_package_json(
-    package_json: Vc<FileSystemPath>,
+    package_json: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<SideEffectsValue>> {
     if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
         if let Some(side_effects) = content.get("sideEffects") {
@@ -66,10 +66,10 @@ async fn side_effects_from_package_json(
                                         )
                                         .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 ),
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             None
                         }
@@ -88,10 +88,10 @@ async fn side_effects_from_package_json(
                                             )
                                             .into(),
                                         )
-                                        .cell(),
+                                        .resolved_cell(),
                                     ),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Ok(None)
                             }
@@ -100,7 +100,7 @@ async fn side_effects_from_package_json(
                     .try_flat_join()
                     .await?;
                 return Ok(
-                    SideEffectsValue::Glob(Glob::alternatives(globs).resolve().await?).cell(),
+                    SideEffectsValue::Glob(Glob::alternatives(globs).to_resolved().await?).cell(),
                 );
             } else {
                 SideEffectsInPackageJsonIssue {
@@ -113,10 +113,10 @@ async fn side_effects_from_package_json(
                             )
                             .into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                     ),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
@@ -126,8 +126,8 @@ async fn side_effects_from_package_json(
 
 #[turbo_tasks::value]
 struct SideEffectsInPackageJsonIssue {
-    path: Vc<FileSystemPath>,
-    description: Option<Vc<StyledString>>,
+    path: ResolvedVc<FileSystemPath>,
+    description: Option<ResolvedVc<StyledString>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -144,7 +144,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
@@ -170,7 +170,7 @@ pub async fn is_marked_as_side_effect_free(
     let find_package_json = find_context_file(path.parent(), package_json()).await?;
 
     if let FindContextFileResult::Found(package_json, _) = *find_package_json {
-        match *side_effects_from_package_json(package_json).await? {
+        match *side_effects_from_package_json(*package_json).await? {
             SideEffectsValue::None => {}
             SideEffectsValue::Constant(side_effects) => return Ok(Vc::cell(!side_effects)),
             SideEffectsValue::Glob(glob) => {
@@ -188,22 +188,12 @@ pub async fn is_marked_as_side_effect_free(
     Ok(Vc::cell(false))
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct EcmascriptChunkPlaceables(Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>);
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkPlaceables {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
-    }
-}
-
 #[turbo_tasks::value(shared)]
 pub enum EcmascriptExports {
-    EsmExports(Vc<EsmExports>),
+    EsmExports(ResolvedVc<EsmExports>),
     DynamicNamespace,
     CommonJs,
+    EmptyCommonJs,
     Value,
     None,
 }

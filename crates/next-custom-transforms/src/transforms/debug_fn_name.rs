@@ -5,16 +5,16 @@ use swc_core::{
     common::{util::take::Take, DUMMY_SP},
     ecma::{
         ast::{
-            CallExpr, Callee, ExportDefaultExpr, Expr, FnDecl, FnExpr, KeyValueProp, MemberProp,
-            ObjectLit, PropOrSpread, VarDeclarator,
+            CallExpr, Callee, ExportDefaultDecl, ExportDefaultExpr, Expr, FnDecl, FnExpr,
+            KeyValueProp, MemberProp, ObjectLit, Pass, PropOrSpread, VarDeclarator,
         },
         utils::ExprFactory,
-        visit::{as_folder, Fold, VisitMut, VisitMutWith},
+        visit::{visit_mut_pass, VisitMut, VisitMutWith},
     },
 };
 
-pub fn debug_fn_name() -> impl VisitMut + Fold {
-    as_folder(DebugFnName::default())
+pub fn debug_fn_name() -> impl VisitMut + Pass {
+    visit_mut_pass(DebugFnName::default())
 }
 
 #[derive(Default)]
@@ -51,6 +51,15 @@ impl VisitMut for DebugFnName {
     }
 
     fn visit_mut_export_default_expr(&mut self, n: &mut ExportDefaultExpr) {
+        let old_in_default_export = self.in_default_export;
+        self.in_default_export = true;
+
+        n.visit_mut_children_with(self);
+
+        self.in_default_export = old_in_default_export;
+    }
+
+    fn visit_mut_export_default_decl(&mut self, n: &mut ExportDefaultDecl) {
         let old_in_default_export = self.in_default_export;
         self.in_default_export = true;
 
@@ -104,6 +113,23 @@ impl VisitMut for DebugFnName {
         n.visit_mut_children_with(self);
 
         self.path.truncate(orig_len);
+    }
+
+    fn visit_mut_fn_expr(&mut self, n: &mut FnExpr) {
+        if let Some(ident) = &n.ident {
+            let orig_len = self.path.len();
+            if !self.path.is_empty() {
+                self.path.push('.');
+            }
+            self.path.push_str(ident.sym.as_str());
+
+            n.visit_mut_children_with(self);
+
+            self.path.truncate(orig_len);
+            return;
+        }
+
+        n.visit_mut_children_with(self);
     }
 
     fn visit_mut_var_declarator(&mut self, n: &mut VarDeclarator) {

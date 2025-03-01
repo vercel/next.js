@@ -2,8 +2,8 @@
 
 // @ts-ignore
 // eslint-disable-next-line import/no-extraneous-dependencies
-// import { createFromFetch } from 'react-server-dom-webpack/client'
-const { createFromFetch } = (
+// import { createFromReadableStream } from 'react-server-dom-webpack/client'
+const { createFromReadableStream } = (
   !!process.env.NEXT_RUNTIME
     ? // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client.edge')
@@ -14,8 +14,9 @@ const { createFromFetch } = (
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-  FetchServerResponseResult,
 } from '../../../server/app-render/types'
+
+import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
@@ -24,22 +25,48 @@ import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
-  NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_ROUTER_STALE_TIME_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
+import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
-import { hexHash } from '../../../shared/lib/hash'
+import {
+  normalizeFlightData,
+  type NormalizedFlightData,
+} from '../../flight-data-helpers'
+import { getAppBuildId } from '../../app-build-id'
+import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
-  readonly buildId: string
   readonly prefetchKind?: PrefetchKind
   readonly isHmrRefresh?: boolean
 }
 
-function urlToUrlWithoutFlightMarker(url: string): URL {
+export type FetchServerResponseResult = {
+  flightData: NormalizedFlightData[] | string
+  canonicalUrl: URL | undefined
+  couldBeIntercepted: boolean
+  prerendered: boolean
+  postponed: boolean
+  staleTime: number
+}
+
+export type RequestHeaders = {
+  [RSC_HEADER]?: '1'
+  [NEXT_ROUTER_STATE_TREE_HEADER]?: string
+  [NEXT_URL]?: string
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+  [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
+  'x-deployment-id'?: string
+  [NEXT_HMR_REFRESH_HEADER]?: '1'
+  // A header that is only added in test mode to assert on fetch priority
+  'Next-Test-Fetch-Priority'?: RequestInit['priority']
+}
+
+export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
   urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
   if (process.env.NODE_ENV === 'production') {
@@ -61,9 +88,28 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
     flightData: urlToUrlWithoutFlightMarker(url).toString(),
     canonicalUrl: undefined,
     couldBeIntercepted: false,
-    isPrerender: false,
+    prerendered: false,
     postponed: false,
+    staleTime: -1,
   }
+}
+
+let abortController = new AbortController()
+
+if (typeof window !== 'undefined') {
+  // Abort any in-flight requests when the page is unloaded, e.g. due to
+  // reloading the page or performing hard navigations. This allows us to ignore
+  // what would otherwise be a thrown TypeError when the browser cancels the
+  // requests.
+  window.addEventListener('pagehide', () => {
+    abortController.abort()
+  })
+
+  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
+  // and the JavaScript execution context is restored by the browser.
+  window.addEventListener('pageshow', () => {
+    abortController = new AbortController()
+  })
 }
 
 /**
@@ -74,18 +120,9 @@ export async function fetchServerResponse(
   url: URL,
   options: FetchServerResponseOptions
 ): Promise<FetchServerResponseResult> {
-  const { flightRouterState, nextUrl, buildId, prefetchKind } = options
+  const { flightRouterState, nextUrl, prefetchKind } = options
 
-  const headers: {
-    [RSC_HEADER]: '1'
-    [NEXT_ROUTER_STATE_TREE_HEADER]: string
-    [NEXT_URL]?: string
-    [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
-    'x-deployment-id'?: string
-    [NEXT_HMR_REFRESH_HEADER]?: '1'
-    // A header that is only added in test mode to assert on fetch priority
-    'Next-Test-Fetch-Priority'?: RequestInit['priority']
-  } = {
+  const headers: RequestHeaders = {
     // Enable flight response
     [RSC_HEADER]: '1',
     // Provide the current router state
@@ -112,33 +149,7 @@ export async function fetchServerResponse(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NEXT_DEPLOYMENT_ID) {
-    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
-  }
-
-  const uniqueCacheQuery = hexHash(
-    [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE_HEADER],
-      headers[NEXT_URL],
-    ].join(',')
-  )
-
   try {
-    let fetchUrl = new URL(url)
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        if (fetchUrl.pathname.endsWith('/')) {
-          fetchUrl.pathname += 'index.txt'
-        } else {
-          fetchUrl.pathname += '.txt'
-        }
-      }
-    }
-
-    // Add unique cache query to avoid caching conflicts on CDN which don't respect the Vary header
-    fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
-
     // When creating a "temporary" prefetch (the "on-demand" prefetch that gets created on navigation, if one doesn't exist)
     // we send the request with a "high" priority as it's in response to a user interaction that could be blocking a transition.
     // Otherwise, all other prefetches are sent with a "low" priority.
@@ -149,25 +160,37 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
-    if (process.env.__NEXT_TEST_MODE) {
-      headers['Next-Test-Fetch-Priority'] = fetchPriority
+    if (process.env.NODE_ENV === 'production') {
+      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        // In "output: export" mode, we can't rely on headers to distinguish
+        // between HTML and RSC requests. Instead, we append an extra prefix
+        // to the request.
+        url = new URL(url)
+        if (url.pathname.endsWith('/')) {
+          url.pathname += 'index.txt'
+        } else {
+          url.pathname += '.txt'
+        }
+      }
     }
 
-    const res = await fetch(fetchUrl, {
-      // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
-      credentials: 'same-origin',
+    const res = await createFetch(
+      url,
       headers,
-      priority: fetchPriority,
-    })
+      fetchPriority,
+      abortController.signal
+    )
 
     const responseUrl = urlToUrlWithoutFlightMarker(res.url)
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-    const isPrerender = !!res.headers.get(NEXT_IS_PRERENDER_HEADER)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    let isFlightResponse = contentType === RSC_CONTENT_TYPE_HEADER
+    const staleTimeHeader = res.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
+    const staleTime =
+      staleTimeHeader !== null ? parseInt(staleTimeHeader, 10) : -1
+    let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
@@ -179,7 +202,7 @@ export async function fetchServerResponse(
 
     // If fetch returns something different than flight response handle it like a mpa navigation
     // If the fetch was not 200, we also handle it like a mpa navigation
-    if (!isFlightResponse || !res.ok) {
+    if (!isFlightResponse || !res.ok || !res.body) {
       // in case the original URL came with a hash, preserve it before redirecting to the new URL
       if (url.hash) {
         responseUrl.hash = url.hash
@@ -197,29 +220,33 @@ export async function fetchServerResponse(
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
-    const response: NavigationFlightResponse = await createFromFetch(
-      Promise.resolve(res),
-      {
-        callServer,
-      }
-    )
+    const flightStream = postponed
+      ? createUnclosingPrefetchStream(res.body)
+      : res.body
+    const response = await (createFromNextReadableStream(
+      flightStream
+    ) as Promise<NavigationFlightResponse>)
 
-    if (buildId !== response.b) {
+    if (getAppBuildId() !== response.b) {
       return doMpaNavigation(res.url)
     }
 
     return {
-      flightData: response.f,
+      flightData: normalizeFlightData(response.f),
       canonicalUrl: canonicalUrl,
       couldBeIntercepted: interception,
-      isPrerender: isPrerender,
+      prerendered: response.S,
       postponed,
+      staleTime,
     }
   } catch (err) {
-    console.error(
-      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
-      err
-    )
+    if (!abortController.signal.aborted) {
+      console.error(
+        `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
+        err
+      )
+    }
+
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
@@ -227,8 +254,81 @@ export async function fetchServerResponse(
       flightData: url.toString(),
       canonicalUrl: undefined,
       couldBeIntercepted: false,
-      isPrerender: false,
+      prerendered: false,
       postponed: false,
+      staleTime: -1,
     }
   }
+}
+
+export function createFetch(
+  url: URL,
+  headers: RequestHeaders,
+  fetchPriority: 'auto' | 'high' | 'low' | null,
+  signal?: AbortSignal
+) {
+  const fetchUrl = new URL(url)
+
+  // TODO: In output: "export" mode, the headers do nothing. Omit them (and the
+  // cache busting search param) from the request so they're
+  // maximally cacheable.
+  setCacheBustingSearchParam(fetchUrl, headers)
+
+  if (process.env.__NEXT_TEST_MODE && fetchPriority !== null) {
+    headers['Next-Test-Fetch-Priority'] = fetchPriority
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  return fetch(fetchUrl, {
+    // Backwards compat for older browsers. `same-origin` is the default in modern browsers.
+    credentials: 'same-origin',
+    headers,
+    priority: fetchPriority || undefined,
+    signal,
+  })
+}
+
+export function createFromNextReadableStream(
+  flightStream: ReadableStream<Uint8Array>
+): Promise<unknown> {
+  return createFromReadableStream(flightStream, {
+    callServer,
+    findSourceMapURL,
+  })
+}
+
+function createUnclosingPrefetchStream(
+  originalFlightStream: ReadableStream<Uint8Array>
+): ReadableStream<Uint8Array> {
+  // When PPR is enabled, prefetch streams may contain references that never
+  // resolve, because that's how we encode dynamic data access. In the decoded
+  // object returned by the Flight client, these are reified into hanging
+  // promises that suspend during render, which is effectively what we want.
+  // The UI resolves when it switches to the dynamic data stream
+  // (via useDeferredValue(dynamic, static)).
+  //
+  // However, the Flight implementation currently errors if the server closes
+  // the response before all the references are resolved. As a cheat to work
+  // around this, we wrap the original stream in a new stream that never closes,
+  // and therefore doesn't error.
+  const reader = originalFlightStream.getReader()
+  return new ReadableStream({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (!done) {
+          // Pass to the target stream and keep consuming the Flight response
+          // from the server.
+          controller.enqueue(value)
+          continue
+        }
+        // The server stream has closed. Exit, but intentionally do not close
+        // the target stream.
+        return
+      }
+    },
+  })
 }

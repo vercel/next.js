@@ -1,5 +1,5 @@
 import type { AppRouterInstance } from '../app-router-context.shared-runtime'
-import type { Params } from '../../../client/components/params'
+import type { Params } from '../../../server/request/params'
 import type { NextRouter } from './router'
 
 import React, { useMemo, useRef } from 'react'

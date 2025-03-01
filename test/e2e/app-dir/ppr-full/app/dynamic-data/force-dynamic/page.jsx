@@ -4,7 +4,8 @@ import { ServerHtml } from '../../../components/server-html'
 
 export const dynamic = 'force-dynamic'
 
-export default ({ searchParams }) => {
+export default async (props) => {
+  const searchParams = await props.searchParams
   return (
     <>
       <ServerHtml />

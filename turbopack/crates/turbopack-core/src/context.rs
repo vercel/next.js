@@ -1,10 +1,12 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
     compile_time_info::CompileTimeInfo,
-    module::Module,
+    issue::module::emit_unknown_module_type_error,
+    module::{Module, OptionModule},
     reference_type::ReferenceType,
     resolve::{options::ResolveOptions, parse::Request, ModuleResolveResult, ResolveResult},
     source::Source,
@@ -13,7 +15,10 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub enum ProcessResult {
     /// A module was created.
-    Module(Vc<Box<dyn Module>>),
+    Module(ResolvedVc<Box<dyn Module>>),
+
+    /// A module could not be created (according to the rules, e.g. no module type was assigned)
+    Unknown(ResolvedVc<Box<dyn Source>>),
 
     /// Reference is ignored. This should lead to no module being included by
     /// the reference.
@@ -25,11 +30,27 @@ impl ProcessResult {
     #[turbo_tasks::function]
     pub async fn module(&self) -> Result<Vc<Box<dyn Module>>> {
         match *self {
-            ProcessResult::Module(m) => Ok(m),
+            ProcessResult::Module(m) => Ok(*m),
             ProcessResult::Ignore => {
                 bail!("Expected process result to be a module, but it was ignored")
             }
+            ProcessResult::Unknown(_) => {
+                bail!("Expected process result to be a module, but it could not be processed")
+            }
         }
+    }
+
+    /// Unwrap the module, or return None and emit an issue
+    #[turbo_tasks::function]
+    pub async fn try_into_module(&self) -> Result<Vc<OptionModule>> {
+        Ok(Vc::cell(match self {
+            ProcessResult::Module(module) => Some(*module),
+            ProcessResult::Unknown(source) => {
+                emit_unknown_module_type_error(**source).await?;
+                None
+            }
+            ProcessResult::Ignore => None,
+        }))
     }
 }
 

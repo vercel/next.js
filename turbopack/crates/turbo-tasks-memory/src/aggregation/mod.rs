@@ -22,12 +22,12 @@ mod root_query;
 #[cfg(test)]
 mod tests;
 mod uppers;
+mod util;
 
 pub use aggregation_data::{aggregation_data, AggregationDataGuard};
 use balance_edge::balance_edge;
 use increase::increase_aggregation_number_internal;
 pub use new_edge::handle_new_edge;
-use notify_lost_follower::notify_lost_follower;
 use notify_new_follower::notify_new_follower;
 pub use root_query::{query_root_info, RootQuery};
 
@@ -51,7 +51,7 @@ pub struct AggegatingNode<I, D> {
     uppers: CountHashSet<I>,
     followers: CountHashSet<I>,
     data: D,
-    enqueued_balancing: Vec<(I, u32, I, u32)>,
+    enqueued_balancing: Vec<(I, I)>,
 }
 
 impl<I, A> AggregationNode<I, A> {
@@ -107,6 +107,13 @@ impl<I, A> AggregationNode<I, A> {
         match self {
             AggregationNode::Leaf { .. } => None,
             AggregationNode::Aggegating(aggregating) => Some(&aggregating.followers),
+        }
+    }
+
+    fn followers_mut(&mut self) -> Option<&mut CountHashSet<I>> {
+        match self {
+            AggregationNode::Leaf { .. } => None,
+            AggregationNode::Aggegating(aggregating) => Some(&mut aggregating.followers),
         }
     }
 }
@@ -186,7 +193,7 @@ impl<C: AggregationContext, T: PreparedInternalOperation<C>, const N: usize>
 
 /// Context for aggregation operations.
 pub trait AggregationContext {
-    type NodeRef: Clone + Eq + Hash + Debug;
+    type NodeRef: Clone + Eq + Hash + Debug + 'static;
     type Guard<'l>: AggregationNodeGuard<
         NodeRef = Self::NodeRef,
         Data = Self::Data,
@@ -194,11 +201,18 @@ pub trait AggregationContext {
     >
     where
         Self: 'l;
-    type Data;
-    type DataChange;
+    type Data: 'static;
+    type DataChange: 'static;
 
     /// Gets mutable access to an item.
     fn node<'l>(&'l self, id: &Self::NodeRef) -> Self::Guard<'l>;
+
+    /// Gets mutable access to two items.
+    fn node_pair<'l>(
+        &'l self,
+        id1: &Self::NodeRef,
+        id2: &Self::NodeRef,
+    ) -> (Self::Guard<'l>, Self::Guard<'l>);
 
     /// Get the atomic in progress counter for a node.
     fn atomic_in_progress_counter<'l>(&self, id: &'l Self::NodeRef) -> &'l AtomicU32

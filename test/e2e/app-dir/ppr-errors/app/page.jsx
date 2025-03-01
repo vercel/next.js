@@ -11,7 +11,7 @@ export default async function Page() {
 
 async function Foobar() {
   try {
-    cookies()
+    await cookies()
   } catch (err) {}
   return null
 }

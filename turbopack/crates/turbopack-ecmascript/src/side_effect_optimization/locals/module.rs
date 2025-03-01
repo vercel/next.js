@@ -1,13 +1,14 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
 };
@@ -19,7 +20,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
-    EcmascriptAnalyzable, EcmascriptModuleAsset,
+    EcmascriptModuleAsset,
 };
 
 /// A module derived from an original ecmascript module that only contains the
@@ -27,13 +28,13 @@ use crate::{
 /// from [EcmascriptModuleFacadeModule] instead.
 #[turbo_tasks::value]
 pub struct EcmascriptModuleLocalsModule {
-    pub module: Vc<EcmascriptModuleAsset>,
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<EcmascriptModuleAsset>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<EcmascriptModuleAsset>) -> Vc<Self> {
         EcmascriptModuleLocalsModule { module }.cell()
     }
 }
@@ -41,16 +42,27 @@ impl EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+    fn ident(&self) -> Vc<AssetIdent> {
         let inner = self.module.ident();
 
-        Ok(inner.with_part(ModulePart::locals()))
+        inner.with_part(ModulePart::locals())
     }
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let result = self.module.analyze().await?;
-        Ok(result.local_references)
+        let result = self.module.analyze();
+        Ok(result.local_references())
+    }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+        let analyze = self.await?.module.analyze().await?;
+        if let Some(async_module) = *analyze.async_module.await? {
+            let is_self_async = async_module.is_self_async(self.references());
+            Ok(is_self_async)
+        } else {
+            Ok(Vc::cell(false))
+        }
     }
 }
 
@@ -93,7 +105,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
             exports,
             star_exports: vec![],
         }
-        .cell();
+        .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())
     }
 
@@ -112,16 +124,18 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(
             EcmascriptModuleLocalsChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),
-        ))
+        )
     }
 }

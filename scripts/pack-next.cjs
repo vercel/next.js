@@ -6,6 +6,7 @@ const {
   exec,
   execAsyncWithOutput,
   glob,
+  namedValueArg,
   packageFiles,
 } = require('./pack-util.cjs')
 const fs = require('fs')
@@ -16,8 +17,9 @@ const args = process.argv.slice(2)
 const TARBALLS = `${NEXT_DIR}/tarballs`
 const NEXT_PACKAGES = `${NEXT_DIR}/packages`
 const noBuild = booleanArg(args, '--no-build')
+const projectPath = namedValueArg(args, '--project')
 
-;(async () => {
+async function main() {
   // the debuginfo on macos is much smaller, so we don't typically need to strip
   const DEFAULT_PACK_NEXT_COMPRESS =
     process.platform === 'darwin' ? 'none' : 'strip'
@@ -99,14 +101,16 @@ const noBuild = booleanArg(args, '--no-build')
         await packWithTar(packagePath, NEXT_SWC_TARBALL)
         break
       case 'objcopy-zstd':
+      case 'objcopy-zlib':
         if (process.platform !== 'linux') {
-          throw new Error('objcopy-zstd is only supported on Linux')
+          throw new Error('objcopy-{zstd,zlib} is only supported on Linux')
         }
+        const format = PACK_NEXT_COMPRESS == 'objcopy-zstd' ? 'zstd' : 'zlib'
         await Promise.all(
           (await nextSwcBinaries()).map((bin) =>
             execAsyncWithOutput(
               'Compressing debug symbols in next-swc native binary',
-              ['objcopy', '--compress-debug-sections=zstd', '--', bin]
+              ['objcopy', `--compress-debug-sections=${format}`, '--', bin]
             )
           )
         )
@@ -117,7 +121,8 @@ const noBuild = booleanArg(args, '--no-build')
         break
       default:
         throw new Error(
-          "PACK_NEXT_COMPRESS must be one of 'strip', 'objcopy-zstd', or 'none'"
+          "PACK_NEXT_COMPRESS must be one of 'strip', 'objcopy-zstd', " +
+            "'objcopy-zlib', or 'none'"
         )
     }
   }
@@ -135,28 +140,51 @@ const noBuild = booleanArg(args, '--no-build')
     ),
   ])
 
-  console.log('Add the following overrides to your workspace package.json:')
-  console.log(`  "pnpm": {`)
-  console.log(`    "overrides": {`)
-  console.log(`      "next": ${JSON.stringify(`file:${NEXT_TARBALL}`)},`)
-  console.log(
-    `      "@next/mdx": ${JSON.stringify(`file:${NEXT_MDX_TARBALL}`)},`
-  )
-  console.log(
-    `      "@next/env": ${JSON.stringify(`file:${NEXT_ENV_TARBALL}`)},`
-  )
-  console.log(
-    `      "@next/bundle-analyzer": ${JSON.stringify(
-      `file:${NEXT_BA_TARBALL}`
-    )}`
-  )
-  console.log(`    }`)
-  console.log(`  }`)
-  console.log()
-  console.log('Add the following dependencies to your workspace package.json:')
-  console.log(`  "dependencies": {`)
-  console.log(`    "@next/swc": ${JSON.stringify(`file:${NEXT_SWC_TARBALL}`)},`)
-  console.log(`    ...`)
-  console.log(`  }`)
-  console.log()
-})()
+  if (projectPath != null) {
+    await execAsyncWithOutput(`Update package.json for ${projectPath}`, [
+      'cargo',
+      'xtask',
+      'patch-package-json',
+      projectPath,
+      `--next-tarball=${NEXT_TARBALL}`,
+      `--next-mdx-tarball=${NEXT_MDX_TARBALL}`,
+      `--next-env-tarball=${NEXT_ENV_TARBALL}`,
+      `--next-bundle-analyzer-tarball=${NEXT_BA_TARBALL}`,
+      `--next-swc-tarball=${NEXT_SWC_TARBALL}`,
+    ])
+  } else {
+    console.log('Add the following overrides to your workspace package.json:')
+    console.log(`  "pnpm": {`)
+    console.log(`    "overrides": {`)
+    console.log(`      "next": ${JSON.stringify(`file:${NEXT_TARBALL}`)},`)
+    console.log(
+      `      "@next/mdx": ${JSON.stringify(`file:${NEXT_MDX_TARBALL}`)},`
+    )
+    console.log(
+      `      "@next/env": ${JSON.stringify(`file:${NEXT_ENV_TARBALL}`)},`
+    )
+    console.log(
+      `      "@next/bundle-analyzer": ${JSON.stringify(
+        `file:${NEXT_BA_TARBALL}`
+      )}`
+    )
+    console.log(`    }`)
+    console.log(`  }`)
+    console.log()
+    console.log(
+      'Add the following dependencies to your workspace package.json:'
+    )
+    console.log(`  "dependencies": {`)
+    console.log(
+      `    "@next/swc": ${JSON.stringify(`file:${NEXT_SWC_TARBALL}`)},`
+    )
+    console.log(`    ...`)
+    console.log(`  }`)
+    console.log()
+  }
+}
+
+main().catch((e) => {
+  console.error(e)
+  process.exit(1)
+})

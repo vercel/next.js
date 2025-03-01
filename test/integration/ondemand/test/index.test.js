@@ -34,8 +34,8 @@ const startServer = async (optEnv = {}, opts) => {
   beforeAll(async () => {
     await startServer()
   })
-  afterAll(() => {
-    killApp(context.server)
+  afterAll(async () => {
+    await killApp(context.server)
   })
 
   it('should compile pages for SSR', async () => {

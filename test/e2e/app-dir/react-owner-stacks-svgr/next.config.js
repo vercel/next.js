@@ -3,10 +3,6 @@
  */
 const nextConfig = {
   experimental: {
-    // Enabling PPR to force using the react experimental channel, which
-    // implements React owner stacks.
-    ppr: true,
-    pprFallbacks: true,
     turbo: {
       rules: {
         '*.svg': {

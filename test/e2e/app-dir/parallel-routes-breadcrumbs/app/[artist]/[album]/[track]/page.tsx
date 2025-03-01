@@ -1,10 +1,11 @@
 import Link from 'next/link'
 
-export default function Page({ params }) {
+export default async function Page({ params }) {
+  const { artist, album, track } = await params
   return (
     <div>
-      <h2>Track: {params.track}</h2>
-      <Link href={`/${params.artist}/${params.album}`}>Back to album</Link>
+      <h2>Track: {track}</h2>
+      <Link href={`/${artist}/${album}`}>Back to album</Link>
     </div>
   )
 }

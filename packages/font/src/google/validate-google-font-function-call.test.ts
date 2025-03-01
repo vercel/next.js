@@ -101,7 +101,19 @@ describe('validateFontFunctionCall errors', () => {
         subsets: ['latin'],
       })
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Axes can only be defined for variable fonts"`
+      `"Axes can only be defined for variable fonts."`
+    )
+  })
+
+  test('Setting axes on variable font with incorrect weight', async () => {
+    expect(() =>
+      validateGoogleFontFunctionCall('Roboto_Flex', {
+        weight: ['400', '700'],
+        axes: ['wght'],
+        subsets: ['latin'],
+      })
+    ).toThrowErrorMatchingInlineSnapshot(
+      '"Axes can only be defined for variable fonts when the weight property is nonexistent or set to `variable`."'
     )
   })
 })

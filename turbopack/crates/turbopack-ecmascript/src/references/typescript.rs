@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
@@ -15,14 +16,17 @@ use crate::typescript::TsConfigModuleAsset;
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
 pub struct TsConfigReference {
-    pub tsconfig: Vc<FileSystemPath>,
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub tsconfig: ResolvedVc<FileSystemPath>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
 }
 
 #[turbo_tasks::value_impl]
 impl TsConfigReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, tsconfig: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        tsconfig: ResolvedVc<FileSystemPath>,
+    ) -> Vc<Self> {
         Self::cell(TsConfigReference { tsconfig, origin })
     }
 }
@@ -30,12 +34,12 @@ impl TsConfigReference {
 #[turbo_tasks::value_impl]
 impl ModuleReference for TsConfigReference {
     #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(Vc::upcast(TsConfigModuleAsset::new(
-            self.origin,
-            Vc::upcast(FileSource::new(self.tsconfig)),
+    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        Ok(*ModuleResolveResult::module(ResolvedVc::upcast(
+            TsConfigModuleAsset::new(*self.origin, Vc::upcast(FileSource::new(*self.tsconfig)))
+                .to_resolved()
+                .await?,
         )))
-        .into()
     }
 }
 
@@ -52,14 +56,14 @@ impl ValueToString for TsConfigReference {
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferencePathAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub path: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, path: RcStr) -> Vc<Self> {
+    pub fn new(origin: ResolvedVc<Box<dyn ResolveOrigin>>, path: RcStr) -> Vc<Self> {
         Self::cell(TsReferencePathAssetReference { origin, path })
     }
 }
@@ -80,15 +84,17 @@ impl ModuleReference for TsReferencePathAssetReference {
                     .origin
                     .asset_context()
                     .process(
-                        Vc::upcast(FileSource::new(*path)),
+                        Vc::upcast(FileSource::new(**path)),
                         Value::new(ReferenceType::TypeScript(
                             TypeScriptReferenceSubType::Undefined,
                         )),
                     )
-                    .module();
-                ModuleResolveResult::module(module).cell()
+                    .module()
+                    .to_resolved()
+                    .await?;
+                *ModuleResolveResult::module(module)
             } else {
-                ModuleResolveResult::unresolveable().cell()
+                *ModuleResolveResult::unresolvable()
             },
         )
     }
@@ -97,24 +103,22 @@ impl ModuleReference for TsReferencePathAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("typescript reference path comment {}", self.path,).into(),
-        ))
+    async fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("typescript reference path comment {}", self.path,).into())
     }
 }
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct TsReferenceTypeAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub module: RcStr,
 }
 
 #[turbo_tasks::value_impl]
 impl TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    pub fn new(origin: Vc<Box<dyn ResolveOrigin>>, module: RcStr) -> Vc<Self> {
+    pub fn new(origin: ResolvedVc<Box<dyn ResolveOrigin>>, module: RcStr) -> Vc<Self> {
         Self::cell(TsReferenceTypeAssetReference { origin, module })
     }
 }
@@ -124,7 +128,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         type_resolve(
-            self.origin,
+            *self.origin,
             Request::module(
                 self.module.clone(),
                 Value::new(RcStr::default().into()),
@@ -138,9 +142,7 @@ impl ModuleReference for TsReferenceTypeAssetReference {
 #[turbo_tasks::value_impl]
 impl ValueToString for TsReferenceTypeAssetReference {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("typescript reference type comment {}", self.module,).into(),
-        ))
+    async fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell(format!("typescript reference type comment {}", self.module,).into())
     }
 }

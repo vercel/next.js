@@ -5,7 +5,7 @@ import type {
 import type { Interface } from "../index.js";
 import datadogApiClient from "@datadog/datadog-api-client";
 import os from "os";
-import { command } from "../shell.js";
+import { CPU_ARCH, CPU_MODEL, GIT_BRANCH, GIT_SHA, IS_CI, NODE_VERSION, NUM_CPUS, OS, OS_RELEASE, USERNAME } from "./constants.js";
 
 function toIdentifier(str: string) {
   return str.replace(/\//g, ".").replace(/ /g, "_");
@@ -17,22 +17,6 @@ const UNIT_MAPPING: Record<string, string> = {
   bytes: "byte",
 };
 
-const GIT_SHA =
-  process.env.GITHUB_SHA ??
-  (await (async () => {
-    const cmd = command("git", ["rev-parse", "HEAD"]);
-    await cmd.ok();
-    return cmd.output.trim();
-  })());
-
-const GIT_BRANCH =
-  process.env.GITHUB_REF_NAME ??
-  (await (async () => {
-    const cmd = command("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
-    await cmd.ok();
-    return cmd.output.trim();
-  })());
-
 export default function createInterface({
   apiKey = process.env.DATADOG_API_KEY,
   appKey = process.env.DATADOG_APP_KEY,
@@ -41,15 +25,15 @@ export default function createInterface({
   if (!apiKey)
     throw new Error("Datadog API key is required (set DATADOG_API_KEY)");
   const commonTags = [
-    `ci:${!!process.env.CI || "false"}`,
-    `os:${process.platform}`,
-    `os_release:${os.release()}`,
-    `cpus:${os.cpus().length}`,
-    `cpu_model:${os.cpus()[0].model}`,
-    `user:${os.userInfo().username}`,
-    `arch:${os.arch()}`,
+    `ci:${IS_CI}`,
+    `os:${OS}`,
+    `os_release:${OS_RELEASE}`,
+    `cpus:${NUM_CPUS}`,
+    `cpu_model:${CPU_MODEL}`,
+    `user:${USERNAME}`,
+    `arch:${CPU_ARCH}`,
     `total_memory:${Math.round(os.totalmem() / 1024 / 1024 / 1024)}`,
-    `node_version:${process.version}`,
+    `node_version:${NODE_VERSION}`,
     `git_sha:${GIT_SHA}`,
     `git_branch:${GIT_BRANCH}`,
   ];

@@ -5,9 +5,13 @@ import type {
   NormalModule,
   Module,
   ModuleGraph,
+  Compiler,
 } from 'webpack'
-import { isAppRouteRoute } from '../../lib/is-app-route-route'
 import type { ModuleGraphConnection } from 'webpack'
+import { getAppLoader } from '../entries'
+import { spans as webpackCompilationSpans } from './plugins/profiling-plugin'
+import { compilationSpans as rspackCompilationSpans } from './plugins/rspack-profiling-plugin'
+import type { Span } from '../../trace'
 
 export function traverseModules(
   compilation: Compilation,
@@ -30,11 +34,11 @@ export function traverseModules(
       ) as Iterable<NormalModule>
       for (const mod of chunkModules) {
         const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
-        callback(mod, chunk, chunkGroup, modId)
+        if (modId) callback(mod, chunk, chunkGroup, modId)
         const anyModule = mod as any
         if (anyModule.modules) {
           for (const subMod of anyModule.modules)
-            callback(subMod, chunk, chunkGroup, modId)
+            if (modId) callback(subMod, chunk, chunkGroup, modId)
         }
       }
     })
@@ -48,11 +52,7 @@ export function forEachEntryModule(
 ) {
   for (const [name, entry] of compilation.entries.entries()) {
     // Skip for entries under pages/
-    if (
-      name.startsWith('pages/') ||
-      // Skip for route.js entries
-      (name.startsWith('app/') && isAppRouteRoute(name))
-    ) {
+    if (name.startsWith('pages/')) {
       continue
     }
 
@@ -65,17 +65,21 @@ export function forEachEntryModule(
 
     if (
       !request.startsWith('next-edge-ssr-loader?') &&
-      !request.startsWith('next-app-loader?')
+      !request.startsWith('next-edge-app-route-loader?') &&
+      !request.startsWith(`${getAppLoader()}?`)
     )
       continue
 
     let entryModule: NormalModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
 
-    if (request.startsWith('next-edge-ssr-loader?')) {
+    if (
+      request.startsWith('next-edge-ssr-loader?') ||
+      request.startsWith('next-edge-app-route-loader?')
+    ) {
       entryModule.dependencies.forEach((dependency) => {
         const modRequest: string | undefined = (dependency as any).request
-        if (modRequest?.includes('next-app-loader')) {
+        if (modRequest?.includes(getAppLoader())) {
           entryModule = compilation.moduleGraph.getResolvedModule(dependency)
         }
       })
@@ -96,6 +100,12 @@ export function getModuleReferencesInOrder(
   module: Module,
   moduleGraph: ModuleGraph
 ): ModuleGraphConnection[] {
+  if (
+    'getOutgoingConnectionsInOrder' in moduleGraph &&
+    typeof moduleGraph.getOutgoingConnectionsInOrder === 'function'
+  ) {
+    return moduleGraph.getOutgoingConnectionsInOrder(module)
+  }
   const connections = []
   for (const connection of moduleGraph.getOutgoingConnections(module)) {
     if (connection.dependency && connection.module) {
@@ -107,4 +117,14 @@ export function getModuleReferencesInOrder(
   }
   connections.sort((a, b) => a.index - b.index)
   return connections.map((c) => c.connection)
+}
+
+export function getCompilationSpan(
+  compilation: Compiler | Compilation
+): Span | undefined {
+  const compilationSpans = process.env.NEXT_RSPACK
+    ? rspackCompilationSpans
+    : webpackCompilationSpans
+
+  return compilationSpans.get(compilation)
 }

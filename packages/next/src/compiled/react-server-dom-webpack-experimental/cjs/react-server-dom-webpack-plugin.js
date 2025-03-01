@@ -95,7 +95,7 @@ class ClientReferenceDependency extends ModuleDependency {
 const clientFileName = require.resolve("../client.browser.js");
 class ReactFlightWebpackPlugin {
   constructor(options) {
-    this.ssrManifestFilename =
+    this.serverConsumerManifestFilename =
       this.clientManifestFilename =
       this.chunkName =
       this.clientReferences =
@@ -120,8 +120,8 @@ class ReactFlightWebpackPlugin {
       : (this.chunkName = "client[index]");
     this.clientManifestFilename =
       options.clientManifestFilename || "react-client-manifest.json";
-    this.ssrManifestFilename =
-      options.ssrManifestFilename || "react-ssr-manifest.json";
+    this.serverConsumerManifestFilename =
+      options.serverConsumerManifestFilename || "react-ssr-manifest.json";
   }
   apply(compiler) {
     const _this = this;
@@ -286,7 +286,7 @@ class ReactFlightWebpackPlugin {
               2
             );
             compilation.emitAsset(
-              _this.ssrManifestFilename,
+              _this.serverConsumerManifestFilename,
               new webpack.sources.RawSource(configuredCrossOriginLoading, !1)
             );
           }

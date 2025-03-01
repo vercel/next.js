@@ -1,9 +1,8 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     output::OutputAsset,
     source::Source,
 };
@@ -12,15 +11,15 @@ use crate::{
 /// This module has no references to other modules.
 #[turbo_tasks::value]
 pub struct RawOutput {
-    path: Vc<FileSystemPath>,
-    source: Vc<Box<dyn Source>>,
+    path: ResolvedVc<FileSystemPath>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for RawOutput {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 }
 
@@ -35,7 +34,10 @@ impl Asset for RawOutput {
 #[turbo_tasks::value_impl]
 impl RawOutput {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<FileSystemPath>, source: Vc<Box<dyn Source>>) -> Vc<RawOutput> {
+    pub fn new(
+        path: ResolvedVc<FileSystemPath>,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> Vc<RawOutput> {
         RawOutput { path, source }.cell()
     }
 }
