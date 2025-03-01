@@ -41,7 +41,7 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   StreamingMetadata: React.ComponentType<{}> | null
-  StreamingMetadataOutlet: React.ComponentType | null
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
