@@ -19,14 +19,15 @@ describe('dynamic-io', () => {
 
   if (isNextDev && !WITH_PPR) {
     async function hasStaticIndicator(browser: BrowserInterface) {
-      const staticIndicatorPresent = await browser.eval(() =>
-        Boolean(
+      await browser.elementByCss('[data-nextjs-dev-tools-button]').click()
+
+      return await browser.eval(
+        () =>
           document
             .querySelector('nextjs-portal')
-            .shadowRoot.querySelector('.nextjs-static-indicator-toast-wrapper')
-        )
+            .shadowRoot.querySelector('[data-nextjs-route-type]')
+            .getAttribute('data-nextjs-route-type') === 'static'
       )
-      return staticIndicatorPresent
     }
 
     it('should not have static indicator on dynamic method route', async () => {

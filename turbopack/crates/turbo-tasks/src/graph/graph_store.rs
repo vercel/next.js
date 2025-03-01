@@ -1,12 +1,14 @@
-use std::{collections::HashSet, hash::Hash};
+use std::hash::Hash;
+
+use rustc_hash::FxHashSet;
 
 use super::VisitedNodes;
 
 /// A graph store is a data structure that will be built up during a graph
 /// traversal. It is used to store the results of the traversal.
-pub trait GraphStore {
-    type Node;
-    type Handle: Clone;
+pub trait GraphStore: Send {
+    type Node: Send;
+    type Handle: Clone + Send;
 
     // TODO(alexkirsz) An `entry(from_handle) -> Entry` API would be more
     // efficient, as right now we're getting the same key multiple times.
@@ -53,7 +55,7 @@ where
     StoreImpl: GraphStore,
 {
     store: StoreImpl,
-    visited: HashSet<StoreImpl::Node>,
+    visited: FxHashSet<StoreImpl::Node>,
 }
 
 impl<StoreImpl> SkipDuplicates<StoreImpl>
@@ -63,11 +65,11 @@ where
     pub fn new(store: StoreImpl) -> Self {
         Self {
             store,
-            visited: Default::default(),
+            visited: FxHashSet::default(),
         }
     }
 
-    pub fn new_with_visited_nodes(store: StoreImpl, visited: HashSet<StoreImpl::Node>) -> Self {
+    pub fn new_with_visited_nodes(store: StoreImpl, visited: FxHashSet<StoreImpl::Node>) -> Self {
         Self { store, visited }
     }
 }

@@ -4,7 +4,7 @@ import type { Span } from '../trace'
 
 import path from 'path'
 import * as Log from './output/log'
-import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
+import { Worker } from '../lib/worker'
 import { verifyAndLint } from '../lib/verifyAndLint'
 import createSpinner from './spinner'
 import { eventTypeCheckCompleted } from '../telemetry/events'
@@ -30,19 +30,17 @@ function verifyTypeScriptSetup(
   hasAppDir: boolean,
   hasPagesDir: boolean
 ) {
-  const typeCheckWorker = new JestWorker(
+  const typeCheckWorker = new Worker(
     require.resolve('../lib/verify-typescript-setup'),
     {
+      exposedMethods: ['verifyTypeScriptSetup'],
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
     }
-  ) as JestWorker & {
+  ) as Worker & {
     verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
   }
-
-  typeCheckWorker.getStdout().pipe(process.stdout)
-  typeCheckWorker.getStderr().pipe(process.stderr)
 
   return typeCheckWorker
     .verifyTypeScriptSetup({

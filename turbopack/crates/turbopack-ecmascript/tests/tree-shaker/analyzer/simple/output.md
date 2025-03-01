@@ -130,13 +130,13 @@ graph TD
 ```
 {
     ModuleEvaluation: 3,
-    Exports: 4,
     Export(
         "CHIMERA",
     ): 1,
     Export(
         "DOG",
     ): 2,
+    Exports: 4,
 }
 ```
 
@@ -203,13 +203,13 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 3,
-    Exports: 4,
     Export(
         "CHIMERA",
     ): 1,
     Export(
         "DOG",
     ): 2,
+    Exports: 4,
 }
 ```
 

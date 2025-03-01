@@ -102,6 +102,7 @@ fn test(input: &Path, minify: bool) {
                         comments.clone(),
                         Default::default(),
                         unresolved_mark,
+                        Default::default(),
                     )
                 },
                 |_| noop_pass(),

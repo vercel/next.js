@@ -1,0 +1,13 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js"],"sourcesContent":["/** @jsxImportSource @emotion/react */\n\nimport { jsx } from \"@emotion/react\";\nimport styled from \"@emotion/styled\";\n\nconst StyledButton = styled.button`\n  background: blue;\n`;\n\nfunction ClassNameButton({ children }) {\n  return (\n    <button\n      className={css`\n        background: blue;\n      `}\n    >\n      {children}\n    </button>\n  );\n}\n\nconsole.log(StyledButton, ClassNameButton);\n"],"names":[],"mappings":"AAAA,oCAAoC;;AAEpC;AACA;;;;AAEA,MAAM,6BAAe,CAAA,GAAA,wMAAA,CAAA,UAAM,AAAD;;;AAI1B,SAAS,gBAAgB,EAAE,QAAQ,EAAE;IACnC,qBACE,uOAAC;QACC,WAAW,GAAG,CAAC;;MAEf,CAAC;kBAEA;;;;;;AAGP;AAEA,QAAQ,GAAG,CAAC,cAAc"}},
+    {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 35, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js"],"sourcesContent":["\"purposefully empty stub\";\n\"@emtion/react/jsx-dev-runtime.js\";\n"],"names":[],"mappings":"AAAA;AACA","ignoreList":[0]}},
+    {"offset": {"line": 37, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 42, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js"],"sourcesContent":["\"purposefully empty stub\";\n\"@emtion/react/index.js\";\n"],"names":[],"mappings":"AAAA;AACA","ignoreList":[0]}},
+    {"offset": {"line": 44, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 49, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/styled/index.js"],"sourcesContent":["\"purposefully empty stub\";\n\"@emtion/styled/index.js\";\n"],"names":[],"mappings":"AAAA;AACA","ignoreList":[0]}},
+    {"offset": {"line": 51, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

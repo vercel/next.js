@@ -364,8 +364,8 @@ graph TD
 {
     ModuleEvaluation: 12,
     Export(
-        "serverHooks",
-    ): 11,
+        "originalPathname",
+    ): 10,
     Export(
         "patchFetch",
     ): 11,
@@ -375,13 +375,13 @@ graph TD
     Export(
         "routeModule",
     ): 14,
-    Exports: 15,
+    Export(
+        "serverHooks",
+    ): 11,
     Export(
         "workAsyncStorage",
     ): 11,
-    Export(
-        "originalPathname",
-    ): 10,
+    Exports: 15,
 }
 ```
 
@@ -609,24 +609,24 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 12,
     Export(
+        "originalPathname",
+    ): 10,
+    Export(
         "patchFetch",
     ): 11,
     Export(
         "requestAsyncStorage",
     ): 13,
     Export(
+        "routeModule",
+    ): 14,
+    Export(
         "serverHooks",
     ): 15,
     Export(
-        "routeModule",
-    ): 14,
-    Exports: 17,
-    Export(
         "workAsyncStorage",
     ): 16,
-    Export(
-        "originalPathname",
-    ): 10,
+    Exports: 17,
 }
 ```
 

@@ -2,6 +2,7 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   check,
+  getRedboxDescription,
   getRedboxSource,
   retry,
 } from 'next-test-utils'
@@ -97,7 +98,7 @@ describe('middleware - development errors', () => {
               "\n  2 |       import { NextResponse } from 'next/server'"
           : '\n ⨯ unhandledRejection:  Error: async boom!' +
               '\n    at throwError (middleware.js:4:14)' +
-              '\n    at throwError (middleware.js:7:8)' +
+              '\n    at default (middleware.js:7:8)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
       expect(stripAnsi(next.cliOutput)).toContain(
@@ -154,8 +155,7 @@ describe('middleware - development errors', () => {
               // TODO(veil): Redundant and not clickable
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
               '\n    at eval (middleware.js:4:8)' +
-              // TODO(veil): Redundant
-              '\n    at eval (middleware.js:4:8)' +
+              '\n    at default (middleware.js:4:8)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
       expect(stripAnsi(next.cliOutput)).toContain(
@@ -166,7 +166,7 @@ describe('middleware - development errors', () => {
               '\n    at __TURBOPACK__default__export__ ('
           : "\n ⚠ DynamicCodeEvaluationWarning: Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime" +
               '\nLearn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation' +
-              '\n    at eval (middleware.js:4:8)' +
+              '\n    at default (middleware.js:4:8)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
     })
@@ -212,13 +212,13 @@ describe('middleware - development errors', () => {
         isTurbopack
           ? '\n ⨯ Error: booooom!' +
               // TODO(veil): Should be sourcemapped
-              '\n    at [project]/middleware.js [middleware] (ecmascript)'
+              '\n    at [project]/middleware.js [middleware-edge] (ecmascript)'
           : '\n ⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:12)' +
-              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:40:1)' +
+              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
               '\n    at __webpack_require__ '
       )
     })
@@ -331,9 +331,16 @@ describe('middleware - development errors', () => {
     it('renders the error correctly and recovers', async () => {
       const browser = await next.browser('/')
       await assertHasRedbox(browser)
-      expect(
-        await browser.elementByCss('#nextjs__container_errors_desc').text()
-      ).toEqual('Failed to compile')
+      const description = await getRedboxDescription(browser)
+      if (isTurbopack) {
+        expect(description).toMatchInlineSnapshot(
+          `"Parsing ecmascript source code failed"`
+        )
+      } else {
+        expect(description).toMatchInlineSnapshot(
+          `"Error:   x Expected '{', got '}'"`
+        )
+      }
       await next.patchFile('middleware.js', `export default function () {}`)
       await assertNoRedbox(browser)
       expect(await browser.elementByCss('#page-title')).toBeTruthy()

@@ -77,8 +77,6 @@ export default function Error({ error, reset }) {
 }
 ```
 
-## How `error.js` Works
-
 `error.js` wraps a route segment and its nested children in a [React Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary). When an error throws within the boundary, the `error` component shows as the fallback UI.
 
 <Image
@@ -92,10 +90,13 @@ export default function Error({ error, reset }) {
 > **Good to know**:
 >
 > - The [React DevTools](https://react.dev/learn/react-developer-tools) allow you to toggle error boundaries to test error states.
+> - If you want errors to bubble up to the parent error boundary, you can `throw` when rendering the `error` component.
 
-## Props
+## Reference
 
-### `error`
+### Props
+
+#### `error`
 
 An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Error) object forwarded to the `error.js` Client Component.
 
@@ -110,7 +111,7 @@ An instance of an [`Error`](https://developer.mozilla.org/docs/Web/JavaScript/Re
 
 An automatically generated hash of the error thrown. It can be used to match the corresponding error in server-side logs.
 
-### `reset`
+#### `reset`
 
 The cause of an error can sometimes be temporary. In these cases, trying again might resolve the issue.
 
@@ -148,9 +149,11 @@ export default function Error({ error, reset }) {
 }
 ```
 
-## `global-error.js`
+## Examples
 
-While less common, you can handle errors in the root layout or template using `app/global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags. This file replaces the root layout or template when active.
+### Global Error
+
+While less common, you can handle errors in the root layout or template using `global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/building-your-application/routing/internationalization). Global error UI must define its own `<html>` and `<body>` tags. This file replaces the root layout or template when active.
 
 ```tsx filename="app/global-error.tsx" switcher
 'use client' // Error boundaries must be Client Components
@@ -190,17 +193,12 @@ export default function GlobalError({ error, reset }) {
 }
 ```
 
-> **Good to know**:
->
-> - `global-error.js` is only enabled in production. In development, our error overlay will show instead.
-
-## not-found.js
-
-The [`not-found`](https://nextjs.org/docs/app/api-reference/file-conventions/not-found) file shows UI when calling the `notFound()` function within a route segment.
+> **Good to know**: `global-error.js` is always displayed In development, error overlay will show instead.
 
 ## Version History
 
-| Version   | Changes                    |
-| --------- | -------------------------- |
-| `v13.1.0` | `global-error` introduced. |
-| `v13.0.0` | `error` introduced.        |
+| Version   | Changes                                     |
+| --------- | ------------------------------------------- |
+| `v15.2.0` | display `global-error` also in development. |
+| `v13.1.0` | `global-error` introduced.                  |
+| `v13.0.0` | `error` introduced.                         |

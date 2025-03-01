@@ -1,6 +1,7 @@
-use std::{borrow::Cow, collections::HashSet, fmt::Display};
+use std::{borrow::Cow, fmt::Display};
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File};
@@ -18,7 +19,7 @@ use crate::source::{
 
 #[turbo_tasks::value(shared)]
 pub struct IntrospectionSource {
-    pub roots: HashSet<ResolvedVc<Box<dyn Introspectable>>>,
+    pub roots: FxHashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,7 +37,7 @@ impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
         let name = ResolvedVc::cell("root".into());
-        Vc::cell(self.roots.iter().map(|root| (name, **root)).collect())
+        Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
     }
 }
 

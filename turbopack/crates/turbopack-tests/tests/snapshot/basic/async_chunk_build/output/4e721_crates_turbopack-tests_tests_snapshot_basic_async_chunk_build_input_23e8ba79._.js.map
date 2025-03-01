@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js"],"sourcesContent":["import { foo } from \"foo\";\nimport { bar } from \"bar\";\nimport \"./shared\";\n\nfoo(true);\nbar(true);\n"],"names":[],"mappings":";AAAA;AACA;AACA;;;;AAEA,CAAA,GAAA,+NAAA,CAAA,MAAG,AAAD,EAAE;AACJ,CAAA,GAAA,+NAAA,CAAA,MAAG,AAAD,EAAE"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/node_modules/foo/index.js"],"sourcesContent":["export function foo(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;AAAO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB","ignoreList":[0]}},
+    {"offset": {"line": 28, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

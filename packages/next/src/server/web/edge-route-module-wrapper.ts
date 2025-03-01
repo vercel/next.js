@@ -82,7 +82,8 @@ export class EdgeRouteModuleWrapper {
     })
 
     const { params } = utils.normalizeDynamicRouteParams(
-      searchParamsToUrlQuery(request.nextUrl.searchParams)
+      searchParamsToUrlQuery(request.nextUrl.searchParams),
+      false
     )
 
     const waitUntil = evt.waitUntil.bind(evt)
@@ -110,8 +111,10 @@ export class EdgeRouteModuleWrapper {
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      },
+      sharedContext: {
+        buildId: '', // TODO: Populate this properly.
       },
     }
 

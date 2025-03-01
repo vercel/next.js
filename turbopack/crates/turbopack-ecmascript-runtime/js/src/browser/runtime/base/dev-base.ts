@@ -228,7 +228,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           R: createResolvePathFromModule(r),
           b: getWorkerBlobURL,
           z: requireStub,
-          __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
+          d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
         })
       );
     });

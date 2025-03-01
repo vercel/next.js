@@ -56,14 +56,20 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
+    | 'shouldWaitOnAllReady'
     | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
-    | 'buildId'
+    | 'dev'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
+
+  /**
+   * The build ID of the current build.
+   */
+  buildId: string
 }
 
 export function createWorkStore({
@@ -72,6 +78,7 @@ export function createWorkStore({
   renderOpts,
   requestEndedState,
   isPrefetchRequest,
+  buildId,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -91,6 +98,7 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
+    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction
@@ -112,15 +120,15 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
-    rootParams: {},
-
     requestEndedState,
     isPrefetchRequest,
-    buildId: renderOpts.buildId,
+    buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
 
     afterContext: createAfterContext(renderOpts),
+    dynamicIOEnabled: renderOpts.experimental.dynamicIO,
+    dev: renderOpts.dev ?? false,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

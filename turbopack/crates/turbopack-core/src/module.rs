@@ -4,7 +4,7 @@ use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Module: Asset {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
@@ -16,8 +16,9 @@ pub trait Module: Asset {
         ModuleReferences::empty()
     }
 
-    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![])
+    /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
     }
 }
 

@@ -96,8 +96,8 @@ The easiest way to generate an image is to use the [ImageResponse](/docs/app/api
 
 ```tsx filename="app/about/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -110,10 +110,10 @@ export const contentType = 'image/png'
 
 // Image generation
 export default async function Image() {
-  // Font
-  const interSemiBold = fetch(
-    new URL('./Inter-SemiBold.ttf', import.meta.url)
-  ).then((res) => res.arrayBuffer())
+  // Font loading, process.cwd() is Next.js project directory
+  const interSemiBold = await readFile(
+    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+  )
 
   return new ImageResponse(
     (
@@ -140,7 +140,7 @@ export default async function Image() {
       fonts: [
         {
           name: 'Inter',
-          data: await interSemiBold,
+          data: interSemiBold,
           style: 'normal',
           weight: 400,
         },
@@ -152,8 +152,8 @@ export default async function Image() {
 
 ```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -166,10 +166,10 @@ export const contentType = 'image/png'
 
 // Image generation
 export default async function Image() {
-  // Font
-  const interSemiBold = fetch(
-    new URL('./Inter-SemiBold.ttf', import.meta.url)
-  ).then((res) => res.arrayBuffer())
+  // Font loading, process.cwd() is Next.js project directory
+  const interSemiBold = await readFile(
+    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+  )
 
   return new ImageResponse(
     (
@@ -196,7 +196,7 @@ export default async function Image() {
       fonts: [
         {
           name: 'Inter',
-          data: await interSemiBold,
+          data: interSemiBold,
           style: 'normal',
           weight: 400,
         },
@@ -239,7 +239,6 @@ export default function Image({ params }) {
 | `app/shop/opengraph-image.js`              | `/shop`     | `undefined`               |
 | `app/shop/[slug]/opengraph-image.js`       | `/shop/1`   | `{ slug: '1' }`           |
 | `app/shop/[tag]/[item]/opengraph-image.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
-| `app/shop/[...slug]/opengraph-image.js`    | `/shop/1/2` | `{ slug: ['1', '2'] }`    |
 
 ### Returns
 
@@ -397,62 +396,6 @@ export default async function Image({ params }) {
     {
       ...size,
     }
-  )
-}
-```
-
-#### Using Edge runtime with local assets
-
-This example uses the Edge runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the example source file location.
-
-```tsx filename="app/opengraph-image.tsx" switcher
-import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
-
-export default async function Image() {
-  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
-    (res) => res.arrayBuffer()
-  )
-
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <img src={logoSrc} height="100" />
-      </div>
-    )
-  )
-}
-```
-
-```jsx filename="app/opengraph-image.js" switcher
-import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
-
-export default async function Image() {
-  const logoSrc = await fetch(new URL('./logo.png', import.meta.url)).then(
-    (res) => res.arrayBuffer()
-  )
-
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <img src={logoSrc} height="100" />
-      </div>
-    )
   )
 }
 ```

@@ -16,7 +16,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
@@ -25,7 +25,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -38,7 +38,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: [null, null],
+                head: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -51,7 +51,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: [null, null],
+                          head: null,
                           prefetchHead: null,
                           parallelRoutes: new Map(),
                           loading: null,
@@ -71,28 +71,19 @@ describe('clearCacheNodeDataForSegmentPath', () => {
 
     expect(cache).toMatchInlineSnapshot(`
      {
-       "head": [
-         null,
-         null,
-       ],
+       "head": null,
        "lazyData": null,
        "loading": null,
        "parallelRoutes": Map {
          "children" => Map {
            "linking" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
              "parallelRoutes": Map {
                "children" => Map {
                  "" => {
-                   "head": [
-                     null,
-                     null,
-                   ],
+                   "head": null,
                    "lazyData": null,
                    "loading": null,
                    "parallelRoutes": Map {},
@@ -111,10 +102,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
              </React.Fragment>,
            },
            "dashboard" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
              "parallelRoutes": Map {},

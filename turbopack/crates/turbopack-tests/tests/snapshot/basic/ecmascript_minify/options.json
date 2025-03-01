@@ -1,4 +1,8 @@
 {
   "runtime": "NodeJs",
-  "minifyType": "Minify"
+  "minifyType": {
+    "Minify": {
+      "mangle": true
+    }
+  }
 }

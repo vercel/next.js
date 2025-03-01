@@ -23,7 +23,7 @@ pub struct ResolvingIssue {
     pub file_path: ResolvedVc<FileSystemPath>,
     pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
-    pub source: Option<ResolvedVc<IssueSource>>,
+    pub source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,12 +35,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let request = self
-            .request
-            .request_pattern()
-            .to_string()
-            .await?
-            .clone_value();
+        let request = self.request.request_pattern().to_string().owned().await?;
         Ok(StyledString::Line(vec![
             StyledString::Strong("Module not found".into()),
             StyledString::Text(": Can't resolve ".into()),
@@ -122,13 +117,8 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match self.source {
-            Some(source) => Some(
-                source
-                    .resolve_source_map(*self.file_path)
-                    .to_resolved()
-                    .await?,
-            ),
+        Ok(Vc::cell(match &self.source {
+            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }

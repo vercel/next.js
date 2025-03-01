@@ -61,7 +61,9 @@ export function fillMetadataSegment(
   lastSegment: string
 ) {
   const pathname = normalizeAppPath(segment)
-  const routeRegex = getNamedRouteRegex(pathname, false)
+  const routeRegex = getNamedRouteRegex(pathname, {
+    prefixRouteKeys: false,
+  })
   const route = interpolateDynamicPath(pathname, params, routeRegex)
   const { name, ext } = path.parse(lastSegment)
   const pagePath = path.posix.join(segment, name)

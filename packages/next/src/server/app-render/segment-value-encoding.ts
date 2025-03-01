@@ -1,3 +1,4 @@
+import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { Segment as FlightRouterStateSegment } from './types'
 
 // TypeScript trick to simulate opaque types, like in Flow.
@@ -9,6 +10,18 @@ export function encodeSegment(
   segment: FlightRouterStateSegment
 ): EncodedSegment {
   if (typeof segment === 'string') {
+    if (segment.startsWith(PAGE_SEGMENT_KEY)) {
+      // The Flight Router State type sometimes includes the search params in
+      // the page segment. However, the Segment Cache tracks this as a separate
+      // key. So, we strip the search params here, and then add them back when
+      // the cache entry is turned back into a FlightRouterState. This is an
+      // unfortunate consequence of the FlightRouteState being used both as a
+      // transport type and as a cache key; we'll address this once more of the
+      // Segment Cache implementation has settled.
+      // TODO: We should hoist the search params out of the FlightRouterState
+      // type entirely, This is our plan for dynamic route params, too.
+      return PAGE_SEGMENT_KEY as EncodedSegment
+    }
     const safeName =
       // TODO: FlightRouterState encodes Not Found routes as "/_not-found".
       // But params typically don't include the leading slash. We should use
@@ -30,7 +43,7 @@ export function encodeSegment(
   return encodedName as EncodedSegment
 }
 
-export const ROOT_SEGMENT_KEY = '/'
+export const ROOT_SEGMENT_KEY = ''
 
 export function encodeChildSegmentKey(
   // TODO: Make segment keys an opaque type, too?
@@ -51,9 +64,7 @@ export function encodeChildSegmentKey(
       ? segment
       : `@${encodeToFilesystemAndURLSafeString(parallelRouteKey)}/${segment}`
 
-  return parentSegmentKey === ROOT_SEGMENT_KEY
-    ? '/' + slotKey
-    : parentSegmentKey + '/' + slotKey
+  return parentSegmentKey + '/' + slotKey
 }
 
 // Define a regex pattern to match the most common characters found in a route
@@ -74,4 +85,10 @@ function encodeToFilesystemAndURLSafeString(value: string) {
     .replace(/\//g, '_') // Replace '/' with '_'
     .replace(/=+$/, '') // Remove trailing '='
   return '!' + base64url
+}
+
+export function convertSegmentPathToStaticExportFilename(
+  segmentPath: string
+): string {
+  return `__next${segmentPath.replace(/\//g, '.')}.txt`
 }
