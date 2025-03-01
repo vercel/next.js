@@ -2446,6 +2446,7 @@ async function spawnDynamicValidationInDev(
     }
   )
 
+  let rootDidError = false
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
   try {
     const prerender = require('react-dom/static.edge')
@@ -2476,7 +2477,12 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
-                requestStore.usedDynamic = true
+                if (!rootDidError) {
+                  // If the root errored before we observe this error then it wasn't caused by something dynamic.
+                  // If the root did not error or is erroring because of a sync dynamic API or a prerender interrupt error
+                  // then we are a dynamic route.
+                  requestStore.usedDynamic = true
+                }
 
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
@@ -2501,6 +2507,7 @@ async function spawnDynamicValidationInDev(
       }
     )
   } catch (err) {
+    rootDidError = true
     if (
       isPrerenderInterruptedError(err) ||
       finalClientController.signal.aborted
