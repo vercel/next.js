@@ -21,6 +21,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloaderWebpack from '../../dev/hot-reloader-webpack'
+import { getVersionInfo } from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -189,6 +190,10 @@ async function startWatcher(opts: SetupOpts) {
       })
 
   await hotReloader.start()
+
+  // This is expensive job including `fetch()` so don't await here
+  // but only if needed i.e. `__next_root_layout_missing_tags` error.
+  globalThis.__NEXT_VERSION_INFO_INIT_PROMISE = getVersionInfo()
 
   if (opts.nextConfig.experimental.nextScriptWorkers) {
     await verifyPartytownSetup(

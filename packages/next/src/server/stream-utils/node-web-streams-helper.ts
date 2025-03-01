@@ -488,18 +488,20 @@ export function createRootLayoutValidatorStream(): TransformStream<
 
       controller.enqueue(chunk)
     },
-    flush(controller) {
+    async flush(controller) {
       const missingTags: typeof window.__next_root_layout_missing_tags = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
       if (!missingTags.length) return
 
+      const versionInfo = await globalThis.__NEXT_VERSION_INFO_INIT_PROMISE
+
       controller.enqueue(
         encoder.encode(
           `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
             missingTags
-          )}</script>`
+          )};self.__NEXT_VERSION_INFO_INIT=${JSON.stringify(versionInfo)};</script>`
         )
       )
     },

@@ -21,6 +21,7 @@ import type {
 import type { GetStaticPathsFallback } from './lib/fallback'
 
 import type { NextApiRequestCookies } from './server/api-utils'
+import type { VersionInfo } from './server/dev/parse-version-info'
 
 import next from './server/next'
 
@@ -319,6 +320,8 @@ declare global {
   var __NEXT_UNDICI_AGENT_SET: boolean
   var __NEXT_HTTP_AGENT: HttpAgent
   var __NEXT_HTTPS_AGENT: HttpsAgent
+  /** @internal development */
+  var __NEXT_VERSION_INFO_INIT_PROMISE: Promise<VersionInfo>
 }
 
 export default next

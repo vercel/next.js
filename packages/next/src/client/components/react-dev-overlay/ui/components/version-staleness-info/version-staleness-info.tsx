@@ -8,10 +8,28 @@ export function VersionStalenessInfo({
   versionInfo: VersionInfo
   isTurbopack?: boolean
 }) {
-  const { staleness } = versionInfo
-  let { text, indicatorClass, title } = getStaleness(versionInfo)
+  if (versionInfo.staleness === 'unknown') {
+    // This is only available for `__next_root_layout_missing_tags` error.
+    const versionInfoInit = window.__NEXT_VERSION_INFO_INIT
 
-  const shouldBeLink = staleness.startsWith('stale')
+    if (versionInfoInit) {
+      versionInfo = versionInfoInit
+    } else {
+      // This is attached during the initialization.
+      let installed = window.next.version
+
+      if (isTurbopack) {
+        // x.y.z-turbo -> x.y.z
+        installed = installed.split('-turbo')[0]
+      }
+
+      versionInfo.installed = installed
+    }
+  }
+
+  const { text, indicatorClass, title } = getStaleness(versionInfo)
+
+  const shouldBeLink = versionInfo.staleness.startsWith('stale')
   if (shouldBeLink) {
     return (
       <a
