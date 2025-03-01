@@ -88,7 +88,7 @@ describe('app-dir - metadata-streaming', () => {
     expect((await browser.elementsByCss('body meta')).length).toBe(9)
   })
 
-  it('should only insert metadata once for parallel routes', async () => {
+  it('should only insert metadata once for parallel routes when slots match', async () => {
     const browser = await next.browser('/parallel-routes')
 
     expect((await browser.elementsByCss('head title')).length).toBe(1)
@@ -99,6 +99,19 @@ describe('app-dir - metadata-streaming', () => {
 
     // validate behavior remains the same on client navigations
     await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
+  })
+
+  it('should only insert metadata once for parallel routes when there is a missing slot', async () => {
+    const browser = await next.browser('/parallel-routes')
+    await browser.elementByCss('[href="/parallel-routes/no-bar"]').click()
 
     await retry(async () => {
       expect(await browser.elementByCss('title').text()).toContain(

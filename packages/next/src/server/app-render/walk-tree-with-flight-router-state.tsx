@@ -40,7 +40,6 @@ export async function walkTreeWithFlightRouterState({
   getMetadataReady,
   ctx,
   preloadCallbacks,
-  StreamingMetadataOutlet,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -55,7 +54,6 @@ export async function walkTreeWithFlightRouterState({
   getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  StreamingMetadataOutlet: React.ComponentType<{}>
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -205,7 +203,7 @@ export async function walkTreeWithFlightRouterState({
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
         StreamingMetadata: null,
-        StreamingMetadataOutlet,
+        StreamingMetadataOutlet: null,
       }
     )
 
@@ -265,7 +263,6 @@ export async function walkTreeWithFlightRouterState({
       getViewportReady,
       getMetadataReady,
       preloadCallbacks,
-      StreamingMetadataOutlet,
     })
 
     for (const subPath of subPaths) {

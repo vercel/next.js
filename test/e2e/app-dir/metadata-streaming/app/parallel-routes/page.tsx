@@ -7,6 +7,7 @@ export default function Page() {
       <Link href="/parallel-routes/test-page">
         To /parallel-routes/test-page
       </Link>
+      <Link href="/parallel-routes/no-bar">To /parallel-routes/no-bar</Link>
     </div>
   )
 }
