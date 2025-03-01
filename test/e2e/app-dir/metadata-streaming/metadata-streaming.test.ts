@@ -96,6 +96,17 @@ describe('app-dir - metadata-streaming', () => {
 
     const $ = await next.render$('/parallel-routes')
     expect($('title').length).toBe(1)
+
+    // validate behavior remains the same on client navigations
+    await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
   })
 
   describe('dynamic api', () => {
