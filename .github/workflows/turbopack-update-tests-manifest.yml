@@ -3,7 +3,7 @@ name: Update Turbopack test manifest
 
 on:
   schedule:
-    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    # Every day at 7AM UTC https://crontab.guru/#0_7_*_*_*
     - cron: '0 7 * * *'
   workflow_dispatch:
 
@@ -41,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
-          SCRIPT: test/build-turbopack-dev-tests-manifest.js
+          SCRIPT: test/update_build_manifest.js --bundler turbopack --testSuite dev
           PR_TITLE: Update Turbopack development test manifest
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Turbopack.
   update_build_manifest:
@@ -77,6 +77,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
-          SCRIPT: test/build-turbopack-build-tests-manifest.js
+          SCRIPT: test/update_build_manifest.js --bundler turbopack --testSuite build
           PR_TITLE: Update Turbopack production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Turbopack.

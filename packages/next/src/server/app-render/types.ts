@@ -5,7 +5,6 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { ExpireTime } from '../lib/revalidate'
 import type {
   HeadData,
   LoadingModuleData,
@@ -183,7 +182,7 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
-  setAppIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -204,20 +203,20 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  htmlLimitedBots: string | undefined
+  streamingMetadata: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    expireTime: ExpireTime | undefined
+    expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
     clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
-    streamingMetadata: boolean
-    htmlLimitedBots: string | undefined
   }
   postponed?: string
 

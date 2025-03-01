@@ -603,12 +603,51 @@ expect(getRewrittenUrl(response)).toEqual('https://other-domain.com/docs')
 
 ## Runtime
 
-Middleware currently only supports APIs compatible with the [Edge runtime](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes). APIs exclusive to Node.js are [unsupported](/docs/app/api-reference/edge#unsupported-apis).
+Middleware defaults to using the Edge runtime. As of v15.2 (canary), we have experimental support for using the Node.js runtime. To enable, add the flag to your `next.config` file:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+const nextConfig = {
+  experimental: {
+    nodeMiddleware: true,
+  },
+}
+
+export default nextConfig
+```
+
+Then in your middleware file, set the runtime to `nodejs` in the `config` object:
+
+```js highlight={2} filename="middleware.js" switcher
+export const config = {
+  runtime: 'nodejs',
+}
+```
+
+```ts highlight={2} filename="middleware.ts" switcher
+export const config = {
+  runtime: 'nodejs',
+}
+```
+
+> **Note**: This feature is not yet recommended for production use. Therefore, Next.js will throw an error unless you are using the next@canary release instead of the stable release.
 
 ## Version History
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
+| `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
 | `v13.1.0` | Advanced Middleware flags added                                                               |
 | `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |
 | `v12.2.0` | Middleware is stable, please see the [upgrade guide](/docs/messages/middleware-upgrade-guide) |

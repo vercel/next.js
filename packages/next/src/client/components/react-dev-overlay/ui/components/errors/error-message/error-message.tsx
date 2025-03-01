@@ -50,12 +50,12 @@ export const styles = `
 
   .nextjs__container_errors_desc {
     margin: 0;
-    margin-left: var(--size-1);
+    margin-left: 4px;
     color: var(--color-red-900);
     font-weight: 500;
-    font-size: var(--size-font);
+    font-size: var(--size-16);
     letter-spacing: -0.32px;
-    line-height: var(--size-6);
+    line-height: var(--size-24);
     overflow-wrap: break-word;
     white-space: pre-wrap;
   }
@@ -92,7 +92,7 @@ export const styles = `
     box-shadow:
       0px 2px 2px var(--color-gray-alpha-100),
       0px 8px 8px -8px var(--color-gray-alpha-100);
-    font-size: 13px;
+    font-size: var(--size-13);
     cursor: pointer;
     color: var(--color-gray-900);
     font-weight: 500;

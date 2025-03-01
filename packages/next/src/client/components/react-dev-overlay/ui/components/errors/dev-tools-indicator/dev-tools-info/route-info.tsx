@@ -1,6 +1,6 @@
 import { DevToolsInfo } from './dev-tools-info'
 
-function StaticRouteContent() {
+function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   return (
     <article className="dev-tools-info-article">
       <p className="dev-tools-info-paragraph">
@@ -14,7 +14,11 @@ function StaticRouteContent() {
         background after{' '}
         <a
           className="dev-tools-info-link"
-          href="https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration"
+          href={
+            routerType === 'pages'
+              ? 'https://nextjs.org/docs/pages/building-your-application/data-fetching/incremental-static-regeneration'
+              : `https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration`
+          }
           target="_blank"
           rel="noopener noreferrer"
         >
@@ -31,7 +35,7 @@ function StaticRouteContent() {
   )
 }
 
-function DynamicRouteContent() {
+function DynamicRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
   return (
     <article className="dev-tools-info-article">
       <p className="dev-tools-info-paragraph">
@@ -45,42 +49,75 @@ function DynamicRouteContent() {
         to the user or has information that can only be known at request time,
         such as cookies or the URL's search params.
       </p>
-      <p className="dev-tools-info-paragraph">
-        During rendering, if a{' '}
-        <a
-          className="dev-tools-info-link"
-          href="https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-apis"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Dynamic API
-        </a>{' '}
-        or a{' '}
-        <a
-          className="dev-tools-info-link"
-          href="https://nextjs.org/docs/app/api-reference/functions/fetch"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          fetch
-        </a>{' '}
-        option of{' '}
-        <code className="dev-tools-info-code">{`{ cache: 'no-store' }`}</code>{' '}
-        is discovered, Next.js will switch to dynamically rendering the whole
-        route.
-      </p>
+      {routerType === 'pages' ? (
+        <p className="dev-tools-info-pagraph">
+          Exporting the{' '}
+          <a
+            className="dev-tools-info-link"
+            href="https://nextjs.org/docs/pages/building-your-application/data-fetching/get-server-side-props"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            getServerSideProps
+          </a>{' '}
+          function will opt the route into dynamic rendering. This function will
+          be called by the server on every request.
+        </p>
+      ) : (
+        <p className="dev-tools-info-paragraph">
+          During rendering, if a{' '}
+          <a
+            className="dev-tools-info-link"
+            href="https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-apis"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Dynamic API
+          </a>{' '}
+          or a{' '}
+          <a
+            className="dev-tools-info-link"
+            href="https://nextjs.org/docs/app/api-reference/functions/fetch"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            fetch
+          </a>{' '}
+          option of{' '}
+          <code className="dev-tools-info-code">{`{ cache: 'no-store' }`}</code>{' '}
+          is discovered, Next.js will switch to dynamically rendering the whole
+          route.
+        </p>
+      )}
     </article>
   )
 }
 
+const learnMoreLink = {
+  pages: {
+    static:
+      'https://nextjs.org/docs/pages/building-your-application/rendering/static-site-generation',
+    dynamic:
+      'https://nextjs.org/docs/pages/building-your-application/rendering/server-side-rendering',
+  },
+  app: {
+    static:
+      'https://nextjs.org/docs/app/building-your-application/rendering/server-components#static-rendering-default',
+    dynamic:
+      'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering',
+  },
+}
+
 export function RouteInfo({
   routeType,
+  routerType,
   isOpen,
   setIsOpen,
   setPreviousOpen,
   ...props
 }: {
   routeType: 'Static' | 'Dynamic'
+  routerType: 'pages' | 'app'
   isOpen: boolean
   setIsOpen: (isOpen: boolean) => void
   setPreviousOpen: (isOpen: boolean) => void
@@ -88,23 +125,25 @@ export function RouteInfo({
   ref?: React.RefObject<HTMLElement | null>
 }) {
   const isStaticRoute = routeType === 'Static'
-  const learnMoreLink = isStaticRoute
-    ? 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#static-rendering-default'
-    : 'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering'
+
+  const learnMore = isStaticRoute
+    ? learnMoreLink[routerType].static
+    : learnMoreLink[routerType].dynamic
   return (
     <DevToolsInfo
       {...props}
       title={`${routeType} Route`}
-      learnMoreLink={learnMoreLink}
+      learnMoreLink={learnMore}
       setIsOpen={setIsOpen}
       setPreviousOpen={setPreviousOpen}
     >
-      {isStaticRoute ? <StaticRouteContent /> : <DynamicRouteContent />}
+      {isStaticRoute ? (
+        <StaticRouteContent routerType={routerType} />
+      ) : (
+        <DynamicRouteContent routerType={routerType} />
+      )}
     </DevToolsInfo>
   )
 }
 
-export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = `
-  .dev-tools-info-link {
-  }
-`
+export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = ``

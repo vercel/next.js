@@ -327,10 +327,9 @@ function mergeViewport({
         target.colorScheme = source.colorScheme || null
         break
       default:
-        if (typeof source[key] !== 'undefined') {
-          // @ts-ignore viewport properties
-          target[key] = source[key]
-        }
+        // always override the target with the source
+        // @ts-ignore viewport properties
+        target[key] = source[key]
         break
     }
   }

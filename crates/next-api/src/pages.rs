@@ -843,7 +843,7 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_config_from_source(ssr_module).await?;
+        let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         let ssr_module = if is_edge {
@@ -957,12 +957,12 @@ impl PageEndpoint {
                 DynamicImportedChunks::default().resolved_cell()
             };
 
+            let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
+                .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.owned().await?;
-                let evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                    .context("could not process page loader entry module")?;
-                evaluatable_assets.push(evaluatable);
+                evaluatable_assets.push(ssr_module_evaluatable);
 
                 let edge_files = edge_chunking_context
                     .evaluated_chunk_group_assets(
@@ -992,8 +992,7 @@ impl PageEndpoint {
                 } = *chunking_context
                     .entry_chunk_group(
                         ssr_entry_chunk_path,
-                        *ssr_module,
-                        runtime_entries,
+                        runtime_entries.with_entry(*ssr_module_evaluatable),
                         module_graph,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
@@ -1475,7 +1474,11 @@ impl Endpoint for PageEndpoint {
 
         if let PageEndpointType::Html = this.ty {
             modules.push((
-                vec![self.client_module().to_resolved().await?],
+                self.client_evaluatable_assets()
+                    .await?
+                    .iter()
+                    .map(|m| ResolvedVc::upcast(*m))
+                    .collect(),
                 ChunkGroupType::Evaluated,
             ));
         }

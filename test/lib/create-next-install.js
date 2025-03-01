@@ -134,7 +134,7 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        combinedDependencies['@next/plugin-rspack'] = pkgPaths = pkgPaths.get(
+        combinedDependencies['@next/plugin-rspack'] = pkgPaths.get(
           '@next/plugin-rspack'
         )
       }
@@ -195,9 +195,7 @@ async function createNextInstall({
         // This is what the @next/plugin-rspack plugin does.
         // TODO: Load the plugin properly during test
         process.env.NEXT_RSPACK = 'true'
-        process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN = 'true'
-        process.env.BUILTIN_APP_LOADER = 'true'
-        process.env.BUILTIN_SWC_LOADER = 'true'
+        process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
       }
 
       return {

@@ -56,6 +56,7 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
+    | 'shouldWaitOnAllReady'
     | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
@@ -97,6 +98,7 @@ export function createWorkStore({
    * coalescing, and ISR continue working as intended.
    */
   const isStaticGeneration =
+    !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
     !renderOpts.isServerAction

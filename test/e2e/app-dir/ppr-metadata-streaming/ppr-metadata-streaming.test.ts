@@ -2,20 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 import { assertNoConsoleErrors } from 'next-test-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
 describe('ppr-metadata-streaming', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   // No dynamic APIs used in metadata
   describe('static metadata', () => {
@@ -103,7 +97,7 @@ describe('ppr-metadata-streaming', () => {
   if (!isNextDev && !isNextDeploy) {
     // This test is only relevant in production mode, as it's testing PPR results
     describe('html limited bots', () => {
-      it('should serve partial static shell when normal UA requests the page', async () => {
+      it('should serve partial static shell when normal UA requests the PPR page', async () => {
         const res1 = await next.fetch('/dynamic-page/partial')
         const res2 = await next.fetch('/dynamic-page/partial')
 
@@ -123,7 +117,7 @@ describe('ppr-metadata-streaming', () => {
         expect(headers.get('x-nextjs-postponed')).toBe('1')
       })
 
-      it('should not serve partial static shell when html limited bots requests the page', async () => {
+      it('should perform blocking and dynamic rendering when html limited bots requests the PPR page', async () => {
         const htmlLimitedBotUA = 'Discordbot'
         const res1 = await next.fetch('/dynamic-page/partial', {
           headers: {
@@ -150,6 +144,11 @@ describe('ppr-metadata-streaming', () => {
         // Two requests are dynamic and should not have the same data-date attribute
         expect(attribute2).toBeGreaterThan(attribute1)
         expect(attribute1).toBeTruthy()
+
+        // Should contain resolved suspense content
+        const bodyHtml = $1('body').html()
+        expect(bodyHtml).toContain('outer suspended component')
+        expect(bodyHtml).toContain('nested suspended component')
       })
     })
   }

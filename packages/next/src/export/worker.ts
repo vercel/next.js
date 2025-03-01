@@ -424,8 +424,8 @@ export async function exportPages(
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
-            streamingMetadata: nextConfig.experimental.streamingMetadata,
             buildId: input.buildId,
+            streamingMetadata: true,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {
@@ -591,7 +591,7 @@ async function exportPage(
   return {
     duration: Date.now() - start,
     ampValidations: result.ampValidations,
-    revalidate: result.revalidate,
+    cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,

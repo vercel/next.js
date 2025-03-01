@@ -433,17 +433,6 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   return null
 }
 
-function getServeStreamingMetadata(ctx: AppRenderContext) {
-  const isRoutePPREnabled = !!ctx.renderOpts.experimental.isRoutePPREnabled
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  // If the route is in PPR and the special env is not set, disable the streaming metadata.
-  // TODO: enable streaming metadata in PPR mode by default once it's ready.
-  if (isRoutePPREnabled && process.env.__NEXT_EXPERIMENTAL_PPR !== 'true') {
-    return false
-  }
-  return serveStreamingMetadata
-}
-
 /**
  * This is used by server actions & client-side navigations to generate RSC data from a client-side request.
  * This function is only called on "dynamic" requests (ie, there wasn't already a static response).
@@ -483,7 +472,7 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
@@ -803,7 +792,7 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const {
@@ -941,7 +930,7 @@ async function getErrorRSCPayload(
     workStore,
   } = ctx
 
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
@@ -1211,7 +1200,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setAppIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, null)
   }
 
   if (
@@ -1433,17 +1422,23 @@ async function renderToHTMLOrFlightImpl(
     // If force static is specifically set to false, we should not revalidate
     // the page.
     if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
-      metadata.revalidate = 0
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } else {
-      // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate =
-        response.collectedRevalidate >= INFINITE_CACHE
-          ? false
-          : response.collectedRevalidate
+      // Copy the cache control value onto the render result metadata.
+      metadata.cacheControl = {
+        revalidate:
+          response.collectedRevalidate >= INFINITE_CACHE
+            ? false
+            : response.collectedRevalidate,
+        expire:
+          response.collectedExpire >= INFINITE_CACHE
+            ? undefined
+            : response.collectedExpire,
+      }
     }
 
     // provide bailout info for debugging
-    if (metadata.revalidate === 0) {
+    if (metadata.cacheControl?.revalidate === 0) {
       metadata.staticBailoutInfo = {
         description: workStore.dynamicUsageDescription,
         stack: workStore.dynamicUsageStack,
@@ -1473,19 +1468,19 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       process.env.NODE_ENV === 'development' &&
-      renderOpts.setAppIsrStatus &&
+      renderOpts.setIsrStatus &&
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req) &&
       !isDevWarmupRequest
     ) {
-      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         if (!requestStore.usedDynamic && !workStore.forceDynamic) {
           // only node can be ISR so we only need to update the status here
           const { pathname } = new URL(req.url || '/', 'http://n')
-          setAppIsrStatus(pathname, true)
+          setIsrStatus(pathname, true)
         }
       })
     }
@@ -2451,6 +2446,7 @@ async function spawnDynamicValidationInDev(
     }
   )
 
+  let rootDidError = false
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
   try {
     const prerender = require('react-dom/static.edge')
@@ -2481,7 +2477,12 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
-                requestStore.usedDynamic = true
+                if (!rootDidError) {
+                  // If the root errored before we observe this error then it wasn't caused by something dynamic.
+                  // If the root did not error or is erroring because of a sync dynamic API or a prerender interrupt error
+                  // then we are a dynamic route.
+                  requestStore.usedDynamic = true
+                }
 
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
@@ -2506,6 +2507,7 @@ async function spawnDynamicValidationInDev(
       }
     )
   } catch (err) {
+    rootDidError = true
     if (
       isPrerenderInterruptedError(err) ||
       finalClientController.signal.aborted

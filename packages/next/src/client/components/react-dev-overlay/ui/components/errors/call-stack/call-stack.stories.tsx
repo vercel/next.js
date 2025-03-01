@@ -33,7 +33,7 @@ const frame = {
     column: 5,
   },
   originalCodeFrame: 'export default function MyComponent() {',
-  error: false,
+  error: false as const,
   reason: null,
   external: false,
   ignored: false,

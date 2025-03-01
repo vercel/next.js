@@ -7,7 +7,6 @@ use std::{
 use anyhow::{bail, Result};
 use either::Either;
 use indexmap::map::Entry;
-use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -15,15 +14,15 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
-    TaskInput, TryJoinIterExt, Vc,
+    TaskInput, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
     chunk::{ChunkGroupType, ChunkingType},
     module::Module,
     module_graph::{
-        get_node, GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
-        SingleModuleGraphNode,
+        get_node, get_node_idx, traced_di_graph::iter_neighbors_rev, GraphNodeIndex,
+        GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode,
     },
 };
 
@@ -94,11 +93,20 @@ pub struct ChunkGroupInfo {
 #[turbo_tasks::value_impl]
 impl ChunkGroupInfo {
     #[turbo_tasks::function]
-    pub fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
+    pub async fn get_index_of(&self, chunk_group: ChunkGroup) -> Result<Vc<usize>> {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
             Ok(Vc::cell(idx))
         } else {
-            bail!("Couldn't find chunk group index");
+            bail!(
+                "Couldn't find chunk group index for {} in {}",
+                chunk_group.debug_str(self).await?,
+                self.chunk_groups
+                    .iter()
+                    .map(|c| c.debug_str(self))
+                    .try_join()
+                    .await?
+                    .join(", ")
+            );
         }
     }
 }
@@ -141,6 +149,66 @@ impl ChunkGroup {
             | ChunkGroup::SharedMerged { entries, .. } => Either::Right(entries.iter().copied()),
         }
     }
+
+    pub async fn debug_str(&self, chunk_group_info: &ChunkGroupInfo) -> Result<String> {
+        Ok(match self {
+            ChunkGroup::Entry { entries, ty } => format!(
+                "ChunkGroup::Entry({:?}, {:?})",
+                ty,
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
+            ChunkGroup::Async(entry) => {
+                format!("ChunkGroup::Async({:?})", entry.ident().to_string().await?)
+            }
+            ChunkGroup::Isolated(entry) => {
+                format!(
+                    "ChunkGroup::Isolated({:?})",
+                    entry.ident().to_string().await?
+                )
+            }
+            ChunkGroup::Shared(entry) => {
+                format!("ChunkGroup::Shared({:?})", entry.ident().to_string().await?)
+            }
+            ChunkGroup::IsolatedMerged {
+                parent,
+                merge_tag,
+                entries,
+            } => {
+                format!(
+                    "ChunkGroup::IsolatedMerged({}, {}, {:?})",
+                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
+                        .await?,
+                    merge_tag,
+                    entries
+                        .iter()
+                        .map(|m| m.ident().to_string())
+                        .try_join()
+                        .await?
+                )
+            }
+            ChunkGroup::SharedMerged {
+                parent,
+                merge_tag,
+                entries,
+            } => {
+                format!(
+                    "ChunkGroup::SharedMerged({}, {}, {:?})",
+                    Box::pin(chunk_group_info.chunk_groups[*parent].debug_str(chunk_group_info))
+                        .await?,
+                    merge_tag,
+                    entries
+                        .iter()
+                        .map(|m| m.ident().to_string())
+                        .try_join()
+                        .await?
+                )
+            }
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -152,14 +220,14 @@ enum ChunkGroupKey {
     },
     /// a module with an incoming async edge
     Async(ResolvedVc<Box<dyn Module>>),
-    /// a module with an incoming non-merged isolated edge
+    /// a module with an incoming non-merging isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging isolated edge
     IsolatedMerged {
         parent: ChunkGroupId,
         merge_tag: RcStr,
     },
-    /// a module with an incoming merging shared edge
+    /// a module with an incoming non-merging shared edge
     Shared(ResolvedVc<Box<dyn Module>>),
     /// a module with an incoming merging shared edge
     SharedMerged {
@@ -176,14 +244,6 @@ impl Deref for ChunkGroupId {
     fn deref(&self) -> &Self::Target {
         &self.0
     }
-}
-
-fn iter_neighbors<N, E>(
-    graph: &DiGraph<N, E>,
-    node: NodeIndex,
-) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
-    let mut walker = graph.neighbors(node).detach();
-    std::iter::from_fn(move || walker.next(graph))
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -353,20 +413,23 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         // Start of a new chunk group, don't inherit anything from parent
                         let chunk_group_ids = chunk_groups.map(|chunk_group| {
                             let len = chunk_groups_map.len();
-                            let is_isolated_merged =
-                                matches!(chunk_group, ChunkGroupKey::IsolatedMerged { .. });
+                            let is_merged = matches!(
+                                chunk_group,
+                                ChunkGroupKey::IsolatedMerged { .. }
+                                    | ChunkGroupKey::SharedMerged { .. }
+                            );
                             match chunk_groups_map.entry(chunk_group) {
                                 Entry::Occupied(mut e) => {
-                                    let (id, isolated_merged_entries) = e.get_mut();
-                                    if is_isolated_merged {
-                                        isolated_merged_entries.insert(node.module);
+                                    let (id, merged_entries) = e.get_mut();
+                                    if is_merged {
+                                        merged_entries.insert(node.module);
                                     }
                                     **id
                                 }
                                 Entry::Vacant(e) => {
                                     let chunk_group_id = len as u32;
                                     let mut set = FxIndexSet::default();
-                                    if is_isolated_merged {
+                                    if is_merged {
                                         set.insert(node.module);
                                     }
                                     e.insert((ChunkGroupId(chunk_group_id), set));
@@ -443,9 +506,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
             while let Some(NodeWithPriority { node, .. }) = queue.pop() {
                 queue_set.remove(&node);
+                let (node_weight, node) = get_node_idx!(graphs, node)?;
                 let graph = &graphs[node.graph_idx].graph;
-                let node_weight = get_node!(graphs, node)?;
-                let neighbors = iter_neighbors(graph, node.node_idx);
+                let neighbors = iter_neighbors_rev(graph, node.node_idx);
 
                 visit_count += 1;
 
@@ -454,7 +517,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         graph_idx: node.graph_idx,
                         node_idx: succ,
                     };
-                    let succ_weight = get_node!(graphs, succ)?;
+                    let (succ_weight, succ) = get_node_idx!(graphs, succ)?;
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(
                         Some((node_weight, edge_weight)),
@@ -483,7 +546,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             module_chunk_groups,
             chunk_groups: chunk_groups_map
                 .into_iter()
-                .map(|(k, (_, isolated_merged_entries))| match k {
+                .map(|(k, (_, merged_entries))| match k {
                     ChunkGroupKey::Entry { entries, ty } => ChunkGroup::Entry { entries, ty },
                     ChunkGroupKey::Async(module) => ChunkGroup::Async(module),
                     ChunkGroupKey::Isolated(module) => ChunkGroup::Isolated(module),
@@ -491,14 +554,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         ChunkGroup::IsolatedMerged {
                             parent: parent.0 as usize,
                             merge_tag,
-                            entries: isolated_merged_entries.into_iter().collect(),
+                            entries: merged_entries.into_iter().collect(),
                         }
                     }
                     ChunkGroupKey::Shared(module) => ChunkGroup::Shared(module),
                     ChunkGroupKey::SharedMerged { parent, merge_tag } => ChunkGroup::SharedMerged {
                         parent: parent.0 as usize,
                         merge_tag,
-                        entries: isolated_merged_entries.into_iter().collect(),
+                        entries: merged_entries.into_iter().collect(),
                     },
                 })
                 .collect(),
