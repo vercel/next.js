@@ -16,6 +16,7 @@ use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        source_map::PURE_SP,
         util::take::Take,
         BytePos, FileName, Mark, Span, SyntaxContext, DUMMY_SP,
     },
@@ -32,6 +33,7 @@ use turbo_rcstr::RcStr;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
+    pub is_development: bool,
     pub use_cache_enabled: bool,
     pub hash_salt: String,
     pub cache_kinds: FxHashSet<RcStr>,
@@ -1859,7 +1861,17 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: ident.span,
+                                    // In development we generate these spans for sourcemapping with
+                                    // better logs/errors
+                                    // For production this is not generated because it would leak
+                                    // server code when available from the browser.
+                                    span: if self.config.is_react_server_layer
+                                        || self.config.is_development
+                                    {
+                                        ident.span
+                                    } else {
+                                        PURE_SP
+                                    },
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1876,8 +1888,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
-                        let call_expr_span = Span::dummy_with_cmt();
-                        self.comments.add_pure_comment(call_expr_span.lo);
+                        let dummy_pure_span = Span::dummy_with_cmt();
+                        self.comments.add_pure_comment(dummy_pure_span.lo);
 
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -1888,10 +1900,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
                                         name: Pat::Ident(
-                                            IdentName::new(export_name.clone(), ident.span).into(),
+                                            IdentName::new(
+                                                export_name.clone(),
+                                                // In development we generate these spans for
+                                                // sourcemapping with better logs/errors
+                                                // For production this is not generated because it
+                                                // would leak server code when available from the
+                                                // browser.
+                                                if self.config.is_react_server_layer
+                                                    || self.config.is_development
+                                                {
+                                                    ident.span
+                                                } else {
+                                                    DUMMY_SP
+                                                },
+                                            )
+                                            .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: call_expr_span,
+                                            span: dummy_pure_span,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),

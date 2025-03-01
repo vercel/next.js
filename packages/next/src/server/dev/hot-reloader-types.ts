@@ -7,6 +7,7 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../client/components/react-dev-overlay/types'
+import type { DevIndicatorServerState } from './dev-indicator-server-state'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -24,6 +25,7 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
   ISR_MANIFEST = 'isrManifest',
+  DEV_INDICATOR = 'devIndicator',
 }
 
 interface ServerErrorAction {
@@ -55,6 +57,7 @@ export interface SyncAction {
   versionInfo: VersionInfo
   updatedModules?: ReadonlyArray<string>
   debug?: DebugInfo
+  devIndicator: DevIndicatorServerState
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
@@ -116,6 +119,11 @@ export interface AppIsrManifestAction {
   data: Record<string, boolean>
 }
 
+export interface DevIndicatorAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_INDICATOR
+  devIndicator: DevIndicatorServerState
+}
+
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
@@ -132,6 +140,7 @@ export type HMR_ACTION_TYPES =
   | DevPagesManifestUpdateAction
   | ServerErrorAction
   | AppIsrManifestAction
+  | DevIndicatorAction
 
 export type TurbopackMsgToBrowser =
   | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }

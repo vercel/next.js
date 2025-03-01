@@ -212,23 +212,23 @@ export function Errors({
 
 export const styles = `
   .nextjs-error-with-static {
-    bottom: calc(var(--size-gap-double) * 4.5);
+    bottom: calc(16px * 4.5);
   }
   p.nextjs__container_errors__link {
-    font-size: 14px;
+    font-size: var(--size-14);
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-size: 14px;
+    font-size: var(--size-14);
     line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
-    margin-top: calc(var(--size-gap-double) + var(--size-gap));
+    margin-top: calc(16px + 8px);
   }
   .nextjs-container-errors-body > h2 {
     color: var(--color-title-color);
-    margin-bottom: var(--size-gap);
-    font-size: var(--size-font-big);
+    margin-bottom: 8px;
+    font-size: var(--size-20);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;
@@ -243,10 +243,10 @@ export const styles = `
     justify-content: flex-start;
   }
   .nextjs-toast-errors > svg {
-    margin-right: var(--size-gap);
+    margin-right: 8px;
   }
   .nextjs-toast-hide-button {
-    margin-left: var(--size-gap-triple);
+    margin-left: 24px;
     border: none;
     background: none;
     color: var(--color-ansi-bright-white);
@@ -262,20 +262,20 @@ export const styles = `
     background: none;
     border: none;
     color: var(--color-ansi-bright-white);
-    font-size: 1.5rem;
+    font-size: var(--size-24);
     padding: 0;
     margin: 0;
-    margin-left: var(--size-gap);
+    margin-left: 8px;
     transition: opacity 0.25s ease;
   }
   .nextjs__container_errors__error_title {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: var(--size-3_5);
+    margin-bottom: 14px;
   }
   .error-overlay-notes-container {
-    margin: var(--size-2) var(--size-0_5);
+    margin: 8px 2px;
   }
   .error-overlay-notes-container p {
     white-space: pre-wrap;

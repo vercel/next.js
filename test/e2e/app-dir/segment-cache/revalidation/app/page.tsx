@@ -1,5 +1,5 @@
 import { revalidatePath, revalidateTag } from 'next/cache'
-import { LinkAccordion } from '../components/link-accordion'
+import { LinkAccordion, FormAccordion } from '../components/link-accordion'
 import Link from 'next/link'
 
 export default async function Page() {
@@ -30,6 +30,11 @@ export default async function Page() {
           <LinkAccordion href="/greeting">
             Link to target page with prefetching enabled
           </LinkAccordion>
+        </li>
+        <li>
+          <FormAccordion action="/greeting">
+            Form pointing to target page with prefetching enabled
+          </FormAccordion>
         </li>
         <li>
           <Link prefetch={false} href="/greeting">

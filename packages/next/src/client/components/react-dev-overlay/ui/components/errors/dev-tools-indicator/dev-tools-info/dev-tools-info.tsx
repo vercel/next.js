@@ -8,34 +8,40 @@ export function DevToolsInfo({
 }: {
   title: string
   children: React.ReactNode
-  learnMoreLink: string
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
+  learnMoreLink?: string
+  setIsOpen?: (isOpen: boolean) => void
+  setPreviousOpen?: (isOpen: boolean) => void
 }) {
+  const hasActionButtons = Boolean(
+    learnMoreLink && setIsOpen && setPreviousOpen
+  )
+
   return (
     <div data-info-popover {...props}>
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
-        <div className="dev-tools-info-button-container">
-          <button
-            className="dev-tools-info-close-button"
-            onClick={() => {
-              setIsOpen(false)
-              setPreviousOpen(true)
-            }}
-          >
-            Close
-          </button>
-          <a
-            className="dev-tools-info-learn-more-button"
-            href={learnMoreLink}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Learn More
-          </a>
-        </div>
+        {hasActionButtons && (
+          <div className="dev-tools-info-button-container">
+            <button
+              className="dev-tools-info-close-button"
+              onClick={() => {
+                setIsOpen?.(false)
+                setPreviousOpen?.(true)
+              }}
+            >
+              Close
+            </button>
+            <a
+              className="dev-tools-info-learn-more-button"
+              href={learnMoreLink}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Learn More
+            </a>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -69,23 +75,23 @@ export const DEV_TOOLS_INFO_STYLES = `
   }
 
   .dev-tools-info-container {
-    padding: var(--size-1_5);
+    padding: 12px;
   }
 
   .dev-tools-info-title {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 20px;
+    font-size: var(--size-16);
+    font-weight: 600;
+    line-height: var(--size-20);
     margin: 0;
   }
 
   .dev-tools-info-article {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     margin: 0;
   }
   .dev-tools-info-paragraph {
@@ -98,15 +104,15 @@ export const DEV_TOOLS_INFO_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
   }
 
   .dev-tools-info-close-button {
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-gray-1000);
     border-radius: var(--rounded-md-2);
@@ -120,11 +126,11 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-learn-more-button {
     align-content: center;
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-background-100);
     border-radius: var(--rounded-md-2);

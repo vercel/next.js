@@ -19,23 +19,23 @@ export const DIALOG_HEADER_STYLES = `
     position: relative;
   }
   .nextjs-container-errors-header > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
+    font-size: var(--size-20);
+    line-height: var(--size-24);
     font-weight: bold;
-    margin: calc(var(--size-gap-double) * 1.5) 0;
+    margin: calc(16px * 1.5) 0;
     color: var(--color-title-h1);
   }
   .nextjs-container-errors-header small {
-    font-size: var(--size-font-small);
+    font-size: var(--size-14);
     color: var(--color-accents-1);
-    margin-left: var(--size-gap-double);
+    margin-left: 16px;
   }
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
   .nextjs-container-errors-header > div > small {
     margin: 0;
-    margin-top: var(--size-gap-half);
+    margin-top: 4px;
   }
   .nextjs-container-errors-header > p > a {
     color: inherit;
@@ -44,7 +44,7 @@ export const DIALOG_HEADER_STYLES = `
   .nextjs-container-errors-header
     > .nextjs-container-build-error-version-status {
     position: absolute;
-    top: var(--size-4);
-    right: var(--size-4);
+    top: 16px;
+    right: 16px;
   }
 `

@@ -966,8 +966,12 @@ async fn gen_content_with_code_gens(
 
             let source_map = if generate_source_map {
                 Some(
-                    generate_js_source_map(source_map.clone(), mappings, original_source_map)
-                        .await?,
+                    generate_js_source_map(
+                        source_map.clone(),
+                        mappings,
+                        original_source_map.await?.as_ref(),
+                    )
+                    .await?,
                 )
             } else {
                 None

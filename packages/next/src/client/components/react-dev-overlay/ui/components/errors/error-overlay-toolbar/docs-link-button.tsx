@@ -33,8 +33,8 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
   if (!docsURL) {
     return (
       <button
-        title="No related Next.js docs found"
-        aria-label="No related Next.js docs found"
+        title="No related documentation found"
+        aria-label="No related documentation found"
         className="docs-link-button"
         disabled
       >
@@ -49,8 +49,8 @@ export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
 
   return (
     <a
-      title="Go to related Next.js docs"
-      aria-label="Go to related Next.js docs"
+      title="Go to related documentation"
+      aria-label="Go to related documentation"
       className="docs-link-button"
       href={docsURL}
       target="_blank"
@@ -70,6 +70,7 @@ function DocsIcon(props: React.SVGProps<SVGSVGElement>) {
     <svg
       width="14"
       height="14"
+      viewBox="0 0 14 14"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       {...props}

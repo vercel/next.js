@@ -219,6 +219,7 @@ function getBaseSWCOptions({
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
+            isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
             cacheKinds: ['default', 'remote'].concat(

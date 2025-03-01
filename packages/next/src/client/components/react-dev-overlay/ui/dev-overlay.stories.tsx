@@ -17,6 +17,7 @@ type Story = StoryObj<typeof DevOverlay>
 
 const state: OverlayState = {
   nextId: 0,
+  routerType: 'app',
   buildError: null,
   disableDevIndicator: false,
   errors: [

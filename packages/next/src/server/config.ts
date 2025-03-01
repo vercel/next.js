@@ -29,6 +29,7 @@ import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
+import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -244,20 +245,18 @@ function assignDefaults(
     )
   }
 
-  if (
-    !process.env.__NEXT_VERSION?.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE &&
-    !process.env.NEXT_PRIVATE_LOCAL_DEV
-  ) {
+  if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.ppr) {
-      throw new CanaryOnlyError('experimental.ppr')
+      throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.dynamicIO) {
-      throw new CanaryOnlyError('experimental.dynamicIO')
+      throw new CanaryOnlyError({ feature: 'experimental.dynamicIO' })
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
-      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbo.unstablePersistentCaching',
+      })
     } else if (result.experimental?.nodeMiddleware) {
-      throw new CanaryOnlyError('experimental.nodeMiddleware')
+      throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
     }
   }
 
@@ -1369,15 +1368,4 @@ export function getConfiguredExperimentalFeatures(
     }
   }
   return configuredExperimentalFeatures
-}
-
-class CanaryOnlyError extends Error {
-  constructor(feature: string) {
-    super(
-      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
-    )
-    // This error is meant to interrupt the server start/build process
-    // but the stack trace isn't meaningful, as it points to internal code.
-    this.stack = undefined
-  }
 }

@@ -120,9 +120,14 @@ export const CODE_FRAME_STYLES = `
     border: 1px solid var(--color-gray-400);
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
-    font-size: 12px;
-    line-height: 16px;
-    margin: var(--size-2) 0;
+    font-size: var(--size-12);
+    line-height: var(--size-16);
+    margin: 8px 0;
+
+    svg {
+      width: var(--size-16);
+      height: var(--size-16);
+    }
   }
 
   .code-frame-link,
@@ -156,6 +161,7 @@ export const CODE_FRAME_STYLES = `
     margin: -4px 0 -4px auto;
     border-radius: var(--rounded-full);
     margin-left: auto;
+
     &:focus-visible {
       outline: var(--focus-ring);
       outline-offset: -2px;

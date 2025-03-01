@@ -7,7 +7,6 @@ import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
 import { originConsoleError } from '../components/globals/intercept-console-error'
-import { AppDevOverlayErrorBoundary } from '../components/react-dev-overlay/app/app-dev-overlay-error-boundary'
 import {
   ErrorBoundaryHandler,
   GlobalError as DefaultErrorBoundary,
@@ -19,12 +18,22 @@ export function onCaughtError(
 ) {
   const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
 
-  const isImplicitErrorBoundary =
-    (process.env.NODE_ENV !== 'production' &&
-      errorBoundaryComponent === AppDevOverlayErrorBoundary) ||
+  let isImplicitErrorBoundary
+
+  if (process.env.NODE_ENV !== 'production') {
+    const { AppDevOverlayErrorBoundary } =
+      require('../components/react-dev-overlay/app/app-dev-overlay-error-boundary') as typeof import('../components/react-dev-overlay/app/app-dev-overlay-error-boundary')
+
+    isImplicitErrorBoundary =
+      errorBoundaryComponent === AppDevOverlayErrorBoundary
+  }
+
+  isImplicitErrorBoundary =
+    isImplicitErrorBoundary ||
     (errorBoundaryComponent === ErrorBoundaryHandler &&
       (errorInfo.errorBoundary! as InstanceType<typeof ErrorBoundaryHandler>)
         .props.errorComponent === DefaultErrorBoundary)
+
   if (isImplicitErrorBoundary) {
     // We don't consider errors caught unless they're caught by an explicit error
     // boundary. The built-in ones are considered implicit.
