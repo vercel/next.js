@@ -281,6 +281,10 @@ export default function Home() {
 ```
 
 ```jsx filename="__tests__/index.test.js"
+/**
+ * @jest-environment jsdom
+ */
+
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import Home from '../pages/index'
@@ -316,6 +320,10 @@ export default function Page() {
 ```
 
 ```jsx filename="__tests__/page.test.jsx"
+/**
+ * @jest-environment jsdom
+ */
+
 import '@testing-library/jest-dom'
 import { render, screen } from '@testing-library/react'
 import Page from '../app/page'
@@ -338,6 +346,10 @@ Optionally, add a [snapshot test](https://jestjs.io/docs/snapshot-testing) to ke
 <PagesOnly>
 
 ```jsx filename="__tests__/snapshot.js"
+/**
+ * @jest-environment jsdom
+ */
+
 import { render } from '@testing-library/react'
 import Home from '../pages/index'
 
@@ -354,6 +366,10 @@ it('renders homepage unchanged', () => {
 <AppOnly>
 
 ```jsx filename="__tests__/snapshot.js"
+/**
+ * @jest-environment jsdom
+ */
+
 import { render } from '@testing-library/react'
 import Page from '../app/page'
 
