@@ -15,7 +15,6 @@ import v8 from 'v8'
 import path from 'path'
 import http from 'http'
 import https from 'https'
-import os from 'os'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
@@ -30,6 +29,7 @@ import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
+import { getDefaultTraceAttributes } from '../../trace/utils'
 import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
@@ -114,6 +114,7 @@ export async function startServer(
       handlersError = reject
     }
   )
+
   let requestHandler: WorkerRequestHandler = async (
     req: IncomingMessage,
     res: ServerResponse
@@ -124,6 +125,7 @@ export async function startServer(
     }
     throw new Error('Invariant request handler was not setup')
   }
+
   let upgradeHandler: WorkerUpgradeHandler = async (
     req,
     socket,
@@ -192,6 +194,7 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+
   server.on('upgrade', async (req, socket, head) => {
     try {
       await upgradeHandler(req, socket, head)
@@ -430,25 +433,38 @@ export async function startServer(
   }
 }
 
-if (process.env.NEXT_PRIVATE_WORKER && process.send) {
-  process.addListener('message', async (msg: any) => {
-    if (
-      msg &&
-      typeof msg === 'object' &&
-      msg.nextWorkerOptions &&
-      process.send
-    ) {
-      startServerSpan = trace('start-dev-server', undefined, {
-        cpus: String(os.cpus().length),
-        platform: os.platform(),
-        'memory.freeMem': String(os.freemem()),
-        'memory.totalMem': String(os.totalmem()),
-        'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
-      })
-      await startServerSpan.traceAsyncFn(() =>
-        startServer(msg.nextWorkerOptions)
+/**
+ * If Node.js is spawned with an IPC channel (aka a child process), process.send will be defined.
+ * If Node.js was not spawned with an IPC channel, process.send will be undefined.
+ *
+ * Reference: https://nodejs.org/api/process.html#processsendmessage-sendhandle-options-callback
+ */
+const isChildProcess = typeof process.send !== 'undefined'
+
+if (process.env.NEXT_PRIVATE_WORKER && isChildProcess) {
+  async function handleParentMessage(msg: unknown) {
+    const hasNextWorkerOptions =
+      msg && typeof msg === 'object' && 'nextWorkerOptions' in msg
+
+    if (hasNextWorkerOptions) {
+      startServerSpan = trace(
+        'start-dev-server',
+        undefined,
+        getDefaultTraceAttributes()
       )
+
+      await startServerSpan.traceAsyncFn(() =>
+        startServer(msg.nextWorkerOptions as StartServerOptions)
+      )
+
       const memoryUsage = process.memoryUsage()
+
+      /**
+       * @TODO
+       *
+       * Understand if we should add these attributes as part of the initial span creation
+       * or if adding them after the startServer call is more appropriate, and if so, why?
+       */
       startServerSpan.setAttribute('memory.rss', String(memoryUsage.rss))
       startServerSpan.setAttribute(
         'memory.heapTotal',
@@ -458,8 +474,11 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true, port: process.env.PORT })
+
+      process.send?.({ nextServerReady: true, port: process.env.PORT })
     }
-  })
-  process.send({ nextWorkerReady: true })
+  }
+
+  process.addListener('message', handleParentMessage)
+  process.send?.({ nextWorkerReady: true })
 }
