@@ -1673,15 +1673,19 @@ export async function copyTracedFiles(
   }
 
   await handleTraceFiles(path.join(distDir, 'next-server.js.nft.json'))
-  const serverOutputPath = path.join(
-    outputPath,
-    path.relative(tracingRoot, dir),
-    'server.js'
+
+  const serverOutputDir = path.join(outputPath, path.relative(tracingRoot, dir))
+
+  await fs.mkdir(serverOutputDir, { recursive: true })
+
+  const NEXT_CONFIG_JSON = 'next.config.json'
+  await fs.writeFile(
+    path.join(serverOutputDir, NEXT_CONFIG_JSON),
+    JSON.stringify(nextConfig, undefined, 4)
   )
-  await fs.mkdir(path.dirname(serverOutputPath), { recursive: true })
 
   await fs.writeFile(
-    serverOutputPath,
+    path.join(serverOutputDir, 'server.js'),
     `${
       moduleType
         ? `performance.mark('next-start');
@@ -1703,7 +1707,7 @@ const currentPort = parseInt(process.env.PORT, 10) || 3000
 const hostname = process.env.HOSTNAME || '0.0.0.0'
 
 let keepAliveTimeout = parseInt(process.env.KEEP_ALIVE_TIMEOUT, 10)
-const nextConfig = ${JSON.stringify(nextConfig)}
+const nextConfig = require(path.join(dir, '${NEXT_CONFIG_JSON}'))
 
 process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(nextConfig)
 
