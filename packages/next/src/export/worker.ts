@@ -256,9 +256,7 @@ async function exportPageImpl(
   // During the export phase in next build, if it's using PPR we can serve streaming metadata
   // when it's available. When we're building the PPR rendering result, we don't need to rely
   // on the user agent. The result can be determined to serve streaming on infrastructure level.
-  const serveStreamingMetadata = Boolean(
-    isRoutePPREnabled && input.streamingMetadata
-  )
+  const serveStreamingMetadata = !!isRoutePPREnabled
 
   const renderOpts: WorkerRenderOpts = {
     ...components,
@@ -425,7 +423,6 @@ export async function exportPages(
             enableExperimentalReact: needsExperimentalReact(nextConfig),
             sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
             buildId: input.buildId,
-            streamingMetadata: true,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {

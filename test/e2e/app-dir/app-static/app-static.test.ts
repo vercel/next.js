@@ -833,6 +833,10 @@ describe('app-dir static/dynamic handling', () => {
          "force-static/first.rsc",
          "force-static/second.html",
          "force-static/second.rsc",
+         "gen-params-catch-all-unique/foo/bar.html",
+         "gen-params-catch-all-unique/foo/bar.rsc",
+         "gen-params-catch-all-unique/foo/foo.html",
+         "gen-params-catch-all-unique/foo/foo.rsc",
          "gen-params-dynamic-revalidate/one.html",
          "gen-params-dynamic-revalidate/one.rsc",
          "hooks/use-pathname/slug.html",
@@ -1313,6 +1317,54 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/force-static/[slug]",
+         },
+         "/gen-params-catch-all-unique/foo/bar": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/gen-params-catch-all-unique/foo/bar.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gen-params-catch-all-unique/[...slug]",
+         },
+         "/gen-params-catch-all-unique/foo/foo": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/gen-params-catch-all-unique/foo/foo.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/gen-params-catch-all-unique/[...slug]",
          },
          "/gen-params-dynamic-revalidate/one": {
            "allowHeader": [
@@ -2429,6 +2481,31 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "fallback": null,
            "routeRegex": "^\\/force\\-static\\/([^\\/]+?)(?:\\/)?$",
+         },
+         "/gen-params-catch-all-unique/[...slug]": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/gen-params-catch-all-unique/[...slug].rsc",
+           "dataRouteRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)\\.rsc$",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "fallback": false,
+           "routeRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)(?:\\/)?$",
          },
          "/gen-params-dynamic-revalidate/[slug]": {
            "allowHeader": [
@@ -3678,6 +3755,13 @@ describe('app-dir static/dynamic handling', () => {
   })
 
   if (!process.env.CUSTOM_CACHE_HANDLER) {
+    it('should not filter out catch-all params with repeated segments in generateStaticParams', async () => {
+      const res1 = await next.fetch('/gen-params-catch-all-unique/foo/foo')
+      expect(res1.status).toBe(200)
+      const res2 = await next.fetch('/gen-params-catch-all-unique/foo/bar')
+      expect(res2.status).toBe(200)
+    })
+
     it('should honor dynamic = "force-static" correctly', async () => {
       const res = await next.fetch('/force-static/first')
       expect(res.status).toBe(200)

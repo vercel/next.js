@@ -387,7 +387,6 @@ async function exportAppImpl(
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
-    streamingMetadata: true,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,

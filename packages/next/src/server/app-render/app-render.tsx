@@ -522,6 +522,7 @@ async function generateDynamicRSCPayload(
             <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
+            {StreamingMetadata ? <StreamingMetadata /> : null}
             <StaticMetadata />
           </React.Fragment>
         ),
@@ -532,7 +533,6 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        StreamingMetadata,
         StreamingMetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
