@@ -1,3 +1,5 @@
+import type { HTMLProps } from 'react'
+import type { DevToolsInfoProps } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 
 function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
@@ -106,36 +108,27 @@ const learnMoreLink = {
     dynamic:
       'https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering',
   },
-}
+} as const
 
 export function RouteInfo({
   routeType,
   routerType,
-  isOpen,
-  setIsOpen,
-  setPreviousOpen,
   ...props
 }: {
-  routeType: 'Static' | 'Dynamic'
   routerType: 'pages' | 'app'
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
-  style?: React.CSSProperties
-  ref?: React.RefObject<HTMLElement | null>
-}) {
+} & DevToolsInfoProps &
+  HTMLProps<HTMLDivElement>) {
   const isStaticRoute = routeType === 'Static'
 
   const learnMore = isStaticRoute
     ? learnMoreLink[routerType].static
     : learnMoreLink[routerType].dynamic
+
   return (
     <DevToolsInfo
-      {...props}
       title={`${routeType} Route`}
       learnMoreLink={learnMore}
-      setIsOpen={setIsOpen}
-      setPreviousOpen={setPreviousOpen}
+      {...props}
     >
       {isStaticRoute ? (
         <StaticRouteContent routerType={routerType} />

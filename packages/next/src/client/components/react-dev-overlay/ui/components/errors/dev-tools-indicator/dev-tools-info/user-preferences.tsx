@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { DevToolsInfo } from './dev-tools-info'
+import { useState, type HTMLProps } from 'react'
 import { css } from '../../../../../utils/css'
-import type { DevToolsIndicatorPosition } from '../dev-tools-indicator'
 import EyeIcon from '../../../../icons/eye-icon'
 import { STORAGE_KEY_POSITION, STORAGE_KEY_THEME } from '../../../../../shared'
 import LightIcon from '../../../../icons/light-icon'
 import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
+import type { DevToolsInfoPropsCore } from './dev-tools-info'
+import { DevToolsInfo } from './dev-tools-info'
+import type { DevToolsIndicatorPosition } from '../dev-tools-indicator'
 
 function getInitialPreference() {
   if (typeof localStorage === 'undefined') {
@@ -18,19 +19,16 @@ function getInitialPreference() {
 }
 
 export function UserPreferences({
-  isOpen,
   setPosition,
   position,
   hide,
   ...props
 }: {
-  isOpen: boolean
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
   hide: () => void
-  style?: React.CSSProperties
-  ref?: React.RefObject<HTMLElement | null>
-}) {
+} & DevToolsInfoPropsCore &
+  HTMLProps<HTMLDivElement>) {
   // derive initial theme from system preference
   const [theme, setTheme] = useState(getInitialPreference())
 
