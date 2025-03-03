@@ -2,6 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  // TODO workaround for missing content hashing on output static files
+  // Browser caching would break this test case, but we want to test persistent caching.
+  deploymentId: true,
   turbopack: {
     rules: {
       'app/page.tsx': {
