@@ -36,6 +36,7 @@ export async function createApp({
   importAlias,
   skipInstall,
   empty,
+  api,
   turbopack,
   disableGit,
 }: {
@@ -51,6 +52,7 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  api?: boolean
   turbopack: boolean
   disableGit?: boolean
 }): Promise<void> {
@@ -64,8 +66,9 @@ export async function createApp({
     try {
       repoUrl = new URL(example)
     } catch (error: unknown) {
-      const err = error as Error & { code: string | undefined }
-      if (err.code !== 'ERR_INVALID_URL') {
+      const err = error as Error
+      // TypeError is thrown when the URL is invalid. Equivalent of doing `err.code !== "ERR_INVALID_URL"` in Node.js
+      if (!(err instanceof TypeError)) {
         console.error(error)
         process.exit(1)
       }
@@ -224,7 +227,7 @@ export async function createApp({
     await installTemplate({
       appName,
       root,
-      template,
+      template: api ? 'app-api' : template,
       mode,
       packageManager,
       isOnline,

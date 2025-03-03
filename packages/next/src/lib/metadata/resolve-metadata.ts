@@ -46,6 +46,7 @@ import {
   resolveVerification,
   resolveItunes,
   resolveFacebook,
+  resolvePagination,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
@@ -252,6 +253,14 @@ function mergeMetadata({
         )
         break
       }
+      case 'pagination': {
+        target.pagination = resolvePagination(
+          source.pagination,
+          metadataBase,
+          metadataContext
+        )
+        break
+      }
       // directly assign fields that fallback to null
       case 'applicationName':
       case 'description':
@@ -318,10 +327,9 @@ function mergeViewport({
         target.colorScheme = source.colorScheme || null
         break
       default:
-        if (typeof source[key] !== 'undefined') {
-          // @ts-ignore viewport properties
-          target[key] = source[key]
-        }
+        // always override the target with the source
+        // @ts-ignore viewport properties
+        target[key] = source[key]
         break
     }
   }

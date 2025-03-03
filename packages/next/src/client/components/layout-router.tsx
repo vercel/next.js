@@ -215,6 +215,14 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
       // If the element is skipped, try to select the next sibling and try again.
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (domNode.parentElement?.localName === 'head') {
+            // TODO: We enter this state when metadata was rendered as part of the page or via Next.js.
+            // This is always a bug in Next.js and caused by React hoisting metadata.
+            // We need to replace `findDOMNode` in favor of Fragment Refs (when available) so that we can skip over metadata.
+          }
+        }
+
         // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
@@ -344,10 +352,6 @@ function InnerLayoutRouter({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `rsc`.
   const rsc: any = useDeferredValue(cacheNode.rsc, resolvedPrefetchRsc)
 
   // `rsc` is either a React node or a promise for a React node, except we
@@ -389,6 +393,9 @@ function InnerLayoutRouter({
 
         return serverResponse
       })
+
+      // Suspend while waiting for lazyData to resolve
+      use(lazyData)
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -549,7 +556,7 @@ export default function OuterLayoutRouter({
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,

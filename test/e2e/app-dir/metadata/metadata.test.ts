@@ -82,6 +82,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -117,6 +119,8 @@ describe('app dir - metadata', () => {
         preconnect: '/preconnect-url',
         preload: '/api/preload',
         'dns-prefetch': '/dns-prefetch-url',
+        prev: '/basic?page=1',
+        next: '/basic?page=3',
       })
 
       // Manifest link should have crossOrigin attribute
@@ -769,6 +773,14 @@ describe('app dir - metadata', () => {
       const matchMultiDom = createMultiDomMatcher(browser)
       await matchMultiDom('meta', 'name', 'content', {
         'theme-color': '#000',
+      })
+    })
+
+    it('should skip initial-scale from viewport if it is set to undefined', async () => {
+      const browser = await next.browser('/viewport/skip-initial-scale')
+      const matchMultiDom = createMultiDomMatcher(browser)
+      await matchMultiDom('meta', 'name', 'content', {
+        viewport: 'width=device-width',
       })
     })
   })

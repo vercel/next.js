@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -45,7 +43,20 @@ struct CustomRoutes {
 pub struct ModularizeImports(FxIndexMap<String, ModularizeImportPackageConfig>);
 
 #[turbo_tasks::value(transparent)]
+#[derive(Clone, Debug)]
 pub struct CacheKinds(FxHashSet<RcStr>);
+
+impl CacheKinds {
+    pub fn extend<I: IntoIterator<Item = RcStr>>(&mut self, iter: I) {
+        self.0.extend(iter);
+    }
+}
+
+impl Default for CacheKinds {
+    fn default() -> Self {
+        CacheKinds(["default", "remote"].iter().map(|&s| s.into()).collect())
+    }
+}
 
 #[turbo_tasks::value(serialization = "custom", eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, OperationValue)]
@@ -201,9 +212,18 @@ pub enum BuildActivityPositions {
     OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
-pub struct DevIndicatorsConfig {
-    pub build_activity: Option<bool>,
+pub struct DevIndicatorsOptions {
     pub build_activity_position: Option<BuildActivityPositions>,
+    pub position: Option<BuildActivityPositions>,
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(untagged)]
+pub enum DevIndicatorsConfig {
+    WithOptions(DevIndicatorsOptions),
+    Boolean(bool),
 }
 
 #[derive(
@@ -524,6 +544,7 @@ pub struct ExperimentalTurboConfig {
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
+    pub source_maps: Option<bool>,
     pub unstable_persistent_caching: Option<bool>,
 }
 
@@ -566,7 +587,7 @@ pub enum LoaderItem {
 }
 
 #[turbo_tasks::value(operation)]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIdStrategy {
     Named,
@@ -665,6 +686,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
+    use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -723,6 +745,7 @@ pub struct ExperimentalConfig {
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
     typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
+    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
@@ -1134,7 +1157,7 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Vc::cell(None);
         }
-        let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
+        let active_conditions = active_conditions.into_iter().collect::<FxHashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
@@ -1158,7 +1181,7 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<RcStr>,
+                active_conditions: &FxHashSet<RcStr>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
@@ -1397,19 +1420,36 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_view_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.view_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_dynamic_io(&self) -> Vc<bool> {
         Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
-    pub fn cache_kinds(&self) -> Vc<CacheKinds> {
+    pub fn enable_use_cache(&self) -> Vc<bool> {
         Vc::cell(
             self.experimental
-                .cache_handlers
-                .as_ref()
-                .map(|handlers| handlers.keys().cloned().collect())
-                .unwrap_or_default(),
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn cache_kinds(&self) -> Vc<CacheKinds> {
+        let mut cache_kinds = CacheKinds::default();
+
+        if let Some(handlers) = self.experimental.cache_handlers.as_ref() {
+            cache_kinds.extend(handlers.keys().cloned());
+        }
+
+        cache_kinds.cell()
     }
 
     #[turbo_tasks::function]
@@ -1463,11 +1503,11 @@ impl NextConfig {
             .experimental
             .turbo
             .as_ref()
-            .and_then(|t| t.module_id_strategy.as_ref())
+            .and_then(|t| t.module_id_strategy)
         else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy.clone()))
+        Vc::cell(Some(module_id_strategy))
     }
 
     #[turbo_tasks::function]
@@ -1477,6 +1517,13 @@ impl NextConfig {
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
+        let source_maps = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+
+        Ok(Vc::cell(source_maps.unwrap_or(true)))
     }
 }
 

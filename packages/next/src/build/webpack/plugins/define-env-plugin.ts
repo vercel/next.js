@@ -146,6 +146,7 @@ export function getDefineEnv({
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isUseCacheEnabled = !!config.experimental.useCache
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -184,12 +185,14 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
-      config.devIndicators.appIsrStatus
-    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+    // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
+    // variable to the client.
+    'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
+      process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
       ? {}
@@ -231,10 +234,11 @@ export function getDefineEnv({
         }
       : {}),
     'process.env.__NEXT_TRAILING_SLASH': config.trailingSlash,
-    'process.env.__NEXT_BUILD_INDICATOR':
-      config.devIndicators.buildActivity ?? true,
-    'process.env.__NEXT_BUILD_INDICATOR_POSITION':
-      config.devIndicators.buildActivityPosition ?? 'bottom-right',
+    'process.env.__NEXT_DEV_INDICATOR': config.devIndicators !== false,
+    'process.env.__NEXT_DEV_INDICATOR_POSITION':
+      config.devIndicators === false
+        ? 'bottom-left' // This will not be used as the indicator is disabled.
+        : config.devIndicators.position ?? 'bottom-left',
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -269,12 +273,11 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
-    'process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS':
-      // Internal only so untyped to avoid discovery
-      (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
-      false,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
+    'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
+      process.env.NEXT_TELEMETRY_DISABLED
+    ),
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -289,8 +292,6 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
-    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      config.experimental.newDevOverlay ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}

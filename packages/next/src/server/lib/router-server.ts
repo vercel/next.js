@@ -428,12 +428,12 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
+          const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
           await invokeRender(parsedUrl, '/_error', handleIndex, {
             invokeStatus: 500,
-            invokeError: new Error(
-              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-            ),
+            invokeError: new Error(message),
           })
+          Log.error(message)
           return
         }
 
@@ -625,8 +625,7 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
-      setAppIsrStatus:
-        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
@@ -710,7 +709,7 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
                 } satisfies AppIsrManifestAction)
               )
@@ -751,5 +750,12 @@ export async function initialize(opts: {
     }
   }
 
-  return { requestHandler, upgradeHandler, server: handlers.server }
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }

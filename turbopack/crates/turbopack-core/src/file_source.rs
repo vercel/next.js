@@ -28,8 +28,15 @@ impl FileSource {
     }
 
     #[turbo_tasks::function]
-    pub fn new_with_query(path: ResolvedVc<FileSystemPath>, query: ResolvedVc<RcStr>) -> Vc<Self> {
-        Self::cell(FileSource { path, query })
+    pub async fn new_with_query(
+        path: ResolvedVc<FileSystemPath>,
+        query: ResolvedVc<RcStr>,
+    ) -> Result<Vc<Self>> {
+        if query.await?.is_empty() {
+            Ok(Self::new(*path))
+        } else {
+            Ok(Self::cell(FileSource { path, query }))
+        }
     }
 }
 

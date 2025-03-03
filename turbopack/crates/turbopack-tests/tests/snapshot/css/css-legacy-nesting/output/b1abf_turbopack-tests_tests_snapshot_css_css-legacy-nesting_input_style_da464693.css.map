@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-legacy-nesting/input/style.css"],"sourcesContent":[".prose :where(table):not(:where([class~=\"not-prose\"], [class~=\"not-prose\"] *)) {\n  tr {\n    td:first-child {\n      text-wrap: nowrap;\n    }\n  }\n  text-wrap: initial;\n}\n\n.prose :where(code):not(:where([class~=\"not-prose\"], [class~=\"not-prose\"] *)) {\n  text-wrap: nowrap;\n}\n"],"names":[],"mappings":"AAAA,4FAEI,6GAOJ"}},
+    {"offset": {"line": 1, "column": 291}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

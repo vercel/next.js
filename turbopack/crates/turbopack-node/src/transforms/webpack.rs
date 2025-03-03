@@ -8,14 +8,14 @@ use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    glob::Glob, json::parse_json_with_source_context, DirectoryEntry, File, FileContent,
-    FileSystemPath, ReadGlobResult,
+    glob::Glob, json::parse_json_with_source_context, rope::Rope, DirectoryEntry, File,
+    FileContent, FileSystemPath, ReadGlobResult,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -33,7 +33,9 @@ use turbopack_core::{
         resolve,
     },
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
+    source_map::{
+        utils::resolve_source_map_sources, GenerateSourceMap, OptionStringifiedSourceMap,
+    },
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
@@ -94,6 +96,7 @@ pub struct WebpackLoaders {
     loaders: ResolvedVc<WebpackLoaderItems>,
     rename_as: Option<RcStr>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -105,6 +108,7 @@ impl WebpackLoaders {
         loaders: ResolvedVc<WebpackLoaderItems>,
         rename_as: Option<RcStr>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        source_maps: bool,
     ) -> Vc<Self> {
         WebpackLoaders {
             evaluate_context,
@@ -112,6 +116,7 @@ impl WebpackLoaders {
             loaders,
             rename_as,
             resolve_options_context,
+            source_maps,
         }
         .cell()
     }
@@ -165,15 +170,15 @@ impl Asset for WebpackLoadersProcessedAsset {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map))
+    async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(*self.process().await?.source_map)
     }
 }
 
 #[turbo_tasks::value]
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
-    source_map: Option<ResolvedVc<SourceMap>>,
+    source_map: ResolvedVc<OptionStringifiedSourceMap>,
     assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
@@ -211,7 +216,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: None,
+                source_map: ResolvedVc::cell(None),
             }
             .cell());
         };
@@ -222,6 +227,7 @@ impl WebpackLoadersProcessedAsset {
             .module()
             .to_resolved()
             .await?;
+
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path
@@ -249,6 +255,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
+                ResolvedVc::cell(transform.source_maps.into()),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -259,7 +266,7 @@ impl WebpackLoadersProcessedAsset {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
-                source_map: None,
+                source_map: ResolvedVc::cell(None),
             }
             .cell());
         };
@@ -269,13 +276,15 @@ impl WebpackLoadersProcessedAsset {
         .context("Unable to deserializate response from webpack loaders transform operation")?;
 
         // handle SourceMap
-        let source_map = if let Some(source_map) = processed.map {
-            SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
-                .await?
-                .map(|source_map| source_map.resolved_cell())
-        } else {
+        let source_map = if !transform.source_maps {
             None
+        } else {
+            processed
+                .map
+                .map(|source_map| Rope::from(source_map.into_owned()))
         };
+        let source_map = resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
+
         let file = match processed.source {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
@@ -287,7 +296,7 @@ impl WebpackLoadersProcessedAsset {
         Ok(ProcessWebpackLoadersResult {
             content,
             assets,
-            source_map,
+            source_map: ResolvedVc::cell(source_map),
         }
         .cell())
     }
@@ -414,15 +423,15 @@ impl EvaluateContext for WebpackLoaderContext {
         let _ = compute_webpack_loader_evaluation(self, sender);
     }
 
-    fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            *self.module_asset,
-            *self.cwd,
-            *self.env,
-            *self.asset_context,
-            *self.chunking_context,
+            self.module_asset,
+            self.cwd,
+            self.env,
+            self.asset_context,
+            self.chunking_context,
             None,
-            *self.additional_invalidation,
+            self.additional_invalidation,
             should_debug("webpack_loader"),
             // Env vars are read untracked, since we want a more granular dependency on certain env
             // vars only. So the runtime code tracks which env vars are read and send a dependency
@@ -599,11 +608,13 @@ async fn apply_webpack_resolve_options(
     resolve_options: Vc<ResolveOptions>,
     webpack_resolve_options: WebpackResolveOptions,
 ) -> Result<Vc<ResolveOptions>> {
-    let mut resolve_options = resolve_options.await?.clone_value();
+    let mut resolve_options = resolve_options.owned().await?;
     if let Some(alias_fields) = webpack_resolve_options.alias_fields {
         let mut old = resolve_options
             .in_package
-            .extract_if(|field| matches!(field, ResolveInPackage::AliasField(..)))
+            .extract_if(0.., |field| {
+                matches!(field, ResolveInPackage::AliasField(..))
+            })
             .collect::<Vec<_>>();
         for field in alias_fields {
             if &*field == "..." {
@@ -644,7 +655,9 @@ async fn apply_webpack_resolve_options(
     if let Some(main_fields) = webpack_resolve_options.main_fields {
         let mut old = resolve_options
             .into_package
-            .extract_if(|field| matches!(field, ResolveIntoPackage::MainField { .. }))
+            .extract_if(0.., |field| {
+                matches!(field, ResolveIntoPackage::MainField { .. })
+            })
             .collect::<Vec<_>>();
         for field in main_fields {
             if &*field == "..." {

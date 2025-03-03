@@ -23,8 +23,8 @@ export type LoadingModuleData =
   | [React.JSX.Element, React.ReactNode, React.ReactNode]
   | null
 
-/** metadata cache nodes: [viewport, metadata] */
-export type HeadData = [React.ReactNode, React.ReactNode]
+/** viewport metadata node */
+export type HeadData = React.ReactNode
 
 export type LazyCacheNode = {
   /**

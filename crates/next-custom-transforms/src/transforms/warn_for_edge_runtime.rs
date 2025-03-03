@@ -234,14 +234,14 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
             Expr::Member(member) => {
                 if member.prop.is_ident_with("NEXT_RUNTIME") {
                     if let Expr::Member(obj_member) = &*member.obj {
-                        if obj_member.obj.is_global_ref_to(&self.ctx, "process")
+                        if obj_member.obj.is_global_ref_to(self.ctx, "process")
                             && obj_member.prop.is_ident_with("env")
                         {
                             self.guarded_runtime = true;
                         }
                     }
                 }
-                if member.obj.is_global_ref_to(&self.ctx, "process") {
+                if member.obj.is_global_ref_to(self.ctx, "process") {
                     if let MemberProp::Ident(prop) = &member.prop {
                         self.guarded_process_props.push(prop.sym.clone());
                     }
@@ -364,7 +364,7 @@ impl Visit for WarnForEdgeRuntime {
     }
 
     fn visit_member_expr(&mut self, n: &MemberExpr) {
-        if n.obj.is_global_ref_to(&self.ctx, "process") {
+        if n.obj.is_global_ref_to(self.ctx, "process") {
             if let MemberProp::Ident(prop) = &n.prop {
                 self.warn_for_unsupported_process_api(n.span, prop);
                 return;

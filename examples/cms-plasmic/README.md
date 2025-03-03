@@ -13,7 +13,7 @@ You'll get:
 
 ## Deploy your own
 
-Once you have access to the [environment variables you need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to the [environment variables you need](#step-3-set-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-plasmic)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-plasmic&env=NEXT_PUBLIC_PLASMIC_PROJECT_ID,NEXT_PUBLIC_PLASMIC_PROJECT_API_TOKEN,PLASMIC_PREVIEW_SECRET&envDescription=Required%20to%20connect%20the%20app%20with%20Plasmic&envLink=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-plasmic)
 

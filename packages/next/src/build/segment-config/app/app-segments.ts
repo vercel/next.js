@@ -18,7 +18,7 @@ import {
   isAppRouteRouteModule,
   isAppPageRouteModule,
 } from '../../../server/route-modules/checks'
-import { isClientReference } from '../../../lib/client-reference'
+import { isClientReference } from '../../../lib/client-and-server-references'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
 import {
   getLayoutOrPageModule,
