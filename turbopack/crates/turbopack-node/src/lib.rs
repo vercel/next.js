@@ -1,13 +1,13 @@
-#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(extract_if)]
 
-use std::{collections::HashMap, iter::once, thread::available_parallelism};
+use std::{iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
@@ -18,7 +18,9 @@ use turbo_tasks_fs::{to_sys_path, File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     changed::content_changed,
-    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
+    chunk::{
+        ChunkGroupType, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+    },
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
@@ -45,11 +47,7 @@ async fn emit(
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<()> {
     for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
-        let _ = asset
-            .content()
-            .write(asset.ident().path())
-            .resolve()
-            .await?;
+        let _ = asset.content().write(asset.path()).resolve().await?;
     }
     Ok(())
 }
@@ -80,7 +78,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -91,13 +89,12 @@ async fn internal_assets_for_source_mapping(
 ) -> Result<Vc<AssetsForSourceMapping>> {
     let internal_assets = internal_assets(intermediate_asset, intermediate_output_path).await?;
     let intermediate_output_path = &*intermediate_output_path.await?;
-    let mut internal_assets_for_source_mapping = HashMap::new();
+    let mut internal_assets_for_source_mapping = FxHashMap::default();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
         {
-            if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
-            {
+            if let Some(path) = intermediate_output_path.get_path_to(&*asset.path().await?) {
                 internal_assets_for_source_mapping.insert(path.to_string(), generate_source_map);
             }
         }
@@ -109,7 +106,7 @@ async fn internal_assets_for_source_mapping(
 /// subgraph
 #[turbo_tasks::function]
 pub async fn external_asset_entrypoints(
-    module: Vc<Box<dyn Module>>,
+    module: Vc<Box<dyn EvaluatableAsset>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -151,12 +148,7 @@ async fn separate_assets_operation(
                 // others as "external". We follow references on "internal" assets, but do not
                 // look into references of "external" assets, since there are no "internal"
                 // assets behind "externals"
-                if asset
-                    .ident()
-                    .path()
-                    .await?
-                    .is_inside_ref(intermediate_output_path)
-                {
+                if asset.path().await?.is_inside_ref(intermediate_output_path) {
                     Ok(Type::Internal(*asset))
                 } else {
                     Ok(Type::External(*asset))
@@ -176,7 +168,7 @@ async fn separate_assets_operation(
     let mut internal_assets = FxIndexSet::default();
     let mut external_asset_entrypoints = FxIndexSet::default();
 
-    for item in graph.into_reverse_topological() {
+    for item in graph.into_postorder_topological() {
         match item {
             Type::Internal(asset) => {
                 internal_assets.insert(asset);
@@ -224,7 +216,7 @@ pub async fn get_renderer_pool_operation(
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(*intermediate_asset, *output_root);
 
-    let entrypoint = intermediate_asset.ident().path();
+    let entrypoint = intermediate_asset.path();
 
     let Some(cwd) = to_sys_path(*cwd).await? else {
         bail!(
@@ -260,18 +252,26 @@ pub async fn get_renderer_pool_operation(
 
 /// Converts a module graph into node.js executable assets
 #[turbo_tasks::function]
-pub fn get_intermediate_asset(
+pub async fn get_intermediate_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    main_entry: Vc<Box<dyn Module>>,
+    main_entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     other_entries: Vc<EvaluatableAssets>,
-) -> Vc<Box<dyn OutputAsset>> {
-    Vc::upcast(chunking_context.root_entry_chunk_group_asset(
+) -> Result<Vc<Box<dyn OutputAsset>>> {
+    Ok(Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
-        main_entry,
-        ModuleGraph::from_module(main_entry),
+        other_entries.with_entry(*main_entry),
+        ModuleGraph::from_modules(Vc::cell(vec![(
+                other_entries
+                    .await?
+                    .into_iter()
+                    .copied()
+                    .chain(std::iter::once(main_entry))
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                ChunkGroupType::Entry,
+            )])),
         OutputAssets::empty(),
-        other_entries,
-    ))
+    )))
 }
 
 #[derive(Clone, Debug)]

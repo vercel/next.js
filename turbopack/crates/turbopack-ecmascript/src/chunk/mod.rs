@@ -1,4 +1,6 @@
+pub(crate) mod batch;
 pub(crate) mod chunk_type;
+pub(crate) mod code_and_ids;
 pub(crate) mod content;
 pub(crate) mod data;
 pub(crate) mod item;
@@ -6,25 +8,28 @@ pub(crate) mod placeable;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
     ident::AssetIdent,
     introspect::{
-        module::IntrospectableModule,
-        utils::{children_from_output_assets, content_to_details},
-        Introspectable, IntrospectableChildren,
+        module::IntrospectableModule, utils::children_from_output_assets, Introspectable,
+        IntrospectableChildren,
     },
     output::{OutputAsset, OutputAssets},
     server_fs::ServerFileSystem,
 };
 
 pub use self::{
+    batch::{
+        EcmascriptChunkBatchWithAsyncInfo, EcmascriptChunkItemBatchGroup,
+        EcmascriptChunkItemOrBatchWithAsyncInfo,
+    },
     chunk_type::EcmascriptChunkType,
+    code_and_ids::{batch_group_code_and_ids, item_code_and_ids, BatchGroupCodeAndIds, CodeAndIds},
     content::EcmascriptChunkContent,
     data::EcmascriptChunkData,
     item::{
@@ -139,14 +144,7 @@ impl Chunk for EcmascriptChunk {
         let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
             .chunk_items
             .iter()
-            .map(async |with_info| {
-                Ok(with_info
-                    .chunk_item
-                    .references()
-                    .await?
-                    .into_iter()
-                    .copied())
-            })
+            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
             .try_flat_join()
             .await?;
         referenced_output_assets.extend(content.referenced_output_assets.iter().copied());
@@ -175,19 +173,6 @@ impl EcmascriptChunk {
     pub fn chunk_content(&self) -> Vc<EcmascriptChunkContent> {
         *self.content
     }
-
-    #[turbo_tasks::function]
-    pub async fn chunk_items_count(&self) -> Result<Vc<usize>> {
-        Ok(Vc::cell(self.content.await?.chunk_items.len()))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Asset for EcmascriptChunk {
-    #[turbo_tasks::function]
-    fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
-        bail!("EcmascriptChunk::content() is not implemented")
-    }
 }
 
 #[turbo_tasks::function]
@@ -209,28 +194,25 @@ impl Introspectable for EcmascriptChunk {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.path().to_string()
+        self.ident().to_string()
     }
 
     #[turbo_tasks::function]
     async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let content = content_to_details(self.content());
         let mut details = String::new();
         let this = self.await?;
         details += "Chunk items:\n\n";
         for chunk_item in this.content.included_chunk_items().await? {
             writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
         }
-        details += "\nContent:\n\n";
-        write!(details, "{}", content.await?)?;
         Ok(Vc::cell(details.into()))
     }
 
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let mut children = children_from_output_assets(self.references())
-            .await?
-            .clone_value();
+            .owned()
+            .await?;
         let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for chunk_item in self.await?.content.included_chunk_items().await? {
             children.insert((

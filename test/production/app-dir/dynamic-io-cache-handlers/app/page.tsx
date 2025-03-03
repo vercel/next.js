@@ -1,4 +1,5 @@
 import React, { Suspense } from 'react'
+import { revalidate } from './actions'
 
 async function Random({ cached }: { cached?: boolean }) {
   const data = await fetch(
@@ -31,6 +32,11 @@ export default function Page() {
       <Suspense fallback={<p>Loading...</p>}>
         <CachedRandom />
       </Suspense>
+      <form action={revalidate}>
+        <button id="revalidate-tag" type="submit">
+          Revalidate tag
+        </button>
+      </form>
     </>
   )
 }

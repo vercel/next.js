@@ -1,5 +1,3 @@
-use std::future::IntoFuture;
-
 use anyhow::{bail, Context, Result};
 use futures::future::BoxFuture;
 use next_core::{
@@ -47,14 +45,14 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkGroupType, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    module::{Module, Modules},
-    module_graph::ModuleGraph,
+    module::Module,
+    module_graph::{GraphEntries, ModuleGraph},
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -86,6 +84,11 @@ pub struct PagesProject {
     project: ResolvedVc<Project>,
 }
 
+#[turbo_tasks::function]
+fn client_layer() -> Vc<RcStr> {
+    Vc::cell("client".into())
+}
+
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
@@ -102,6 +105,7 @@ impl PagesProject {
             app: _,
             document: _,
             error: _,
+            error_500: _,
         } = &*pages_structure.await?;
         let mut routes = FxIndexMap::default();
 
@@ -312,7 +316,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         )
     }
 
@@ -328,6 +332,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             self.project().encryption_key(),
+            self.project().no_mangling(),
         ))
     }
 
@@ -351,7 +356,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         ))
     }
 
@@ -707,7 +712,7 @@ impl PageEndpoint {
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<Box<dyn Source>> {
-        Vc::upcast(FileSource::new(self.page.project_path()))
+        Vc::upcast(FileSource::new(self.page.file_path()))
     }
 
     #[turbo_tasks::function]
@@ -764,7 +769,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets))
+        Ok(project.module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated))
     }
 
     #[turbo_tasks::function]
@@ -775,9 +780,9 @@ impl PageEndpoint {
             let project = this.pages_project.project();
             let client_chunking_context = project.client_chunking_context();
 
-            let evaluatable_assets = self.client_evaluatable_assets();
-            let module_graph = project.module_graph_for_entries(evaluatable_assets);
+            let module_graph = self.client_module_graph();
 
+            let evaluatable_assets = self.client_evaluatable_assets();
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
                 evaluatable_assets,
@@ -838,7 +843,7 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_config_from_source(ssr_module).await?;
+        let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
         let is_edge = matches!(config.runtime, NextRuntime::Edge);
 
         let ssr_module = if is_edge {
@@ -901,7 +906,7 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
-            let module_graph = project.module_graph(*ssr_module);
+            let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 // The SSR and Client Graphs are not connected in Pages Router.
@@ -952,13 +957,12 @@ impl PageEndpoint {
                 DynamicImportedChunks::default().resolved_cell()
             };
 
+            let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
+                .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
-                let evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                    .await?
-                    .context("could not process page loader entry module")?;
-                evaluatable_assets.push(evaluatable);
+                let mut evaluatable_assets = edge_runtime_entries.owned().await?;
+                evaluatable_assets.push(ssr_module_evaluatable);
 
                 let edge_files = edge_chunking_context
                     .evaluated_chunk_group_assets(
@@ -988,8 +992,7 @@ impl PageEndpoint {
                 } = *chunking_context
                     .entry_chunk_group(
                         ssr_entry_chunk_path,
-                        *ssr_module,
-                        runtime_entries,
+                        runtime_entries.with_entry(*ssr_module_evaluatable),
                         module_graph,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
@@ -1094,7 +1097,7 @@ impl PageEndpoint {
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root();
-        let chunk_path = entry_chunk.ident().path().await?;
+        let chunk_path = entry_chunk.path().await?;
 
         let asset_path = node_root
             .join("server".into())
@@ -1103,7 +1106,7 @@ impl PageEndpoint {
             .context("ssr chunk entry path must be inside the node root")?;
 
         let pages_manifest = PagesManifest {
-            pages: [(self.pathname.await?.clone_value(), asset_path.into())]
+            pages: [(self.pathname.owned().await?, asset_path.into())]
                 .into_iter()
                 .collect(),
         };
@@ -1142,7 +1145,7 @@ impl PageEndpoint {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
         let build_manifest = BuildManifest {
-            pages: fxindexmap!(self.pathname.await?.clone_value() => client_chunks),
+            pages: fxindexmap!(self.pathname.owned().await? => client_chunks),
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname.await?);
@@ -1181,7 +1184,7 @@ impl PageEndpoint {
         };
         let emit_manifests = !matches!(this.ty, PageEndpointType::Data);
 
-        let pathname = this.pathname.await?;
+        let pathname = this.pathname.owned().await?;
         let original_name = &*this.original_name.await?;
 
         let client_assets = OutputAssets::new(client_assets).to_resolved().await?;
@@ -1297,23 +1300,23 @@ impl PageEndpoint {
                     let named_regex = get_named_middleware_regex(&pathname).into();
                     let matchers = MiddlewareMatcher {
                         regexp: Some(named_regex),
-                        original_source: pathname.clone_value(),
+                        original_source: pathname.clone(),
                         ..Default::default()
                     };
-                    let original_name = this.original_name.await?;
+                    let original_name = this.original_name.owned().await?;
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root,
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root),
                         assets: paths_to_bindings(all_assets),
-                        name: pathname.clone_value(),
-                        page: original_name.clone_value(),
+                        name: pathname.clone(),
+                        page: original_name.clone(),
                         regions: None,
                         matchers: vec![matchers],
-                        env: this.pages_project.project().edge_env().await?.clone_value(),
+                        env: this.pages_project.project().edge_env().owned().await?,
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                        sorted_middleware: vec![pathname.clone_value()],
-                        functions: [(pathname.clone_value(), edge_function_definition)]
+                        sorted_middleware: vec![pathname.clone()],
+                        functions: [(pathname.clone(), edge_function_definition)]
                             .into_iter()
                             .collect(),
                         ..Default::default()
@@ -1401,16 +1404,13 @@ impl Endpoint for PageEndpoint {
                 .await?
                 .is_development()
             {
-                let server_paths = all_server_paths(output_assets, node_root)
-                    .await?
-                    .clone_value();
+                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
 
                 let client_relative_root = this.pages_project.project().client_relative_path();
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
-                    .into_future()
+                    .owned()
                     .instrument(tracing::info_span!("client_paths"))
-                    .await?
-                    .clone_value();
+                    .await?;
                 (server_paths, client_paths)
             } else {
                 (vec![], vec![])
@@ -1420,7 +1420,7 @@ impl Endpoint for PageEndpoint {
             let written_endpoint = match *output {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root
-                        .get_path_to(&*entry_chunk.ident().path().await?)
+                        .get_path_to(&*entry_chunk.path().await?)
                         .context("ssr chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,
@@ -1465,15 +1465,22 @@ impl Endpoint for PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
+    async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
         let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push(ssr_chunk_module.ssr_module);
+        modules.push((vec![ssr_chunk_module.ssr_module], ChunkGroupType::Entry));
 
         if let PageEndpointType::Html = this.ty {
-            modules.push(self.client_module().to_resolved().await?);
+            modules.push((
+                self.client_evaluatable_assets()
+                    .await?
+                    .iter()
+                    .map(|m| ResolvedVc::upcast(*m))
+                    .collect(),
+                ChunkGroupType::Evaluated,
+            ));
         }
 
         Ok(Vc::cell(modules))

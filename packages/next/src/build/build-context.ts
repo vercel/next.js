@@ -53,6 +53,7 @@ export const NextBuildContext: Partial<{
   pluginState: Record<string, any>
   // core fields
   dir: string
+  distDir: string
   buildId: string
   encryptionKey: string
   config: NextConfigComplete
@@ -68,6 +69,7 @@ export const NextBuildContext: Partial<{
     afterFiles: Rewrite[]
     beforeFiles: Rewrite[]
   }
+  hasRewrites: boolean
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps

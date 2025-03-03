@@ -635,7 +635,12 @@ function createResumableState(
   };
 }
 function createPreambleState() {
-  return { htmlChunks: null, headChunks: null, bodyChunks: null };
+  return {
+    htmlChunks: null,
+    headChunks: null,
+    bodyChunks: null,
+    contribution: 0
+  };
 }
 function createFormatContext(insertionMode, selectedValue, tagScope) {
   return {
@@ -1203,6 +1208,29 @@ function pushScriptImpl(target, props) {
     );
   target.push(endChunkForTag("script"));
   return null;
+}
+function pushStartSingletonElement(target, props, tag) {
+  target.push(startChunkForTag(tag));
+  var innerHTML = (tag = null),
+    propKey;
+  for (propKey in props)
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+      if (null != propValue)
+        switch (propKey) {
+          case "children":
+            tag = propValue;
+            break;
+          case "dangerouslySetInnerHTML":
+            innerHTML = propValue;
+            break;
+          default:
+            pushAttribute(target, propKey, propValue);
+        }
+    }
+  target.push(endOfStartTag);
+  pushInnerHTML(target, innerHTML, tag);
+  return tag;
 }
 function pushStartGenericElement(target, props, tag) {
   target.push(startChunkForTag(tag));
@@ -2093,6 +2121,7 @@ function pushStartInstance(
             header;
           headers &&
           0 < headers.remainingCapacity &&
+          "string" !== typeof props.srcSet &&
           ("high" === props.fetchPriority ||
             500 > headers.highImagePreloads.length) &&
           ((header = getPreloadAsHeader(src, "image", {
@@ -2157,7 +2186,7 @@ function pushStartInstance(
         if (preamble.headChunks)
           throw Error(formatProdErrorMessage(545, "`<head>`"));
         preamble.headChunks = [];
-        var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
           preamble.headChunks,
           props,
           "head"
@@ -2175,7 +2204,7 @@ function pushStartInstance(
         if (preamble$jscomp$0.bodyChunks)
           throw Error(formatProdErrorMessage(545, "`<body>`"));
         preamble$jscomp$0.bodyChunks = [];
-        var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
           preamble$jscomp$0.bodyChunks,
           props,
           "body"
@@ -2193,7 +2222,7 @@ function pushStartInstance(
         if (preamble$jscomp$1.htmlChunks)
           throw Error(formatProdErrorMessage(545, "`<html>`"));
         preamble$jscomp$1.htmlChunks = [doctypeChunk];
-        var JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
           preamble$jscomp$1.htmlChunks,
           props,
           "html"
@@ -2270,11 +2299,17 @@ function endChunkForTag(tag) {
 function hoistPreambleState(renderState, preambleState) {
   renderState = renderState.preamble;
   null === renderState.htmlChunks &&
-    (renderState.htmlChunks = preambleState.htmlChunks);
+    preambleState.htmlChunks &&
+    ((renderState.htmlChunks = preambleState.htmlChunks),
+    (preambleState.contribution |= 1));
   null === renderState.headChunks &&
-    (renderState.headChunks = preambleState.headChunks);
+    preambleState.headChunks &&
+    ((renderState.headChunks = preambleState.headChunks),
+    (preambleState.contribution |= 4));
   null === renderState.bodyChunks &&
-    (renderState.bodyChunks = preambleState.bodyChunks);
+    preambleState.bodyChunks &&
+    ((renderState.bodyChunks = preambleState.bodyChunks),
+    (preambleState.contribution |= 2));
 }
 function writeBootstrap(destination, renderState) {
   renderState = renderState.bootstrapChunks;
@@ -2312,6 +2347,16 @@ function writeStartPendingSuspenseBoundary(destination, renderState, id) {
   writeChunk(destination, renderState.boundaryPrefix);
   writeChunk(destination, stringToChunk(id.toString(16)));
   return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
+}
+var boundaryPreambleContributionChunkStart =
+    stringToPrecomputedChunk("\x3c!--"),
+  boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e");
+function writePreambleContribution(destination, preambleState) {
+  preambleState = preambleState.contribution;
+  0 !== preambleState &&
+    (writeChunk(destination, boundaryPreambleContributionChunkStart),
+    writeChunk(destination, stringToChunk("" + preambleState)),
+    writeChunk(destination, boundaryPreambleContributionChunkEnd));
 }
 var startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
   startSegmentHTML2 = stringToPrecomputedChunk('">'),
@@ -2961,6 +3006,7 @@ function preload(href, as, options) {
           var header;
           resumableState &&
           0 < resumableState.remainingCapacity &&
+          "string" !== typeof imageSrcSet &&
           "high" === fetchPriority &&
           ((header = getPreloadAsHeader(href, as, options)),
           0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -3685,6 +3731,9 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error(formatProdErrorMessage(393));
 }
+function unsupportedStartGesture() {
+  throw Error(formatProdErrorMessage(547));
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3746,9 +3795,9 @@ var HooksDispatcher = {
       if (null === resumableState) throw Error(formatProdErrorMessage(404));
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + ":";
+      return JSCompiler_inline_result + "\u00bb";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -3775,6 +3824,10 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
+    },
+    useSwipeTransition: function (previous, current) {
+      resolveCurrentlyRenderingComponent();
+      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -6281,21 +6334,27 @@ function flushSegment(request, destination, segment, hoistableState) {
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
   boundary.parentFlushed = !0;
-  if (4 === boundary.status)
-    (boundary = boundary.errorDigest),
-      writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary),
-      writeChunk(destination, clientRenderedSuspenseBoundaryError1),
-      boundary &&
-        (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
-        writeChunk(destination, stringToChunk(escapeTextForBrowser(boundary))),
-        writeChunk(
-          destination,
-          clientRenderedSuspenseBoundaryErrorAttrInterstitial
-        )),
-      writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2),
-      flushSubtree(request, destination, segment, hoistableState);
-  else if (1 !== boundary.status)
-    0 === boundary.status && (boundary.rootSegmentID = request.nextSegmentId++),
+  if (4 === boundary.status) {
+    var errorDigest = boundary.errorDigest;
+    writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
+    writeChunk(destination, clientRenderedSuspenseBoundaryError1);
+    errorDigest &&
+      (writeChunk(destination, clientRenderedSuspenseBoundaryError1A),
+      writeChunk(destination, stringToChunk(escapeTextForBrowser(errorDigest))),
+      writeChunk(
+        destination,
+        clientRenderedSuspenseBoundaryErrorAttrInterstitial
+      ));
+    writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
+    flushSubtree(request, destination, segment, hoistableState);
+    (request = boundary.fallbackPreamble) &&
+      writePreambleContribution(destination, request);
+    return writeChunkAndReturn(destination, endSuspenseBoundary);
+  }
+  if (1 !== boundary.status)
+    return (
+      0 === boundary.status &&
+        (boundary.rootSegmentID = request.nextSegmentId++),
       0 < boundary.completedSegments.length &&
         request.partialBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
@@ -6310,26 +6369,31 @@ function flushSegment(request, destination, segment, hoistableState) {
           hoistStylesheetDependency,
           hoistableState
         )),
-      flushSubtree(request, destination, segment, hoistableState);
-  else if (boundary.byteSize > request.progressiveChunkSize)
-    (boundary.rootSegmentID = request.nextSegmentId++),
+      flushSubtree(request, destination, segment, hoistableState),
+      writeChunkAndReturn(destination, endSuspenseBoundary)
+    );
+  if (boundary.byteSize > request.progressiveChunkSize)
+    return (
+      (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
       writeStartPendingSuspenseBoundary(
         destination,
         request.renderState,
         boundary.rootSegmentID
       ),
-      flushSubtree(request, destination, segment, hoistableState);
-  else {
-    hoistableState &&
-      ((segment = boundary.contentState),
-      segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-      segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
-    writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-    segment = boundary.completedSegments;
-    if (1 !== segment.length) throw Error(formatProdErrorMessage(391));
-    flushSegment(request, destination, segment[0], hoistableState);
-  }
+      flushSubtree(request, destination, segment, hoistableState),
+      writeChunkAndReturn(destination, endSuspenseBoundary)
+    );
+  hoistableState &&
+    ((segment = boundary.contentState),
+    segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+    segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+  writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+  segment = boundary.completedSegments;
+  if (1 !== segment.length) throw Error(formatProdErrorMessage(391));
+  flushSegment(request, destination, segment[0], hoistableState);
+  (request = boundary.contentPreamble) &&
+    writePreambleContribution(destination, request);
   return writeChunkAndReturn(destination, endSuspenseBoundary);
 }
 function flushSegmentContainer(request, destination, segment, hoistableState) {
@@ -6828,12 +6892,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-experimental-9b62ee71-20250122" !== isomorphicReactPackageVersion)
+  if ("19.1.0-experimental-d55cc79b-20250228" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.1.0-experimental-9b62ee71-20250122"
+        "19.1.0-experimental-d55cc79b-20250228"
       )
     );
 }
@@ -7088,4 +7152,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-9b62ee71-20250122";
+exports.version = "19.1.0-experimental-d55cc79b-20250228";

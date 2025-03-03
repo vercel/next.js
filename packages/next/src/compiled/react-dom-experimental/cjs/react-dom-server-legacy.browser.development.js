@@ -763,7 +763,12 @@
       };
     }
     function createPreambleState() {
-      return { htmlChunks: null, headChunks: null, bodyChunks: null };
+      return {
+        htmlChunks: null,
+        headChunks: null,
+        bodyChunks: null,
+        contribution: NoContribution
+      };
     }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
@@ -1471,6 +1476,29 @@
         target.push(escapeEntireInlineScriptContent(children));
       target.push(endChunkForTag("script"));
       return null;
+    }
+    function pushStartSingletonElement(target, props, tag) {
+      target.push(startChunkForTag(tag));
+      var innerHTML = (tag = null),
+        propKey;
+      for (propKey in props)
+        if (hasOwnProperty.call(props, propKey)) {
+          var propValue = props[propKey];
+          if (null != propValue)
+            switch (propKey) {
+              case "children":
+                tag = propValue;
+                break;
+              case "dangerouslySetInnerHTML":
+                innerHTML = propValue;
+                break;
+              default:
+                pushAttribute(target, propKey, propValue);
+            }
+        }
+      target.push(endOfStartTag);
+      pushInnerHTML(target, innerHTML, tag);
+      return tag;
     }
     function pushStartGenericElement(target, props, tag) {
       target.push(startChunkForTag(tag));
@@ -2607,6 +2635,7 @@
                 header;
               headers &&
               0 < headers.remainingCapacity &&
+              "string" !== typeof props.srcSet &&
               ("high" === props.fetchPriority ||
                 500 > headers.highImagePreloads.length) &&
               ((header = getPreloadAsHeader(src, "image", {
@@ -2672,7 +2701,7 @@
             if (preamble.headChunks)
               throw Error("The `<head>` tag may only be rendered once.");
             preamble.headChunks = [];
-            var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
               props,
               "head"
@@ -2690,7 +2719,7 @@
             if (preamble$jscomp$0.bodyChunks)
               throw Error("The `<body>` tag may only be rendered once.");
             preamble$jscomp$0.bodyChunks = [];
-            var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
               props,
               "body"
@@ -2708,7 +2737,7 @@
             if (preamble$jscomp$1.htmlChunks)
               throw Error("The `<html>` tag may only be rendered once.");
             preamble$jscomp$1.htmlChunks = [doctypeChunk];
-            var JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
               props,
               "html"
@@ -2789,11 +2818,17 @@
     function hoistPreambleState(renderState, preambleState) {
       renderState = renderState.preamble;
       null === renderState.htmlChunks &&
-        (renderState.htmlChunks = preambleState.htmlChunks);
+        preambleState.htmlChunks &&
+        ((renderState.htmlChunks = preambleState.htmlChunks),
+        (preambleState.contribution |= 1));
       null === renderState.headChunks &&
-        (renderState.headChunks = preambleState.headChunks);
+        preambleState.headChunks &&
+        ((renderState.headChunks = preambleState.headChunks),
+        (preambleState.contribution |= 4));
       null === renderState.bodyChunks &&
-        (renderState.bodyChunks = preambleState.bodyChunks);
+        preambleState.bodyChunks &&
+        ((renderState.bodyChunks = preambleState.bodyChunks),
+        (preambleState.contribution |= 2));
     }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
@@ -2813,6 +2848,13 @@
       renderState = id.toString(16);
       destination.push(renderState);
       return destination.push(startPendingSuspenseBoundary2);
+    }
+    function writePreambleContribution(destination, preambleState) {
+      preambleState = preambleState.contribution;
+      preambleState !== NoContribution &&
+        (destination.push(boundaryPreambleContributionChunkStart),
+        destination.push("" + preambleState),
+        destination.push(boundaryPreambleContributionChunkEnd));
     }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
@@ -4046,6 +4088,9 @@
     }
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
+    }
+    function unsupportedStartGesture() {
+      throw Error("startGesture cannot be called during server rendering.");
     }
     function noop$1() {}
     function disabledLog() {}
@@ -7383,8 +7428,8 @@
         if (!request.renderState.generateStaticMarkup) {
           var errorDigest = boundary.errorDigest,
             errorMessage = boundary.errorMessage,
-            errorStack = boundary.errorStack;
-          boundary = boundary.errorComponentStack;
+            errorStack = boundary.errorStack,
+            errorComponentStack = boundary.errorComponentStack;
           destination.push(startClientRenderedSuspenseBoundary);
           destination.push(clientRenderedSuspenseBoundaryError1);
           errorDigest &&
@@ -7408,20 +7453,22 @@
             destination.push(
               clientRenderedSuspenseBoundaryErrorAttrInterstitial
             ));
-          boundary &&
+          errorComponentStack &&
             (destination.push(clientRenderedSuspenseBoundaryError1D),
-            (errorStack = escapeTextForBrowser(boundary)),
-            destination.push(errorStack),
+            (errorComponentStack = escapeTextForBrowser(errorComponentStack)),
+            destination.push(errorComponentStack),
             destination.push(
               clientRenderedSuspenseBoundaryErrorAttrInterstitial
             ));
           destination.push(clientRenderedSuspenseBoundaryError2);
         }
         flushSubtree(request, destination, segment, hoistableState);
-        request = request.renderState.generateStaticMarkup
-          ? !0
-          : destination.push(endSuspenseBoundary);
-        return request;
+        request.renderState.generateStaticMarkup
+          ? (destination = !0)
+          : ((request = boundary.fallbackPreamble) &&
+              writePreambleContribution(destination, request),
+            (destination = destination.push(endSuspenseBoundary)));
+        return destination;
       }
       if (boundary.status !== COMPLETED)
         return (
@@ -7435,12 +7482,9 @@
             boundary.rootSegmentID
           ),
           hoistableState &&
-            ((errorStack = boundary.fallbackState),
-            errorStack.styles.forEach(
-              hoistStyleQueueDependency,
-              hoistableState
-            ),
-            errorStack.stylesheets.forEach(
+            ((boundary = boundary.fallbackState),
+            boundary.styles.forEach(hoistStyleQueueDependency, hoistableState),
+            boundary.stylesheets.forEach(
               hoistStylesheetDependency,
               hoistableState
             )),
@@ -7471,10 +7515,12 @@
           "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
         );
       flushSegment(request, destination, segment[0], hoistableState);
-      request = request.renderState.generateStaticMarkup
-        ? !0
-        : destination.push(endSuspenseBoundary);
-      return request;
+      request.renderState.generateStaticMarkup
+        ? (destination = !0)
+        : ((request = boundary.contentPreamble) &&
+            writePreambleContribution(destination, request),
+          (destination = destination.push(endSuspenseBoundary)));
+      return destination;
     }
     function flushSegmentContainer(
       request,
@@ -8911,6 +8957,7 @@
                 var header;
                 resumableState &&
                 0 < resumableState.remainingCapacity &&
+                "string" !== typeof imageSrcSet &&
                 "high" === fetchPriority &&
                 ((header = getPreloadAsHeader(href, as, options)),
                 0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -9160,7 +9207,8 @@
     Object.freeze(PRELOAD_NO_CREDS);
     var scriptRegex = /(<\/|<)(s)(cript)/gi;
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var ROOT_HTML_MODE = 0,
+    var NoContribution = 0,
+      ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
       HTML_HEAD_MODE = 3,
@@ -9215,6 +9263,8 @@
       clientRenderedSuspenseBoundaryError1C = ' data-stck="',
       clientRenderedSuspenseBoundaryError1D = ' data-cstck="',
       clientRenderedSuspenseBoundaryError2 = "></template>",
+      boundaryPreambleContributionChunkStart = "\x3c!--",
+      boundaryPreambleContributionChunkEnd = "--\x3e",
       startSegmentHTML = '<div hidden id="',
       startSegmentHTML2 = '">',
       endSegmentHTML = "</div>",
@@ -9431,9 +9481,9 @@
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
           overflow = localIdCounter++;
-          treeId = ":" + resumableState.idPrefix + "R" + treeId;
+          treeId = "\u00ab" + resumableState.idPrefix + "R" + treeId;
           0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + ":";
+          return treeId + "\u00bb";
         },
         useSyncExternalStore: function (
           subscribe,
@@ -9466,6 +9516,10 @@
         },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
+        },
+        useSwipeTransition: function (previous, current) {
+          resolveCurrentlyRenderingComponent();
+          return [current, unsupportedStartGesture];
         }
       },
       currentResumableState = null,
@@ -9546,5 +9600,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-experimental-9b62ee71-20250122";
+    exports.version = "19.1.0-experimental-d55cc79b-20250228";
   })();

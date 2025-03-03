@@ -38,7 +38,7 @@ function areParamValuesEqual(a: ParamValue, b: ParamValue) {
       return false
     }
 
-    return a.every((item) => b.includes(item))
+    return a.every((item, index) => item === b[index])
   }
 
   // Otherwise, they're not equal.
@@ -304,7 +304,6 @@ export async function buildAppStaticPaths({
   const incrementalCache = await createIncrementalCache({
     dir,
     distDir,
-    dynamicIO,
     cacheHandler,
     cacheHandlers,
     requestHeaders,

@@ -1,5 +1,3 @@
-use std::iter::once;
-
 use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashMap;
 use tracing::Instrument;
@@ -11,14 +9,14 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId, SourceMapsType,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
+        SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -249,17 +247,16 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let asset_path = ident.await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.await?.path))
             .context("expected client root to contain asset path")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_prefix
+                self.asset_prefix
                     .await?
                     .as_ref()
                     .map(|s| s.clone())
@@ -277,8 +274,11 @@ impl ChunkingContext for NodeJsChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = *self.chunk_root_path;
-        let name = ident.output_name(*self.root_path, extension).await?;
-        Ok(root_path.join(name.clone_value()))
+        let name = ident
+            .output_name(*self.root_path, extension)
+            .owned()
+            .await?;
+        Ok(root_path.join(name))
     }
 
     #[turbo_tasks::function]
@@ -337,37 +337,21 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunk_group(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-        module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<ChunkGroupResult> {
-        self.chunk_group_multiple(
-            ident,
-            Vc::cell(vec![module]),
-            module_graph,
-            availability_info,
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_group_multiple(
+    async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        modules: Vc<ChunkableModules>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", module = ident.to_string().await?.to_string());
         async move {
-            let modules = modules.await?;
+            let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                modules.iter().copied().map(ResolvedVc::upcast),
+                modules,
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info.into_value(),
@@ -390,14 +374,10 @@ impl ChunkingContext for NodeJsChunkingContext {
         .await
     }
 
-    /// Generates an output chunk that:
-    /// * evaluates the given assets; and
-    /// * exports the result of evaluating the given module as a CommonJS default export.
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: Vc<FileSystemPath>,
-        module: ResolvedVc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
@@ -405,16 +385,16 @@ impl ChunkingContext for NodeJsChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let availability_info = availability_info.into_value();
 
+        let evaluatable_assets_ref = evaluatable_assets.await?;
+        let entries = evaluatable_assets_ref
+            .iter()
+            .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
+
         let MakeChunkGroupResult {
             chunks,
             availability_info,
         } = make_chunk_group(
-            once(module).chain(
-                evaluatable_assets
-                    .await?
-                    .iter()
-                    .map(|&asset| ResolvedVc::upcast(asset)),
-            ),
+            entries,
             module_graph,
             ResolvedVc::upcast(self),
             availability_info,
@@ -434,7 +414,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .collect();
 
-        let Some(module) = ResolvedVc::try_downcast(module).await? else {
+        let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap()) else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 

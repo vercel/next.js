@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::fonts::*;
-use swc_core::ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith};
+use swc_core::ecma::{ast::Program, atoms::Atom, visit::VisitMutWith};
 use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -33,7 +33,7 @@ pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
 
 #[derive(Debug)]
 struct NextJsFont {
-    font_loaders: Vec<JsWord>,
+    font_loaders: Vec<Atom>,
 }
 
 #[async_trait]

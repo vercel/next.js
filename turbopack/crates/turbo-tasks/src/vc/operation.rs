@@ -129,7 +129,7 @@ impl<T: ?Sized> OperationVc<T> {
     where
         T: VcValueType,
     {
-        self.connect().node.into_strongly_consistent_read().into()
+        self.connect().node.into_read().strongly_consistent().into()
     }
 }
 
@@ -175,7 +175,16 @@ where
     }
 }
 
-impl<T> TaskInput for OperationVc<T> where T: ?Sized + Send + Sync {}
+// NOTE: This uses the default implementation of `is_resolved` which returns `true` because we don't
+// want `OperationVc` arguments to get resolved when passed to a `#[turbo_tasks::function]`.
+impl<T> TaskInput for OperationVc<T>
+where
+    T: ?Sized + Send + Sync,
+{
+    fn is_transient(&self) -> bool {
+        self.node.is_transient()
+    }
+}
 
 impl<T> From<RawVc> for OperationVc<T>
 where

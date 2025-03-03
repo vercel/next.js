@@ -64,12 +64,12 @@ import { Sema } from 'next/dist/compiled/async-sema'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getRuntimeContext } from '../server/web/sandbox'
-import { isClientReference } from '../lib/client-reference'
+import { isClientReference } from '../lib/client-and-server-references'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import { denormalizeAppPagePath } from '../shared/lib/page-path/denormalize-app-path'
 import { RouteKind } from '../server/route-kind'
 import type { PageExtensions } from './page-extensions-type'
-import { isInterceptionRouteAppPath } from '../server/lib/interception-routes'
+import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { checkIsRoutePPREnabled } from '../server/lib/experimental/ppr'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
@@ -81,6 +81,8 @@ import { collectRootParamKeys } from './segment-config/app/collect-root-param-ke
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
+import type { CacheControl } from '../server/lib/cache-control'
+import { formatExpire, formatRevalidate } from './output/format'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -346,7 +348,7 @@ export interface PageInfo {
    */
   isRoutePPREnabled: boolean
   ssgPageRoutes: string[] | null
-  initialRevalidateSeconds: number | false
+  initialCacheControl: CacheControl | undefined
   pageDuration: number | undefined
   ssgPageDurations: number[] | undefined
   runtime: ServerRuntime
@@ -402,12 +404,22 @@ export async function printTreeView(
     gzipSize?: boolean
   }
 ) {
-  const getPrettySize = (_size: number): string => {
-    const size = prettyBytes(_size)
-    return white(bold(size))
+  const getPrettySize = (
+    _size: number,
+    { strong }: { strong?: boolean } = {}
+  ): string => {
+    const size = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+      ? 'N/A kB'
+      : prettyBytes(_size)
+
+    return strong ? white(bold(size)) : size
   }
 
-  const MIN_DURATION = 300
+  // Can be overridden for test purposes to omit the build duration output.
+  const MIN_DURATION = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+    ? Infinity // Don't ever log build durations.
+    : 300
+
   const getPrettyDuration = (_duration: number): string => {
     const duration = `${_duration} ms`
     // green for 300-1000ms
@@ -435,7 +447,7 @@ export async function printTreeView(
   // Collect all the symbols we use so we can print the icons out.
   const usedSymbols = new Set()
 
-  const messages: [string, string, string][] = []
+  const messages: [string, string, string, string, string][] = []
 
   const stats = await computeFromManifest(
     { build: buildManifest, app: appBuildManifest },
@@ -456,12 +468,39 @@ export async function printTreeView(
       return
     }
 
+    let showRevalidate = false
+    let showExpire = false
+
+    for (const page of filteredPages) {
+      const cacheControl = pageInfos.get(page)?.initialCacheControl
+
+      if (cacheControl?.revalidate) {
+        showRevalidate = true
+      }
+
+      if (cacheControl?.expire) {
+        showExpire = true
+      }
+
+      if (showRevalidate && showExpire) {
+        break
+      }
+    }
+
     messages.push(
       [
         routerType === 'app' ? 'Route (app)' : 'Route (pages)',
         'Size',
         'First Load JS',
-      ].map((entry) => underline(entry)) as [string, string, string]
+        showRevalidate ? 'Revalidate' : '',
+        showExpire ? 'Expire' : '',
+      ].map((entry) => underline(entry)) as [
+        string,
+        string,
+        string,
+        string,
+        string,
+      ]
     )
 
     filteredPages.forEach((item, i, arr) => {
@@ -510,14 +549,8 @@ export async function printTreeView(
 
       usedSymbols.add(symbol)
 
-      if (pageInfo?.initialRevalidateSeconds) usedSymbols.add('ISR')
-
       messages.push([
-        `${border} ${symbol} ${
-          pageInfo?.initialRevalidateSeconds
-            ? `${item} (ISR: ${pageInfo?.initialRevalidateSeconds} Seconds)`
-            : item
-        }${
+        `${border} ${symbol} ${item}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -526,15 +559,21 @@ export async function printTreeView(
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? prettyBytes(pageInfo.size)
+              ? getPrettySize(pageInfo.size)
               : ''
           : '',
         pageInfo
           ? ampFirst
             ? cyan('AMP')
             : pageInfo.size >= 0
-              ? getPrettySize(pageInfo.totalSize)
+              ? getPrettySize(pageInfo.totalSize, { strong: true })
               : ''
+          : '',
+        showRevalidate && pageInfo?.initialCacheControl
+          ? formatRevalidate(pageInfo.initialCacheControl)
+          : '',
+        showExpire && pageInfo?.initialCacheControl
+          ? formatExpire(pageInfo.initialCacheControl)
           : '',
       ])
 
@@ -553,7 +592,9 @@ export async function printTreeView(
           const size = stats.sizes.get(file)
           messages.push([
             `${contSymbol}   ${innerSymbol} ${getCleanName(file)}`,
-            typeof size === 'number' ? prettyBytes(size) : '',
+            typeof size === 'number' ? getPrettySize(size) : '',
+            '',
+            '',
             '',
           ])
         })
@@ -609,6 +650,10 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+
+            const initialCacheControl =
+              pageInfos.get(route)?.initialCacheControl
+
             messages.push([
               `${contSymbol}   ${innerSymbol} ${route}${
                 duration > MIN_DURATION
@@ -621,6 +666,12 @@ export async function printTreeView(
               }`,
               '',
               '',
+              showRevalidate && initialCacheControl
+                ? formatRevalidate(initialCacheControl)
+                : '',
+              showExpire && initialCacheControl
+                ? formatExpire(initialCacheControl)
+                : '',
             ])
           }
         )
@@ -628,11 +679,18 @@ export async function printTreeView(
     })
 
     const sharedFilesSize = stats.router[routerType]?.common.size.total
-    const sharedFiles = stats.router[routerType]?.common.files ?? []
+
+    const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
+      ? []
+      : stats.router[routerType]?.common.files ?? []
 
     messages.push([
       '+ First Load JS shared by all',
-      typeof sharedFilesSize === 'number' ? getPrettySize(sharedFilesSize) : '',
+      typeof sharedFilesSize === 'number'
+        ? getPrettySize(sharedFilesSize, { strong: true })
+        : '',
+      '',
+      '',
       '',
     ])
     const sharedCssFiles: string[] = []
@@ -667,13 +725,21 @@ export async function printTreeView(
         return
       }
 
-      messages.push([`  ${innerSymbol} ${cleanName}`, prettyBytes(size), ''])
+      messages.push([
+        `  ${innerSymbol} ${cleanName}`,
+        getPrettySize(size),
+        '',
+        '',
+        '',
+      ])
     })
 
     if (restChunkCount > 0) {
       messages.push([
         `  └ other shared chunks (total)`,
-        prettyBytes(restChunkSize),
+        getPrettySize(restChunkSize),
+        '',
+        '',
         '',
       ])
     }
@@ -686,7 +752,7 @@ export async function printTreeView(
       list: lists.app,
     })
 
-    messages.push(['', '', ''])
+    messages.push(['', '', '', '', ''])
   }
 
   pageInfos.set('/404', {
@@ -716,13 +782,19 @@ export async function printTreeView(
         .map(gzipSize ? fsStatGzip : fsStat)
     )
 
-    messages.push(['', '', ''])
-    messages.push(['ƒ Middleware', getPrettySize(sum(middlewareSizes)), ''])
+    messages.push(['', '', '', '', ''])
+    messages.push([
+      'ƒ Middleware',
+      getPrettySize(sum(middlewareSizes), { strong: true }),
+      '',
+      '',
+      '',
+    ])
   }
 
   print(
     textTable(messages, {
-      align: ['l', 'l', 'r'],
+      align: ['l', 'r', 'r', 'r', 'r'],
       stringLength: (str) => stripAnsi(str).length,
     })
   )
@@ -742,13 +814,6 @@ export async function printTreeView(
           '●',
           '(SSG)',
           `prerendered as static HTML (uses ${cyan(staticFunctionInfo)})`,
-        ],
-        usedSymbols.has('ISR') && [
-          '',
-          '(ISR)',
-          `incremental static regeneration (uses revalidate in ${cyan(
-            staticFunctionInfo
-          )})`,
         ],
         usedSymbols.has('◐') && [
           '◐',
@@ -1006,7 +1071,6 @@ export async function isPageStatic({
     cacheHandlers,
     distDir,
     dir,
-    dynamicIO,
     flushToDisk: isrFlushToDisk,
     cacheMaxMemorySize: maxMemoryCacheSize,
   })
@@ -1468,6 +1532,7 @@ export async function copyTracedFiles(
   tracingRoot: string,
   serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
+  hasNodeMiddleware: boolean,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
 ) {
@@ -1580,6 +1645,12 @@ export async function copyTracedFiles(
         Log.warn(`Failed to copy traced files for ${pageFile}`, err)
       }
     })
+  }
+
+  if (hasNodeMiddleware) {
+    const middlewareFile = path.join(distDir, 'server', 'middleware.js')
+    const middlewareTrace = `${middlewareFile}.nft.json`
+    await handleTraceFiles(middlewareTrace)
   }
 
   if (appPageKeys) {
@@ -1776,7 +1847,13 @@ export function isWebpackClientOnlyLayer(
 export function isWebpackDefaultLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
-  return layer === null || layer === undefined
+  return (
+    layer === null ||
+    layer === undefined ||
+    layer === WEBPACK_LAYERS.pagesDirBrowser ||
+    layer === WEBPACK_LAYERS.pagesDirEdge ||
+    layer === WEBPACK_LAYERS.pagesDirNode
+  )
 }
 
 export function isWebpackBundledLayer(

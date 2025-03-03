@@ -1051,7 +1051,12 @@
       };
     }
     function createPreambleState() {
-      return { htmlChunks: null, headChunks: null, bodyChunks: null };
+      return {
+        htmlChunks: null,
+        headChunks: null,
+        bodyChunks: null,
+        contribution: NoContribution
+      };
     }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
@@ -1793,6 +1798,29 @@
         target.push(stringToChunk(escapeEntireInlineScriptContent(children)));
       target.push(endChunkForTag("script"));
       return null;
+    }
+    function pushStartSingletonElement(target, props, tag) {
+      target.push(startChunkForTag(tag));
+      var innerHTML = (tag = null),
+        propKey;
+      for (propKey in props)
+        if (hasOwnProperty.call(props, propKey)) {
+          var propValue = props[propKey];
+          if (null != propValue)
+            switch (propKey) {
+              case "children":
+                tag = propValue;
+                break;
+              case "dangerouslySetInnerHTML":
+                innerHTML = propValue;
+                break;
+              default:
+                pushAttribute(target, propKey, propValue);
+            }
+        }
+      target.push(endOfStartTag);
+      pushInnerHTML(target, innerHTML, tag);
+      return tag;
     }
     function pushStartGenericElement(target, props, tag) {
       target.push(startChunkForTag(tag));
@@ -2943,6 +2971,7 @@
                 header;
               headers &&
               0 < headers.remainingCapacity &&
+              "string" !== typeof props.srcSet &&
               ("high" === props.fetchPriority ||
                 500 > headers.highImagePreloads.length) &&
               ((header = getPreloadAsHeader(src, "image", {
@@ -3008,7 +3037,7 @@
             if (preamble.headChunks)
               throw Error("The `<head>` tag may only be rendered once.");
             preamble.headChunks = [];
-            var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
               preamble.headChunks,
               props,
               "head"
@@ -3026,7 +3055,7 @@
             if (preamble$jscomp$0.bodyChunks)
               throw Error("The `<body>` tag may only be rendered once.");
             preamble$jscomp$0.bodyChunks = [];
-            var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
               preamble$jscomp$0.bodyChunks,
               props,
               "body"
@@ -3044,7 +3073,7 @@
             if (preamble$jscomp$1.htmlChunks)
               throw Error("The `<html>` tag may only be rendered once.");
             preamble$jscomp$1.htmlChunks = [doctypeChunk];
-            var JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
+            var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
               preamble$jscomp$1.htmlChunks,
               props,
               "html"
@@ -3128,11 +3157,17 @@
     function hoistPreambleState(renderState, preambleState) {
       renderState = renderState.preamble;
       null === renderState.htmlChunks &&
-        (renderState.htmlChunks = preambleState.htmlChunks);
+        preambleState.htmlChunks &&
+        ((renderState.htmlChunks = preambleState.htmlChunks),
+        (preambleState.contribution |= 1));
       null === renderState.headChunks &&
-        (renderState.headChunks = preambleState.headChunks);
+        preambleState.headChunks &&
+        ((renderState.headChunks = preambleState.headChunks),
+        (preambleState.contribution |= 4));
       null === renderState.bodyChunks &&
-        (renderState.bodyChunks = preambleState.bodyChunks);
+        preambleState.bodyChunks &&
+        ((renderState.bodyChunks = preambleState.bodyChunks),
+        (preambleState.contribution |= 2));
     }
     function writeBootstrap(destination, renderState) {
       renderState = renderState.bootstrapChunks;
@@ -3153,6 +3188,13 @@
       writeChunk(destination, renderState.boundaryPrefix);
       writeChunk(destination, stringToChunk(id.toString(16)));
       return writeChunkAndReturn(destination, startPendingSuspenseBoundary2);
+    }
+    function writePreambleContribution(destination, preambleState) {
+      preambleState = preambleState.contribution;
+      preambleState !== NoContribution &&
+        (writeChunk(destination, boundaryPreambleContributionChunkStart),
+        writeChunk(destination, stringToChunk("" + preambleState)),
+        writeChunk(destination, boundaryPreambleContributionChunkEnd));
     }
     function writeStartSegment(destination, renderState, formatContext, id) {
       switch (formatContext.insertionMode) {
@@ -4223,6 +4265,9 @@
     }
     function unsupportedRefresh() {
       throw Error("Cache cannot be refreshed during server rendering.");
+    }
+    function unsupportedStartGesture() {
+      throw Error("startGesture cannot be called during server rendering.");
     }
     function noop$1() {}
     function disabledLog() {}
@@ -7717,8 +7762,8 @@
       if (boundary.status === CLIENT_RENDERED) {
         var errorDigest = boundary.errorDigest,
           errorMessage = boundary.errorMessage,
-          errorStack = boundary.errorStack;
-        boundary = boundary.errorComponentStack;
+          errorStack = boundary.errorStack,
+          errorComponentStack = boundary.errorComponentStack;
         writeChunkAndReturn(destination, startClientRenderedSuspenseBoundary);
         writeChunk(destination, clientRenderedSuspenseBoundaryError1);
         errorDigest &&
@@ -7751,11 +7796,11 @@
             destination,
             clientRenderedSuspenseBoundaryErrorAttrInterstitial
           ));
-        boundary &&
+        errorComponentStack &&
           (writeChunk(destination, clientRenderedSuspenseBoundaryError1D),
           writeChunk(
             destination,
-            stringToChunk(escapeTextForBrowser(boundary))
+            stringToChunk(escapeTextForBrowser(errorComponentStack))
           ),
           writeChunk(
             destination,
@@ -7763,9 +7808,14 @@
           ));
         writeChunkAndReturn(destination, clientRenderedSuspenseBoundaryError2);
         flushSubtree(request, destination, segment, hoistableState);
-      } else if (boundary.status !== COMPLETED)
-        boundary.status === PENDING &&
-          (boundary.rootSegmentID = request.nextSegmentId++),
+        (request = boundary.fallbackPreamble) &&
+          writePreambleContribution(destination, request);
+        return writeChunkAndReturn(destination, endSuspenseBoundary);
+      }
+      if (boundary.status !== COMPLETED)
+        return (
+          boundary.status === PENDING &&
+            (boundary.rootSegmentID = request.nextSegmentId++),
           0 < boundary.completedSegments.length &&
             request.partialBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
@@ -7780,32 +7830,34 @@
               hoistStylesheetDependency,
               hoistableState
             )),
-          flushSubtree(request, destination, segment, hoistableState);
-      else if (boundary.byteSize > request.progressiveChunkSize)
-        (boundary.rootSegmentID = request.nextSegmentId++),
+          flushSubtree(request, destination, segment, hoistableState),
+          writeChunkAndReturn(destination, endSuspenseBoundary)
+        );
+      if (boundary.byteSize > request.progressiveChunkSize)
+        return (
+          (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
           writeStartPendingSuspenseBoundary(
             destination,
             request.renderState,
             boundary.rootSegmentID
           ),
-          flushSubtree(request, destination, segment, hoistableState);
-      else {
-        hoistableState &&
-          ((segment = boundary.contentState),
-          segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
-          segment.stylesheets.forEach(
-            hoistStylesheetDependency,
-            hoistableState
-          ));
-        writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
-        segment = boundary.completedSegments;
-        if (1 !== segment.length)
-          throw Error(
-            "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
-          );
-        flushSegment(request, destination, segment[0], hoistableState);
-      }
+          flushSubtree(request, destination, segment, hoistableState),
+          writeChunkAndReturn(destination, endSuspenseBoundary)
+        );
+      hoistableState &&
+        ((segment = boundary.contentState),
+        segment.styles.forEach(hoistStyleQueueDependency, hoistableState),
+        segment.stylesheets.forEach(hoistStylesheetDependency, hoistableState));
+      writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
+      segment = boundary.completedSegments;
+      if (1 !== segment.length)
+        throw Error(
+          "A previously unvisited boundary must have exactly one root segment. This is a bug in React."
+        );
+      flushSegment(request, destination, segment[0], hoistableState);
+      (request = boundary.contentPreamble) &&
+        writePreambleContribution(destination, request);
       return writeChunkAndReturn(destination, endSuspenseBoundary);
     }
     function flushSegmentContainer(
@@ -8451,11 +8503,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-9b62ee71-20250122" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-d55cc79b-20250228" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-9b62ee71-20250122\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-d55cc79b-20250228\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9302,6 +9354,7 @@
                 var header;
                 resumableState &&
                 0 < resumableState.remainingCapacity &&
+                "string" !== typeof imageSrcSet &&
                 "high" === fetchPriority &&
                 ((header = getPreloadAsHeader(href, as, options)),
                 0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -9564,7 +9617,8 @@
       ),
       importMapScriptEnd = stringToPrecomputedChunk("\x3c/script>");
     var didWarnForNewBooleanPropsWithEmptyValue = {};
-    var ROOT_HTML_MODE = 0,
+    var NoContribution = 0,
+      ROOT_HTML_MODE = 0,
       HTML_HTML_MODE = 1,
       HTML_MODE = 2,
       HTML_HEAD_MODE = 3,
@@ -9639,6 +9693,9 @@
         stringToPrecomputedChunk(' data-cstck="'),
       clientRenderedSuspenseBoundaryError2 =
         stringToPrecomputedChunk("></template>"),
+      boundaryPreambleContributionChunkStart =
+        stringToPrecomputedChunk("\x3c!--"),
+      boundaryPreambleContributionChunkEnd = stringToPrecomputedChunk("--\x3e"),
       startSegmentHTML = stringToPrecomputedChunk('<div hidden id="'),
       startSegmentHTML2 = stringToPrecomputedChunk('">'),
       endSegmentHTML = stringToPrecomputedChunk("</div>"),
@@ -9880,9 +9937,9 @@
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
           overflow = localIdCounter++;
-          treeId = ":" + resumableState.idPrefix + "R" + treeId;
+          treeId = "\u00ab" + resumableState.idPrefix + "R" + treeId;
           0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + ":";
+          return treeId + "\u00bb";
         },
         useSyncExternalStore: function (
           subscribe,
@@ -9915,6 +9972,10 @@
         },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
+        },
+        useSwipeTransition: function (previous, current) {
+          resolveCurrentlyRenderingComponent();
+          return [current, unsupportedStartGesture];
         }
       },
       currentResumableState = null,
@@ -10233,5 +10294,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.1.0-experimental-9b62ee71-20250122";
+    exports.version = "19.1.0-experimental-d55cc79b-20250228";
   })();

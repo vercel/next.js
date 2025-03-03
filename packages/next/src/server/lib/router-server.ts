@@ -625,8 +625,7 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
-      setAppIsrStatus:
-        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
@@ -710,7 +709,7 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
                 } satisfies AppIsrManifestAction)
               )
@@ -751,5 +750,12 @@ export async function initialize(opts: {
     }
   }
 
-  return { requestHandler, upgradeHandler, server: handlers.server }
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }

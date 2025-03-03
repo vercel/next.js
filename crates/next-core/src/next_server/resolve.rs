@@ -230,7 +230,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 *node_resolved_from_original_location.first_source().await?
             else {
                 if is_esm
-                    && package_subpath != ""
+                    && !package_subpath.is_empty()
                     && package_subpath != "/"
                     && !request_str.ends_with(".js")
                 {
@@ -415,14 +415,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        Ok(ResolveResultOption::some(
-            ResolveResult::primary(ResolveResultItem::External {
+        Ok(ResolveResultOption::some(*ResolveResult::primary(
+            ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
-            })
-            .cell(),
-        ))
+            },
+        )))
     }
 }
 

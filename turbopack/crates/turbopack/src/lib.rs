@@ -8,6 +8,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
+pub mod global_module_ids;
 mod graph;
 pub mod module_options;
 pub mod transition;
@@ -59,7 +60,7 @@ use turbopack_ecmascript::{
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
 use turbopack_resolve::{resolve_options_context::ResolveOptionsContext, typescript::type_resolve};
-use turbopack_static::StaticModuleAsset;
+use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
@@ -70,7 +71,7 @@ async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
     css_import_context: Option<Vc<ImportContext>>,
     runtime_code: bool,
@@ -138,25 +139,21 @@ async fn apply_module_type(
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build().resolve().await?;
-                let part_ref = if let Some(part) = part {
-                    Some((part.await?, part))
-                } else {
-                    None
-                };
-                if let Some((part, _)) = part_ref {
-                    if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
-                        // Skip the evaluation part if the module is marked as side effect free.
-                        let side_effect_free_packages = module_asset_context
-                            .side_effect_free_packages()
-                            .resolve()
-                            .await?;
+                if matches!(
+                    &part,
+                    Some(ModulePart::Evaluation | ModulePart::InternalEvaluation(..))
+                ) {
+                    // Skip the evaluation part if the module is marked as side effect free.
+                    let side_effect_free_packages = module_asset_context
+                        .side_effect_free_packages()
+                        .resolve()
+                        .await?;
 
-                        if *module
-                            .is_marked_as_side_effect_free(side_effect_free_packages)
-                            .await?
-                        {
-                            return Ok(ProcessResult::Ignore.cell());
-                        }
+                    if *module
+                        .is_marked_as_side_effect_free(side_effect_free_packages)
+                        .await?
+                    {
+                        return Ok(ProcessResult::Ignore.cell());
                     }
                 }
 
@@ -170,7 +167,7 @@ async fn apply_module_type(
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
-                            match *part.await? {
+                            match part {
                                 ModulePart::Evaluation => {
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
@@ -211,7 +208,7 @@ async fn apply_module_type(
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
                                      mode",
-                                    part.to_string().await?
+                                    part
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
@@ -252,11 +249,12 @@ async fn apply_module_type(
             .to_resolved()
             .await?,
         ),
-        ModuleType::Static => ResolvedVc::upcast(
-            StaticModuleAsset::new(*source, Vc::upcast(module_asset_context))
-                .to_resolved()
-                .await?,
-        ),
+        ModuleType::StaticUrlJs => {
+            ResolvedVc::upcast(StaticUrlJsModule::new(*source).to_resolved().await?)
+        }
+        ModuleType::StaticUrlCss => {
+            ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
+        }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
                 WebAssemblySource::new(*source, *source_ty),
@@ -278,35 +276,28 @@ async fn apply_module_type(
 #[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    part: Vc<ModulePart>,
+    part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = *part.await? {
-        let export = export.await?;
+    if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(
-            module,
-            export.clone_value(),
-            side_effect_free_packages,
-            false,
-        )
-        .await?;
+        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, false).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
-                    ModulePart::renamed_export(new_export.clone(), export.clone_value()),
+                    ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
-                ModulePart::renamed_namespace(export.clone_value()),
+                ModulePart::renamed_namespace(export.clone()),
             ))
         };
         return Ok(module);
@@ -501,9 +492,9 @@ async fn process_default_internal(
     );
 
     let reference_type = reference_type.into_value();
-    let part: Option<Vc<ModulePart>> = match &reference_type {
+    let part: Option<ModulePart> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(**part)
+            Some(part.clone())
         }
         _ => None,
     };
@@ -962,7 +953,7 @@ async fn emit_aggregated_assets(
 
 #[turbo_tasks::function]
 pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) {
-    let _ = asset.content().write(asset.ident().path());
+    let _ = asset.content().write(asset.path());
 }
 
 #[turbo_tasks::function]
@@ -971,7 +962,7 @@ pub async fn emit_asset_into_dir(
     output_dir: Vc<FileSystemPath>,
 ) -> Result<()> {
     let dir = &*output_dir.await?;
-    if asset.ident().path().await?.is_inside_ref(dir) {
+    if asset.path().await?.is_inside_ref(dir) {
         let _ = emit_asset(asset);
     }
     Ok(())

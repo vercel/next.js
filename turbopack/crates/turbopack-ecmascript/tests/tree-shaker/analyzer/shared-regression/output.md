@@ -235,15 +235,15 @@ graph TD
 {
     ModuleEvaluation: 5,
     Export(
-        "order",
-    ): 7,
-    Exports: 8,
+        "a",
+    ): 6,
     Export(
         "b",
     ): 4,
     Export(
-        "a",
-    ): 6,
+        "order",
+    ): 7,
+    Exports: 8,
 }
 ```
 
@@ -373,15 +373,15 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 5,
     Export(
-        "order",
-    ): 7,
-    Exports: 8,
+        "a",
+    ): 6,
     Export(
         "b",
     ): 4,
     Export(
-        "a",
-    ): 6,
+        "order",
+    ): 7,
+    Exports: 8,
 }
 ```
 

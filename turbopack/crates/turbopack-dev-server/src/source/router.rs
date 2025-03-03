@@ -65,7 +65,6 @@ async fn get_introspection_children(
             .chain(std::iter::once((RcStr::default(), *fallback)))
             .map(|(path, source)| async move {
                 Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
-                    .await?
                     .map(|i| (ResolvedVc::cell(path), i)))
             })
             .try_join()
@@ -85,9 +84,13 @@ impl ContentSource for PrefixedRouterContentSource {
             debug_assert!(prefix.is_empty() || prefix.ends_with('/'));
             debug_assert!(!prefix.starts_with('/'));
         }
-        let prefix = (!prefix.is_empty())
-            .then(|| BaseSegment::from_static_pathname(prefix.as_str()).collect())
-            .unwrap_or(Vec::new());
+
+        let prefix = if prefix.is_empty() {
+            Vec::new()
+        } else {
+            BaseSegment::from_static_pathname(prefix.as_str()).collect()
+        };
+
         let inner_trees = self.routes.iter().map(|(path, source)| {
             let prepended_base = prefix
                 .iter()

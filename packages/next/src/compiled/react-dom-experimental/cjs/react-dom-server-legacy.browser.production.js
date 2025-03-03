@@ -334,7 +334,12 @@ function createResumableState(
   };
 }
 function createPreambleState() {
-  return { htmlChunks: null, headChunks: null, bodyChunks: null };
+  return {
+    htmlChunks: null,
+    headChunks: null,
+    bodyChunks: null,
+    contribution: 0
+  };
 }
 function createFormatContext(insertionMode, selectedValue, tagScope) {
   return {
@@ -789,6 +794,29 @@ function pushScriptImpl(target, props) {
     target.push(("" + children).replace(scriptRegex, scriptReplacer));
   target.push(endChunkForTag("script"));
   return null;
+}
+function pushStartSingletonElement(target, props, tag) {
+  target.push(startChunkForTag(tag));
+  var innerHTML = (tag = null),
+    propKey;
+  for (propKey in props)
+    if (hasOwnProperty.call(props, propKey)) {
+      var propValue = props[propKey];
+      if (null != propValue)
+        switch (propKey) {
+          case "children":
+            tag = propValue;
+            break;
+          case "dangerouslySetInnerHTML":
+            innerHTML = propValue;
+            break;
+          default:
+            pushAttribute(target, propKey, propValue);
+        }
+    }
+  target.push(">");
+  pushInnerHTML(target, innerHTML, tag);
+  return tag;
 }
 function pushStartGenericElement(target, props, tag) {
   target.push(startChunkForTag(tag));
@@ -1663,6 +1691,7 @@ function pushStartInstance(
             header;
           headers &&
           0 < headers.remainingCapacity &&
+          "string" !== typeof props.srcSet &&
           ("high" === props.fetchPriority ||
             500 > headers.highImagePreloads.length) &&
           ((header = getPreloadAsHeader(src, "image", {
@@ -1727,7 +1756,7 @@ function pushStartInstance(
         if (preamble.headChunks)
           throw Error(formatProdErrorMessage(545, "`<head>`"));
         preamble.headChunks = [];
-        var JSCompiler_inline_result$jscomp$9 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$9 = pushStartSingletonElement(
           preamble.headChunks,
           props,
           "head"
@@ -1745,7 +1774,7 @@ function pushStartInstance(
         if (preamble$jscomp$0.bodyChunks)
           throw Error(formatProdErrorMessage(545, "`<body>`"));
         preamble$jscomp$0.bodyChunks = [];
-        var JSCompiler_inline_result$jscomp$10 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$10 = pushStartSingletonElement(
           preamble$jscomp$0.bodyChunks,
           props,
           "body"
@@ -1763,7 +1792,7 @@ function pushStartInstance(
         if (preamble$jscomp$1.htmlChunks)
           throw Error(formatProdErrorMessage(545, "`<html>`"));
         preamble$jscomp$1.htmlChunks = [""];
-        var JSCompiler_inline_result$jscomp$11 = pushStartGenericElement(
+        var JSCompiler_inline_result$jscomp$11 = pushStartSingletonElement(
           preamble$jscomp$1.htmlChunks,
           props,
           "html"
@@ -1838,11 +1867,17 @@ function endChunkForTag(tag) {
 function hoistPreambleState(renderState, preambleState) {
   renderState = renderState.preamble;
   null === renderState.htmlChunks &&
-    (renderState.htmlChunks = preambleState.htmlChunks);
+    preambleState.htmlChunks &&
+    ((renderState.htmlChunks = preambleState.htmlChunks),
+    (preambleState.contribution |= 1));
   null === renderState.headChunks &&
-    (renderState.headChunks = preambleState.headChunks);
+    preambleState.headChunks &&
+    ((renderState.headChunks = preambleState.headChunks),
+    (preambleState.contribution |= 4));
   null === renderState.bodyChunks &&
-    (renderState.bodyChunks = preambleState.bodyChunks);
+    preambleState.bodyChunks &&
+    ((renderState.bodyChunks = preambleState.bodyChunks),
+    (preambleState.contribution |= 2));
 }
 function writeBootstrap(destination, renderState) {
   renderState = renderState.bootstrapChunks;
@@ -1859,6 +1894,13 @@ function writeStartPendingSuspenseBoundary(destination, renderState, id) {
   renderState = id.toString(16);
   destination.push(renderState);
   return destination.push('"></template>');
+}
+function writePreambleContribution(destination, preambleState) {
+  preambleState = preambleState.contribution;
+  0 !== preambleState &&
+    (destination.push("\x3c!--"),
+    destination.push("" + preambleState),
+    destination.push("--\x3e"));
 }
 function writeStartSegment(destination, renderState, formatContext, id) {
   switch (formatContext.insertionMode) {
@@ -2401,6 +2443,7 @@ function preload(href, as, options) {
           var header;
           resumableState &&
           0 < resumableState.remainingCapacity &&
+          "string" !== typeof imageSrcSet &&
           "high" === fetchPriority &&
           ((header = getPreloadAsHeader(href, as, options)),
           0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -2705,17 +2748,17 @@ function createRenderState(resumableState, generateStaticMarkup) {
       "\x3c/script>"
     );
   bootstrapScriptContent = idPrefix + "P:";
-  var JSCompiler_object_inline_segmentPrefix_1683 = idPrefix + "S:";
+  var JSCompiler_object_inline_segmentPrefix_1704 = idPrefix + "S:";
   idPrefix += "B:";
-  var JSCompiler_object_inline_preamble_1686 = createPreambleState(),
-    JSCompiler_object_inline_preconnects_1696 = new Set(),
-    JSCompiler_object_inline_fontPreloads_1697 = new Set(),
-    JSCompiler_object_inline_highImagePreloads_1698 = new Set(),
-    JSCompiler_object_inline_styles_1699 = new Map(),
-    JSCompiler_object_inline_bootstrapScripts_1700 = new Set(),
-    JSCompiler_object_inline_scripts_1701 = new Set(),
-    JSCompiler_object_inline_bulkPreloads_1702 = new Set(),
-    JSCompiler_object_inline_preloads_1703 = {
+  var JSCompiler_object_inline_preamble_1707 = createPreambleState(),
+    JSCompiler_object_inline_preconnects_1717 = new Set(),
+    JSCompiler_object_inline_fontPreloads_1718 = new Set(),
+    JSCompiler_object_inline_highImagePreloads_1719 = new Set(),
+    JSCompiler_object_inline_styles_1720 = new Map(),
+    JSCompiler_object_inline_bootstrapScripts_1721 = new Set(),
+    JSCompiler_object_inline_scripts_1722 = new Set(),
+    JSCompiler_object_inline_bulkPreloads_1723 = new Set(),
+    JSCompiler_object_inline_preloads_1724 = {
       images: new Map(),
       stylesheets: new Map(),
       scripts: new Map(),
@@ -2752,7 +2795,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
       scriptConfig.moduleScriptResources[href] = null;
       scriptConfig = [];
       pushLinkImpl(scriptConfig, props);
-      JSCompiler_object_inline_bootstrapScripts_1700.add(scriptConfig);
+      JSCompiler_object_inline_bootstrapScripts_1721.add(scriptConfig);
       bootstrapChunks.push('<script src="', escapeTextForBrowser(src));
       "string" === typeof integrity &&
         bootstrapChunks.push('" integrity="', escapeTextForBrowser(integrity));
@@ -2793,7 +2836,7 @@ function createRenderState(resumableState, generateStaticMarkup) {
         (props.moduleScriptResources[scriptConfig] = null),
         (props = []),
         pushLinkImpl(props, integrity),
-        JSCompiler_object_inline_bootstrapScripts_1700.add(props),
+        JSCompiler_object_inline_bootstrapScripts_1721.add(props),
         bootstrapChunks.push(
           '<script type="module" src="',
           escapeTextForBrowser(i)
@@ -2808,10 +2851,10 @@ function createRenderState(resumableState, generateStaticMarkup) {
         bootstrapChunks.push('" async="">\x3c/script>');
   return {
     placeholderPrefix: bootstrapScriptContent,
-    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1683,
+    segmentPrefix: JSCompiler_object_inline_segmentPrefix_1704,
     boundaryPrefix: idPrefix,
     startInlineScript: "<script>",
-    preamble: JSCompiler_object_inline_preamble_1686,
+    preamble: JSCompiler_object_inline_preamble_1707,
     externalRuntimeScript: null,
     bootstrapChunks: bootstrapChunks,
     importMapChunks: [],
@@ -2827,14 +2870,14 @@ function createRenderState(resumableState, generateStaticMarkup) {
     charsetChunks: [],
     viewportChunks: [],
     hoistableChunks: [],
-    preconnects: JSCompiler_object_inline_preconnects_1696,
-    fontPreloads: JSCompiler_object_inline_fontPreloads_1697,
-    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1698,
-    styles: JSCompiler_object_inline_styles_1699,
-    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1700,
-    scripts: JSCompiler_object_inline_scripts_1701,
-    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1702,
-    preloads: JSCompiler_object_inline_preloads_1703,
+    preconnects: JSCompiler_object_inline_preconnects_1717,
+    fontPreloads: JSCompiler_object_inline_fontPreloads_1718,
+    highImagePreloads: JSCompiler_object_inline_highImagePreloads_1719,
+    styles: JSCompiler_object_inline_styles_1720,
+    bootstrapScripts: JSCompiler_object_inline_bootstrapScripts_1721,
+    scripts: JSCompiler_object_inline_scripts_1722,
+    bulkPreloads: JSCompiler_object_inline_bulkPreloads_1723,
+    preloads: JSCompiler_object_inline_preloads_1724,
     stylesToHoist: !1,
     generateStaticMarkup: generateStaticMarkup
   };
@@ -3286,6 +3329,9 @@ function readPreviousThenableFromState() {
 function unsupportedRefresh() {
   throw Error(formatProdErrorMessage(393));
 }
+function unsupportedStartGesture() {
+  throw Error(formatProdErrorMessage(547));
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3348,9 +3394,9 @@ var HooksDispatcher = {
       if (null === resumableState) throw Error(formatProdErrorMessage(404));
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + ":";
+      return JSCompiler_inline_result + "\u00bb";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -3377,6 +3423,10 @@ var HooksDispatcher = {
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
+    },
+    useSwipeTransition: function (previous, current) {
+      resolveCurrentlyRenderingComponent();
+      return [current, unsupportedStartGesture];
     }
   },
   currentResumableState = null,
@@ -5730,24 +5780,26 @@ function flushSegment(request, destination, segment, hoistableState) {
   if (null === boundary)
     return flushSubtree(request, destination, segment, hoistableState);
   boundary.parentFlushed = !0;
-  if (4 === boundary.status)
-    return (
-      request.renderState.generateStaticMarkup ||
-        ((boundary = boundary.errorDigest),
-        destination.push("\x3c!--$!--\x3e"),
-        destination.push("<template"),
-        boundary &&
-          (destination.push(' data-dgst="'),
-          (boundary = escapeTextForBrowser(boundary)),
-          destination.push(boundary),
-          destination.push('"')),
-        destination.push("></template>")),
-      flushSubtree(request, destination, segment, hoistableState),
-      (request = request.renderState.generateStaticMarkup
-        ? !0
-        : destination.push("\x3c!--/$--\x3e")),
-      request
-    );
+  if (4 === boundary.status) {
+    if (!request.renderState.generateStaticMarkup) {
+      var errorDigest = boundary.errorDigest;
+      destination.push("\x3c!--$!--\x3e");
+      destination.push("<template");
+      errorDigest &&
+        (destination.push(' data-dgst="'),
+        (errorDigest = escapeTextForBrowser(errorDigest)),
+        destination.push(errorDigest),
+        destination.push('"'));
+      destination.push("></template>");
+    }
+    flushSubtree(request, destination, segment, hoistableState);
+    request.renderState.generateStaticMarkup
+      ? (destination = !0)
+      : ((request = boundary.fallbackPreamble) &&
+          writePreambleContribution(destination, request),
+        (destination = destination.push("\x3c!--/$--\x3e")));
+    return destination;
+  }
   if (1 !== boundary.status)
     return (
       0 === boundary.status &&
@@ -5790,10 +5842,12 @@ function flushSegment(request, destination, segment, hoistableState) {
   segment = boundary.completedSegments;
   if (1 !== segment.length) throw Error(formatProdErrorMessage(391));
   flushSegment(request, destination, segment[0], hoistableState);
-  request = request.renderState.generateStaticMarkup
-    ? !0
-    : destination.push("\x3c!--/$--\x3e");
-  return request;
+  request.renderState.generateStaticMarkup
+    ? (destination = !0)
+    : ((request = boundary.contentPreamble) &&
+        writePreambleContribution(destination, request),
+      (destination = destination.push("\x3c!--/$--\x3e")));
+  return destination;
 }
 function flushSegmentContainer(request, destination, segment, hoistableState) {
   writeStartSegment(
@@ -6297,4 +6351,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.1.0-experimental-9b62ee71-20250122";
+exports.version = "19.1.0-experimental-d55cc79b-20250228";

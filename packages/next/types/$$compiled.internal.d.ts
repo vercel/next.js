@@ -351,12 +351,6 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
-declare module 'next/dist/compiled/node-fetch' {
-  import fetch from 'node-fetch'
-  export * from 'node-fetch'
-  export default fetch
-}
-
 declare module 'next/dist/compiled/commander' {
   import commander from 'commander'
   export * from 'commander'
@@ -772,13 +766,11 @@ declare module 'next/dist/compiled/webpack-sources3' {
 }
 
 declare module 'next/dist/compiled/webpack/webpack' {
-  import type webpackSources from 'webpack-sources1'
   import { type Compilation, Module } from 'webpack'
 
   export function init(): void
   export let BasicEvaluatedExpression: any
   export let GraphHelpers: any
-  export let sources: typeof webpackSources
   export let StringXor: any
   export class ConcatenatedModule extends Module {
     rootModule: Module
@@ -888,6 +880,8 @@ declare module 'next/dist/compiled/webpack/webpack' {
     NormalModule,
     ResolvePluginInstance,
     ModuleFilenameHelpers,
+    WebpackError,
+    sources,
   } from 'webpack'
   export type {
     javascript,
@@ -895,4 +889,6 @@ declare module 'next/dist/compiled/webpack/webpack' {
     LoaderContext,
     ModuleGraph,
   } from 'webpack'
+
+  export type CacheFacade = ReturnType<Compilation['getCache']>
 }

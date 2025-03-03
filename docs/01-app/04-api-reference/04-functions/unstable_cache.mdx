@@ -50,12 +50,17 @@ const data = unstable_cache(fetchData, keyParts, options)()
 ```tsx filename="app/page.tsx" switcher
 import { unstable_cache } from 'next/cache'
 
-export default async function Page({ params }: { params: { userId: string } }) {
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ userId: string }>
+}) {
+  const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: params.userId }
+      return { id: userId }
     },
-    [params.userId], // add the user ID to the cache key
+    [userId], // add the user ID to the cache key
     {
       tags: ['users'],
       revalidate: 60,
@@ -70,11 +75,12 @@ export default async function Page({ params }: { params: { userId: string } }) {
 import { unstable_cache } from 'next/cache';
 
 export default async function Page({ params } }) {
+  const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
-      return { id: params.userId };
+      return { id: userId };
     },
-    [params.userId], // add the user ID to the cache key
+    [userId], // add the user ID to the cache key
     {
       tags: ["users"],
       revalidate: 60,

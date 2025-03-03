@@ -303,10 +303,8 @@ struct Value {
 }
 
 #[turbo_tasks::function]
-async fn calls_many_children(
-    _i: TransientInstance<()>,
-    j: Option<TransientInstance<()>>,
-) -> Vc<()> {
+async fn calls_many_children(i: TransientInstance<()>, j: Option<TransientInstance<()>>) -> Vc<()> {
+    let _ = i;
     let _ = many_children(j);
     Vc::cell(())
 }
@@ -325,7 +323,8 @@ fn many_children_inner(_i: u32) -> Vc<()> {
 }
 
 #[turbo_tasks::function]
-async fn calls_big_graph(mut counts: Vec<u32>, _i: TransientInstance<()>) -> Vc<()> {
+async fn calls_big_graph(mut counts: Vec<u32>, i: TransientInstance<()>) -> Vc<()> {
+    let _ = i;
     counts.reverse();
     let _ = big_graph(counts, vec![]);
     Vc::cell(())

@@ -23,6 +23,25 @@ describe('Undefined default export', () => {
     )
   })
 
+  it('should error if layout component does not have default export', async () => {
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        ['app/(group)/specific-path/server/layout.js', 'export const a = 123'],
+        [
+          'app/(group)/specific-path/server/page.js',
+          'export default function Page() { return <div>Hello</div> }',
+        ],
+      ]),
+      '/specific-path/server'
+    )
+    const { session } = sandbox
+    await session.assertHasRedbox()
+    expect(await session.getRedboxDescription()).toInclude(
+      'The default export is not a React Component in "/specific-path/server/layout"'
+    )
+  })
+
   it('should error if not-found component does not have default export when trigger not-found boundary', async () => {
     await using sandbox = await createSandbox(
       next,

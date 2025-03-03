@@ -26,7 +26,7 @@ import {
   encodeSegment,
   ROOT_SEGMENT_KEY,
   type EncodedSegment,
-} from './segment-value-encoding'
+} from '../../shared/lib/segment-cache/segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
 import type { FallbackRouteParams } from '../request/fallback-params'
 
@@ -379,7 +379,7 @@ async function renderSegmentPrefetch(
   if (key === ROOT_SEGMENT_KEY) {
     return ['/_index', segmentBuffer]
   } else {
-    return ['/' + key, segmentBuffer]
+    return [key, segmentBuffer]
   }
 }
 

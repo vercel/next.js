@@ -195,14 +195,14 @@ graph TD
 
 ```
 {
+    ModuleEvaluation: 5,
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 5,
-    Exports: 6,
     Export(
         "wrapClientComponentLoader",
     ): 3,
+    Exports: 6,
 }
 ```
 
@@ -331,14 +331,14 @@ export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
 
 ```
 {
+    ModuleEvaluation: 5,
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 5,
-    Exports: 6,
     Export(
         "wrapClientComponentLoader",
     ): 3,
+    Exports: 6,
 }
 ```
 

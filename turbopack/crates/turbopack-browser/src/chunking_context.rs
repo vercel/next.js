@@ -9,14 +9,14 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
-        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId, SourceMapsType,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
+        SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -27,8 +27,8 @@ use turbopack_ecmascript::{
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::{
-    chunk::EcmascriptDevChunk,
-    evaluate::chunk::EcmascriptDevEvaluateChunk,
+    chunk::EcmascriptBrowserChunk,
+    evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
@@ -210,6 +210,11 @@ impl BrowserChunkingContext {
     }
 
     /// Returns the minify type.
+    pub fn source_maps_type(&self) -> SourceMapsType {
+        self.source_maps_type
+    }
+
+    /// Returns the minify type.
     pub fn minify_type(&self) -> MinifyType {
         self.minify_type
     }
@@ -231,7 +236,7 @@ impl BrowserChunkingContext {
         // TODO(sokra) remove this argument and pass chunk items instead
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptDevEvaluateChunk::new(
+        Vc::upcast(EcmascriptBrowserEvaluateChunk::new(
             self,
             ident,
             other_chunks,
@@ -266,7 +271,7 @@ impl BrowserChunkingContext {
             if let Some(ecmascript_chunk) =
                 Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
             {
-                Vc::upcast(EcmascriptDevChunk::new(self, ecmascript_chunk))
+                Vc::upcast(EcmascriptBrowserChunk::new(self, ecmascript_chunk))
             } else if let Some(output_asset) =
                 Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(chunk).await?
             {
@@ -316,22 +321,24 @@ impl ChunkingContext for BrowserChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = self.chunk_root_path;
-        let name = ident.output_name(*self.root_path, extension).await?;
-        Ok(root_path.join(name.clone_value()))
+        let name = ident
+            .output_name(*self.root_path, extension)
+            .owned()
+            .await?;
+        Ok(root_path.join(name))
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let asset_path = ident.await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.await?.path))
             .context("expected asset_path to contain client_root")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_base_path
+                self.asset_base_path
                     .await?
                     .as_ref()
                     .map(|s| s.as_str())
@@ -408,39 +415,23 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunk_group(
-        self: Vc<Self>,
-        ident: Vc<AssetIdent>,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
-        module_graph: Vc<ModuleGraph>,
-        availability_info: Value<AvailabilityInfo>,
-    ) -> Vc<ChunkGroupResult> {
-        self.chunk_group_multiple(
-            ident,
-            Vc::cell(vec![module]),
-            module_graph,
-            availability_info,
-        )
-    }
-
-    #[turbo_tasks::function]
-    async fn chunk_group_multiple(
+    async fn chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        modules: Vc<ChunkableModules>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
-            let modules = modules.await?;
+            let modules = chunk_group.entries();
             let input_availability_info = availability_info.into_value();
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                modules.iter().copied().map(ResolvedVc::upcast),
+                modules,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -562,7 +553,6 @@ impl ChunkingContext for BrowserChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         _path: Vc<FileSystemPath>,
-        _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,

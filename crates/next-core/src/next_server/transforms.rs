@@ -77,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
@@ -111,39 +111,51 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Client,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             false
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             true
         }
         ServerContextType::AppRoute { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 

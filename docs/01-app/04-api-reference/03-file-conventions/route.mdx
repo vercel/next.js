@@ -86,13 +86,13 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ team: string }> }
 ) {
-  const team = (await params).team
+  const { team } = await params
 }
 ```
 
 ```js filename="app/dashboard/[team]/route.js" switcher
 export async function GET(request, { params }) {
-  const team = (await params).team
+  const { team } = await params
 }
 ```
 

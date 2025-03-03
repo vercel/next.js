@@ -21,7 +21,6 @@ import {
   getDefineEnv,
 } from '../webpack/plugins/define-env-plugin'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
-import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -41,6 +40,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
+import { TurbopackInternalError } from '../../shared/lib/turbopack/utils'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -1290,7 +1290,10 @@ export function transformSync(src: string, options?: any): any {
   return bindings.transformSync(src, options)
 }
 
-export async function minify(src: string, options: any): Promise<string> {
+export async function minify(
+  src: string,
+  options: any
+): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
 }

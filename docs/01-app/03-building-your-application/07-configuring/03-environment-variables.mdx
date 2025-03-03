@@ -17,6 +17,8 @@ Next.js comes with built-in support for environment variables, which allows you 
 - [Use `.env` to load environment variables](#loading-environment-variables)
 - [Bundle environment variables for the browser by prefixing with `NEXT_PUBLIC_`](#bundling-environment-variables-for-the-browser)
 
+> **Warning:** The default `create-next-app` template ensures all `.env` files are added to your `.gitignore`. You almost never want to commit these files to your repository.
+
 ## Loading Environment Variables
 
 Next.js has built-in support for loading environment variables from `.env*` files into `process.env`.
@@ -232,15 +234,7 @@ This allows you to use a singular Docker image that can be promoted through mult
 **Good to know:**
 
 - You can run code on server startup using the [`register` function](/docs/app/building-your-application/optimizing/instrumentation).
-- We do not recommend using the [runtimeConfig](/docs/pages/api-reference/config/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router.
-
-## Default Environment Variables
-
-Typically, only `.env*` file is needed. However, sometimes you might want to add some defaults for the `development` (`next dev`) or `production` (`next start`) environment.
-
-Next.js allows you to set defaults in `.env` (all environments), `.env.development` (development environment), and `.env.production` (production environment).
-
-> **Good to know**: `.env`, `.env.development`, and `.env.production` files should be included in your repository as they define defaults. All `.env` files are excluded in `.gitignore` by default, allowing you to opt-into committing these values to your repository.
+- We do not recommend using the [`runtimeConfig`](/docs/pages/api-reference/config/next-config-js/runtime-configuration) option, as this does not work with the standalone output mode. Instead, we recommend [incrementally adopting](/docs/app/building-your-application/upgrading/app-router-migration) the App Router if you need this feature.
 
 ## Environment Variables on Vercel
 

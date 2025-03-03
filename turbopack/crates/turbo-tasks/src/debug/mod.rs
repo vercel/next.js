@@ -1,6 +1,7 @@
 use std::fmt::{Debug, Display};
 
 use auto_hash_map::{AutoMap, AutoSet};
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 pub use turbo_tasks_macros::ValueDebugFormat;
@@ -157,6 +158,37 @@ where
     }
 }
 
+impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
+where
+    T: ValueDebugFormat,
+{
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+        if depth == 0 {
+            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+        }
+
+        let values = self
+            .iter()
+            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+            .collect::<Vec<_>>();
+
+        ValueDebugFormatString::Async(Box::pin(async move {
+            let mut values_string = vec![];
+            for value in values {
+                match value {
+                    ValueDebugFormatString::Sync(string) => {
+                        values_string.push(PassthroughDebug::new_string(string));
+                    }
+                    ValueDebugFormatString::Async(future) => {
+                        values_string.push(PassthroughDebug::new_string(future.await?));
+                    }
+                }
+            }
+            Ok(format!("{:#?}", values_string))
+        }))
+    }
+}
+
 impl<K> ValueDebugFormat for AutoSet<K>
 where
     K: ValueDebugFormat,
@@ -188,7 +220,7 @@ where
     }
 }
 
-impl<K, V> ValueDebugFormat for std::collections::HashMap<K, V>
+impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
 where
     K: Debug,
     V: ValueDebugFormat,

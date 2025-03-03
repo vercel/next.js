@@ -102,5 +102,5 @@ interface TurbopackBaseContext<M> {
   U: RelativeURL;
   b: GetWorkerBlobURL,
   z: CommonJsRequire
-  __dirname: string;
+  d: string;
 }

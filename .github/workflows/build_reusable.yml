@@ -79,7 +79,7 @@ env:
   RUST_BACKTRACE: 0
 
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
   NEXT_SKIP_NATIVE_POSTINSTALL: ${{ inputs.skipNativeInstall == 'yes' && '1' || '' }}
@@ -135,6 +135,10 @@ jobs:
       - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
+      - name: Prepare corepack
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        run: |
+          npm i -g corepack@0.31
       - run: corepack enable
       - run: pwd
 
@@ -163,7 +167,7 @@ jobs:
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "turbo@${TURBO_VERSION}" "@napi-rs/cli@${NAPI_CLI_VERSION}"
+      - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.8
@@ -189,7 +193,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact
@@ -220,9 +224,15 @@ jobs:
       - run: pnpm playwright install chromium
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: turbo run get-test-timings -- --build ${{ github.sha }}
+      - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
-      - run: /bin/bash -c "${{ inputs.afterBuild }}"
+      - run: ${{ inputs.afterBuild }}
+        # defaults.run.shell sets a stronger options (`-leo pipefail`)
+        # Set this back to github action's weaker defaults:
+        # https://docs.github.com/en/actions/writing-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsshell
+        #
+        # We must use a login shell: fnm installation may modify the `.profile`
+        shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
       - name: Upload artifact
@@ -239,18 +249,27 @@ jobs:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
-      - name: Upload test report artifacts
-        uses: actions/upload-artifact@v4
-        if: ${{ inputs.afterBuild && always() }}
-        with:
-          name: test-reports-${{ steps.var.outputs.input_step_key }}
-          path: |
-            test/test-junit-report
-            test/turbopack-test-junit-report
-          if-no-files-found: ignore
+      - name: Upload test report to datadog
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        run: |
+          # Add a `test.type` tag to distinguish between turbopack and next.js runs
+          # Add a `nextjs.test_session.name` tag to help identify the job
+          if [ -d ./test/test-junit-report ]; then
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:nextjs \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              ./test/test-junit-report
+          fi
+          if [ -d ./test/turbopack-test-junit-report ]; then
+            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+              --service nextjs \
+              --tags test.type:turbopack \
+              --tags test_session.name:"${{ inputs.stepName }}" \
+              ./test/turbopack-test-junit-report
+          fi
 
-      # upload playwright snapshots from failed tests
-      - name: Upload test report artifacts
+      - name: Upload Playwright Snapshots
         uses: actions/upload-artifact@v4
         if: ${{ inputs.afterBuild && always() }}
         with:

@@ -48,18 +48,11 @@ export type Feature =
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
+  | 'webpackPlugins'
   | UseCacheTrackerKey
 interface FeatureUsage {
   featureName: Feature
   invocationCount: number
-}
-
-/**
- * A vertex in the module graph.
- */
-interface Module {
-  type: string
-  identifier(): string
 }
 
 /**
@@ -113,6 +106,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'skipTrailingSlashRedirect',
   'modularizeImports',
   'esmExternals',
+  'webpackPlugins',
 ]
 
 export type TelemetryLoaderContext = {
@@ -127,16 +121,17 @@ const useCacheTracker = createUseCacheTracker()
 /**
  * Determine if there is a feature of interest in the specified 'module'.
  */
-function findFeatureInModule(module: Module): Feature | undefined {
+function findFeatureInModule(module: webpack.Module): Feature | undefined {
   if (module.type !== 'javascript/auto') {
     return
   }
-  const normalizedIdentifier = module.identifier().replace(/\\/g, '/')
+
   for (const [feature, path] of FEATURE_MODULE_MAP) {
-    if (normalizedIdentifier.endsWith(path)) {
+    if ((module as webpack.NormalModule).resource.endsWith(path)) {
       return feature
     }
   }
+  const normalizedIdentifier = module.identifier().replace(/\\/g, '/')
   for (const [feature, regexp] of FEATURE_MODULE_REGEXP_MAP) {
     if (regexp.test(normalizedIdentifier)) {
       return feature
@@ -151,7 +146,7 @@ function findFeatureInModule(module: Module): Feature | undefined {
  */
 function findUniqueOriginModulesInConnections(
   connections: Connection[],
-  originModule: Module
+  originModule: webpack.Module
 ): Set<unknown> {
   const originModules = new Set()
   for (const connection of connections) {
@@ -200,13 +195,23 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  apply(compiler: webpack.Compiler): void {
+  public addUsage(
+    featureName: Feature,
+    invocationCount: FeatureUsage['invocationCount']
+  ): void {
+    this.usageTracker.set(featureName, {
+      featureName,
+      invocationCount,
+    })
+  }
+
+  public apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tapAsync(
       TelemetryPlugin.name,
       async (compilation: webpack.Compilation, callback: () => void) => {
         compilation.hooks.finishModules.tapAsync(
           TelemetryPlugin.name,
-          async (modules: Iterable<Module>, modulesFinish: () => void) => {
+          async (modules, modulesFinish) => {
             for (const module of modules) {
               const feature = findFeatureInModule(module)
               if (!feature) {
@@ -245,15 +250,15 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  usages(): FeatureUsage[] {
+  public usages(): FeatureUsage[] {
     return [...this.usageTracker.values()]
   }
 
-  packagesUsedInServerSideProps(): string[] {
+  public packagesUsedInServerSideProps(): string[] {
     return Array.from(eliminatedPackages)
   }
 
-  getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
+  public getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
     return Object.fromEntries(useCacheTracker)
   }
 }

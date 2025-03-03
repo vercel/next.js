@@ -82,13 +82,11 @@ describe('non-root-project-monorepo', () => {
 
   if (isNextDev) {
     describe('source-maps', () => {
-      function normalizeStackTrace(stack: string): string {
-        const isolatedPath = /file:\/\/.*\/next-install-[^/]+\//g
-        const nonIsolatedPath =
-          /file:\/\/.*\/test\/e2e\/app-dir\/non-root-project-monorepo\//g
-        return stack
-          .replaceAll(nonIsolatedPath, 'file://<full-path>/')
-          .replaceAll(isolatedPath, 'file://<full-path>/')
+      function normalizeStackTrace(stack: string[] | null): string | null {
+        if (stack === null) {
+          return null
+        }
+        return stack.join('\n')
       }
 
       it('should work on RSC', async () => {
@@ -98,15 +96,11 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/source-maps-rsc/page.tsx (13:28) @ innerArrowFunction
+           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript)
 
-             11 | }
-             12 |
-           > 13 | const innerArrowFunction = () => {
-                |                            ^
-             14 |   require('../separate-file')
-             15 | }
-             16 |"
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
           `)
           // TODO stacktrace-parser breaks in some cases with the rsc:// protocol
           expect(
@@ -115,12 +109,10 @@ describe('non-root-project-monorepo', () => {
               '/apps_web_XXXXXX._.js '
             )
           ).toMatchInlineSnapshot(`
-           "<unknown>
-           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_XXXXXX._.js (7:7)
-           innerFunction
-           app/source-maps-rsc/page.tsx (10:3)
-           Page
-           app/source-maps-rsc/page.tsx (4:5)"
+           "[project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) app/separate-file.ts (1:7)
+           innerArrowFunction app/source-maps-rsc/page.tsx (13:28)
+           innerFunction app/source-maps-rsc/page.tsx (10:3)
+           Page app/source-maps-rsc/page.tsx (4:5)"
           `)
         } else {
           // TODO the function name is incorrect
@@ -132,18 +124,15 @@ describe('non-root-project-monorepo', () => {
              2 |"
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
+          // TODO(veil): https://linear.app/vercel/issue/NDX-677
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "<unknown>
-           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js
-           __webpack_require__
-           file://<full-path>/apps/web/.next/server/webpack-runtime.js
-           innerArrowFunction
-           app/source-maps-rsc/page.tsx (14:3)
-           innerFunction
-           app/source-maps-rsc/page.tsx (10:3)
-           Page
-           app/source-maps-rsc/page.tsx (4:5)"
+           "eval app/separate-file.ts (1:11)
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           innerArrowFunction app/source-maps-rsc/page.tsx (14:3)
+           innerFunction app/source-maps-rsc/page.tsx (10:3)
+           Page app/source-maps-rsc/page.tsx (4:5)"
           `)
         }
         await browser.close()
@@ -164,12 +153,10 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "innerArrowFunction
-           app/source-maps-ssr/page.tsx (15:28)
-           innerFunction
-           app/source-maps-ssr/page.tsx (12:3)
-           Page
-           app/source-maps-ssr/page.tsx (6:5)"
+           "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)
+           innerArrowFunction app/source-maps-ssr/page.tsx (15:28)
+           innerFunction app/source-maps-ssr/page.tsx (12:3)
+           Page app/source-maps-ssr/page.tsx (6:5)"
           `)
         } else {
           // TODO the function name should be hidden
@@ -183,20 +170,14 @@ describe('non-root-project-monorepo', () => {
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "./app/separate-file.ts
-           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-ssr/page.js (27:1)
-           options.factory
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (700:31)
-           __webpack_require__
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
-           fn
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (357:21)
-           innerArrowFunction
-           app/source-maps-ssr/page.tsx (16:3)
-           innerFunction
-           app/source-maps-ssr/page.tsx (12:3)
-           Page
-           app/source-maps-ssr/page.tsx (6:5)"
+           "eval app/separate-file.ts (1:7)
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           innerArrowFunction app/source-maps-ssr/page.tsx (16:3)
+           innerFunction app/source-maps-ssr/page.tsx (12:3)
+           Page app/source-maps-ssr/page.tsx (6:5)"
           `)
         }
         await browser.close()
@@ -217,12 +198,10 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "innerArrowFunction
-           app/source-maps-client/page.tsx (16:28)
-           innerFunction
-           app/source-maps-client/page.tsx (13:3)
-           effectCallback
-           app/source-maps-client/page.tsx (7:5)"
+           "[project]/apps/web/app/separate-file.ts [app-client] (ecmascript) app/separate-file.ts (1:7)
+           innerArrowFunction app/source-maps-client/page.tsx (16:28)
+           innerFunction app/source-maps-client/page.tsx (13:3)
+           effectCallback app/source-maps-client/page.tsx (7:5)"
           `)
         } else {
           // TODO the function name should be hidden
@@ -236,20 +215,14 @@ describe('non-root-project-monorepo', () => {
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-           "./app/separate-file.ts
-           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-client/page.js (27:1)
-           options.factory
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (712:31)
-           __webpack_require__
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
-           fn
-           file://<full-path>/apps/web/.next/static/chunks/webpack.js (369:21)
-           innerArrowFunction
-           app/source-maps-client/page.tsx (17:3)
-           innerFunction
-           app/source-maps-client/page.tsx (13:3)
-           effectCallback
-           app/source-maps-client/page.tsx (7:5)"
+           "eval app/separate-file.ts (1:7)
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           <FIXME-file-protocol>
+           innerArrowFunction app/source-maps-client/page.tsx (17:3)
+           innerFunction app/source-maps-client/page.tsx (13:3)
+           effectCallback app/source-maps-client/page.tsx (7:5)"
           `)
         }
         await browser.close()

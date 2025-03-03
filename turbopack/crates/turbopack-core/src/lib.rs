@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(type_alias_impl_trait)]
 #![feature(assert_matches)]
@@ -6,7 +5,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
-#![feature(map_many_mut)]
+#![feature(map_try_insert)]
 
 pub mod asset;
 pub mod changed;
@@ -39,6 +38,7 @@ pub mod source_map;
 pub mod source_pos;
 pub mod source_transform;
 pub mod target;
+pub mod traced_asset;
 mod utils;
 pub mod version;
 pub mod virtual_output;
@@ -49,7 +49,7 @@ pub mod virtual_fs {
 }
 
 pub const PROJECT_FILESYSTEM_NAME: &str = "project";
-pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
+pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";
 
 #[doc(hidden)]
 pub mod __private {

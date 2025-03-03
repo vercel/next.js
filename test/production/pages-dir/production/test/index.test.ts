@@ -580,16 +580,19 @@ describe('Production Usage', () => {
 
       const resources: Set<string> = new Set()
 
-      const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
-        return item
-          .replace(/\\/g, '/')
-          .endsWith(
-            process.env.TURBOPACK
-              ? 'components/dynamic-css/with-css.js [client] (ecmascript, next/dynamic entry)'
-              : 'dynamic/css.js -> ../../components/dynamic-css/with-css'
-          )
-      })
-      expect(manifestKey).toBeString()
+      let manifestKey: string
+      if (process.env.TURBOPACK) {
+        // the key is an arbitrary and changing number for Turbopack prod, but each page has its own manifest
+        expect(Object.keys(reactLoadableManifest).length).toBe(1)
+        manifestKey = Object.keys(reactLoadableManifest)[0]
+        expect(manifestKey).toBeString()
+      } else {
+        manifestKey = Object.keys(reactLoadableManifest).find((item) =>
+          item
+            .replace(/\\/g, '/')
+            .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
+        )
+      }
 
       // test dynamic chunk
       reactLoadableManifest[manifestKey].files.forEach((f) => {

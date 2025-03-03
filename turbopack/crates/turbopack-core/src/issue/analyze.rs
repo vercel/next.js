@@ -16,22 +16,22 @@ pub struct AnalyzeIssue {
     pub title: ResolvedVc<RcStr>,
     pub message: ResolvedVc<StyledString>,
     pub code: Option<RcStr>,
-    pub source: Option<ResolvedVc<IssueSource>>,
+    pub source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl AnalyzeIssue {
     #[turbo_tasks::function]
     pub fn new(
-        severity: ResolvedVc<IssueSeverity>,
+        severity: IssueSeverity,
         source_ident: ResolvedVc<AssetIdent>,
         title: ResolvedVc<RcStr>,
         message: ResolvedVc<StyledString>,
         code: Option<RcStr>,
-        source: Option<ResolvedVc<IssueSource>>,
+        source: Option<IssueSource>,
     ) -> Vc<Self> {
         Self {
-            severity,
+            severity: severity.resolved_cell(),
             source_ident,
             title,
             message,
@@ -81,13 +81,8 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     async fn source(&self) -> Result<Vc<OptionIssueSource>> {
-        Ok(Vc::cell(match self.source {
-            Some(source) => Some(
-                source
-                    .resolve_source_map(self.source_ident.path())
-                    .to_resolved()
-                    .await?,
-            ),
+        Ok(Vc::cell(match &self.source {
+            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
             None => None,
         }))
     }
