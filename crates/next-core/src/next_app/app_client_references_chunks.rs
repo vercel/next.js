@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use anyhow::Result;
 use futures::join;
 use tracing::Instrument;
@@ -429,6 +431,7 @@ fn reorder_isolated_merged_entries(
     else {
         unreachable!("expected ChunkGroup::IsolatedMerged for client reference")
     };
+
     // Reorder the entries, because the order of IsolatedMerged entries obtained by chunk_group_info
     // is unspecified (and thus not strictly execution order, which is a problem for CSS).
     //
@@ -437,18 +440,17 @@ fn reorder_isolated_merged_entries(
     // matter in this case (since they will not be chunked in this step anyway).
 
     if entries.iter().any(|m| client_to_ref_ty.contains_key(m)) {
-        let entries = client_to_ref_ty
-            .keys()
-            .copied()
-            .filter(|m| entries.contains(m))
-            .chain(
-                entries
-                    .iter()
-                    .copied()
-                    .filter(|m| !client_to_ref_ty.contains_key(m)),
-            )
-            .collect();
-
+        let mut entries = entries.clone();
+        entries.sort_by(|a, b| {
+            match (
+                client_to_ref_ty.get_index_of(a),
+                client_to_ref_ty.get_index_of(b),
+            ) {
+                (Some(a), Some(b)) => a.cmp(&b),
+                // We don't know, so just keep the same order.
+                _ => Ordering::Equal,
+            }
+        });
         Some(ChunkGroup::IsolatedMerged {
             parent: *parent,
             entries,

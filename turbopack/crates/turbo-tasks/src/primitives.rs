@@ -1,6 +1,6 @@
 use std::{
     hash::{BuildHasher, Hash},
-    ops::Deref,
+    ops::{Deref, DerefMut},
     time::Duration,
 };
 
@@ -89,6 +89,11 @@ impl<T: Hash + Eq> Deref for HashableIndexSet<T> {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+impl<T: Hash + Eq> DerefMut for HashableIndexSet<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
     }
 }
 impl<T: Hash + Eq> Hash for HashableIndexSet<T> {
