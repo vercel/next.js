@@ -40,6 +40,8 @@ const nextBuildWorkflow =
         PWD: process.env.PWD,
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
         NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
+        // Enable next.js test mode to get HMR events and silence canary only
+        __NEXT_TEST_MODE: '1',
       }
 
       const serverEnv = {
@@ -253,7 +255,7 @@ const nextDevWorkflow =
         NEXT_PUBLIC_OTEL_SENTRY: 'true',
         NEXT_PUBLIC_OTEL_DEV_DISABLED: 'true',
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
-        // Enable next.js test mode to get HMR events
+        // Enable next.js test mode to get HMR events and silence canary only
         __NEXT_TEST_MODE: '1',
       }
 

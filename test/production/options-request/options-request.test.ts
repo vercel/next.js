@@ -5,13 +5,22 @@ describe('options-request', () => {
     files: __dirname,
   })
 
-  it.each(['/app-page', '/pages-page'])(
-    'should return a 400 status code when invoking %s with an OPTIONS request',
+  it.each(['/app-page/dynamic', '/pages-page/dynamic'])(
+    'should return a 400 status code when invoking %s with an OPTIONS request (dynamic rendering)',
     async (path) => {
       const res = await next.fetch(path, { method: 'OPTIONS' })
       expect(res.status).toBe(400)
       // There should be no response body
       expect(await res.text()).toBe('')
+    }
+  )
+
+  it.each(['/app-page/static', '/pages-page/static'])(
+    'should return a 405 status code when invoking %s with an OPTIONS request (static rendering)',
+    async (path) => {
+      const res = await next.fetch(path, { method: 'OPTIONS' })
+      expect(res.status).toBe(405)
+      expect(await res.text()).toBe('Method Not Allowed')
     }
   )
 
