@@ -89,6 +89,11 @@ describe('persistent-caching', () => {
       expect(await browser.elementByCss('p').text()).toBe('hello world')
       await browser.close()
     }
+    {
+      const browser = await next.browser('/remove-me')
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+      await browser.close()
+    }
 
     await stop()
 
@@ -109,6 +114,14 @@ describe('persistent-caching', () => {
       }
       {
         const browser = await next.browser('/pages')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+        await browser.close()
+      }
+
+      {
+        const browser = await next.browser('/add-me')
         expect(await browser.elementByCss('p').text()).toBe(
           'hello persistent caching'
         )
@@ -137,9 +150,14 @@ describe('persistent-caching', () => {
                 )
               },
               async () => {
-                await start()
-                await checkChanges()
-                await stop()
+                await next.renameFolder('app/remove-me', 'app/add-me')
+                try {
+                  await start()
+                  await checkChanges()
+                  await stop()
+                } finally {
+                  await next.renameFolder('app/add-me', 'app/remove-me')
+                }
               }
             )
           }
