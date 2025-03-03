@@ -222,7 +222,6 @@ function DevToolsPopover({
 
   function openRootMenu() {
     setOpen((prevOpen) => {
-      console.log(prevOpen)
       if (prevOpen === null) select('first')
       return OVERLAYS.Root
     })
