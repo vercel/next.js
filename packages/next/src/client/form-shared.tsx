@@ -93,14 +93,12 @@ export function createFormSubmitDestinationUrl(
     targetUrl.search = ''
   }
 
-  // Theoretically, it's possible that some old browser that doesn't support the submitter param
-  // could throw if we attempt to pass it. Be defensive.
-  let formData: FormData
-  try {
-    formData = new FormData(formElement, submitterElement)
-  } catch (err) {
-    formData = new FormData(formElement)
-  }
+  const formData = submitterElement
+    ? createFormDataWithSubmitter(
+        formElement,
+        submitterElement as HTMLInputElement | HTMLButtonElement
+      )
+    : new FormData(formElement)
 
   for (let [name, value] of formData) {
     if (typeof value !== 'string') {
@@ -121,6 +119,36 @@ export function createFormSubmitDestinationUrl(
     targetUrl.searchParams.append(name, value)
   }
   return targetUrl
+}
+
+/**
+ * Polyfill for `new FormData(form, submitter)` which is not supported everywhere yet
+ * (~90% of users as of March 2025: https://caniuse.com/mdn-api_formdata_formdata_submitter)
+ *
+ * based on: https://github.com/facebook/react/blob/d4e24b349e6530a8e6c95d79ad40b32f93b47070/packages/react-dom-bindings/src/events/plugins/FormActionEventPlugin.js#L48-L70
+ */
+function createFormDataWithSubmitter(
+  form: HTMLFormElement,
+  submitter: HTMLInputElement | HTMLButtonElement
+): FormData {
+  // The submitter's value should be included in the FormData.
+  // It should be in the document order in the form.
+  // Since the FormData constructor invokes the formdata event it also
+  // needs to be available before that happens so after construction it's too
+  // late. We use a temporary fake node for the duration of this event.
+  // TODO: FormData takes a second argument that it's the submitter but this
+  // is fairly new so not all browsers support it yet. Switch to that technique
+  // when available.
+  const temp = submitter.ownerDocument.createElement('input')
+  temp.name = submitter.name
+  temp.value = submitter.value
+  if (form.id) {
+    temp.setAttribute('form', form.id)
+  }
+  submitter.parentNode!.insertBefore(temp, submitter)
+  const formData = new FormData(form)
+  temp.parentNode!.removeChild(temp)
+  return formData
 }
 
 export function checkFormActionUrl(
