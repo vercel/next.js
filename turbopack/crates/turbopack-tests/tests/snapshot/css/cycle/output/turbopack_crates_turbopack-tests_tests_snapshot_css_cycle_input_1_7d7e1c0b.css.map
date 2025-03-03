@@ -2,6 +2,5 @@
   "version": 3,
   "sources": [],
   "sections": [
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css"],"sourcesContent":["@import \"a.css\";\n"],"names":[],"mappings":""}},
-    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css"],"sourcesContent":["@import \"a.css\";\n"],"names":[],"mappings":""}}]
 }
