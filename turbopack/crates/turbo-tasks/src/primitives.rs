@@ -1,11 +1,11 @@
 use std::{
-    hash::{Hash, Hasher},
+    hash::{BuildHasher, Hash},
     ops::Deref,
     time::Duration,
 };
 
 use anyhow::Result;
-use rustc_hash::FxHasher;
+use rustc_hash::FxBuildHasher;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 // This specific macro identifier is detected by turbo-tasks-build.
@@ -93,9 +93,7 @@ impl<T: Hash + Eq> Hash for HashableIndexSet<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         let mut result = 0u64;
         for item in self.iter() {
-            let mut hasher = FxHasher::default();
-            item.hash(&mut hasher);
-            let item_hash = hasher.finish();
+            let item_hash = FxBuildHasher.hash_one(item);
             result ^= item_hash;
         }
         state.write_u64(result);
