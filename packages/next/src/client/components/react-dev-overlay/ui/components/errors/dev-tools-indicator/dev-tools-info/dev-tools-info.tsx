@@ -156,8 +156,6 @@ export const DEV_TOOLS_INFO_STYLES = `
     background: var(--color-background-200);
   }
 
-  
-
   .dev-tools-info-close-button:hover {
     background: var(--color-gray-400);
   }
