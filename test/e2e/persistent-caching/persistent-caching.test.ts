@@ -32,10 +32,15 @@ describe('persistent-caching', () => {
   }
 
   it('should persistent cache loaders', async () => {
-    let appTimestamp, pagesTimestamp
+    let appTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')
       appTimestamp = await browser.elementByCss('main').text()
+      await browser.close()
+    }
+    {
+      const browser = await next.browser('/client')
+      appClientTimestamp = await browser.elementByCss('main').text()
       await browser.close()
     }
     {
@@ -49,6 +54,12 @@ describe('persistent-caching', () => {
       const browser = await next.browser('/')
       // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
+      await browser.close()
+    }
+    {
+      const browser = await next.browser('/client')
+      // TODO Persistent Caching for webpack dev server is broken
+      expect(await browser.elementByCss('main').text()).toBe(appClientTimestamp)
       await browser.close()
     }
     {
@@ -66,12 +77,41 @@ describe('persistent-caching', () => {
       await browser.close()
     }
     {
+      const browser = await next.browser('/client')
+      expect(await browser.elementByCss('p').text()).toBe('hello world')
+      await browser.close()
+    }
+    {
       const browser = await next.browser('/pages')
       expect(await browser.elementByCss('p').text()).toBe('hello world')
       await browser.close()
     }
 
     await stop()
+
+    async function checkChanges() {
+      {
+        const browser = await next.browser('/')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+        await browser.close()
+      }
+      {
+        const browser = await next.browser('/client')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+        await browser.close()
+      }
+      {
+        const browser = await next.browser('/pages')
+        expect(await browser.elementByCss('p').text()).toBe(
+          'hello persistent caching'
+        )
+        await browser.close()
+      }
+    }
 
     await next.patchFile(
       'pages/pages.tsx',
@@ -85,22 +125,20 @@ describe('persistent-caching', () => {
             return content.replace('hello world', 'hello persistent caching')
           },
           async () => {
-            await start()
-            {
-              const browser = await next.browser('/')
-              expect(await browser.elementByCss('p').text()).toBe(
-                'hello persistent caching'
-              )
-              await browser.close()
-            }
-            {
-              const browser = await next.browser('/pages')
-              expect(await browser.elementByCss('p').text()).toBe(
-                'hello persistent caching'
-              )
-              await browser.close()
-            }
-            await stop()
+            await next.patchFile(
+              'app/client/page.tsx',
+              (content) => {
+                return content.replace(
+                  'hello world',
+                  'hello persistent caching'
+                )
+              },
+              async () => {
+                await start()
+                await checkChanges()
+                await stop()
+              }
+            )
           }
         )
       }
