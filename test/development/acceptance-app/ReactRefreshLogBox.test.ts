@@ -1477,7 +1477,9 @@ describe('ReactRefreshLogBox app', () => {
            "stack": [
              "[project]/index.js [app-rsc] (ecmascript) index.js (1:7)",
              "[project]/app/server/page.js [app-rsc] (ecmascript) app/server/page.js (1:1)",
-             "[project]/app/server/page.js [app-rsc] (ecmascript, Next.js server component) app/server/page.js (4:1)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
            ],
          }
