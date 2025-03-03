@@ -13,7 +13,8 @@ use turbo_tasks::{
     TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{
-    default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
+    default_backing_storage, noop_backing_storage, DefaultBackingStorage, GitVersionInfo,
+    NoopBackingStorage,
 };
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
@@ -130,26 +131,10 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let dirty_suffix = if crate::build::GIT_CLEAN
-            || option_env!("CI").is_some_and(|value| !value.is_empty())
-        {
-            ""
-        } else {
-            "-dirty"
-        };
-        #[allow(
-            clippy::const_is_empty,
-            reason = "LAST_TAG might be empty if the tag can't be determined"
-        )]
-        let version_info = if crate::build::LAST_TAG.is_empty() {
-            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
-        } else {
-            format!(
-                "{}-{}{}",
-                crate::build::LAST_TAG,
-                crate::build::SHORT_COMMIT,
-                dirty_suffix
-            )
+        let version_info = GitVersionInfo {
+            describe: env!("VERGEN_GIT_DESCRIBE"),
+            dirty: option_env!("CI").is_none_or(|value| value.is_empty())
+                && env!("VERGEN_GIT_DIRTY") == "true",
         };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
