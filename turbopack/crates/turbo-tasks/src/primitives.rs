@@ -63,6 +63,8 @@ impl PartialEq for Regex {
 }
 impl Eq for Regex {}
 
+/// An IndexSet with a Hash implementation that is order-independent (and just like IndexSet,
+/// equality is also order-independent).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
 #[serde(bound(
     deserialize = "T: Hash + Eq + Deserialize<'de>",
