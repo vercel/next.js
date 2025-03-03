@@ -1,5 +1,5 @@
 import type { HTMLProps } from 'react'
-import type { DevToolsInfoProps } from './dev-tools-info'
+import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
 
 function StaticRouteContent({ routerType }: { routerType: 'pages' | 'app' }) {
@@ -115,8 +115,9 @@ export function RouteInfo({
   routerType,
   ...props
 }: {
+  routeType: 'Static' | 'Dynamic'
   routerType: 'pages' | 'app'
-} & DevToolsInfoProps &
+} & DevToolsInfoPropsCore &
   HTMLProps<HTMLDivElement>) {
   const isStaticRoute = routeType === 'Static'
 
