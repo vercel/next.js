@@ -42,8 +42,6 @@ export function useFocusTrap(
         }
         rootNode?.addEventListener('keydown', onTab)
       } else {
-        // We only want to return back to the trigger
-        // in case any other overlays aren't opened.
         const activeElement = getActiveElement(rootNode)
         // Only restore focus if the focus was previously on the content.
         // This avoids us accidentally focusing on mount when the
@@ -86,7 +84,7 @@ export function useClickOutside(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   active: boolean,
-  closecontent: () => void
+  close: () => void
 ) {
   useEffect(() => {
     if (!active) {
@@ -110,14 +108,13 @@ export function useClickOutside(
             event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
           : false)
       ) {
-        closecontent()
+        close()
       }
     }
 
-    // Close popover when pressing escape
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        closecontent()
+        close()
       }
     }
 

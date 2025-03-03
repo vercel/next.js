@@ -251,7 +251,7 @@ export const DEV_TOOLS_INFO_USER_PREFERENCES_STYLES = css`
     }
 
     &:focus-within {
-      outline: 5px auto -webkit-focus-ring-color;
+      outline: var(--focus-ring);
     }
   }
 

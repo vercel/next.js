@@ -144,15 +144,14 @@ function DevToolsPopover({
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
   useEffect(() => {
-    if (isMenuOpen) {
-      openRootMenu()
-      // Run on next tick because querying DOM after state change
-      setTimeout(() => {
-        select('first')
-      })
+    if (open === null) {
+      // Avoid flashing selected state
+      const id = setTimeout(() => {
+        setSelectedIndex(-1)
+      }, MENU_DURATION_MS)
+      return () => clearTimeout(id)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMenuOpen])
+  }, [open])
 
   function select(index: number | 'first' | 'last') {
     if (index === 'first') {
@@ -180,6 +179,7 @@ function DevToolsPopover({
     const el = menuRef.current?.querySelector(
       `[data-index="${index}"]`
     ) as HTMLElement
+
     if (el) {
       setSelectedIndex(index)
       el?.focus()
@@ -221,7 +221,11 @@ function DevToolsPopover({
   }
 
   function openRootMenu() {
-    setOpen(OVERLAYS.Root)
+    setOpen((prevOpen) => {
+      console.log(prevOpen)
+      if (prevOpen === null) select('first')
+      return OVERLAYS.Root
+    })
   }
 
   function onTriggerClick() {
@@ -229,6 +233,9 @@ function DevToolsPopover({
       setOpen(null)
     } else {
       openRootMenu()
+      setTimeout(() => {
+        select('first')
+      })
     }
   }
 
@@ -241,10 +248,6 @@ function DevToolsPopover({
       }
       return prevOpen
     })
-    // Avoid flashing selected state
-    setTimeout(() => {
-      setSelectedIndex(-1)
-    }, MENU_DURATION_MS)
   }
 
   function handleHideDevtools() {
