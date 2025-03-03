@@ -9215,6 +9215,7 @@ dependencies = [
  "serde_json",
  "serde_regex",
  "shrink-to-fit",
+ "smallvec",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -9539,6 +9540,7 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "indexmap 2.7.1",
  "indoc",
  "rustc-hash 2.1.0",
@@ -9641,6 +9643,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "serde_json",
+ "smallvec",
  "sourcemap",
  "swc_core 16.0.0",
  "tokio",
@@ -9752,6 +9755,7 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
+ "smallvec",
  "sourcemap",
  "strsim 0.11.1",
  "swc_core 16.0.0",
@@ -9931,10 +9935,12 @@ name = "turbopack-nodejs"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "indexmap 2.7.1",
  "indoc",
  "rustc-hash 2.1.0",
  "serde",
+ "smallvec",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",

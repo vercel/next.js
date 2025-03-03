@@ -1,17 +1,17 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/e.css [test] (css) */
-.e{content:""}
+.e{content:"1 3"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/d.css [test] (css) */
-.d{content:""}
+.d{content:"2 4"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/c.css [test] (css) */
-.c{content:""}
+.c{content:"3 5"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/b.css [test] (css) */
-.b{content:""}
+.b{content:"4 1"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/a.css [test] (css) */
-.a{content:""}
+.a{content:"5 2"}
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css [test] (css) */
 

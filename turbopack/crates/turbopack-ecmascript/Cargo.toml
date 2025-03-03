@@ -30,6 +30,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sourcemap = { workspace = true }
+smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

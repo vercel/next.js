@@ -1,22 +1,16 @@
-use std::io::Write;
-
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItemExt, ChunkingContext, MinifyType, ModuleId},
+    chunk::{ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
     version::{Version, VersionedContent},
 };
-use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt, EcmascriptChunkItemWithAsyncInfo},
-    minify::minify,
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
 
 use super::{chunk::EcmascriptBuildNodeChunk, version::EcmascriptBuildNodeChunkVersion};
 use crate::NodeJsChunkingContext;
@@ -45,33 +39,11 @@ impl EcmascriptBuildNodeChunkContent {
     }
 }
 
-pub(super) async fn chunk_items(
-    content: Vc<EcmascriptChunkContent>,
-) -> Result<Vec<(ReadRef<ModuleId>, ReadRef<Code>)>> {
-    content
-        .await?
-        .chunk_items
-        .iter()
-        .map(
-            async |&EcmascriptChunkItemWithAsyncInfo {
-                       chunk_item,
-                       async_info,
-                       ..
-                   }| {
-                Ok((
-                    chunk_item.id().await?,
-                    chunk_item.code(async_info.map(|info| *info)).await?,
-                ))
-            },
-        )
-        .try_join()
-        .await
-}
-
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+        use std::io::Write;
         let this = self.await?;
         let source_maps = this
             .chunking_context
@@ -89,10 +61,14 @@ impl EcmascriptBuildNodeChunkContent {
             "#,
         )?;
 
-        for (id, item_code) in chunk_items(*this.content).await? {
-            write!(code, "{}: ", StringifyJs(&id))?;
-            code.push_code(&item_code);
-            writeln!(code, ",")?;
+        let content = this.content.await?;
+        let chunk_items = content.chunk_item_code_and_ids().await?;
+        for item in chunk_items {
+            for (id, item_code) in item {
+                write!(code, "{}: ", StringifyJs(&id))?;
+                code.push_code(item_code);
+                writeln!(code, ",")?;
+            }
         }
 
         write!(code, "\n}};")?;

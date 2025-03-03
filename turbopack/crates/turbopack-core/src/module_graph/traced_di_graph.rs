@@ -9,7 +9,7 @@ use turbo_tasks::{
 };
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-pub struct TracedDiGraph<N, E>(DiGraph<N, E>);
+pub struct TracedDiGraph<N, E>(pub DiGraph<N, E>);
 impl<N, E> Default for TracedDiGraph<N, E> {
     fn default() -> Self {
         Self(Default::default())

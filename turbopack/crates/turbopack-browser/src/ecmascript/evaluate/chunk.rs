@@ -29,10 +29,10 @@ use turbopack_ecmascript_runtime::RuntimeType;
 use crate::BrowserChunkingContext;
 
 /// An Ecmascript chunk that:
-/// * Contains the Turbopack dev runtime code; and
+/// * Contains the Turbopack browser runtime code; and
 /// * Evaluates a list of runtime entries.
 #[turbo_tasks::value(shared)]
-pub(crate) struct EcmascriptDevEvaluateChunk {
+pub(crate) struct EcmascriptBrowserEvaluateChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     ident: ResolvedVc<AssetIdent>,
     other_chunks: ResolvedVc<OutputAssets>,
@@ -43,8 +43,8 @@ pub(crate) struct EcmascriptDevEvaluateChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevEvaluateChunk {
-    /// Creates a new [`Vc<EcmascriptDevEvaluateChunk>`].
+impl EcmascriptBrowserEvaluateChunk {
+    /// Creates a new [`Vc<EcmascriptBrowserEvaluateChunk>`].
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
@@ -53,7 +53,7 @@ impl EcmascriptDevEvaluateChunk {
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         module_graph: ResolvedVc<ModuleGraph>,
     ) -> Vc<Self> {
-        EcmascriptDevEvaluateChunk {
+        EcmascriptBrowserEvaluateChunk {
             chunking_context,
             ident,
             other_chunks,
@@ -124,7 +124,7 @@ impl EcmascriptDevEvaluateChunk {
             .flatten()
             .collect();
 
-        let params = EcmascriptDevChunkRuntimeParams {
+        let params = EcmascriptBrowserChunkRuntimeParams {
             other_chunks: &other_chunks_data,
             runtime_module_ids,
         };
@@ -197,20 +197,20 @@ impl EcmascriptDevEvaluateChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptDevEvaluateChunk {
+impl ValueToString for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Dev Evaluate Chunk".into())
+        Vc::cell("Ecmascript Browser Evaluate Chunk".into())
     }
 }
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript dev evaluate chunk".into())
+    Vc::cell("ecmascript browser evaluate chunk".into())
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for EcmascriptDevEvaluateChunk {
+impl OutputAsset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let mut ident = self.ident.owned().await?;
@@ -264,7 +264,7 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for EcmascriptDevEvaluateChunk {
+impl Asset for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
@@ -275,7 +275,7 @@ impl Asset for EcmascriptDevEvaluateChunk {
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
+impl GenerateSourceMap for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
         self.code().generate_source_map()
@@ -284,7 +284,7 @@ impl GenerateSourceMap for EcmascriptDevEvaluateChunk {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct EcmascriptDevChunkRuntimeParams<'a, T> {
+struct EcmascriptBrowserChunkRuntimeParams<'a, T> {
     /// Other chunks in the chunk group this chunk belongs to, if any. Does not
     /// include the chunk itself.
     ///
