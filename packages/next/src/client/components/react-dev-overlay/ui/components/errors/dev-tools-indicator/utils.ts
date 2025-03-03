@@ -91,8 +91,7 @@ export function useClickOutside(
       return
     }
 
-    // Close content when clicking outside of it or its button
-    const handleClickOutside = (event: MouseEvent) => {
+    function handleClickOutside(event: MouseEvent) {
       if (
         !(rootRef.current?.getBoundingClientRect()
           ? event.clientX >= rootRef.current.getBoundingClientRect()!.left &&
@@ -112,7 +111,7 @@ export function useClickOutside(
       }
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         close()
       }
