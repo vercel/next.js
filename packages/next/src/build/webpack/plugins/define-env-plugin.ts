@@ -226,6 +226,7 @@ export function getDefineEnv({
       config.experimental.middlewarePrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
+    'typeof window': isClient ? 'object' : 'undefined',
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
     // This is used in client/dev-error-overlay/hot-dev-client.js to replace the dist directory
     ...(dev && (isClient ?? isEdgeServer)
