@@ -74,7 +74,7 @@ export const styles = `
     background: linear-gradient(
       180deg,
       rgba(250, 250, 250, 0) 0%,
-      var(--color-background-200) 100%
+      var(--color-background-100) 100%
     );
   }
 
@@ -96,5 +96,10 @@ export const styles = `
     cursor: pointer;
     color: var(--color-gray-900);
     font-weight: 500;
+    transition: background-color 0.2s ease;
+  }
+
+  .nextjs__container_errors_expand_button:hover {
+    background: var(--color-gray-100);
   }
 `

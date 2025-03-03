@@ -9,7 +9,7 @@ const darkTheme = css`
   --color-syntax-comment: #a0a0a0;
   --color-syntax-constant: #ededed;
   --color-syntax-function: #52a9ff;
-  --color-syntax-keyword: #f76e99;
+  --color-syntax-keyword: #f76191;
   --color-syntax-link: #0ac5b2;
   --color-syntax-parameter: #f1a10d;
   --color-syntax-punctuation: #ededed;
@@ -147,15 +147,15 @@ export function Colors() {
           --color-background-200: #fafafa;
 
           /* Syntax Light */
-          --color-syntax-comment: #545454;
+          --color-syntax-comment: #666666;
           --color-syntax-constant: #171717;
-          --color-syntax-function: #0054ad;
-          --color-syntax-keyword: #a51850;
-          --color-syntax-link: #066056;
-          --color-syntax-parameter: #8f3e00;
+          --color-syntax-function: #0068d6;
+          --color-syntax-keyword: #c01b5d;
+          --color-syntax-link: #067a6e;
+          --color-syntax-parameter: #ad4b00;
           --color-syntax-punctuation: #171717;
-          --color-syntax-string: #036157;
-          --color-syntax-string-expression: #066056;
+          --color-syntax-string: #067a6e;
+          --color-syntax-string-expression: #067a6e;
 
           /* Gray Scale Light */
           --color-gray-100: #f2f2f2;
