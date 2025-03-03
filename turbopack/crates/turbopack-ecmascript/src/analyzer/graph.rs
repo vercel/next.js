@@ -1141,9 +1141,10 @@ impl Analyzer<'_> {
                     let prop_value = match prop {
                         // TODO avoid clone
                         MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
-                        MemberProp::PrivateName(_) => {
-                            return;
-                        }
+                        MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
+                            false,
+                            "private names in member expressions are not supported",
+                        )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
                             Box::new(self.eval_context.eval(expr))
                         }
