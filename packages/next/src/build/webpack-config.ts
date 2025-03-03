@@ -863,7 +863,6 @@ export default async function getBaseWebpackConfig(
 
   const handleExternals = makeExternalHandler({
     config,
-    optOutBundlingPackages,
     optOutBundlingPackageRegex,
     transpiledPackages: finalTranspilePackages,
     dir,
@@ -1927,7 +1926,6 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
-            optOutBundlingPackages,
             traceIgnores: [],
             compilerType,
           }

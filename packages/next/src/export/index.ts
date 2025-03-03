@@ -12,11 +12,16 @@ import { existsSync, promises as fs } from 'fs'
 
 import '../server/require-hook'
 
-import { dirname, join, resolve, sep } from 'path'
+import { dirname, join, resolve, sep, relative } from 'path'
 import { formatAmpMessages } from '../build/output/index'
 import type { AmpPageStatus } from '../build/output/index'
 import * as Log from '../build/output/log'
-import { RSC_SUFFIX, SSG_FALLBACK_EXPORT_ERROR } from '../lib/constants'
+import {
+  RSC_SEGMENT_SUFFIX,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SUFFIX,
+  SSG_FALLBACK_EXPORT_ERROR,
+} from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
 import {
   BUILD_ID_FILE,
@@ -57,6 +62,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
+import { convertSegmentPathToStaticExportFilename } from '../server/app-render/segment-value-encoding'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -381,11 +387,6 @@ async function exportAppImpl(
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
-    streamingMetadata:
-      // Disable streaming metadata when dynamic IO is enabled.
-      // FIXME: remove dynamic IO guard once we fixed the dynamic indicator case.
-      // test/e2e/app-dir/dynamic-io/dynamic-io.test.ts - should not have static indicator on not-found route
-      !nextConfig.experimental.dynamicIO,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
@@ -640,8 +641,8 @@ async function exportAppImpl(
     if (options.buildExport) {
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
-      if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = result.revalidate
+      if (result.cacheControl) {
+        info.cacheControl = result.cacheControl
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata
@@ -684,19 +685,23 @@ async function exportAppImpl(
   // copy prerendered routes to outDir
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
-      Object.keys(prerenderManifest.routes).map(async (route) => {
-        const { srcRoute } = prerenderManifest!.routes[route]
+      Object.keys(prerenderManifest.routes).map(async (unnormalizedRoute) => {
+        const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
         const appPageName = mapAppRouteToPage.get(srcRoute || '')
-        const pageName = appPageName || srcRoute || route
+        const pageName = appPageName || srcRoute || unnormalizedRoute
         const isAppPath = Boolean(appPageName)
         const isAppRouteHandler = appPageName && isAppRouteRoute(appPageName)
 
         // returning notFound: true from getStaticProps will not
         // output html/json files during the build
-        if (prerenderManifest!.notFoundRoutes.includes(route)) {
+        if (prerenderManifest!.notFoundRoutes.includes(unnormalizedRoute)) {
           return
         }
-        route = normalizePagePath(route)
+        // TODO: This rewrites /index/foo to /index/index/foo. Investigate and
+        // fix. I presume this was because normalizePagePath was designed for
+        // some other use case and then reused here for static exports without
+        // realizing the implications.
+        const route = normalizePagePath(unnormalizedRoute)
 
         const pagePath = getPagePath(pageName, distDir, undefined, isAppPath)
         const distPagesDir = join(
@@ -752,6 +757,35 @@ async function exportAppImpl(
           await fs.mkdir(dirname(ampHtmlDest), { recursive: true })
           await fs.copyFile(`${orig}.amp.html`, ampHtmlDest)
         }
+
+        const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+        if (isAppPath && existsSync(segmentsDir)) {
+          // Output a data file for each of this page's segments
+          //
+          // These files are requested by the client router's internal
+          // prefetcher, not the user directly. So we don't need to account for
+          // things like trailing slash handling.
+          //
+          // To keep the protocol simple, we can use the non-normalized route
+          // path instead of the normalized one (which, among other things,
+          // rewrites `/` to `/index`).
+          const segmentsDirDest = join(outDir, unnormalizedRoute)
+          const segmentPaths = await collectSegmentPaths(segmentsDir)
+          await Promise.all(
+            segmentPaths.map(async (segmentFileSrc) => {
+              const segmentPath =
+                '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+              const segmentFilename =
+                convertSegmentPathToStaticExportFilename(segmentPath)
+              const segmentFileDest = join(segmentsDirDest, segmentFilename)
+              await fs.mkdir(dirname(segmentFileDest), { recursive: true })
+              await fs.copyFile(
+                join(segmentsDir, segmentFileSrc),
+                segmentFileDest
+              )
+            })
+          )
+        }
       })
     )
   }
@@ -791,6 +825,40 @@ async function exportAppImpl(
   await worker.end()
 
   return collector
+}
+
+async function collectSegmentPaths(segmentsDirectory: string) {
+  const results: Array<string> = []
+  await collectSegmentPathsImpl(segmentsDirectory, segmentsDirectory, results)
+  return results
+}
+
+async function collectSegmentPathsImpl(
+  segmentsDirectory: string,
+  directory: string,
+  results: Array<string>
+) {
+  const segmentFiles = await fs.readdir(directory, {
+    withFileTypes: true,
+  })
+  await Promise.all(
+    segmentFiles.map(async (segmentFile) => {
+      if (segmentFile.isDirectory()) {
+        await collectSegmentPathsImpl(
+          segmentsDirectory,
+          join(directory, segmentFile.name),
+          results
+        )
+        return
+      }
+      if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
+        return
+      }
+      results.push(
+        relative(segmentsDirectory, join(directory, segmentFile.name))
+      )
+    })
+  )
 }
 
 export default async function exportApp(

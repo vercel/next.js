@@ -32,7 +32,7 @@ import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
   type NavigationResult,
-} from '../../segment-cache/navigation'
+} from '../../segment-cache'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -101,6 +101,7 @@ function triggerLazyFetchForLeafSegments(
 }
 
 function handleNavigationResult(
+  url: URL,
   state: ReadonlyReducerState,
   mutable: Mutable,
   pendingPush: boolean,
@@ -112,24 +113,46 @@ function handleNavigationResult(
       const newUrl = result.data
       return handleExternalUrl(state, mutable, newUrl, pendingPush)
     }
-    case NavigationResultTag.NoOp:
-      // The server responded with no change to the current page.
+    case NavigationResultTag.NoOp: {
+      // The server responded with no change to the current page. However, if
+      // the URL changed, we still need to update that.
+      const newCanonicalUrl = result.data.canonicalUrl
+      mutable.canonicalUrl = newCanonicalUrl
+
+      // Check if the only thing that changed was the hash fragment.
+      const oldUrl = new URL(state.canonicalUrl, url)
+      const onlyHashChange =
+        // We don't need to compare the origins, because client-driven
+        // navigations are always same-origin.
+        url.pathname === oldUrl.pathname &&
+        url.search === oldUrl.search &&
+        url.hash !== oldUrl.hash
+      if (onlyHashChange) {
+        // The only updated part of the URL is the hash.
+        mutable.onlyHashChange = true
+        mutable.shouldScroll = result.data.shouldScroll
+        mutable.hashFragment = url.hash
+        // Setting this to an empty array triggers a scroll for all new and
+        // updated segments. See `ScrollAndFocusHandler` for more details.
+        mutable.scrollableSegments = []
+      }
+
       return handleMutable(state, mutable)
+    }
     case NavigationResultTag.Success: {
       // Received a new result.
       mutable.cache = result.data.cacheNode
       mutable.patchedTree = result.data.flightRouterState
       mutable.canonicalUrl = result.data.canonicalUrl
-      // TODO: Not yet implemented
-      // mutable.scrollableSegments = scrollableSegments
-      // mutable.hashFragment = hash
-      // mutable.shouldScroll = shouldScroll
+      mutable.scrollableSegments = result.data.scrollableSegments
+      mutable.shouldScroll = result.data.shouldScroll
+      mutable.hashFragment = result.data.hash
       return handleMutable(state, mutable)
     }
     case NavigationResultTag.Async: {
       return result.data.then(
         (asyncResult) =>
-          handleNavigationResult(state, mutable, pendingPush, asyncResult),
+          handleNavigationResult(url, state, mutable, pendingPush, asyncResult),
         // If the navigation failed, return the current state.
         // TODO: This matches the current behavior but we need to do something
         // better here if the network fails.
@@ -138,9 +161,10 @@ function handleNavigationResult(
         }
       )
     }
-    default:
-      const _exhaustiveCheck: never = result
+    default: {
+      result satisfies never
       return state
+    }
   }
 }
 
@@ -179,16 +203,14 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
-    // TODO: Currently this always returns an async result, but in the future
-    // it will return a sync result if the navigation was prefetched. Hence
-    // a result type that's more complicated than you might expect.
     const result = navigateUsingSegmentCache(
       url,
       state.cache,
       state.tree,
-      state.nextUrl
+      state.nextUrl,
+      shouldScroll
     )
-    return handleNavigationResult(state, mutable, pendingPush, result)
+    return handleNavigationResult(url, state, mutable, pendingPush, result)
   }
 
   const prefetchValues = getOrCreatePrefetchCacheEntry({
@@ -311,7 +333,9 @@ export function navigateReducer(
               treePatch,
               seedData,
               head,
-              isHeadPartial
+              isHeadPartial,
+              false,
+              scrollableSegments
             )
 
             if (task !== null) {
@@ -437,20 +461,23 @@ export function navigateReducer(
               // segments in the FlightDataPath will be able to reference the updated cache.
               currentCache = cache
             }
+
+            for (const subSegment of generateSegmentsFromPatch(treePatch)) {
+              const scrollableSegmentPath = [
+                ...flightSegmentPath,
+                ...subSegment,
+              ]
+              // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+              if (
+                scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
+                DEFAULT_SEGMENT_KEY
+              ) {
+                scrollableSegments.push(scrollableSegmentPath)
+              }
+            }
           }
 
           currentTree = newTree
-
-          for (const subSegment of generateSegmentsFromPatch(treePatch)) {
-            const scrollableSegmentPath = [...flightSegmentPath, ...subSegment]
-            // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
-            if (
-              scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-              DEFAULT_SEGMENT_KEY
-            ) {
-              scrollableSegments.push(scrollableSegmentPath)
-            }
-          }
         }
       }
 

@@ -19,7 +19,6 @@ use turbopack_core::{
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
     source::Source,
-    source_map::OptionStringifiedSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
@@ -436,12 +435,7 @@ async fn generate_minimal_source_map(filename: String, source: String) -> Result
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = generate_js_source_map(
-        sm,
-        mappings,
-        OptionStringifiedSourceMap::none().to_resolved().await?,
-    )
-    .await?;
+    let map = generate_js_source_map(sm, mappings, None).await?;
     Ok(map)
 }
 
