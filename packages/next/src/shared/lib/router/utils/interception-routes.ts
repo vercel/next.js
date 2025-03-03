@@ -1,4 +1,4 @@
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { normalizeAppPath } from './app-paths'
 
 // order matters here, the first match will be used
 export const INTERCEPTION_ROUTE_MARKERS = [
