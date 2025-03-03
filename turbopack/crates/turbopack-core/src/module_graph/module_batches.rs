@@ -4,7 +4,7 @@ use std::{
     mem::take,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -254,7 +254,7 @@ impl PreBatches {
         let entry_chunk_groups = chunk_group_info
             .module_chunk_groups
             .get(&ResolvedVc::upcast(entry))
-            .expect("all modules need to have chunk group info");
+            .context("all modules need to have chunk group info")?;
         let mut state = TraversalState {
             items: Vec::new(),
             this: self,
@@ -279,7 +279,7 @@ impl PreBatches {
                     let chunk_groups = chunk_group_info
                         .module_chunk_groups
                         .get(&node.module)
-                        .expect("all modules need to have chunk group info");
+                        .context("all modules need to have chunk group info")?;
                     if chunk_groups != entry_chunk_groups {
                         let idx = state.this.ensure_pre_batch_for_module(
                             chunkable_module,
@@ -340,7 +340,7 @@ pub async fn compute_module_batches(
                     let chunk_groups = chunk_group_info
                         .module_chunk_groups
                         .get(&entry)
-                        .expect("all modules need to have chunk group info");
+                        .context("all modules need to have chunk group info")?;
                     pre_batches.ensure_pre_batch_for_module(
                         chunkable_module,
                         chunk_groups,
@@ -608,7 +608,7 @@ pub async fn compute_module_batches(
             let chunk_groups = chunk_group_info
                 .module_chunk_groups
                 .get(&module)
-                .expect("all modules need to have chunk group info");
+                .context("all modules need to have chunk group info")?;
             let key = BuildHasherDefault::<FxHasher>::default().prehash(chunk_groups.clone());
             batch_groups
                 .entry(key)
