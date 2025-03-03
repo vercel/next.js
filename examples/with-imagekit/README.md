@@ -1,6 +1,6 @@
 # Next.js & ImageKit example app
 
-This example demonstrates how to build an image and video gallery using Next.js, ImageKit, and Tailwind CSS.
+This example demonstrates how to build an image and video gallery using Next.js, ImageKit, and Tailwind CSS. We use the [imagekitio-next](https://github.com/imagekit-developer/imagekit-next/tree/master) package, a Next.js SDK provided by [ImageKit](https://imagekit.io/). For more details, check out the [quick start guide](https://imagekit.io/docs/integration/nextjs).
 
 ## Deploy your own
 
