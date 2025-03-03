@@ -7,5 +7,5 @@ pub(crate) mod merged;
 pub(crate) mod update;
 pub(crate) mod version;
 
-pub use chunk::EcmascriptDevChunk;
-pub use content::EcmascriptDevChunkContent;
+pub use chunk::EcmascriptBrowserChunk;
+pub use content::EcmascriptBrowserChunkContent;

@@ -139,7 +139,7 @@ pub enum ChunkGroup {
 }
 
 impl ChunkGroup {
-    pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
+    pub fn entries(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Clone + '_ {
         match self {
             ChunkGroup::Async(e) | ChunkGroup::Isolated(e) | ChunkGroup::Shared(e) => {
                 Either::Left(std::iter::once(*e))

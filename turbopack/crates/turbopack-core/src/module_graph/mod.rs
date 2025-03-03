@@ -8,7 +8,7 @@ use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, EdgeRef, IntoNodeReferences, NodeIndexable, VisitMap, Visitable},
 };
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
@@ -26,6 +26,7 @@ use crate::{
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
         chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        module_batches::{compute_module_batches, ModuleBatchesGraph},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
     reference::primary_chunkable_referenced_modules,
@@ -33,7 +34,11 @@ use crate::{
 
 pub mod async_module_info;
 pub mod chunk_group_info;
+pub mod module_batch;
+pub(crate) mod module_batches;
 mod traced_di_graph;
+
+pub use self::module_batches::BatchingConfig;
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
@@ -509,7 +514,6 @@ impl SingleModuleGraph {
     /// * `visit_postorder` - Called after visiting the children of a node. Return
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
-    ///    - Can return [GraphTraversalAction]s to control the traversal
     pub fn traverse_edges_from_entries_topological<'a, S>(
         &'a self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
@@ -537,7 +541,7 @@ impl SingleModuleGraph {
         let mut stack: Vec<(TopologicalPass, Option<(NodeIndex, EdgeIndex)>, NodeIndex)> = entries
             .map(|e| (TopologicalPass::ExpandAndVisit, None, e))
             .collect();
-        let mut expanded = HashSet::new();
+        let mut expanded = FxHashSet::default();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|parent| {
                 (
@@ -719,6 +723,15 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
         compute_chunk_group_info(self).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_batches(
+        self: Vc<Self>,
+        config: Vc<BatchingConfig>,
+    ) -> Result<Vc<ModuleBatchesGraph>> {
+        // TODO dev: Return modules only
+        compute_module_batches(self, &*config.await?).await
     }
 
     #[turbo_tasks::function]
