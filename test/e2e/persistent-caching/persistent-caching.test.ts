@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
 describe('persistent-caching', () => {
+  process.env.NEXT_DEPLOYMENT_ID = '' + Date.now()
   const { skipped, next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -26,7 +27,9 @@ describe('persistent-caching', () => {
 
   async function start() {
     if (!isNextDev) {
-      await next.build()
+      // TODO workaround for missing content hashing on output static files
+      // Browser caching would break this test case, but we want to test persistent caching.
+      process.env.NEXT_DEPLOYMENT_ID = '' + Date.now()
     }
     await next.start()
   }
