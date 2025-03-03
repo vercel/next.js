@@ -122,9 +122,7 @@ describe('persistent-caching', () => {
 
       {
         const browser = await next.browser('/add-me')
-        expect(await browser.elementByCss('p').text()).toBe(
-          'hello persistent caching'
-        )
+        expect(await browser.elementByCss('p').text()).toBe('hello world')
         await browser.close()
       }
     }
