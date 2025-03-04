@@ -21,5 +21,8 @@ describe('parallel-routes-and-interception', () => {
 
     // we also check that the #children-slot id is not present
     expect(await browser.hasElementByCssSelector('#children-slot')).toBe(false)
+
+    const $ = await next.render$('/')
+    expect($('title').text()).toBe('layout title')
   })
 })
