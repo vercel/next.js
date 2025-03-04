@@ -9,55 +9,24 @@ description: Style your Next.js Application using Tailwind CSS.
 
 ## Installing Tailwind
 
-Install the Tailwind CSS packages and run the `init` command to generate both the `tailwind.config.js` and `postcss.config.js` files:
+Install the necessary Tailwind CSS packages:
 
 ```bash filename="Terminal"
-npm install -D tailwindcss postcss autoprefixer
-npx tailwindcss init -p
+npm install -D tailwindcss @tailwindcss/postcss postcss
 ```
 
 ## Configuring Tailwind
 
-Inside your Tailwind configuration file, add paths to the files that will use Tailwind class names:
+Create a `postcss.config.mjs` file in the root of your project and add the `@tailwindcss/postcss` plugin to your PostCSS configuration:
 
-```ts filename="tailwind.config.ts" highlight={5-10} switcher
-import type { Config } from 'tailwindcss'
-
-export default {
-  content: [
-    './app/**/*.{js,ts,jsx,tsx,mdx}', // Note the addition of the `app` directory.
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-
-    // Or if using `src` directory:
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {},
-  },
-  plugins: [],
-} satisfies Config
-```
-
-```js filename="tailwind.config.js" highlight={4-9} switcher
+```js filename="postcss.config.mjs" highlight={4}
 /** @type {import('tailwindcss').Config} */
-module.exports = {
-  content: [
-    './app/**/*.{js,ts,jsx,tsx,mdx}', // Note the addition of the `app` directory.
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-
-    // Or if using `src` directory:
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
-  theme: {
-    extend: {},
+export default {
+  plugins: {
+    '@tailwindcss/postcss': {},
   },
-  plugins: [],
 }
 ```
-
-You do not need to modify `postcss.config.js`.
 
 <AppOnly>
 
@@ -66,9 +35,7 @@ You do not need to modify `postcss.config.js`.
 Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/building-your-application/styling/css#global-styles) in your application, for example:
 
 ```css filename="app/globals.css"
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 ```
 
 Inside the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) (`app/layout.tsx`), import the `globals.css` stylesheet to apply the styles to every route in your application.
