@@ -61,7 +61,7 @@ export interface CacheHandler {
    * communicate with the tags service to refresh the local tags manifest
    * accordingly.
    */
-  refreshTags?(): Promise<void>
+  refreshTags(): Promise<void>
 
   /**
    * Next.js will call this function for each set of soft tags that are relevant
@@ -69,7 +69,7 @@ export interface CacheHandler {
    * revalidate event for the tags. Returns `0` if none of the tags were ever
    * revalidated.
    */
-  getExpiration?(...tags: string[]): Promise<Timestamp>
+  getExpiration(...tags: string[]): Promise<Timestamp>
 
   /**
    * Next.js will call this function when `revalidateTag` or `revalidatePath()`
