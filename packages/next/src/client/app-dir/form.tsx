@@ -16,10 +16,7 @@ import {
   hasUnsupportedSubmitterAttributes,
   type FormProps,
 } from '../form-shared'
-import {
-  mountLinkInstance,
-  unmountLinkInstance,
-} from '../components/segment-cache/links'
+import { mountLinkInstance, unmountLinkInstance } from '../components/links'
 
 export type { FormProps }
 

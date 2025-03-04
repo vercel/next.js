@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use super::available_modules::{AvailableModuleInfoMap, AvailableModules};
+use super::available_modules::{AvailableModules, AvailableModulesSet};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Hash, Clone, Copy, Debug)]
@@ -27,7 +27,7 @@ impl AvailabilityInfo {
         }
     }
 
-    pub async fn with_modules(self, modules: Vc<AvailableModuleInfoMap>) -> Result<Self> {
+    pub async fn with_modules(self, modules: Vc<AvailableModulesSet>) -> Result<Self> {
         Ok(match self {
             AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
             AvailabilityInfo::Root => AvailabilityInfo::Complete {

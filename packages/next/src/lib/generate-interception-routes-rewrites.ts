@@ -3,7 +3,7 @@ import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/lib/interception-routes'
+} from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)

@@ -6,6 +6,7 @@ import {
   waitFor,
   check,
   retry,
+  getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import path from 'path'
@@ -1394,6 +1395,11 @@ describe('Client Navigation', () => {
               pageErrors.push(error)
             })
           },
+        })
+        await retry(async () => {
+          expect(await getRedboxTotalErrorCount(browser)).toBe(
+            isReact18 ? 3 : 1
+          )
         })
         await expect(browser).toDisplayRedbox(`
          {

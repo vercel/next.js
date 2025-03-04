@@ -190,6 +190,7 @@
         "app-dir action handling should not block router.back() while a server action is in flight",
         "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
         "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
+        "app-dir action handling should not expose action content in sourcemaps",
         "app-dir action handling should not log errors for non-action form POSTs",
         "app-dir action handling should only submit action once when resubmitting an action after navigation",
         "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
@@ -217,9 +218,7 @@
         "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
         "app-dir action handling should work with interception routes"
       ],
-      "failed": [
-        "app-dir action handling should not expose action content in sourcemaps"
-      ],
+      "failed": [],
       "pending": [
         "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
         "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
@@ -2503,7 +2502,8 @@
         "i18n-hybrid does resolve /en-CA/about",
         "i18n-hybrid does resolve /en-US/about",
         "i18n-hybrid does resolve /fr-CA/about",
-        "i18n-hybrid does resolve /fr-FR/about"
+        "i18n-hybrid does resolve /fr-FR/about",
+        "i18n-hybrid should warn about i18n in app dir"
       ],
       "failed": [],
       "pending": [],
@@ -2947,6 +2947,7 @@
         "app dir - metadata twitter should support default twitter app card",
         "app dir - metadata twitter should support default twitter player card",
         "app dir - metadata twitter should support twitter card summary_large_image when image present",
+        "app dir - metadata viewport should skip initial-scale from viewport if it is set to undefined",
         "app dir - metadata viewport should support dynamic viewport export"
       ],
       "failed": [],
@@ -5131,6 +5132,16 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/e2e/app-dir/segment-cache/mpa-navigations/mpa-navigations.test.ts": {
+      "passed": [
+        "segment cache (MPA navigations) triggers MPA navigation when navigating to a different root layout",
+        "segment cache (MPA navigations) triggers MPA navigation when navigating to a different root layout, during a navigation where a root param also changed"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts": {
       "passed": [
         "segment cache prefetch scheduling cancels a viewport-initiated prefetch if the link leaves the viewport before it finishes",
@@ -5147,7 +5158,9 @@
     "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts": {
       "passed": [
         "segment cache (revalidation) evict client cache when Server Action calls revalidatePath",
-        "segment cache (revalidation) evict client cache when Server Action calls revalidateTag"
+        "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
+        "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
+        "segment cache (revalidation) refetch visible Form components after cache is revalidated"
       ],
       "failed": [],
       "pending": [],
@@ -6126,6 +6139,7 @@
         "getServerSideProps should navigate to a normal page and back",
         "getServerSideProps should not fetch data on mount",
         "getServerSideProps should not have gssp in __NEXT_DATA__ for non-GSSP page",
+        "getServerSideProps should not include rewrite query params in `asPath` and `req.url`",
         "getServerSideProps should not re-call getServerSideProps when updating query",
         "getServerSideProps should not show error for accessing res after gssp returns",
         "getServerSideProps should not show error for invalid JSON returned from getServerSideProps",
@@ -17530,6 +17544,7 @@
       "passed": [
         "dynamic-io-cache-handlers should call expireTags on global default cache handler",
         "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler",
+        "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler without tags if none are provided",
         "dynamic-io-cache-handlers should use global symbol for default cache handler"
       ],
       "failed": [],
@@ -17800,14 +17815,14 @@
       "runtimeError": false
     },
     "test/production/build-spinners/index.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "build-spinners should handle build spinners correctly app and pages",
         "build-spinners should handle build spinners correctly app dir - (compile workers)",
         "build-spinners should handle build spinners correctly app dir - basic",
         "build-spinners should handle build spinners correctly page dir",
         "build-spinners should handle build spinners correctly page dir (compile workers)"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -17967,11 +17982,10 @@
     },
     "test/production/emit-decorator-metadata/index.test.ts": {
       "passed": [
-        "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled"
-      ],
-      "failed": [
+        "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled",
         "emitDecoratorMetadata SWC option should compile with emitDecoratorMetadata enabled for API"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -18352,6 +18366,7 @@
         "Production Usage should handle query/hash correctly during query updating #hello? $search",
         "Production Usage should handle query/hash correctly during query updating #hello?world $search",
         "Production Usage should have defer on all script tags",
+        "Production Usage should navigate through history after query update",
         "Production Usage should navigate to external site and back",
         "Production Usage should navigate to external site and back (with query)",
         "Production Usage should navigate to page with CSS and back",
@@ -18368,10 +18383,7 @@
         "Production Usage should respond with 405 for POST to static page",
         "Production Usage should warn when prefetch is true"
       ],
-      "failed": [
-        "Production Usage should navigate through history after query update",
-        "Production Usage should output traces"
-      ],
+      "failed": ["Production Usage should output traces"],
       "pending": [
         "Production Usage With Security Related Issues should handle invalid URL properly",
         "Production Usage With basic usage should allow etag header support with getServerSideProps",

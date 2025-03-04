@@ -8,21 +8,34 @@ import {
   isWebpackInternalResource,
   formatFrameSourceFile,
 } from './webpack-module-path'
-export interface OriginalStackFrame extends OriginalStackFrameResponse {
-  error: boolean
-  reason: string | null
+
+export interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
+  error: false
+  reason: null
   external: boolean
   ignored: boolean
   sourceStackFrame: StackFrame
 }
 
+export interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
+  error: true
+  reason: string
+  external: boolean
+  ignored: boolean
+  sourceStackFrame: StackFrame
+}
+
+export type OriginalStackFrame =
+  | ResolvedOriginalStackFrame
+  | RejectedOriginalStackFrame
+
 function getOriginalStackFrame(
   source: StackFrame,
   response: OriginalStackFrameResponseResult
 ): Promise<OriginalStackFrame> {
-  async function _getOriginalStackFrame(): Promise<OriginalStackFrame> {
+  async function _getOriginalStackFrame(): Promise<ResolvedOriginalStackFrame> {
     if (response.status === 'rejected') {
-      return Promise.reject(new Error(response.reason))
+      throw new Error(response.reason)
     }
 
     const body: OriginalStackFrameResponse = response.value
@@ -34,7 +47,6 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
-      sourcePackage: body.sourcePackage,
       ignored: body.originalStackFrame?.ignored || false,
     }
   }
@@ -48,21 +60,21 @@ function getOriginalStackFrame(
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
-      sourcePackage: null,
       ignored: true,
     })
   }
 
-  return _getOriginalStackFrame().catch((err: Error) => ({
-    error: true,
-    reason: err?.message ?? err?.toString() ?? 'Unknown Error',
-    external: false,
-    sourceStackFrame: source,
-    originalStackFrame: null,
-    originalCodeFrame: null,
-    sourcePackage: null,
-    ignored: false,
-  }))
+  return _getOriginalStackFrame().catch(
+    (err: Error): RejectedOriginalStackFrame => ({
+      error: true,
+      reason: err?.message ?? err?.toString() ?? 'Unknown Error',
+      external: false,
+      sourceStackFrame: source,
+      originalStackFrame: null,
+      originalCodeFrame: null,
+      ignored: false,
+    })
+  )
 }
 
 export async function getOriginalStackFrames(

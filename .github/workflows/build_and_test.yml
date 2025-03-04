@@ -249,11 +249,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -545,9 +546,9 @@ jobs:
           - 11/13
           - 12/13
           - 13/13
-          # Empty value uses default
-          # TODO: Run with React 18.
-          # Integration tests use the installed React version in next/package.json.include:
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.include:
         # We can't easily switch like we do for e2e tests.
         # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['']

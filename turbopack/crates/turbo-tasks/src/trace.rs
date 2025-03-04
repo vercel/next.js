@@ -11,6 +11,7 @@ use std::{
 use auto_hash_map::{AutoMap, AutoSet};
 use either::Either;
 use indexmap::{IndexMap, IndexSet};
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 
 use crate::RawVc;
@@ -123,6 +124,14 @@ impl<T: TraceRawVcs> TraceRawVcs for Vec<T> {
 }
 
 impl<T: TraceRawVcs> TraceRawVcs for Box<[T]> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for item in self.iter() {
+            TraceRawVcs::trace_raw_vcs(item, trace_context);
+        }
+    }
+}
+
+impl<T: TraceRawVcs, const N: usize> TraceRawVcs for SmallVec<[T; N]> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for item in self.iter() {
             TraceRawVcs::trace_raw_vcs(item, trace_context);
