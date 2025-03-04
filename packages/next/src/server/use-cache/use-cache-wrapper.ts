@@ -272,7 +272,7 @@ async function collectResult(
       ? innerCacheStore.explicitStale
       : innerCacheStore.stale
 
-  const entry = {
+  const entry: CacheEntry = {
     value: bufferStream,
     timestamp: startTime,
     revalidate: collectedRevalidate,
@@ -714,9 +714,8 @@ export function cache(
           } else {
             // TODO: Do this once at the start of the request (but for every
             // cache handler).
-            const implicitTagsExpiration = await cacheHandler.getExpiration(
-              ...implicitTags
-            )
+            const implicitTagsExpiration =
+              (await cacheHandler.getExpiration?.(...implicitTags)) ?? 0
 
             // If the cache entry was created before any of the implicit tags
             // were revalidated last, we need to discard it.
