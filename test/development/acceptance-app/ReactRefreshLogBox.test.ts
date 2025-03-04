@@ -1467,10 +1467,10 @@ describe('ReactRefreshLogBox app', () => {
              |       ^",
            "stack": [
              "eval index.js (1:7)",
-             "<unknown> rsc)/./index.js (<FIXME-project-root>/.next/server/app/server/page.js (43:1)",
+             "<FIXME-next-dist-dir>",
              "<FIXME-file-protocol>",
              "eval ./app/server/page.js",
-             "<unknown> rsc)/./app/server/page.js (<FIXME-project-root>/.next/server/app/server/page.js (33:1)",
+             "<FIXME-next-dist-dir>",
              "<FIXME-file-protocol>",
            ],
          }
