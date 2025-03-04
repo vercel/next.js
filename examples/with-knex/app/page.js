@@ -1,3 +1,4 @@
+"use client"
 import { useEffect, useState } from "react";
 import Head from "next/head";
 
@@ -5,12 +6,28 @@ export default function Home() {
   const [todos, setTodos] = useState();
   useEffect(() => {
     async function loadTodos() {
-      const resp = await fetch("/api/todos");
-      const data = await resp.json();
-      setTodos(data);
+      try {
+        const resp = await fetch("/api/todos");
+  
+        if (!resp.ok) {
+          throw new Error(`API request failed with status ${resp.status}`);
+        }
+  
+        const text = await resp.text();
+        if (!text) {
+          throw new Error("API response is empty.");
+        }
+  
+        const data = JSON.parse(text);
+        setTodos(data);
+      } catch (error) {
+        console.error("Error loading todos:", error);
+      }
     }
+  
     loadTodos();
   }, []);
+  
 
   return (
     <div className="container">
