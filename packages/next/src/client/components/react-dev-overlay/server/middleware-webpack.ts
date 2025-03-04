@@ -471,9 +471,19 @@ async function getOriginalStackFrame({
     },
   })
 
+  let defaultNormalizedStackFrameLocation = frame.file
+  if (
+    defaultNormalizedStackFrameLocation !== null &&
+    defaultNormalizedStackFrameLocation.startsWith('file://')
+  ) {
+    defaultNormalizedStackFrameLocation = path.relative(
+      rootDirectory,
+      fileURLToPath(defaultNormalizedStackFrameLocation)
+    )
+  }
   // This stack frame is used for the one that couldn't locate the source or source mapped frame
   const defaultStackFrame: IgnorableStackFrame = {
-    file: frame.file,
+    file: defaultNormalizedStackFrameLocation,
     lineNumber: frame.lineNumber,
     column: frame.column ?? 1,
     methodName: frame.methodName,

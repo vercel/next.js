@@ -1482,10 +1482,10 @@ describe('Client Navigation', () => {
                |         ^",
              "stack": [
                "eval pages/error-in-the-browser-global-scope.js (2:9)",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
              ],
            }
           `)

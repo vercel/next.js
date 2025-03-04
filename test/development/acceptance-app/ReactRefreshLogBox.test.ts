@@ -115,15 +115,15 @@ describe('ReactRefreshLogBox app', () => {
            |       ^",
          "stack": [
            "eval index.js (3:7)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
            "eval ./app/page.js",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)
@@ -1468,10 +1468,10 @@ describe('ReactRefreshLogBox app', () => {
            "stack": [
              "eval index.js (1:7)",
              "<FIXME-next-dist-dir>",
-             "<FIXME-file-protocol>",
+             "<FIXME-next-dist-dir>",
              "eval ./app/server/page.js",
              "<FIXME-next-dist-dir>",
-             "<FIXME-file-protocol>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -1639,15 +1639,15 @@ export default function Home() {
            |       ^",
          "stack": [
            "eval app/utils.ts (1:7)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
            "eval ./app/page.js",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)
