@@ -7236,9 +7236,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "16.3.1"
+version = "16.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f653564e81bd21b1fe89c433e83cc9bdefc84992ad4df0654af3c345b4fdb71e"
+checksum = "9ee84d0cb86de8dae582aab106dbf2ea5e0045232656f2f4c149126f561caf57"
 dependencies = [
  "binding_macros",
  "swc",
@@ -8179,14 +8179,17 @@ dependencies = [
 
 [[package]]
 name = "swc_error_reporters"
-version = "9.0.0"
+version = "9.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10ad5f4690758cedc202cf0f4c9d2369372c6692307f65bd40031de494662cfa"
+checksum = "897e83aafbb585409572a46e4dd00c56d25af1268309bfb9613644dd181377a6"
 dependencies = [
  "anyhow",
  "miette",
  "once_cell",
  "parking_lot",
+ "serde",
+ "serde_derive",
+ "serde_json",
  "swc_common",
 ]
 
