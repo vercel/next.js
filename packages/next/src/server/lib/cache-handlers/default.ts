@@ -13,7 +13,6 @@ import {
   isStale,
   tagsManifest,
 } from '../incremental-cache/tags-manifest.external'
-import { InvariantError } from '../../../shared/lib/invariant-error'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
@@ -124,12 +123,6 @@ const DefaultCacheHandler: CacheHandler = {
       // TODO: update file-system-cache?
       tagsManifest.set(tag, timestamp)
     }
-  },
-
-  async receiveExpiredTags() {
-    throw new InvariantError(
-      'receiveExpiredTags is deprecated, and not expected to be called.'
-    )
   },
 }
 

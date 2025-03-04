@@ -76,15 +76,4 @@ export interface CacheHandler {
    * is called. It should update the tags manifest accordingly.
    */
   expireTags(...tags: string[]): Promise<void>
-
-  /**
-   * This is called when a server action request sends
-   * `NEXT_CACHE_REVALIDATED_TAGS_HEADER` and tells us these tags are expired
-   * and the manifest should be updated. This differs from `expireTags` since in
-   * a multi-instance environment you don't propagate these as they are
-   * request-specific.
-   * @deprecated Use `refreshTags` or `expireTags` instead. Will be removed in a
-   * later canary version.
-   */
-  receiveExpiredTags(...tags: string[]): Promise<void>
 }
