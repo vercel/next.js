@@ -192,9 +192,7 @@ export default function Page() {
 
 ### Caching a component's output with `use cache`
 
-You can use `use cache` at the component level to cache any fetches or computations performed within that component. When you reuse the component throughout your application it can share the same cache entry as long as the props are the same (see [Cache Keys](#cache-keys)).
-
-The props are serialized and form part of the cache key, and the cache entry will be reused as long as the serialized props produce the same value in each instance.
+You can use `use cache` at the component level to cache any fetches or computations performed within that component. The cache entry will be reused as long as the serialized props produce the same value in each instance.
 
 ```tsx filename="app/components/bookings.tsx" highlight={2} switcher
 export async function Bookings({ type = 'haircut' }: BookingsProps) {
@@ -224,7 +222,7 @@ export async function Bookings({ type = 'haircut' }) {
 
 ### Caching function output with `use cache`
 
-Since you can add `use cache` to any asynchronous function, you aren't limited to caching components or routes only. You might want to cache a network request or database query or compute something that is very slow. By adding `use cache` to a function containing this type of work it becomes cacheable, and when reused, will share the same cache entry.
+Since you can add `use cache` to any asynchronous function, you aren't limited to caching components or routes only. You might want to cache a network request, a database query, or a slow computation.
 
 ```tsx filename="app/actions.ts" highlight={2} switcher
 export async function getData() {
