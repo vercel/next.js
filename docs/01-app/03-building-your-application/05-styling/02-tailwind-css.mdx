@@ -5,7 +5,7 @@ description: Style your Next.js Application using Tailwind CSS.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-[Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that works exceptionally well with Next.js.
+[Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that is fully compatible with Next.js.
 
 ## Installing Tailwind
 
@@ -27,6 +27,10 @@ export default {
   },
 }
 ```
+
+As of [Tailwind v4](https://tailwindcss.com/blog/tailwindcss-v4), there is zero configuration required by default. If you do need to configure Tailwind, you can follow the [official documentation](https://tailwindcss.com/blog/tailwindcss-v4#css-first-configuration) for configuring the global CSS file.
+
+There is also an [upgrade CLI](https://tailwindcss.com/docs/upgrade-guide) and [guide](https://tailwindcss.com/docs/upgrade-guide) if you have an existing Tailwind v3 project.
 
 <AppOnly>
 
@@ -107,9 +111,7 @@ export default function Page() {
 Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/pages/building-your-application/styling/css#global-styles) in your application, for example:
 
 ```css filename="styles/globals.css"
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 ```
 
 Inside the [custom app file](/docs/pages/building-your-application/routing/custom-app) (`pages/_app.js`), import the `globals.css` stylesheet to apply the styles to every route in your application.
