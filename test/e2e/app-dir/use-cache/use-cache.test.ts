@@ -302,6 +302,35 @@ describe('use-cache', () => {
         expect(await browser.elementByCss('#r2').text()).not.toBe(valueR2)
       })
     })
+
+    it('should revalidate caches after redirect', async () => {
+      const browser = await next.browser('/cache-tag')
+      const initial = await browser.elementById('a').text()
+
+      // Bust the ISR cache first to populate the "use cache" in-memory cache for
+      // the subsequent revalidations.
+      await browser.elementById('revalidate-path').click()
+
+      await retry(async () => {
+        expect(await browser.elementById('a').text()).not.toBe(initial)
+      })
+
+      const valueA1 = await browser.elementById('a').text()
+      const valueB1 = await browser.elementById('b').text()
+      await browser.elementByCss('a[href="/revalidate-and-redirect"]').click()
+      await browser.elementById('revalidate-tag-redirect').click()
+
+      expect(await browser.elementById('a').text()).not.toBe(valueA1)
+      expect(await browser.elementById('b').text()).toBe(valueB1)
+      const valueA2 = await browser.elementById('a').text()
+
+      await browser.elementByCss('a[href="/revalidate-and-redirect"]').click()
+      await browser.elementById('revalidate-path-redirect').click()
+
+      expect(await browser.elementById('a').text()).not.toBe(valueA1)
+      expect(await browser.elementById('a').text()).not.toBe(valueA2)
+      expect(await browser.elementById('b').text()).not.toBe(valueB1)
+    })
   }
 
   it('should revalidate caches during on-demand revalidation', async () => {

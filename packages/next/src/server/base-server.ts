@@ -131,7 +131,6 @@ import {
   CACHE_ONE_YEAR,
   INFINITE_CACHE,
   MATCHED_PATH_HEADER,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_RESUME_HEADER,
 } from '../lib/constants'
@@ -176,7 +175,6 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
-import { getCacheHandlers } from './use-cache/handlers'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 
@@ -1432,24 +1430,6 @@ export default abstract class Server<
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
-      }
-
-      // If the header is present, receive the expired tags from all the
-      // cache handlers.
-      const handlers = getCacheHandlers()
-      if (handlers) {
-        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
-        const expiredTags = typeof header === 'string' ? header.split(',') : []
-
-        const promises: Promise<void>[] = []
-        for (const handler of handlers) {
-          // TODO: Store expired tags in ALS and discard cache entries with
-          // these tags.
-          promises.push(handler.receiveExpiredTags(...expiredTags))
-        }
-
-        // Only await if there are any promises to wait for.
-        if (promises.length > 0) await Promise.all(promises)
       }
 
       // set server components HMR cache to request meta so it can be passed

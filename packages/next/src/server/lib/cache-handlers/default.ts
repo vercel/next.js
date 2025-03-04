@@ -1,5 +1,5 @@
 /**
- * This is the default "use cache" handler it defaults to an in memory store.
+ * This is the default "use cache" handler it defaults to an in-memory store.
  * In-memory caches are fragile and should not use stale-while-revalidate
  * semantics on the caches because it's not worth warming up an entry that's
  * likely going to get evicted before we get to use it anyway. However, we also
@@ -13,7 +13,7 @@ import {
   isStale,
   tagsManifest,
 } from '../incremental-cache/tags-manifest.external'
-// import { InvariantError } from '../../../shared/lib/invariant-error'
+import { InvariantError } from '../../../shared/lib/invariant-error'
 
 type PrivateCacheEntry = {
   entry: CacheEntry
@@ -57,7 +57,7 @@ const DefaultCacheHandler: CacheHandler = {
       performance.timeOrigin + performance.now() >
       entry.timestamp + entry.revalidate * 1000
     ) {
-      // In memory caches should expire after revalidate time because it is
+      // In-memory caches should expire after revalidate time because it is
       // unlikely that a new entry will be able to be used before it is dropped
       // from the cache.
       return undefined
@@ -126,12 +126,10 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async receiveExpiredTags(...tags) {
-    // TODO: Throw instead.
-    // throw new InvariantError(
-    //   'receiveExpiredTags is deprecated, and not expected to be called.'
-    // )
-    return this.expireTags(...tags)
+  async receiveExpiredTags() {
+    throw new InvariantError(
+      'receiveExpiredTags is deprecated, and not expected to be called.'
+    )
   },
 }
 

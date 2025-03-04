@@ -699,15 +699,30 @@ export function cache(
           : await cacheHandler.get(serializedCacheKey)
 
         if (entry) {
-          // TODO: Do this once at the start of the request.
-          const implicitTagsExpiration = await cacheHandler.getExpiration(
-            ...implicitTags
-          )
-
-          // If the cache entry was created before any of the implicit tags were
-          // revalidated last, we need to discard it.
-          if (entry.timestamp <= implicitTagsExpiration) {
+          if (
+            // TODO: Shouldn't we also consider pendingRevalidatedTags?
+            // Curiously, this is currently not done for the incremental cache
+            // handler. So a revalidating server action can read its own writes
+            // only during subsequent rendering, but not in the action itself?
+            entry.tags.some((tag) =>
+              workStore.previouslyRevalidatedTags.includes(tag)
+            )
+          ) {
+            // If the cache entry was tagged with a previously revalidated tag
+            // (e.g. by a redirecting server action), we need to discard it.
             entry = undefined
+          } else {
+            // TODO: Do this once at the start of the request (but for every
+            // cache handler).
+            const implicitTagsExpiration = await cacheHandler.getExpiration(
+              ...implicitTags
+            )
+
+            // If the cache entry was created before any of the implicit tags
+            // were revalidated last, we need to discard it.
+            if (entry.timestamp <= implicitTagsExpiration) {
+              entry = undefined
+            }
           }
         }
 

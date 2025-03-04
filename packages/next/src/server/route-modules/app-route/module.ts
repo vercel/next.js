@@ -604,7 +604,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     context.renderOpts.pendingWaitUntil = Promise.all([
       workStore.incrementalCache?.revalidateTag(
-        workStore.revalidatedTags || []
+        workStore.pendingRevalidatedTags || []
       ),
       ...Object.values(workStore.pendingRevalidates || {}),
     ]).finally(() => {
@@ -655,6 +655,7 @@ export class AppRouteRouteModule extends RouteModule<
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
+      previouslyRevalidatedTags: [],
     }
 
     // Add the fetchCache option to the renderOpts.

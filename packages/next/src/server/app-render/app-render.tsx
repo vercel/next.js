@@ -175,7 +175,11 @@ import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import './clean-async-snapshot.external'
-import { INFINITE_CACHE } from '../../lib/constants'
+import {
+  INFINITE_CACHE,
+  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+} from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
 import {
@@ -229,6 +233,7 @@ export type AppRenderContext = {
 interface ParseRequestHeadersOptions {
   readonly isDevWarmup: undefined | boolean
   readonly isRoutePPREnabled: boolean
+  readonly previewModeId: string | undefined
 }
 
 const flightDataPathHeadKey = 'h'
@@ -247,6 +252,7 @@ interface ParsedRequestHeaders {
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
+  readonly previouslyRevalidatedTags: string[]
 }
 
 function parseRequestHeaders(
@@ -287,6 +293,12 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
+  const previouslyRevalidatedTags =
+    typeof headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
+    headers[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] === options.previewModeId
+      ? headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
+      : []
+
   return {
     flightRouterState,
     isPrefetchRequest,
@@ -295,6 +307,7 @@ function parseRequestHeaders(
     isRSCRequest,
     isDevWarmupRequest,
     nonce,
+    previouslyRevalidatedTags,
   }
 }
 
@@ -1391,11 +1404,11 @@ async function renderToHTMLOrFlightImpl(
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
       const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
+          workStore.pendingRevalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
@@ -1566,11 +1579,11 @@ async function renderToHTMLOrFlightImpl(
     if (
       workStore.pendingRevalidates ||
       workStore.pendingRevalidateWrites ||
-      workStore.revalidatedTags
+      workStore.pendingRevalidatedTags
     ) {
       const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
-          workStore.revalidatedTags || []
+          workStore.pendingRevalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
@@ -1626,9 +1639,10 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
     isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
+    previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest } = parsedRequestHeaders
+  const { isPrefetchRequest, previouslyRevalidatedTags } = parsedRequestHeaders
 
   const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
@@ -1671,6 +1685,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
     buildId: sharedContext.buildId,
+    previouslyRevalidatedTags,
   })
 
   return workAsyncStorage.run(
