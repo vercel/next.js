@@ -107,15 +107,28 @@ function CachedComponent({ children }) {
 
 The return value of the cacheable function must be serializable. This ensures that the cached data can be stored and retrieved correctly.
 
-## At build time or during revalidation
+## At build time
 
-When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be revalidated with the [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) APIs.
+When used at the top of a [layout](/docs/app/api-reference/file-conventions/layout) or [page](/docs/app/api-reference/file-conventions/page), the route segment will be prerendered, allowing it to later be [revalidated](#during-revalidation).
 
 This means `use cache` cannot be used with [request-time APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) like `cookies` or `headers`.
 
 ## At runtime
 
 During runtime, the `use cache` entries will be cached in-memory for the duration of the server request. Then, on the client, any content returned from the server will be cached in the browser's memory for the duration... TODO
+
+## During revalidation
+
+By default, Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of 15 minutes** when you use the `use cache` directive, and anear-infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+
+While this revalidation period may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
+
+- [`cacheLife`](/docs/app/api-reference/functions/cacheLife): For time-based revalidation periods.
+- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For on-demand revalidation.
+
+Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
+
+See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) API docs for more information.
 
 ## Examples
 
@@ -230,19 +243,6 @@ export async function getData() {
   return data
 }
 ```
-
-### Revalidating
-
-By default, Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of 15 minutes** when you use the `use cache` directive. Next.js sets a near-infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
-
-While this revalidation period may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs to configure the cache behavior:
-
-- [`cacheLife`](/docs/app/api-reference/functions/cacheLife): For time-based revalidation periods.
-- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For on-demand revalidation.
-
-Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
-
-See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) docs for more information.
 
 ### Interleaving
 
