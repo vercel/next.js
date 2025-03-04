@@ -181,4 +181,59 @@ describe('app dir - hooks', () => {
       expect(JSON.parse($('#page-layout-segment').text())).toEqual(null)
     })
   })
+
+  describe('useOptimisticPathnameAndSearchParams', () => {
+    it('should update optimistic values during navigation', async () => {
+      // Test flow:
+      // 1. Initial state: Both optimistic and actual values match current URL
+      // 2. During navigation: Optimistic values update to target URL while actual values remain unchanged
+      // 3. After navigation: Both optimistic and actual values match new target URL
+
+      const browser = await next.browser(
+        '/hooks/use-optimistic-pathname-and-search-params?foo=bar'
+      )
+
+      // Check initial values
+      expect(await browser.elementById('pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params'
+      )
+      expect(await browser.elementById('optimistic-pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params'
+      )
+      expect(await browser.elementById('search-params').text()).toBe('foo=bar')
+      expect(await browser.elementById('optimistic-search-params').text()).toBe(
+        'foo=bar'
+      )
+
+      // Start navigation by clicking a link
+      await browser.elementById('navigation-link').click()
+
+      // During navigation, optimistic values should update immediately
+      expect(await browser.elementById('pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params'
+      )
+      expect(await browser.elementById('optimistic-pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params/dynamic/1'
+      )
+      expect(await browser.elementById('search-params').text()).toBe('foo=bar')
+      expect(await browser.elementById('optimistic-search-params').text()).toBe(
+        'id=1'
+      )
+
+      // Wait for navigation to complete
+      await browser.waitForElementByCss('#target-page')
+
+      // After navigation completes, all values should match the new URL
+      expect(await browser.elementById('pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params/dynamic/1'
+      )
+      expect(await browser.elementById('optimistic-pathname').text()).toBe(
+        '/hooks/use-optimistic-pathname-and-search-params/dynamic/1'
+      )
+      expect(await browser.elementById('search-params').text()).toBe('id=1')
+      expect(await browser.elementById('optimistic-search-params').text()).toBe(
+        'id=1'
+      )
+    })
+  })
 })
