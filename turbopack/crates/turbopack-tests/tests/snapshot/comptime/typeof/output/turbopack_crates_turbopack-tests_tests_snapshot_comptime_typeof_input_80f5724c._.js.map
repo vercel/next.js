@@ -1,0 +1,15 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js"],"sourcesContent":["console.log(\"typeof require\", typeof require)\nconsole.log(\"typeof import.meta\", typeof import.meta)\n// CJS, should be `object`\nconsole.log(\"typeof module\", typeof module)\nconsole.log(\"typeof exports\", typeof exports)\n\n// CJS, should be real require\nconsole.log(require);\n"],"names":[],"mappings":";;;;;AAAA,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AACZ,0BAA0B;AAC1B,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AAEZ,8BAA8B;AAC9B,QAAQ,GAAG"}},
+    {"offset": {"line": 18, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":""}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 29, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js"],"sourcesContent":["import './dep.js'\n\nconsole.log(\"typeof require\", typeof require)\nconsole.log(\"typeof import.meta\", typeof import.meta)\n// ESM, should be `undefined`\nconsole.log(\"typeof module\", typeof module)\nconsole.log(\"typeof exports\", typeof exports)\n\n// ESM, should be require stub\nconsole.log(require);\n"],"names":[],"mappings":";AAAA;;;;;;;AAEA,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AACZ,6BAA6B;AAC7B,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AAEZ,8BAA8B;AAC9B,QAAQ,GAAG"}},
+    {"offset": {"line": 44, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 50, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs"],"sourcesContent":["console.log(\"typeof require\", typeof require)\nconsole.log(\"typeof import.meta\", typeof import.meta)\n// ESM, should be `undefined`\nconsole.log(\"typeof module\", typeof module)\nconsole.log(\"typeof exports\", typeof exports)\n\n// ESM, should be require stub\nconsole.log(require);\n"],"names":[],"mappings":";;;;;;AAAA,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AACZ,6BAA6B;AAC7B,QAAQ,GAAG,CAAC;AACZ,QAAQ,GAAG,CAAC;AAEZ,8BAA8B;AAC9B,QAAQ,GAAG"}},
+    {"offset": {"line": 63, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 69, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js"],"sourcesContent":["import \"./cjs.js\"\nimport \"./esm-automatic.js\"\nimport \"./esm-specified.mjs\"\n"],"names":[],"mappings":";AAAA;AACA;AACA"}},
+    {"offset": {"line": 76, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

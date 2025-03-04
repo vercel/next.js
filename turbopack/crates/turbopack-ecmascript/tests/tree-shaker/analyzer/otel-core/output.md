@@ -197,13 +197,13 @@ graph TD
 ```
 {
     ModuleEvaluation: 7,
-    Exports: 8,
     Export(
         "getEnv",
     ): 5,
     Export(
         "getEnvWithoutDefaults",
     ): 6,
+    Exports: 8,
 }
 ```
 
@@ -329,13 +329,13 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 7,
-    Exports: 8,
     Export(
         "getEnv",
     ): 5,
     Export(
         "getEnvWithoutDefaults",
     ): 6,
+    Exports: 8,
 }
 ```
 

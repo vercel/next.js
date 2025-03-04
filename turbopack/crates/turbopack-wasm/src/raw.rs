@@ -7,6 +7,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     source::Source,
 };
@@ -15,6 +16,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -76,6 +78,7 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
@@ -140,13 +143,8 @@ impl ChunkItem for RawModuleChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for RawModuleChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let path = self.wasm_asset.ident().path().await?;
+        let path = self.wasm_asset.path().await?;
         let output_root = self.chunking_context.output_root().await?;
 
         let Some(path) = output_root.get_path_to(&path) else {
@@ -155,7 +153,7 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({path});",
+                "{TURBOPACK_EXPORT_VALUE}({path});",
                 path = StringifyJs(path)
             )
             .into(),

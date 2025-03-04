@@ -110,8 +110,6 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
-    /// Should we skip `#[derive(turbo_tasks::NonLocalValue)]`?
-    local: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
 }
@@ -124,7 +122,6 @@ impl Parse for ValueArguments {
             cell_mode: CellMode::Shared,
             manual_eq: false,
             transparent: false,
-            local: false,
             operation: None,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
@@ -180,9 +177,6 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                ("local", Meta::Path(_)) => {
-                    result.local = true;
-                }
                 ("operation", Meta::Path(path)) => {
                     result.operation = Some(path.span());
                 }
@@ -191,7 +185,7 @@ impl Parse for ValueArguments {
                         &meta,
                         format!(
                             "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\", \"non_local\", or \"operation\"",
+                             \"cell\", \"eq\", \"transparent\", or \"operation\"",
                             meta
                         ),
                     ))
@@ -211,7 +205,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
-        local,
         operation,
     } = parse_macro_input!(args as ValueArguments);
 
@@ -330,16 +323,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             let content = self;
             turbo_tasks::ResolvedVc::cell_private(#cell_access_content)
         }
-
-        /// Places a value in a task-local cell stored in the current task.
-        ///
-        /// Task-local cells are stored in a task-local arena, and do not persist outside the
-        /// lifetime of the current task (including child tasks). Task-local cells can be resolved
-        /// to be converted into normal cells.
-        #cell_prefix fn local_cell(self) -> turbo_tasks::Vc<Self> {
-            let content = self;
-            turbo_tasks::Vc::local_cell_private(#cell_access_content)
-        }
     };
 
     let into = if let IntoMode::New | IntoMode::Shared = into_mode {
@@ -355,7 +338,12 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let mut struct_attributes = vec![quote! {
-        #[derive(turbo_tasks::ShrinkToFit, turbo_tasks::trace::TraceRawVcs)]
+        #[derive(
+            turbo_tasks::ShrinkToFit,
+            turbo_tasks::trace::TraceRawVcs,
+            turbo_tasks::NonLocalValue,
+        )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
     }];
     match serialization_mode {
         SerializationMode::Auto | SerializationMode::AutoForInput => {
@@ -386,11 +374,6 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     if !manual_eq {
         struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
-        });
-    }
-    if !local {
-        struct_attributes.push(quote! {
-            #[derive(turbo_tasks::NonLocalValue)]
         });
     }
     if let Some(span) = operation {

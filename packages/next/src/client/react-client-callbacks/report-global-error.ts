@@ -4,5 +4,6 @@ export const reportGlobalError =
       // emulating an uncaught JavaScript error.
       reportError
     : (error: unknown) => {
-        window.console.error(error)
+        // TODO: Dispatch error event
+        globalThis.console.error(error)
       }

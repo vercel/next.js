@@ -74,15 +74,16 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
 export default async function transform(
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
   cssContent: string,
-  name: string
+  name: string,
+  sourceMap: boolean
 ) {
   const { css, map, messages } = await processor!.process(cssContent, {
     from: name,
     to: name,
-    map: {
+    map: sourceMap ? {
       inline: false,
       annotation: false,
-    },
+    } : undefined,
   });
 
   const assets = [];
@@ -93,7 +94,9 @@ export default async function transform(
           file: msg.file,
           content: msg.content,
           sourceMap:
-            typeof msg.sourceMap === "string"
+            !sourceMap
+              ? undefined
+              : typeof msg.sourceMap === "string"
               ? msg.sourceMap
               : JSON.stringify(msg.sourceMap),
           // There is also an info field, which we currently ignore
@@ -133,7 +136,7 @@ export default async function transform(
   }
   return {
     css,
-    map: JSON.stringify(map),
+    map: sourceMap ? JSON.stringify(map) : undefined,
     assets,
   };
 }

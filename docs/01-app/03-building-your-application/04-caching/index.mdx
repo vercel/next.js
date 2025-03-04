@@ -33,7 +33,7 @@ Caching behavior changes depending on whether the route is statically or dynamic
 
 ## Request Memoization
 
-React extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
+Next.js extends the [`fetch` API](#fetch) to automatically **memoize** requests that have the same URL and options. This means you can call a fetch function for the same data in multiple places in a React component tree while only executing it once.
 
 <Image
   alt="Deduplicated Fetch Requests"
@@ -185,7 +185,7 @@ Alternatively, you can use [Route Segment Config options](#segment-config-option
   - Once the data is fetched successfully, Next.js will update the Data Cache with the fresh data.
   - If the background revalidation fails, the previous data will be kept unaltered.
 
-This is similar to [**stale-while-revalidate**](https://web.dev/stale-while-revalidate/) behavior.
+This is similar to [**stale-while-revalidate**](https://web.dev/articles/stale-while-revalidate) behavior.
 
 #### On-demand Revalidation
 

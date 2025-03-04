@@ -88,13 +88,13 @@ graph TD
 ```
 {
     ModuleEvaluation: 2,
-    Exports: 3,
-    Export(
-        "b",
-    ): 1,
     Export(
         "a",
     ): 0,
+    Export(
+        "b",
+    ): 1,
+    Exports: 3,
 }
 ```
 
@@ -143,13 +143,13 @@ export { b } from "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 2,
-    Exports: 3,
-    Export(
-        "b",
-    ): 1,
     Export(
         "a",
     ): 0,
+    Export(
+        "b",
+    ): 1,
+    Exports: 3,
 }
 ```
 

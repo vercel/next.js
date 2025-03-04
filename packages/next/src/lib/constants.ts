@@ -118,9 +118,13 @@ const WEBPACK_LAYERS_NAMES = {
    */
   actionBrowser: 'action-browser',
   /**
-   * The layer for the API routes.
+   * The Node.js bundle layer for the API routes.
    */
-  api: 'api',
+  apiNode: 'api-node',
+  /**
+   * The Edge Lite bundle layer for the API routes.
+   */
+  apiEdge: 'api-edge',
   /**
    * The layer for the middleware code.
    */
@@ -137,6 +141,18 @@ const WEBPACK_LAYERS_NAMES = {
    * The browser client bundle layer for App directory.
    */
   appPagesBrowser: 'app-pages-browser',
+  /**
+   * The browser client bundle layer for Pages directory.
+   */
+  pagesDirBrowser: 'pages-dir-browser',
+  /**
+   * The Edge Lite bundle layer for Pages directory.
+   */
+  pagesDirEdge: 'pages-dir-edge',
+  /**
+   * The Node.js bundle layer for Pages directory.
+   */
+  pagesDirNode: 'pages-dir-node',
 } as const
 
 export type WebpackLayerName =
@@ -157,7 +173,8 @@ const WEBPACK_LAYERS = {
     ],
     neutralTarget: [
       // pages api
-      WEBPACK_LAYERS_NAMES.api,
+      WEBPACK_LAYERS_NAMES.apiNode,
+      WEBPACK_LAYERS_NAMES.apiEdge,
     ],
     clientOnly: [
       WEBPACK_LAYERS_NAMES.serverSideRendering,
@@ -170,6 +187,7 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.shared,
       WEBPACK_LAYERS_NAMES.instrument,
+      WEBPACK_LAYERS_NAMES.middleware,
     ],
     appPages: [
       // app router pages and layouts

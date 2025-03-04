@@ -24,8 +24,10 @@ describe('prefetching-not-found', () => {
       expect(await browser.elementByCss('h1').text()).toBe('Home Page')
     })
 
-    // assert the same behavior, but starting at the not found page. This is to ensure that when we seed the prefetch cache,
-    // we don't have any cache collisions that would cause the not-found page to remain rendered when following a link to the home page
+    // Assert the same behavior, but starting at the not found page. This is to
+    // ensure that when we seed the prefetch cache, we don't have any cache
+    // collisions that would cause the not-found page to remain rendered when
+    // following a link to the home page.
     browser = await next.browser('/fake-link')
     expect(await browser.elementByCss('body').text()).toContain(
       'This page could not be found.'

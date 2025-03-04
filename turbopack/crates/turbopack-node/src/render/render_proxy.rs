@@ -15,7 +15,7 @@ use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -27,17 +27,17 @@ use super::{
     ResponseHeaders,
 };
 use crate::{
-    get_intermediate_asset, get_renderer_pool, pool::NodeJsOperation,
+    get_intermediate_asset, get_renderer_pool_operation, pool::NodeJsOperation,
     render::error_page::error_html, source_map::trace_stack,
 };
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_proxy(
+#[turbo_tasks::function(operation)]
+pub async fn render_proxy_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -117,8 +117,8 @@ async fn proxy_error(
         "An error occurred while proxying the request to Node.js".into(),
         format!("{message}\n\n{}", details.join("\n")).into(),
     )
-    .await?
-    .clone_value();
+    .owned()
+    .await?;
 
     RenderingIssue {
         file_path: path,
@@ -154,7 +154,7 @@ struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     intermediate_output_path: ResolvedVc<FileSystemPath>,
@@ -238,20 +238,20 @@ async fn render_stream_internal(
             *chunking_context,
             *module,
             *runtime_entries,
-        );
-        let pool = get_renderer_pool(
-            *cwd,
-            *env,
+        ).to_resolved().await?;
+        let pool_op = get_renderer_pool_operation(
+            cwd,
+            env,
             intermediate_asset,
-            *intermediate_output_path,
-            *output_root,
-            *project_dir,
+            intermediate_output_path,
+            output_root,
+            project_dir,
             debug,
         );
 
         // Read this strongly consistent, since we don't want to run inconsistent
         // node.js code.
-        let pool = pool.strongly_consistent().await?;
+        let pool = pool_op.read_strongly_consistent().await?;
         let data = data.await?;
         let mut operation = pool.operation().await?;
 
@@ -279,7 +279,7 @@ async fn render_stream_internal(
                 // 500 proxy error as if it were the proper result.
                 let trace = trace_stack(
                     error,
-                    intermediate_asset,
+                    *intermediate_asset,
                     *intermediate_output_path,
                     *project_dir
                 )
@@ -314,7 +314,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, *intermediate_output_path, *project_dir).await?;
+                        trace_stack(error, *intermediate_asset, *intermediate_output_path, *project_dir).await?;
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;
                 }

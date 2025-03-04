@@ -1,12 +1,12 @@
-use std::collections::{HashMap, HashSet};
-
 use anyhow::Result;
 pub use collect_exported_const_visitor::Const;
 use collect_exports_visitor::CollectExportsVisitor;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
+    atoms::Atom,
     base::SwcComments,
     common::GLOBALS,
     ecma::{ast::Program, visit::VisitWith},
@@ -28,43 +28,43 @@ pub enum Amp {
 pub struct PageStaticInfo {
     // [TODO] next-core have NextRuntime type, but the order of dependency won't allow to import
     // Since this value is being passed into JS context anyway, we can just use string for now.
-    pub runtime: Option<String>, // 'nodejs' | 'experimental-edge' | 'edge'
-    pub preferred_region: Vec<String>,
+    pub runtime: Option<Atom>, // 'nodejs' | 'experimental-edge' | 'edge'
+    pub preferred_region: Vec<Atom>,
     pub ssg: Option<bool>,
     pub ssr: Option<bool>,
-    pub rsc: Option<String>, // 'server' | 'client'
+    pub rsc: Option<Atom>, // 'server' | 'client'
     pub generate_static_params: Option<bool>,
     pub middleware: Option<MiddlewareConfig>,
     pub amp: Option<Amp>,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportInfoWarning {
-    pub key: String,
-    pub message: String,
+    pub key: Atom,
+    pub message: &'static str,
 }
 
 impl ExportInfoWarning {
-    pub fn new(key: String, message: String) -> Self {
+    pub fn new(key: Atom, message: &'static str) -> Self {
         Self { key, message }
     }
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportInfo {
     pub ssr: bool,
     pub ssg: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub runtime: Option<String>,
+    pub runtime: Option<Atom>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub preferred_region: Vec<String>,
+    pub preferred_region: Vec<Atom>,
     pub generate_image_metadata: Option<bool>,
     pub generate_sitemaps: Option<bool>,
     pub generate_static_params: bool,
-    pub extra_properties: HashSet<String>,
-    pub directives: HashSet<String>,
+    pub extra_properties: FxHashSet<Atom>,
+    pub directives: FxHashSet<Atom>,
     /// extra properties to bubble up warning messages from visitor,
     /// since this isn't a failure to abort the process.
     pub warnings: Vec<ExportInfoWarning>,
@@ -209,8 +209,8 @@ pub fn collect_rsc_module_info(
 /// error.
 pub fn extract_exported_const_values(
     source_ast: &Program,
-    properties_to_extract: HashSet<String>,
-) -> HashMap<String, Option<Const>> {
+    properties_to_extract: FxHashSet<Atom>,
+) -> FxHashMap<Atom, Option<Const>> {
     GLOBALS.set(&Default::default(), || {
         let mut visitor =
             collect_exported_const_visitor::CollectExportedConstVisitor::new(properties_to_extract);

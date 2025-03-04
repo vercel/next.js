@@ -29,10 +29,21 @@ describe('dynamic = "error" in devmode', () => {
       ]),
       '/server'
     )
-    const { session } = sandbox
-    await session.assertHasRedbox()
-    expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
-    )
+    const { browser } = sandbox
+
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+       "environmentLabel": "Server",
+       "label": "Unhandled Runtime Error",
+       "source": "app/server/page.js (4:16) @ Page
+     > 4 |   await cookies()
+         |                ^",
+       "stack": [
+         "Page app/server/page.js (4:16)",
+       ],
+     }
+    `)
   })
 })

@@ -1013,10 +1013,10 @@ graph TD
     Export(
         "IPC",
     ): 10,
-    Exports: 12,
     Export(
         "structuredError",
     ): 11,
+    Exports: 12,
 }
 ```
 
@@ -1421,10 +1421,10 @@ export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
     Export(
         "IPC",
     ): 10,
-    Exports: 12,
     Export(
         "structuredError",
     ): 11,
+    Exports: 12,
 }
 ```
 

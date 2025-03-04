@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css/input/style.css"],"sourcesContent":["@import url(\"./imported.css\");\n/* De-duplicate similar imports */\n@import url(\"../input/imported.css\");\n/* But not if they have different attributes */\n@import url(\"./imported.css\") layer(layer) print;\n.style {\n  color: yellow;\n}\n"],"names":[],"mappings":"AAKA"}},
+    {"offset": {"line": 1, "column": 18}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

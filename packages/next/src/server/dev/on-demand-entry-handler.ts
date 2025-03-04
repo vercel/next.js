@@ -306,7 +306,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
@@ -418,7 +421,7 @@ export async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }
@@ -802,9 +805,15 @@ export function onDemandEntryHandler({
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      let pageRuntime = staticInfo.runtime
+
+      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
+        pageRuntime = 'edge'
+      }
+
       runDependingOnPageType({
         page: route.page,
-        pageRuntime: staticInfo.runtime,
+        pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
           // Skip adding the client entry for app / Server Components.

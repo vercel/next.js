@@ -60,20 +60,20 @@ export async function create() {}
 export async function create() {}
 ```
 
-```tsx filename="app/ui/button.tsx" switcher
+```tsx filename="app/button.tsx" switcher
 'use client'
 
-import { create } from '@/app/actions'
+import { create } from './actions'
 
 export function Button() {
   return <button onClick={() => create()}>Create</button>
 }
 ```
 
-```jsx filename="app/ui/button.js" switcher
+```jsx filename="app/button.js" switcher
 'use client'
 
-import { create } from '@/app/actions'
+import { create } from './actions'
 
 export function Button() {
   return <button onClick={() => create()}>Create</button>
@@ -979,7 +979,7 @@ However, for this to happen, the captured variables are sent to the client and b
 
 When self-hosting your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
-To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key.
+To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key. This variable **must** be AES-GCM encrypted.
 
 This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such key rotation and signing.
 
