@@ -28,7 +28,7 @@ describe('parallel-routes-and-interception', () => {
       let $ = await next.render$('/')
       expect($('title').text()).toBe('')
 
-      $ = await next.render$('/', {
+      $ = await next.render$('/', null, {
         headers: {
           'User-Agent': 'Discordbot',
         },
