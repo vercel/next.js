@@ -78,7 +78,8 @@ export async function getImplicitTags(
       [...cacheHandlers].map((handler) => handler.getExpiration(...tags))
     )
 
-    // We use the most recent expiration, i.e. the largest timestamp.
+    // We use the most recent expiration from all cache handlers, i.e. the
+    // largest timestamp. Semantically, they should all be the same though.
     expiration = Math.max(...expirations)
   }
 
