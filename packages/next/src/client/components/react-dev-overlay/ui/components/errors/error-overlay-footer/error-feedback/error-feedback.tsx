@@ -11,6 +11,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
   const voted = votedMap[errorCode]
   const hasVoted = voted !== undefined
+  const disabled = process.env.__NEXT_TELEMETRY_DISABLED
 
   const handleFeedback = useCallback(
     async (wasHelpful: boolean) => {
@@ -53,19 +54,39 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
         </p>
       ) : (
         <>
-          <p>Was this helpful?</p>
+          <p>
+            <a
+              href="https://nextjs.org/telemetry#error-feedback"
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              Was this helpful?
+            </a>
+          </p>
           <button
+            aria-disabled={disabled ? 'true' : undefined}
             aria-label="Mark as helpful"
-            onClick={() => handleFeedback(true)}
+            onClick={disabled ? undefined : () => handleFeedback(true)}
             className={cx('feedback-button', voted === true && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsUp aria-hidden="true" />
           </button>
           <button
+            aria-disabled={disabled ? 'true' : undefined}
             aria-label="Mark as not helpful"
-            onClick={() => handleFeedback(false)}
+            onClick={disabled ? undefined : () => handleFeedback(false)}
             className={cx('feedback-button', voted === false && 'voted')}
+            title={
+              disabled
+                ? 'Feedback disabled due to setting NEXT_TELEMETRY_DISABLED'
+                : undefined
+            }
             type="button"
           >
             <ThumbsDown
@@ -86,13 +107,13 @@ export const styles = `
   .error-feedback {
     display: flex;
     align-items: center;
-    gap: var(--size-gap);
+    gap: 8px;
     white-space: nowrap;
     color: var(--color-gray-900);
   }
 
   .error-feedback-thanks {
-    height: 24px;
+    height: var(--size-24);
     display: flex;
     align-items: center;
     padding-right: 4px; /* To match the 4px inner padding of the thumbs up and down icons */
@@ -102,8 +123,8 @@ export const styles = `
     background: none;
     border: none;
     border-radius: var(--rounded-md);
-    width: 24px;
-    height: 24px;
+    width: var(--size-24);
+    height: var(--size-24);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -122,7 +143,7 @@ export const styles = `
     }
   }
 
-  .feedback-button:disabled {
+  .feedback-button[aria-disabled='true'] {
     opacity: 0.7;
     cursor: not-allowed;
   }
@@ -134,5 +155,7 @@ export const styles = `
   .thumbs-up-icon,
   .thumbs-down-icon {
     color: var(--color-gray-900);
+    width: var(--size-16);
+    height: var(--size-16);
   }
 `

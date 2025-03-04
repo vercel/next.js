@@ -10,7 +10,10 @@ const reactHydrationStartMessages = [
   `A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:`,
 ]
 
-const reactHydrationErrorDocLink = 'https://react.dev/link/hydration-mismatch'
+export const REACT_HYDRATION_ERROR_LINK =
+  'https://react.dev/link/hydration-mismatch'
+export const NEXTJS_HYDRATION_ERROR_LINK =
+  'https://nextjs.org/docs/messages/react-hydration-error'
 
 export const getDefaultHydrationErrorMessage = () => {
   return reactUnifiedMismatchWarning
@@ -48,7 +51,6 @@ export function testReactHydrationWarning(msg: string): boolean {
 
 export function getHydrationErrorStackInfo(rawMessage: string): {
   message: string | null
-  link?: string
   stack?: string
   diff?: string
 } {
@@ -59,7 +61,6 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   if (!isReactHydrationErrorMessage(rawMessage) && !isReactHydrationWarning) {
     return {
       message: null,
-      link: '',
       stack: rawMessage,
       diff: '',
     }
@@ -69,7 +70,6 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
     const [message, diffLog] = rawMessage.split('\n\n')
     return {
       message: message.trim(),
-      link: reactHydrationErrorDocLink,
       stack: '',
       diff: (diffLog || '').trim(),
     }
@@ -78,7 +78,7 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
   const firstLineBreak = rawMessage.indexOf('\n')
   rawMessage = rawMessage.slice(firstLineBreak + 1).trim()
 
-  const [message, trailing] = rawMessage.split(`${reactHydrationErrorDocLink}`)
+  const [message, trailing] = rawMessage.split(`${REACT_HYDRATION_ERROR_LINK}`)
   const trimmedMessage = message.trim()
   // React built-in hydration diff starts with a newline, checking if length is > 1
   if (trailing && trailing.length > 1) {
@@ -95,14 +95,12 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
 
     return {
       message: trimmedMessage,
-      link: reactHydrationErrorDocLink,
       diff: diffs.join('\n'),
       stack: stacks.join('\n'),
     }
   } else {
     return {
       message: trimmedMessage,
-      link: reactHydrationErrorDocLink,
       stack: trailing, // without hydration diff
     }
   }

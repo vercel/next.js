@@ -1691,6 +1691,7 @@ function pushStartInstance(
             header;
           headers &&
           0 < headers.remainingCapacity &&
+          "string" !== typeof props.srcSet &&
           ("high" === props.fetchPriority ||
             500 > headers.highImagePreloads.length) &&
           ((header = getPreloadAsHeader(src, "image", {
@@ -2442,6 +2443,7 @@ function preload(href, as, options) {
           var header;
           resumableState &&
           0 < resumableState.remainingCapacity &&
+          "string" !== typeof imageSrcSet &&
           "high" === fetchPriority &&
           ((header = getPreloadAsHeader(href, as, options)),
           0 <= (resumableState.remainingCapacity -= header.length + 2))
@@ -3392,9 +3394,9 @@ var HooksDispatcher = {
       if (null === resumableState) throw Error(formatProdErrorMessage(404));
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + ":";
+      return JSCompiler_inline_result + "\u00bb";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -6349,4 +6351,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.1.0-experimental-662957cc-20250221";
+exports.version = "19.1.0-experimental-d55cc79b-20250228";

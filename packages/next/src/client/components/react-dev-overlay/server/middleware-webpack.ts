@@ -287,6 +287,9 @@ async function getSource(
 ): Promise<Source | undefined> {
   const { getCompilations } = options
 
+  // Rspack is now using file:// URLs for source maps. Remove the rsc prefix to produce the file:/// url.
+  sourceURL = sourceURL.replace(/(.*)\/(?=file:\/\/)/, '')
+
   let nativeSourceMap: SourceMap | undefined
   try {
     nativeSourceMap = findSourceMap(sourceURL)

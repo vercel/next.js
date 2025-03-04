@@ -27,8 +27,8 @@ use turbopack_ecmascript::{
 use turbopack_ecmascript_runtime::RuntimeType;
 
 use crate::ecmascript::{
-    chunk::EcmascriptDevChunk,
-    evaluate::chunk::EcmascriptDevEvaluateChunk,
+    chunk::EcmascriptBrowserChunk,
+    evaluate::chunk::EcmascriptBrowserEvaluateChunk,
     list::asset::{EcmascriptDevChunkList, EcmascriptDevChunkListSource},
 };
 
@@ -236,7 +236,7 @@ impl BrowserChunkingContext {
         // TODO(sokra) remove this argument and pass chunk items instead
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(EcmascriptDevEvaluateChunk::new(
+        Vc::upcast(EcmascriptBrowserEvaluateChunk::new(
             self,
             ident,
             other_chunks,
@@ -271,7 +271,7 @@ impl BrowserChunkingContext {
             if let Some(ecmascript_chunk) =
                 Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
             {
-                Vc::upcast(EcmascriptDevChunk::new(self, ecmascript_chunk))
+                Vc::upcast(EcmascriptBrowserChunk::new(self, ecmascript_chunk))
             } else if let Some(output_asset) =
                 Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(chunk).await?
             {
@@ -553,7 +553,6 @@ impl ChunkingContext for BrowserChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         _path: Vc<FileSystemPath>,
-        _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,

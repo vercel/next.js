@@ -431,7 +431,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            entry_module,
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),

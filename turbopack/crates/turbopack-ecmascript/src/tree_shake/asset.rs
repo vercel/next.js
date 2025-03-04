@@ -67,7 +67,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
             .module_content_without_analysis(generate_source_map)

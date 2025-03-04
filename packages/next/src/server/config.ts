@@ -28,6 +28,8 @@ import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import { findDir } from '../lib/find-pages-dir'
+import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -243,20 +245,18 @@ function assignDefaults(
     )
   }
 
-  if (
-    !process.env.__NEXT_VERSION?.includes('canary') &&
-    !process.env.__NEXT_TEST_MODE &&
-    !process.env.NEXT_PRIVATE_LOCAL_DEV
-  ) {
+  if (isStableBuild()) {
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.ppr) {
-      throw new CanaryOnlyError('experimental.ppr')
+      throw new CanaryOnlyError({ feature: 'experimental.ppr' })
     } else if (result.experimental?.dynamicIO) {
-      throw new CanaryOnlyError('experimental.dynamicIO')
+      throw new CanaryOnlyError({ feature: 'experimental.dynamicIO' })
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
-      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbo.unstablePersistentCaching',
+      })
     } else if (result.experimental?.nodeMiddleware) {
-      throw new CanaryOnlyError('experimental.nodeMiddleware')
+      throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
     }
   }
 
@@ -679,6 +679,17 @@ function assignDefaults(
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
+    const hasAppDir = Boolean(findDir(dir, 'app'))
+
+    if (hasAppDir) {
+      warnOptionHasBeenDeprecated(
+        result,
+        'i18n',
+        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
+        silent
+      )
+    }
+
     const { i18n } = result
     const i18nType = typeof i18n
 
@@ -1043,9 +1054,9 @@ function assignDefaults(
     ]),
   ]
 
-  if (!result.experimental.htmlLimitedBots) {
+  if (!result.htmlLimitedBots) {
     // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
-    result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
+    result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
   // "use cache" was originally implicitly enabled with the dynamicIO flag, so
@@ -1169,10 +1180,10 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = await normalizeConfig(
+    const userConfig = (await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
-    )
+    )) as NextConfig
 
     if (!process.env.NEXT_MINIMAL) {
       // We only validate the config against schema in non minimal mode
@@ -1221,7 +1232,7 @@ export default async function loadConfig(
       const { canonicalBase } = userConfig.amp || ({} as any)
       userConfig.amp = userConfig.amp || {}
       userConfig.amp.canonicalBase =
-        (canonicalBase.endsWith('/')
+        (canonicalBase?.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
     }
@@ -1264,9 +1275,9 @@ export default async function loadConfig(
     }
 
     // serialize the regex config into string
-    if (userConfig.experimental?.htmlLimitedBots instanceof RegExp) {
-      userConfig.experimental.htmlLimitedBots =
-        userConfig.experimental.htmlLimitedBots.source
+    if (userConfig?.htmlLimitedBots instanceof RegExp) {
+      // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
+      userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
     onLoadUserConfig?.(userConfig)
@@ -1357,15 +1368,4 @@ export function getConfiguredExperimentalFeatures(
     }
   }
   return configuredExperimentalFeatures
-}
-
-class CanaryOnlyError extends Error {
-  constructor(feature: string) {
-    super(
-      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
-    )
-    // This error is meant to interrupt the server start/build process
-    // but the stack trace isn't meaningful, as it points to internal code.
-    this.stack = undefined
-  }
 }

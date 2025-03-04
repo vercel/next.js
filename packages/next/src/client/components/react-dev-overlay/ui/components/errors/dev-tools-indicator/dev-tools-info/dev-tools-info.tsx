@@ -1,40 +1,78 @@
+import { useRef } from 'react'
+import { MENU_DURATION_MS, useClickOutside, useFocusTrap } from '../utils'
+import { useDelayedRender } from '../../../../hooks/use-delayed-render'
+
+export interface DevToolsInfoPropsCore {
+  isOpen: boolean
+  triggerRef: React.RefObject<HTMLButtonElement | null>
+  close: () => void
+}
+
+export interface DevToolsInfoProps extends DevToolsInfoPropsCore {
+  title: string
+  children: React.ReactNode
+  learnMoreLink?: string
+}
+
 export function DevToolsInfo({
   title,
   children,
   learnMoreLink,
-  setIsOpen,
-  setPreviousOpen,
+  isOpen,
+  triggerRef,
+  close,
   ...props
-}: {
-  title: string
-  children: React.ReactNode
-  learnMoreLink: string
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
-}) {
+}: DevToolsInfoProps) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null)
+
+  const { mounted, rendered } = useDelayedRender(isOpen, {
+    // Intentionally no fade in, makes the UI feel more immediate
+    enterDelay: 0,
+    // Graceful fade out to confirm that the UI did not break
+    exitDelay: MENU_DURATION_MS,
+  })
+
+  useFocusTrap(ref, triggerRef, isOpen, () => {
+    // Bring focus to close button, so the user can easily close the overlay
+    closeButtonRef.current?.focus()
+  })
+  useClickOutside(ref, triggerRef, isOpen, close)
+
+  if (!mounted) {
+    return null
+  }
+
   return (
-    <div data-info-popover {...props}>
+    <div
+      tabIndex={-1}
+      role="dialog"
+      ref={ref}
+      data-info-popover
+      {...props}
+      data-rendered={rendered}
+    >
       <div className="dev-tools-info-container">
         <h1 className="dev-tools-info-title">{title}</h1>
         {children}
         <div className="dev-tools-info-button-container">
           <button
+            ref={closeButtonRef}
             className="dev-tools-info-close-button"
-            onClick={() => {
-              setIsOpen(false)
-              setPreviousOpen(true)
-            }}
+            onClick={close}
           >
             Close
           </button>
-          <a
-            className="dev-tools-info-learn-more-button"
-            href={learnMoreLink}
-            target="_blank"
-            rel="noreferrer noopener"
-          >
-            Learn More
-          </a>
+          {learnMoreLink && (
+            <a
+              className="dev-tools-info-learn-more-button"
+              href={learnMoreLink}
+              target="_blank"
+              rel="noreferrer noopener"
+            >
+              Learn More
+            </a>
+          )}
         </div>
       </div>
     </div>
@@ -66,26 +104,30 @@ export const DEV_TOOLS_INFO_STYLES = `
       opacity: 1;
       scale: 1;
     }
+
+    button:focus-visible {
+      outline: var(--focus-ring);
+    }
   }
 
   .dev-tools-info-container {
-    padding: var(--size-1_5);
+    padding: 12px;
   }
 
   .dev-tools-info-title {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 20px;
+    font-size: var(--size-16);
+    font-weight: 600;
+    line-height: var(--size-20);
     margin: 0;
   }
 
   .dev-tools-info-article {
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
     color: var(--color-gray-1000);
-    font-size: 14px;
-    line-height: 20px;
+    font-size: var(--size-14);
+    line-height: var(--size-20);
     margin: 0;
   }
   .dev-tools-info-paragraph {
@@ -98,15 +140,15 @@ export const DEV_TOOLS_INFO_STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--size-2) var(--size-1_5);
+    padding: 8px 6px;
   }
 
   .dev-tools-info-close-button {
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-gray-1000);
     border-radius: var(--rounded-md-2);
@@ -120,15 +162,14 @@ export const DEV_TOOLS_INFO_STYLES = `
 
   .dev-tools-info-learn-more-button {
     align-content: center;
-    padding: 0 var(--size-2);
-    height: 28px;
-    font-size: 14px;
+    padding: 0 8px;
+    height: var(--size-28);
+    font-size: var(--size-14);
     font-weight: 500;
-    line-height: 20px;
+    line-height: var(--size-20);
     transition: background var(--duration-short) ease;
     color: var(--color-background-100);
     border-radius: var(--rounded-md-2);
-    border: 1px solid var(--color-gray-1000);
     background: var(--color-gray-1000);
   }
 
