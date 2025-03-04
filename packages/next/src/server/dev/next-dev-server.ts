@@ -186,6 +186,7 @@ export default class DevServer extends Server {
       const AmpHtmlValidator =
         require('next/dist/compiled/amphtml-validator') as typeof import('next/dist/compiled/amphtml-validator')
       return AmpHtmlValidator.getInstance(validatorPath).then((validator) => {
+        console.log('dev AMP validator ready at %s', validatorPath)
         const result = validator.validateString(html)
         ampValidation(
           pathname,

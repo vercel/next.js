@@ -133,9 +133,10 @@ export async function exportPagesPage(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath: string | undefined
+    validatorPath: string
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
+    console.log('Validator ready')
     const result = validator.validateString(rawAmpHtml)
     const errors = result.errors.filter((e) => e.severity === 'ERROR')
     const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
