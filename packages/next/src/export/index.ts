@@ -62,7 +62,7 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
-import { convertSegmentPathToStaticExportFilename } from '../server/app-render/segment-value-encoding'
+import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -387,7 +387,6 @@ async function exportAppImpl(
     strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
-    streamingMetadata: true,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,

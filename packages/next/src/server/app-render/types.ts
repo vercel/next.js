@@ -204,7 +204,6 @@ export interface RenderOptsPartial {
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
-  streamingMetadata: boolean
   experimental: {
     /**
      * When true, it indicates that the current page supports partial

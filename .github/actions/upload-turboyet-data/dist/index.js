@@ -5242,7 +5242,10 @@ async function collectResults(manifestFile) {
   }
 }
 
-async function collectAndUpload(kv, { jsonPrefix, kvPrefix }) {
+async function collectAndUpload(
+  kv,
+  { jsonPrefix, kvPrefix, deploymentDomain }
+) {
   const developmentResult = await collectResults(
     `test/${jsonPrefix}dev-tests-manifest.json`
   )
@@ -5283,6 +5286,34 @@ async function collectAndUpload(kv, { jsonPrefix, kvPrefix }) {
 
   await kv.set(`${kvPrefix}examples-data`, developmentExamplesResult.data)
   console.log('SUCCESSFULLY SAVED EXAMPLES')
+
+  if (deploymentDomain != null) {
+    // Upstash does not provide strong consistency, so just wait a couple
+    // seconds before invalidating the cache in case of replication lag.
+    //
+    // https://upstash.com/docs/redis/features/consistency
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const response = await fetch(
+        `https://${deploymentDomain}/api/revalidate`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Auth-Token': process.env.TURBOYET_TOKEN,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+      const responseJson = await response.json()
+      if (!responseJson.revalidated) {
+        throw new Error(responseJson.error)
+      }
+      console.log('SUCCESSFULLY REVALIDATED VERCEL DATA CACHE')
+    } catch (error) {
+      // non-fatal: the cache will eventually expire anyways
+      console.error('FAILED TO REVALIDATE VERCEL DATA CACHE', error)
+    }
+  }
 }
 
 async function main() {
@@ -5295,6 +5326,7 @@ async function main() {
     await collectAndUpload(kv, {
       jsonPrefix: 'turbopack-',
       kvPrefix: '',
+      deploymentDomain: 'areweturboyet.com',
     })
     console.log('### UPLOADING RSPACK DATA')
     await collectAndUpload(kv, {
