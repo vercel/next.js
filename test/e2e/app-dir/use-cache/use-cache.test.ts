@@ -393,6 +393,7 @@ describe('use-cache', () => {
         '/passed-to-client',
         '/react-cache',
         '/referential-equality',
+        '/revalidate-and-redirect',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
