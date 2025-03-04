@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import "../styles/global.css";
-import PageFooter from "../components/PageFooter"; // Import the client component
+import PageFooter from "../components/PageFooter";
 
 export const metadata: Metadata = {
   title: "My App",
@@ -18,7 +17,7 @@ export default function RootLayout({
       <body>
         {children}
         <footer>
-          <PageFooter /> {/* This is now a client component */}
+          <PageFooter />
         </footer>
       </body>
     </html>
