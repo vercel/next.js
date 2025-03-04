@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 const isPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 describe('parallel-routes-and-interception', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     // TODO: remove after deployment handling is updated
     skipDeployment: true,
@@ -24,9 +24,9 @@ describe('parallel-routes-and-interception', () => {
     // we also check that the #children-slot id is not present
     expect(await browser.hasElementByCssSelector('#children-slot')).toBe(false)
 
-    if (isPPR) {
+    if (isPPR && !isNextDev) {
       let $ = await next.render$('/')
-      expect($('title').text()).toBe('layout title')
+      expect($('title').text()).toBe('')
     } else {
       const $ = await next.render$('/')
       expect($('title').text()).toBe('layout title')
