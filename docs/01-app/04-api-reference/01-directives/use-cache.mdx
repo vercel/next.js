@@ -115,13 +115,15 @@ This means `use cache` cannot be used with [request-time APIs](/docs/app/buildin
 
 ## At runtime
 
-During runtime, the `use cache` entries will be cached in-memory for the duration of the server request. Then, on the client, any content returned from the server will be cached in the browser's memory for the duration... TODO
+During runtime, the `use cache` entries will be cached in-memory for the duration of the server request.
+
+Then, on the client, any content returned from the server will be cached in the browser's memory for the duration of browser session or until [revalidated](#during-revalidation).
 
 ## During revalidation
 
-By default, Next.js sets a **[revalidation period](/docs/app/building-your-application/data-fetching/fetching#revalidating-cached-data) of 15 minutes** when you use the `use cache` directive, and anear-infinite expiration duration, meaning it's suitable for content that doesn't need frequent updates.
+By default, Next.js sets a revalidation period of **15 minutes** when you use the `use cache` directive, and a near-infinite expiration duration.
 
-While this revalidation period may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
+While this revalidation period may be useful for content that doesn't require frequent updates, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
 
 - [`cacheLife`](/docs/app/api-reference/functions/cacheLife): For time-based revalidation periods.
 - [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For on-demand revalidation.
