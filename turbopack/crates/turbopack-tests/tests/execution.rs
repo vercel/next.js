@@ -10,24 +10,26 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
-    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
     FileSystem, FileSystemEntryType, FileSystemPath,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
 };
 use turbopack_core::{
+    chunk::ChunkingConfig,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -47,6 +49,10 @@ use turbopack_node::{debug::should_debug, evaluate::evaluate};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::jest::JestRunResult;
+use turbopack_trace_utils::{
+    filter_layer::FilterLayer, raw_trace::RawTraceLayer, trace_writer::TraceWriter,
+    tracing_presets::TRACING_TURBO_TASKS_TARGETS,
+};
 
 use crate::util::REPO_ROOT;
 
@@ -168,29 +174,57 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         std::fs::remove_dir_all(&output_path)?;
     }
 
-    let tt = TurboTasks::new(MemoryBackend::default());
-    tt.run_once(async move {
-        let emit = run_inner(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-        let result = emit.strongly_consistent().await?;
-        apply_effects(emit).await?;
+    let subscriber = Registry::default();
 
-        Ok(result.clone_value())
-    })
-    .await
+    let trace = TRACING_TURBO_TASKS_TARGETS.join(",");
+    let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
+
+    std::fs::create_dir_all(&output_path)
+        .context("Unable to create output directory")
+        .unwrap();
+    let trace_file = output_path.join("trace-turbopack");
+    let trace_writer = std::fs::File::create(trace_file.clone()).unwrap();
+    let (trace_writer, trace_writer_guard) = TraceWriter::new(trace_writer);
+    let subscriber = subscriber.with(RawTraceLayer::new(trace_writer));
+
+    subscriber.init();
+
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            dependency_tracking: false,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
+    let result = tt
+        .run_once(async move {
+            let emit_op =
+                run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+            let result = emit_op.read_strongly_consistent().owned().await?;
+            apply_effects(emit_op).await?;
+
+            Ok(result)
+        })
+        .await;
+
+    drop(trace_writer_guard);
+
+    result
 }
 
-#[turbo_tasks::function]
-async fn run_inner(
+#[turbo_tasks::function(operation)]
+async fn run_inner_operation(
     resource: RcStr,
     snapshot_mode: Value<IssueSnapshotMode>,
 ) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource);
-    let run_result = run_test(prepared_test);
+    let prepared_test = prepare_test(resource).to_resolved().await?;
+    let run_result_op = run_test_operation(prepared_test);
     if *snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(prepared_test, run_result).await?;
+        snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
-    Ok(*run_result.await?.js_result)
+    Ok(*run_result_op.connect().await?.js_result)
 }
 
 #[derive(
@@ -264,8 +298,8 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     .cell())
 }
 
-#[turbo_tasks::function]
-async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> {
+#[turbo_tasks::function(operation)]
+async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<Vc<RunTestResult>> {
     let PreparedTest {
         path,
         project_path,
@@ -279,6 +313,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let chunk_root_path = path.join("output".into()).to_resolved().await?;
     let static_root_path = path.join("static".into()).to_resolved().await?;
+
+    let chunk_root_path_in_root_path_offset = project_path
+        .join("output".into())
+        .await?
+        .get_relative_path_to(&*project_root.await?)
+        .context("Project path is in root path")?;
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
@@ -369,12 +409,17 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
+        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
         static_root_path,
         chunk_root_path,
         static_root_path,
         env,
         RuntimeType::Development,
     )
+    .ecmascript_chunking_config(ChunkingConfig {
+        min_chunk_size: 10_000,
+        ..Default::default()
+    })
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);
@@ -444,12 +489,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 #[turbo_tasks::function]
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
-    run_result: Vc<RunTestResult>,
+    run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = *prepared_test.await?;
-    let _ = run_result.resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result.peek_issues_with_path().await?;
+    let captured_issues = run_result_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()

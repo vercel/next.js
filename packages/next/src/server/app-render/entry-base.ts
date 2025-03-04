@@ -8,7 +8,7 @@ export {
 } from 'react-server-dom-webpack/server.edge'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { prerender } from 'react-server-dom-webpack/static.edge'
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
 
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'
@@ -37,7 +37,7 @@ import {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../lib/metadata/metadata-boundary'
+} from '../../client/components/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'

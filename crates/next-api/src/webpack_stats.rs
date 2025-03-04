@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
-use turbopack_browser::ecmascript::EcmascriptDevChunk;
+use turbopack_browser::ecmascript::EcmascriptBrowserChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
     output::OutputAsset,
@@ -21,14 +21,14 @@ where
         FxIndexMap::default();
     let mut modules = vec![];
     for asset in entry_assets {
-        let path = normalize_client_path(&asset.ident().path().await?.path);
+        let path = normalize_client_path(&asset.path().await?.path);
 
         let Some(asset_len) = *asset.size_bytes().await? else {
             continue;
         };
 
-        if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptDevChunk>(*asset).await? {
-            let chunk_ident = normalize_client_path(&chunk.ident().path().await?.path);
+        if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptBrowserChunk>(*asset) {
+            let chunk_ident = normalize_client_path(&chunk.path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,
                 files: vec![chunk_ident.clone().into()],

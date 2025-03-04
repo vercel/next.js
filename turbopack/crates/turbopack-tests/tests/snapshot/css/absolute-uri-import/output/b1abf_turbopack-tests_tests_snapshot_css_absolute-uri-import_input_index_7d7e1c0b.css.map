@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/absolute-uri-import/input/index.css"],"sourcesContent":["@import \"https://example.com/stylesheet1.css\";\n@import \"https://example.com/withquote\\\".css\";\n@import \"./other.css\";\n@import \"./withduplicateurl.css\";\n@import url(\"https://example.com/stylesheet2.css\");\n\nbody {\n  background-color: blue;\n}\n"],"names":[],"mappings":"AAMA"}},
+    {"offset": {"line": 1, "column": 27}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

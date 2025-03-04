@@ -37,6 +37,7 @@ export interface TransformOutput {
   code: string
   map?: string
   output?: string
+  diagnostics: Array<string>
 }
 export declare function mdxCompile(
   value: string,
@@ -128,6 +129,12 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -166,6 +173,12 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiEnvVar>
@@ -177,6 +190,8 @@ export interface NapiTurboEngineOptions {
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
+  /** Track dependencies between tasks. If false, any change during build will error. */
+  dependencyTracking?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -186,6 +201,22 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+/**
+ * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ *
+ * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
+ * one.
+ */
+export declare function projectOnExit(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
+ * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ *
+ * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
+ * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
+ * where we prioritize fast exit and user responsiveness over all else.
+ */
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
@@ -268,6 +299,7 @@ export declare function projectUpdateInfoSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
+  originalFile?: string
   file: string
   line?: number
   column?: number
@@ -275,7 +307,8 @@ export interface StackFrame {
 }
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },
-  frame: StackFrame
+  frame: StackFrame,
+  currentDirectoryFileUrl: string
 ): Promise<StackFrame | null>
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
@@ -289,10 +322,6 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: string
 ): string | null
-/** Runs exit handlers for the project registered using the [`ExitHandler`] API. */
-export declare function projectOnExit(project: {
-  __napiType: 'Project'
-}): Promise<void>
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void
@@ -379,10 +408,6 @@ export interface NapiRewrite {
   missing?: Array<NapiRouteHas>
 }
 export declare function getTargetTriple(): string
-export declare function initHeapProfiler(): ExternalObject<RefCell>
-export declare function teardownHeapProfiler(
-  guardExternal: ExternalObject<RefCell>
-): void
 /**
  * Initialize tracing subscriber to emit traces. This configures subscribers
  * for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.

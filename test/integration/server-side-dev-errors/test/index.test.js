@@ -4,12 +4,10 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import {
-  assertHasRedbox,
   killApp,
   findPort,
   launchApp,
   retry,
-  getRedboxSource,
   assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -66,22 +64,20 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
+            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should be "at getStaticProps"
-            '\n    at missingVar (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
+            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       }
       expect(stderr).toContain(
@@ -89,9 +85,38 @@ describe('server-side dev errors', () => {
           '\n> 6 |   missingVar;return {'
       )
 
-      await assertHasRedbox(browser)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getStaticProps ../../test/integration/server-side-dev-errors/pages/gsp.js (6:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/gsp.js (6:3) @ getStaticProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getStaticProps pages/gsp.js (6:3)",
+           ],
+         }
+        `)
+      }
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gspPage, content, { flush: true })
       await assertNoRedbox(browser)
     } finally {
@@ -118,23 +143,20 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should be "at getServerSideProps"
-            '\n    at missingVar (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       }
       expect(stderrOutput).toContain(
@@ -142,9 +164,38 @@ describe('server-side dev errors', () => {
           '\n> 6 |   missingVar;return {'
       )
 
-      await assertHasRedbox(browser)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getServerSideProps ../../test/integration/server-side-dev-errors/pages/gssp.js (6:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/gssp.js (6:3) @ getServerSideProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getServerSideProps pages/gssp.js (6:3)",
+           ],
+         }
+        `)
+      }
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(gsspPage, content)
       await assertNoRedbox(browser)
     } finally {
@@ -171,23 +222,20 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should be "at getServerSideProps"
-            '\n    at missingVar (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at fn'
+            '\n    at <unknown>'
         )
       }
       expect(stderrOutput).toContain(
@@ -195,11 +243,39 @@ describe('server-side dev errors', () => {
           '\n> 6 |   missingVar;return {'
       )
 
-      await assertHasRedbox(browser)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getServerSideProps ../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/blog/[slug].js (6:3) @ getServerSideProps
+         > 6 |   missingVar;return {
+             |   ^",
+           "stack": [
+             "getServerSideProps pages/blog/[slug].js (6:3)",
+           ],
+         }
+        `)
+      }
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicGsspPage, content)
-      await assertHasRedbox(browser)
     } finally {
       await fs.writeFile(dynamicGsspPage, content)
     }
@@ -224,11 +300,9 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       if (isTurbopack) {
-        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
-            '\n    at handler (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
             '\n    at async'
@@ -236,8 +310,7 @@ describe('server-side dev errors', () => {
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should be "at handler"
-            '\n    at missingVar (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
             '\n    at async'
@@ -248,11 +321,71 @@ describe('server-side dev errors', () => {
           "\n> 2 |   missingVar;res.status(200).json({ hello: 'world' })"
       )
 
-      await assertHasRedbox(browser)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+             |   ^",
+           "stack": [
+             "handler ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/api/hello.js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+             |   ^",
+           "stack": [
+             "handler pages/api/hello.js (2:3)",
+           ],
+         }
+        `)
+      }
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(apiPage, content)
-      await assertHasRedbox(browser)
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+             |   ^",
+           "stack": [
+             "handler ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/api/hello.js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ hello: 'world' })
+             |   ^",
+           "stack": [
+             "handler pages/api/hello.js (2:3)",
+           ],
+         }
+        `)
+      }
     } finally {
       await fs.writeFile(apiPage, content)
     }
@@ -278,11 +411,9 @@ describe('server-side dev errors', () => {
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx)).trim()
       // FIXME(veil): error repeated
       if (isTurbopack) {
-        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
-            '\n    at handler (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
             '\n    at'
@@ -290,8 +421,7 @@ describe('server-side dev errors', () => {
       } else {
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should be "at handler"
-            '\n    at missingVar (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
             '\n    at'
@@ -303,11 +433,71 @@ describe('server-side dev errors', () => {
           '\n> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })'
       )
 
-      await assertHasRedbox(browser)
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+             |   ^",
+           "stack": [
+             "handler ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/api/blog/[slug].js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+             |   ^",
+           "stack": [
+             "handler pages/api/blog/[slug].js (2:3)",
+           ],
+         }
+        `)
+      }
 
-      expect(await getRedboxSource(browser)).toContain('missingVar')
       await fs.writeFile(dynamicApiPage, content)
-      await assertHasRedbox(browser)
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+             |   ^",
+           "stack": [
+             "handler ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: missingVar is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/api/blog/[slug].js (2:3) @ handler
+         > 2 |   missingVar;res.status(200).json({ slug: req.query.slug })
+             |   ^",
+           "stack": [
+             "handler pages/api/blog/[slug].js (2:3)",
+           ],
+         }
+        `)
+      }
     } finally {
       await fs.writeFile(dynamicApiPage, content)
     }
@@ -329,10 +519,9 @@ describe('server-side dev errors', () => {
       .trim()
     // FIXME(veil): error repeated
     if (isTurbopack) {
-      // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this rejection
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -341,7 +530,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection: Error: catch this rejection
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -350,7 +539,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection:  Error: catch this rejection
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error('catch this rejection'))
@@ -411,7 +600,7 @@ describe('server-side dev errors', () => {
     if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error())
@@ -420,7 +609,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection: Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error())
@@ -429,7 +618,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection:  Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:19)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     Promise.reject(new Error())
@@ -489,7 +678,7 @@ describe('server-side dev errors', () => {
     if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this exception
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error('catch this exception')
@@ -498,7 +687,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException: Error: catch this exception
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error('catch this exception')
@@ -507,7 +696,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException:  Error: catch this exception
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error('catch this exception')
@@ -567,7 +756,7 @@ describe('server-side dev errors', () => {
     if (isTurbopack) {
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error()
@@ -576,7 +765,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException: Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error()
@@ -585,7 +774,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException:  Error: 
-            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:10)
            5 | export async function getServerSideProps() {
            6 |   setTimeout(() => {
         >  7 |     throw new Error()

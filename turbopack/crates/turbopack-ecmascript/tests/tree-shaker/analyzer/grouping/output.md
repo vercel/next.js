@@ -287,13 +287,13 @@ graph TD
 ```
 {
     ModuleEvaluation: 6,
-    Exports: 8,
-    Export(
-        "y",
-    ): 5,
     Export(
         "x",
     ): 7,
+    Export(
+        "y",
+    ): 5,
+    Exports: 8,
 }
 ```
 
@@ -404,13 +404,13 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 2,
-    Exports: 7,
-    Export(
-        "y",
-    ): 5,
     Export(
         "x",
     ): 6,
+    Export(
+        "y",
+    ): 5,
+    Exports: 7,
 }
 ```
 

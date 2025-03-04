@@ -3,6 +3,8 @@ use std::{
     fmt::Debug,
     future::IntoFuture,
     hash::{Hash, Hasher},
+    marker::PhantomData,
+    mem::transmute,
     ops::Deref,
 };
 
@@ -13,7 +15,7 @@ use crate::{
     debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
-    ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
+    Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
 /// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
@@ -72,13 +74,20 @@ where
     pub(crate) node: Vc<T>,
 }
 
-impl<T> ResolvedVc<T> {
+impl<T> ResolvedVc<T>
+where
+    T: ?Sized,
+{
     /// This function exists to intercept calls to Vc::to_resolved through dereferencing
     /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
     /// the turbo tasks engine.
     #[deprecated(note = "No point in resolving a vc that is already resolved")]
     pub async fn to_resolved(self) -> Result<Self> {
         Ok(self)
+    }
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub async fn resolve(self) -> Result<Vc<T>> {
+        Ok(self.node)
     }
 }
 
@@ -197,28 +206,47 @@ where
             node: Vc::upcast(this.node),
         }
     }
+
+    /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
+    pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+    }
+
+    /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
+    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+        debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
+        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+    }
 }
 
 impl<T> ResolvedVc<T>
 where
     T: VcValueTrait + ?Sized,
 {
-    /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
-    ///
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// This provides stronger guarantees, removing the need for a [`Result`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
-    pub async fn try_sidecast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
     {
-        // must be async, as we must read the cell to determine the type
-        Ok(Vc::try_resolve_sidecast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // `RawVc::TaskCell` already contains all the type information needed to check this
+        // sidecast, so we don't need to read the underlying cell!
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_has_trait(<K as VcValueTrait>::get_trait_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 
     /// Attempts to downcast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<K>`, where `K`
@@ -227,13 +255,12 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast`].
-    pub async fn try_downcast<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueTrait + ?Sized,
     {
-        Ok(Vc::try_resolve_downcast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // this is just a more type-safe version of a sidecast
+        Self::try_sidecast(this)
     }
 
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
@@ -241,13 +268,19 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast_type`].
-    pub async fn try_downcast_type<K>(this: Self) -> Result<Option<ResolvedVc<K>>, ResolveTypeError>
+    pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueType,
     {
-        Ok(Vc::try_resolve_downcast_type(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_is_type(<K as VcValueType>::get_value_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 }
 

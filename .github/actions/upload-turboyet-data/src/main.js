@@ -134,47 +134,97 @@ async function collectResults(manifestFile) {
   }
 }
 
+async function collectAndUpload(
+  kv,
+  { jsonPrefix, kvPrefix, deploymentDomain }
+) {
+  const developmentResult = await collectResults(
+    `test/${jsonPrefix}dev-tests-manifest.json`
+  )
+  const productionResult = await collectResults(
+    `test/${jsonPrefix}build-tests-manifest.json`
+  )
+  const developmentExamplesResult = await collectExamplesResult(
+    `test/${jsonPrefix}dev-examples-manifest.json`
+  )
+
+  console.log('TEST RESULT DEVELOPMENT')
+  console.log(developmentResult.testRun)
+
+  console.log('TEST RESULT PRODUCTION')
+  console.log(productionResult.testRun)
+
+  console.log('EXAMPLES RESULT')
+  console.log(developmentExamplesResult.status)
+
+  await kv.rpush(`${kvPrefix}test-runs`, developmentResult.testRun)
+  await kv.rpush(`${kvPrefix}test-runs-production`, productionResult.testRun)
+  await kv.rpush(`${kvPrefix}examples-runs`, developmentExamplesResult.status)
+  console.log('SUCCESSFULLY SAVED RUNS')
+
+  await kv.set(`${kvPrefix}passing-tests`, developmentResult.passingTests)
+  await kv.set(
+    `${kvPrefix}passing-tests-production`,
+    productionResult.passingTests
+  )
+  console.log('SUCCESSFULLY SAVED PASSING')
+
+  await kv.set(`${kvPrefix}failing-tests`, developmentResult.failingTests)
+  await kv.set(
+    `${kvPrefix}failing-tests-production`,
+    productionResult.failingTests
+  )
+  console.log('SUCCESSFULLY SAVED FAILING')
+
+  await kv.set(`${kvPrefix}examples-data`, developmentExamplesResult.data)
+  console.log('SUCCESSFULLY SAVED EXAMPLES')
+
+  if (deploymentDomain != null) {
+    // Upstash does not provide strong consistency, so just wait a couple
+    // seconds before invalidating the cache in case of replication lag.
+    //
+    // https://upstash.com/docs/redis/features/consistency
+    await new Promise((resolve) => setTimeout(resolve, 2000))
+    try {
+      const response = await fetch(
+        `https://${deploymentDomain}/api/revalidate`,
+        {
+          method: 'POST',
+          headers: {
+            'X-Auth-Token': process.env.TURBOYET_TOKEN,
+            'Content-Type': 'application/json',
+          },
+        }
+      )
+      const responseJson = await response.json()
+      if (!responseJson.revalidated) {
+        throw new Error(responseJson.error)
+      }
+      console.log('SUCCESSFULLY REVALIDATED VERCEL DATA CACHE')
+    } catch (error) {
+      // non-fatal: the cache will eventually expire anyways
+      console.error('FAILED TO REVALIDATE VERCEL DATA CACHE', error)
+    }
+  }
+}
+
 async function main() {
   try {
-    const developmentResult = await collectResults(
-      'test/turbopack-dev-tests-manifest.json'
-    )
-    const productionResult = await collectResults(
-      'test/turbopack-build-tests-manifest.json'
-    )
-    const developmentExamplesResult = await collectExamplesResult(
-      'test/turbopack-dev-examples-manifest.json'
-    )
-
     const kv = createClient({
       url: process.env.TURBOYET_KV_REST_API_URL,
       token: process.env.TURBOYET_KV_REST_API_TOKEN,
     })
-
-    console.log('TEST RESULT DEVELOPMENT')
-    console.log(developmentResult.testRun)
-
-    console.log('TEST RESULT PRODUCTION')
-    console.log(productionResult.testRun)
-
-    console.log('EXAMPLES RESULT')
-    console.log(developmentExamplesResult.status)
-
-    await kv.rpush('test-runs', developmentResult.testRun)
-    await kv.rpush('test-runs-production', productionResult.testRun)
-    await kv.rpush('examples-runs', developmentExamplesResult.status)
-    console.log('SUCCESSFULLY SAVED RUNS')
-
-    await kv.set('passing-tests', developmentResult.passingTests)
-    await kv.set('passing-tests-production', productionResult.passingTests)
-    console.log('SUCCESSFULLY SAVED PASSING')
-
-    await kv.set('failing-tests', developmentResult.failingTests)
-    await kv.set('failing-tests-production', productionResult.failingTests)
-    console.log('SUCCESSFULLY SAVED FAILING')
-
-    await kv.set('examples-data', developmentExamplesResult.data)
-    console.log('SUCCESSFULLY SAVED EXAMPLES')
+    console.log('### UPLOADING TURBOPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'turbopack-',
+      kvPrefix: '',
+      deploymentDomain: 'areweturboyet.com',
+    })
+    console.log('### UPLOADING RSPACK DATA')
+    await collectAndUpload(kv, {
+      jsonPrefix: 'rspack-',
+      kvPrefix: 'rspack-',
+    })
   } catch (error) {
     console.log(error)
   }

@@ -101,14 +101,16 @@ async function main() {
         await packWithTar(packagePath, NEXT_SWC_TARBALL)
         break
       case 'objcopy-zstd':
+      case 'objcopy-zlib':
         if (process.platform !== 'linux') {
-          throw new Error('objcopy-zstd is only supported on Linux')
+          throw new Error('objcopy-{zstd,zlib} is only supported on Linux')
         }
+        const format = PACK_NEXT_COMPRESS == 'objcopy-zstd' ? 'zstd' : 'zlib'
         await Promise.all(
           (await nextSwcBinaries()).map((bin) =>
             execAsyncWithOutput(
               'Compressing debug symbols in next-swc native binary',
-              ['objcopy', '--compress-debug-sections=zstd', '--', bin]
+              ['objcopy', `--compress-debug-sections=${format}`, '--', bin]
             )
           )
         )
@@ -119,7 +121,8 @@ async function main() {
         break
       default:
         throw new Error(
-          "PACK_NEXT_COMPRESS must be one of 'strip', 'objcopy-zstd', or 'none'"
+          "PACK_NEXT_COMPRESS must be one of 'strip', 'objcopy-zstd', " +
+            "'objcopy-zlib', or 'none'"
         )
     }
   }

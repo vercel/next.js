@@ -2,7 +2,7 @@
 name = "xtask"
 version = "0.1.0"
 description = "https://github.com/matklad/cargo-xtask/"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 
 # don't publish this crate
@@ -25,6 +25,7 @@ indexmap = { workspace = true }
 inquire = { version = "0.5.1" }
 num-format = "0.4.4"
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

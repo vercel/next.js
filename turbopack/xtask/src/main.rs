@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     env::{current_dir, var_os},
     path::PathBuf,
     process,
@@ -18,6 +17,7 @@ mod visualize_bundler_bench;
 use nft_bench::show_result;
 use patch_package_json::PatchPackageJsonArgs;
 use publish::{publish_workspace, run_bump, run_publish};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 fn cli() -> Command {
     Command::new("xtask")
@@ -94,7 +94,7 @@ fn main() -> Result<()> {
             if is_bump {
                 let names = sub_matches
                     .get_many::<String>("NAME")
-                    .map(|names| names.cloned().collect::<HashSet<_>>())
+                    .map(|names| names.cloned().collect::<FxHashSet<_>>())
                     .unwrap_or_default();
                 run_bump(names, dry_run);
             }
@@ -125,14 +125,14 @@ fn main() -> Result<()> {
             let only_swc_set = swc_packages
                 .iter()
                 .map(|p| p.name.as_str())
-                .collect::<HashSet<_>>();
+                .collect::<FxHashSet<_>>();
             let packages = lock
                 .packages
                 .iter()
                 .map(|p| (format!("{}@{}", p.name, p.version), p))
-                .collect::<HashMap<_, _>>();
+                .collect::<FxHashMap<_, _>>();
             let mut queue = swc_packages.clone();
-            let mut set = HashSet::new();
+            let mut set = FxHashSet::default();
             while let Some(package) = queue.pop() {
                 for dep in package.dependencies.iter() {
                     let ident = format!("{}@{}", dep.name, dep.version);
@@ -176,7 +176,7 @@ fn main() -> Result<()> {
             let path = sub_matches
                 .get_one::<String>("PATH_TO_SUMMARY_JSON")
                 .expect("PATH_TO_SUMMARY_JSON is required");
-            let bundlers: Option<HashSet<&str>> = sub_matches
+            let bundlers: Option<FxHashSet<&str>> = sub_matches
                 .get_one::<String>("bundlers")
                 .map(|s| s.split(',').collect());
 

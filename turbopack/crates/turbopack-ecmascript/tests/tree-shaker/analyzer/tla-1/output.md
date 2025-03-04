@@ -113,10 +113,10 @@ graph TD
     Export(
         "effect",
     ): 1,
-    Exports: 2,
     Export(
         "effects",
     ): 1,
+    Exports: 2,
 }
 ```
 
@@ -168,10 +168,10 @@ await Promise.resolve();
     Export(
         "effect",
     ): 2,
-    Exports: 4,
     Export(
         "effects",
     ): 3,
+    Exports: 4,
 }
 ```
 

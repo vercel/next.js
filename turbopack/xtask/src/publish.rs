@@ -1,12 +1,7 @@
-use std::{
-    collections::{HashMap, HashSet},
-    env, fs,
-    path::PathBuf,
-    process,
-    str::FromStr,
-};
+use std::{env, fs, path::PathBuf, process, str::FromStr};
 
 use owo_colors::OwoColorize;
+use rustc_hash::{FxHashMap, FxHashSet};
 use semver::{Prerelease, Version};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -170,7 +165,7 @@ pub fn run_publish(name: &str) {
         let optional_dependencies_with_version = optional_dependencies
             .into_iter()
             .map(|name| (name, version.clone()))
-            .collect::<HashMap<String, String>>();
+            .collect::<FxHashMap<String, String>>();
         let pkg_json_content =
             fs::read(package_dir.join("../../package.json")).expect("Unable to read package.json");
         let mut pkg_json: Value = serde_json::from_slice(&pkg_json_content).unwrap();
@@ -221,7 +216,7 @@ struct PackageJson {
     path: String,
 }
 
-pub fn run_bump(names: HashSet<String>, dry_run: bool) {
+pub fn run_bump(names: FxHashSet<String>, dry_run: bool) {
     let workspaces_list_text = Command::program("pnpm")
         .args(["ls", "-r", "--depth", "-1", "--json"])
         .error_message("List workspaces failed")

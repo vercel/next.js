@@ -1,8 +1,7 @@
 name: 'Report a documentation issue'
 description: Report an issue with the Next.js documentation.
 title: 'Docs: '
-labels:
-  - 'Documentation'
+type: Documentation
 body:
   - type: markdown
     attributes:

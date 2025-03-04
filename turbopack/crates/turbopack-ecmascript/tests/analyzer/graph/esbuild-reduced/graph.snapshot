@@ -102,7 +102,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-arm64",
                             ),
                         ),
@@ -118,7 +118,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-32",
                             ),
                         ),
@@ -134,7 +134,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-64",
                             ),
                         ),
@@ -154,7 +154,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -172,7 +172,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -298,7 +298,7 @@
                 },
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "esbuild.exe",
                         ),
                     ),

@@ -1,8 +1,9 @@
 import { connection } from 'next/server'
-import { run as runInternal } from 'internal-pkg'
-import { run as runInternalSourceMapped } from 'internal-pkg/sourcemapped'
-import { run as runExternal } from 'external-pkg'
-import { run as runExternalSourceMapped } from 'external-pkg/sourcemapped'
+import { runInternal } from 'internal-pkg'
+import { runInternalSourceMapped } from 'internal-pkg/sourcemapped'
+import { runInternalIgnored } from 'internal-pkg/ignored'
+import { runExternal } from 'external-pkg'
+import { runExternalSourceMapped } from 'external-pkg/sourcemapped'
 
 function logError() {
   const error = new Error('Boom')
@@ -16,7 +17,9 @@ export default async function Page() {
     runInternalSourceMapped(function runWithInternalSourceMapped() {
       runExternal(function runWithExternal() {
         runExternalSourceMapped(function runWithExternalSourceMapped() {
-          logError()
+          runInternalIgnored(function runWithInternalIgnored() {
+            logError()
+          })
         })
       })
     })
