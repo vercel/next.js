@@ -861,6 +861,22 @@ describe('app dir - basic', () => {
       )
       expect(await browser.eval('window.history.length')).toBe(2)
     })
+
+    it('should show loading state during navigation to slow page with withNavigateFn', async () => {
+      const browser = await next.browser('/linking')
+      await browser.elementByCss('a[href="/linking/slow"]').click()
+      expect(
+        await browser.elementByCss('a[href="/linking/slow"]').text()
+      ).toContain('Loading')
+      await retry(async () => {
+        expect(await browser.waitForElementByCss('#slow-page').text()).toBe(
+          'Hello from slow page'
+        )
+      })
+      expect(
+        await browser.elementByCss('a[href="/linking/slow"]').text()
+      ).not.toContain('Loading')
+    })
   })
 
   describe('server components', () => {
