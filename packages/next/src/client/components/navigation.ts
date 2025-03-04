@@ -11,6 +11,8 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  OptimisticPathnameContext,
+  OptimisticSearchParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { PAGE_SEGMENT_KEY, DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
@@ -22,6 +24,34 @@ const useDynamicRouteParams =
         require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
       ).useDynamicRouteParams
     : undefined
+
+const useReadonlyURLSearchParams = (
+  searchParams: URLSearchParams | null,
+  parentHookName: string
+) => {
+  // In the case where this is `null`, the compat types added in
+  // `next-env.d.ts` will add a new overload that changes the return type to
+  // include `null`.
+  const readonlySearchParams = useMemo(() => {
+    if (!searchParams) {
+      // When the router is not ready in pages, we won't have the search params
+      // available.
+      return null
+    }
+
+    return new ReadonlyURLSearchParams(searchParams)
+  }, [searchParams]) as ReadonlyURLSearchParams
+
+  if (typeof window === 'undefined') {
+    // AsyncLocalStorage should not be included in the client bundle.
+    const { bailoutToClientRendering } =
+      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
+    // TODO-APP: handle dynamic = 'force-static' here and on the client
+    bailoutToClientRendering(`${parentHookName}()`)
+  }
+
+  return readonlySearchParams
+}
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
@@ -46,29 +76,20 @@ const useDynamicRouteParams =
 // Client components API
 export function useSearchParams(): ReadonlyURLSearchParams {
   const searchParams = useContext(SearchParamsContext)
+  return useReadonlyURLSearchParams(searchParams, 'useSearchParams')
+}
 
-  // In the case where this is `null`, the compat types added in
-  // `next-env.d.ts` will add a new overload that changes the return type to
-  // include `null`.
-  const readonlySearchParams = useMemo(() => {
-    if (!searchParams) {
-      // When the router is not ready in pages, we won't have the search params
-      // available.
-      return null
-    }
-
-    return new ReadonlyURLSearchParams(searchParams)
-  }, [searchParams]) as ReadonlyURLSearchParams
-
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { bailoutToClientRendering } =
-      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    bailoutToClientRendering('useSearchParams()')
-  }
-
-  return readonlySearchParams
+/**
+ * Similar to `useSearchParams` but lets you read the search parameters optimistically during navigation.
+ * Useful for showing an optimistic UI state while navigation is in progress.
+ */
+// Client components API
+export function useOptimisticSearchParams(): URLSearchParams {
+  const optimisticSearchParams = useContext(OptimisticSearchParamsContext)
+  return useReadonlyURLSearchParams(
+    optimisticSearchParams,
+    'useOptimisticSearchParams'
+  )
 }
 
 /**
@@ -95,6 +116,17 @@ export function usePathname(): string {
   // In the case where this is `null`, the compat types added in `next-env.d.ts`
   // will add a new overload that changes the return type to include `null`.
   return useContext(PathnameContext) as string
+}
+
+/**
+ * Similar to `usePathname` but lets you read the pathname optimistically during navigation.
+ * Useful for showing an optimistic UI state while navigation is in progress.
+ */
+// Client components API
+export function useOptimisticPathname(): string {
+  useDynamicRouteParams?.('useOptimisticPathname()')
+
+  return useContext(OptimisticPathnameContext) as string
 }
 
 // Client components API

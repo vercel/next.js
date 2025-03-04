@@ -8,6 +8,7 @@ import React, {
   startTransition,
   useInsertionEffect,
   useDeferredValue,
+  useOptimistic,
 } from 'react'
 import {
   AppRouterContext,
@@ -38,6 +39,8 @@ import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  OptimisticPathnameContext,
+  OptimisticSearchParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducer, useUnwrapState } from './use-reducer'
 import {
@@ -249,6 +252,19 @@ function Head({
   return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
+const parsePathnameAndSearchParamsFromCanonicalUrl = (canonicalUrl: string) => {
+  const url = new URL(
+    canonicalUrl,
+    typeof window === 'undefined' ? 'http://n' : window.location.href
+  )
+  return {
+    pathname: hasBasePath(url.pathname)
+      ? removeBasePath(url.pathname)
+      : url.pathname,
+    searchParams: url.searchParams,
+  }
+}
+
 /**
  * The global router that wraps the application components.
  */
@@ -263,21 +279,34 @@ function Router({
 }) {
   const [state, dispatch] = useReducer(actionQueue)
   const { canonicalUrl } = useUnwrapState(state)
-  // Add memoized pathname/query for useSearchParams and usePathname.
-  const { searchParams, pathname } = useMemo(() => {
-    const url = new URL(
-      canonicalUrl,
-      typeof window === 'undefined' ? 'http://n' : window.location.href
-    )
 
-    return {
-      // This is turned into a readonly class in `useSearchParams`
-      searchParams: url.searchParams,
-      pathname: hasBasePath(url.pathname)
-        ? removeBasePath(url.pathname)
-        : url.pathname,
+  const { searchParams, pathname } = useMemo(
+    () => parsePathnameAndSearchParamsFromCanonicalUrl(canonicalUrl),
+    [canonicalUrl]
+  )
+
+  const [
+    { optimisticPathname, optimisticSearchParams },
+    setOptimisticPathnameAndSearchParamsFromHref,
+  ] = useOptimistic<
+    {
+      optimisticPathname: string
+      optimisticSearchParams: URLSearchParams
+    },
+    string
+  >(
+    {
+      optimisticPathname: pathname,
+      optimisticSearchParams: searchParams,
+    },
+    (_, url) => {
+      const parsed = parsePathnameAndSearchParamsFromCanonicalUrl(url)
+      return {
+        optimisticPathname: parsed.pathname,
+        optimisticSearchParams: parsed.searchParams,
+      }
     }
-  }, [canonicalUrl])
+  )
 
   const changeByServerResponse = useChangeByServerResponse(dispatch)
   const navigate = useNavigate(dispatch)
@@ -320,11 +349,13 @@ function Router({
           },
       replace: (href, options = {}) => {
         startTransition(() => {
+          setOptimisticPathnameAndSearchParamsFromHref(href)
           navigate(href, 'replace', options.scroll ?? true)
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
+          setOptimisticPathnameAndSearchParamsFromHref(href)
           navigate(href, 'push', options.scroll ?? true)
         })
       },
@@ -353,7 +384,12 @@ function Router({
     }
 
     return routerInstance
-  }, [actionQueue, dispatch, navigate])
+  }, [
+    actionQueue,
+    dispatch,
+    navigate,
+    setOptimisticPathnameAndSearchParamsFromHref,
+  ])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
@@ -670,17 +706,23 @@ function Router({
       <RuntimeStyles />
       <PathParamsContext.Provider value={pathParams}>
         <PathnameContext.Provider value={pathname}>
-          <SearchParamsContext.Provider value={searchParams}>
-            <GlobalLayoutRouterContext.Provider
-              value={globalLayoutRouterContext}
-            >
-              <AppRouterContext.Provider value={appRouter}>
-                <LayoutRouterContext.Provider value={layoutRouterContext}>
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
-          </SearchParamsContext.Provider>
+          <OptimisticPathnameContext.Provider value={optimisticPathname}>
+            <SearchParamsContext.Provider value={searchParams}>
+              <OptimisticSearchParamsContext.Provider
+                value={optimisticSearchParams}
+              >
+                <GlobalLayoutRouterContext.Provider
+                  value={globalLayoutRouterContext}
+                >
+                  <AppRouterContext.Provider value={appRouter}>
+                    <LayoutRouterContext.Provider value={layoutRouterContext}>
+                      {content}
+                    </LayoutRouterContext.Provider>
+                  </AppRouterContext.Provider>
+                </GlobalLayoutRouterContext.Provider>
+              </OptimisticSearchParamsContext.Provider>
+            </SearchParamsContext.Provider>
+          </OptimisticPathnameContext.Provider>
         </PathnameContext.Provider>
       </PathParamsContext.Provider>
     </>
