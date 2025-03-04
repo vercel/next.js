@@ -1,3 +1,4 @@
+// TODO: Can we get previouslyRevalidatedTags from workStore here as well?
 import type { CacheFs } from '../../../shared/lib/utils'
 import type { PrerenderManifest } from '../../../build'
 import {
