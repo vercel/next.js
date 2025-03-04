@@ -109,9 +109,15 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import {
+  getCacheHandler,
+  initializeCacheHandlers,
+  setCacheHandler,
+} from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
+import type { CacheHandler } from './lib/cache-handlers/types'
+import { findCacheHandlerByAlias } from './lib/cache-handlers/utils'
 
 export * from './base-server'
 
@@ -393,17 +399,36 @@ export default class NextNodeServer extends BaseServer<
     // again.
     if (!initializeCacheHandlers()) return
 
+    const cacheHandlersByPath = new Map<string, CacheHandler>()
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
 
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
-          )
-        )
+      let handlerInstance = getCacheHandler(handler)
+      const handlerPath = findCacheHandlerByAlias(
+        handler,
+        cacheHandlers,
+        (alias) => {
+          if (alias) {
+            handlerInstance = getCacheHandler(alias)
+          }
+          return !!handlerInstance
+        }
       )
+
+      if (!handlerInstance && handlerPath) {
+        if (cacheHandlersByPath.has(handlerPath)) {
+          handlerInstance = cacheHandlersByPath.get(handlerPath)
+        } else {
+          handlerInstance = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, handlerPath)
+            )
+          )
+          cacheHandlersByPath.set(handlerPath, handlerInstance!)
+        }
+      }
+
+      setCacheHandler(kind, handlerInstance!)
     }
   }
 

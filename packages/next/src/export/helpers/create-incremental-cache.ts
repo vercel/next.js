@@ -5,9 +5,12 @@ import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import {
+  getCacheHandler,
   initializeCacheHandlers,
   setCacheHandler,
 } from '../../server/use-cache/handlers'
+import type { CacheHandler } from '../../server/lib/cache-handlers/types'
+import { findCacheHandlerByAlias } from '../../server/lib/cache-handlers/utils'
 
 export async function createIncrementalCache({
   cacheHandler,
@@ -39,17 +42,36 @@ export async function createIncrementalCache({
   }
 
   if (cacheHandlers && initializeCacheHandlers()) {
+    const cacheHandlersByPath = new Map<string, CacheHandler>()
     for (const [kind, handler] of Object.entries(cacheHandlers)) {
       if (!handler) continue
 
-      setCacheHandler(
-        kind,
-        interopDefault(
-          await import(formatDynamicImportPath(dir, handler)).then(
-            (mod) => mod.default || mod
-          )
-        )
+      let handlerInstance = getCacheHandler(handler)
+      const handlerPath = findCacheHandlerByAlias(
+        handler,
+        cacheHandlers,
+        (alias) => {
+          if (alias) {
+            handlerInstance = getCacheHandler(alias)
+          }
+          return !!handlerInstance
+        }
       )
+
+      if (!handlerInstance && handlerPath) {
+        if (cacheHandlersByPath.has(handlerPath)) {
+          handlerInstance = cacheHandlersByPath.get(handlerPath)!
+        } else {
+          handlerInstance = interopDefault(
+            await import(formatDynamicImportPath(dir, handlerPath)).then(
+              (mod) => mod.default || mod
+            )
+          )
+          cacheHandlersByPath.set(handlerPath, handlerInstance!)
+        }
+      }
+
+      setCacheHandler(kind, handlerInstance!)
     }
   }
 

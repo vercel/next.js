@@ -661,5 +661,6 @@
   "660": "Rspack support is only available in Next.js canary.",
   "661": "Build failed because of %s errors",
   "662": "Invariant failed to find webpack runtime chunk",
-  "663": "Invariant: client chunk changed but failed to detect hash %s"
+  "663": "Invariant: client chunk changed but failed to detect hash %s",
+  "664": "Circular cache handler dependency detected: %s"
 }

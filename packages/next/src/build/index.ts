@@ -209,6 +209,7 @@ import { turbopackBuild } from './turbopack-build'
 import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
+import { findCacheHandlerByAlias } from '../server/lib/cache-handlers/utils'
 
 type Fallback = null | boolean | string
 
@@ -2249,11 +2250,16 @@ export default async function build(
         .traceFn(() => {
           const normalizedCacheHandlers: Record<string, string> = {}
 
-          for (const [key, value] of Object.entries(
-            config.experimental.cacheHandlers || {}
-          )) {
+          const cacheHandlers = config.experimental.cacheHandlers || {}
+          for (const [key, value] of Object.entries(cacheHandlers)) {
             if (key && value) {
-              normalizedCacheHandlers[key] = path.relative(distDir, value)
+              const handlerPath = findCacheHandlerByAlias(value, cacheHandlers)
+              if (handlerPath) {
+                normalizedCacheHandlers[key] = path.relative(
+                  distDir,
+                  handlerPath
+                )
+              }
             }
           }
 

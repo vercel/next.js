@@ -30,6 +30,7 @@ import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
+import { findCacheHandlerByAlias } from './lib/cache-handlers/utils'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -931,9 +932,30 @@ function assignDefaults(
           reason: 'key must only use characters a-z and -',
         })
       } else {
-        const handlerPath = result.experimental.cacheHandlers[key]
+        const handlerPath = findCacheHandlerByAlias(
+          result.experimental.cacheHandlers[key],
+          result.experimental.cacheHandlers,
+          (alias, visited) => {
+            if (alias && visited.has(alias)) {
+              invalidHandlerItems.push({
+                key,
+                reason: 'circular cache handler alias detected',
+              })
+              return true
+            } else if (!alias) {
+              return true
+            }
+            return false
+          }
+        )
 
-        if (handlerPath && !existsSync(handlerPath)) {
+        if (
+          (!handlerPath && result.experimental.cacheHandlers[key]) ||
+          (handlerPath &&
+            handlerPath !== 'default' &&
+            handlerPath !== 'remote' &&
+            !existsSync(handlerPath))
+        ) {
           invalidHandlerItems.push({
             key,
             reason: `cache handler path provided does not exist, received ${handlerPath}`,
