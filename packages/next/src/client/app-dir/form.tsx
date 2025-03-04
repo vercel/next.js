@@ -14,6 +14,7 @@ import {
   DISALLOWED_FORM_PROPS,
   hasReactClientActionAttributes,
   hasUnsupportedSubmitterAttributes,
+  useImageInputCoordsPolyfill,
   type FormProps,
 } from '../form-shared'
 import { mountLinkInstance, unmountLinkInstance } from '../components/links'
@@ -27,6 +28,8 @@ export default function Form({
   ref: externalRef,
   ...props
 }: FormProps) {
+  useImageInputCoordsPolyfill()
+
   const router = useContext(AppRouterContext)
 
   const actionProp = props.action

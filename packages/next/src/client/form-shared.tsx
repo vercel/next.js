@@ -1,5 +1,6 @@
 import type { HTMLProps } from 'react'
 import { createFormData } from './form-data-submitter-polyfill'
+export { useImageInputCoordsPolyfill } from './form-data-submitter-polyfill'
 
 export const DISALLOWED_FORM_PROPS = ['method', 'encType', 'target'] as const
 

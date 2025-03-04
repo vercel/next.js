@@ -131,44 +131,37 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
         }
       })
 
-      // TODO: fix submitter polyfill for image inputs
-      ;(forcePolyfill ? test.failing : test)(
-        '<input type="image">',
-        async () => {
-          const session = await next.browser(
-            pathPrefix + '/forms/submitter-value/input-type-image',
-            { beforePageLoad }
-          )
-          const navigationTracker = await trackMpaNavs(session)
+      test('<input type="image">', async () => {
+        const session = await next.browser(
+          pathPrefix + '/forms/submitter-value/input-type-image',
+          { beforePageLoad }
+        )
+        const navigationTracker = await trackMpaNavs(session)
 
-          const submitButtonOne = await session.elementById('submit-btn-one')
-          await submitButtonOne.click()
-          await session.waitForElementByCss('#search-results')
+        const submitButtonOne = await session.elementById('submit-btn-one')
+        await submitButtonOne.click()
+        await session.waitForElementByCss('#search-results')
 
-          // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
-          // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(new URL(await session.url()).search).toMatch(
-            /\?buttonOne\.x=\d+&buttonOne\.y=\d+/
-          )
+        // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+        expect(new URL(await session.url()).search).toMatch(
+          /\?buttonOne\.x=\d+&buttonOne\.y=\d+/
+        )
 
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(await navigationTracker.didMpaNavigate()).toBe(false)
+        expect(await navigationTracker.didMpaNavigate()).toBe(false)
 
-          await session.back()
+        await session.back()
 
-          const submitButtonTwo = await session.elementById('submit-btn-two')
-          await submitButtonTwo.click()
-          await session.waitForElementByCss('#search-results')
+        const submitButtonTwo = await session.elementById('submit-btn-two')
+        await submitButtonTwo.click()
+        await session.waitForElementByCss('#search-results')
 
-          // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
-          // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(new URL(await session.url()).search).toMatch(
-            /\?buttonTwo\.x=\d+&buttonTwo\.y=\d+/
-          )
-        }
-      )
+        // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+        // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+        expect(new URL(await session.url()).search).toMatch(
+          /\?buttonTwo\.x=\d+&buttonTwo\.y=\d+/
+        )
+      })
     })
   })
 

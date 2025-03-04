@@ -10,6 +10,7 @@ import {
   DISALLOWED_FORM_PROPS,
   hasReactClientActionAttributes,
   hasUnsupportedSubmitterAttributes,
+  useImageInputCoordsPolyfill,
   type FormProps,
 } from './form-shared'
 
@@ -19,6 +20,8 @@ const Form = forwardRef<HTMLFormElement, FormProps>(function FormComponent(
   { replace, scroll, prefetch: prefetchProp, ...props },
   ref
 ) {
+  useImageInputCoordsPolyfill()
+
   const router = useContext(RouterContext)
 
   const actionProp = props.action
