@@ -1,7 +1,7 @@
 use std::{
     borrow::Cow,
     collections::hash_map::Entry,
-    mem::transmute,
+    mem::{take, transmute},
     ops::{Deref, DerefMut},
     sync::Arc,
 };
@@ -352,6 +352,22 @@ impl TurbopackFormat {
     }
 
     fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
+        let mut queue = Vec::new();
+        queue.push(row);
+        while !queue.is_empty() {
+            let q = take(&mut queue);
+            for row in q {
+                self.process_internal_row_queue(store, row, &mut queue);
+            }
+        }
+    }
+
+    fn process_internal_row_queue(
+        &mut self,
+        store: &mut StoreWriteGuard,
+        row: InternalRow<'_>,
+        queue: &mut Vec<InternalRow<'_>>,
+    ) {
         let id = if let Some(id) = row.id {
             if let Some(id) = self.id_mapping.get(&id) {
                 Some(*id)
@@ -388,7 +404,7 @@ impl TurbopackFormat {
                 self.id_mapping.insert(new_id, span_id);
                 if let Some(QueuedRows { rows }) = self.queued_rows.remove(&new_id) {
                     for row in rows {
-                        self.process_internal_row(store, row);
+                        queue.push(row);
                     }
                 }
             }

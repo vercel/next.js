@@ -219,6 +219,7 @@ function getBaseSWCOptions({
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
+            isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
             cacheKinds: ['default', 'remote'].concat(
@@ -512,7 +513,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

@@ -141,13 +141,12 @@ pub async fn foreign_code_context_condition(
     Ok(result)
 }
 
-/// Determines if the module is an internal asset (i.e overlay, fallback) coming
-/// from the embedded FS, don't apply user defined transforms.
-///
-/// [TODO] turbopack specific embed fs should be handled by internals of
-/// turbopack itself and user config should not try to leak this. However,
-/// currently we apply few transform options subject to next.js's configuration
-/// even if it's embedded assets.
+/// Determines if the module is an internal asset (i.e overlay, fallback) coming from the embedded
+/// FS, don't apply user defined transforms.
+//
+// TODO: Turbopack specific embed fs paths should be handled by internals of Turbopack itself and
+// user config should not try to leak this. However, currently we apply few transform options
+// subject to Next.js's configuration even if it's embedded assets.
 pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     Ok(ContextCondition::any(vec![
         ContextCondition::InPath(next_js_fs().root().to_resolved().await?),

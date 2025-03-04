@@ -90,7 +90,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -112,7 +112,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -1197,31 +1197,38 @@ export const metadata = {
 }
 ```
 
-#### Streaming Metadata
+## Streaming metadata
 
-Starting from v15.2, metadata returned by `generateMetadata` will be streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
+Metadata returned by `generateMetadata` is streamed to the client. This allows Next.js to inject metadata into the HTML as soon as it's resolved.
 
-Since page metadata often primarily targets bots & crawlers, Next.js will continue to block the render until the metadata is resolved for **HTML-limited bots**.
-
-Some bots, like `Googlebot`, can execute JavaScript and are able to inspect the full page DOM, meaning they **don't** require blocking metadata. However, bots like `Twitterbot` **cannot** execute JavaScript while crawling a page—they fall into the **HTML-limited** category.
+Since page metadata primarily targets bots and crawlers, Next.js will stream metadata for bots that can execute JavaScript and inspect the full page DOM (e.g. `Googlebot`). However, metadata will continue blocking the render of the page for **HTML-limited** bots (e.g. `Twitterbot`) as these cannot execute JavaScript while crawling.
 
 Next.js automatically detects the user agent of incoming requests to determine whether to serve streaming metadata or fallback to blocking metadata.
 
 If you need to customize this list, you can define them manually using the `htmlLimitedBots` option in `next.config.js`. Next.js will ensure user agents matching this regex receive blocking metadata when requesting your web page.
-Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
+}
+
+export default config
+```
+
+```js filename="next.config.js" switcher
 module.exports = {
   htmlLimitedBots: 'MySpecialBot|MyAnotherSpecialBot|SimpleCrawler',
 }
 ```
 
-> **Note:** Next.js includes [a default list of HTML limited bots](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts)
+Specifying a `htmlLimitedBots` config will override the Next.js' default list, allowing you full control over what user agents should opt into this behavior. This is advanced behavior, and the default should be sufficient for most cases.
 
 ## Version History
 
 | Version   | Changes                                                                                                                                                 |
 | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.2.0` | introduced streaming support to `generateMetadata`.                                                                                                     |
+| `v15.2.0` | Introduced streaming support to `generateMetadata`.                                                                                                     |
 | `v13.2.0` | `viewport`, `themeColor`, and `colorScheme` deprecated in favor of the [`viewport` configuration](/docs/app/api-reference/functions/generate-viewport). |
 | `v13.2.0` | `metadata` and `generateMetadata` introduced.                                                                                                           |

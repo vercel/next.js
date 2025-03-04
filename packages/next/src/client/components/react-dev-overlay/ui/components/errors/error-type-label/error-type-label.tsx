@@ -24,7 +24,6 @@ export const styles = `
   .nextjs__container_errors_label {
     padding: 2px 6px;
     margin: 0;
-    /* used --size instead of --rounded because --rounded is missing 6px */
     border-radius: var(--rounded-md-2);
     background: var(--color-red-100);
     font-weight: 600;

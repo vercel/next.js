@@ -30,7 +30,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
-    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
+    source_map::utils::add_default_ignore_list,
     SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
@@ -74,12 +74,12 @@ impl PartialEq for ParseResult {
     }
 }
 
-pub async fn generate_js_source_map(
+pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
     mappings: Vec<(BytePos, LineCol)>,
-    original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    original_source_map: Option<&Rope>,
 ) -> Result<Rope> {
-    let input_map = if let Some(original_source_map) = &*original_source_map.await? {
+    let input_map = if let Some(original_source_map) = original_source_map {
         Some(match sourcemap::decode(original_source_map.read())? {
             sourcemap::DecodedMap::Regular(source_map) => source_map,
             // swc only accepts flattened sourcemaps as input

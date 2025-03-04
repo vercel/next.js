@@ -9,7 +9,7 @@ use swc_core::{
     common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
     ecma::{
         ast::*,
-        atoms::js_word,
+        atoms::atom,
         utils::contains_ident_ref,
         visit::{fields::*, *},
     },
@@ -658,7 +658,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = Box::new(JsValue::FreeVar(js_word!("import")));
+                let callee = Box::new(JsValue::FreeVar(atom!("import")));
 
                 JsValue::call(callee, args)
             }
@@ -673,7 +673,7 @@ impl EvalContext {
                     .iter()
                     .map(|e| match e {
                         Some(e) => self.eval(&e.expr),
-                        _ => JsValue::FreeVar(js_word!("undefined")),
+                        _ => JsValue::FreeVar(atom!("undefined")),
                     })
                     .collect();
                 JsValue::array(arr)
@@ -1127,7 +1127,7 @@ impl Analyzer<'_> {
         match callee {
             Callee::Import(_) => {
                 self.add_effect(Effect::Call {
-                    func: Box::new(JsValue::FreeVar(js_word!("import"))),
+                    func: Box::new(JsValue::FreeVar(atom!("import"))),
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
@@ -1141,9 +1141,10 @@ impl Analyzer<'_> {
                     let prop_value = match prop {
                         // TODO avoid clone
                         MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
-                        MemberProp::PrivateName(_) => {
-                            return;
-                        }
+                        MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
+                            false,
+                            "private names in member expressions are not supported",
+                        )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
                             Box::new(self.eval_context.eval(expr))
                         }
@@ -1213,7 +1214,7 @@ impl Analyzer<'_> {
         let values = self.cur_fn_return_values.take().unwrap();
 
         Box::new(match values.len() {
-            0 => JsValue::FreeVar(js_word!("undefined")),
+            0 => JsValue::FreeVar(atom!("undefined")),
             1 => values.into_iter().next().unwrap(),
             _ => JsValue::alternatives(values),
         })
@@ -1793,7 +1794,7 @@ impl VisitAstPath for Analyzer<'_> {
                 .arg
                 .as_deref()
                 .map(|e| self.eval_context.eval(e))
-                .unwrap_or(JsValue::FreeVar(js_word!("undefined")));
+                .unwrap_or(JsValue::FreeVar(atom!("undefined")));
 
             values.push(return_value);
         }

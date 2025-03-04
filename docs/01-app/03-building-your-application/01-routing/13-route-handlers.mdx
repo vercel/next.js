@@ -278,13 +278,13 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const slug = (await params).slug // 'a', 'b', or 'c'
+  const { slug } = await params // 'a', 'b', or 'c'
 }
 ```
 
 ```js filename="app/items/[slug]/route.js" switcher
 export async function GET(request, { params }) {
-  const slug = (await params).slug // 'a', 'b', or 'c'
+  const { slug } = await params // 'a', 'b', or 'c'
 }
 ```
 

@@ -107,7 +107,6 @@ export class NextRequestAdapter {
     return new NextRequest(url, {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
-      // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
       signal,
       // geo
@@ -134,7 +133,6 @@ export class NextRequestAdapter {
     return new NextRequest(request.url, {
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
-      // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
       duplex: 'half',
       signal: request.request.signal,
       // geo

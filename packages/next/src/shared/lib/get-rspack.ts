@@ -1,4 +1,7 @@
+import { CanaryOnlyError, isStableBuild } from './canary-only'
+
 export function getRspackCore() {
+  gateCanary()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
     return require('@rspack/core')
@@ -14,6 +17,7 @@ export function getRspackCore() {
 }
 
 export function getRspackReactRefresh() {
+  gateCanary()
   try {
     // eslint-disable-next-line import/no-extraneous-dependencies
     return require('@rspack/plugin-react-refresh')
@@ -25,5 +29,13 @@ export function getRspackReactRefresh() {
     }
 
     throw e
+  }
+}
+
+function gateCanary() {
+  if (isStableBuild()) {
+    throw new CanaryOnlyError(
+      'Rspack support is only available in Next.js canary.'
+    )
   }
 }

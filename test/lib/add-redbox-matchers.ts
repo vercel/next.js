@@ -136,7 +136,7 @@ async function createRedboxSnapshot(
     focusedSource = focusedSource.trim()
 
     if (next !== null) {
-      focusedSource = focusedSource.replace(
+      focusedSource = focusedSource.replaceAll(
         next.testDir,
         '<FIXME-project-root>'
       )

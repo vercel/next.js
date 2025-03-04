@@ -635,8 +635,6 @@ export function createPatchedFetcher(
                   finalRevalidate >= INFINITE_CACHE
                     ? CACHE_ONE_YEAR
                     : finalRevalidate
-                const externalRevalidate =
-                  finalRevalidate >= INFINITE_CACHE ? false : finalRevalidate
 
                 if (workUnitStore && workUnitStore.type === 'prerender') {
                   // We are prerendering at build time or revalidate time with dynamicIO so we need to
@@ -660,13 +658,7 @@ export function createPatchedFetcher(
                       data: fetchedData,
                       revalidate: normalizedRevalidate,
                     },
-                    {
-                      fetchCache: true,
-                      revalidate: externalRevalidate,
-                      fetchUrl,
-                      fetchIdx,
-                      tags,
-                    }
+                    { fetchCache: true, fetchUrl, fetchIdx, tags }
                   )
                   await handleUnlock()
 
@@ -712,13 +704,7 @@ export function createPatchedFetcher(
                             data: fetchedData,
                             revalidate: normalizedRevalidate,
                           },
-                          {
-                            fetchCache: true,
-                            revalidate: externalRevalidate,
-                            fetchUrl,
-                            fetchIdx,
-                            tags,
-                          }
+                          { fetchCache: true, fetchUrl, fetchIdx, tags }
                         )
                       }
                     })
@@ -771,7 +757,6 @@ export function createPatchedFetcher(
                   fetchIdx,
                   tags,
                   softTags: implicitTags,
-                  isFallback: false,
                 })
 
             if (hasNoExplicitCacheConfig) {
