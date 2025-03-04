@@ -17,10 +17,16 @@ describe('use-cache-custom-handler', () => {
     expect(initialData).toMatch(/^\d+\.\d+$/)
 
     expect(next.cliOutput.slice(outputIndex)).toContain(
-      'CustomCacheHandler::Get'
+      'CustomCacheHandler::refreshTags'
     )
     expect(next.cliOutput.slice(outputIndex)).toContain(
-      'CustomCacheHandler::Set'
+      `CustomCacheHandler::getExpiration [ '_N_T_/layout', '_N_T_/page', '_N_T_/' ]`
+    )
+    expect(next.cliOutput.slice(outputIndex)).toContain(
+      'CustomCacheHandler::get'
+    )
+    expect(next.cliOutput.slice(outputIndex)).toContain(
+      'CustomCacheHandler::set'
     )
 
     await retry(async () => {
