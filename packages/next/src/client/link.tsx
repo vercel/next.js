@@ -104,6 +104,11 @@ type InternalLinkProps = {
    * Optional event handler for when Link is clicked.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
+
+  /**
+   * Optional function to wrap the navigation function to customize how navigation is executed.
+   */
+  withNavigateFn?: (navigateFn: () => void) => void
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -242,6 +247,10 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
   return formatUrl(urlObjOrString)
 }
 
+const DEFAULT_WITH_NAVIGATE_FN = (navigateFn: () => void) => {
+  navigateFn()
+}
+
 /**
  * A React component that extends the HTML `<a>` element to provide [prefetching](https://nextjs.org/docs/app/building-your-application/routing/linking-and-navigating#2-prefetching)
  * and client-side navigation between routes.
@@ -268,6 +277,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      withNavigateFn = DEFAULT_WITH_NAVIGATE_FN,
       ...restProps
     } = props
 
@@ -338,6 +348,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        withNavigateFn: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -364,7 +375,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         } else if (
           key === 'onClick' ||
           key === 'onMouseEnter' ||
-          key === 'onTouchStart'
+          key === 'onTouchStart' ||
+          key === 'withNavigateFn'
         ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
@@ -539,7 +551,9 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        withNavigateFn(() =>
+          linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        )
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {

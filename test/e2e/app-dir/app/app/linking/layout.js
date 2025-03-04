@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { NavigateToSlow } from './slow/navigate-to-slow'
 
 export default function Layout({ children }) {
   return (
@@ -17,6 +18,7 @@ export default function Layout({ children }) {
           <Link href="/dashboard/deployments/123" id="deployments">
             /dashboard/deployments/123
           </Link>
+          <NavigateToSlow />
         </nav>
       </header>
       {children}
