@@ -19,14 +19,16 @@ import {
   CachedRouteKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
-  type IncrementalCacheItem,
   type IncrementalCacheValue,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
 import { parseUrl } from '../lib/url'
+import type { CacheControl } from './lib/cache-control'
+import { InvariantError } from '../shared/lib/invariant-error'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -390,7 +392,7 @@ export class ImageOptimizerCache {
     this.nextConfig = nextConfig
   }
 
-  async get(cacheKey: string): Promise<IncrementalCacheEntry | null> {
+  async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
     try {
       const cacheDir = join(this.cacheDir, cacheKey)
       const files = await promises.readdir(cacheDir)
@@ -414,7 +416,7 @@ export class ImageOptimizerCache {
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
-          curRevalidate: maxAge,
+          cacheControl: { revalidate: maxAge, expire: undefined },
           isStale: now > expireAt,
           isFallback: false,
         }
@@ -428,18 +430,21 @@ export class ImageOptimizerCache {
     cacheKey: string,
     value: IncrementalCacheValue | null,
     {
-      revalidate,
+      cacheControl,
     }: {
-      revalidate?: number | false
+      cacheControl?: CacheControl
     }
   ) {
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 
+    const revalidate = cacheControl?.revalidate
+
     if (typeof revalidate !== 'number') {
-      throw new Error('invariant revalidate must be a number for image-cache')
+      throw new InvariantError('revalidate must be a number for image-cache')
     }
+
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
@@ -508,7 +513,7 @@ export function getMaxAge(str: string | null | undefined): number {
 }
 export function getPreviouslyCachedImageOrNull(
   upstreamImage: ImageUpstream,
-  previousCacheEntry: IncrementalCacheItem | undefined
+  previousCacheEntry: IncrementalCacheEntry | null | undefined
 ): CachedImageValue | null {
   if (
     previousCacheEntry?.value?.kind === 'IMAGE' &&
@@ -678,7 +683,7 @@ export async function imageOptimizer(
   opts: {
     isDev?: boolean
     silent?: boolean
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   }
 ): Promise<{
   buffer: Buffer
@@ -772,7 +777,7 @@ export async function imageOptimizer(
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
+      maxAge: opts?.previousCacheEntry?.cacheControl?.revalidate || maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }

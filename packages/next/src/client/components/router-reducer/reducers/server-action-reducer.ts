@@ -56,7 +56,7 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { revalidateEntireCache } from '../../segment-cache'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined

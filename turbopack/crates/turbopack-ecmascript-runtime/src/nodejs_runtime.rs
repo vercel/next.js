@@ -11,7 +11,7 @@ use crate::{asset_context::get_runtime_asset_context, embed_js::embed_static_cod
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(
     environment: Vc<Environment>,
-    generate_source_map: Vc<bool>,
+    generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;
 

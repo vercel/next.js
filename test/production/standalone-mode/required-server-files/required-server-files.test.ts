@@ -218,13 +218,13 @@ describe('required server files', () => {
       case: 'redirect no revalidate',
       path: '/optional-ssg/redirect-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'redirect with revalidate',
       path: '/optional-ssg/redirect-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -295,13 +295,13 @@ describe('required server files', () => {
       case: 'notFound no revalidate',
       path: '/optional-ssg/not-found-1',
       dest: '/somewhere',
-      cacheControl: 's-maxage=31536000, stale-while-revalidate',
+      cacheControl: 's-maxage=31536000',
     },
     {
       case: 'notFound with revalidate',
       path: '/optional-ssg/not-found-2',
       dest: '/somewhere-else',
-      cacheControl: 's-maxage=5, stale-while-revalidate',
+      cacheControl: 's-maxage=5, stale-while-revalidate=31535995',
     },
   ])(
     `should have correct cache-control for $case`,
@@ -327,9 +327,7 @@ describe('required server files', () => {
   it('should have the correct cache-control for props with no revalidate', async () => {
     const res = await fetchViaHTTP(appPort, '/optional-ssg/props-no-revalidate')
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     const $ = cheerio.load(await res.text())
     expect(JSON.parse($('#props').text()).params).toEqual({
       rest: ['props-no-revalidate'],
@@ -341,9 +339,7 @@ describe('required server files', () => {
       undefined
     )
     expect(dataRes.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
     expect((await dataRes.json()).pageProps.params).toEqual({
       rest: ['props-no-revalidate'],
     })
@@ -525,7 +521,7 @@ describe('required server files', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await waitFor(2000)
@@ -536,7 +532,7 @@ describe('required server files', () => {
     })
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 
@@ -548,7 +544,7 @@ describe('required server files', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
 
     await next.patchFile('standalone/data.txt', 'hide')
@@ -560,7 +556,7 @@ describe('required server files', () => {
 
     expect(res2.status).toBe(404)
     expect(res2.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate'
+      's-maxage=1, stale-while-revalidate=31535999'
     )
   })
 

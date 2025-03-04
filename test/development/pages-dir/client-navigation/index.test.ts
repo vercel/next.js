@@ -6,6 +6,7 @@ import {
   waitFor,
   check,
   retry,
+  getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import path from 'path'
@@ -1395,6 +1396,11 @@ describe('Client Navigation', () => {
             })
           },
         })
+        await retry(async () => {
+          expect(await getRedboxTotalErrorCount(browser)).toBe(
+            isReact18 ? 3 : 1
+          )
+        })
         await expect(browser).toDisplayRedbox(`
          {
            "count": ${isReact18 ? 3 : 1},
@@ -1476,10 +1482,10 @@ describe('Client Navigation', () => {
                |         ^",
              "stack": [
                "eval pages/error-in-the-browser-global-scope.js (2:9)",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
              ],
            }
           `)

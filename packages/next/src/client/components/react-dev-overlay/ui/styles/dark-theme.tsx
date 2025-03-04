@@ -112,11 +112,13 @@ export function DarkTheme() {
       :host(.dark) {
         ${base}
         ${colors}
+      }
 
       @media (prefers-color-scheme: dark) {
         :host(:not(.light)) {
           ${base}
           ${colors}
+        }
       }
     `}</style>
   )

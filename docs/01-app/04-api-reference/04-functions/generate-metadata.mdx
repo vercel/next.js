@@ -90,7 +90,7 @@ export async function generateMetadata(
   parent: ResolvingMetadata
 ): Promise<Metadata> {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
@@ -112,7 +112,7 @@ export default function Page({ params, searchParams }: Props) {}
 ```jsx filename="app/products/[id]/page.js" switcher
 export async function generateMetadata({ params, searchParams }, parent) {
   // read route params
-  const id = (await params).id
+  const { id } = await params
 
   // fetch data
   const product = await fetch(`https://.../${id}`).then((res) => res.json())
