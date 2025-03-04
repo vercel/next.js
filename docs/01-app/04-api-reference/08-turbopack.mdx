@@ -57,16 +57,16 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### CSS and styling
 
-| Feature            | Status                  | Notes                                                                                                                                                                                                             |
-| ------------------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Global CSS**     | **Supported**           | Import `.css` files directly in your application.                                                                                                                                                                 |
-| **CSS Modules**    | **Supported**           | `.module.css` files work natively (Lightning CSS).                                                                                                                                                                |
-| **CSS Nesting**    | **Supported**           | Lightning CSS supports [modern CSS nesting](https://lightningcss.dev/).                                                                                                                                           |
-| **@import syntax** | **Supported**           | Combine multiple CSS files.                                                                                                                                                                                       |
-| **PostCSS**        | **Supported**           | Automatically processes `postcss.config.js` in a Node.js worker pool. Useful for Tailwind, Autoprefixer, etc.                                                                                                     |
-| **Sass / SCSS**    | **Supported** (Next.js) | For Next.js, Sass is supported out of the box. In the future, Turbopack standalone usage will likely require a loader config.                                                                                     |
-| **Less**           | Planned via plugins     | Not yet supported by default. Will likely require a loader config once custom loaders are stable.                                                                                                                 |
-| **Lightning CSS**  | **In Use**              | Handles CSS transformations. Some low-usage CSS Modules features (like `:local/:global` as standalone pseudo-classes) are not yet supported. [See below for more details.](#unsupported-and-not-planned-features) |
+| Feature            | Status                  | Notes                                                                                                                                                                                                           |
+| ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Global CSS**     | **Supported**           | Import `.css` files directly in your application.                                                                                                                                                               |
+| **CSS Modules**    | **Supported**           | `.module.css` files work natively (Lightning CSS).                                                                                                                                                              |
+| **CSS Nesting**    | **Supported**           | Lightning CSS supports [modern CSS nesting](https://lightningcss.dev/).                                                                                                                                         |
+| **@import syntax** | **Supported**           | Combine multiple CSS files.                                                                                                                                                                                     |
+| **PostCSS**        | **Supported**           | Automatically processes `postcss.config.js` in a Node.js worker pool. Useful for Tailwind, Autoprefixer, etc.                                                                                                   |
+| **Sass / SCSS**    | **Supported** (Next.js) | For Next.js, Sass is supported out of the box. In the future, Turbopack standalone usage will likely require a loader config.                                                                                   |
+| **Less**           | Planned via plugins     | Not yet supported by default. Will likely require a loader config once custom loaders are stable.                                                                                                               |
+| **Lightning CSS**  | **In Use**              | Handles CSS transformations. Some low-usage CSS Modules features (like `:local/:global` as standalone pseudo-classes) are not yet supported. [See below for more details.](#unsupported-and-unplanned-features) |
 
 ### Assets
 
