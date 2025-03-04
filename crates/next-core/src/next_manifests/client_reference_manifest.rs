@@ -71,6 +71,12 @@ impl ClientReferenceManifest {
         async move {
             let mut entry_manifest: ClientReferenceManifest = Default::default();
             let mut references = FxIndexSet::default();
+            let chunk_suffix_path = next_config.chunk_suffix_path().await?;
+            let suffix_path = chunk_suffix_path
+                .as_ref()
+                .map(|p| p.to_string())
+                .unwrap_or("".into());
+
             entry_manifest.module_loading.prefix = next_config
                 .computed_asset_prefix()
                 .await?
@@ -195,6 +201,7 @@ impl ClientReferenceManifest {
                             // It's possible that a chunk also emits CSS files, that will
                             // be handled separatedly.
                             .filter(|path| path.ends_with(".js"))
+                            .map(|path| format!("{}{}", path, suffix_path))
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
@@ -355,7 +362,7 @@ impl ClientReferenceManifest {
 
                 for (chunk, chunk_path) in client_chunks_with_path {
                     if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
-                        let path = path.into();
+                        let path = format!("{}{}", path, suffix_path).into();
                         if chunk_path.extension_ref() == Some("css") {
                             entry_css_files_with_chunk.push((path, chunk));
                         } else {

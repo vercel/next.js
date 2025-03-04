@@ -83,6 +83,7 @@ pub struct NextConfig {
     pub transpile_packages: Option<Vec<RcStr>>,
     pub modularize_imports: Option<FxIndexMap<String, ModularizeImportPackageConfig>>,
     pub dist_dir: Option<RcStr>,
+    pub deployment_id: Option<RcStr>,
     sass_options: Option<serde_json::Value>,
     pub trailing_slash: Option<bool>,
     pub asset_prefix: Option<RcStr>,
@@ -670,9 +671,6 @@ pub struct ExperimentalConfig {
     turbo: Option<ExperimentalTurboConfig>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
-    use_deployment_id: Option<bool>,
-    use_deployment_id_server_actions: Option<bool>,
-    deployment_id: Option<RcStr>,
     manual_client_base_path: Option<bool>,
     optimistic_client_cache: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
@@ -1391,6 +1389,18 @@ impl NextConfig {
             )
             .into(),
         )))
+    }
+
+    /// Returns the final asset prefix. If an assetPrefix is set, it's used.
+    /// Otherwise, the basePath is used.
+    #[turbo_tasks::function]
+    pub async fn chunk_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
+        let this = self.await?;
+
+        match &this.deployment_id {
+            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={}", deployment_id).into()))),
+            None => Ok(Vc::cell(None)),
+        }
     }
 
     #[turbo_tasks::function]

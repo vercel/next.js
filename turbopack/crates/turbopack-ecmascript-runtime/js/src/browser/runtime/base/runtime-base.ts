@@ -13,6 +13,7 @@
 
 declare var TURBOPACK_WORKER_LOCATION: string;
 declare var CHUNK_BASE_PATH: string;
+declare var CHUNK_SUFFIX_PATH: string;
 declare function instantiateModule(id: ModuleId, source: SourceInfo): Module;
 
 type RuntimeParams = {
@@ -296,7 +297,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath): string {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split("/")
     .map((p) => encodeURIComponent(p))
-    .join("/")}`;
+    .join("/")}${CHUNK_SUFFIX_PATH}`;
 }
 
 /**
