@@ -18543,9 +18543,9 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-    "passed": ["Missing Import Image Tests development mode should show error"],
+    "passed": ["Missing Import Image Tests should show error"],
     "failed": [],
-    "pending": ["Missing Import Image Tests production mode should show error"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

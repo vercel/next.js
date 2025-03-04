@@ -1,55 +1,73 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import {
-  assertHasRedbox,
-  findPort,
-  getRedboxDescription,
-  getRedboxSource,
-  killApp,
-  launchApp,
-  nextBuild,
-} from 'next-test-utils'
+import { findPort, killApp, launchApp, nextBuild } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
-const appDir = join(__dirname, '../')
-let appPort: number
-let app
-let stderr = ''
+describe('Missing Import Image Tests', () => {
+  const isNextDev = process.env.NEXT_TEST_MODE === 'dev'
+  const isTurbopack = Boolean(process.env.TURBOPACK)
+  const appDir = join(__dirname, '../')
+  let appPort: number
+  let app: Awaited<ReturnType<typeof launchApp>> | undefined
+  let stderr = ''
 
-function runTests({ isDev }) {
+  beforeAll(async () => {
+    stderr = ''
+    if (isNextDev) {
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort, {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+    } else {
+      const result = await nextBuild(appDir, [], { stderr: true })
+      stderr = result.stderr
+    }
+  })
+  afterAll(async () => {
+    if (app) {
+      await killApp(app)
+    }
+  })
+
   it('should show error', async () => {
-    if (isDev) {
+    if (isNextDev) {
       const browser = await webdriver(appPort, '/')
-      await assertHasRedbox(browser)
-      const description = await getRedboxDescription(browser)
-      if (process.env.TURBOPACK) {
-        expect(description).toMatchInlineSnapshot(`"Processing image failed"`)
-      } else {
-        expect(description).toMatchInlineSnapshot(
-          `"Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
-        )
-      }
-      const source = await getRedboxSource(browser)
-      if (process.env.TURBOPACK) {
-        expect(source).toMatchInlineSnapshot(`
-          "./test/integration/next-image-new/invalid-image-import/public/invalid.svg
-          Processing image failed
-          Failed to parse svg source code for image dimensions
 
-          Caused by:
-          - Source code does not contain a <svg> root element"
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Processing image failed",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+         Processing image failed
+         Failed to parse svg source code for image dimensions
+         Caused by:
+         - Source code does not contain a <svg> root element",
+           "stack": [],
+         }
         `)
       } else {
-        expect(source).toMatchInlineSnapshot(`
-          "./pages/index.js:3
-          Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./pages/index.js:3
+         Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.",
+           "stack": [],
+         }
         `)
       }
     } else {
       const output = stripAnsi(stderr)
-      if (process.env.TURBOPACK) {
+      if (isTurbopack) {
         expect(output).toContain(
           `./test/integration/next-image-new/invalid-image-import/public/invalid.svg
 Processing image failed
@@ -62,45 +80,4 @@ Failed to parse svg source code for image dimensions`
       }
     }
   })
-}
-
-describe('Missing Import Image Tests', () => {
-  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-    'development mode',
-    () => {
-      beforeAll(async () => {
-        stderr = ''
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStderr(msg) {
-            stderr += msg || ''
-          },
-        })
-      })
-      afterAll(async () => {
-        if (app) {
-          await killApp(app)
-        }
-      })
-
-      runTests({ isDev: true })
-    }
-  )
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        stderr = ''
-        const result = await nextBuild(appDir, [], { stderr: true })
-        stderr = result.stderr
-      })
-      afterAll(async () => {
-        if (app) {
-          await killApp(app)
-        }
-      })
-
-      runTests({ isDev: false })
-    }
-  )
 })
