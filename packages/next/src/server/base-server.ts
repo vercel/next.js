@@ -177,6 +177,7 @@ import {
 } from './lib/streaming-metadata'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
+import { getCacheHandlers } from './use-cache/handlers'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1430,6 +1431,14 @@ export default abstract class Server<
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      const cacheHandlers = getCacheHandlers()
+
+      if (cacheHandlers) {
+        await Promise.all(
+          [...cacheHandlers].map((cacheHandler) => cacheHandler.refreshTags())
+        )
       }
 
       // set server components HMR cache to request meta so it can be passed
