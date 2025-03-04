@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { BrowserInterface } from '../../../../lib/next-webdriver'
+import { outdent } from 'outdent'
+import { Page } from 'playwright'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -57,70 +59,115 @@ describe.each(['app', 'pages'])('%s dir - form', (type) => {
   })
 
   describe('should include the value of the submitter in search params', () => {
-    it.each([
-      {
-        name: '<button type="submit">',
-        path: '/forms/submitter-value/button-type-submit',
-      },
-      {
-        name: '<input type="submit">',
-        path: '/forms/submitter-value/input-type-submit',
-      },
-    ])('$name', async ({ path }) => {
-      const session = await next.browser(pathPrefix + path)
-      const navigationTracker = await trackMpaNavs(session)
-
-      const submitButtonOne = await session.elementById('submit-btn-one')
-      await submitButtonOne.click()
-      {
-        const result = await session
-          .waitForElementByCss('#search-results')
-          .text()
-        expect(result).toMatch(/query: "one"/)
+    describe.each([
+      { name: 'without submitter polyfill', forcePolyfill: false },
+      { name: 'with submitter polyfill', forcePolyfill: true },
+    ])('$name', ({ forcePolyfill }) => {
+      async function beforePageLoad(page: Page) {
+        if (forcePolyfill) {
+          // replace FormData with an implementation that doesn't support the submitter param
+          // to force our polyfill to activate.
+          await page.addInitScript({
+            content: outdent`
+              (() => {
+                if (window.FormData.__isPatched) {
+                  return;
+                }
+                
+                const OriginalFormData = window.FormData;
+                class FormDataWithoutSubmitter extends OriginalFormData {
+                  __isPatched = true;
+                  constructor(form, submitter = null) {
+                    if (submitter) {
+                      throw new Error('Error: this FormData implementation does not support the submitter parameter');
+                    }
+                    super(form, null);
+                  }
+                }
+                window.FormData = FormDataWithoutSubmitter;
+                console.log('patched FormData');
+              })();
+            `,
+          })
+        }
       }
 
-      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+      it.each([
+        {
+          name: '<button type="submit">',
+          path: '/forms/submitter-value/button-type-submit',
+        },
+        {
+          name: '<input type="submit">',
+          path: '/forms/submitter-value/input-type-submit',
+        },
+      ])('$name', async ({ path }) => {
+        const session = await next.browser(pathPrefix + path, {
+          beforePageLoad,
+        })
 
-      await session.back()
+        const navigationTracker = await trackMpaNavs(session)
 
-      const submitButtonTwo = await session.elementById('submit-btn-two')
-      await submitButtonTwo.click()
-      {
-        const result = await session
-          .waitForElementByCss('#search-results')
-          .text()
-        expect(result).toMatch(/query: "two"/)
-      }
-    })
+        const submitButtonOne = await session.elementById('submit-btn-one')
+        await submitButtonOne.click()
+        {
+          const result = await session
+            .waitForElementByCss('#search-results')
+            .text()
+          expect(result).toMatch(/query: "one"/)
+        }
 
-    test('<input type="image">', async () => {
-      const session = await next.browser(
-        pathPrefix + '/forms/submitter-value/input-type-image'
-      )
-      const navigationTracker = await trackMpaNavs(session)
+        expect(await navigationTracker.didMpaNavigate()).toBe(false)
 
-      const submitButtonOne = await session.elementById('submit-btn-one')
-      await submitButtonOne.click()
-      await session.waitForElementByCss('#search-results')
+        await session.back()
 
-      // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
-      // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
-      expect(new URL(await session.url()).search).toMatch(
-        /\?buttonOne\.x=\d+&buttonOne\.y=\d+/
-      )
+        const submitButtonTwo = await session.elementById('submit-btn-two')
+        await submitButtonTwo.click()
+        {
+          const result = await session
+            .waitForElementByCss('#search-results')
+            .text()
+          expect(result).toMatch(/query: "two"/)
+        }
+      })
 
-      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+      // TODO: fix submitter polyfill for image inputs
+      ;(forcePolyfill ? test.failing : test)(
+        '<input type="image">',
+        async () => {
+          const session = await next.browser(
+            pathPrefix + '/forms/submitter-value/input-type-image',
+            { beforePageLoad }
+          )
+          const navigationTracker = await trackMpaNavs(session)
 
-      await session.back()
+          const submitButtonOne = await session.elementById('submit-btn-one')
+          await submitButtonOne.click()
+          await session.waitForElementByCss('#search-results')
 
-      const submitButtonTwo = await session.elementById('submit-btn-two')
-      await submitButtonTwo.click()
-      await session.waitForElementByCss('#search-results')
+          // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+          // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(new URL(await session.url()).search).toMatch(
+            /\?buttonOne\.x=\d+&buttonOne\.y=\d+/
+          )
 
-      // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
-      // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
-      expect(new URL(await session.url()).search).toMatch(
-        /\?buttonTwo\.x=\d+&buttonTwo\.y=\d+/
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(await navigationTracker.didMpaNavigate()).toBe(false)
+
+          await session.back()
+
+          const submitButtonTwo = await session.elementById('submit-btn-two')
+          await submitButtonTwo.click()
+          await session.waitForElementByCss('#search-results')
+
+          // input type image sends `{name}.x` and `{name}.y` specifying the relative coordinates of the click
+          // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/image#using_the_x_and_y_data_points
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(new URL(await session.url()).search).toMatch(
+            /\?buttonTwo\.x=\d+&buttonTwo\.y=\d+/
+          )
+        }
       )
     })
   })
