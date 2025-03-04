@@ -1,5 +1,20 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { FallbackRouteParams } from '../request/fallback-params'
+import { getCacheHandlers } from '../use-cache/handlers'
+
+export interface ImplicitTags {
+  /**
+   * For legacy usage, the implicit tags are passed to the incremental cache
+   * handler in `get` calls.
+   */
+  readonly tags: string[]
+  /**
+   * Modern cache handlers don't receive implicit tags. Instead, the
+   * implicit tags' expiration is stored in the work unit store, and used to
+   * compare with a cache entry's timestamp.
+   */
+  readonly expiration: number
+}
 
 const getDerivedTags = (pathname: string): string[] => {
   const derivedTags: string[] = [`/layout`]
@@ -26,16 +41,16 @@ const getDerivedTags = (pathname: string): string[] => {
   return derivedTags
 }
 
-export function getImplicitTags(
+export async function getImplicitTags(
   page: string,
   url: {
     pathname: string
     search?: string
   },
   fallbackRouteParams: null | FallbackRouteParams
-) {
+): Promise<ImplicitTags> {
   // TODO: Cache the result
-  const newTags: string[] = []
+  const tags: string[] = []
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.size > 0
 
@@ -43,15 +58,29 @@ export function getImplicitTags(
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (url.pathname && !hasFallbackRouteParams) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
-    newTags.push(tag)
+    tags.push(tag)
   }
 
-  return newTags
+  // We're starting off with assuming that implicit tags are not expired, so we
+  // use an artificial timestamp of 0.
+  let expiration = 0
+  const cacheHandlers = getCacheHandlers()
+
+  if (cacheHandlers) {
+    const expirations = await Promise.all(
+      [...cacheHandlers].map((handler) => handler.getExpiration(...tags))
+    )
+
+    // We use the most recent expiration, i.e. the largest timestamp.
+    expiration = Math.max(...expirations)
+  }
+
+  return { tags, expiration }
 }

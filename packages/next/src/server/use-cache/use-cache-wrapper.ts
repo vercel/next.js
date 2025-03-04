@@ -152,11 +152,7 @@ function generateCacheEntryWithCacheContext(
   const cacheStore: UseCacheStore = {
     type: 'cache',
     phase: 'render',
-    implicitTags:
-      outerWorkUnitStore === undefined ||
-      outerWorkUnitStore.type === 'unstable-cache'
-        ? []
-        : outerWorkUnitStore.implicitTags,
+    implicitTags: outerWorkUnitStore?.implicitTags,
     revalidate: defaultCacheLife.revalidate,
     expire: defaultCacheLife.expire,
     stale: defaultCacheLife.stale,
@@ -687,42 +683,29 @@ export function cache(
           cacheSignal.beginRead()
         }
 
-        const implicitTags =
-          workUnitStore === undefined || workUnitStore.type === 'unstable-cache'
-            ? []
-            : workUnitStore.implicitTags
-
+        const implicitTags = workUnitStore?.implicitTags
         const forceRevalidate = shouldForceRevalidate(workStore, workUnitStore)
 
         let entry = forceRevalidate
           ? undefined
           : await cacheHandler.get(serializedCacheKey)
 
-        if (entry) {
-          if (
+        if (
+          entry &&
+          // If the cache entry was tagged with a previously revalidated tag
+          // (e.g. by a redirecting server action), we need to discard it.
+          (entry.tags.some((tag) =>
             // TODO: Shouldn't we also consider pendingRevalidatedTags?
             // Curiously, this is currently not done for the incremental cache
             // handler. So a revalidating server action can read its own writes
             // only during subsequent rendering, but not in the action itself?
-            entry.tags.some((tag) =>
-              workStore.previouslyRevalidatedTags.includes(tag)
-            )
-          ) {
-            // If the cache entry was tagged with a previously revalidated tag
-            // (e.g. by a redirecting server action), we need to discard it.
-            entry = undefined
-          } else {
-            // TODO: Do this once at the start of the request (but for every
-            // cache handler).
-            const implicitTagsExpiration =
-              (await cacheHandler.getExpiration?.(...implicitTags)) ?? 0
-
+            workStore.previouslyRevalidatedTags.includes(tag)
+          ) ||
             // If the cache entry was created before any of the implicit tags
             // were revalidated last, we need to discard it.
-            if (entry.timestamp <= implicitTagsExpiration) {
-              entry = undefined
-            }
-          }
+            (implicitTags && entry.timestamp <= implicitTags.expiration))
+        ) {
+          entry = undefined
         }
 
         const currentTime = performance.timeOrigin + performance.now()
