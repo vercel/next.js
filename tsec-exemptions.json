@@ -14,6 +14,9 @@
     "packages/next/src/build/webpack/loaders/next-style-loader/runtime/injectStylesIntoStyleTag.ts",
     "packages/next/src/client/app-bootstrap.ts"
   ],
+  "ban-eval-calls": [
+    "packages/next/src/server/app-render/create-component-tree.tsx"
+  ],
   "ban-script-content-assignments": ["packages/next/src/client/script.tsx"],
   "ban-script-src-assignments": [
     "packages/next/src/client/script.tsx",
