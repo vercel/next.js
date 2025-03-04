@@ -27,6 +27,13 @@ describe('parallel-routes-and-interception', () => {
     if (isPPR && !isNextDev) {
       let $ = await next.render$('/')
       expect($('title').text()).toBe('')
+
+      $ = await next.render$('/', {
+        headers: {
+          'User-Agent': 'Discordbot',
+        },
+      })
+      expect($('title').text()).toBe('layout title')
     } else {
       const $ = await next.render$('/')
       expect($('title').text()).toBe('layout title')
