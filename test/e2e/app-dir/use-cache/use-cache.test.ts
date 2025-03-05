@@ -418,6 +418,7 @@ describe('use-cache', () => {
         '/imported-from-client',
         '/logs',
         '/method-props',
+        '/nested-in-unstable-cache',
         '/not-found',
         '/on-demand-revalidate',
         '/passed-to-client',
