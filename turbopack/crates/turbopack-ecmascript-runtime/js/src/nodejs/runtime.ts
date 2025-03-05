@@ -93,10 +93,6 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   }
 }
 
-function loadChunkByUrl() {
-
-}
-
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
