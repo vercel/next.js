@@ -87,7 +87,6 @@ impl ChunkItemOrBatchWithAsyncModuleInfo {
                 .to_resolved()
                 .await?,
             )),
-            ChunkableModuleOrBatch::None(_) => None,
         })
     }
 

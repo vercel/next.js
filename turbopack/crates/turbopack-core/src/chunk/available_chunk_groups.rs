@@ -59,7 +59,6 @@ impl AvailableChunkGroups {
                 let chunk_groups = batch.chunk_groups.as_ref().unwrap();
                 is_chunk_group_available(&self.chunk_groups, chunk_groups)
             }
-            ChunkableModuleOrBatch::None(_) => unreachable!(),
         }))
     }
 }
@@ -80,7 +79,6 @@ impl AvailableChunkGroups {
                 let chunk_groups = batch.chunk_groups.as_ref().unwrap();
                 is_chunk_group_available(&self.chunk_groups, chunk_groups)
             }
-            ChunkableModuleOrBatch::None(_) => unreachable!(),
         })
     }
 }
