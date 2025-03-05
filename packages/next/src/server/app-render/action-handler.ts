@@ -612,13 +612,8 @@ export async function handleAction({
     'no-cache, no-store, max-age=0, must-revalidate'
   )
 
-  let boundActionArguments: unknown[] = []
-
   const { actionAsyncStorage } = ComponentMod
 
-  let actionResult: RenderResult | undefined
-  let formState: any | undefined
-  let actionModId: string | undefined
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
   if (actionId) {
@@ -646,9 +641,13 @@ export async function handleAction({
   }
 
   try {
-    await actionAsyncStorage.run(
+    return await actionAsyncStorage.run(
       { isAction: true },
-      async (): Promise<void> => {
+      async (): Promise<HandleActionResult> => {
+        // We only use these two for fetch actions -- no-js actions handle all of this via `decodeAction`.
+        let actionModId: string
+        let boundActionArguments: unknown[]
+
         if (
           // The type check here ensures that `req` is correctly typed, and the
           // environment variable check provides dead code elimination.
@@ -697,15 +696,20 @@ export async function handleAction({
                   action
                 )
 
-                formState = await decodeFormState(
+                const formState = await decodeFormState(
                   actionReturnedState,
                   formData,
                   serverModuleMap
                 )
 
                 requestStore.phase = 'render'
+
                 // Skip the fetch path
-                return
+                return {
+                  type: 'done',
+                  result: undefined,
+                  formState,
+                }
               } else {
                 // We couldn't decode an action, so this is a non-action POST request.
                 throw new NotAServerActionError()
@@ -862,7 +866,7 @@ export async function handleAction({
                   action
                 )
 
-                formState = await decodeFormState(
+                const formState = await decodeFormState(
                   actionReturnedState,
                   formData,
                   serverModuleMap
@@ -871,7 +875,11 @@ export async function handleAction({
                 requestStore.phase = 'render'
 
                 // Skip the fetch path
-                return
+                return {
+                  type: 'done',
+                  result: undefined,
+                  formState,
+                }
               } else {
                 // We couldn't decode an action, so this is a non-action POST request.
                 throw new NotAServerActionError()
@@ -953,20 +961,25 @@ export async function handleAction({
           requestStore,
         })
 
-        actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
-          actionResult: Promise.resolve(returnVal),
-          // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
-          skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
-          temporaryReferences,
-        })
+        const actionResult = await finalizeAndGenerateFlight(
+          req,
+          ctx,
+          requestStore,
+          {
+            actionResult: Promise.resolve(returnVal),
+            // if the page was not revalidated, or if the action was forwarded from another worker, we can skip the rendering the flight tree
+            skipFlight: !workStore.pathWasRevalidated || actionWasForwarded,
+            temporaryReferences,
+          }
+        )
+
+        return {
+          type: 'done',
+          result: actionResult,
+          formState: undefined,
+        }
       }
     )
-
-    return {
-      type: 'done',
-      result: actionResult,
-      formState,
-    }
   } catch (err) {
     if (err instanceof ActionNotFoundError) {
       console.error(err)
