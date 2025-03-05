@@ -48,7 +48,7 @@ import {
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
-import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite, filterInternalHeaders } from './server-ipc/utils'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -164,6 +164,14 @@ export async function initialize(opts: {
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
+
+  const allowedOrigins = [
+    'localhost',
+    ...(config.experimental.allowedDevOrigins || []),
+  ]
+  if (opts.hostname) {
+    allowedOrigins.push(opts.hostname)
+  }
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
@@ -316,6 +324,9 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
+        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`).finished) {
+          return
+        }
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -679,6 +690,11 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
+        if (
+          blockCrossSite(req, socket, allowedOrigins, `${opts.port}`).finished
+        ) {
+          return
+        }
         const { basePath, assetPrefix } = config
 
         let hmrPrefix = basePath

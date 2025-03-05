@@ -257,6 +257,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  allowedDevOrigins?: string[]
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -1134,6 +1135,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    allowedDevOrigins: [],
     nodeMiddleware: false,
     cacheLife: {
       default: {
