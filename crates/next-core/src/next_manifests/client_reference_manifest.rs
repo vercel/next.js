@@ -83,7 +83,7 @@ impl ClientReferenceManifest {
                 .map(|p| p.to_string())
                 .unwrap_or("".into());
 
-            // entry_manifest.module_loading.prefix = prefix_path;
+            entry_manifest.module_loading.prefix = prefix_path;
 
             entry_manifest.module_loading.cross_origin = next_config
                 .await?
@@ -202,7 +202,7 @@ impl ClientReferenceManifest {
                             // It's possible that a chunk also emits CSS files, that will
                             // be handled separatedly.
                             .filter(|path| path.ends_with(".js"))
-                            .map(|path| format!("{}{}{}", prefix_path, path, suffix_path))
+                            .map(|path| format!("{}{}", path, suffix_path))
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 

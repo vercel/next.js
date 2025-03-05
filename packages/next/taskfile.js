@@ -1819,7 +1819,7 @@ export async function copy_vendor_react(task_) {
           const source = file.data.toString()
           let newSource = source.replace(
             /__turbopack_load__/g,
-            '__turbopack_load_by_url__'
+            '__turbopack_load__'
           )
 
           file.data = newSource
