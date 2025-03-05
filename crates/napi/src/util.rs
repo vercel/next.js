@@ -40,8 +40,10 @@ use anyhow::anyhow;
 use napi::bindgen_prelude::{External, Status};
 use once_cell::sync::Lazy;
 use owo_colors::OwoColorize;
+use terminal_hyperlink::Hyperlink;
 use tracing_chrome::{ChromeLayerBuilder, FlushGuard};
 use tracing_subscriber::{filter, prelude::*, util::SubscriberInitExt, Layer};
+use turbopack_core::error::PrettyPrintError;
 
 static LOG_THROTTLE: Mutex<Option<Instant>> = Mutex::new(None);
 static LOG_DIVIDER: &str = "---------------------------";
@@ -51,7 +53,7 @@ static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
     path
 });
 
-pub fn log_internal_error_and_inform(err_info: &str) {
+pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
     if cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
@@ -61,7 +63,7 @@ pub fn log_internal_error_and_inform(err_info: &str) {
         eprintln!(
             "{}: An unexpected Turbopack error occurred:\n{}",
             "FATAL".red().bold(),
-            err_info
+            internal_error.to_string()
         );
         return;
     }
@@ -122,8 +124,36 @@ pub fn log_internal_error_and_inform(err_info: &str) {
         .open(PANIC_LOG.as_path())
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
-    writeln!(log_file, "{}\n{}", LOG_DIVIDER, err_info).unwrap();
-    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {}, along with a description of what you were doing when the error occurred, to https://github.com/vercel/next.js/issues/new?template=1.bug_report.yml", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+    let internal_error_str: String = PrettyPrintError(internal_error).to_string();
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, &internal_error_str).unwrap();
+
+    let title = format!(
+        "Turbopack Error: {}",
+        internal_error_str.lines().next().unwrap_or("Unknown")
+    );
+    let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
+        "clicking here.".hyperlink(
+            format!(
+                "https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
+                &urlencoding::encode(&title),
+                &urlencoding::encode(&format!("Error message:\n```\n{}\n```", &internal_error_str))
+            )
+        )
+    } else {
+        format!(
+            "clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
+            &urlencoding::encode(&title),
+            &urlencoding::encode(&format!("Error message:\n```\n{}\n```", title))
+        )
+    };
+
+    eprintln!(
+        "\n-----\n{}: An unexpected Turbopack error occurred. A panic log has been written to \
+         {}.\n\nTo help make Turbopack better, report this error by {}\n-----\n",
+        "FATAL".red().bold(),
+        PANIC_LOG.to_string_lossy(),
+        &new_discussion_url
+    );
 }
 
 #[napi]

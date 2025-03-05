@@ -34,12 +34,8 @@ DEALINGS IN THE SOFTWARE.
 #[macro_use]
 extern crate napi_derive;
 
-use std::{
-    panic::set_hook,
-    sync::{Arc, Once},
-};
+use std::sync::{Arc, Once};
 
-use backtrace::Backtrace;
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -76,13 +72,6 @@ fn init() {
     use tokio::runtime::Builder;
     use turbo_tasks_malloc::TurboMalloc;
 
-    set_hook(Box::new(|panic_info| {
-        util::log_internal_error_and_inform(&format!(
-            "Panic: {}\nBacktrace: {:?}",
-            panic_info,
-            Backtrace::new()
-        ));
-    }));
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
