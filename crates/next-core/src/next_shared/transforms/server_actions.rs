@@ -1,6 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::server_actions::{server_actions, Config};
+use next_custom_transforms::transforms::server_actions::{
+    server_actions, Config, ServerActionsMode,
+};
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -66,6 +68,7 @@ impl CustomTransformer for NextServerActions {
             },
             ctx.comments.clone(),
             Default::default(),
+            ServerActionsMode::Turbopack,
         );
         program.mutate(actions);
         Ok(())

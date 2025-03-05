@@ -6,9 +6,7 @@ use next_custom_transforms::transforms::{
     fonts::{next_font_loaders, Config as FontLoaderConfig},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{
-        server_actions, {self},
-    },
+    server_actions::{self, server_actions, ServerActionsMode},
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
 use rustc_hash::FxHashSet;
@@ -172,6 +170,7 @@ fn react_server_actions_errors(input: PathBuf) {
                     },
                     tr.comments.as_ref().clone(),
                     Default::default(),
+                    ServerActionsMode::Webpack,
                 ),
             )
         },
@@ -233,6 +232,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                     },
                     tr.comments.as_ref().clone(),
                     Default::default(),
+                    ServerActionsMode::Webpack,
                 ),
             )
         },

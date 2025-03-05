@@ -4558,6 +4558,7 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbopack-ecmascript-plugins",
+ "urlencoding",
  "walkdir",
 ]
 
