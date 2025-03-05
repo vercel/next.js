@@ -11899,26 +11899,21 @@ function flushGestureMutations() {
     var prevExecutionContext = executionContext;
     executionContext |= 4;
     try {
-      var rootContainer = root.containerInfo,
-        documentElement =
+      var rootClone = root.gestureClone;
+      if (null !== rootClone) {
+        root.gestureClone = null;
+        var rootContainer = root.containerInfo;
+        var containerInstance =
           9 === rootContainer.nodeType
-            ? rootContainer.documentElement
-            : rootContainer.ownerDocument.documentElement;
-      null !== documentElement &&
-        "" === documentElement.style.viewTransitionName &&
-        ((documentElement.style.viewTransitionName = "none"),
-        documentElement.animate(
-          { opacity: [0, 0], pointerEvents: ["none", "none"] },
-          {
-            duration: 0,
-            fill: "forwards",
-            pseudoElement: "::view-transition-group(root)"
-          }
-        ),
-        documentElement.animate(
-          { width: [0, 0], height: [0, 0] },
-          { duration: 0, fill: "forwards", pseudoElement: "::view-transition" }
-        ));
+            ? rootContainer.body
+            : "HTML" === rootContainer.nodeName
+              ? rootContainer.ownerDocument.body
+              : rootContainer;
+        var containerParent = containerInstance.parentNode;
+        if (null === containerParent) throw Error(formatProdErrorMessage(552));
+        containerParent.removeChild(rootClone);
+        containerInstance.style.viewTransitionName = "root";
+      }
     } finally {
       (executionContext = prevExecutionContext),
         (ReactDOMSharedInternals.p = previousPriority),
@@ -11948,11 +11943,16 @@ function flushPendingEffects(wasDelayedCommit) {
     var prevExecutionContext = executionContext;
     executionContext |= 4;
     try {
-      var rootContainer = root.containerInfo,
-        documentElement =
-          9 === rootContainer.nodeType
-            ? rootContainer.documentElement
-            : rootContainer.ownerDocument.documentElement;
+      var rootContainer = root.containerInfo;
+      var containerInstance =
+        9 === rootContainer.nodeType
+          ? rootContainer.body
+          : "HTML" === rootContainer.nodeName
+            ? rootContainer.ownerDocument.body
+            : rootContainer;
+      "root" === containerInstance.style.viewTransitionName &&
+        (containerInstance.style.viewTransitionName = "");
+      var documentElement = containerInstance.ownerDocument.documentElement;
       null !== documentElement &&
         "none" === documentElement.style.viewTransitionName &&
         (documentElement.style.viewTransitionName = "");
@@ -12442,20 +12442,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1630 = 0;
-  i$jscomp$inline_1630 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1630++
+  var i$jscomp$inline_1631 = 0;
+  i$jscomp$inline_1631 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1631++
 ) {
-  var eventName$jscomp$inline_1631 =
-      simpleEventPluginEvents[i$jscomp$inline_1630],
-    domEventName$jscomp$inline_1632 =
-      eventName$jscomp$inline_1631.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1633 =
-      eventName$jscomp$inline_1631[0].toUpperCase() +
-      eventName$jscomp$inline_1631.slice(1);
+  var eventName$jscomp$inline_1632 =
+      simpleEventPluginEvents[i$jscomp$inline_1631],
+    domEventName$jscomp$inline_1633 =
+      eventName$jscomp$inline_1632.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1634 =
+      eventName$jscomp$inline_1632[0].toUpperCase() +
+      eventName$jscomp$inline_1632.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1632,
-    "on" + capitalizedEvent$jscomp$inline_1633
+    domEventName$jscomp$inline_1633,
+    "on" + capitalizedEvent$jscomp$inline_1634
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15968,16 +15968,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1884 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1885 = React.version;
 if (
-  "19.1.0-canary-443b7ff2-20250303" !==
-  isomorphicReactPackageVersion$jscomp$inline_1884
+  "19.1.0-canary-e03ac20f-20250305" !==
+  isomorphicReactPackageVersion$jscomp$inline_1885
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1884,
-      "19.1.0-canary-443b7ff2-20250303"
+      isomorphicReactPackageVersion$jscomp$inline_1885,
+      "19.1.0-canary-e03ac20f-20250305"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15997,12 +15997,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1891 = {
+var internals$jscomp$inline_1892 = {
   bundleType: 0,
-  version: "19.1.0-canary-443b7ff2-20250303",
+  version: "19.1.0-canary-e03ac20f-20250305",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-443b7ff2-20250303",
+  reconcilerVersion: "19.1.0-canary-e03ac20f-20250305",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$281 = 0;
@@ -16020,16 +16020,16 @@ var internals$jscomp$inline_1891 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2344 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2347 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2344.isDisabled &&
-    hook$jscomp$inline_2344.supportsFiber
+    !hook$jscomp$inline_2347.isDisabled &&
+    hook$jscomp$inline_2347.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2344.inject(
-        internals$jscomp$inline_1891
+      (rendererID = hook$jscomp$inline_2347.inject(
+        internals$jscomp$inline_1892
       )),
-        (injectedHook = hook$jscomp$inline_2344);
+        (injectedHook = hook$jscomp$inline_2347);
     } catch (err) {}
 }
 function noop() {}
@@ -16282,7 +16282,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-443b7ff2-20250303";
+exports.version = "19.1.0-canary-e03ac20f-20250305";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
