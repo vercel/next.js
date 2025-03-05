@@ -66,8 +66,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       }
 
       for (const otherChunkData of params.otherChunks) {
-        const chunkPath = getChunkPath(otherChunkData)
-        const otherChunkUrl = getChunkRelativeUrl(chunkPath);
+        const otherChunkPath = getChunkPath(otherChunkData)
+        const otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
 
         // Chunk might have started loading, so we want to avoid triggering another load.
         getOrCreateResolver(otherChunkUrl);
@@ -92,7 +92,39 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
      * has been loaded.
     */
     loadChunk(chunkUrl, source) {
-      const resolver = getOrCreateResolver(chunkUrl);
+      return doLoadChunk(chunkUrl, source);
+    },
+  };
+
+  function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
+    let resolver = chunkResolvers.get(chunkUrl);
+    if (!resolver) {
+      let resolve: () => void;
+      let reject: (error?: Error) => void;
+      const promise = new Promise<void>((innerResolve, innerReject) => {
+        resolve = innerResolve;
+        reject = innerReject;
+      });
+      resolver = {
+        resolved: false,
+        promise,
+        resolve: () => {
+          resolver!.resolved = true;
+          resolve();
+        },
+        reject: reject!,
+      };
+      chunkResolvers.set(chunkUrl, resolver);
+    }
+    return resolver;
+  }
+
+   /**
+    * Loads the given chunk, and returns a promise that resolves once the chunk
+    * has been loaded.
+    */
+  function doLoadChunk(chunkUrl: ChunkUrl, source: SourceInfo) {
+    const resolver = getOrCreateResolver(chunkUrl);
       if (resolver.resolved) {
         return resolver.promise;
       }
@@ -178,30 +210,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
       }
 
       return resolver.promise;
-    },
-  };
-
-  function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
-    let resolver = chunkResolvers.get(chunkUrl);
-    if (!resolver) {
-      let resolve: () => void;
-      let reject: (error?: Error) => void;
-      const promise = new Promise<void>((innerResolve, innerReject) => {
-        resolve = innerResolve;
-        reject = innerReject;
-      });
-      resolver = {
-        resolved: false,
-        promise,
-        resolve: () => {
-          resolver!.resolved = true;
-          resolve();
-        },
-        reject: reject!,
-      };
-      chunkResolvers.set(chunkUrl, resolver);
-    }
-    return resolver;
   }
 
 })();
