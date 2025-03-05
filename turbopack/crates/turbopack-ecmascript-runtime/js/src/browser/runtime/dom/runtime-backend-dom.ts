@@ -124,9 +124,12 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
           throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
         }
       } else {
+        // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+        const decodedChunkUrl = decodeURI(chunkUrl);
+
         if (isCss(chunkUrl)) {
           const previousLinks = document.querySelectorAll(
-            `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
+            `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
           );
           if (previousLinks.length > 0) {
             // CSS chunks do not register themselves, and as such must be marked as
@@ -148,7 +151,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
           }
         } else if (isJs(chunkUrl)) {
           const previousScripts = document.querySelectorAll(
-            `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`
+            `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
           );
           if (previousScripts.length > 0) {
             // There is this edge where the script already failed loading, but we

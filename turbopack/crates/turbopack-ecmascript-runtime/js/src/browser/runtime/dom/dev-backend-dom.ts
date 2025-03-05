@@ -52,8 +52,9 @@ let DEV_BACKEND: DevRuntimeBackend;
           return;
         }
 
+        const decodedChunkUrl = decodeURI(chunkUrl);
         const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
+          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
         );
 
         if (previousLinks.length === 0) {
