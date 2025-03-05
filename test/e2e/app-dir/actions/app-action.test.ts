@@ -175,6 +175,27 @@ describe('app-dir action handling', () => {
     })
   })
 
+  it.each([
+    { description: 'with javascript', disableJavaScript: false },
+    { description: 'no javascript', disableJavaScript: true },
+  ])(
+    'should support setting cookies when redirecting ($description)',
+    async ({ disableJavaScript }) => {
+      const browser = await next.browser('/mutate-cookie-with-redirect', {
+        disableJavaScript,
+      })
+      expect(await browser.elementByCss('#value').text()).toBe('')
+
+      await browser.elementByCss('#update-cookie').click()
+      await browser.elementByCss('#redirect-target')
+
+      expect(await browser.elementByCss('#value').text()).toMatch(/\d+/)
+      expect(await browser.eval('document.cookie')).toMatch(
+        /(?:^|(?:; ))testCookie=\d+/
+      )
+    }
+  )
+
   it('should push new route when redirecting', async () => {
     const browser = await next.browser('/header')
 
