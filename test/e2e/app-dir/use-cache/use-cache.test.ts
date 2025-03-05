@@ -1,4 +1,3 @@
-// TODO: write a test for a nested "use cache" inside unstable_cache.
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
@@ -216,12 +215,14 @@ describe('use-cache', () => {
       const browser = await next.browser('/cache-tag')
       const initial = await browser.elementByCss('#a').text()
 
-      // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent unstable_expireTag calls.
-      await browser.elementByCss('#revalidate-path').click()
-      await retry(async () => {
-        expect(await browser.elementByCss('#a').text()).not.toBe(initial)
-      })
+      if (!isNextDev) {
+        // Bust the ISR cache first, to populate the in-memory cache for the
+        // subsequent unstable_expireTag calls.
+        await browser.elementByCss('#revalidate-path').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#a').text()).not.toBe(initial)
+        })
+      }
 
       let valueA = await browser.elementByCss('#a').text()
       let valueB = await browser.elementByCss('#b').text()
@@ -308,13 +309,15 @@ describe('use-cache', () => {
       const browser = await next.browser('/cache-tag')
       const initial = await browser.elementById('a').text()
 
-      // Bust the ISR cache first to populate the "use cache" in-memory cache for
-      // the subsequent revalidations.
-      await browser.elementById('revalidate-path').click()
+      if (!isNextDev) {
+        // Bust the ISR cache first to populate the "use cache" in-memory cache for
+        // the subsequent revalidations.
+        await browser.elementById('revalidate-path').click()
 
-      await retry(async () => {
-        expect(await browser.elementById('a').text()).not.toBe(initial)
-      })
+        await retry(async () => {
+          expect(await browser.elementById('a').text()).not.toBe(initial)
+        })
+      }
 
       const valueA1 = await browser.elementById('a').text()
       const valueB1 = await browser.elementById('b').text()
@@ -331,6 +334,32 @@ describe('use-cache', () => {
       expect(await browser.elementById('a').text()).not.toBe(valueA1)
       expect(await browser.elementById('a').text()).not.toBe(valueA2)
       expect(await browser.elementById('b').text()).not.toBe(valueB1)
+    })
+
+    it('should revalidate caches nested in unstable_cache', async () => {
+      const browser = await next.browser('/nested-in-unstable-cache')
+      const initial = await browser.elementByCss('p').text()
+
+      if (!isNextDev) {
+        // Bust the ISR cache first to populate the "use cache" in-memory cache for
+        // the subsequent revalidations.
+        await browser.elementByCss('button').click()
+
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).not.toBe(initial)
+        })
+      }
+
+      const value = await browser.elementByCss('p').text()
+
+      await browser.refresh()
+      expect(await browser.elementByCss('p').text()).toBe(value)
+
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).not.toBe(value)
+      })
     })
   }
 
