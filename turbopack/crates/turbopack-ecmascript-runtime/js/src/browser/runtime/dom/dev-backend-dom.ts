@@ -47,7 +47,7 @@ let DEV_BACKEND: DevRuntimeBackend;
 
     reloadChunk(chunkUrl) {
       return new Promise<void>((resolve, reject) => {
-        if (!chunkUrl.endsWith(".css")) {
+        if (!isCss(chunkUrl)) {
           reject(new Error("The DOM backend can only reload CSS chunks"));
           return;
         }
