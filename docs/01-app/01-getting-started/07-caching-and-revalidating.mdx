@@ -18,9 +18,12 @@ related:
 
 ## Caching
 
-In Next.js, you can cache the output of a [component](#components) or [function](#functions) to reduce the need to re-execute work for every user request.
+Next.js leverages both the server and client environments for caching.
 
-Caching is useful for data that doesn't change often or is shared across users, and functions that are computationally intensive, as you can reuse the result and reduce the time it takes to respond to requests.
+- On the server, you can cache the output of components and functions to reduce the need to recompute work for every user request.
+- On the client, the cached content from the server is temporarily stored to reduce the number of server requests on navigation.
+
+This page describes how you can cache and revalidate routes, components, and functions, and configure the caching behavior.
 
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
