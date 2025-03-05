@@ -427,7 +427,8 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   const isInvalidStatusCode =
     typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
 
-  if (is404Page || isInvalidStatusCode) {
+  // Only render noindex for page request, skip for server actions
+  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
