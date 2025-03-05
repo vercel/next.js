@@ -515,10 +515,8 @@ impl VarDeclWithTsDeclareCollector {
                 }
             }
             Pat::Array(array_pat) => {
-                for pat in array_pat.elems.iter() {
-                    if let Some(pat) = pat {
-                        self.handle_pat(&pat, declare);
-                    }
+                for pat in array_pat.elems.iter().flatten() {
+                    self.handle_pat(pat, declare);
                 }
             }
             Pat::Object(object_pat) => {
