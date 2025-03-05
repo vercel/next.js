@@ -609,9 +609,24 @@ impl Visit for Analyzer<'_> {
             n.visit_children_with(self);
         }
 
-        let ids: Vec<Id> = find_pat_ids(&n.decl);
-        for id in ids {
-            self.data.exports.insert(id.0.as_str().into(), id);
+        match n.decl {
+            Decl::Class(..) => {
+                self.data
+                    .exports
+                    .insert(n.id.atom().as_str().into(), n.id.to_id());
+            }
+            Decl::Fn(..) => {
+                self.data
+                    .exports
+                    .insert(n.name.atom().as_str().into(), n.name.to_id());
+            }
+            Decl::Var(..) | Decl::Using(..) => {
+                let ids: Vec<Id> = find_pat_ids(&n.decl);
+                for id in ids {
+                    self.data.exports.insert(id.0.as_str().into(), id);
+                }
+            }
+            _ => {}
         }
     }
 
