@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 import { useMeasureHeight } from '../../hooks/use-measure-height'
-import { useFocusTrap } from '../errors/dev-tools-indicator/utils'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -40,8 +39,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
 
   const ref = React.useRef<HTMLDivElement | null>(null)
   const [height, pristine] = useMeasureHeight(ref)
-
-  useFocusTrap(dialogRef, null, true)
 
   useOnClickOutside(
     dialogRef.current,
@@ -92,7 +89,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     <div
       ref={dialogRef}
       data-nextjs-dialog
-      tabIndex={1}
       role={role}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}
