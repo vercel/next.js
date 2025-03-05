@@ -334,7 +334,8 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
  */
 function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
-  return regexJsUrl.test(chunkUrlOrPath);
+  return chunkUrlOrPath.includes(".js");
+  // return regexJsUrl.test(chunkUrlOrPath);
 }
 
 const regexCssUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
@@ -342,5 +343,6 @@ const regexCssUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
  */
 function isCss(chunkUrl: ChunkUrl): boolean {
-  return regexCssUrl.test(chunkUrl);
+  return chunkUrl.includes(".css");
+  // return regexCssUrl.test(chunkUrl);
 }
