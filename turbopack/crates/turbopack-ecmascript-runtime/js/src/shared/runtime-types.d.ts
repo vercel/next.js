@@ -7,7 +7,9 @@
  * specific to the runtime context.
  */
 
-type ChunkPath = string;
+type ChunkListPath = string & { readonly brand: unique symbol };
+type ChunkPath = string & { readonly brand: unique symbol };
+type ChunkUrl = string & { readonly brand: unique symbol };
 type ModuleId = string;
 
 interface Exports {

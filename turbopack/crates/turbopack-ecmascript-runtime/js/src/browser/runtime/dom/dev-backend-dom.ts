@@ -16,21 +16,20 @@ let DEV_BACKEND: DevRuntimeBackend;
 
 (() => {
   DEV_BACKEND = {
-    unloadChunk(chunkPath) {
-      deleteResolver(chunkPath);
+    unloadChunk(chunkUrl) {
+      deleteResolver(chunkUrl);
 
-      const chunkUrl = getChunkRelativeUrl(chunkPath);
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
       const decodedChunkUrl = decodeURI(chunkUrl);
 
-      if (chunkPath.endsWith(".css")) {
+      if (chunkUrl.endsWith(".css")) {
         const links = document.querySelectorAll(
           `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`
         );
         for (const link of Array.from(links)) {
           link.remove();
         }
-      } else if (chunkPath.endsWith(".js")) {
+      } else if (chunkUrl.endsWith(".js")) {
         // Unloading a JS chunk would have no effect, as it lives in the JS
         // runtime once evaluated.
         // However, we still want to remove the script tag from the DOM to keep
@@ -42,26 +41,23 @@ let DEV_BACKEND: DevRuntimeBackend;
           script.remove();
         }
       } else {
-        throw new Error(`can't infer type of chunk from path ${chunkPath}`);
+        throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
       }
     },
 
-    reloadChunk(chunkPath) {
+    reloadChunk(chunkUrl) {
       return new Promise<void>((resolve, reject) => {
-        if (!chunkPath.endsWith(".css")) {
+        if (!chunkUrl.endsWith(".css")) {
           reject(new Error("The DOM backend can only reload CSS chunks"));
           return;
         }
 
-        const chunkUrl = getChunkRelativeUrl(chunkPath);
-        const decodedChunkUrl = decodeURI(chunkUrl);
-
         const previousLinks = document.querySelectorAll(
-          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
+          `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
         );
 
         if (previousLinks.length === 0) {
-          reject(new Error(`No link element found for chunk ${chunkPath}`));
+          reject(new Error(`No link element found for chunk ${chunkUrl}`));
           return;
         }
 
@@ -108,8 +104,8 @@ let DEV_BACKEND: DevRuntimeBackend;
     restart: () => self.location.reload(),
   };
 
-  function deleteResolver(chunkPath: ChunkPath) {
-    chunkResolvers.delete(chunkPath);
+  function deleteResolver(chunkUrl: ChunkUrl) {
+    chunkResolvers.delete(chunkUrl);
   }
 })();
 

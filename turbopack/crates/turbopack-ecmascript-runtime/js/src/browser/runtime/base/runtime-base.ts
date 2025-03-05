@@ -28,7 +28,7 @@ type ChunkRegistration = [
 ];
 
 type ChunkList = {
-  path: ChunkPath;
+  path: ChunkListPath;
   chunks: ChunkData[];
   source: "entry" | "dynamic";
 };
@@ -66,12 +66,12 @@ type SourceInfo =
 
 interface RuntimeBackend {
   registerChunk: (chunkPath: ChunkPath, params?: RuntimeParams) => void;
-  loadChunk: (chunkPath: ChunkPath, source: SourceInfo) => Promise<void>;
+  loadChunk: (chunkUrl: ChunkUrl, source: SourceInfo) => Promise<void>;
 }
 
 interface DevRuntimeBackend {
-  reloadChunk?: (chunkPath: ChunkPath) => Promise<void>;
-  unloadChunk?: (chunkPath: ChunkPath) => void;
+  reloadChunk?: (chunkUrl: ChunkUrl) => Promise<void>;
+  unloadChunk?: (chunkUrl: ChunkUrl) => void;
   restart: () => void;
 }
 
@@ -91,21 +91,21 @@ const moduleChunksMap: Map<ModuleId, Set<ChunkPath>> = new Map();
 /**
  * Map from a chunk path to all modules it contains.
  */
-const chunkModulesMap: Map<ModuleId, Set<ChunkPath>> = new Map();
+const chunkModulesMap: Map<ChunkPath, Set<ModuleId>> = new Map();
 /**
  * Chunk lists that contain a runtime. When these chunk lists receive an update
  * that can't be reconciled with the current state of the page, we need to
  * reload the runtime entirely.
  */
-const runtimeChunkLists: Set<ChunkPath> = new Set();
+const runtimeChunkLists: Set<ChunkListPath> = new Set();
 /**
  * Map from a chunk list to the chunk paths it contains.
  */
-const chunkListChunksMap: Map<ChunkPath, Set<ChunkPath>> = new Map();
+const chunkListChunksMap: Map<ChunkListPath, Set<ChunkPath>> = new Map();
 /**
  * Map from a chunk path to the chunk lists it belongs to.
  */
-const chunkChunkListsMap: Map<ChunkPath, Set<ChunkPath>> = new Map();
+const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map();
 
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map();
 
@@ -185,16 +185,9 @@ async function loadChunk(
   return promise;
 }
 
-async function loadChunkByUrl() {
-
-}
-
-async function loadChunkPath(
-  source: SourceInfo,
-  chunkPath: ChunkPath
-): Promise<any> {
+async function loadChunkByUrl(source: SourceInfo, chunkUrl: ChunkUrl) {
   try {
-    await BACKEND.loadChunk(chunkPath, source);
+    await BACKEND.loadChunk(chunkUrl, source);
   } catch (error) {
     let loadReason;
     switch (source.type) {
@@ -211,7 +204,7 @@ async function loadChunkPath(
         invariant(source, (source) => `Unknown source type: ${source?.type}`);
     }
     throw new Error(
-      `Failed to load chunk ${chunkPath} ${loadReason}${
+      `Failed to load chunk ${chunkUrl} ${loadReason}${
         error ? `: ${error}` : ""
       }`,
       error
@@ -221,6 +214,14 @@ async function loadChunkPath(
         : undefined
     );
   }
+}
+
+async function loadChunkPath(
+  source: SourceInfo,
+  chunkPath: ChunkPath
+): Promise<any> {
+  const url = getChunkRelativeUrl(chunkPath);
+  return loadChunkByUrl(source, url);
 }
 
 /**
@@ -297,11 +298,11 @@ function instantiateRuntimeModule(
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
-function getChunkRelativeUrl(chunkPath: ChunkPath): string {
+function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split("/")
     .map((p) => encodeURIComponent(p))
-    .join("/")}${CHUNK_SUFFIX_PATH}`;
+    .join("/")}${CHUNK_SUFFIX_PATH}` as ChunkUrl;
 }
 
 /**
@@ -309,7 +310,7 @@ function getChunkRelativeUrl(chunkPath: ChunkPath): string {
  * runtime chunk list. For instance, integration tests can have multiple chunk
  * groups loaded at runtime, each with its own chunk list.
  */
-function markChunkListAsRuntime(chunkListPath: ChunkPath) {
+function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
   runtimeChunkLists.add(chunkListPath);
 }
 

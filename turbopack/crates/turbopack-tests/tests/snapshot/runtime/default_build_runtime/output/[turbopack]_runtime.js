@@ -465,6 +465,7 @@ function loadChunk(chunkData, source) {
         return loadChunkPath(chunkData.path, source);
     }
 }
+function loadChunkByUrl() {}
 function loadChunkPath(chunkPath, source) {
     if (!chunkPath.endsWith(".js")) {
         // We only support loading JS chunks in Node.js.
@@ -528,6 +529,10 @@ async function loadChunkAsync(source, chunkData) {
             cause: e
         });
     }
+}
+async function loadChunkAsyncByUrl(source, chunkUrl) {
+    const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
+    return loadChunkAsync(source, path1);
 }
 function loadWebAssembly(chunkPath, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
@@ -604,6 +609,10 @@ function instantiateModule(id, source) {
             c: moduleCache,
             M: moduleFactories,
             l: loadChunkAsync.bind(null, {
+                type: 1,
+                parentId: id
+            }),
+            L: loadChunkAsyncByUrl.bind(null, {
                 type: 1,
                 parentId: id
             }),

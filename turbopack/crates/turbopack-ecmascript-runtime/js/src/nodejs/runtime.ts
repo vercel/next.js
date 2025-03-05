@@ -177,7 +177,10 @@ async function loadChunkAsync(
   }
 }
 
-async function loadChunkAsyncByUrl() {}
+async function loadChunkAsyncByUrl(source: SourceInfo, chunkUrl: string) {
+  const path = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT)) as ChunkPath;
+  return loadChunkAsync(source, path);
+}
 
 function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
