@@ -447,6 +447,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this: &TurboTasksBackendInner<B>,
             task: &impl TaskGuard,
             reader: Option<TaskId>,
+            ctx: &impl ExecuteContext<'_>,
         ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
         {
             match get!(task, InProgress) {
@@ -457,10 +458,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     marked_as_completed,
                     done_event,
                     ..
-                })) if !*marked_as_completed => {
-                    Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
+                })) => {
+                    if !*marked_as_completed {
+                        Some(Ok(Err(listen_to_done_event(this, reader, done_event))))
+                    } else {
+                        None
+                    }
                 }
-                _ => None,
+                Some(InProgressState::Canceled) => Some(Err(anyhow::anyhow!(
+                    "{} was canceled",
+                    ctx.get_task_description(task.id())
+                ))),
+                None => None,
             }
         }
 
@@ -545,7 +554,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if let Some(value) = check_in_progress(self, &task, reader) {
+        if let Some(value) = check_in_progress(self, &task, reader, &ctx) {
             return value;
         }
 
@@ -754,6 +763,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
                 InProgressState::Scheduled { .. } => {
                     // Already scheduled
+                }
+                InProgressState::Canceled => {
+                    bail!("{} was canceled", ctx.get_task_description(task_id));
                 }
             }
         } else if task.add(CachedDataItem::new_scheduled(
@@ -1075,6 +1087,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
         self.lookup_task_type(task_id)
             .map(|task_type| task_type.fn_type)
+    }
+
+    fn task_execution_canceled(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(in_progress) = remove!(task, InProgress) {
+            match in_progress {
+                InProgressState::Scheduled { done_event } => done_event.notify(usize::MAX),
+                InProgressState::InProgress(box InProgressStateInner { done_event, .. }) => {
+                    done_event.notify(usize::MAX)
+                }
+                InProgressState::Canceled => {}
+            }
+        }
+        task.add_new(CachedDataItem::InProgress {
+            value: InProgressState::Canceled,
+        });
     }
 
     fn try_start_task_execution(
@@ -2035,6 +2068,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     type TaskState = ();
     fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
+
+    fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.task_execution_canceled(task, turbo_tasks)
+    }
 
     fn try_start_task_execution(
         &self,
