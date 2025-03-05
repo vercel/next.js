@@ -14,7 +14,7 @@ related:
     - app/api-reference/functions/revalidateTag
 ---
 
-The `use cache` directive allows you to mark a component or a function as cacheable. It can be used at the top of a file to indicate that all exports in the file should be cached, or inline at the top of function or component to cache the return value.
+The `use cache` directive allows you to mark a route, React component, or a function as cacheable. It can be used at the top of a file to indicate that all exports in the file should be cached, or inline at the top of function or component to cache the return value.
 
 ## Usage
 
@@ -69,25 +69,23 @@ export async function getData() {
 }
 ```
 
-Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
-
 ## How `use cache` works
 
 ### Cache keys
 
-`use cache` creates a cache entry, the key of which is generated using the following:
+A cache entry's key is generated using a serialized version of its inputs, which includes:
 
 - Build ID (generated for each build)
 - Function ID (a secure identifier unique to the function)
 - The [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) function arguments (or props).
 
-The arguments passed to the cached function, as well as any values it reads from the parent scope, are converted to a format like JSON and automatically become a part of the key. This means, the same cache entry will be reused as long as the arguments passed to the function are the same.
+The arguments passed to the cached function, as well as any values it reads from the parent scope automatically become a part of the key. This means, the same cache entry will be reused as long as its inputs are the same.
 
 ## Non-serializable arguments
 
 Any non-serializable arguments, props, or closed-over values will turn into opaque references inside the cached function, and can be only passed through and not inspected nor modified. These non-serializable values will be filled in at the request time and won't become a part of the cache key.
 
-For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object.
+For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object. This allows you to nest uncached content inside a cached component.
 
 ```tsx filename="app/ui/cached-component.tsx" switcher
 function CachedComponent({ children }: { children: ReactNode }) {
@@ -115,18 +113,18 @@ This means `use cache` cannot be used with [request-time APIs](/docs/app/buildin
 
 ## At runtime
 
-During runtime, the `use cache` entries will be cached in-memory for the duration of the server request.
+On the **server**, the cache entries of individual components or functions will be cached in-memory for the lifetime of the server or serverless function.
 
-Then, on the client, any content returned from the server will be cached in the browser's memory for the duration of the session or until [revalidated](#during-revalidation).
+Then, on the **client**, any content returned from the server cache will be stored in the browser's memory for the duration of the session or until [revalidated](#during-revalidation).
+
+> In future, Next.js will support storing function cache entries in a persistent cache.
 
 ## During revalidation
 
-By default, Next.js sets a revalidation period of **15 minutes** when you use the `use cache` directive, and a near-infinite expiration duration.
+By default, `use cache` has server-side revalidation period of **15 minutes**. While this period may be useful for content that doesn't require frequent updates, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
 
-While this revalidation period may be useful for content that doesn't require frequent updates, you can use the `cacheLife` and `cacheTag` APIs to configure when the individual cache entries should be revalidated.
-
-- [`cacheLife`](/docs/app/api-reference/functions/cacheLife): For time-based revalidation periods.
-- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For on-demand revalidation.
+- [`cacheLife`](/docs/app/api-reference/functions/cacheLife): Configure the cache entry lifetime.
+- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): Create tags for on-demand revalidation.
 
 Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
 
