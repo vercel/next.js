@@ -18,6 +18,8 @@ import { useEffect } from 'react'
  *    subtly bounce and animate the count.
  */
 
+// Play with this between `1` and `2`
+// to make sure the surface doesn't animate the plural form (s)
 const ERROR_COUNT = 2
 
 export default function Page() {
