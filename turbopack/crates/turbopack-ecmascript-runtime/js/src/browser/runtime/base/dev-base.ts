@@ -219,6 +219,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
           c: devModuleCache,
           M: moduleFactories,
           l: loadChunk.bind(null, sourceInfo),
+          L: loadChunkByUrl.bind(null, sourceInfo),
           w: loadWebAssembly.bind(null, sourceInfo),
           u: loadWebAssemblyModule.bind(null, sourceInfo),
           g: globalThis,

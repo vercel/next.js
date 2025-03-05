@@ -93,6 +93,10 @@ function loadChunk(chunkData: ChunkData, source?: SourceInfo): void {
   }
 }
 
+function loadChunkByUrl() {
+
+}
+
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
   if (!chunkPath.endsWith(".js")) {
     // We only support loading JS chunks in Node.js.
@@ -172,6 +176,8 @@ async function loadChunkAsync(
     });
   }
 }
+
+async function loadChunkAsyncByUrl() {}
 
 function loadWebAssembly(chunkPath: ChunkPath, imports: WebAssembly.Imports) {
   const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
@@ -256,6 +262,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): ModuleWithDirectio
       c: moduleCache,
       M: moduleFactories,
       l: loadChunkAsync.bind(null, { type: SourceType.Parent, parentId: id }),
+      L: loadChunkAsyncByUrl.bind(null, { type: SourceType.Parent, parentId: id }),
       w: loadWebAssembly,
       u: loadWebAssemblyModule,
       g: globalThis,

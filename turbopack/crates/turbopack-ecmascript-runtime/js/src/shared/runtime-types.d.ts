@@ -37,6 +37,7 @@ type ExportNamespace = (namespace: any) => void;
 type DynamicExport = (object: Record<string, any>) => void;
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined;
+type LoadChunkByUrl = (chunkPath: ChunkPath) => Promise<any> | undefined;
 type LoadWebAssembly = (
   wasmChunkPath: ChunkPath,
   imports: WebAssembly.Imports
@@ -95,6 +96,7 @@ interface TurbopackBaseContext<M> {
   c: ModuleCache<M>;
   M: ModuleFactories;
   l: LoadChunk;
+  L: LoadChunkByUrl;
   w: LoadWebAssembly;
   u: LoadWebAssemblyModule;
   g: typeof globalThis;

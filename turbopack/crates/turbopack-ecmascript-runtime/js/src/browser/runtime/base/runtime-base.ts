@@ -185,6 +185,10 @@ async function loadChunk(
   return promise;
 }
 
+async function loadChunkByUrl() {
+
+}
+
 async function loadChunkPath(
   source: SourceInfo,
   chunkPath: ChunkPath
