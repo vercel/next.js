@@ -1357,6 +1357,22 @@ describe('app-dir action handling', () => {
       })
     })
 
+    it('should be able to read their own writes when revalidating', async () => {
+      const browser = await next.browser('/revalidate-and-use')
+      const initial = await browser.elementByCss('p').text()
+
+      await browser.elementById('revalidate-tag').click()
+      await browser.waitForElementByCss('#revalidate-tag:enabled')
+
+      const newValue = await browser.elementByCss('p').text()
+      expect(newValue).not.toBe(initial)
+
+      await browser.elementById('revalidate-path').click()
+      await browser.waitForElementByCss('#revalidate-path:enabled')
+
+      expect(await browser.elementByCss('p').text()).not.toBe(newValue)
+    })
+
     // TODO: investigate flakey behavior with revalidate
     it.skip('should handle unstable_expireTag + redirect', async () => {
       const browser = await next.browser('/revalidate')

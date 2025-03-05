@@ -35,6 +35,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
 import { updateImplicitTagsExpiration } from '../implicit-tags'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
+import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -464,12 +465,15 @@ export class IncrementalCache implements IncrementalCacheType {
         )
       }
 
+      const workStore = workAsyncStorage.getStore()
       const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
       // if a tag was revalidated we don't return stale data
       if (
-        combinedTags.some((tag) => {
-          return this.revalidatedTags?.includes(tag)
-        })
+        combinedTags.some(
+          (tag) =>
+            this.revalidatedTags?.includes(tag) ||
+            workStore?.pendingRevalidatedTags?.includes(tag)
+        )
       ) {
         return null
       }

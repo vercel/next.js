@@ -310,8 +310,8 @@ describe('use-cache', () => {
       const initial = await browser.elementById('a').text()
 
       if (!isNextDev) {
-        // Bust the ISR cache first to populate the "use cache" in-memory cache for
-        // the subsequent revalidations.
+        // Bust the ISR cache first to populate the "use cache" in-memory cache
+        // for the subsequent revalidations.
         await browser.elementById('revalidate-path').click()
 
         await retry(async () => {
@@ -367,13 +367,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/on-demand-revalidate')
     const initial = await browser.elementById('value').text()
 
-    // Bust the ISR cache first to populate the "use cache" in-memory cache for
-    // the subsequent on-demand revalidation.
-    await browser.elementById('revalidate-path').click()
+    if (!isNextDev) {
+      // Bust the ISR cache first to populate the "use cache" in-memory cache
+      // for the subsequent on-demand revalidation.
+      await browser.elementById('revalidate-path').click()
 
-    await retry(async () => {
-      expect(await browser.elementById('value').text()).not.toBe(initial)
-    })
+      await retry(async () => {
+        expect(await browser.elementById('value').text()).not.toBe(initial)
+      })
+    }
 
     const value = await browser.elementById('value').text()
 
@@ -384,6 +386,32 @@ describe('use-cache', () => {
       await browser.refresh()
       expect(await browser.elementById('value').text()).not.toBe(value)
     })
+  })
+
+  it('should not use stale caches in server actions that have revalidated', async () => {
+    const browser = await next.browser('/revalidate-and-use')
+    const initial = await browser.elementByCss('p').text()
+
+    if (!isNextDev) {
+      // Bust the ISR cache first to populate the "use cache" in-memory cache
+      // for the subsequent revalidations.
+      await browser.elementById('revalidate-path').click()
+      await browser.waitForElementByCss('#revalidate-path:enabled')
+
+      expect(await browser.elementByCss('p').text()).not.toBe(initial)
+    }
+
+    const value = await browser.elementByCss('p').text()
+    await browser.elementById('revalidate-tag').click()
+    await browser.waitForElementByCss('#revalidate-tag:enabled')
+
+    const newValue = await browser.elementByCss('p').text()
+    expect(newValue).not.toBe(value)
+
+    await browser.elementById('revalidate-path').click()
+    await browser.waitForElementByCss('#revalidate-path:enabled')
+
+    expect(await browser.elementByCss('p').text()).not.toBe(newValue)
   })
 
   if (isNextStart) {
@@ -425,6 +453,7 @@ describe('use-cache', () => {
         '/react-cache',
         '/referential-equality',
         '/revalidate-and-redirect',
+        '/revalidate-and-use',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
