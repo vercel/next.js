@@ -915,7 +915,7 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.connect().resolve().await?;
+            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
 
             // At this point all modules have been computed and we can get rid of the node.js
@@ -926,7 +926,7 @@ impl Project {
                 turbopack_node::evaluate::scale_zero();
             }
 
-            Ok(module_graphs_vc)
+            Ok(*module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
