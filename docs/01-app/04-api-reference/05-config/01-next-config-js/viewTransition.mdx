@@ -1,0 +1,38 @@
+---
+title: ViewTransition
+description: Enable ViewTransition API from React in App Router
+version: experimental
+---
+
+`viewTransition` is an experimental feature that a feature flag to enable the new experimental View Transitions API in React. This new API allows you to animate between different views and components in your application.
+
+To enable this feature, you need to set the `viewTransition` property to `true` in your `next.config.js` file.
+
+```js filename="next.config.js"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+> Note: This feature is highly experimental and may change in future releases.
+
+## Usage
+
+Once enabled, you can import the View Transitions API in your application:
+
+```jsx
+import { unstable_ViewTransition as ViewTransition } from 'react'
+```
+
+For more details on how to use this feature, refer to the [original View Transitions pull request](https://github.com/facebook/react/pull/31975) in the React repository. This feature builds upon the native browser implementation of View Transitions.
+
+### Live Demo
+
+Check out our [Next.js View Transition Demo](https://view-transition-example.vercel.app) to see this feature in action.
+
+We will publish more documentation and examples as this API matures.
