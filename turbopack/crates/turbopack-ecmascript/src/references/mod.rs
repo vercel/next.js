@@ -734,7 +734,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         }
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
-                            bail!("Internal imports doesn't exist in reexports only mode")
+                            bail!(
+                                "Internal imports doesn't exist in reexports only mode when \
+                                 importing {:?} from {}",
+                                r.imported_symbol,
+                                r.module_path
+                            );
                         }
                         ImportedSymbol::Exports => None,
                     },

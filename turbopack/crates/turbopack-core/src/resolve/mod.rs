@@ -32,6 +32,7 @@ use self::{
 };
 use crate::{
     context::AssetContext,
+    data_uri_source::DataUriSource,
     file_source::FileSource,
     issue::{
         module::emit_unknown_module_type_error, resolve::ResolvingIssue, IssueExt, IssueSource,
@@ -1998,6 +1999,15 @@ async fn resolve_internal_inline(
                 )
                 .await?
             }
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => *ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
+                DataUriSource::new(media_type.clone(), encoding.clone(), **data, lookup_path)
+                    .to_resolved()
+                    .await?,
+            ))),
             Request::Uri {
                 protocol,
                 remainder,
