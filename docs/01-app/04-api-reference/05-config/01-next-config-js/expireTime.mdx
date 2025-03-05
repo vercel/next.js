@@ -19,3 +19,5 @@ module.exports = {
 When sending the `Cache-Control` header, the expire time will be calculated depending on the specific revalidate period.
 
 For example, if you have a revalidate of 15 minutes on a path and the expire time is one hour the generated `Cache-Control` header will be `s-maxage=900, stale-while-revalidate=2700` so that it can stay stale for 15 minutes less than the configured expire time.
+
+> **Good to know:** Changing the `expireTime` value will also update the `expire` property of the [`default` cache profile](/docs/app/api-reference/functions/cacheLife#default-cache-profiles).

@@ -82,6 +82,8 @@ However, we recommend always adding a cache profile when using the `use cache` d
 
 The string values used to reference cache profiles don't carry inherent meaning; instead they serve as semantic labels. This allows you to better understand and manage your cached content within your codebase.
 
+> **Good to know:** The [`staleTimes`](/docs/app/api-reference/config/next-config-js/staleTimes) and [`expireTime`](/docs/app/api-reference/config/next-config-js/expireTime) config options change the `stale` and `expire` properties of the `default` profile.
+
 ### Custom cache profiles
 
 You can configure custom cache profiles by adding them to the [`cacheLife`](/docs/app/api-reference/config/next-config-js/cacheLife) option in your `next.config.ts` file.

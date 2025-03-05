@@ -31,6 +31,7 @@ The `static` and `dynamic` properties correspond with the time period (in second
 
 > **Good to know:**
 >
+> - Changing the `staleTimes` value will also update the `stale` property of the [`default` cache profile](/docs/app/api-reference/functions/cacheLife#default-cache-profiles).
 > - [Loading boundaries](/docs/app/api-reference/file-conventions/loading) are considered reusable for the `static` period defined in this configuration.
 > - This doesn't affect [partial rendering](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), **meaning shared layouts won't automatically be refetched on every navigation, only the page segment that changes.**
 > - This doesn't change [back/forward caching](/docs/app/building-your-application/caching#client-side-router-cache) behavior to prevent layout shift and to prevent losing the browser scroll position.
