@@ -482,7 +482,7 @@ export async function handleAction({
   requestStore: RequestStore
   serverActions?: ServerActionsConfig
   ctx: AppRenderContext
-}): Promise<undefined | HandleActionResult> {
+}): Promise<HandleActionResult> {
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
 
@@ -498,7 +498,7 @@ export async function handleAction({
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
   // But won't know if it's a no-js action or not until we call `decodeAction` below.
   if (!isPotentialServerAction) {
-    return
+    return { type: 'not-an-action' }
   }
 
   if (workStore.isStaticGeneration) {

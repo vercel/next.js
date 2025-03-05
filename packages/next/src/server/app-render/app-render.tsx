@@ -1519,33 +1519,30 @@ async function renderToHTMLOrFlightImpl(
         ctx,
       })
 
-      if (actionRequestResult) {
-        if (actionRequestResult.type === 'not-found') {
-          const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-          res.statusCode = 404
-          const stream = await renderToStreamWithTracing(
-            requestStore,
-            req,
-            res,
-            ctx,
-            workStore,
-            notFoundLoaderTree,
-            formState,
-            postponedState
-          )
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        res.statusCode = 404
+        const stream = await renderToStreamWithTracing(
+          requestStore,
+          req,
+          res,
+          ctx,
+          workStore,
+          notFoundLoaderTree,
+          formState,
+          postponedState
+        )
 
-          return new RenderResult(stream, { metadata })
-        } else if (actionRequestResult.type === 'done') {
-          if (actionRequestResult.result) {
-            actionRequestResult.result.assignMetadata(metadata)
-            return actionRequestResult.result
-          } else if (actionRequestResult.formState) {
-            formState = actionRequestResult.formState
-          }
-        } else if (actionRequestResult.type === 'not-an-action') {
-          // TODO: previously, these would be a 'done' with no `result` and no `formState`,
-          // so they'd fall through the branch above. Why does that work?
+        return new RenderResult(stream, { metadata })
+      } else if (actionRequestResult.type === 'done') {
+        if (actionRequestResult.result) {
+          actionRequestResult.result.assignMetadata(metadata)
+          return actionRequestResult.result
+        } else if (actionRequestResult.formState) {
+          formState = actionRequestResult.formState
         }
+      } else if (actionRequestResult.type === 'not-an-action') {
+        // nothing to do here.
       }
     }
 
