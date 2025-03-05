@@ -72,17 +72,18 @@ impl ClientReferenceManifest {
             let mut entry_manifest: ClientReferenceManifest = Default::default();
             let mut references = FxIndexSet::default();
             let chunk_suffix_path = next_config.chunk_suffix_path().await?;
-            let suffix_path = chunk_suffix_path
-                .as_ref()
-                .map(|p| p.to_string())
-                .unwrap_or("".into());
-
-            entry_manifest.module_loading.prefix = next_config
+            let prefix_path = next_config
                 .computed_asset_prefix()
                 .await?
                 .as_ref()
                 .map(|p| p.clone())
                 .unwrap_or_default();
+            let suffix_path = chunk_suffix_path
+                .as_ref()
+                .map(|p| p.to_string())
+                .unwrap_or("".into());
+
+            // entry_manifest.module_loading.prefix = prefix_path;
 
             entry_manifest.module_loading.cross_origin = next_config
                 .await?
@@ -201,7 +202,7 @@ impl ClientReferenceManifest {
                             // It's possible that a chunk also emits CSS files, that will
                             // be handled separatedly.
                             .filter(|path| path.ends_with(".js"))
-                            .map(|path| format!("{}{}", path, suffix_path))
+                            .map(|path| format!("{}{}{}", prefix_path, path, suffix_path))
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
@@ -362,7 +363,9 @@ impl ClientReferenceManifest {
 
                 for (chunk, chunk_path) in client_chunks_with_path {
                     if let Some(path) = client_relative_path.get_path_to(&chunk_path) {
-                        let path = format!("{}{}", path, suffix_path).into();
+                        // The entry CSS files and entry JS files don't have prefix and suffix
+                        // applied because it is added by Nex.js during rendering.
+                        let path = path.into();
                         if chunk_path.extension_ref() == Some("css") {
                             entry_css_files_with_chunk.push((path, chunk));
                         } else {
