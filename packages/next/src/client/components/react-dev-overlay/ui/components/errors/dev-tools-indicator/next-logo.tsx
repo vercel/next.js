@@ -433,8 +433,8 @@ export const NextLogo = forwardRef(function NextLogo(
                     <span
                       aria-hidden
                       data-issues-count-plural
-                      // This only needs to animate when count changes from 1 -> 2
-                      // because the pluralization is only for 2+ issues.
+                      // This only needs to animate once the count changes from 1 -> 2,
+                      // otherwise it should stay static between re-renders.
                       data-animate={newErrorDetected && issueCount === 2}
                     >
                       s
