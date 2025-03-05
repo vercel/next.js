@@ -7,6 +7,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::{atom, Atom},
+        utils::find_pat_ids,
         visit::{Visit, VisitWith},
     },
 };
@@ -607,7 +608,13 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        let ids: Vec<Id> = find_pat_ids(&n.decl);
+        for id in ids {
+            self.data.exports.insert(id.0.as_str().into(), id);
+        }
     }
+
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
         self.data.has_exports = true;
 
@@ -622,6 +629,28 @@ impl Visit for Analyzer<'_> {
         if self.comments.is_some() {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
+        }
+    }
+
+    fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
+        if let ModuleExportName::Ident(ident) = &n.exported.as_ref().unwrap_or(&n.orig) {
+            self.data
+                .exports
+                .insert(ident.sym.as_str().into(), ident.to_id());
+        }
+    }
+
+    fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
+        self.data
+            .exports
+            .insert("default".into(), n.exported.to_id());
+    }
+
+    fn visit_export_namespace_specifier(&mut self, n: &ExportNamespaceSpecifier) {
+        if let ModuleExportName::Ident(ident) = &n.name {
+            self.data
+                .exports
+                .insert(ident.sym.as_str().into(), ident.to_id());
         }
     }
 
