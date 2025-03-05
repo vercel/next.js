@@ -19,7 +19,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-> Note: This feature is highly experimental and may change in future releases.
+> Important Notice: This feature is not developed or maintained by the Next.js team—it is an experimental addition from the React team. It is still in **early stages** and **not recommended for production use**. The implementation is evolving, and its behavior may change in future React releases.
+> Enabling this feature requires understanding the experimental nature of the API. To fully grasp its behavior, refer to the [React pull request](https://github.com/facebook/react/pull/31975) and related discussions.
 
 ## Usage
 
@@ -29,10 +30,10 @@ Once enabled, you can import the `ViewTransition` component from React in your a
 import { unstable_ViewTransition as ViewTransition } from 'react'
 ```
 
-For more details on how to use this feature, refer to the [original View Transitions pull request](https://github.com/facebook/react/pull/31975) in the React repository. This feature builds upon the native browser implementation of View Transitions.
+However, documentation and examples are currently limited, and you will need to refer directly to React’s source code and discussions to understand how this works.
 
 ### Live Demo
 
 Check out our [Next.js View Transition Demo](https://view-transition-example.vercel.app) to see this feature in action.
 
-We will continue to expand our documentation and examples as this API evolves.
+As this API evolves, we will update our documentation and share more examples. However, for now, we strongly advise against using this feature in production.
