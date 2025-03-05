@@ -411,7 +411,6 @@ async function createComponentTreeInternal({
   const notFoundElement = NotFound ? (
     <>
       <NotFound />
-      {metadata}
       {notFoundStyles}
     </>
   ) : undefined
@@ -419,7 +418,6 @@ async function createComponentTreeInternal({
   const forbiddenElement = Forbidden ? (
     <>
       <Forbidden />
-      {metadata}
       {forbiddenStyles}
     </>
   ) : undefined
@@ -427,7 +425,6 @@ async function createComponentTreeInternal({
   const unauthorizedElement = Unauthorized ? (
     <>
       <Unauthorized />
-      {metadata}
       {unauthorizedStyles}
     </>
   ) : undefined
@@ -858,7 +855,6 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
-                  {metadata}
                 </>
               ) : undefined
             }
