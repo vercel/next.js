@@ -22,14 +22,14 @@ let DEV_BACKEND: DevRuntimeBackend;
       // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
       const decodedChunkUrl = decodeURI(chunkUrl);
 
-      if (chunkUrl.endsWith(".css")) {
+      if (isCss(chunkUrl)) {
         const links = document.querySelectorAll(
           `link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`
         );
         for (const link of Array.from(links)) {
           link.remove();
         }
-      } else if (chunkUrl.endsWith(".js")) {
+      } else if (isJs(chunkUrl)) {
         // Unloading a JS chunk would have no effect, as it lives in the JS
         // runtime once evaluated.
         // However, we still want to remove the script tag from the DOM to keep

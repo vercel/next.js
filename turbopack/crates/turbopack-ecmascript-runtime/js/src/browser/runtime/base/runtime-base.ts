@@ -328,3 +328,19 @@ function registerChunk([
 
   return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
+
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return regexJsUrl.test(chunkUrlOrPath);
+}
+
+const regexCssUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
+ */
+function isCss(chunkUrl: ChunkUrl): boolean {
+  return regexCssUrl.test(chunkUrl);
+}

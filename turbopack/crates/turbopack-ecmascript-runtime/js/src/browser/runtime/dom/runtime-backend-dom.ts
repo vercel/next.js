@@ -101,7 +101,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
         // We don't need to load chunks references from runtime code, as they're already
         // present in the DOM.
 
-        if (chunkUrl.endsWith(".css")) {
+        if (isCss(chunkUrl)) {
           // CSS chunks do not register themselves, and as such must be marked as
           // loaded instantly.
           resolver.resolve();
@@ -116,15 +116,15 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
 
       if (typeof importScripts === "function") {
         // We're in a web worker
-        if (chunkUrl.endsWith(".css")) {
+        if (isCss(chunkUrl)) {
           // ignore
-        } else if (chunkUrl.endsWith(".js")) {
+        } else if (isJs(chunkUrl)) {
           importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
         } else {
           throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
         }
       } else {
-        if (chunkUrl.endsWith(".css")) {
+        if (isCss(chunkUrl)) {
           const previousLinks = document.querySelectorAll(
             `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`
           );
@@ -146,7 +146,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
             };
             document.body.appendChild(link);
           }
-        } else if (chunkUrl.endsWith(".js")) {
+        } else if (isJs(chunkUrl)) {
           const previousScripts = document.querySelectorAll(
             `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`
           );

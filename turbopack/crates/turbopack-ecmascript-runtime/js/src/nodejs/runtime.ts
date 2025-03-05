@@ -98,7 +98,7 @@ function loadChunkByUrl() {
 }
 
 function loadChunkPath(chunkPath: ChunkPath, source?: SourceInfo): void {
-  if (!chunkPath.endsWith(".js")) {
+  if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
     return;
@@ -131,7 +131,7 @@ async function loadChunkAsync(
   chunkData: ChunkData
 ): Promise<any> {
   const chunkPath = typeof chunkData === "string" ? chunkData : chunkData.path;
-  if (!chunkPath.endsWith(".js")) {
+  if (!isJs(chunkPath)) {
     // We only support loading JS chunks in Node.js.
     // This branch can be hit when trying to load a CSS chunk.
     return;
@@ -345,6 +345,14 @@ function getOrInstantiateRuntimeModule(
   }
 
   return instantiateRuntimeModule(moduleId, chunkPath);
+}
+
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return regexJsUrl.test(chunkUrlOrPath);
 }
 
 module.exports = {
