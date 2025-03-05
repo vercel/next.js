@@ -609,16 +609,16 @@ impl Visit for Analyzer<'_> {
             n.visit_children_with(self);
         }
 
-        match n.decl {
-            Decl::Class(..) => {
+        match &n.decl {
+            Decl::Class(n) => {
                 self.data
                     .exports
-                    .insert(n.id.atom().as_str().into(), n.id.to_id());
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
             }
-            Decl::Fn(..) => {
+            Decl::Fn(n) => {
                 self.data
                     .exports
-                    .insert(n.name.atom().as_str().into(), n.name.to_id());
+                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
             }
             Decl::Var(..) | Decl::Using(..) => {
                 let ids: Vec<Id> = find_pat_ids(&n.decl);
