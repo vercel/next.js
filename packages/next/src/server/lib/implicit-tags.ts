@@ -13,7 +13,7 @@ export interface ImplicitTags {
    * implicit tags' expiration is stored in the work unit store, and used to
    * compare with a cache entry's timestamp.
    */
-  readonly expiration: number
+  expiration: number
 }
 
 const getDerivedTags = (pathname: string): string[] => {
@@ -39,6 +39,36 @@ const getDerivedTags = (pathname: string): string[] => {
     }
   }
   return derivedTags
+}
+
+async function getImplicitTagsExpiration(tags: string[]): Promise<number> {
+  // We're starting off with assuming that implicit tags are not expired, so we
+  // use an artificial timestamp of 0.
+  let expiration = 0
+
+  const cacheHandlers = getCacheHandlers()
+
+  if (cacheHandlers) {
+    const expirations = await Promise.all(
+      [...cacheHandlers].map((handler) => handler.getExpiration(...tags))
+    )
+
+    // We use the most recent expiration from all cache handlers, i.e. the
+    // largest timestamp. Semantically, they should all be the same though.
+    expiration = Math.max(...expirations)
+  }
+
+  return expiration
+}
+
+/**
+ * Fetches a new expiration value for the given `implicitTags`, and mutates its
+ * `expiration` property.
+ */
+export async function updateImplicitTagsExpiration(
+  implicitTags: ImplicitTags
+): Promise<void> {
+  implicitTags.expiration = await getImplicitTagsExpiration(implicitTags.tags)
 }
 
 export async function getImplicitTags(
@@ -68,20 +98,7 @@ export async function getImplicitTags(
     tags.push(tag)
   }
 
-  // We're starting off with assuming that implicit tags are not expired, so we
-  // use an artificial timestamp of 0.
-  let expiration = 0
-  const cacheHandlers = getCacheHandlers()
-
-  if (cacheHandlers) {
-    const expirations = await Promise.all(
-      [...cacheHandlers].map((handler) => handler.getExpiration(...tags))
-    )
-
-    // We use the most recent expiration from all cache handlers, i.e. the
-    // largest timestamp. Semantically, they should all be the same though.
-    expiration = Math.max(...expirations)
-  }
+  const expiration = await getImplicitTagsExpiration(tags)
 
   return { tags, expiration }
 }

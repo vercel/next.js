@@ -113,7 +113,7 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-async function addRevalidationHeader(
+function addRevalidationHeader(
   res: BaseNextResponse,
   {
     workStore,
@@ -123,14 +123,6 @@ async function addRevalidationHeader(
     requestStore: RequestStore
   }
 ) {
-  await Promise.all([
-    workStore.incrementalCache?.revalidateTag(
-      workStore.pendingRevalidatedTags || []
-    ),
-    ...Object.values(workStore.pendingRevalidates || {}),
-    ...(workStore.pendingRevalidateWrites || []),
-  ])
-
   // If a tag was revalidated, the client router needs to invalidate all the
   // client router cache as they may be stale. And if a path was revalidated, the
   // client needs to invalidate all subtrees below that path.
@@ -518,6 +510,17 @@ export async function handleAction({
 
   requestStore.phase = 'action'
 
+  const resolvePendingRevalidations = async () =>
+    workUnitAsyncStorage.run(requestStore, () =>
+      Promise.all([
+        workStore.incrementalCache?.revalidateTag(
+          workStore.pendingRevalidatedTags || []
+        ),
+        ...Object.values(workStore.pendingRevalidates || {}),
+        ...(workStore.pendingRevalidateWrites || []),
+      ])
+    )
+
   // When running actions the default is no-store, you can still `cache: 'force-cache'`
   workStore.fetchCache = 'default-no-store'
 
@@ -569,13 +572,7 @@ export async function handleAction({
 
       if (isFetchAction) {
         res.statusCode = 500
-        await Promise.all([
-          workStore.incrementalCache?.revalidateTag(
-            workStore.pendingRevalidatedTags || []
-          ),
-          ...Object.values(workStore.pendingRevalidates || {}),
-          ...(workStore.pendingRevalidateWrites || []),
-        ])
+        await resolvePendingRevalidations()
 
         const promise = Promise.reject(error)
         try {
@@ -930,10 +927,8 @@ export async function handleAction({
 
       // For form actions, we need to continue rendering the page.
       if (isFetchAction) {
-        await addRevalidationHeader(res, {
-          workStore,
-          requestStore,
-        })
+        await resolvePendingRevalidations()
+        addRevalidationHeader(res, { workStore, requestStore })
 
         actionResult = await finalizeAndGenerateFlight(req, ctx, requestStore, {
           actionResult: Promise.resolve(returnVal),
@@ -954,10 +949,8 @@ export async function handleAction({
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
 
-      await addRevalidationHeader(res, {
-        workStore,
-        requestStore,
-      })
+      await resolvePendingRevalidations()
+      addRevalidationHeader(res, { workStore, requestStore })
 
       // if it's a fetch action, we'll set the status code for logging/debugging purposes
       // but we won't set a Location header, as the redirect will be handled by the client router
@@ -986,10 +979,8 @@ export async function handleAction({
     } else if (isHTTPAccessFallbackError(err)) {
       res.statusCode = getAccessFallbackHTTPStatus(err)
 
-      await addRevalidationHeader(res, {
-        workStore,
-        requestStore,
-      })
+      await resolvePendingRevalidations()
+      addRevalidationHeader(res, { workStore, requestStore })
 
       if (isFetchAction) {
         const promise = Promise.reject(err)
@@ -1018,13 +1009,7 @@ export async function handleAction({
 
     if (isFetchAction) {
       res.statusCode = 500
-      await Promise.all([
-        workStore.incrementalCache?.revalidateTag(
-          workStore.pendingRevalidatedTags || []
-        ),
-        ...Object.values(workStore.pendingRevalidates || {}),
-        ...(workStore.pendingRevalidateWrites || []),
-      ])
+      await resolvePendingRevalidations()
       const promise = Promise.reject(err)
       try {
         // we need to await the promise to trigger the rejection early
