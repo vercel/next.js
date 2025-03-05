@@ -193,7 +193,14 @@ export function renderToInitialFizzStream({
 }
 
 function createHeadInsertionTransformStream(
-  insert: () => Promise<string>
+  insert: () => Promise<string>,
+  {
+    nonce,
+    reinsertIcons,
+  }: {
+    nonce: string | undefined
+    reinsertIcons: boolean
+  }
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
 
@@ -263,6 +270,10 @@ function createHeadInsertionTransformStream(
         const insertion = await insert()
         if (insertion) {
           controller.enqueue(encoder.encode(insertion))
+        }
+        // Insert the icon script at the end of the document.
+        if (reinsertIcons) {
+          controller.enqueue(encoder.encode(createReinsertIconScript(nonce)))
         }
       }
     },
@@ -377,6 +388,22 @@ function createMergedTransformStream(
 }
 
 const CLOSE_TAG = '</body></html>'
+
+/**
+ * For chromium based browsers (Chrome, Edge, etc.) and Safari, icons need to stay under <head>
+ * to be picked up by the browser. Firefox doesn't have this requirement.
+ *
+ * Firefox won't work if we insert those icons into head, it will still pick up default favicon.ico.
+ * Because of this limitation, we just don't insert for firefox and leave the default behavior for it.
+ *
+ */
+const createReinsertIconScript = (nonce: string | undefined) => {
+  return `\
+<script ${typeof nonce === 'string' ? `nonce="${nonce}"` : ''}>\
+!/firefox/i.test(navigator.userAgent) && \
+document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el.cloneNode()))\
+</script>`
+}
 
 /**
  * This transform stream moves the suffix to the end of the stream, so results
@@ -529,6 +556,7 @@ export type ContinueStreamOptions = {
    * Suffix to inject after the buffered data, but before the close tags.
    */
   suffix?: string | undefined
+  nonce: string | undefined
 }
 
 export async function continueFizzStream(
@@ -540,6 +568,7 @@ export async function continueFizzStream(
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
+    nonce,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
   // Suffix itself might contain close tags at the end, so we need to split it.
@@ -556,7 +585,10 @@ export async function continueFizzStream(
     createBufferedTransformStream(),
 
     // Insert generated metadata
-    createHeadInsertionTransformStream(getServerInsertedMetadata),
+    createHeadInsertionTransformStream(getServerInsertedMetadata, {
+      nonce,
+      reinsertIcons: true,
+    }),
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -575,13 +607,17 @@ export async function continueFizzStream(
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
     // hydration errors. Remove this once it's ready to be handled by react itself.
-    createHeadInsertionTransformStream(getServerInsertedHTML),
+    createHeadInsertionTransformStream(getServerInsertedHTML, {
+      nonce,
+      reinsertIcons: false,
+    }),
   ])
 }
 
 type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  nonce: string | undefined
 }
 
 export async function continueDynamicPrerender(
@@ -589,6 +625,7 @@ export async function continueDynamicPrerender(
   {
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    nonce,
   }: ContinueDynamicPrerenderOptions
 ) {
   return (
@@ -597,10 +634,18 @@ export async function continueDynamicPrerender(
       .pipeThrough(createBufferedTransformStream())
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      .pipeThrough(
+        createHeadInsertionTransformStream(getServerInsertedHTML, {
+          nonce,
+          reinsertIcons: false,
+        })
+      )
       // Insert generated metadata
       .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
+        createHeadInsertionTransformStream(getServerInsertedMetadata, {
+          nonce,
+          reinsertIcons: true,
+        })
       )
   )
 }
@@ -609,6 +654,7 @@ type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  nonce: string | undefined
 }
 
 export async function continueStaticPrerender(
@@ -617,6 +663,7 @@ export async function continueStaticPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    nonce,
   }: ContinueStaticPrerenderOptions
 ) {
   return (
@@ -624,10 +671,18 @@ export async function continueStaticPrerender(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      .pipeThrough(
+        createHeadInsertionTransformStream(getServerInsertedHTML, {
+          nonce,
+          reinsertIcons: false,
+        })
+      )
       // Insert generated metadata to head
       .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
+        createHeadInsertionTransformStream(getServerInsertedMetadata, {
+          nonce,
+          reinsertIcons: true,
+        })
       )
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))
@@ -640,6 +695,7 @@ type ContinueResumeOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  nonce: string | undefined
 }
 
 export async function continueDynamicHTMLResume(
@@ -648,6 +704,7 @@ export async function continueDynamicHTMLResume(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    nonce,
   }: ContinueResumeOptions
 ) {
   return (
@@ -655,10 +712,18 @@ export async function continueDynamicHTMLResume(
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
-      .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
+      .pipeThrough(
+        createHeadInsertionTransformStream(getServerInsertedHTML, {
+          nonce,
+          reinsertIcons: false,
+        })
+      )
       // Insert generated metadata to body
       .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
+        createHeadInsertionTransformStream(getServerInsertedMetadata, {
+          nonce,
+          reinsertIcons: true,
+        })
       )
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
       .pipeThrough(createMergedTransformStream(inlinedDataStream))

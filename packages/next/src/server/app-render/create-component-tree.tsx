@@ -40,7 +40,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadata: React.ComponentType | null
   StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
@@ -92,7 +92,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadata: React.ComponentType | null
   StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {

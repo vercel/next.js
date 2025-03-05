@@ -317,7 +317,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 }
 
 function createDivergedMetadataComponents(
-  Metadata: React.ComponentType<{}>,
+  Metadata: React.ComponentType,
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
@@ -326,8 +326,9 @@ function createDivergedMetadataComponents(
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> | null =
-    serveStreamingMetadata ? Metadata : null
+  const StreamingMetadata: React.ComponentType | null = serveStreamingMetadata
+    ? Metadata
+    : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -1934,6 +1935,7 @@ async function renderToStream(
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
+          nonce: ctx.nonce,
         })
       }
     }
@@ -2006,6 +2008,7 @@ async function renderToStream(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       validateRootLayout,
+      nonce: ctx.nonce,
     })
   } catch (err) {
     if (
@@ -2157,6 +2160,7 @@ async function renderToStream(
         }),
         getServerInsertedMetadata,
         validateRootLayout,
+        nonce: ctx.nonce,
       })
     } catch (finalErr: any) {
       if (
@@ -3088,6 +3092,7 @@ async function prerenderToStream(
             stream: await continueDynamicPrerender(prelude, {
               getServerInsertedHTML,
               getServerInsertedMetadata,
+              nonce: ctx.nonce,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3150,6 +3155,7 @@ async function prerenderToStream(
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
+              nonce: ctx.nonce,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3571,6 +3577,7 @@ async function prerenderToStream(
             getServerInsertedHTML,
             getServerInsertedMetadata,
             validateRootLayout,
+            nonce: ctx.nonce,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3723,6 +3730,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3743,6 +3751,7 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3803,6 +3812,7 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
+            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3897,6 +3907,7 @@ async function prerenderToStream(
           isStaticGeneration: true,
           getServerInsertedHTML,
           getServerInsertedMetadata,
+          nonce: ctx.nonce,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4074,6 +4085,7 @@ async function prerenderToStream(
           }),
           getServerInsertedMetadata,
           validateRootLayout,
+          nonce: ctx.nonce,
         }),
         dynamicAccess: null,
         collectedRevalidate:
