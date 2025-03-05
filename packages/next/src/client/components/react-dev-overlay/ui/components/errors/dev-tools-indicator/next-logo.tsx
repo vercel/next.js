@@ -46,13 +46,9 @@ export const NextLogo = forwardRef(function NextLogo(
   const style = useMemo(() => {
     let width: number | string = SIZE
     // Animates the badge, if expanded
-    if (measuredWidth > SIZE_PX) {
-      width = measuredWidth
-    }
+    if (measuredWidth > SIZE_PX) width = measuredWidth
     // No animations on page load, assume the intrinsic width immediately
-    if (pristine) {
-      width = hasError ? 'auto' : SIZE_PX
-    }
+    if (pristine && hasError) width = 'auto'
     // Default state, collapsed
     return { width }
   }, [measuredWidth, pristine, hasError])
