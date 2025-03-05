@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 import { useMeasureHeight } from '../../hooks/use-measure-height'
+import { useFocusTrap } from '../errors/dev-tools-indicator/utils'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -30,7 +31,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   dialogResizerRef,
   ...props
 }) {
-  const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
   const [role, setRole] = React.useState<string | undefined>(
     typeof document !== 'undefined' && document.hasFocus()
       ? 'dialog'
@@ -40,17 +41,19 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const ref = React.useRef<HTMLDivElement | null>(null)
   const [height, pristine] = useMeasureHeight(ref)
 
-  const onDialog = React.useCallback((node: HTMLDivElement | null) => {
-    setDialog(node)
-  }, [])
+  useFocusTrap(dialogRef, null, true)
 
-  useOnClickOutside(dialog, CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE, (e) => {
-    e.preventDefault()
-    return onClose?.()
-  })
+  useOnClickOutside(
+    dialogRef.current,
+    CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
+    (e) => {
+      e.preventDefault()
+      return onClose?.()
+    }
+  )
 
   React.useEffect(() => {
-    if (dialog == null) {
+    if (dialogRef.current == null) {
       return
     }
 
@@ -66,11 +69,12 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('blur', handleFocus)
     }
-  }, [dialog])
+  }, [])
 
   React.useEffect(() => {
+    const dialog = dialogRef.current
     const root = dialog?.getRootNode()
-    const activeElement =
+    const initialActiveElement =
       root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
 
     // Trap focus within the dialog
@@ -80,13 +84,13 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       // Blur first to avoid getting stuck, in case `activeElement` is missing
       dialog?.blur()
       // Restore focus to the previously active element
-      activeElement?.focus()
+      initialActiveElement?.focus()
     }
-  }, [dialog])
+  }, [])
 
   return (
     <div
-      ref={onDialog}
+      ref={dialogRef}
       data-nextjs-dialog
       tabIndex={1}
       role={role}
