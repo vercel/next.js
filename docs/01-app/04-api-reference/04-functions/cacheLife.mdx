@@ -66,19 +66,19 @@ export default async function Page() {
 
 ### Default cache profiles
 
-Next.js provides a set of named cache profiles modeled on various timescales. If you don't specify a cache profile in the `cacheLife` function alongside the `use cache` directive, Next.js will automatically apply the “default” cache profile.
+Next.js provides a set of named cache profiles modeled on various timescales. If you don't specify a cache profile in the `cacheLife` function alongside the `use cache` directive, Next.js will automatically apply the `default` cache profile.
 
 However, we recommend always adding a cache profile when using the `use cache` directive to explicitly define caching behavior.
 
-| **Profile** | **Stale** | **Revalidate** | **Expire**     | **Description**                                                          |
-| ----------- | --------- | -------------- | -------------- | ------------------------------------------------------------------------ |
-| `default`   | undefined | 15 minutes     | INFINITE_CACHE | Default profile, suitable for content that doesn't need frequent updates |
-| `seconds`   | undefined | 1 second       | 1 minute       | For rapidly changing content requiring near real-time updates            |
-| `minutes`   | 5 minutes | 1 minute       | 1 hour         | For content that updates frequently within an hour                       |
-| `hours`     | 5 minutes | 1 hour         | 1 day          | For content that updates daily but can be slightly stale                 |
-| `days`      | 5 minutes | 1 day          | 1 week         | For content that updates weekly but can be a day old                     |
-| `weeks`     | 5 minutes | 1 week         | 1 month        | For content that updates monthly but can be a week old                   |
-| `max`       | 5 minutes | 1 month        | INFINITE_CACHE | For very stable content that rarely needs updating                       |
+| **Profile** | `stale`   | `revalidate` | `expire` | **Description**                                                          |
+| ----------- | --------- | ------------ | -------- | ------------------------------------------------------------------------ |
+| `default`   | 5 minutes | 15 minutes   | never    | Default profile, suitable for content that doesn't need frequent updates |
+| `seconds`   | 0         | 1 second     | 1 second | For rapidly changing content requiring near real-time updates            |
+| `minutes`   | 5 minutes | 1 minute     | 1 hour   | For content that updates frequently within an hour                       |
+| `hours`     | 5 minutes | 1 hour       | 1 day    | For content that updates daily but can be slightly stale                 |
+| `days`      | 5 minutes | 1 day        | 1 week   | For content that updates weekly but can be a day old                     |
+| `weeks`     | 5 minutes | 1 week       | 30 days  | For content that updates monthly but can be a week old                   |
+| `max`       | 5 minutes | 30 days      | never    | For very stable content that rarely needs updating                       |
 
 The string values used to reference cache profiles don't carry inherent meaning; instead they serve as semantic labels. This allows you to better understand and manage your cached content within your codebase.
 
