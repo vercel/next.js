@@ -54,6 +54,10 @@ export class RedirectErrorBoundary extends React.Component<
     throw error
   }
 
+  reset = () => {
+    this.setState({ redirect: null })
+  }
+
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     const { redirect, redirectType } = this.state
@@ -62,7 +66,7 @@ export class RedirectErrorBoundary extends React.Component<
         <HandleRedirect
           redirect={redirect}
           redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
+          reset={this.reset}
         />
       )
     }
