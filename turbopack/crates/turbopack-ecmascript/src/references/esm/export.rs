@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
@@ -532,9 +532,7 @@ impl EsmExports {
                         .exports
                         .get(name)
                         .map(|id| id.1)
-                        .with_context(|| {
-                            format!("failed to get the correct SyntaxContext for {name}")
-                        })?;
+                        .unwrap_or_default();
 
                     if *mutable {
                         Some(quote!(
