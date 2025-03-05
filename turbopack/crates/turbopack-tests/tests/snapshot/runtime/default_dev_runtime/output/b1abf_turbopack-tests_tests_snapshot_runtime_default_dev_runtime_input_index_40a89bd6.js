@@ -564,6 +564,18 @@ function registerChunk([chunkPath, chunkModules, runtimeParams]) {
     }
     return BACKEND.registerChunk(chunkPath, runtimeParams);
 }
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
+}
+const regexCssUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
+ */ function isCss(chunkUrl) {
+    return regexCssUrl.test(chunkUrl);
+}
 /// <reference path="./dev-globals.d.ts" />
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -1463,7 +1475,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             if (source.type === SourceType.Runtime) {
                 // We don't need to load chunks references from runtime code, as they're already
                 // present in the DOM.
-                if (chunkUrl.endsWith(".css")) {
+                if (isCss(chunkUrl)) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
                     resolver.resolve();
@@ -1475,15 +1487,15 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             }
             if (typeof importScripts === "function") {
                 // We're in a web worker
-                if (chunkUrl.endsWith(".css")) {
+                if (isCss(chunkUrl)) {
                 // ignore
-                } else if (chunkUrl.endsWith(".js")) {
+                } else if (isJs(chunkUrl)) {
                     importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
                 } else {
                     throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
                 }
             } else {
-                if (chunkUrl.endsWith(".css")) {
+                if (isCss(chunkUrl)) {
                     const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`);
                     if (previousLinks.length > 0) {
                         // CSS chunks do not register themselves, and as such must be marked as
@@ -1503,7 +1515,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
                         };
                         document.body.appendChild(link);
                     }
-                } else if (chunkUrl.endsWith(".js")) {
+                } else if (isJs(chunkUrl)) {
                     const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`);
                     if (previousScripts.length > 0) {
                         // There is this edge where the script already failed loading, but we
@@ -1570,12 +1582,12 @@ let DEV_BACKEND;
             deleteResolver(chunkUrl);
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedChunkUrl = decodeURI(chunkUrl);
-            if (chunkUrl.endsWith(".css")) {
+            if (isCss(chunkUrl)) {
                 const links = document.querySelectorAll(`link[href="${chunkUrl}"],link[href^="${chunkUrl}?"],link[href="${decodedChunkUrl}"],link[href^="${decodedChunkUrl}?"]`);
                 for (const link of Array.from(links)){
                     link.remove();
                 }
-            } else if (chunkUrl.endsWith(".js")) {
+            } else if (isJs(chunkUrl)) {
                 // Unloading a JS chunk would have no effect, as it lives in the JS
                 // runtime once evaluated.
                 // However, we still want to remove the script tag from the DOM to keep
