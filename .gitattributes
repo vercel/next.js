@@ -1,3 +1,4 @@
+.github/actions/*/dist/** -text linguist-vendored
 packages/next/bundles/** -text linguist-vendored
 packages/next/compiled/** -text linguist-vendored
 

@@ -1,13 +1,12 @@
 /* eslint-env jest */
 
 import {
-  assertHasRedbox,
   assertNoRedbox,
   fetchViaHTTP,
-  getRedboxSource,
-  getRedboxHeader,
   waitFor,
   check,
+  retry,
+  getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import webdriver, { BrowserInterface } from 'next-webdriver'
 import path from 'path'
@@ -16,7 +15,7 @@ import { nextTestSetup } from 'e2e-utils'
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
@@ -281,10 +280,16 @@ describe('Client Navigation', () => {
           },
         })
         await browser.elementByCss('#empty-props').click()
-        await assertHasRedbox(browser)
-        expect(await getRedboxHeader(browser)).toMatch(
-          /should resolve to an object\. But found "null" instead\./
-        )
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+           "environmentLabel": null,
+           "label": "Unhandled Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
         expect(pageErrors).toEqual([
           expect.objectContaining({
             message:
@@ -333,13 +338,11 @@ describe('Client Navigation', () => {
       const defaultCount = await browser.elementByCss('p').text()
       expect(defaultCount).toBe('COUNT: 0')
 
-      const countAfterClicked = await browser
-        .elementByCss('#self-reload-link')
-        .click()
-        .elementByCss('p')
-        .text()
+      await browser.elementByCss('#self-reload-link').click()
 
-      expect(countAfterClicked).toBe('COUNT: 1')
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('COUNT: 1')
+      })
       await browser.close()
     })
 
@@ -1393,11 +1396,25 @@ describe('Client Navigation', () => {
             })
           },
         })
-        await assertHasRedbox(browser)
-        const text = await getRedboxSource(browser)
-        expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/pages[\\/]error-inside-browser-page\.js \(5:13\)/)
-
+        await retry(async () => {
+          expect(await getRedboxTotalErrorCount(browser)).toBe(
+            isReact18 ? 3 : 1
+          )
+        })
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": ${isReact18 ? 3 : 1},
+           "description": "Error: An Expected error occurred",
+           "environmentLabel": null,
+           "label": "Unhandled Runtime Error",
+           "source": "pages/error-inside-browser-page.js (5:13) @ ErrorInRenderPage.render
+         > 5 |       throw new Error('An Expected error occurred')
+             |             ^",
+           "stack": [
+             "ErrorInRenderPage.render pages/error-inside-browser-page.js (5:13)",
+           ],
+         }
+        `)
         expect(pageErrors).toEqual(
           isReact18
             ? [
@@ -1437,10 +1454,42 @@ describe('Client Navigation', () => {
             },
           }
         )
-        await assertHasRedbox(browser)
-        const text = await getRedboxSource(browser)
-        expect(text).toMatch(/An Expected error occurred/)
-        expect(text).toMatch(/error-in-the-browser-global-scope\.js \(2:9\)/)
+
+        if (isTurbopack) {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "count": 1,
+             "description": "Error: An Expected error occurred",
+             "environmentLabel": null,
+             "label": "Unhandled Runtime Error",
+             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ [project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript)
+           > 2 |   throw new Error('An Expected error occurred')
+               |         ^",
+             "stack": [
+               "[project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript) pages/error-in-the-browser-global-scope.js (2:9)",
+             ],
+           }
+          `)
+        } else {
+          await expect(browser).toDisplayRedbox(`
+           {
+             "count": 1,
+             "description": "Error: An Expected error occurred",
+             "environmentLabel": null,
+             "label": "Unhandled Runtime Error",
+             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ eval
+           > 2 |   throw new Error('An Expected error occurred')
+               |         ^",
+             "stack": [
+               "eval pages/error-in-the-browser-global-scope.js (2:9)",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+               "<FIXME-next-dist-dir>",
+             ],
+           }
+          `)
+        }
         expect(pageErrors).toEqual([
           expect.objectContaining({ message: 'An Expected error occurred' }),
         ])

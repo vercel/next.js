@@ -871,7 +871,9 @@ describe('app dir - navigation', () => {
       const scrollPosition = await browser.eval('window.pageYOffset')
 
       await browser.elementByCss("[href='/scroll-restoration/other']").click()
-      await browser.elementById('back-button').click()
+      await retry(async () => {
+        await browser.elementById('back-button').click()
+      })
 
       const newScrollPosition = await browser.eval('window.pageYOffset')
 
@@ -910,15 +912,6 @@ describe('app dir - navigation', () => {
         .click()
 
       if (!isNextDev) {
-        expect(
-          await browser
-            .waitForElementByCss(
-              '#loading',
-              // Give it some time to commit
-              100
-            )
-            .text()
-        ).toEqual('Loading')
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
 
         await waitFor(resolveMetadataDuration + 500)

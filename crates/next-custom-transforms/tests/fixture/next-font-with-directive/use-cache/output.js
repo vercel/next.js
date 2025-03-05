@@ -6,8 +6,8 @@ import inter from '@next/font/google/target.css?{"path":"app/test.tsx","import":
 export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", 0, async function Cached({ children }) {
     return <div className={inter.className}>{children}</div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "Cached",
-    "writable": false
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+    value: "Cached",
+    writable: false
 });
 export var Cached = registerServerReference($$RSC_SERVER_CACHE_0, "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", null);

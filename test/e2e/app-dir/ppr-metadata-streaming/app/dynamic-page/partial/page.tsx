@@ -14,7 +14,7 @@ async function SuspendedComponent() {
   await new Promise((resolve) => setTimeout(resolve, 500))
   return (
     <div>
-      <div>suspended component</div>
+      <div>outer suspended component</div>
       <NestedSuspendedComponent />
     </div>
   )

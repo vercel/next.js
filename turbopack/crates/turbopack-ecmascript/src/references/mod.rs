@@ -32,7 +32,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::JsWord,
+    atoms::Atom,
     common::{
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, Handler, HANDLER},
@@ -939,7 +939,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             analysis.set_async_module(async_module);
         } else if let Some(span) = top_level_await_span {
             AnalyzeIssue::new(
-                IssueSeverity::Error.cell(),
+                IssueSeverity::Error,
                 source.ident(),
                 Vc::cell("unexpected top level await".into()),
                 StyledString::Text("top level await is only supported in ESM modules.".into())
@@ -3176,7 +3176,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
 
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
-                fn to_string(name: &ModuleExportName) -> &JsWord {
+                fn to_string(name: &ModuleExportName) -> &Atom {
                     name.atom()
                 }
                 match spec {
@@ -3445,7 +3445,7 @@ impl From<Vec<AstParentKind>> for AstPath {
     }
 }
 
-pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());
+pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| "__turbopack-helper__".into());
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());

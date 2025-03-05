@@ -1,7 +1,7 @@
 import { assertHasRedbox, getRedboxDescription } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app dir - global error', () => {
+describe('app dir - global-error', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })

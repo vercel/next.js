@@ -65,13 +65,13 @@ export default async function Layout({
 }: {
   params: Promise<{ team: string }>
 }) {
-  const team = (await params).team
+  const { team } = await params
 }
 ```
 
 ```jsx filename="app/dashboard/[team]/layout.js" switcher
 export default async function Layout({ params }) {
-  const team = (await params).team
+  const { team } = await params
 }
 ```
 

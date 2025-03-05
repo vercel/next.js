@@ -22,8 +22,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MinifyType, SourceMapsType,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingConfig, ChunkingContext,
+        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -288,7 +288,13 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(entries.clone()));
+    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
+        entries.clone(),
+        match target {
+            Target::Browser => ChunkGroupType::Evaluated,
+            Target::Node => ChunkGroupType::Entry,
+        },
+    )]));
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
@@ -417,7 +423,6 @@ async fn build_internal(
                                                 .into(),
                                         )
                                         .with_extension("entry.js".into()),
-                                    *ResolvedVc::upcast(ecmascript),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),

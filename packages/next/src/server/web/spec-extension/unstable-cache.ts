@@ -37,13 +37,7 @@ async function cacheNewResult<T>(
       } satisfies CachedFetchData,
       revalidate: typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate,
     },
-    {
-      revalidate,
-      fetchCache: true,
-      tags,
-      fetchIdx,
-      fetchUrl,
-    }
+    { fetchCache: true, tags, fetchIdx, fetchUrl }
   )
   return
 }
@@ -208,7 +202,6 @@ export function unstable_cache<T extends Callback>(
             softTags: implicitTags,
             fetchIdx,
             fetchUrl,
-            isFallback: false,
           })
 
           if (cacheEntry && cacheEntry.value) {
@@ -312,7 +305,6 @@ export function unstable_cache<T extends Callback>(
             fetchIdx,
             fetchUrl,
             softTags: implicitTags,
-            isFallback: false,
           })
 
           if (cacheEntry && cacheEntry.value) {

@@ -7,8 +7,8 @@ import {
   type BasicSourceMapConsumer,
 } from 'next/dist/compiled/source-map08'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
-import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
+import { getSourceMapFromFile } from '../utils/get-source-map-from-file'
+import { launchEditor } from '../utils/launch-editor'
 import {
   getOriginalCodeFrame,
   type OriginalStackFrameResponse,
@@ -16,8 +16,8 @@ import {
   type OriginalStackFramesResponse,
 } from './shared'
 import { middlewareResponse } from './middleware-response'
-export { getServerError } from '../_experimental/internal/helpers/node-stack-frames'
-export { parseStack } from '../_experimental/internal/helpers/parse-stack'
+export { getServerError } from '../utils/node-stack-frames'
+export { parseStack } from '../utils/parse-stack'
 export { getSourceMapFromFile }
 
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -26,7 +26,7 @@ import type {
   NullableMappedPosition,
   RawSourceMap,
 } from 'next/dist/compiled/source-map08'
-import { formatFrameSourceFile } from '../_experimental/internal/helpers/webpack-module-path'
+import { formatFrameSourceFile } from '../utils/webpack-module-path'
 import type { MappedPosition } from 'source-map'
 import { inspect } from 'util'
 
@@ -287,6 +287,9 @@ async function getSource(
 ): Promise<Source | undefined> {
   const { getCompilations } = options
 
+  // Rspack is now using file:// URLs for source maps. Remove the rsc prefix to produce the file:/// url.
+  sourceURL = sourceURL.replace(/(.*)\/(?=file:\/\/)/, '')
+
   let nativeSourceMap: SourceMap | undefined
   try {
     nativeSourceMap = findSourceMap(sourceURL)
@@ -468,9 +471,19 @@ async function getOriginalStackFrame({
     },
   })
 
+  let defaultNormalizedStackFrameLocation = frame.file
+  if (
+    defaultNormalizedStackFrameLocation !== null &&
+    defaultNormalizedStackFrameLocation.startsWith('file://')
+  ) {
+    defaultNormalizedStackFrameLocation = path.relative(
+      rootDirectory,
+      fileURLToPath(defaultNormalizedStackFrameLocation)
+    )
+  }
   // This stack frame is used for the one that couldn't locate the source or source mapped frame
   const defaultStackFrame: IgnorableStackFrame = {
-    file: frame.file,
+    file: defaultNormalizedStackFrameLocation,
     lineNumber: frame.lineNumber,
     column: frame.column ?? 1,
     methodName: frame.methodName,

@@ -9,7 +9,7 @@ import { middlewareResponse } from './middleware-response'
 import fs, { constants as FS } from 'fs/promises'
 import path from 'path'
 import url from 'url'
-import { launchEditor } from '../_experimental/internal/helpers/launch-editor'
+import { launchEditor } from '../utils/launch-editor'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   SourceMapConsumer,
@@ -17,7 +17,7 @@ import {
   type NullableMappedPosition,
 } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
-import { getSourceMapFromFile } from '../_experimental/internal/helpers/get-source-map-from-file'
+import { getSourceMapFromFile } from '../utils/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { inspect } from 'node:util'
@@ -34,7 +34,7 @@ function shouldIgnorePath(modulePath: string): boolean {
 type IgnorableStackFrame = StackFrame & { ignored: boolean }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
-export async function batchedTraceSource(
+async function batchedTraceSource(
   project: Project,
   frame: TurbopackStackFrame
 ): Promise<{ frame: IgnorableStackFrame; source: string | null } | undefined> {
@@ -316,9 +316,7 @@ async function nativeTraceSource(
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
         column: (originalPosition.column ?? 0) + 1,
-        file: originalPosition.source?.startsWith('file://')
-          ? relativeToCwd(originalPosition.source)
-          : originalPosition.source,
+        file: originalPosition.source,
         lineNumber: originalPosition.line ?? 0,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
@@ -335,14 +333,9 @@ async function nativeTraceSource(
   return undefined
 }
 
-function relativeToCwd(file: string): string {
-  const relPath = path.relative(process.cwd(), url.fileURLToPath(file))
-  // TODO(sokra) include a ./ here to make it a relative path
-  return relPath
-}
-
 async function createOriginalStackFrame(
   project: Project,
+  projectPath: string,
   frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
   const traced =
@@ -354,13 +347,31 @@ async function createOriginalStackFrame(
     return null
   }
 
+  let normalizedStackFrameLocation = traced.frame.file
+  if (
+    normalizedStackFrameLocation !== null &&
+    normalizedStackFrameLocation.startsWith('file://')
+  ) {
+    normalizedStackFrameLocation = path.relative(
+      projectPath,
+      url.fileURLToPath(normalizedStackFrameLocation)
+    )
+  }
+
   return {
-    originalStackFrame: traced.frame,
+    originalStackFrame: {
+      arguments: traced.frame.arguments,
+      column: traced.frame.column,
+      file: normalizedStackFrameLocation,
+      ignored: traced.frame.ignored,
+      lineNumber: traced.frame.lineNumber,
+      methodName: traced.frame.methodName,
+    },
     originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
   }
 }
 
-export function getOverlayMiddleware(project: Project) {
+export function getOverlayMiddleware(project: Project, projectPath: string) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -387,7 +398,11 @@ export function getOverlayMiddleware(project: Project) {
       const result: OriginalStackFramesResponse = await Promise.all(
         stackFrames.map(async (frame) => {
           try {
-            const stackFrame = await createOriginalStackFrame(project, frame)
+            const stackFrame = await createOriginalStackFrame(
+              project,
+              projectPath,
+              frame
+            )
             if (stackFrame === null) {
               return {
                 status: 'rejected',

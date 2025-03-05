@@ -29,6 +29,7 @@ use turbopack::{
     ModuleAssetContext,
 };
 use turbopack_core::{
+    chunk::ChunkingConfig,
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
@@ -415,6 +416,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         env,
         RuntimeType::Development,
     )
+    .ecmascript_chunking_config(ChunkingConfig {
+        min_chunk_size: 10_000,
+        ..Default::default()
+    })
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);

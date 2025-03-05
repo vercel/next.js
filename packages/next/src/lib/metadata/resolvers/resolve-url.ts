@@ -73,8 +73,8 @@ function resolveUrl(
   }
 
   // Handle relative or absolute paths
-  const basePath = metadataBase.pathname || ''
-  const joinedPath = path.posix.join(basePath, url)
+  const pathname = metadataBase.pathname || ''
+  const joinedPath = path.posix.join(pathname, url)
 
   return new URL(joinedPath, metadataBase)
 }

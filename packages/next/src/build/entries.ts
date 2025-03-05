@@ -424,7 +424,10 @@ export function getEdgeServerEntry(opts: {
       ).toString('base64'),
     }
 
-    return `next-edge-function-loader?${stringify(loaderParams)}!`
+    return {
+      import: `next-edge-function-loader?${stringify(loaderParams)}!`,
+      layer: WEBPACK_LAYERS.apiEdge,
+    }
   }
 
   const loaderParams: EdgeSSRLoaderQuery = {
@@ -876,7 +879,7 @@ export function finalizeEntrypoint({
   switch (compilerType) {
     case COMPILER_NAMES.server: {
       const layer = isApi
-        ? WEBPACK_LAYERS.api
+        ? WEBPACK_LAYERS.apiNode
         : isInstrumentation
           ? WEBPACK_LAYERS.instrument
           : isServerComponent
@@ -895,7 +898,7 @@ export function finalizeEntrypoint({
     case COMPILER_NAMES.edgeServer: {
       return {
         layer: isApi
-          ? WEBPACK_LAYERS.api
+          ? WEBPACK_LAYERS.apiEdge
           : isMiddlewareFilename(name) || isInstrumentation
             ? WEBPACK_LAYERS.middleware
             : name.startsWith('pages/')

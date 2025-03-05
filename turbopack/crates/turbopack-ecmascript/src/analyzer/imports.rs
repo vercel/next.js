@@ -6,7 +6,7 @@ use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
         ast::*,
-        atoms::{js_word, JsWord},
+        atoms::{atom, Atom},
         visit::{Visit, VisitWith},
     },
 };
@@ -26,19 +26,19 @@ use crate::{
 pub struct ImportAnnotations {
     // TODO store this in more structured way
     #[turbo_tasks(trace_ignore)]
-    map: BTreeMap<JsWord, JsWord>,
+    map: BTreeMap<Atom, Atom>,
 }
 
 /// Enables a specified transition for the annotated import
-static ANNOTATION_TRANSITION: Lazy<JsWord> =
+static ANNOTATION_TRANSITION: Lazy<Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
 /// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<JsWord> =
+static ANNOTATION_CHUNKING_TYPE: Lazy<Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<JsWord> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| "type".into());
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -113,7 +113,7 @@ impl ImportAnnotations {
         self.get(&ATTRIBUTE_MODULE_TYPE)
     }
 
-    pub fn get(&self, key: &JsWord) -> Option<&str> {
+    pub fn get(&self, key: &Atom) -> Option<&str> {
         self.map.get(key).map(|w| w.as_str())
     }
 }
@@ -136,8 +136,8 @@ impl Display for ImportAnnotations {
 #[derive(Debug)]
 pub(crate) enum Reexport {
     Star,
-    Namespace { exported: JsWord },
-    Named { imported: JsWord, exported: JsWord },
+    Namespace { exported: Atom },
+    Named { imported: Atom, exported: Atom },
 }
 
 /// The storage for all kinds of imports.
@@ -147,7 +147,7 @@ pub(crate) enum Reexport {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    imports: FxIndexMap<Id, (usize, JsWord)>,
+    imports: FxIndexMap<Id, (usize, Atom)>,
 
     /// Map from identifier to index in references
     namespace_imports: FxIndexMap<Id, usize>,
@@ -177,7 +177,7 @@ pub(crate) struct ImportMap {
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.
-    full_star_imports: FxHashSet<JsWord>,
+    full_star_imports: FxHashSet<Atom>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -226,7 +226,7 @@ impl Default for &ImportAttributes {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ImportedSymbol {
     ModuleEvaluation,
-    Symbol(JsWord),
+    Symbol(Atom),
     Exports,
     Part(u32),
     PartEvaluation(u32),
@@ -234,7 +234,7 @@ pub(crate) enum ImportedSymbol {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
-    pub module_path: JsWord,
+    pub module_path: Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: ImportAnnotations,
     pub issue_source: Option<IssueSource>,
@@ -353,8 +353,8 @@ impl ImportMap {
 
 struct StarImportAnalyzer<'a> {
     /// The local identifiers of the star imports
-    candidates: FxIndexMap<Id, JsWord>,
-    full_star_imports: &'a mut FxHashSet<JsWord>,
+    candidates: FxIndexMap<Id, Atom>,
+    full_star_imports: &'a mut FxHashSet<Atom>,
 }
 
 impl Visit for StarImportAnalyzer<'_> {
@@ -420,7 +420,7 @@ impl Analyzer<'_> {
     fn ensure_reference(
         &mut self,
         span: Span,
-        module_path: JsWord,
+        module_path: Atom,
         imported_symbol: ImportedSymbol,
         annotations: ImportAnnotations,
     ) -> Option<usize> {
@@ -444,7 +444,7 @@ impl Analyzer<'_> {
     }
 }
 
-fn to_word(name: &ModuleExportName) -> JsWord {
+fn to_word(name: &ModuleExportName) -> Atom {
     match name {
         ModuleExportName::Ident(ident) => ident.sym.clone(),
         ModuleExportName::Str(str) => str.value.clone(),
@@ -580,7 +580,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: js_word!("default"),
+                            imported: atom!("default"),
                             exported: d.exported.sym.clone(),
                         },
                     ));
@@ -718,7 +718,7 @@ fn parse_ignore_directive(comments: &dyn Comments, value: Option<&ExprOrSpread>)
         .next()
 }
 
-pub(crate) fn orig_name(n: &ModuleExportName) -> JsWord {
+pub(crate) fn orig_name(n: &ModuleExportName) -> Atom {
     match n {
         ModuleExportName::Ident(v) => v.sym.clone(),
         ModuleExportName::Str(v) => v.value.clone(),
@@ -743,7 +743,7 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
             Some(imported) => orig_name(imported),
             _ => local.sym.clone(),
         }),
-        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ImportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ImportSpecifier::Namespace(..) => ImportedSymbol::Exports,
     }
 }
@@ -753,7 +753,7 @@ fn get_import_symbol_from_export(specifier: &ExportSpecifier) -> ImportedSymbol 
         ExportSpecifier::Named(ExportNamedSpecifier { orig, .. }) => {
             ImportedSymbol::Symbol(orig_name(orig))
         }
-        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
+        ExportSpecifier::Default(..) => ImportedSymbol::Symbol(atom!("default")),
         ExportSpecifier::Namespace(..) => ImportedSymbol::Exports,
     }
 }
