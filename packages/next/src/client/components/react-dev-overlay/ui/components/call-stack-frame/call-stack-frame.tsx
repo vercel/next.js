@@ -39,7 +39,7 @@ export const CallStackFrame: React.FC<{
   return (
     <div
       data-nextjs-call-stack-frame
-      data-nextjs-call-stack-frame-ignored={!hasSource}
+      data-nextjs-call-stack-frame-no-source={!hasSource}
       style={
         {
           '--index': index,
@@ -77,14 +77,14 @@ export const CallStackFrame: React.FC<{
 }
 
 export const CALL_STACK_FRAME_STYLES = `
-  [data-nextjs-call-stack-frame-ignored] {
+  [data-nextjs-call-stack-frame-no-source] {
     padding: 6px 8px;
     margin-bottom: 4px;
 
     border-radius: var(--rounded-lg);
   }
 
-  [data-nextjs-call-stack-frame-ignored]:last-child {
+  [data-nextjs-call-stack-frame-no-source]:last-child {
     margin-bottom: 0;
   }
 
