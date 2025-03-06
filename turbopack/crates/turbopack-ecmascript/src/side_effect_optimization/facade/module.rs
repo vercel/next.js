@@ -463,12 +463,9 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        let this = self.await?;
-
         Ok(Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
-                parsed: this.parsed,
                 module_graph,
                 chunking_context,
             }
