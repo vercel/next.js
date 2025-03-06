@@ -906,25 +906,12 @@ impl PageEndpoint {
             } = *self.internal_ssr_chunk_module().await?;
 
             let project = this.pages_project.project();
+            // The SSR and Client Graphs are not connected in Pages Router.
+            // We are only interested in get_next_dynamic_imports_for_endpoint at the
+            // moment, which only needs the client graph anyway.
             let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                // The SSR and Client Graphs are not connected in Pages Router.
-                // We are only interested in get_next_dynamic_imports_for_endpoint at the
-                // moment, which only needs the client graph anyway.
-                //
-                // If we do want to change this to have both included. We'd need to create a
-                // `IncludeModulesModule` that includes both SSR and Client (and use that both
-                // there and in Project::get_all_entries):
-                // let client_module = self.client_module().to_resolved().await?;
-                // let ssr_module = self.internal_ssr_chunk_module().await?.ssr_module;
-                // Ok(Vc::upcast(IncludeModulesModule::new(
-                //     self.source()
-                //         .ident()
-                //         .with_modifier(Vc::cell("unified entrypoint".into())),
-                //     vec![*client_module, *ssr_module],
-                // )))
-
                 let client_availability_info = self.client_chunks().await?.availability_info;
 
                 let client_module_graph = self.client_module_graph();
