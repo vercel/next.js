@@ -48,7 +48,8 @@ import {
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
-import { blockCrossSite, filterInternalHeaders } from './server-ipc/utils'
+import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite } from './router-utils/block-cross-site'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
