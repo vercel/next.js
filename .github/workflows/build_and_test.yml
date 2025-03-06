@@ -160,7 +160,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: turbo run rust-check
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check
       stepName: 'rust-check'
     secrets: inherit
 
