@@ -359,9 +359,15 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#nowhere').click()
 
+    // Until not-found page is resolved
     await retry(async () => {
       expect(await browser.elementByCss('h1').text()).toBe('my-not-found')
     })
+
+    // Should have default noindex meta tag
+    expect(
+      await browser.elementByCss('meta[name="robots"]').getAttribute('content')
+    ).toBe('noindex')
   })
 
   it('should support uploading files', async () => {

@@ -912,12 +912,14 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
-        await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      const actionMod = (await ComponentMod.__next_app__.require(
+        actionModId
+      )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+      const actionHandler =
+        actionMod[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
 
       const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
         actionHandler.apply(null, boundActionArguments)

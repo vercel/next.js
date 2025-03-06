@@ -966,6 +966,7 @@ impl Project {
             self.client_relative_path(),
             Vc::cell("/ROOT".into()),
             self.next_config().computed_asset_prefix(),
+            self.next_config().chunk_suffix_path(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
