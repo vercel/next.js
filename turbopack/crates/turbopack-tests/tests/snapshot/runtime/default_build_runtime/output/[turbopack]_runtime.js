@@ -204,7 +204,6 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
