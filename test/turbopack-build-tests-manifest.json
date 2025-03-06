@@ -17882,7 +17882,9 @@
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should contain deployment id in prefetch request",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in prefetch request",
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in prefetch request"
+      ],
+      "failed": [
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
@@ -17893,7 +17895,6 @@
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
