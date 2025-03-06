@@ -61,6 +61,9 @@ pub mod turbo_trace_server;
 pub mod turbopack;
 pub mod util;
 
+// Declare build-time information variables generated in build.rs
+shadow_rs::shadow!(build);
+
 #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;

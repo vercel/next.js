@@ -24,6 +24,7 @@ regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+shadow-rs = { workspace = true }
 swc_core = { workspace = true }
 tracing = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -42,6 +43,6 @@ turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 
 [build-dependencies]
-anyhow = { workspace = true }
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
 turbo-tasks-build = { workspace = true }
-vergen = { workspace = true }
