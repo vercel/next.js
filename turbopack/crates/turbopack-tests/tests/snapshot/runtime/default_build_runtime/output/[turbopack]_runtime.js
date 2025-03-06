@@ -465,7 +465,6 @@ function loadChunk(chunkData, source) {
         return loadChunkPath(chunkData.path, source);
     }
 }
-function loadChunkByUrl() {}
 function loadChunkPath(chunkPath, source) {
     if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.

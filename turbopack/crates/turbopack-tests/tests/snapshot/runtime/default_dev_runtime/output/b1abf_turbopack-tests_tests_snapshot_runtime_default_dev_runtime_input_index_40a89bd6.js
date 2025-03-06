@@ -570,7 +570,7 @@ const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
  */ function isJs(chunkUrlOrPath) {
     return regexJsUrl.test(chunkUrlOrPath);
 }
-const regexCssUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
  */ function isCss(chunkUrl) {
@@ -1448,8 +1448,8 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
                 return;
             }
             for (const otherChunkData of params.otherChunks){
-                const chunkPath = getChunkPath(otherChunkData);
-                const otherChunkUrl = getChunkRelativeUrl(chunkPath);
+                const otherChunkPath = getChunkPath(otherChunkData);
+                const otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
                 // Chunk might have started loading, so we want to avoid triggering another load.
                 getOrCreateResolver(otherChunkUrl);
             }
@@ -1468,79 +1468,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
     */ loadChunk (chunkUrl, source) {
-            const resolver = getOrCreateResolver(chunkUrl);
-            if (resolver.resolved) {
-                return resolver.promise;
-            }
-            if (source.type === SourceType.Runtime) {
-                // We don't need to load chunks references from runtime code, as they're already
-                // present in the DOM.
-                if (isCss(chunkUrl)) {
-                    // CSS chunks do not register themselves, and as such must be marked as
-                    // loaded instantly.
-                    resolver.resolve();
-                }
-                // We need to wait for JS chunks to register themselves within `registerChunk`
-                // before we can start instantiating runtime modules, hence the absence of
-                // `resolver.resolve()` in this branch.
-                return resolver.promise;
-            }
-            if (typeof importScripts === "function") {
-                // We're in a web worker
-                if (isCss(chunkUrl)) {
-                // ignore
-                } else if (isJs(chunkUrl)) {
-                    importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
-                } else {
-                    throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
-                }
-            } else {
-                if (isCss(chunkUrl)) {
-                    const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`);
-                    if (previousLinks.length > 0) {
-                        // CSS chunks do not register themselves, and as such must be marked as
-                        // loaded instantly.
-                        resolver.resolve();
-                    } else {
-                        const link = document.createElement("link");
-                        link.rel = "stylesheet";
-                        link.href = chunkUrl;
-                        link.onerror = ()=>{
-                            resolver.reject();
-                        };
-                        link.onload = ()=>{
-                            // CSS chunks do not register themselves, and as such must be marked as
-                            // loaded instantly.
-                            resolver.resolve();
-                        };
-                        document.body.appendChild(link);
-                    }
-                } else if (isJs(chunkUrl)) {
-                    const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"]`);
-                    if (previousScripts.length > 0) {
-                        // There is this edge where the script already failed loading, but we
-                        // can't detect that. The Promise will never resolve in this case.
-                        for (const script of Array.from(previousScripts)){
-                            script.addEventListener("error", ()=>{
-                                resolver.reject();
-                            });
-                        }
-                    } else {
-                        const script = document.createElement("script");
-                        script.src = chunkUrl;
-                        // We'll only mark the chunk as loaded once the script has been executed,
-                        // which happens in `registerChunk`. Hence the absence of `resolve()` in
-                        // this branch.
-                        script.onerror = ()=>{
-                            resolver.reject();
-                        };
-                        document.body.appendChild(script);
-                    }
-                } else {
-                    throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
-                }
-            }
-            return resolver.promise;
+            return doLoadChunk(chunkUrl, source);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1564,6 +1492,86 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             chunkResolvers.set(chunkUrl, resolver);
         }
         return resolver;
+    }
+    /**
+    * Loads the given chunk, and returns a promise that resolves once the chunk
+    * has been loaded.
+    */ function doLoadChunk(chunkUrl, source) {
+        const resolver = getOrCreateResolver(chunkUrl);
+        if (resolver.resolved) {
+            return resolver.promise;
+        }
+        if (source.type === SourceType.Runtime) {
+            // We don't need to load chunks references from runtime code, as they're already
+            // present in the DOM.
+            if (isCss(chunkUrl)) {
+                // CSS chunks do not register themselves, and as such must be marked as
+                // loaded instantly.
+                resolver.resolve();
+            }
+            // We need to wait for JS chunks to register themselves within `registerChunk`
+            // before we can start instantiating runtime modules, hence the absence of
+            // `resolver.resolve()` in this branch.
+            return resolver.promise;
+        }
+        if (typeof importScripts === "function") {
+            // We're in a web worker
+            if (isCss(chunkUrl)) {
+            // ignore
+            } else if (isJs(chunkUrl)) {
+                importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
+            } else {
+                throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
+            }
+        } else {
+            // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+            const decodedChunkUrl = decodeURI(chunkUrl);
+            if (isCss(chunkUrl)) {
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
+                if (previousLinks.length > 0) {
+                    // CSS chunks do not register themselves, and as such must be marked as
+                    // loaded instantly.
+                    resolver.resolve();
+                } else {
+                    const link = document.createElement("link");
+                    link.rel = "stylesheet";
+                    link.href = chunkUrl;
+                    link.onerror = ()=>{
+                        resolver.reject();
+                    };
+                    link.onload = ()=>{
+                        // CSS chunks do not register themselves, and as such must be marked as
+                        // loaded instantly.
+                        resolver.resolve();
+                    };
+                    document.body.appendChild(link);
+                }
+            } else if (isJs(chunkUrl)) {
+                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                if (previousScripts.length > 0) {
+                    // There is this edge where the script already failed loading, but we
+                    // can't detect that. The Promise will never resolve in this case.
+                    for (const script of Array.from(previousScripts)){
+                        script.addEventListener("error", ()=>{
+                            resolver.reject();
+                        });
+                    }
+                } else {
+                    const script = document.createElement("script");
+                    script.src = chunkUrl;
+                    // We'll only mark the chunk as loaded once the script has been executed,
+                    // which happens in `registerChunk`. Hence the absence of `resolve()` in
+                    // this branch.
+                    script.onerror = ()=>{
+                        resolver.reject();
+                    };
+                    document.body.appendChild(script);
+                }
+            } else {
+                throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
+            }
+        }
+        return resolver.promise;
     }
 })();
 /**
@@ -1602,11 +1610,12 @@ let DEV_BACKEND;
         },
         reloadChunk (chunkUrl) {
             return new Promise((resolve, reject)=>{
-                if (!chunkUrl.endsWith(".css")) {
+                if (!isCss(chunkUrl)) {
                     reject(new Error("The DOM backend can only reload CSS chunks"));
                     return;
                 }
-                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"]`);
+                const decodedChunkUrl = decodeURI(chunkUrl);
+                const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`);
                 if (previousLinks.length === 0) {
                     reject(new Error(`No link element found for chunk ${chunkUrl}`));
                     return;
