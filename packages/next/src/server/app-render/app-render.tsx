@@ -1535,14 +1535,16 @@ async function renderToHTMLOrFlightImpl(
 
         return new RenderResult(stream, { metadata })
       } else if (actionRequestResult.type === 'done') {
-        if (actionRequestResult.result) {
-          actionRequestResult.result.assignMetadata(metadata)
-          return actionRequestResult.result
-        } else if (actionRequestResult.formState) {
-          formState = actionRequestResult.formState
-        }
+        // We ran the action, and have a flight result. Nothing more to do here.
+        actionRequestResult.result.assignMetadata(metadata)
+        return actionRequestResult.result
+      } else if (actionRequestResult.type === 'needs-render') {
+        // We ran the action, but haven't rendered anything yet, so continue below.
+        formState = actionRequestResult.formState
       } else if (actionRequestResult.type === 'not-an-action') {
-        // nothing to do here.
+        // This is likely a POST request targetting a page. We partially support this, so continue rendering.
+      } else {
+        actionRequestResult satisfies never
       }
     }
 

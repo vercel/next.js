@@ -453,15 +453,22 @@ type ServerActionsConfig = {
 
 type HandleActionResult =
   | {
+      /** We either didn't find the actionId, or we did but it threw notFound(). */
       type: 'not-found'
     }
   | {
+      /** The request turned out to not be an action. */
       type: 'not-an-action'
     }
   | {
+      /** We decoded a FormState, but haven't rendered anything yet. */
+      type: 'needs-render'
+      formState: any
+    }
+  | {
+      /** A finished result. */
       type: 'done'
-      result: RenderResult | undefined
-      formState?: any
+      result: RenderResult
     }
 
 export async function handleAction({
@@ -691,8 +698,7 @@ export async function handleAction({
               requestStore.phase = 'render'
 
               return {
-                type: 'done',
-                result: undefined,
+                type: 'needs-render',
                 formState,
               }
             } else {
@@ -739,8 +745,7 @@ export async function handleAction({
               requestStore.phase = 'render'
 
               return {
-                type: 'done',
-                result: undefined,
+                type: 'needs-render',
                 formState,
               }
             } else {
@@ -933,7 +938,6 @@ export async function handleAction({
         return {
           type: 'done',
           result: actionResult,
-          formState: undefined,
         }
       }
     )
