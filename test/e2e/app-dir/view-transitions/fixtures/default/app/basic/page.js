@@ -3,8 +3,15 @@ import { Toggle } from './Toggle'
 
 export default function BasicPage() {
   return (
-    <ViewTransition name="page">
-      <Toggle />
-    </ViewTransition>
+    <div>
+      <ViewTransition name="toggle">
+        <Toggle />
+      </ViewTransition>
+      <div>
+        <ViewTransition name="link-to-title">
+          <h1>To Title</h1>
+        </ViewTransition>
+      </div>
+    </div>
   )
 }
