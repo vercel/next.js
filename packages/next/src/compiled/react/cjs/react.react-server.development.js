@@ -481,9 +481,7 @@
       REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
@@ -492,7 +490,8 @@
       didWarnAboutOldJSXRuntime;
     var didWarnAboutElementRef = {};
     var didWarnAboutMaps = !1,
-      userProvidedKeyEscapeRegex = /\/+/g;
+      userProvidedKeyEscapeRegex = /\/+/g,
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
     exports.Children = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
@@ -810,5 +809,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-canary-d55cc79b-20250228";
+    exports.version = "19.1.0-canary-e03ac20f-20250305";
   })();
