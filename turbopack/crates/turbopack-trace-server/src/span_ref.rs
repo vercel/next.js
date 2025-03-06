@@ -1,11 +1,12 @@
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fmt::{Debug, Formatter},
     vec,
 };
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     bottom_up::build_bottom_up_graph,
@@ -13,6 +14,7 @@ use crate::{
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     store::{SpanId, Store},
+    timestamp::Timestamp,
     FxIndexMap,
 };
 
@@ -40,7 +42,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn start(&self) -> u64 {
+    pub fn start(&self) -> Timestamp {
         self.span.start
     }
 
@@ -56,7 +58,7 @@ impl<'a> SpanRef<'a> {
         self.span.names()
     }
 
-    pub fn end(&self) -> u64 {
+    pub fn end(&self) -> Timestamp {
         let time_data = self.time_data();
         *time_data.end.get_or_init(|| {
             max(
@@ -136,7 +138,7 @@ impl<'a> SpanRef<'a> {
         self.span.args.iter().map(|(k, v)| (k.as_str(), v.as_str()))
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         self.time_data().self_time
     }
 
@@ -206,7 +208,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn total_time(&self) -> u64 {
+    pub fn total_time(&self) -> Timestamp {
         *self.time_data().total_time.get_or_init(|| {
             self.children()
                 .map(|child| child.total_time())
@@ -266,7 +268,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         let store = self.store;
         *self.time_data().corrected_self_time.get_or_init(|| {
             let mut self_time = self
@@ -275,31 +277,31 @@ impl<'a> SpanRef<'a> {
                 .par_iter()
                 .filter_map(|event| {
                     if let SpanEvent::SelfTime { start, end } = event {
-                        let duration = end - start;
-                        if duration != 0 {
+                        let duration = *end - *start;
+                        if !duration.is_zero() {
                             store.set_max_self_time_lookup(*end);
                             let concurrent_time = store
                                 .self_time_tree
                                 .as_ref()
                                 .map_or(duration, |tree| tree.lookup_range_count(*start, *end));
-                            return Some(duration * duration / concurrent_time);
+                            return Some(duration * *duration / *concurrent_time);
                         }
                     }
                     None
                 })
                 .sum();
             if self.children().next().is_none() {
-                self_time = max(self_time, 1);
+                self_time = max(self_time, Timestamp::from_value(1));
             }
             self_time
         })
     }
 
-    pub fn corrected_total_time(&self) -> u64 {
+    pub fn corrected_total_time(&self) -> Timestamp {
         *self.time_data().corrected_total_time.get_or_init(|| {
             self.children_par()
                 .map(|child| child.corrected_total_time())
-                .sum::<u64>()
+                .sum::<Timestamp>()
                 + self.corrected_self_time()
         })
     }
@@ -388,7 +390,7 @@ impl<'a> SpanRef<'a> {
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
         let mut query_items = query.split(",").map(str::trim);
         let index = self.search_index();
-        let mut result = HashSet::new();
+        let mut result = FxHashSet::default();
         let query = query_items.next().unwrap();
         for (key, spans) in index {
             if key.contains(query) {
@@ -396,7 +398,7 @@ impl<'a> SpanRef<'a> {
             }
         }
         for query in query_items {
-            let mut and_result = HashSet::new();
+            let mut and_result = FxHashSet::default();
             for (key, spans) in index {
                 if key.contains(query) {
                     and_result.extend(spans.iter().copied());
@@ -412,9 +414,9 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    fn search_index(&self) -> &HashMap<String, Vec<SpanIndex>> {
+    fn search_index(&self) -> &FxHashMap<String, Vec<SpanIndex>> {
         self.extra().search_index.get_or_init(|| {
-            let mut index: HashMap<String, Vec<SpanIndex>> = HashMap::new();
+            let mut index: FxHashMap<String, Vec<SpanIndex>> = FxHashMap::default();
             let mut queue = VecDeque::with_capacity(8);
             queue.push_back(*self);
             while let Some(span) = queue.pop_front() {
@@ -441,8 +443,8 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (value.to_string(), vec![span.index()]));
                     }
-                    if !span.is_complete() {
-                        let name = "incomplete";
+                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                        let name = "incomplete_span";
                         index
                             .raw_entry_mut()
                             .from_key(name)
@@ -477,6 +479,6 @@ impl Debug for SpanRef<'_> {
 #[allow(dead_code)]
 #[derive(Copy, Clone)]
 pub enum SpanEventRef<'a> {
-    SelfTime { start: u64, end: u64 },
+    SelfTime { start: Timestamp, end: Timestamp },
     Child { span: SpanRef<'a> },
 }

@@ -2,12 +2,15 @@ use std::{fmt, hash::Hash};
 
 use petgraph::{
     algo::{condensation, has_path_connecting},
+    graph::NodeIndex,
     graphmap::GraphMap,
     prelude::DiGraphMap,
+    visit::EdgeRef,
+    Direction, Graph,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
+    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
             op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
@@ -16,11 +19,12 @@ use swc_core::{
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
             PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
-        atoms::JsWord,
+        atoms::Atom,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr};
+use turbo_rcstr::RcStr;
+use turbo_tasks::FxIndexSet;
 
 use super::{
     util::{
@@ -30,18 +34,19 @@ use super::{
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
+const FLAG_DISABLE_EXPORT_MERGING: &str = "TURBOPACK_DISABLE_EXPORT_MERGING";
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemId {
-    Group(ItemIdGroupKind),
     Item { index: usize, kind: ItemIdItemKind },
+    Group(ItemIdGroupKind),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
     ModuleEvaluation,
     /// `(local, export_name)``
-    Export(Id, JsWord),
+    Export(Id, Atom),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -104,7 +109,7 @@ pub(crate) struct ItemData {
 
     pub content: ModuleItem,
 
-    pub export: Option<JsWord>,
+    pub export: Option<Atom>,
 
     /// This value denotes the module specifier of the [ImportDecl] that declares this
     /// [ItemId].
@@ -122,6 +127,9 @@ pub(crate) struct ItemData {
     /// See https://github.com/vercel/next.js/pull/71234#issuecomment-2409810084 for the problematic
     /// test case.
     pub explicit_deps: Vec<ItemId>,
+
+    /// Server actions breaks when we merge exports.
+    pub disable_export_merging: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -156,6 +164,7 @@ impl Default for ItemData {
             export: Default::default(),
             binding_source: Default::default(),
             explicit_deps: Default::default(),
+            disable_export_merging: Default::default(),
         }
     }
 }
@@ -256,7 +265,7 @@ impl DepGraph {
     ///
     /// Note: ESM imports are immutable, but we do not handle it.
     pub(super) fn split_module(
-        &self,
+        &mut self,
         directives: &[ModuleItem],
         data: &FxHashMap<ItemId, ItemData>,
     ) -> SplitModuleResult {
@@ -380,13 +389,10 @@ impl DepGraph {
                 }
             }
 
-            let mut use_export_instead_of_declarator = false;
-
             for item in group {
                 match item {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
                         if let Some(export) = &data[item].export {
-                            use_export_instead_of_declarator = true;
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -420,68 +426,50 @@ impl DepGraph {
                 }
             }
 
-            // Workaround for implcit export issue of server actions.
-            //
-            // Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
-            //
-            // But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
-            // is cleary not used from the external module as it does not exist at all
-            // in the user code.
-            //
-            // So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
-            // preserved.
-            if use_export_instead_of_declarator {
-                for (other_ix, other_group) in groups.graph_ix.iter().enumerate() {
-                    if other_ix == ix {
+            for dep in groups
+                .idx_graph
+                .neighbors_directed(ix as u32, Direction::Outgoing)
+            {
+                if dep == ix as u32 {
+                    continue;
+                }
+
+                let dep_item_ids = groups.graph_ix.get_index(dep as usize).unwrap();
+
+                for dep_item_id in dep_item_ids {
+                    let ItemId::Group(ItemIdGroupKind::Export(var, export)) = dep_item_id else {
+                        continue;
+                    };
+
+                    if !export.starts_with("$$RSC_SERVER_") {
                         continue;
                     }
 
-                    let deps = part_deps.entry(ix as u32).or_default();
+                    required_vars.swap_remove(var);
 
-                    for other_item in other_group {
-                        if let ItemId::Group(ItemIdGroupKind::Export(export, _)) = other_item {
-                            if !export.0.as_str().starts_with("$$RSC_SERVER_") {
-                                continue;
-                            }
+                    let dep_part_id = PartId::Export(export.as_str().into());
+                    let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
+                        span: DUMMY_SP,
+                        local: var.clone().into(),
+                        imported: None,
+                        is_type_only: false,
+                    })];
 
-                            let Some(&declarator) = declarator.get(export) else {
-                                continue;
-                            };
+                    part_deps
+                        .entry(ix as u32)
+                        .or_default()
+                        .push(dep_part_id.clone());
 
-                            if declarator == ix as u32 {
-                                continue;
-                            }
-
-                            if !has_path_connecting(&groups.idx_graph, ix as u32, declarator, None)
-                            {
-                                continue;
-                            }
-
-                            let s = ImportSpecifier::Named(ImportNamedSpecifier {
-                                span: DUMMY_SP,
-                                local: export.clone().into(),
-                                imported: None,
-                                is_type_only: false,
-                            });
-
-                            required_vars.swap_remove(export);
-
-                            deps.push(PartId::Export(export.0.as_str().into()));
-
-                            chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
-                                ImportDecl {
-                                    span: DUMMY_SP,
-                                    specifiers: vec![s],
-                                    src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
-                                    type_only: false,
-                                    with: Some(Box::new(create_turbopack_part_id_assert(
-                                        PartId::Export(export.0.as_str().into()),
-                                    ))),
-                                    phase: Default::default(),
-                                },
-                            )));
-                        }
-                    }
+                    chunk
+                        .body
+                        .push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+                            span: DUMMY_SP,
+                            specifiers,
+                            src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
+                            type_only: false,
+                            with: Some(Box::new(create_turbopack_part_id_assert(dep_part_id))),
+                            phase: Default::default(),
+                        })));
                 }
             }
 
@@ -712,14 +700,18 @@ impl DepGraph {
     /// Note that [ModuleItem] and [Module] are represented as [ItemId] for
     /// performance.
     pub(super) fn finalize(
-        &self,
+        &mut self,
         data: &FxHashMap<ItemId, ItemData>,
     ) -> InternedGraph<Vec<ItemId>> {
-        let graph = self.g.idx_graph.clone().into_graph::<u32>();
+        let mut graph = self.g.idx_graph.clone().into_graph::<u32>();
+
+        self.workaround_server_action(&mut graph, data);
 
         let mut condensed = condensation(graph, true);
+
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
+            data,
         };
         loop {
             if !optimizer.merge_single_incoming_nodes(&mut condensed) {
@@ -808,13 +800,23 @@ impl DepGraph {
                 match item {
                     ModuleDecl::ExportDecl(item) => match &item.decl {
                         Decl::Fn(FnDecl { ident, .. }) | Decl::Class(ClassDecl { ident, .. }) => {
-                            exports.push((ident.to_id(), ident.sym.clone()));
+                            exports.push((
+                                ident.to_id(),
+                                ident.sym.clone(),
+                                comments.has_flag(ident.span().lo, FLAG_DISABLE_EXPORT_MERGING),
+                            ));
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
+                                let disable_export_merging = comments
+                                    .has_flag(decl.name.span().lo, FLAG_DISABLE_EXPORT_MERGING)
+                                    || decl.init.as_deref().is_some_and(|e| {
+                                        comments.has_flag(e.span().lo, FLAG_DISABLE_EXPORT_MERGING)
+                                    });
+
                                 let ids: Vec<Id> = find_pat_ids(&decl.name);
                                 for id in ids {
-                                    exports.push((id.clone(), id.0));
+                                    exports.push((id.clone(), id.0, disable_export_merging));
                                 }
                             }
                         }
@@ -885,7 +887,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.atom().clone()));
+                            exports.push((local.to_id(), exported.atom().clone(), false));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -1002,7 +1004,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((default_var.to_id(), "default".into()));
+                        exports.push((default_var.to_id(), "default".into(), false));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         let default_var =
@@ -1061,7 +1063,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((default_var.to_id(), "default".into()));
+                            exports.push((default_var.to_id(), "default".into(), false));
                         }
                     }
 
@@ -1220,7 +1222,10 @@ impl DepGraph {
                         ids.push(id.clone());
 
                         let has_explicit_pure = match &decl.init {
-                            Some(e) => comments.has_flag(e.span().lo, "PURE"),
+                            Some(e) => {
+                                e.span().lo == BytePos::PURE
+                                    || comments.has_flag(e.span().lo, "PURE")
+                            }
                             _ => false,
                         };
 
@@ -1243,11 +1248,12 @@ impl DepGraph {
 
                         let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
-                                || decl.init.as_deref().map_or(false, |e| {
-                                    e.may_have_side_effects(&ExprCtx {
+                                || decl.init.as_deref().is_some_and(|e| {
+                                    e.may_have_side_effects(ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
                                         in_strict: false,
+                                        remaining_depth: 4,
                                     })
                                 }));
 
@@ -1257,6 +1263,7 @@ impl DepGraph {
                         });
                         vars.write.extend(decl_ids.iter().cloned());
                         let content = ModuleItem::Stmt(Stmt::Decl(Decl::Var(var_decl)));
+
                         items.insert(
                             id,
                             ItemData {
@@ -1379,7 +1386,7 @@ impl DepGraph {
             );
         }
 
-        for (local, export_name) in exports {
+        for (local, export_name, disable_export_merging) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
             items.insert(
@@ -1403,6 +1410,7 @@ impl DepGraph {
                     })),
                     read_vars: [local.clone()].into_iter().collect(),
                     export: Some(export_name),
+                    disable_export_merging,
                     ..Default::default()
                 },
             );
@@ -1456,6 +1464,122 @@ impl DepGraph {
         let to = self.g.node(to);
 
         has_path_connecting(&self.g.idx_graph, from, to, None)
+    }
+
+    /// Workaround for implcit export issue of server actions.
+    ///
+    /// Inline server actions require the generated `$$RSC_SERVER_0` to be **exported**.
+    ///
+    /// But tree shaking works by removing unused code, and the **export** of $$RSC_SERVER_0
+    /// is cleary not used from the external module as it does not exist at all
+    /// in the user code.
+    ///
+    /// So we need to add an import for $$RSC_SERVER_0 to the module, so that the export is
+    /// preserved.
+    fn workaround_server_action(
+        &mut self,
+        g: &mut Graph<u32, Dependency>,
+        data: &FxHashMap<ItemId, ItemData>,
+    ) {
+        fn collect_deps(
+            g: &Graph<u32, Dependency>,
+            done: &mut FxHashSet<NodeIndex>,
+            node: NodeIndex,
+        ) -> Vec<NodeIndex> {
+            let direct_deps = g
+                .edges_directed(node, Direction::Outgoing)
+                .map(|e| e.target())
+                .collect::<Vec<_>>();
+
+            if direct_deps.iter().all(|dep| done.contains(dep)) {
+                return direct_deps;
+            }
+
+            direct_deps
+                .into_iter()
+                .flat_map(|dep| {
+                    let mut v = if !done.insert(dep) {
+                        vec![]
+                    } else {
+                        collect_deps(g, done, dep)
+                    };
+
+                    v.push(dep);
+                    v
+                })
+                .collect()
+        }
+
+        let mut server_action_decls = FxHashMap::default();
+        let mut server_action_exports = FxHashMap::default();
+
+        for node in g.node_indices() {
+            let Some(ix) = g.node_weight(node) else {
+                continue;
+            };
+
+            let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
+
+            if let ItemId::Group(ItemIdGroupKind::Export(v, name)) = item_id {
+                if name.starts_with("$$RSC_SERVER_") {
+                    server_action_exports.insert(v.0.clone(), node);
+                }
+            }
+
+            let item_data = &data[item_id];
+
+            for v in item_data.var_decls.iter() {
+                if v.0.starts_with("$$RSC_SERVER_") {
+                    server_action_decls.insert(node, v.0.clone());
+                }
+            }
+        }
+
+        if server_action_decls.is_empty() || server_action_exports.is_empty() {
+            return;
+        }
+
+        let mut queue = vec![];
+
+        for node in g.node_indices() {
+            let Some(ix) = g.node_weight(node) else {
+                continue;
+            };
+
+            let is_export_node = {
+                let item_id = self.g.graph_ix.get_index(*ix as _).unwrap();
+                matches!(item_id, ItemId::Group(ItemIdGroupKind::Export(..)))
+            };
+
+            if !is_export_node {
+                continue;
+            }
+
+            // If an export uses $$RSC_SERVER_0, depend on "export $$RSC_SERVER_0"
+
+            let mut done = FxHashSet::default();
+            let dependencies = collect_deps(g, &mut done, node);
+
+            for &dependency in dependencies.iter() {
+                if dependency == node {
+                    continue;
+                }
+
+                let Some(action_item_id) = server_action_decls.get(&dependency) else {
+                    continue;
+                };
+
+                let Some(action_export_node) = server_action_exports.get(action_item_id) else {
+                    continue;
+                };
+
+                queue.push((node, *action_export_node));
+            }
+        }
+
+        for (export_node, dep) in queue {
+            g.add_edge(export_node, dep, Dependency::Strong);
+        }
     }
 }
 
@@ -1518,7 +1642,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
 }
 /// givin a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
-pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
+pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =
         b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_";
 
@@ -1550,8 +1674,8 @@ pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
 
     let s = unsafe {
         // Safety: We are only using ascii characters
-        // Safety: The stack memory for ret is alive while creating JsWord
-        JsWord::from(std::str::from_utf8_unchecked(&ret))
+        // Safety: The stack memory for ret is alive while creating Atom
+        Atom::from(std::str::from_utf8_unchecked(&ret))
     };
 
     if skip_reserved

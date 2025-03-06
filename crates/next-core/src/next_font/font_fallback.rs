@@ -1,7 +1,8 @@
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 
 pub(crate) struct DefaultFallbackFont {
     pub name: RcStr,
@@ -31,9 +32,9 @@ pub(crate) static DEFAULT_SERIF_FONT: Lazy<DefaultFallbackFont> =
 #[turbo_tasks::value(shared)]
 pub(crate) struct AutomaticFontFallback {
     /// e.g. `__Roboto_Fallback_c123b8`
-    pub scoped_font_family: Vc<RcStr>,
+    pub scoped_font_family: ResolvedVc<RcStr>,
     /// The name of font locally, used in `src: local("{}")`
-    pub local_font_family: Vc<RcStr>,
+    pub local_font_family: ResolvedVc<RcStr>,
     pub adjustment: Option<FontAdjustment>,
 }
 
@@ -59,7 +60,7 @@ impl FontFallback {
 }
 
 #[turbo_tasks::value(transparent)]
-pub(crate) struct FontFallbacks(Vec<Vc<FontFallback>>);
+pub(crate) struct FontFallbacks(Vec<ResolvedVc<FontFallback>>);
 
 #[turbo_tasks::value_impl]
 impl FontFallbacks {
@@ -78,7 +79,7 @@ impl FontFallbacks {
 /// An adjustment to be made to a fallback font to approximate the geometry of
 /// the main webfont. Rendered as e.g. `ascent-override: 56.8%;` in the
 /// stylesheet
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub(crate) struct FontAdjustment {
     pub ascent: f64,
     pub descent: f64,

@@ -1,13 +1,14 @@
-use std::collections::{HashSet, VecDeque};
+use std::collections::HashSet;
 
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
-    issue::IssueDescriptionExt,
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     raw_module::RawModule,
@@ -33,7 +34,7 @@ pub trait ModuleReference: ValueToString {
 
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
-pub struct ModuleReferences(Vec<Vc<Box<dyn ModuleReference>>>);
+pub struct ModuleReferences(Vec<ResolvedVc<Box<dyn ModuleReference>>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleReferences {
@@ -48,14 +49,14 @@ impl ModuleReferences {
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: Vc<RcStr>,
+    description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for SingleModuleReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.asset).cell()
+        *ModuleResolveResult::module(self.asset)
     }
 }
 
@@ -63,7 +64,7 @@ impl ModuleReference for SingleModuleReference {
 impl ValueToString for SingleModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        self.description
+        *self.description
     }
 }
 
@@ -72,7 +73,7 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
@@ -83,18 +84,56 @@ impl SingleModuleReference {
     }
 }
 
+#[turbo_tasks::value]
+pub struct SingleChunkableModuleReference {
+    asset: ResolvedVc<Box<dyn Module>>,
+    description: ResolvedVc<RcStr>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
+        Self::cell(SingleChunkableModuleReference { asset, description })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::ParallelInheritAsync))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.asset)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for SingleChunkableModuleReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        *self.description
+    }
+}
+
 /// A reference that always resolves to a single module.
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    description: Vc<RcStr>,
+    description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::output_asset(RequestKey::default(), self.asset).cell()
+        *ModuleResolveResult::output_asset(RequestKey::default(), self.asset)
     }
 }
 
@@ -102,7 +141,7 @@ impl ModuleReference for SingleOutputAssetReference {
 impl ValueToString for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        self.description
+        *self.description
     }
 }
 
@@ -111,7 +150,10 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+        description: ResolvedVc<RcStr>,
+    ) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
@@ -131,14 +173,15 @@ impl SingleOutputAssetReference {
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
-    let references_set = module.references().await?;
-    let mut modules = FxIndexSet::default();
-    let resolve_results = references_set
+    let references = module.references().await?;
+
+    let resolved_references = references
         .iter()
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
-    for resolve_result in resolve_results {
+    let mut modules = Vec::new();
+    for resolve_result in resolved_references {
         modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result
@@ -152,11 +195,49 @@ pub async fn referenced_modules_and_affecting_sources(
                 .await?,
         );
     }
-    let mut resolved_modules = FxIndexSet::default();
-    for module in modules {
-        resolved_modules.insert(module.to_resolved().await?);
-    }
+
+    let resolved_modules: FxIndexSet<_> = modules.into_iter().collect();
+
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
+}
+
+#[turbo_tasks::value]
+pub struct TracedModuleReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *ModuleResolveResult::module(self.module)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for TracedModuleReference {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(
+            format!("traced {}", self.module.ident().to_string().await?).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for TracedModuleReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl TracedModuleReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(TracedModuleReference { module })
+    }
 }
 
 /// Aggregates all primary [Module]s referenced by an [Module]. [AssetReference]
@@ -172,13 +253,13 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .await?
         .iter()
         .map(|reference| async {
-            Ok(reference
+            reference
                 .resolve_reference()
                 .resolve()
                 .await?
                 .primary_modules()
-                .await?
-                .clone_value())
+                .owned()
+                .await
         })
         .try_join()
         .await?
@@ -189,29 +270,43 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
     Ok(Vc::cell(modules))
 }
 
-/// Aggregates all [Module]s referenced by an [Module] including transitively
-/// referenced [Module]s. This basically gives all [Module]s in a subgraph
-/// starting from the passed [Module].
+type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
+#[turbo_tasks::value(transparent)]
+pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
+
+/// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
+/// This does not include transitively references [Module]s, only includes
+/// primary [Module]s referenced.
+///
+/// [Module]: crate::module::Module
 #[turbo_tasks::function]
-pub async fn all_modules_and_affecting_sources(
-    asset: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<Modules>> {
-    // TODO need to track import path here
-    let mut queue = VecDeque::with_capacity(32);
-    queue.push_back((asset, referenced_modules_and_affecting_sources(*asset)));
-    let mut assets = HashSet::new();
-    assets.insert(asset);
-    while let Some((parent, references)) = queue.pop_front() {
-        let references = references
-            .issue_file_path(parent.ident().path(), "expanding references of asset")
-            .await?;
-        for asset in references.await?.iter() {
-            if assets.insert(*asset) {
-                queue.push_back((*asset, referenced_modules_and_affecting_sources(**asset)));
+pub async fn primary_chunkable_referenced_modules(
+    module: Vc<Box<dyn Module>>,
+) -> Result<Vc<ModulesWithChunkingType>> {
+    let modules = module
+        .references()
+        .await?
+        .iter()
+        .map(|reference| async {
+            if let Some(reference) =
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference)
+            {
+                if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    let resolved = reference
+                        .resolve_reference()
+                        .resolve()
+                        .await?
+                        .primary_modules()
+                        .owned()
+                        .await?;
+                    return Ok(Some((chunking_type.clone(), resolved)));
+                }
             }
-        }
-    }
-    Ok(Vc::cell(assets.into_iter().collect()))
+            Ok(None)
+        })
+        .try_flat_join()
+        .await?;
+    Ok(Vc::cell(modules))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
@@ -228,7 +323,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
             .await
             .completed()?
             .into_inner()
-            .into_reverse_topological()
+            .into_postorder_topological()
             .collect(),
     ))
 }

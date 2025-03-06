@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{Issue, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString};
@@ -16,35 +17,30 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct ResolvingIssue {
-    pub severity: Vc<IssueSeverity>,
+    pub severity: ResolvedVc<IssueSeverity>,
     pub request_type: String,
-    pub request: Vc<Request>,
-    pub file_path: Vc<FileSystemPath>,
-    pub resolve_options: Vc<ResolveOptions>,
+    pub request: ResolvedVc<Request>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
-    pub source: Option<ResolvedVc<IssueSource>>,
+    pub source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        let module_not_found = StyledString::Strong("Module not found".into());
-
-        Ok(match self.request.await?.request() {
-            Some(request) => StyledString::Line(vec![
-                module_not_found,
-                StyledString::Text(": Can't resolve '".into()),
-                StyledString::Code(request),
-                StyledString::Text("'".into()),
-            ]),
-            None => module_not_found,
-        }
+        let request = self.request.request_pattern().to_string().owned().await?;
+        Ok(StyledString::Line(vec![
+            StyledString::Strong("Module not found".into()),
+            StyledString::Text(": Can't resolve ".into()),
+            StyledString::Code(request),
+        ])
         .cell())
     }
 
@@ -55,7 +51,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -72,7 +68,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(**import_map, self.file_path, *request).await {
+                match lookup_import_map(**import_map, *self.file_path, **request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                     Err(err) => {
@@ -86,7 +82,7 @@ impl Issue for ResolvingIssue {
             }
         }
         Ok(Vc::cell(Some(
-            StyledString::Text(description.into()).cell(),
+            StyledString::Text(description.into()).resolved_cell(),
         )))
     }
 
@@ -114,12 +110,17 @@ impl Issue for ResolvingIssue {
             "Type of request: {request_type}",
             request_type = self.request_type,
         )?;
-        Ok(Vc::cell(Some(StyledString::Text(detail.into()).cell())))
+        Ok(Vc::cell(Some(
+            StyledString::Text(detail.into()).resolved_cell(),
+        )))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file_path)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match &self.source {
+            Some(source) => Some(source.resolve_source_map().await?.into_owned()),
+            None => None,
+        }))
     }
 
     // TODO add sub_issue for a description of resolve_options

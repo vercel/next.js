@@ -5,6 +5,9 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchValue,
+  type IncrementalCacheValue,
+  type SetIncrementalFetchCacheContext,
+  type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
 
 import { LRUCache } from '../lru-cache'
@@ -19,6 +22,7 @@ import {
   RSC_SUFFIX,
 } from '../../../lib/constants'
 import { tagsManifest } from './tags-manifest.external'
+import { MultiFileWriter } from '../../../lib/multi-file-writer'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -105,12 +109,16 @@ export default class FileSystemCache implements CacheHandler {
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
-    const { tags, softTags, kind, isRoutePPREnabled, isFallback } = ctx
+    const { kind } = ctx
 
     let data = memoryCache?.get(key)
 
     if (this.debug) {
-      console.log('get', key, tags, kind, !!data)
+      if (kind === IncrementalCacheKind.FETCH) {
+        console.log('get', key, ctx.tags, kind, !!data)
+      } else {
+        console.log('get', key, kind, !!data)
+      }
     }
 
     // let's check the disk for seed data
@@ -156,6 +164,8 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         if (kind === IncrementalCacheKind.FETCH) {
+          const { tags, fetchIdx, fetchUrl } = ctx
+
           if (!this.flushToDisk) return null
 
           const lastModified = mtime.getTime()
@@ -176,8 +186,10 @@ export default class FileSystemCache implements CacheHandler {
                 console.log('tags vs storedTags mismatch', tags, storedTags)
               }
               await this.set(key, data.value, {
+                fetchCache: true,
                 tags,
-                isRoutePPREnabled,
+                fetchIdx,
+                fetchUrl,
               })
             }
           }
@@ -194,28 +206,26 @@ export default class FileSystemCache implements CacheHandler {
             )
           } catch {}
 
-          let maybeSegmentData: { [segmentPath: string]: string } | undefined
+          let maybeSegmentData: Map<string, Buffer> | undefined
           if (meta?.segmentPaths) {
             // Collect all the segment data for this page.
             // TODO: To optimize file system reads, we should consider creating
             // separate cache entries for each segment, rather than storing them
             // all on the page's entry. Though the behavior is
             // identical regardless.
-            const segmentData: { [segmentPath: string]: string } = {}
+            const segmentData: Map<string, Buffer> = new Map()
             maybeSegmentData = segmentData
             const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
             await Promise.all(
               meta.segmentPaths.map(async (segmentPath: string) => {
                 const segmentDataFilePath = this.getFilePath(
-                  segmentPath === '/'
-                    ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                    : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                  segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
                   IncrementalCacheKind.APP_PAGE
                 )
                 try {
-                  segmentData[segmentPath] = await this.fs.readFile(
-                    segmentDataFilePath,
-                    'utf8'
+                  segmentData.set(
+                    segmentPath,
+                    await this.fs.readFile(segmentDataFilePath)
                   )
                 } catch {
                   // This shouldn't happen, but if for some reason we fail to
@@ -227,10 +237,10 @@ export default class FileSystemCache implements CacheHandler {
           }
 
           let rscData: Buffer | undefined
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             rscData = await this.fs.readFile(
               this.getFilePath(
-                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
                 IncrementalCacheKind.APP_PAGE
               )
             )
@@ -252,7 +262,7 @@ export default class FileSystemCache implements CacheHandler {
           let meta: RouteMetadata | undefined
           let pageData: string | object = {}
 
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             pageData = JSON.parse(
               await this.fs.readFile(
                 this.getFilePath(
@@ -316,7 +326,10 @@ export default class FileSystemCache implements CacheHandler {
         }
       }
     } else if (data?.value?.kind === CachedRouteKind.FETCH) {
-      const combinedTags = [...(tags || []), ...(softTags || [])]
+      const combinedTags =
+        ctx.kind === IncrementalCacheKind.FETCH
+          ? [...(ctx.tags || []), ...(ctx.softTags || [])]
+          : []
 
       const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
@@ -339,9 +352,11 @@ export default class FileSystemCache implements CacheHandler {
     return data ?? null
   }
 
-  public async set(...args: Parameters<CacheHandler['set']>) {
-    const [key, data, ctx] = args
-    const { isFallback } = ctx
+  public async set(
+    key: string,
+    data: IncrementalCacheValue | null,
+    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -353,13 +368,17 @@ export default class FileSystemCache implements CacheHandler {
 
     if (!this.flushToDisk || !data) return
 
+    // Create a new writer that will prepare to write all the files to disk
+    // after their containing directory is created.
+    const writer = new MultiFileWriter(this.fs)
+
     if (data.kind === CachedRouteKind.APP_ROUTE) {
       const filePath = this.getFilePath(
         `${key}.body`,
         IncrementalCacheKind.APP_ROUTE
       )
-      await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(filePath, data.body)
+
+      writer.append(filePath, data.body)
 
       const meta: RouteMetadata = {
         headers: data.headers,
@@ -368,7 +387,7 @@ export default class FileSystemCache implements CacheHandler {
         segmentPaths: undefined,
       }
 
-      await this.fs.writeFile(
+      writer.append(
         filePath.replace(/\.body$/, NEXT_META_SUFFIX),
         JSON.stringify(meta, null, 2)
       )
@@ -381,12 +400,12 @@ export default class FileSystemCache implements CacheHandler {
         `${key}.html`,
         isAppPath ? IncrementalCacheKind.APP_PAGE : IncrementalCacheKind.PAGES
       )
-      await this.fs.mkdir(path.dirname(htmlPath))
-      await this.fs.writeFile(htmlPath, data.html)
+
+      writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!isFallback) {
-        await this.fs.writeFile(
+      if (!ctx.fetchCache && !ctx.isFallback) {
+        writer.append(
           this.getFilePath(
             `${key}${
               isAppPath
@@ -399,34 +418,52 @@ export default class FileSystemCache implements CacheHandler {
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES
           ),
-          isAppPath ? data.rscData : JSON.stringify(data.pageData)
+          isAppPath ? data.rscData! : JSON.stringify(data.pageData)
         )
       }
 
       if (data?.kind === CachedRouteKind.APP_PAGE) {
+        let segmentPaths: string[] | undefined
+        if (data.segmentData) {
+          segmentPaths = []
+          const segmentsDir = htmlPath.replace(
+            /\.html$/,
+            RSC_SEGMENTS_DIR_SUFFIX
+          )
+
+          for (const [segmentPath, buffer] of data.segmentData) {
+            segmentPaths.push(segmentPath)
+            const segmentDataFilePath =
+              segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+            writer.append(segmentDataFilePath, buffer)
+          }
+        }
+
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
-          segmentPaths: undefined,
+          segmentPaths,
         }
 
-        await this.fs.writeFile(
+        writer.append(
           htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
           JSON.stringify(meta)
         )
       }
     } else if (data.kind === CachedRouteKind.FETCH) {
       const filePath = this.getFilePath(key, IncrementalCacheKind.FETCH)
-      await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(
+      writer.append(
         filePath,
         JSON.stringify({
           ...data,
-          tags: ctx.tags,
+          tags: ctx.fetchCache ? ctx.tags : [],
         })
       )
     }
+
+    // Wait for all FS operations to complete.
+    await writer.wait()
   }
 
   private getFilePath(pathname: string, kind: IncrementalCacheKind): string {

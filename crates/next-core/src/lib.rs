@@ -1,4 +1,3 @@
-#![feature(async_closure)]
 #![feature(str_split_remainder)]
 #![feature(impl_trait_in_assoc_type)]
 #![feature(arbitrary_self_types)]
@@ -30,7 +29,8 @@ pub mod next_manifests;
 pub mod next_pages;
 mod next_route_matcher;
 pub mod next_server;
-mod next_server_component;
+pub mod next_server_component;
+pub mod next_server_utility;
 mod next_shared;
 pub mod next_telemetry;
 mod page_loader;

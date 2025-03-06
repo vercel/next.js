@@ -1,3 +1,5 @@
+// TODO: This should not need the suspense boundary in the root layout, but
+// currently does with Turbopack.
 import { Form } from './form'
 
 async function action() {

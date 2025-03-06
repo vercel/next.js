@@ -2,7 +2,10 @@ use std::borrow::Cow;
 
 use anyhow::Result;
 
-use crate::database::key_value_database::{KeySpace, KeyValueDatabase, WriteBatch};
+use crate::database::{
+    key_value_database::{KeySpace, KeyValueDatabase},
+    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+};
 
 pub struct NoopKvDb;
 
@@ -36,23 +39,26 @@ impl KeyValueDatabase for NoopKvDb {
         Ok(None)
     }
 
-    type WriteBatch<'l>
+    type SerialWriteBatch<'l>
         = NoopWriteBatch
     where
         Self: 'l;
 
-    fn write_batch(&self) -> Result<Self::WriteBatch<'_>> {
-        Ok(NoopWriteBatch)
+    type ConcurrentWriteBatch<'l>
+        = NoopWriteBatch
+    where
+        Self: 'l;
+
+    fn write_batch(
+        &self,
+    ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
+        Ok(WriteBatch::concurrent(NoopWriteBatch))
     }
 }
 
 pub struct NoopWriteBatch;
 
-impl<'a> WriteBatch<'a> for NoopWriteBatch {
-    fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
-        Ok(())
-    }
-
+impl<'a> BaseWriteBatch<'a> for NoopWriteBatch {
     type ValueBuffer<'l>
         = &'l [u8]
     where
@@ -66,11 +72,27 @@ impl<'a> WriteBatch<'a> for NoopWriteBatch {
         Ok(None)
     }
 
-    fn delete(&mut self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+    fn commit(self) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl SerialWriteBatch<'_> for NoopWriteBatch {
+    fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
         Ok(())
     }
 
-    fn commit(self) -> Result<()> {
+    fn delete(&mut self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+        Ok(())
+    }
+}
+
+impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
+    fn put(&self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
+        Ok(())
+    }
+
+    fn delete(&self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
         Ok(())
     }
 }

@@ -1,12 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
-import { outdent } from 'outdent'
-
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
-function normalizeStackTrace(trace) {
-  return trace.replace(/ \(.*\)/g, '')
-}
 
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
@@ -18,55 +10,20 @@ describe('app dir - dynamic error trace', () => {
   it('should show the error trace', async () => {
     const browser = await next.browser('/')
 
-    await assertHasRedbox(browser)
-
-    await expect(
-      browser.hasElementByCssSelector(
-        '[data-nextjs-data-runtime-error-collapsed-action]'
-      )
-    ).resolves.toEqual(false)
-
-    const stackFrameElements = await browser.elementsByCss(
-      '[data-nextjs-call-stack-frame]'
-    )
-    const stackFramesContent = // TODO: Why is this text empty?
-      (await Promise.all(stackFrameElements.map((f) => f.innerText())))
-        // Filter out the frames having code snippet but without methodName and source
-        .filter(Boolean)
-        .join('\n')
-
-    // TODO: Show useful stack
-    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
-      isReactExperimental ? `""` : `""`
-    )
-
-    const codeframe = await getRedboxSource(browser)
-    // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack
-    expect(codeframe).toEqual(
-      process.env.TURBOPACK
-        ? outdent`
-            app/lib.js (4:12) @ Foo
-            
-              2 |
-              3 | export function Foo() {
-            > 4 |   useHeaders()
-                |            ^
-              5 |   return 'foo'
-              6 | }
-              7 |
-          `
-        : // TODO: should be "@ Foo" since that's where we put the codeframe and print the source location
-          outdent`
-            app/lib.js (4:13) @ useHeaders
-
-              2 |
-              3 | export function Foo() {
-            > 4 |   useHeaders()
-                |             ^
-              5 |   return 'foo'
-              6 | }
-              7 |
-          `
-    )
+    // TODO(veil): Where is the stackframe for app/page.js?
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Route / with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+       "environmentLabel": "Server",
+       "label": "Unhandled Runtime Error",
+       "source": "app/lib.js (4:13) @ Foo
+     > 4 |   useHeaders()
+         |             ^",
+       "stack": [
+         "Foo app/lib.js (4:13)",
+       ],
+     }
+    `)
   })
 })

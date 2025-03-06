@@ -17,12 +17,16 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess, wellKnownProperties } from './utils'
+import {
+  describeStringPropertyAccess,
+  wellKnownProperties,
+} from '../../shared/lib/utils/reflect-utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 
-export type Params = Record<string, string | Array<string> | undefined>
+export type ParamValue = string | Array<string> | undefined
+export type Params = Record<string, ParamValue>
 
 /**
  * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
@@ -160,7 +164,7 @@ function createPrerenderParams(
           prerenderStore
         )
       }
-      // remaining cases are prender-ppr and prerender-legacy
+      // remaining cases are prerender-ppr and prerender-legacy
       // We aren't in a dynamicIO prerender but we do have fallback params at this
       // level so we need to make an erroring exotic params object which will postpone
       // if you access the fallback params
@@ -446,18 +450,12 @@ function syncIODev(
   }
 }
 
-const noop = () => {}
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createParamsAccessError
+)
 
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
-
-const warnForIncompleteEnumeration = process.env
-  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(
-      createIncompleteEnumerationError
-    )
+const warnForIncompleteEnumeration =
+  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
 
 function createParamsAccessError(
   route: string | undefined,

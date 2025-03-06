@@ -12,11 +12,13 @@ use anyhow::Result;
 /// the current one and two older/newer ones.
 const MAX_OTHER_DB_VERSIONS: usize = 2;
 
-pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
+pub fn handle_db_versioning(base_path: &Path, version_info: &str) -> Result<PathBuf> {
+    if let Ok(version) = env::var("TURBO_ENGINE_VERSION") {
+        return Ok(base_path.join(version));
+    }
     // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
     // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
     // versioning and always use the same database.
-    let version_info = env!("VERGEN_GIT_DESCRIBE");
     let (version_info, git_dirty) = if let Some(version_info) = version_info.strip_suffix("-dirty")
     {
         (version_info, true)
@@ -87,8 +89,8 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
             }
         }
     } else {
-        let _ = remove_dir_all(base_path);
         path = base_path.join("temp");
+        let _ = remove_dir_all(&path);
     }
 
     Ok(path)

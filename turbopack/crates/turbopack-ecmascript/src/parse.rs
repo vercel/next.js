@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
+use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
     common::{
@@ -10,27 +11,28 @@ use swc_core::{
         BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
     ecma::{
-        ast::{EsVersion, Program},
+        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
         parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
         transforms::base::{
             helpers::{Helpers, HELPERS},
             resolver,
         },
-        visit::VisitMutWith,
+        visit::{noop_visit_type, Visit, VisitMutWith, VisitWith},
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{util::WrapFuture, RcStr, Value, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap, SourceMap},
-    SOURCE_MAP_PREFIX,
+    source_map::utils::add_default_ignore_list,
+    SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
@@ -73,75 +75,44 @@ impl PartialEq for ParseResult {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub struct ParseResultSourceMap {
-    /// Confusingly, SWC's SourceMap is not a mapping of transformed locations
-    /// to source locations. It's a map of filesnames to file contents.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
+pub fn generate_js_source_map(
     files_map: Arc<swc_core::common::SourceMap>,
-
-    /// The position mappings that can generate a real source map.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
     mappings: Vec<(BytePos, LineCol)>,
+    original_source_map: Option<&Rope>,
+) -> Result<Rope> {
+    let input_map = if let Some(original_source_map) = original_source_map {
+        Some(match sourcemap::decode(original_source_map.read())? {
+            sourcemap::DecodedMap::Regular(source_map) => source_map,
+            // swc only accepts flattened sourcemaps as input
+            sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
+            _ => return Err(sourcemap::Error::IncompatibleSourceMap.into()),
+        })
+    } else {
+        None
+    };
 
-    /// An input's original source map, if one exists. This will be used to
-    /// trace locations back to the input's pre-transformed sources.
-    original_source_map: Vc<OptionSourceMap>,
-}
+    let mut map = files_map.build_source_map_with_config(
+        &mappings,
+        input_map.as_ref(),
+        InlineSourcesContentConfig {},
+    );
+    add_default_ignore_list(&mut map);
 
-impl PartialEq for ParseResultSourceMap {
-    fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.files_map, &other.files_map) && self.mappings == other.mappings
-    }
-}
-
-impl ParseResultSourceMap {
-    pub fn new(
-        files_map: Arc<swc_core::common::SourceMap>,
-        mappings: Vec<(BytePos, LineCol)>,
-        original_source_map: Vc<OptionSourceMap>,
-    ) -> Self {
-        ParseResultSourceMap {
-            files_map,
-            mappings,
-            original_source_map,
-        }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl GenerateSourceMap for ParseResultSourceMap {
-    #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionSourceMap>> {
-        let original_src_map = if let Some(input) = *self.original_source_map.await? {
-            Some(input.await?.to_source_map().await?)
-        } else {
-            None
-        };
-        let input_map = if let Some(map) = original_src_map.as_ref() {
-            map.as_regular_source_map()
-        } else {
-            None
-        };
-        let map = self.files_map.build_source_map_with_config(
-            &self.mappings,
-            input_map.as_deref(),
-            InlineSourcesContentConfig {},
-        );
-        Ok(Vc::cell(Some(SourceMap::new_regular(map).cell())))
-    }
+    let mut result = vec![];
+    map.to_writer(&mut result)?;
+    Ok(Rope::from(result))
 }
 
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-struct InlineSourcesContentConfig {}
+pub struct InlineSourcesContentConfig {}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
         match f {
             FileName::Custom(s) => {
-                format!("{SOURCE_MAP_PREFIX}{s}")
+                format!("{SOURCE_URL_PROTOCOL}///{s}")
             }
             _ => f.to_string(),
         }
@@ -154,7 +125,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -173,7 +144,7 @@ pub async fn parse(
 }
 
 async fn parse_internal(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -191,7 +162,7 @@ async fn parse_internal(
                 source,
                 error: error.clone(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
 
             return Ok(ParseResult::Unparseable {
@@ -233,7 +204,7 @@ async fn parse_internal(
                         source,
                         error: error.clone(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     ParseResult::Unparseable {
                         messages: Some(vec![error]),
@@ -252,27 +223,24 @@ async fn parse_file_content(
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(
-            source,
-            source_map.clone(),
-            Some("Ecmascript file had an error".into()),
-        )),
+    let (emitter, collector) = IssueEmitter::new(
+        source,
+        source_map.clone(),
+        Some("Ecmascript file had an error".into()),
     );
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
-    let emitter = Box::new(IssueEmitter::new(
+    let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
-    ));
-    let parser_handler = Handler::with_emitter(true, false, emitter.clone());
+    );
+    let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
 
@@ -384,8 +352,16 @@ async fn parse_file_content(
                 source_map: source_map.clone(),
             });
 
-            parsed_program.mutate(swc_core::ecma::lints::rules::lint_to_fold(rules));
+            parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
             drop(span);
+
+            parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
+
+            let var_with_ts_declare = if is_typescript {
+                VarDeclWithTsDeclareCollector::collect(&parsed_program)
+            } else {
+                FxHashSet::default()
+            };
 
             let transform_context = TransformContext {
                 comments: &comments,
@@ -395,7 +371,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
-                file_path: fs_path_vc,
+                file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -410,7 +386,7 @@ async fn parse_file_content(
             .await?;
 
             if parser_handler.has_errors() {
-                let messages = if let Some(error) = emitter.emitted_issues.last() {
+                let messages = if let Some(error) = collector_parse.last_emitted_issue() {
                     // The emitter created in here only uses StyledString::Text
                     if let StyledString::Text(xx) = &*error.await?.message.await? {
                         Some(vec![xx.clone()])
@@ -433,6 +409,7 @@ async fn parse_file_content(
                 &parsed_program,
                 unresolved_mark,
                 top_level_mark,
+                Arc::new(var_with_ts_declare),
                 Some(&comments),
                 Some(source),
             );
@@ -461,12 +438,14 @@ async fn parse_file_content(
         // Assign the correct globals
         *g = globals;
     }
+    collector.emit().await?;
+    collector_parse.emit().await?;
     Ok(result.cell())
 }
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     error: RcStr,
 }
 
@@ -493,7 +472,7 @@ impl Issue for ReadSourceIssue {
                 )
                 .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
@@ -505,5 +484,70 @@ impl Issue for ReadSourceIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Load.cell()
+    }
+}
+
+struct VarDeclWithTsDeclareCollector {
+    id_with_no_ts_declare: FxHashSet<Id>,
+    id_with_ts_declare: FxHashSet<Id>,
+}
+
+impl VarDeclWithTsDeclareCollector {
+    fn collect<N: VisitWith<VarDeclWithTsDeclareCollector>>(n: &N) -> FxHashSet<Id> {
+        let mut collector = VarDeclWithTsDeclareCollector {
+            id_with_no_ts_declare: Default::default(),
+            id_with_ts_declare: Default::default(),
+        };
+        n.visit_with(&mut collector);
+        collector
+            .id_with_ts_declare
+            .retain(|id| !collector.id_with_no_ts_declare.contains(id));
+        collector.id_with_ts_declare
+    }
+
+    fn handle_pat(&mut self, pat: &Pat, declare: bool) {
+        match pat {
+            Pat::Ident(binding_ident) => {
+                if declare {
+                    self.id_with_ts_declare.insert(binding_ident.to_id());
+                } else {
+                    self.id_with_no_ts_declare.insert(binding_ident.to_id());
+                }
+            }
+            Pat::Array(array_pat) => {
+                for pat in array_pat.elems.iter().flatten() {
+                    self.handle_pat(pat, declare);
+                }
+            }
+            Pat::Object(object_pat) => {
+                for prop in object_pat.props.iter() {
+                    match prop {
+                        ObjectPatProp::KeyValue(key_value_pat_prop) => {
+                            self.handle_pat(&key_value_pat_prop.value, declare);
+                        }
+                        ObjectPatProp::Assign(assign_pat_prop) => {
+                            if declare {
+                                self.id_with_ts_declare.insert(assign_pat_prop.key.to_id());
+                            } else {
+                                self.id_with_no_ts_declare
+                                    .insert(assign_pat_prop.key.to_id());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Visit for VarDeclWithTsDeclareCollector {
+    noop_visit_type!();
+
+    fn visit_var_decl(&mut self, node: &VarDecl) {
+        for decl in node.decls.iter() {
+            self.handle_pat(&decl.name, node.declare);
+        }
     }
 }

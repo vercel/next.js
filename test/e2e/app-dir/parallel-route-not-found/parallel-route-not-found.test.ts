@@ -43,6 +43,18 @@ describe('parallel-route-not-found', () => {
     }
   })
 
+  it('should not include any parallel route warnings for a deliberate notFound()', async () => {
+    const browser = await next.browser('/has-both-slots/not-found-error')
+    const logs = await browser.log()
+
+    expect(await browser.elementByCss('body').text()).toContain(
+      'This page could not be found'
+    )
+
+    const warnings = logs.filter((log) => log.source === 'warning')
+    expect(warnings.length).toBe(0)
+  })
+
   it('should render the page & slots if all parallel routes are found', async () => {
     const browser = await next.browser('/has-both-slots')
     const logs = await browser.log()

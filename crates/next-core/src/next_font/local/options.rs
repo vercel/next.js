@@ -2,7 +2,8 @@ use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Value, Vc};
 
 use super::request::{
     AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
@@ -49,7 +50,17 @@ impl NextFontLocalOptions {
 /// Describes an individual font file's path, weight, style, etc. Derived from
 /// the `src` field or top-level object provided by the user
 #[derive(
-    Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TraceRawVcs,
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
@@ -80,7 +91,17 @@ impl FontDescriptor {
 }
 
 #[derive(
-    Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TraceRawVcs,
+    Clone,
+    Debug,
+    Deserialize,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub(super) enum FontDescriptors {
     /// `One` is a special case when the user did not provide a `src` field and
@@ -92,7 +113,17 @@ pub(super) enum FontDescriptors {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Hash, TraceRawVcs,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Deserialize,
+    Serialize,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub(super) enum FontWeight {
     Variable(RcStr, RcStr),

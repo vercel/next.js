@@ -39,7 +39,7 @@ module.exports = function (Taskr, _utils) {
       const wp = new Watchpack({
         aggregateTimeout: 5,
         followSymlinks: true,
-        ignored: '**/.git',
+        ignored: ['**/.git', '**/*.test.*', '**/*.stories.*'],
       })
 
       names = toArr(names)

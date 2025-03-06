@@ -3,6 +3,7 @@
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
 
+mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
@@ -22,14 +23,14 @@ pub fn derive_trace_raw_vcs_attr(input: TokenStream) -> TokenStream {
     derive::derive_trace_raw_vcs(input)
 }
 
-#[proc_macro_derive(ShrinkToFit, attributes(turbo_tasks))]
-pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
-    derive::derive_shrink_to_fit(input)
+#[proc_macro_derive(NonLocalValue, attributes(turbo_tasks))]
+pub fn derive_non_local_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_non_local_value(input)
 }
 
-#[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
-pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
-    derive::derive_resolved_value(input)
+#[proc_macro_derive(OperationValue, attributes(turbo_tasks))]
+pub fn derive_operation_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_operation_value(input)
 }
 
 #[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
@@ -85,7 +86,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 ///
 /// ### 'resolved`
 ///
-/// Adds [`turbo_tasks::ResolvedValue`] as a supertrait of this trait.
+/// Adds [`turbo_tasks::NonLocalValue`] as a supertrait of this trait.
 ///
 /// Example: `#[turbo_tasks::value_trait(resolved)]`
 #[allow_internal_unstable(min_specialization, into_future, trivial_bounds)]

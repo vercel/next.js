@@ -30,7 +30,7 @@ describe('setting cookies', () => {
     /Cookies can only be modified in a Server Action or Route Handler\./
 
   const EXPECTED_ERROR_IN_AFTER =
-    /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+    /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
   describe('stops cookie mutations when changing phases', () => {
     it('from an action to a page render', async () => {
@@ -69,17 +69,17 @@ describe('setting cookies', () => {
       )
     })
 
-    // these tests inspect CLI logs to see what happened in unstable_after,
+    // these tests inspect CLI logs to see what happened in after,
     // so they won't work in deploy mode
     if (!isNextDeploy) {
-      it('from an action to unstable_after via closure', async () => {
+      it('from an action to after via closure', async () => {
         const path = '/cookies/action-to-after/via-closure'
         const session = await next.browser(path)
 
         // trigger an action
         await session.elementByCss('[type="submit"]').click()
         await retry(async () => {
-          // the .set() in unstable_after should error
+          // the .set() in after should error
           expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
         })
 
@@ -89,7 +89,7 @@ describe('setting cookies', () => {
         )
       })
 
-      it('from a route handler to unstable_after via closure', async () => {
+      it('from a route handler to after via closure', async () => {
         const path = '/cookies/route-handler-to-after/via-closure'
         const response = await next.fetch(path, { method: 'POST' })
         await response.text()
@@ -98,13 +98,13 @@ describe('setting cookies', () => {
         // no cookie should be set
         expect(response.headers.get('set-cookie')).toBe(null)
 
-        // the .set() in unstable_after should error
+        // the .set() in after should error
         await retry(async () => {
           expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
         })
       })
 
-      it('from middleware to unstable_after via closure', async () => {
+      it('from middleware to after via closure', async () => {
         const path = '/cookies/middleware-to-after/via-closure'
         const response = await next.fetch(path)
         await response.text()
@@ -113,7 +113,7 @@ describe('setting cookies', () => {
         // no cookie should be set
         expect(response.headers.get('set-cookie')).toBe(null)
 
-        // the .set() in unstable_after should error
+        // the .set() in after should error
         await retry(async () => {
           expect(getCliOutput()).toMatch(EXPECTED_ERROR_IN_AFTER)
         })

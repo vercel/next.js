@@ -1,7 +1,7 @@
 ---
-title: Project Structure and Organization
+title: Project structure and organization
 nav_title: Project Structure
-description: Learn about the folder and file conventions in a Next.js project, and how to organize your project.
+description: An overview of the folder and file conventions in Next.js, and how to organize your project.
 ---
 
 This page provides an overview of the folder and file conventions in Next.js, as well as tips for organizing your project.
@@ -52,24 +52,24 @@ Top-level files are used to configure your application, manage dependencies, run
 
 ### Routing Files
 
-|                                                                                 |                     |                              |
-| ------------------------------------------------------------------------------- | ------------------- | ---------------------------- |
-| [`layout`](/docs/app/api-reference/file-conventions/layout)                     | `.js` `.jsx` `.tsx` | Layout                       |
-| [`page`](/docs/app/api-reference/file-conventions/page)                         | `.js` `.jsx` `.tsx` | Page                         |
-| [`loading`](/docs/app/api-reference/file-conventions/loading)                   | `.js` `.jsx` `.tsx` | Loading UI                   |
-| [`not-found`](/docs/app/api-reference/file-conventions/not-found)               | `.js` `.jsx` `.tsx` | Not found UI                 |
-| [`error`](/docs/app/api-reference/file-conventions/error)                       | `.js` `.jsx` `.tsx` | Error UI                     |
-| [`global-error`](/docs/app/api-reference/file-conventions/error#global-errorjs) | `.js` `.jsx` `.tsx` | Global error UI              |
-| [`route`](/docs/app/api-reference/file-conventions/route)                       | `.js` `.ts`         | API endpoint                 |
-| [`template`](/docs/app/api-reference/file-conventions/template)                 | `.js` `.jsx` `.tsx` | Re-rendered layout           |
-| [`default`](/docs/app/api-reference/file-conventions/default)                   | `.js` `.jsx` `.tsx` | Parallel route fallback page |
+|                                                                               |                     |                              |
+| ----------------------------------------------------------------------------- | ------------------- | ---------------------------- |
+| [`layout`](/docs/app/api-reference/file-conventions/layout)                   | `.js` `.jsx` `.tsx` | Layout                       |
+| [`page`](/docs/app/api-reference/file-conventions/page)                       | `.js` `.jsx` `.tsx` | Page                         |
+| [`loading`](/docs/app/api-reference/file-conventions/loading)                 | `.js` `.jsx` `.tsx` | Loading UI                   |
+| [`not-found`](/docs/app/api-reference/file-conventions/not-found)             | `.js` `.jsx` `.tsx` | Not found UI                 |
+| [`error`](/docs/app/api-reference/file-conventions/error)                     | `.js` `.jsx` `.tsx` | Error UI                     |
+| [`global-error`](/docs/app/api-reference/file-conventions/error#global-error) | `.js` `.jsx` `.tsx` | Global error UI              |
+| [`route`](/docs/app/api-reference/file-conventions/route)                     | `.js` `.ts`         | API endpoint                 |
+| [`template`](/docs/app/api-reference/file-conventions/template)               | `.js` `.jsx` `.tsx` | Re-rendered layout           |
+| [`default`](/docs/app/api-reference/file-conventions/default)                 | `.js` `.jsx` `.tsx` | Parallel route fallback page |
 
 ### Nested routes
 
-|                                                                              |                      |
-| ---------------------------------------------------------------------------- | -------------------- |
-| [`folder`](/docs/app/building-your-application/routing#route-segments)       | Route segment        |
-| [`folder/folder`](/docs/app/building-your-application/routing#nested-routes) | Nested route segment |
+|                 |                      |
+| --------------- | -------------------- |
+| `folder`        | Route segment        |
+| `folder/folder` | Nested route segment |
 
 ### Dynamic routes
 
@@ -168,13 +168,42 @@ Top-level files are used to configure your application, manage dependencies, run
 
 <AppOnly>
 
+## Component hierarchy
+
+The React components defined in special files of a route segment are rendered in a specific hierarchy:
+
+- `layout.js`
+- `template.js`
+- `error.js` (React error boundary)
+- `loading.js` (React suspense boundary)
+- `not-found.js` (React error boundary)
+- `page.js` or nested `layout.js`
+
+<Image
+  alt="Component Hierarchy for File Conventions"
+  srcLight="/docs/light/file-conventions-component-hierarchy.png"
+  srcDark="/docs/dark/file-conventions-component-hierarchy.png"
+  width="1600"
+  height="643"
+/>
+
+In a nested route, the components of a segment will be nested **inside** the components of its parent segment.
+
+<Image
+  alt="Nested File Conventions Component Hierarchy"
+  srcLight="/docs/light/nested-file-conventions-component-hierarchy.png"
+  srcDark="/docs/dark/nested-file-conventions-component-hierarchy.png"
+  width="1600"
+  height="863"
+/>
+
 ## Organizing your project
 
 Apart from [folder and file conventions](/docs/app/getting-started/project-structure), Next.js is **unopinionated** about how you organize and colocate your project files. But it does provide several features to help you organize your project.
 
 ### Colocation
 
-In the `app` directory, [nested folder hierarchy](/docs/app/building-your-application/routing#route-segments) defines route structure. Each folder represents a route segment that is mapped to a corresponding segment in a URL path.
+In the `app` directory, nested folders define route structure. Each folder represents a route segment that is mapped to a corresponding segment in a URL path.
 
 However, even though route structure is defined through folders, a route is **not publicly accessible** until a `page.js` or `route.js` file is added to a route segment.
 

@@ -37,13 +37,16 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
+# Enable support for the tokio console: https://github.com/tokio-rs/console
+tokio-console = ["dep:console-subscriber"]
+
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
-fxhash = "0.2.1"
+console-subscriber = { workspace = true, optional = true }
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
 owo-colors = { workspace = true }
@@ -60,6 +63,7 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 rand = { workspace = true }
+rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }
@@ -69,6 +73,7 @@ tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
     "base_concurrent",
@@ -96,6 +101,7 @@ swc_core = { workspace = true, features = [
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-memory = { workspace = true }
 turbo-tasks-backend = { workspace = true }
@@ -134,8 +140,8 @@ tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 napi-build = "2"
-serde = "1"
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 # It is not a mistake this dependency is specified in dep / build-dep both.
 shadow-rs = { workspace = true }
 

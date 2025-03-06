@@ -29,15 +29,15 @@ use rstest_reuse::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::{process::Command, time::timeout};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    backend::Backend, RcStr, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
+    apply_effects, backend::Backend, ReadRef, ResolvedVc, TurboTasks, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    rebase::RebasedAsset,
     register, ModuleAssetContext,
 };
 use turbopack_core::{
@@ -46,6 +46,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     output::OutputAsset,
+    rebase::RebasedAsset,
     reference_type::ReferenceType,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -419,7 +420,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let original_output = exec_node(package_root, input);
 
                 let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
                 let module_asset_context = ModuleAssetContext::new(
@@ -428,7 +429,9 @@ fn node_file_trace<B: Backend + 'static>(
                     // binary. TODO These test cases should move into the
                     // `node-file-trace` crate and use the same config.
                     CompileTimeInfo::new(Environment::new(Value::new(
-                        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
                     ))),
                     ModuleOptionsContext {
                         ecmascript: EcmascriptOptionsContext {
@@ -454,16 +457,19 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir)
+                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
                     .to_resolved()
                     .await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
-                let output_path = rebased.ident().path();
+                let output_path = rebased.path();
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                emit_with_completion(*ResolvedVc::upcast(rebased), output_dir).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.read_strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {
@@ -658,10 +664,12 @@ fn clean_stderr(str: &str) -> String {
     lazy_static! {
         static ref EXPERIMENTAL_WARNING: Regex =
             Regex::new(r"\(node:\d+\) ExperimentalWarning:").unwrap();
+        static ref DEPRECATION_WARNING: Regex =
+            Regex::new(r"\(node:\d+\) \[DEP\d+] DeprecationWarning:").unwrap();
     }
-    EXPERIMENTAL_WARNING
-        .replace_all(str, "(node:XXXX) ExperimentalWarning:")
-        .to_string()
+    let str = EXPERIMENTAL_WARNING.replace_all(str, "(node:XXXX) ExperimentalWarning:");
+    let str = DEPRECATION_WARNING.replace_all(&str, "(node:XXXX) [DEPXXXX] DeprecationWarning:");
+    str.to_string()
 }
 
 fn diff(expected: &str, actual: &str) -> String {
@@ -766,11 +774,11 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
             for &asset in references.iter().rev() {
                 queue.push((depth + 1, asset));
             }
-            println!("{}{}", indent, asset.ident().to_string().await?);
+            println!("{}{}", indent, asset.path().to_string().await?);
         } else if references.is_empty() {
-            println!("{}{} *", indent, asset.ident().to_string().await?);
+            println!("{}{} *", indent, asset.path().to_string().await?);
         } else {
-            println!("{}{} *...", indent, asset.ident().to_string().await?);
+            println!("{}{} *...", indent, asset.path().to_string().await?);
         }
     }
     Ok(())

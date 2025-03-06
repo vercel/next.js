@@ -48,7 +48,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
                 file_path: lookup_path,
                 request,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -90,7 +90,7 @@ impl Issue for UnsupportedSassModuleIssue {
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text("Turbopack does not yet support importing Sass modules.".into())
-                .cell(),
+                .resolved_cell(),
         ))
     }
 

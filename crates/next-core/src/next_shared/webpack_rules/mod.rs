@@ -1,11 +1,12 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::WebpackLoadersOptions;
-use turbopack_core::resolve::options::ImportMapping;
+use turbopack_core::resolve::{options::ImportMapping, ExternalTraced, ExternalType};
 
 use self::{babel::maybe_add_babel_loader, sass::maybe_add_sass_loader};
-use crate::{next_build::get_external_next_compiled_package_mapping, next_config::NextConfig};
+use crate::next_config::NextConfig;
 
 pub(crate) mod babel;
 pub(crate) mod sass;
@@ -37,6 +38,12 @@ pub async fn webpack_loader_options(
 }
 
 #[turbo_tasks::function]
-fn loader_runner_package_mapping() -> Vc<ImportMapping> {
-    get_external_next_compiled_package_mapping(Vc::cell("loader-runner".into()))
+async fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
+    Ok(ImportMapping::Alternatives(vec![ImportMapping::External(
+        Some("next/dist/compiled/loader-runner".into()),
+        ExternalType::CommonJs,
+        ExternalTraced::Untraced,
+    )
+    .resolved_cell()])
+    .cell())
 }

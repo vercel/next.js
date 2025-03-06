@@ -1,5 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
+import { format } from 'util'
+import { BrowserInterface } from 'next-webdriver'
+import {
+  createRenderResumeDataCache,
+  RenderResumeDataCache,
+} from 'next/dist/server/resume-data-cache/resume-data-cache'
+import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -93,23 +101,49 @@ describe('use-cache', () => {
     const browser = await next.browser('/react-cache')
     const a = await browser.waitForElementByCss('#a').text()
     const b = await browser.waitForElementByCss('#b').text()
-    // TODO: This is broken. It is expected to pass once we fix it.
-    expect(a).not.toBe(b)
+    expect(a).toBe(b)
+  })
+
+  it('should return the same object reference for multiple invocations', async () => {
+    const browser = await next.browser('/referential-equality')
+    expect(await browser.elementById('same-arg').text()).toBe('true')
+    expect(await browser.elementById('different-args').text()).toBe('true')
+    expect(await browser.elementById('same-bound-arg').text()).toBe('true')
+    expect(await browser.elementById('different-bound-args').text()).toBe(
+      'true'
+    )
+  })
+
+  it('should dedupe cached data in the RSC payload', async () => {
+    const text = await next
+      .fetch('/rsc-payload')
+      .then((response) => response.text())
+
+    // The cached data is passed to two client components, but should appear
+    // only once in the RSC payload that's included in the HTML document.
+    expect(text).toIncludeRepeated(
+      '{\\\\"data\\\\":{\\\\"hello\\\\":\\\\"world\\\\"}',
+      1
+    )
   })
 
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
     const browser = await next.browser('/errors')
-    expect(await browser.waitForElementByCss('#cookies').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "cookies" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#headers').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "headers" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
+
+    await retry(async () => {
+      expect(await browser.elementById('cookies').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "cookies" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+      expect(await browser.elementById('headers').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "headers" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+    })
+
+    expect(await browser.elementById('draft-mode').text()).toContain(
       'Editing: false'
     )
 
@@ -177,12 +211,12 @@ describe('use-cache', () => {
 
   // TODO: pending tags handling on deploy
   if (!isNextDeploy) {
-    it('should update after expireTag correctly', async () => {
+    it('should update after unstable_expireTag correctly', async () => {
       const browser = await next.browser('/cache-tag')
       const initial = await browser.elementByCss('#a').text()
 
       // Bust the ISR cache first, to populate the in-memory cache for the
-      // subsequent expireTag calls.
+      // subsequent unstable_expireTag calls.
       await browser.elementByCss('#revalidate-path').click()
       await retry(async () => {
         expect(await browser.elementByCss('#a').text()).not.toBe(initial)
@@ -270,22 +304,96 @@ describe('use-cache', () => {
     })
   }
 
+  it('should revalidate caches during on-demand revalidation', async () => {
+    const browser = await next.browser('/on-demand-revalidate')
+    const initial = await browser.elementById('value').text()
+
+    // Bust the ISR cache first to populate the "use cache" in-memory cache for
+    // the subsequent on-demand revalidation.
+    await browser.elementById('revalidate-path').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('value').text()).not.toBe(initial)
+    })
+
+    const value = await browser.elementById('value').text()
+
+    await browser.elementById('revalidate-api-route').click()
+    await browser.waitForElementByCss('#revalidate-api-route:enabled')
+
+    await retry(async () => {
+      await browser.refresh()
+      expect(await browser.elementById('value').text()).not.toBe(value)
+    })
+  })
+
   if (isNextStart) {
-    it('should match the expected revalidate config on the prerender manifest', async () => {
+    it('should prerender fully cacheable pages as static HTML', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       )
 
-      expect(prerenderManifest.version).toBe(4)
-      expect(
-        prerenderManifest.routes['/cache-life'].initialRevalidateSeconds
-      ).toBe(100)
+      let prerenderedRoutes = Object.keys(prerenderManifest.routes).sort()
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // For the purpose of this test we don't consider an incomplete shell.
+        prerenderedRoutes = prerenderedRoutes.filter((route) => {
+          const filename = route.replace(/^\//, '').replace(/^$/, 'index')
+
+          return next
+            .readFileSync(`.next/server/app/${filename}.html`)
+            .endsWith('</html>')
+        })
+      }
+
+      expect(prerenderedRoutes).toEqual([
+        // [id] route, first entry in generateStaticParams
+        expect.stringMatching(/\/a\d/),
+        // [id] route, second entry in generateStaticParams
+        expect.stringMatching(/\/b\d/),
+        '/cache-fetch',
+        '/cache-fetch-no-store',
+        '/cache-life',
+        '/cache-tag',
+        '/form',
+        '/imported-from-client',
+        '/logs',
+        '/method-props',
+        '/not-found',
+        '/on-demand-revalidate',
+        '/passed-to-client',
+        '/react-cache',
+        '/referential-equality',
+        '/rsc-payload',
+        '/static-class-method',
+        '/use-action-state',
+        '/with-server-action',
+      ])
+    })
+
+    it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
+      const { version, routes, dynamicRoutes } = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      ) as PrerenderManifest
+
+      expect(version).toBe(4)
+
+      // custom cache life profile "frequent"
+      expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
+      expect(routes['/cache-life'].initialExpireSeconds).toBe(250)
+
+      // default expireTime
+      expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
       // The revalidate config from the fetch call should lower the revalidate
       // config for the page.
-      expect(
-        prerenderManifest.routes['/cache-tag'].initialRevalidateSeconds
-      ).toBe(42)
+      expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // cache life profile "weeks"
+        expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
+        expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
+      }
     })
 
     it('should match the expected stale config in the page header', async () => {
@@ -293,6 +401,23 @@ describe('use-cache', () => {
         await next.readFile('.next/server/app/cache-life.meta')
       )
       expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+    })
+
+    it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
+      let response = await next.fetch('/cache-life')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 100, expire is set to 250 => SWR 150
+        's-maxage=100, stale-while-revalidate=150'
+      )
+
+      response = await next.fetch('/cache-fetch')
+
+      expect(response.headers.get('cache-control')).toBe(
+        // revalidate is set to 900, expire is one year (31536000, default
+        // expireTime) => SWR 31535100
+        's-maxage=900, stale-while-revalidate=31535100'
+      )
     })
 
     it('should propagate unstable_cache tags correctly', async () => {
@@ -313,30 +438,33 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using expireTag', async () => {
-    const browser = await next.browser(`/form`)
-    const time1 = await browser.waitForElementByCss('#t').text()
+  // TODO(useCache): Re-activate for deploy tests when NAR-85 is resolved.
+  if (!isNextDeploy) {
+    it('should be able to revalidate a page using unstable_expireTag', async () => {
+      const browser = await next.browser(`/form`)
+      const time1 = await browser.waitForElementByCss('#t').text()
 
-    await browser.loadPage(new URL(`/form`, next.url).toString())
+      await browser.loadPage(new URL(`/form`, next.url).toString())
 
-    const time2 = await browser.waitForElementByCss('#t').text()
+      const time2 = await browser.waitForElementByCss('#t').text()
 
-    expect(time1).toBe(time2)
+      expect(time1).toBe(time2)
 
-    await browser.elementByCss('#refresh').click()
+      await browser.elementByCss('#refresh').click()
 
-    await waitFor(500)
+      await waitFor(500)
 
-    const time3 = await browser.waitForElementByCss('#t').text()
+      const time3 = await browser.waitForElementByCss('#t').text()
 
-    expect(time3).not.toBe(time2)
+      expect(time3).not.toBe(time2)
 
-    // Reloading again should ideally be the same value but because the Action seeds
-    // the cache with real params as the argument it has a different cache key.
-    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
-    // const time4 = await browser.waitForElementByCss('#t').text()
-    // expect(time4).toBe(time3);
-  })
+      // Reloading again should ideally be the same value but because the Action seeds
+      // the cache with real params as the argument it has a different cache key.
+      // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+      // const time4 = await browser.waitForElementByCss('#t').text()
+      // expect(time4).toBe(time3);
+    })
+  }
 
   it('should use revalidate config in fetch', async () => {
     const browser = await next.browser('/fetch-revalidate')
@@ -393,4 +521,175 @@ describe('use-cache', () => {
       expect(await browser.elementByCss('p').text()).toBe(value)
     })
   })
+
+  it('works with "use cache" in method props', async () => {
+    const browser = await next.browser('/method-props')
+
+    let [value1, value2] = await Promise.all([
+      browser.elementByCss('#form-1 p').text(),
+      browser.elementByCss('#form-2 p').text(),
+    ])
+
+    expect(value1).toBe('-1')
+    expect(value2).toBe('-1')
+
+    await browser.elementByCss('#form-1 button').click()
+
+    await retry(async () => {
+      value1 = await browser.elementByCss('#form-1 p').text()
+      expect(value1).toMatch(/1\.\d+/)
+    })
+
+    await browser.elementByCss('#form-2 button').click()
+
+    await retry(async () => {
+      value2 = await browser.elementByCss('#form-2 p').text()
+      expect(value2).toMatch(/2\.\d+/)
+    })
+
+    await browser.elementByCss('#form-1 button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-1 p').text()).toBe(value1)
+    })
+
+    await browser.elementByCss('#form-2 button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#form-2 p').text()).toBe(value2)
+    })
+  })
+
+  it('works with "use cache" in static class methods', async () => {
+    const browser = await next.browser('/static-class-method')
+
+    let value = await browser.elementByCss('p').text()
+
+    expect(value).toBe('-1')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      value = await browser.elementByCss('p').text()
+      expect(value).toMatch(/\d\.\d+/)
+    })
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe(value)
+    })
+  })
+
+  it('renders the not-found page when `notFound()` is used', async () => {
+    const browser = await next.browser('/not-found')
+    const text = await browser.elementByCss('h2').text()
+    expect(text).toBe('This page could not be found.')
+  })
+
+  if (isNextDev) {
+    it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
+      await next.render('/unhandled-promise-regression')
+      // We assert both to better defend against changes in error messaging invalidating this test silently.
+      // They are today asserting the same thing
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `cookies()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `headers()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `connection()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
+    })
+
+    it('replays logs from "use cache" functions', async () => {
+      const browser = await next.browser('/logs')
+      const initialLogs = await getSanitizedLogs(browser)
+
+      // We ignore the logged time string at the end of this message:
+      const logMessageWithDateRegexp =
+        /^ Server {3}Cache {3}Cache {2}deep inside /
+
+      let logMessageWithCachedDate: string | undefined
+
+      await retry(async () => {
+        // TODO(veil): We might want to show only the original (right-most)
+        // environment badge when caches are nested.
+        expect(initialLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            expect.stringMatching(logMessageWithDateRegexp),
+          ])
+        )
+
+        logMessageWithCachedDate = initialLogs.find((log) =>
+          logMessageWithDateRegexp.test(log)
+        )
+
+        expect(logMessageWithCachedDate).toBeDefined()
+      })
+
+      // Load the page again and expect the cached logs to be replayed again.
+      // We're using an explicit `loadPage` instead of `refresh` here, to start
+      // with an empty set of logs.
+      await browser.loadPage(await browser.url())
+
+      await retry(async () => {
+        const newLogs = await getSanitizedLogs(browser)
+
+        expect(newLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            logMessageWithCachedDate,
+          ])
+        )
+      })
+    })
+  }
+
+  if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+    it('should exclude inner caches from the resume data cache (RDC)', async () => {
+      await next.fetch('/rdc')
+
+      const resumeDataCache = extractResumeDataCacheFromPostponedState(
+        JSON.parse(await next.readFile('.next/server/app/rdc.meta')).postponed
+      )
+
+      const cacheKeys = Array.from(resumeDataCache.cache.keys())
+
+      // There should be no cache entry for the "middle" cache function, because
+      // it's only used inside another cache scope ("outer"). Whereas "inner" is
+      // also used inside a prerender scope (the page). Note: We're matching on
+      // the "id" args that are encoded into the respective cache keys.
+      expect(cacheKeys).toMatchObject([
+        expect.stringContaining('["outer"]'),
+        expect.stringContaining('["inner"]'),
+      ])
+    })
+  }
 })
+
+async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
+  const logs = await browser.log({ includeArgs: true })
+
+  return logs.map(({ args }) =>
+    format(
+      ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
+    )
+  )
+}
+
+function extractResumeDataCacheFromPostponedState(
+  state: string
+): RenderResumeDataCache {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)![1]
+  const postponedStringLength = parseInt(postponedStringLengthMatch)
+
+  return createRenderResumeDataCache(
+    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+  )
+}

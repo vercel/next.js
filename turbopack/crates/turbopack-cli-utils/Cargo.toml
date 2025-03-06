@@ -2,7 +2,7 @@
 name = "turbopack-cli-utils"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -19,6 +19,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 crossterm = "0.26.0"
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

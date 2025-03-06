@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -22,12 +22,13 @@ const U8_CR: u8 = 0x0D;
     Serialize,
     Deserialize,
     DeterministicHash,
+    NonLocalValue,
 )]
 pub struct SourcePos {
     /// The line, 0-indexed.
-    pub line: usize,
+    pub line: u32,
     /// The byte index of the column, 0-indexed.
-    pub column: usize,
+    pub column: u32,
 }
 
 impl SourcePos {
@@ -37,8 +38,8 @@ impl SourcePos {
 
     pub fn max() -> Self {
         Self {
-            line: usize::MAX,
-            column: usize::MAX,
+            line: u32::MAX,
+            column: u32::MAX,
         }
     }
 
@@ -130,8 +131,8 @@ impl SourcePos {
     }
 }
 
-impl std::cmp::PartialEq<(usize, usize)> for SourcePos {
-    fn eq(&self, other: &(usize, usize)) -> bool {
+impl std::cmp::PartialEq<(u32, u32)> for SourcePos {
+    fn eq(&self, other: &(u32, u32)) -> bool {
         &(self.line, self.column) == other
     }
 }

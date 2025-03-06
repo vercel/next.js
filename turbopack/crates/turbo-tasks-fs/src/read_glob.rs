@@ -1,15 +1,15 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use rustc_hash::FxHashMap;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{glob::Glob, DirectoryContent, DirectoryEntry, FileSystemPath};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
 pub struct ReadGlobResult {
-    pub results: HashMap<String, DirectoryEntry>,
-    pub inner: HashMap<String, ResolvedVc<ReadGlobResult>>,
+    pub results: FxHashMap<String, DirectoryEntry>,
+    pub inner: FxHashMap<String, ResolvedVc<ReadGlobResult>>,
 }
 
 /// Reads matches of a glob pattern.

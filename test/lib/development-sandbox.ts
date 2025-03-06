@@ -8,9 +8,8 @@ import {
   assertHasRedbox,
   assertNoRedbox,
   waitFor,
-  waitForAndOpenRuntimeError,
+  openRedbox,
   getRedboxDescriptionWarning,
-  toggleCollapseComponentStack,
   getRedboxErrorLink,
 } from './next-test-utils'
 import webdriver, { WebdriverOptions } from './next-webdriver'
@@ -124,8 +123,8 @@ export async function createSandbox(
         async assertNoRedbox() {
           return assertNoRedbox(browser)
         },
-        async waitForAndOpenRuntimeError() {
-          return waitForAndOpenRuntimeError(browser)
+        async openRedbox() {
+          return openRedbox(browser)
         },
         async hasErrorToast() {
           return Boolean(await hasErrorToast(browser))
@@ -148,11 +147,11 @@ export async function createSandbox(
           }
           return source
         },
-        async getRedboxComponentStack() {
+        /**
+         * @returns `null` if there are no frames
+         */
+        getRedboxComponentStack() {
           return getRedboxComponentStack(browser)
-        },
-        async toggleCollapseComponentStack() {
-          return toggleCollapseComponentStack(browser)
         },
         async getVersionCheckerText() {
           return getVersionCheckerText(browser)

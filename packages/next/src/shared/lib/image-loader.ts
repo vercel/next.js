@@ -1,5 +1,7 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
 
+const DEFAULT_Q = 75
+
 function defaultLoader({
   config,
   src,
@@ -72,12 +74,24 @@ function defaultLoader({
         }
       }
     }
+
+    if (quality && config.qualities && !config.qualities.includes(quality)) {
+      throw new Error(
+        `Invalid quality prop (${quality}) on \`next/image\` does not match \`images.qualities\` configured in your \`next.config.js\`\n` +
+          `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+      )
+    }
   }
 
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
-  }${
-    process.env.NEXT_DEPLOYMENT_ID
+  const q =
+    quality ||
+    config.qualities?.reduce((prev, cur) =>
+      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
+    ) ||
+    DEFAULT_Q
+
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
+    src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
       ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
       : ''
   }`

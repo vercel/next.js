@@ -244,13 +244,7 @@ module.exports = {
 
 Next.js' swc compiler is used for minification by default since v13. This is 7x faster than Terser.
 
-If Terser is still needed for any reason this can be configured.
-
-```js filename="next.config.js"
-module.exports = {
-  swcMinify: false,
-}
-```
+> **Good to know:** Starting with v15, minification cannot be customized using `next.config.js`. Support for the `swcMinify` flag has been removed.
 
 ### Module Transpilation
 

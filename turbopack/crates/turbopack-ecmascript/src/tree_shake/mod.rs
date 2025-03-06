@@ -12,7 +12,8 @@ use swc_core::{
         codegen::to_code,
     },
 };
-use turbo_tasks::{FxIndexSet, RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 pub(crate) use self::graph::{
@@ -26,6 +27,7 @@ pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
+pub mod side_effect_module;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -370,21 +372,19 @@ impl Analyzer<'_> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) enum Key {
     ModuleEvaluation,
     Export(RcStr),
     Exports,
 }
 
-/// Converts [Vc<ModulePart>] to the index.
-async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
-    let part = part.await?;
-
+/// Converts [ModulePart] to the index.
+async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
-    let key = match &*part {
+    let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
+        ModulePart::Export(export) => Key::Export(export.clone()),
         ModulePart::Exports => Key::Exports,
         ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
             return Ok(*part_id)
@@ -411,7 +411,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = &*part {
+    if let ModulePart::Export(..) = part {
         if let Some(&v) = entrypoints.get(&Key::Exports) {
             return Ok(v);
         }
@@ -441,14 +441,14 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
 pub(crate) enum SplitResult {
     Ok {
-        asset_ident: Vc<AssetIdent>,
+        asset_ident: ResolvedVc<AssetIdent>,
 
         /// `u32` is a index to `modules`.
         #[turbo_tasks(trace_ignore)]
         entrypoints: FxHashMap<Key, u32>,
 
         #[turbo_tasks(debug_ignore, trace_ignore)]
-        modules: Vec<Vc<ParseResult>>,
+        modules: Vec<ResolvedVc<ParseResult>>,
 
         #[turbo_tasks(trace_ignore)]
         deps: FxHashMap<u32, Vec<PartId>>,
@@ -457,7 +457,7 @@ pub(crate) enum SplitResult {
         star_reexports: Vec<ExportAll>,
     },
     Failed {
-        parse_result: Vc<ParseResult>,
+        parse_result: ResolvedVc<ParseResult>,
     },
 }
 
@@ -477,9 +477,9 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
 
 #[turbo_tasks::function]
 pub(super) async fn split(
-    ident: Vc<AssetIdent>,
-    source: Vc<Box<dyn Source>>,
-    parsed: Vc<ParseResult>,
+    ident: ResolvedVc<AssetIdent>,
+    source: ResolvedVc<Box<dyn Source>>,
+    parsed: ResolvedVc<ParseResult>,
 ) -> Result<Vc<SplitResult>> {
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
@@ -575,11 +575,12 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         Some(source),
                     );
 
-                    ParseResult::cell(ParseResult::Ok {
+                    ParseResult::resolved_cell(ParseResult::Ok {
                         program,
                         globals: globals.clone(),
                         comments: comments.clone(),
@@ -609,7 +610,7 @@ pub(super) async fn split(
 #[turbo_tasks::function]
 pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
-    part: Vc<ModulePart>,
+    part: ModulePart,
 ) -> Result<Vc<ParseResult>> {
     let split_data = split_data.await?;
 
@@ -624,7 +625,7 @@ pub(crate) async fn part_of_module(
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
 
-            if matches!(&*part.await?, ModulePart::Facade) {
+            if part == ModulePart::Facade {
                 if let ParseResult::Ok {
                     comments,
                     eval_context,
@@ -699,6 +700,7 @@ pub(crate) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         None,
                     );
@@ -716,7 +718,7 @@ pub(crate) async fn part_of_module(
                 }
             }
 
-            let part_id = get_part_id(&split_data, part).await?;
+            let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
                 bail!(
@@ -727,8 +729,8 @@ pub(crate) async fn part_of_module(
                 );
             }
 
-            Ok(modules[part_id as usize])
+            Ok(*modules[part_id as usize])
         }
-        SplitResult::Failed { parse_result } => Ok(*parse_result),
+        SplitResult::Failed { parse_result } => Ok(**parse_result),
     }
 }

@@ -55,7 +55,7 @@ function validate(docPath) {
 }
 
 const appRouterValid = validate(
-  `docs/01-app/03-api-reference/05-config/01-next-config-js/serverExternalPackages.mdx`
+  `docs/01-app/04-api-reference/05-config/01-next-config-js/serverExternalPackages.mdx`
 )
 const pagesRouterValid = validate(
   `docs/02-pages/03-api-reference/04-config/01-next-config-js/serverExternalPackages.mdx`

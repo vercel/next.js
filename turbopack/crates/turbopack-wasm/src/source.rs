@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,6 +21,7 @@ use turbopack_core::{
     Deserialize,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
@@ -34,14 +35,14 @@ pub enum WebAssemblySourceType {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct WebAssemblySource {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     source_ty: WebAssemblySourceType,
 }
 
 #[turbo_tasks::value_impl]
 impl WebAssemblySource {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, source_ty: WebAssemblySourceType) -> Vc<Self> {
         Self::cell(WebAssemblySource { source, source_ty })
     }
 }

@@ -94,6 +94,7 @@ describe('Prerender', () => {
   }
 
   const allowHeader = [
+    'host',
     'x-matched-path',
     'x-prerender-revalidate',
     'x-prerender-revalidate-if-generated',
@@ -105,84 +106,98 @@ describe('Prerender', () => {
     '/': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/index.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 2,
       srcRoute: null,
     },
     '/blog/[post3]': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/[post3].json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-1': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post-1.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-2': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post-2.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-4': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post-4.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-1/comment-1': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post-1/comment-1.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 2,
       srcRoute: '/blog/[post]/[comment]',
     },
     '/blog/post-2/comment-2': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post-2/comment-2.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 2,
       srcRoute: '/blog/[post]/[comment]',
     },
     '/blog/post.1': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog/post.1.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/catchall-explicit/another/value': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/another/value.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/first': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/first.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/hello/another': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/hello/another.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/second': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/second.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/[first]/[second]': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[first]/[second].json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/[third]/[fourth]': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[third]/[fourth].json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
@@ -207,6 +222,7 @@ describe('Prerender', () => {
     '/another': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/another.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: null,
     },
@@ -231,12 +247,14 @@ describe('Prerender', () => {
     '/blocking-fallback-some/a': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
     '/blocking-fallback-some/b': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
@@ -249,12 +267,14 @@ describe('Prerender', () => {
     '/blocking-fallback/test-errors-1': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback/[slug]',
     },
     '/blog': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/blog.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 10,
       srcRoute: null,
     },
@@ -315,24 +335,28 @@ describe('Prerender', () => {
     '/catchall/another/value': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall/another/value.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/first': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall/first.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/second': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall/second.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/hello/another': {
       allowHeader,
       dataRoute: `/_next/data/${next.buildId}/catchall/hello/another.json`,
+      initialExpireSeconds: 31536000,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
@@ -649,7 +673,7 @@ describe('Prerender', () => {
         expect(initialRes.headers.get('cache-control')).toBe(
           isDeploy
             ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=2, stale-while-revalidate'
+            : 's-maxage=2, stale-while-revalidate=31535998'
         )
       })
     }
@@ -1128,28 +1152,6 @@ describe('Prerender', () => {
         expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
       })
 
-      it('should log error in console and browser in development mode', async () => {
-        const browser = await webdriver(next.url, '/')
-        expect(await browser.elementByCss('p').text()).toMatch(/hello.*?world/)
-
-        await next.patchFile(
-          'pages/index.js',
-          (content) => content.replace('// throw new', 'throw new'),
-          async () => {
-            // we need to reload the page to trigger getStaticProps
-            await browser.refresh()
-
-            return retry(async () => {
-              await assertHasRedbox(browser)
-              const errOverlayContent = await getRedboxHeader(browser)
-              const errorMsg = /oops from getStaticProps/
-              expect(next.cliOutput).toMatch(errorMsg)
-              expect(errOverlayContent).toMatch(errorMsg)
-            })
-          }
-        )
-      })
-
       it('should always call getStaticProps without caching in dev', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
         expect(isCachingHeader(initialRes.headers.get('cache-control'))).toBe(
@@ -1300,9 +1302,7 @@ describe('Prerender', () => {
       it('should use correct caching headers for a no-revalidate page', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
         expect(initialRes.headers.get('cache-control')).toBe(
-          isDeploy
-            ? 'public, max-age=0, must-revalidate'
-            : 's-maxage=31536000, stale-while-revalidate'
+          isDeploy ? 'public, max-age=0, must-revalidate' : 's-maxage=31536000'
         )
         const initialHtml = await initialRes.text()
         expect(initialHtml).toMatch(/hello.*?world/)
@@ -1333,7 +1333,7 @@ describe('Prerender', () => {
           expect(dataRoutes).toEqual([
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/index.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/index\\.json$`
               ),
               page: '/',
             },
@@ -1341,7 +1341,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/another.json$`
+                )}\\/another\\.json$`
               ),
               page: '/another',
             },
@@ -1363,7 +1363,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/bad-gssp.json$`
+                )}\\/bad-gssp\\.json$`
               ),
               page: '/bad-gssp',
             },
@@ -1371,7 +1371,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/bad-ssr.json$`
+                )}\\/bad-ssr\\.json$`
               ),
               page: '/bad-ssr',
             },
@@ -1413,7 +1413,7 @@ describe('Prerender', () => {
             },
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/blog.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/blog\\.json$`
               ),
               page: '/blog',
             },
@@ -1492,7 +1492,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/default-revalidate.json$`
+                )}\\/default-revalidate\\.json$`
               ),
               page: '/default-revalidate',
             },
@@ -1529,7 +1529,7 @@ describe('Prerender', () => {
             //   dataRouteRegex: normalizeRegEx(
             //     `^\\/_next\\/data\\/${escapeRegex(
             //       next.buildId
-            //     )}\\/index\\/index.json$`
+            //     )}\\/index\\/index\\.json$`
             //   ),
             //   page: '/index',
             // },
@@ -1550,13 +1550,13 @@ describe('Prerender', () => {
             {
               dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
                 next.buildId
-              )}\\/large-page-data.json$`,
+              )}\\/large-page-data\\.json$`,
               page: '/large-page-data',
             },
             {
               dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
                 next.buildId
-              )}\\/large-page-data-ssr.json$`,
+              )}\\/large-page-data-ssr\\.json$`,
               page: '/large-page-data-ssr',
             },
             {
@@ -1591,7 +1591,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/preview.json$`
+                )}\\/preview\\.json$`
               ),
               page: '/preview',
             },
@@ -1599,13 +1599,13 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/something.json$`
+                )}\\/something\\.json$`
               ),
               page: '/something',
             },
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr\\.json$`
               ),
               page: '/ssr',
             },
@@ -1876,7 +1876,6 @@ describe('Prerender', () => {
         })
 
         expect(res.status).toBe(200)
-        expect(await res.json()).toEqual({ revalidated: false })
         expect(stripAnsi(next.cliOutput)).not.toContain('hasHeader')
       })
 
@@ -2118,7 +2117,7 @@ describe('Prerender', () => {
           {
             page: '/_app',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
               isReact18
@@ -2130,7 +2129,7 @@ describe('Prerender', () => {
           {
             page: '/another',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,
@@ -2147,7 +2146,7 @@ describe('Prerender', () => {
           {
             page: '/blog/[post]',
             tests: [
-              /webpack-runtime\.js/,
+              /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
               /chunks\/.*?\.js/,
               /node_modules\/react\/index\.js/,
               /node_modules\/react\/package\.json/,

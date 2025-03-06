@@ -1,14 +1,14 @@
 {
   "private": true,
-  "description": "Notify Next.js team about pending PRs and popular issues",
+  "description": "A variety of functions to help with triaging issues, PRs, and feature requests in the Next.js repo.",
   "scripts": {
-    "build": "pnpm build-issues-by-version && pnpm build-issues && pnpm build-prs && pnpm build-feature-requests && pnpm build-bankrupt-issues && pnpm build-triage-issues-with-ai",
     "build-issues-by-version": "ncc build src/issues-by-version.ts -m -o dist/issues-by-version --license licenses.txt",
     "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt",
     "build-prs": "ncc build src/popular-prs.ts -m -o dist/prs --license licenses.txt",
     "build-feature-requests": "ncc build src/popular-feature-requests.mjs -m -o dist/feature-requests --license licenses.txt",
     "build-bankrupt-issues": "ncc build src/bankrupt-issues.ts -m -o dist/bankrupt --license licenses.txt",
-    "build-triage-issues-with-ai": "ncc build src/triage-issues-with-ai.ts -m -o dist/triage-issues-with-ai --license licenses.txt"
+    "build-triage-issues-with-ai": "ncc build src/triage-issues-with-ai.ts -m -o dist/triage-issues-with-ai --license licenses.txt",
+    "build-wrong-issue-template": "ncc build src/wrong-issue-template.ts -m -o dist/wrong-issue-template --license licenses.txt"
   },
   "dependencies": {
     "@actions/core": "^1.11.1",
@@ -21,6 +21,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@vercel/ncc": "^0.38.2"
+    "@vercel/ncc": "^0.38.3"
   }
 }

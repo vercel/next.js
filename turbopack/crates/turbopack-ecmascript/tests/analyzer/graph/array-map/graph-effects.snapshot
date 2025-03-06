@@ -5,14 +5,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -72,14 +72,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -245,14 +245,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -312,14 +312,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -485,14 +485,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),
@@ -552,14 +552,14 @@
             items: [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/a.js",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../lib/b.js",
                         ),
                     ),

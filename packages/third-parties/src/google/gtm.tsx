@@ -55,6 +55,7 @@ export function GoogleTagManager(props: GTMParams) {
         id="_next-gtm"
         data-ntpc="GTM"
         src={`${gtmScriptUrl}?id=${gtmId}${gtmLayer}${gtmAuth}${gtmPreview}`}
+        nonce={nonce}
       />
     </>
   )

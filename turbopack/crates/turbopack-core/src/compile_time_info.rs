@@ -1,4 +1,6 @@
-use turbo_tasks::{FxIndexMap, RcStr, ResolvedVc, Vc};
+use anyhow::Result;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::environment::Environment;
@@ -206,6 +208,8 @@ pub enum FreeVarReference {
         lookup_path: Option<ResolvedVc<FileSystemPath>>,
         export: Option<RcStr>,
     },
+    Ident(RcStr),
+    Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
     Error(RcStr),
 }
@@ -238,10 +242,14 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
 
+/// A map from the last element (the member prop) to a map of the rest of the name to the value.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferencesIndividual(
-    pub FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    pub  FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
 );
 
 #[turbo_tasks::value_impl]
@@ -253,25 +261,33 @@ impl FreeVarReferences {
 
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<FreeVarReferencesIndividual> {
-        Vc::cell(
-            self.0
-                .iter()
-                .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect(),
-        )
+        let mut result: FxIndexMap<
+            DefineableNameSegment,
+            FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+        > = FxIndexMap::default();
+
+        for (key, value) in &self.0 {
+            let (last_key, key) = key.split_last().unwrap();
+            result
+                .entry(last_key.clone())
+                .or_default()
+                .insert(key.to_vec(), value.clone().resolved_cell());
+        }
+
+        Vc::cell(result)
     }
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeInfo {
-    pub environment: Vc<Environment>,
-    pub defines: Vc<CompileTimeDefines>,
-    pub free_var_references: Vc<FreeVarReferences>,
+    pub environment: ResolvedVc<Environment>,
+    pub defines: ResolvedVc<CompileTimeDefines>,
+    pub free_var_references: ResolvedVc<FreeVarReferences>,
 }
 
 impl CompileTimeInfo {
-    pub fn builder(environment: Vc<Environment>) -> CompileTimeInfoBuilder {
+    pub fn builder(environment: ResolvedVc<Environment>) -> CompileTimeInfoBuilder {
         CompileTimeInfoBuilder {
             environment,
             defines: None,
@@ -283,50 +299,57 @@ impl CompileTimeInfo {
 #[turbo_tasks::value_impl]
 impl CompileTimeInfo {
     #[turbo_tasks::function]
-    pub fn new(environment: Vc<Environment>) -> Vc<Self> {
-        CompileTimeInfo {
+    pub async fn new(environment: ResolvedVc<Environment>) -> Result<Vc<Self>> {
+        Ok(CompileTimeInfo {
             environment,
-            defines: CompileTimeDefines::empty(),
-            free_var_references: FreeVarReferences::empty(),
+            defines: CompileTimeDefines::empty().to_resolved().await?,
+            free_var_references: FreeVarReferences::empty().to_resolved().await?,
         }
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub fn environment(&self) -> Vc<Environment> {
-        self.environment
+        *self.environment
     }
 }
 
 pub struct CompileTimeInfoBuilder {
-    environment: Vc<Environment>,
-    defines: Option<Vc<CompileTimeDefines>>,
-    free_var_references: Option<Vc<FreeVarReferences>>,
+    environment: ResolvedVc<Environment>,
+    defines: Option<ResolvedVc<CompileTimeDefines>>,
+    free_var_references: Option<ResolvedVc<FreeVarReferences>>,
 }
 
 impl CompileTimeInfoBuilder {
-    pub fn defines(mut self, defines: Vc<CompileTimeDefines>) -> Self {
+    pub fn defines(mut self, defines: ResolvedVc<CompileTimeDefines>) -> Self {
         self.defines = Some(defines);
         self
     }
 
-    pub fn free_var_references(mut self, free_var_references: Vc<FreeVarReferences>) -> Self {
+    pub fn free_var_references(
+        mut self,
+        free_var_references: ResolvedVc<FreeVarReferences>,
+    ) -> Self {
         self.free_var_references = Some(free_var_references);
         self
     }
 
-    pub fn build(self) -> CompileTimeInfo {
-        CompileTimeInfo {
+    pub async fn build(self) -> Result<CompileTimeInfo> {
+        Ok(CompileTimeInfo {
             environment: self.environment,
-            defines: self.defines.unwrap_or_else(CompileTimeDefines::empty),
-            free_var_references: self
-                .free_var_references
-                .unwrap_or_else(FreeVarReferences::empty),
-        }
+            defines: match self.defines {
+                Some(defines) => defines,
+                None => CompileTimeDefines::empty().to_resolved().await?,
+            },
+            free_var_references: match self.free_var_references {
+                Some(free_var_references) => free_var_references,
+                None => FreeVarReferences::empty().to_resolved().await?,
+            },
+        })
     }
 
-    pub fn cell(self) -> Vc<CompileTimeInfo> {
-        self.build().cell()
+    pub async fn cell(self) -> Result<Vc<CompileTimeInfo>> {
+        Ok(self.build().await?.cell())
     }
 }
 

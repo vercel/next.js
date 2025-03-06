@@ -19,7 +19,7 @@ const pagePathCache = !isDev ? new LRUCache<string | null>(1000) : null
 export function getMaybePagePath(
   page: string,
   distDir: string,
-  locales: string[] | undefined,
+  locales: readonly string[] | undefined,
   isAppPath: boolean
 ): string | null {
   const cacheKey = `${page}:${distDir}:${locales}:${isAppPath}`

@@ -118,6 +118,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         c: moduleCache,
         M: moduleFactories,
         l: loadChunk.bind(null, sourceInfo),
+        L: loadChunkByUrl.bind(null, sourceInfo),
         w: loadWebAssembly.bind(null, sourceInfo),
         u: loadWebAssemblyModule.bind(null, sourceInfo),
         g: globalThis,
@@ -125,7 +126,7 @@ function instantiateModule(id: ModuleId, source: SourceInfo): Module {
         U: relativeURL,
         R: createResolvePathFromModule(r),
         b: getWorkerBlobURL,
-        __dirname: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
+        d: typeof module.id === "string" ? module.id.replace(/(^|\/)\/+$/, "") : module.id
       })
     );
   } catch (error) {

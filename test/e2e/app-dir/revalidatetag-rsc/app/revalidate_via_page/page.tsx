@@ -1,7 +1,7 @@
 'use server'
 
 import Link from 'next/link'
-import { expireTag } from 'next/cache'
+import { unstable_expireTag } from 'next/cache'
 
 const RevalidateViaPage = async ({
   searchParams,
@@ -9,7 +9,7 @@ const RevalidateViaPage = async ({
   searchParams: Promise<{ tag: string }>
 }) => {
   const { tag } = await searchParams
-  expireTag(tag)
+  unstable_expireTag(tag)
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">

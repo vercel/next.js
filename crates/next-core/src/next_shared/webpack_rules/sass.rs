@@ -16,12 +16,15 @@ pub async fn maybe_add_sass_loader(
         bail!("sass_options must be an object");
     };
     // TODO: Remove this once we upgrade to sass-loader 16
-    sass_options.insert(
-        "silenceDeprecations".into(),
-        serde_json::json!(["legacy-js-api"]),
-    );
+    let silence_deprecations = if let Some(v) = sass_options.get("silenceDeprecations") {
+        v.clone()
+    } else {
+        serde_json::json!(["legacy-js-api"])
+    };
+
+    sass_options.insert("silenceDeprecations".into(), silence_deprecations);
     let mut rules = if let Some(webpack_rules) = webpack_rules {
-        webpack_rules.await?.clone_value()
+        webpack_rules.owned().await?
     } else {
         Default::default()
     };
@@ -73,7 +76,7 @@ pub async fn maybe_add_sass_loader(
             if rename_as != "*" {
                 continue;
             }
-            let mut loaders = rule.loaders.await?.clone_value();
+            let mut loaders = rule.loaders.owned().await?;
             loaders.push(resolve_url_loader);
             loaders.push(sass_loader);
             rule.loaders = ResolvedVc::cell(loaders);

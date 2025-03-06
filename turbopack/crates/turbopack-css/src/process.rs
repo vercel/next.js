@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Result};
 use lightningcss::{
@@ -12,14 +9,13 @@ use lightningcss::{
     visit_types,
     visitor::Visit,
 };
+use rustc_hash::FxHashMap;
 use smallvec::smallvec;
-use swc_core::{
-    base::sourcemap::SourceMapBuilder,
-    common::{BytePos, LineCol},
-};
+use swc_core::base::sourcemap::SourceMapBuilder;
 use tracing::Instrument;
-use turbo_tasks::{FxIndexMap, RcStr, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileSystemPath};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
@@ -27,18 +23,18 @@ use turbopack_core::{
         Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
         StyledString,
     },
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
     source::Source,
-    source_map::{GenerateSourceMap, OptionSourceMap},
+    source_map::{utils::add_default_ignore_list, OptionStringifiedSourceMap},
     source_pos::SourcePos,
-    SOURCE_MAP_PREFIX,
+    SOURCE_URL_PROTOCOL,
 };
 
 use crate::{
     lifetime_util::stylesheet_into_static,
-    parse::InlineSourcesContentConfig,
     references::{
         analyze_references,
         url::{replace_url_references, resolve_url_reference, UrlAssetReference},
@@ -55,7 +51,7 @@ impl PartialEq for StyleSheetLike<'_, '_> {
     }
 }
 
-pub type CssOutput = (ToCssResult, Option<ParseCssResultSourceMap>);
+pub type CssOutput = (ToCssResult, Option<Rope>);
 
 impl StyleSheetLike<'_, '_> {
     pub fn to_static(
@@ -89,7 +85,7 @@ impl StyleSheetLike<'_, '_> {
         };
 
         let result = ss.to_css(PrinterOptions {
-            minify: matches!(minify_type, MinifyType::Minify),
+            minify: matches!(minify_type, MinifyType::Minify { .. }),
             source_map: srcmap.as_mut(),
             targets,
             analyze_dependencies: None,
@@ -103,28 +99,30 @@ impl StyleSheetLike<'_, '_> {
             srcmap.set_source_content(0, code)?;
         }
 
-        Ok((
-            result,
-            srcmap.map(ParseCssResultSourceMap::new_lightningcss),
-        ))
+        let srcmap = match srcmap {
+            Some(srcmap) => Some(generate_css_source_map(&srcmap)?),
+            None => None,
+        };
+
+        Ok((result, srcmap))
     }
 }
 
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
-pub struct UnresolvedUrlReferences(pub Vec<(String, Vc<UrlAssetReference>)>);
+pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference>)>);
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum ParseCssResult {
     Ok {
-        code: Vc<FileContent>,
+        code: ResolvedVc<FileContent>,
 
         #[turbo_tasks(trace_ignore)]
         stylesheet: StyleSheetLike<'static, 'static>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         options: ParserOptions<'static, 'static>,
@@ -136,17 +134,17 @@ pub enum ParseCssResult {
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
 pub enum CssWithPlaceholderResult {
     Ok {
-        parse_result: Vc<ParseCssResult>,
+        parse_result: ResolvedVc<ParseCssResult>,
 
-        references: Vc<ModuleReferences>,
+        references: ResolvedVc<ModuleReferences>,
 
-        url_references: Vc<UnresolvedUrlReferences>,
+        url_references: ResolvedVc<UnresolvedUrlReferences>,
 
         #[turbo_tasks(trace_ignore)]
         exports: Option<FxIndexMap<String, CssModuleExport>>,
 
         #[turbo_tasks(trace_ignore)]
-        placeholders: HashMap<String, Url<'static>>,
+        placeholders: FxHashMap<String, Url<'static>>,
     },
     Unparseable,
     NotFound,
@@ -161,7 +159,7 @@ pub enum FinalCssResult {
         #[turbo_tasks(trace_ignore)]
         exports: Option<CssModuleExports>,
 
-        source_map: Vc<ParseCssResultSourceMap>,
+        source_map: ResolvedVc<OptionStringifiedSourceMap>,
     },
     Unparseable,
     NotFound,
@@ -175,7 +173,7 @@ impl PartialEq for FinalCssResult {
 
 #[turbo_tasks::function]
 pub async fn process_css_with_placeholder(
-    parse_result: Vc<ParseCssResult>,
+    parse_result: ResolvedVc<ParseCssResult>,
 ) -> Result<Vc<CssWithPlaceholderResult>> {
     let result = parse_result.await?;
 
@@ -208,7 +206,7 @@ pub async fn process_css_with_placeholder(
                 exports,
                 references: *references,
                 url_references: *url_references,
-                placeholders: HashMap::new(),
+                placeholders: FxHashMap::default(),
             }
             .cell())
         }
@@ -220,6 +218,7 @@ pub async fn process_css_with_placeholder(
 #[turbo_tasks::function]
 pub async fn finalize_css(
     result: Vc<CssWithPlaceholderResult>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     minify_type: MinifyType,
 ) -> Result<Vc<FinalCssResult>> {
@@ -243,10 +242,11 @@ pub async fn finalize_css(
 
             let url_references = *url_references;
 
-            let mut url_map = HashMap::new();
+            let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
-                let resolved = resolve_url_reference(*reference, chunking_context).await?;
+                let resolved =
+                    resolve_url_reference(**reference, module_graph, chunking_context).await?;
                 if let Some(v) = resolved.as_ref().cloned() {
                     url_map.insert(RcStr::from(src.as_str()), v);
                 }
@@ -264,7 +264,7 @@ pub async fn finalize_css(
             Ok(FinalCssResult::Ok {
                 output_code: result.code,
                 exports: result.exports,
-                source_map: srcmap.unwrap().cell(),
+                source_map: ResolvedVc::cell(srcmap),
             }
             .into())
         }
@@ -284,6 +284,7 @@ pub trait ProcessCss: ParseCss {
 
     async fn finalize_css(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
     ) -> Result<Vc<FinalCssResult>>;
@@ -291,9 +292,9 @@ pub trait ProcessCss: ParseCss {
 
 #[turbo_tasks::function]
 pub async fn parse_css(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     let span = {
@@ -314,7 +315,7 @@ pub async fn parse_css(
                         process_content(
                             **file_content,
                             string.into_owned(),
-                            fs_path,
+                            fs_path.to_resolved().await?,
                             ident_str,
                             source,
                             origin,
@@ -334,11 +335,11 @@ pub async fn parse_css(
 async fn process_content(
     content_vc: Vc<FileContent>,
     code: String,
-    fs_path_vc: Vc<FileSystemPath>,
+    fs_path_vc: ResolvedVc<FileSystemPath>,
     filename: &str,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     ty: CssModuleAssetType,
 ) -> Result<Vc<ParseCssResult>> {
     #[allow(clippy::needless_lifetimes)]
@@ -398,26 +399,32 @@ async fn process_content(
                     }
                 }
 
-                for err in warnings.read().unwrap().iter() {
+                // We need to collect here because we need to avoid holding the lock while calling
+                // `.await` in the loop.
+                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
+                for err in warngins.iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
                         | lightningcss::error::ParserError::EndOfInput => {
-                            let source = err.loc.as_ref().map(|loc| {
-                                let pos = SourcePos {
-                                    line: loc.line as _,
-                                    column: loc.column as _,
-                                };
-                                IssueSource::from_line_col(source, pos, pos)
-                            });
+                            let source = match &err.loc {
+                                Some(loc) => {
+                                    let pos = SourcePos {
+                                        line: loc.line as _,
+                                        column: loc.column as _,
+                                    };
+                                    Some(IssueSource::from_line_col(source, pos, pos))
+                                }
+                                None => None,
+                            };
 
                             ParsingIssue {
                                 file: fs_path_vc,
-                                msg: Vc::cell(err.to_string().into()),
+                                msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             return Ok(ParseCssResult::Unparseable.cell());
                         }
@@ -431,19 +438,22 @@ async fn process_content(
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
             Err(e) => {
-                let source = e.loc.as_ref().map(|loc| {
-                    let pos = SourcePos {
-                        line: loc.line as _,
-                        column: loc.column as _,
-                    };
-                    IssueSource::from_line_col(source, pos, pos)
-                });
+                let source = match &e.loc {
+                    Some(loc) => {
+                        let pos = SourcePos {
+                            line: loc.line as _,
+                            column: loc.column as _,
+                        };
+                        Some(IssueSource::from_line_col(source, pos, pos))
+                    }
+                    None => None,
+                };
                 ParsingIssue {
                     file: fs_path_vc,
-                    msg: Vc::cell(e.to_string().into()),
+                    msg: ResolvedVc::cell(e.to_string().into()),
                     source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 return Ok(ParseCssResult::Unparseable.cell());
             }
@@ -456,11 +466,23 @@ async fn process_content(
     let (references, url_references) =
         analyze_references(&mut stylesheet, source, origin, import_context)?;
 
+    let url_references = url_references
+        .into_iter()
+        .map(|(k, v)| async move { Ok((k, v.to_resolved().await?)) })
+        .try_join()
+        .await?;
+
     Ok(ParseCssResult::Ok {
-        code: content_vc,
+        code: content_vc.to_resolved().await?,
         stylesheet,
-        references: Vc::cell(references),
-        url_references: Vc::cell(url_references),
+        references: ResolvedVc::cell(
+            references
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?,
+        ),
+        url_references: ResolvedVc::cell(url_references),
         options: config,
     }
     .cell())
@@ -484,15 +506,17 @@ enum CssError {
 }
 
 impl CssError {
-    fn report(self, file: Vc<FileSystemPath>) {
+    fn report(self, file: ResolvedVc<FileSystemPath>) {
         match self {
             CssError::LightningCssSelectorInModuleNotPure { selector } => {
                 ParsingIssue {
                     file,
-                    msg: Vc::cell(format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into()),
+                    msg: ResolvedVc::cell(
+                        format!("{CSS_MODULE_ERROR}, (lightningcss, {selector})").into(),
+                    ),
                     source: None,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
@@ -553,108 +577,48 @@ impl lightningcss::visitor::Visitor<'_> for CssValidator {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-pub enum ParseCssResultSourceMap {
-    Parcel {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        source_map: parcel_sourcemap::SourceMap,
-    },
+fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<Rope> {
+    let mut builder = SourceMapBuilder::new(None);
 
-    Swc {
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        source_map: Arc<swc_core::common::SourceMap>,
-
-        /// The position mappings that can generate a real source map given a
-        /// (SWC) SourceMap.
-        #[turbo_tasks(debug_ignore, trace_ignore)]
-        mappings: Vec<(BytePos, LineCol)>,
-    },
-}
-
-impl PartialEq for ParseCssResultSourceMap {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
-impl ParseCssResultSourceMap {
-    pub fn new_lightningcss(source_map: parcel_sourcemap::SourceMap) -> Self {
-        ParseCssResultSourceMap::Parcel { source_map }
+    for src in source_map.get_sources() {
+        builder.add_source(&format!("{SOURCE_URL_PROTOCOL}///{src}"));
     }
 
-    pub fn new_swc(
-        source_map: Arc<swc_core::common::SourceMap>,
-        mappings: Vec<(BytePos, LineCol)>,
-    ) -> Self {
-        ParseCssResultSourceMap::Swc {
-            source_map,
-            mappings,
-        }
+    for (idx, content) in source_map.get_sources_content().iter().enumerate() {
+        builder.set_source_contents(idx as _, Some(content));
     }
-}
 
-#[turbo_tasks::value_impl]
-impl GenerateSourceMap for ParseCssResultSourceMap {
-    #[turbo_tasks::function]
-    fn generate_source_map(&self) -> Vc<OptionSourceMap> {
-        match self {
-            ParseCssResultSourceMap::Parcel { source_map } => {
-                let mut builder = SourceMapBuilder::new(None);
-
-                for src in source_map.get_sources() {
-                    builder.add_source(&format!("{SOURCE_MAP_PREFIX}{src}"));
-                }
-
-                for (idx, content) in source_map.get_sources_content().iter().enumerate() {
-                    builder.set_source_contents(idx as _, Some(content));
-                }
-
-                for m in source_map.get_mappings() {
-                    builder.add_raw(
-                        m.generated_line,
-                        m.generated_column,
-                        m.original.map(|v| v.original_line).unwrap_or_default(),
-                        m.original.map(|v| v.original_column).unwrap_or_default(),
-                        Some(0),
-                        None,
-                        false,
-                    );
-                }
-
-                Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(builder.into_sourcemap())
-                        .cell(),
-                ))
-            }
-            ParseCssResultSourceMap::Swc {
-                source_map,
-                mappings,
-            } => {
-                let map = source_map.build_source_map_with_config(
-                    mappings,
-                    None,
-                    InlineSourcesContentConfig {},
-                );
-                Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(map).cell(),
-                ))
-            }
-        }
+    for m in source_map.get_mappings() {
+        builder.add_raw(
+            m.generated_line,
+            m.generated_column,
+            m.original.map(|v| v.original_line).unwrap_or_default(),
+            m.original.map(|v| v.original_column).unwrap_or_default(),
+            Some(0),
+            None,
+            false,
+        );
     }
+
+    let mut map = builder.into_sourcemap();
+    add_default_ignore_list(&mut map);
+    let mut result = vec![];
+    map.to_writer(&mut result)?;
+    Ok(Rope::from(result))
 }
 
 #[turbo_tasks::value]
 struct ParsingIssue {
-    msg: Vc<RcStr>,
-    file: Vc<FileSystemPath>,
-    source: Option<Vc<IssueSource>>,
+    msg: ResolvedVc<RcStr>,
+    file: ResolvedVc<FileSystemPath>,
+    source: Option<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file
+        *self.file
     }
 
     #[turbo_tasks::function]
@@ -668,14 +632,17 @@ impl Issue for ParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match &self.source {
+            Some(s) => Some(s.resolve_source_map().await?.into_owned()),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.as_str().into()).cell(),
+            StyledString::Text(self.msg.await?.as_str().into()).resolved_cell(),
         )))
     }
 }
@@ -726,122 +693,127 @@ mod tests {
     fn css_module_pure_lint() {
         assert_lint_success(
             "html {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_success(
             "#id {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             "html.class {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class > * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ".class * {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_success(
             ":where(.main > *, .root > *) {
-            color: red;
-        }",
+                color: red;
+            }",
+        );
+        assert_lint_success(
+            ".style {
+                background-image: var(--foo);
+            }",
         );
 
         assert_lint_failure(
             "div {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div > span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "div[data-foo=\"bar\"] span {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             "* {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             "[data-foo] {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(.class) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":not(div) {
-            --foo: 1;
-        }",
+                --foo: 1;
+            }",
         );
 
         assert_lint_failure(
             ":where(div > *) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
 
         assert_lint_failure(
             ":where(div) {
-            color: red;
-        }",
+                color: red;
+            }",
         );
     }
 }

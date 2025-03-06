@@ -2,10 +2,11 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
+use rustc_hash::FxHashMap;
 use swc_core::{
-    atoms::Atom,
+    atoms::{atom, Atom},
     base::SwcComments,
-    common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
@@ -17,7 +18,8 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -28,7 +30,7 @@ use turbopack_core::{
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     CommonJs,
-    Plugin(Vc<TransformPlugin>),
+    Plugin(ResolvedVc<TransformPlugin>),
     PresetEnv(ResolvedVc<Environment>),
     React {
         #[serde(default)]
@@ -36,9 +38,9 @@ pub enum EcmascriptInputTransform {
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: Vc<Option<RcStr>>,
+        import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
-        runtime: Vc<Option<RcStr>>,
+        runtime: ResolvedVc<Option<RcStr>>,
     },
     GlobalTypeofs {
         window_value: String,
@@ -100,8 +102,8 @@ impl EcmascriptInputTransforms {
 
     #[turbo_tasks::function]
     pub async fn extend(self: Vc<Self>, other: Vc<EcmascriptInputTransforms>) -> Result<Vc<Self>> {
-        let mut transforms = self.await?.clone_value();
-        transforms.extend(other.await?.clone_value());
+        let mut transforms = self.owned().await?;
+        transforms.extend(other.owned().await?);
         Ok(Vc::cell(transforms))
     }
 }
@@ -114,7 +116,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 impl EcmascriptInputTransform {
@@ -128,7 +130,7 @@ impl EcmascriptInputTransform {
         } = ctx;
         match self {
             EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: AHashMap<Atom, Atom> = Default::default();
+                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
                 typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
                 program.mutate(inline_globals2(
@@ -163,11 +165,12 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(ToString::to_string),
+                    import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            refresh_reg: "__turbopack_refresh__.register".to_string(),
-                            refresh_sig: "__turbopack_refresh__.signature".to_string(),
+                            // __turbopack_context__.k is __turbopack_refresh__
+                            refresh_reg: atom!("__turbopack_context__.k.register"),
+                            refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
                         })
                     } else {
@@ -191,7 +194,7 @@ impl EcmascriptInputTransform {
                         // AMP / No-JS mode does not inject these helpers
                         "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_refresh__.registerExports(module, \
+                         __turbopack_context__.k.registerExports(module, \
                          globalThis.$RefreshHelpers$); }\n" as Stmt
                     );
 
@@ -304,7 +307,7 @@ pub fn remove_shebang(program: &mut Program) {
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedServerActionIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -324,7 +327,7 @@ impl Issue for UnsupportedServerActionIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]

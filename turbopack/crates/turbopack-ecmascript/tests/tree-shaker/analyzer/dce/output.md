@@ -80,18 +80,18 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation), ItemId(1, Normal)]"];
-    N1["Items: [ItemId(0, ImportOfModule)]"];
-    N2["Items: [ItemId(0, ImportBinding(0))]"];
-    N0 --> N1;
-    N0 --> N2;
+    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(1, Normal), ItemId(ModuleEvaluation)]"];
+    N2 --> N0;
     N2 --> N1;
+    N1 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 0,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -100,33 +100,33 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { baz } from './module';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-"module evaluation";
-if (1 + 1 == 3) {
-    baz();
-}
+import './module';
 
 ```
 ## Part 1
 ```js
-import './module';
-
-```
-## Part 2
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+
+```
+## Part 2
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { baz } from './module';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+if (1 + 1 == 3) {
+    baz();
+}
+"module evaluation";
 
 ```
 ## Part 3
@@ -136,20 +136,20 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
 import { baz } from './module';
-"module evaluation";
 if (1 + 1 == 3) {
     baz();
 }
+"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 0,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -158,33 +158,33 @@ if (1 + 1 == 3) {
 # Modules (prod)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { baz } from './module';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-"module evaluation";
-if (1 + 1 == 3) {
-    baz();
-}
+import './module';
 
 ```
 ## Part 1
 ```js
-import './module';
-
-```
-## Part 2
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
 import { baz } from './module';
 export { baz as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+
+```
+## Part 2
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { baz } from './module';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+if (1 + 1 == 3) {
+    baz();
+}
+"module evaluation";
 
 ```
 ## Part 3
@@ -194,12 +194,12 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+    __turbopack_part__: 0
 };
 import { baz } from './module';
-"module evaluation";
 if (1 + 1 == 3) {
     baz();
 }
+"module evaluation";
 
 ```

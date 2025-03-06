@@ -55,16 +55,22 @@ describe('og-api', () => {
     it('should copy files correctly', async () => {
       expect(next.cliOutput).not.toContain('Failed to copy traced files')
 
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/standalone/.next/server/pages/api/og.js')
+      let manifest = await fs.readJSON(
+        join(
+          next.testDir,
+          '.next/standalone/.next/server/middleware-manifest.json'
         )
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/standalone/.next/server/edge-chunks')
-        )
-      ).toBe(true)
+      )
+      let apiOg = manifest.functions['/api/og']
+      let files = apiOg.files.concat(
+        [...apiOg.wasm, ...apiOg.assets].map((f) => f.filePath)
+      )
+
+      for (let f of files) {
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/standalone/.next', f))
+        ).toBe(true)
+      }
     })
   }
 

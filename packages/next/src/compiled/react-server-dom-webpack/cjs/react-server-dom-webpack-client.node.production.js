@@ -432,7 +432,7 @@ function processReply(
       ) {
         if (void 0 === temporaryReferences)
           throw Error(
-            "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
+            "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported."
           );
         return "$T";
       }
@@ -844,6 +844,8 @@ function initializeModuleChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -854,7 +856,11 @@ function createLazyChunkWrapper(chunk) {
 function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
-  chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
+  chunk ||
+    ((chunk = response._closed
+      ? new ReactPromise("rejected", null, response._closedReason, response)
+      : createPendingChunk(response)),
+    chunks.set(id, chunk));
   return chunk;
 }
 function waitForReference(
@@ -1187,6 +1193,8 @@ function ResponseInstance(
   this._fromJSON = null;
   this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
   this._buffer = [];
+  this._closed = !1;
+  this._closedReason = null;
   this._tempRefs = temporaryReferences;
   this._fromJSON = createFromJSONCallback(this);
 }
@@ -1573,6 +1581,7 @@ function processFullStringRow(response, id, tag, row) {
         ? chunk.reason.enqueueValue(row)
         : tag.set(id, new ReactPromise("fulfilled", row, null, response));
       break;
+    case 78:
     case 68:
     case 87:
       throw Error(

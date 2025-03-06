@@ -13,6 +13,7 @@ export type EdgeAppRouteLoaderQuery = {
   preferredRegion: string | string[] | undefined
   nextConfig: string
   middlewareConfig: string
+  cacheHandlers: string
 }
 
 const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
@@ -24,12 +25,21 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       appDirLoader: appDirLoaderBase64 = '',
       middlewareConfig: middlewareConfigBase64 = '',
       nextConfig: nextConfigBase64,
+      cacheHandlers: cacheHandlersStringified,
     } = this.getOptions()
 
     const appDirLoader = Buffer.from(appDirLoaderBase64, 'base64').toString()
     const middlewareConfig: MiddlewareConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
+
+    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
+
+    if (!cacheHandlers.default) {
+      cacheHandlers.default = require.resolve(
+        '../../../../server/lib/cache-handlers/default'
+      )
+    }
 
     // Ensure we only run this loader for as a module.
     if (!this._module) throw new Error('This loader is only usable as a module')

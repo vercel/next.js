@@ -47,27 +47,36 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
-  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
 }
 type AppLoader = webpack.LoaderDefinitionFunction<AppLoaderOptions>
 
+const HTTP_ACCESS_FALLBACKS = {
+  'not-found': 'not-found',
+  forbidden: 'forbidden',
+  unauthorized: 'unauthorized',
+} as const
+const defaultHTTPAccessFallbackPaths = {
+  'not-found': 'next/dist/client/components/not-found-error',
+  forbidden: 'next/dist/client/components/forbidden-error',
+  unauthorized: 'next/dist/client/components/unauthorized-error',
+} as const
+
 const FILE_TYPES = {
   layout: 'layout',
   template: 'template',
   error: 'error',
   loading: 'loading',
-  'not-found': 'not-found',
   'global-error': 'global-error',
+  ...HTTP_ACCESS_FALLBACKS,
 } as const
 
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const PAGE_SEGMENT = 'page$'
 const PARALLEL_CHILDREN_SEGMENT = 'children$'
 
-const defaultNotFoundPath = 'next/dist/client/components/not-found-error'
 const defaultGlobalErrorPath = 'next/dist/client/components/error-boundary'
 const defaultLayoutPath = 'next/dist/client/components/default-layout'
 
@@ -113,13 +122,9 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
-    buildInfo,
-    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
-    flyingShuttle?: boolean
-    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -142,9 +147,6 @@ async function createTreeCodeFromPath(
 
   const isDefaultNotFound = isAppBuiltinNotFoundPage(pagePath)
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const hasRootNotFound = await resolver(
-    `${appDirPrefix}/${FILE_TYPES['not-found']}`
-  )
   const pages: string[] = []
 
   let rootLayout: string | undefined
@@ -292,28 +294,39 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(([, filePath]) => {
-        if (filePath !== undefined) {
-          if (flyingShuttle && buildInfo.route?.relatedModules) {
-            buildInfo.route.relatedModules.push(filePath)
-          }
-          return true
-        }
-        return false
-      }) as [ValueOf<typeof FILE_TYPES>, string][]
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      ) as [ValueOf<typeof FILE_TYPES>, string][]
 
-      // Add default not found error as root not found if not present
-      const hasNotFoundFile = definedFilePaths.some(
-        ([type]) => type === 'not-found'
+      // Add default access fallback as root fallback if not present
+      const existedConventionNames = new Set(
+        definedFilePaths.map(([type]) => type)
       )
       // If the first layer is a group route, we treat it as root layer
       const isFirstLayerGroupRoute =
         segments.length === 1 &&
         subSegmentPath.filter((seg) => isGroupSegment(seg)).length === 1
-      if ((isRootLayer || isFirstLayerGroupRoute) && !hasNotFoundFile) {
-        // If you already have a root not found, don't insert default not-found to group routes root
-        if (!(hasRootNotFound && isFirstLayerGroupRoute)) {
-          definedFilePaths.push(['not-found', defaultNotFoundPath])
+
+      if (isRootLayer || isFirstLayerGroupRoute) {
+        const accessFallbackTypes = Object.keys(
+          defaultHTTPAccessFallbackPaths
+        ) as (keyof typeof defaultHTTPAccessFallbackPaths)[]
+        for (const type of accessFallbackTypes) {
+          const hasRootFallbackFile = await resolver(
+            `${appDirPrefix}/${FILE_TYPES[type]}`
+          )
+          const hasLayerFallbackFile = existedConventionNames.has(type)
+
+          // If you already have a root access error fallback, don't insert default access error boundary to group routes root
+          if (
+            // Is treated as root layout and without boundary
+            !(hasRootFallbackFile && isFirstLayerGroupRoute) &&
+            // Does not have a fallback boundary file
+            !hasLayerFallbackFile
+          ) {
+            const defaultFallbackPath = defaultHTTPAccessFallbackPaths[type]
+            definedFilePaths.push([type, defaultFallbackPath])
+          }
         }
       }
 
@@ -358,7 +371,7 @@ async function createTreeCodeFromPath(
       if (isNotFoundRoute && normalizedParallelKey === 'children') {
         const notFoundPath =
           definedFilePaths.find(([type]) => type === 'not-found')?.[1] ??
-          defaultNotFoundPath
+          defaultHTTPAccessFallbackPaths['not-found']
 
         const varName = `notFound${nestedCollectedDeclarations.length}`
         nestedCollectedDeclarations.push([varName, notFoundPath])
@@ -478,7 +491,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
-    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -674,8 +686,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
-    buildInfo,
-    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -725,8 +735,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
-        buildInfo,
-        flyingShuttle,
       })
     }
   }
@@ -746,6 +754,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       tree: treeCodeResult.treeCode,
       pages: treeCodeResult.pages,
       __next_app_require__: '__webpack_require__',
+      // all modules are in the entry chunk, so we never actually need to load chunks in webpack
       __next_app_load_chunk__: '() => Promise.resolve()',
     }
   )

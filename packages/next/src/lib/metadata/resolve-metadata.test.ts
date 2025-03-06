@@ -17,7 +17,7 @@ function accumulateMetadata(metadataItems: MetadataItems) {
   return originAccumulateMetadata(fullMetadataItems, {
     pathname: '/test',
     trailingSlash: false,
-    isStandaloneMode: false,
+    isStaticMetadataRouteFile: false,
   })
 }
 
@@ -778,6 +778,14 @@ describe('accumulateViewport', () => {
         viewportFit: 'cover',
         userScalable: false,
         interactiveWidget: 'overlays-content',
+      })
+    })
+
+    it('should skip viewport.initialScale if it is set undefined explicitly', async () => {
+      const viewport = await accumulateViewport([{ initialScale: undefined }])
+      expect(viewport).toMatchObject({
+        width: 'device-width',
+        initialScale: undefined,
       })
     })
   })

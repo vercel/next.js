@@ -1,9 +1,5 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import {
-  getParsedNodeOptionsWithoutInspect,
-  formatNodeOptions,
-} from '../server/lib/utils'
 import { Transform } from 'stream'
 
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
@@ -47,12 +43,6 @@ export class Worker {
     })
 
     const createWorker = () => {
-      // Get the node options without inspect and also remove the
-      // --max-old-space-size flag as it can cause memory issues.
-      const nodeOptions = getParsedNodeOptionsWithoutInspect()
-      delete nodeOptions['max-old-space-size']
-      delete nodeOptions['max_old_space_size']
-
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
         forkOptions: {
@@ -60,7 +50,7 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            NODE_OPTIONS: formatNodeOptions(nodeOptions),
+            IS_NEXT_WORKER: 'true',
           } as any,
         },
         maxRetries: 0,
@@ -86,7 +76,7 @@ export class Worker {
           worker._child?.on('exit', (code, signal) => {
             if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
               logger.error(
-                `Static worker exited with code: ${code} and signal: ${signal}`
+                `Next.js build worker exited with code: ${code} and signal: ${signal}`
               )
 
               // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process

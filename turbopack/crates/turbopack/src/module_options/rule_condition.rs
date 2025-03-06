@@ -1,12 +1,12 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, ReadRef, Vc};
+use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
@@ -51,7 +51,7 @@ impl RuleCondition {
 impl RuleCondition {
     pub async fn matches(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         path: &FileSystemPath,
         reference_type: &ReferenceType,
     ) -> Result<bool> {
@@ -96,9 +96,7 @@ impl RuleCondition {
             }
             RuleCondition::ReferenceType(condition_ty) => condition_ty.includes(reference_type),
             RuleCondition::ResourceIsVirtualSource => {
-                Vc::try_resolve_downcast_type::<VirtualSource>(source)
-                    .await?
-                    .is_some()
+                ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
             RuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {

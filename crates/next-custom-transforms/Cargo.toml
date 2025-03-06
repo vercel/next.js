@@ -17,19 +17,21 @@ workspace = true
 chrono = "0.4"
 easy-error = "1.0.0"
 either = "1"
-fxhash = "0.2.1"
 hex = "0.4.3"
+indexmap = { workspace = true }
 indoc = { workspace = true }
 once_cell = { workspace = true }
 pathdiff = { workspace = true }
 regex = "1.5"
 rustc-hash = { workspace = true }
+swc-rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
 tracing = { version = "0.1.37" }
 anyhow = { workspace = true }
 lazy_static = { workspace = true }
+dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
   "base",
@@ -56,10 +58,11 @@ styled_jsx = { workspace = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, optional = true }
+turbo-rcstr = { workspace = true }
 
-react_remove_properties = "0.24.25"
-remove_console = "0.25.25"
-preset_env_base = "1.0.0"
+react_remove_properties = "0.33.0"
+remove_console = "0.34.0"
+preset_env_base = "2.0.1"
 
 [dev-dependencies]
 swc_core = { workspace = true, features = ["testing_transform"]}

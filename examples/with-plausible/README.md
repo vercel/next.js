@@ -1,6 +1,6 @@
 # Example app with Plausible
 
-This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Plausible](https://plausible.io) via the [next-plausible](https://github.com/4lejandrito/next-plausible) package. A custom [\_app.js](https://nextjs.org/docs/advanced-features/custom-app) is used to wrap our app with the [`PlausibleProvider`](https://github.com/4lejandrito/next-plausible#plausibleprovider-props) to track page views and [custom events](https://github.com/4lejandrito/next-plausible#send-custom-events) are shown as well.
+This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Plausible](https://plausible.io) via the [next-plausible](https://github.com/4lejandrito/next-plausible) package. [`PlausibleProvider`](https://github.com/4lejandrito/next-plausible#plausibleprovider-props) inside the root layout tracks page views and [custom events](https://github.com/4lejandrito/next-plausible#send-custom-events) are shown as well.
 
 ## Deploy your own
 

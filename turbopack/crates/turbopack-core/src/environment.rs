@@ -5,7 +5,8 @@ use std::{
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::ecma::preset_env::{Version, Versions};
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TaskInput, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 
 use crate::target::CompileTarget;
@@ -13,7 +14,7 @@ use crate::target::CompileTarget;
 static DEFAULT_NODEJS_VERSION: &str = "16.0.0";
 
 #[turbo_tasks::value]
-#[derive(Default)]
+#[derive(Clone, Copy, Default, Hash, TaskInput, Debug)]
 pub enum Rendering {
     #[default]
     None,
@@ -55,10 +56,10 @@ impl Environment {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Hash, Clone, Copy)]
 pub enum ExecutionEnvironment {
-    NodeJsBuildTime(Vc<NodeJsEnvironment>),
-    NodeJsLambda(Vc<NodeJsEnvironment>),
-    EdgeWorker(Vc<EdgeWorkerEnvironment>),
-    Browser(Vc<BrowserEnvironment>),
+    NodeJsBuildTime(ResolvedVc<NodeJsEnvironment>),
+    NodeJsLambda(ResolvedVc<NodeJsEnvironment>),
+    EdgeWorker(ResolvedVc<EdgeWorkerEnvironment>),
+    Browser(ResolvedVc<BrowserEnvironment>),
     // TODO allow custom trait here
     Custom(u8),
 }
@@ -69,7 +70,7 @@ impl Environment {
     pub async fn compile_target(&self) -> Result<Vc<CompileTarget>> {
         Ok(match self.execution {
             ExecutionEnvironment::NodeJsBuildTime(node_env, ..)
-            | ExecutionEnvironment::NodeJsLambda(node_env) => node_env.await?.compile_target,
+            | ExecutionEnvironment::NodeJsLambda(node_env) => *node_env.await?.compile_target,
             ExecutionEnvironment::Browser(_) => CompileTarget::unknown(),
             ExecutionEnvironment::EdgeWorker(_) => CompileTarget::unknown(),
             ExecutionEnvironment::Custom(_) => todo!(),
@@ -188,7 +189,7 @@ impl Environment {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
-            | ExecutionEnvironment::NodeJsLambda(env) => env.await?.cwd,
+            | ExecutionEnvironment::NodeJsLambda(env) => *env.await?.cwd,
             _ => Vc::cell(None),
         })
     }
@@ -226,18 +227,18 @@ pub enum NodeEnvironmentType {
 
 #[turbo_tasks::value(shared)]
 pub struct NodeJsEnvironment {
-    pub compile_target: Vc<CompileTarget>,
-    pub node_version: Vc<NodeJsVersion>,
+    pub compile_target: ResolvedVc<CompileTarget>,
+    pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: Vc<Option<RcStr>>,
+    pub cwd: ResolvedVc<Option<RcStr>>,
 }
 
 impl Default for NodeJsEnvironment {
     fn default() -> Self {
         NodeJsEnvironment {
-            compile_target: CompileTarget::current(),
-            node_version: NodeJsVersion::default().cell(),
-            cwd: Vc::cell(None),
+            compile_target: CompileTarget::current_raw().resolved_cell(),
+            node_version: NodeJsVersion::default().resolved_cell(),
+            cwd: ResolvedVc::cell(None),
         }
     }
 }
@@ -261,12 +262,14 @@ impl NodeJsEnvironment {
     }
 
     #[turbo_tasks::function]
-    pub fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Vc<Self> {
-        Self::cell(NodeJsEnvironment {
-            compile_target: CompileTarget::current(),
-            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env)),
-            cwd: Vc::cell(None),
-        })
+    pub async fn current(process_env: ResolvedVc<Box<dyn ProcessEnv>>) -> Result<Vc<Self>> {
+        Ok(Self::cell(NodeJsEnvironment {
+            compile_target: CompileTarget::current().to_resolved().await?,
+            node_version: NodeJsVersion::cell(NodeJsVersion::Current(process_env))
+                .to_resolved()
+                .await?,
+            cwd: ResolvedVc::cell(None),
+        }))
     }
 }
 

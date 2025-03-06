@@ -84,6 +84,12 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
 
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
+    if (!cacheHandlers.default) {
+      cacheHandlers.default = require.resolve(
+        '../../../../server/lib/cache-handlers/default'
+      )
+    }
+
     const middlewareConfig: MiddlewareConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
@@ -160,9 +166,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,
-        },
-        {
-          cacheHandlers: cacheHandlers ?? {},
         }
       )
     } else {
@@ -191,9 +194,6 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           userland500Page: userland500Path,
           incrementalCacheHandler: cacheHandler ?? null,
-        },
-        {
-          cacheHandlers: cacheHandlers || {},
         }
       )
     }

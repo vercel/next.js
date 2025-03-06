@@ -237,6 +237,8 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
   const mapping: Record<string, string> = {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
+    link: 'next/dist/client/app-dir/link',
+    form: 'next/dist/client/app-dir/form',
   }
 
   if (isServerOnlyLayer) {

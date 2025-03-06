@@ -16,7 +16,7 @@ In Next 15, these APIs have been made asynchronous. You can read more about this
 
 For example, the following code will issue a warning:
 
-```js filename="app/[id]/page.js"
+```jsx filename="app/[id]/page.js"
 function Page({ params }) {
   // direct access of `params.id`.
   return <p>ID: {params.id}</p>
@@ -39,10 +39,10 @@ $ npx @next/codemod@canary next-async-request-api .
 
 The codemod cannot cover all cases, so you may need to manually adjust some code.
 
-If the warning occured on the Server (e.g. a route handler, or a Server Component),
+If the warning occurred on the Server (e.g. a route handler, or a Server Component),
 you must `await` the dynamic API to access its properties:
 
-```js filename="app/[id]/page.js"
+```jsx filename="app/[id]/page.js"
 async function Page({ params }) {
   // asynchronous access of `params.id`.
   const { id } = await params
@@ -50,10 +50,10 @@ async function Page({ params }) {
 }
 ```
 
-If the warning occured in a synchronous component (e.g. a Client component),
+If the warning occurred in a synchronous component (e.g. a Client component),
 you must use `React.use()` to unwrap the Promise first:
 
-```js filename="app/[id]/page.js"
+```jsx filename="app/[id]/page.js"
 'use client'
 import * as React from 'react'
 

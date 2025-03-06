@@ -216,26 +216,26 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(ModuleEvaluation)]"];
-    N1["Items: [ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
-    N2["Items: [ItemId(0, ImportOfModule)]"];
-    N3["Items: [ItemId(0, ImportBinding(0))]"];
-    N4["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
-    N4 --> N3;
+    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
+    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
+    N3["Items: [ItemId(ModuleEvaluation)]"];
+    N4["Items: [ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
+    N2 --> N1;
+    N1 --> N0;
     N3 --> N2;
-    N0 --> N4;
+    N2 --> N0;
     N4 --> N2;
-    N1 --> N4;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 0,
-    Exports: 5,
+    ModuleEvaluation: 3,
     Export(
         "run",
-    ): 1,
+    ): 4,
+    Exports: 5,
 }
 ```
 
@@ -243,44 +243,28 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
+import "./index";
 
 ```
 ## Part 1
 ```js
-import { a as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-export { run };
-
-```
-## Part 2
-```js
-import "./index";
-
-```
-## Part 3
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 import { IPC } from "./index";
-export { IPC as b } from "__TURBOPACK_VAR__" assert {
+export { IPC as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 4
+## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 import { IPC } from "./index";
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 const ipc = IPC;
 const queue = [];
@@ -375,15 +359,31 @@ const run = async (moduleFactory)=>{
         }
     }
 };
-export { ipc as c } from "__TURBOPACK_VAR__" assert {
+export { ipc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { queue as d } from "__TURBOPACK_VAR__" assert {
+export { queue as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { run as a } from "__TURBOPACK_VAR__" assert {
+export { run as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+
+```
+## Part 3
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+"module evaluation";
+
+```
+## Part 4
+```js
+import { d as run } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
+};
+export { run };
 
 ```
 ## Part 5
@@ -396,7 +396,7 @@ export { run } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 2
 };
 "module evaluation";
 
@@ -405,11 +405,11 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 0,
-    Exports: 5,
+    ModuleEvaluation: 3,
     Export(
         "run",
-    ): 1,
+    ): 4,
+    Exports: 5,
 }
 ```
 
@@ -417,44 +417,28 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
+import "./index";
 
 ```
 ## Part 1
 ```js
-import { a as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-export { run };
-
-```
-## Part 2
-```js
-import "./index";
-
-```
-## Part 3
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 import { IPC } from "./index";
-export { IPC as b } from "__TURBOPACK_VAR__" assert {
+export { IPC as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 4
+## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 import { IPC } from "./index";
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 const ipc = IPC;
 const queue = [];
@@ -549,15 +533,31 @@ const run = async (moduleFactory)=>{
         }
     }
 };
-export { ipc as c } from "__TURBOPACK_VAR__" assert {
+export { ipc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { queue as d } from "__TURBOPACK_VAR__" assert {
+export { queue as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { run as a } from "__TURBOPACK_VAR__" assert {
+export { run as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+
+```
+## Part 3
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+"module evaluation";
+
+```
+## Part 4
+```js
+import { d as run } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
+};
+export { run };
 
 ```
 ## Part 5
@@ -570,7 +570,7 @@ export { run } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 2
 };
 "module evaluation";
 

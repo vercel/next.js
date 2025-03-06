@@ -3,6 +3,8 @@ use std::{
     mem::take,
 };
 
+use crate::timestamp::Timestamp;
+
 const SPLIT_COUNT: usize = 128;
 /// Start balancing the tree when there are N times more items on one side. Must be at least 3.
 const BALANCE_THRESHOLD: usize = 3;
@@ -14,15 +16,15 @@ pub struct SelfTimeTree<T> {
 }
 
 struct SelfTimeEntry<T> {
-    start: u64,
-    end: u64,
+    start: Timestamp,
+    end: Timestamp,
     item: T,
 }
 
 struct SelfTimeChildren<T> {
     /// Entries < split_point
     left: SelfTimeTree<T>,
-    split_point: u64,
+    split_point: Timestamp,
     /// Entries >= split_point
     right: SelfTimeTree<T>,
     /// Number of entries in the SelfTimeTree::entries list that overlap the split point
@@ -48,7 +50,7 @@ impl<T> SelfTimeTree<T> {
         self.count
     }
 
-    pub fn insert(&mut self, start: u64, end: u64, item: T) {
+    pub fn insert(&mut self, start: Timestamp, end: Timestamp, item: T) {
         self.count += 1;
         self.entries.push(SelfTimeEntry { start, end, item });
         self.check_for_split();
@@ -187,8 +189,8 @@ impl<T> SelfTimeTree<T> {
         }
     }
 
-    pub fn lookup_range_count(&self, start: u64, end: u64) -> u64 {
-        let mut total_count = 0;
+    pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
+        let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
                 let start = max(entry.start, start);
@@ -208,11 +210,21 @@ impl<T> SelfTimeTree<T> {
         total_count
     }
 
-    pub fn for_each_in_range(&self, start: u64, end: u64, mut f: impl FnMut(u64, u64, &T)) {
+    pub fn for_each_in_range(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        mut f: impl FnMut(Timestamp, Timestamp, &T),
+    ) {
         self.for_each_in_range_ref(start, end, &mut f);
     }
 
-    fn for_each_in_range_ref(&self, start: u64, end: u64, f: &mut impl FnMut(u64, u64, &T)) {
+    fn for_each_in_range_ref(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+        f: &mut impl FnMut(Timestamp, Timestamp, &T),
+    ) {
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
                 f(entry.start, entry.end, &entry.item);
@@ -276,11 +288,14 @@ mod tests {
         let mut tree = SelfTimeTree::new();
         let count = 10000;
         for i in 0..count {
-            tree.insert(i, i + 1, i);
+            tree.insert(Timestamp::from_micros(i), Timestamp::from_micros(i + 1), i);
             assert_eq!(tree.count, (i + 1) as usize);
             assert_balanced(&tree);
         }
-        assert_eq!(tree.lookup_range_count(0, count), count);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count)),
+            Timestamp::from_micros(count)
+        );
         print_tree(&tree, 0);
         assert_balanced(&tree);
     }
@@ -294,13 +309,16 @@ mod tests {
                 for c in 0..10 {
                     for d in 0..10 {
                         let i = d * 1000 + c * 100 + b * 10 + a;
-                        tree.insert(i, i + 1, i);
+                        tree.insert(Timestamp::from_micros(i), Timestamp::from_micros(i + 1), i);
                         assert_balanced(&tree);
                     }
                 }
             }
         }
-        assert_eq!(tree.lookup_range_count(0, count), count);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count)),
+            Timestamp::from_micros(count)
+        );
         print_tree(&tree, 0);
         assert_balanced(&tree);
     }
@@ -310,11 +328,18 @@ mod tests {
         let mut tree = SelfTimeTree::new();
         let count = 10000;
         for i in 0..count {
-            tree.insert(i, i + 100, i);
+            tree.insert(
+                Timestamp::from_micros(i),
+                Timestamp::from_micros(i + 100),
+                i,
+            );
             assert_eq!(tree.count, (i + 1) as usize);
             assert_balanced(&tree);
         }
-        assert_eq!(tree.lookup_range_count(0, count + 100), count * 100);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count + 100)),
+            Timestamp::from_micros(count * 100)
+        );
         print_tree(&tree, 0);
         assert_balanced(&tree);
     }
@@ -324,10 +349,17 @@ mod tests {
         let mut tree = SelfTimeTree::new();
         let count = 10000;
         for i in 0..count {
-            tree.insert(i, i + 500, i);
+            tree.insert(
+                Timestamp::from_micros(i),
+                Timestamp::from_micros(i + 500),
+                i,
+            );
             assert_eq!(tree.count, (i + 1) as usize);
         }
-        assert_eq!(tree.lookup_range_count(0, count + 500), count * 500);
+        assert_eq!(
+            tree.lookup_range_count(Timestamp::ZERO, Timestamp::from_micros(count + 500)),
+            Timestamp::from_micros(count * 500)
+        );
         print_tree(&tree, 0);
         assert_balanced(&tree);
     }

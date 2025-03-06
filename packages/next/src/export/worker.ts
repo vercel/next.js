@@ -3,8 +3,6 @@ import type {
   ExportPageInput,
   ExportPageResult,
   ExportRouteResult,
-  ExportedPageFile,
-  FileWriter,
   WorkerRenderOpts,
   ExportPagesResult,
 } from './types'
@@ -48,6 +46,9 @@ import {
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
+import type { PagesRenderContext, PagesSharedContext } from '../server/render'
+import type { AppSharedContext } from '../server/app-render/app-render'
+import { MultiFileWriter } from '../lib/multi-file-writer'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -65,7 +66,7 @@ class ExportPageError extends Error {
 
 async function exportPageImpl(
   input: ExportPageInput,
-  fileWriter: FileWriter
+  fileWriter: MultiFileWriter
 ): Promise<ExportRouteResult | undefined> {
   const {
     path,
@@ -81,6 +82,7 @@ async function exportPageImpl(
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    sriEnabled,
   } = input
 
   if (enableExperimentalReact) {
@@ -123,11 +125,8 @@ async function exportPageImpl(
   const ampPath = `${filePath}.amp`
   let renderAmpPath = ampPath
 
-  let updatedPath = query.__nextSsgPath || path
-  delete query.__nextSsgPath
-
-  let locale = query.__nextLocale || input.renderOpts.locale
-  delete query.__nextLocale
+  let updatedPath = pathMap._ssgPath || path
+  let locale = pathMap._locale || input.renderOpts.locale
 
   if (input.renderOpts.locale) {
     const localePathResult = normalizeLocalePath(path, input.renderOpts.locales)
@@ -233,6 +232,8 @@ async function exportPageImpl(
     distDir,
     page,
     isAppPath: isAppDir,
+    isDev: false,
+    sriEnabled,
   })
 
   // Handle App Routes.
@@ -248,9 +249,14 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       input.renderOpts.experimental,
-      input.renderOpts.buildId
+      input.buildId
     )
   }
+
+  // During the export phase in next build, if it's using PPR we can serve streaming metadata
+  // when it's available. When we're building the PPR rendering result, we don't need to rely
+  // on the user agent. The result can be determined to serve streaming on infrastructure level.
+  const serveStreamingMetadata = !!isRoutePPREnabled
 
   const renderOpts: WorkerRenderOpts = {
     ...components,
@@ -261,6 +267,7 @@ async function exportPageImpl(
     disableOptimizedLoading,
     locale,
     supportsDynamicResponse: false,
+    serveStreamingMetadata,
     experimental: {
       ...input.renderOpts.experimental,
       isRoutePPREnabled,
@@ -273,6 +280,10 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const sharedContext: AppSharedContext = {
+      buildId: input.buildId,
+    }
+
     // If this is a prospective render, don't return any metrics or revalidate
     // timings as we aren't persisting this render (it was only to error).
     if (isProspectiveRender) {
@@ -283,7 +294,8 @@ async function exportPageImpl(
         pathname,
         query,
         fallbackRouteParams,
-        renderOpts
+        renderOpts,
+        sharedContext
       )
     }
 
@@ -299,8 +311,21 @@ async function exportPageImpl(
       htmlFilepath,
       debugOutput,
       isDynamicError,
-      fileWriter
+      fileWriter,
+      sharedContext
     )
+  }
+
+  const sharedContext: PagesSharedContext = {
+    buildId: input.buildId,
+    deploymentId: input.renderOpts.deploymentId,
+    customServer: undefined,
+  }
+
+  const renderContext: PagesRenderContext = {
+    isFallback: pathMap._pagesFallback ?? false,
+    isDraftMode: false,
+    developmentNotFoundSourcePage: undefined,
   }
 
   return exportPagesPage(
@@ -319,6 +344,8 @@ async function exportPageImpl(
     pagesDataDir,
     buildExport,
     isDynamic,
+    sharedContext,
+    renderContext,
     hasOrigQueryValues,
     renderOpts,
     components,
@@ -352,7 +379,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,
@@ -395,6 +421,8 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+            buildId: input.buildId,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {
@@ -453,7 +481,13 @@ export async function exportPages(
               `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
             )
           }
-          await new Promise((r) => setTimeout(r, Math.random() * 500))
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
         }
       }
 
@@ -491,17 +525,10 @@ async function exportPage(
     httpAgentOptions: input.httpAgentOptions,
   })
 
-  const files: ExportedPageFile[] = []
-  const baseFileWriter: FileWriter = async (
-    type,
-    path,
-    content,
-    encodingOptions = 'utf-8'
-  ) => {
-    await fs.mkdir(dirname(path), { recursive: true })
-    await fs.writeFile(path, content, encodingOptions)
-    files.push({ type, path })
-  }
+  const fileWriter = new MultiFileWriter({
+    writeFile: (filePath, data) => fs.writeFile(filePath, data),
+    mkdir: (dir) => fs.mkdir(dir, { recursive: true }),
+  })
 
   const exportPageSpan = trace('export-page-worker', input.parentSpanId)
 
@@ -514,17 +541,20 @@ async function exportPage(
   try {
     result = await exportPageSpan.traceAsyncFn(() =>
       turborepoTraceAccess(
-        () => exportPageImpl(input, baseFileWriter),
+        () => exportPageImpl(input, fileWriter),
         turborepoAccessTraceResult
       )
     )
+
+    // Wait for all the files to flush to disk.
+    await fileWriter.wait()
 
     // If there was no result, then we can exit early.
     if (!result) return
 
     // If there was an error, then we can exit early.
     if ('error' in result) {
-      return { error: result.error, duration: Date.now() - start, files: [] }
+      return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
     console.error(
@@ -548,7 +578,7 @@ async function exportPage(
       }
     }
 
-    return { error: true, duration: Date.now() - start, files: [] }
+    return { error: true, duration: Date.now() - start }
   }
 
   // Notify the parent process that we processed a page (used by the progress activity indicator)
@@ -557,9 +587,8 @@ async function exportPage(
   // Otherwise we can return the result.
   return {
     duration: Date.now() - start,
-    files,
     ampValidations: result.ampValidations,
-    revalidate: result.revalidate,
+    cacheControl: result.cacheControl,
     metadata: result.metadata,
     ssgNotFound: result.ssgNotFound,
     hasEmptyPrelude: result.hasEmptyPrelude,

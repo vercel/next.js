@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::{ast::Program, transforms::base::resolver, visit::VisitMutWith};
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::{is_client_module, server_to_client_proxy::create_proxy_module};

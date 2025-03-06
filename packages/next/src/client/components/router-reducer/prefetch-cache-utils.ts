@@ -397,7 +397,7 @@ export function prunePrefetchCache(
 const DYNAMIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME) * 1000
 
-const STATIC_STALETIME_MS =
+export const STATIC_STALETIME_MS =
   Number(process.env.__NEXT_CLIENT_ROUTER_STATIC_STALETIME) * 1000
 
 function getPrefetchEntryCacheStatus({

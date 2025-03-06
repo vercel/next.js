@@ -5,11 +5,13 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use swc_core::{common::FileName, ecma::ast::Program};
 use swc_relay::RelayLanguageConfig;
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, OperationValue};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RelayConfig {
     pub src: String,
@@ -17,7 +19,9 @@ pub struct RelayConfig {
     pub language: Option<RelayLanguage>,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {
     TypeScript,

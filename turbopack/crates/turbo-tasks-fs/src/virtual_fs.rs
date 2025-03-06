@@ -1,7 +1,9 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{Completion, RcStr, ValueDefault, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 
-use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
+use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
+use crate::RawDirectoryContent;
 
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
@@ -55,7 +57,7 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<DirectoryContent>> {
+    fn raw_read_dir(&self, _fs_path: Vc<FileSystemPath>) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
 
@@ -65,20 +67,12 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _content: Vc<FileContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write(&self, _fs_path: Vc<FileSystemPath>, _content: Vc<FileContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 
     #[turbo_tasks::function]
-    fn write_link(
-        &self,
-        _fs_path: Vc<FileSystemPath>,
-        _target: Vc<LinkContent>,
-    ) -> Result<Vc<Completion>> {
+    fn write_link(&self, _fs_path: Vc<FileSystemPath>, _target: Vc<LinkContent>) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 

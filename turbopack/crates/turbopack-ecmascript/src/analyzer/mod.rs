@@ -22,10 +22,11 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
-        atoms::{Atom, JsWord},
+        atoms::Atom,
     },
 };
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -98,7 +99,6 @@ impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
-    Word(JsWord),
     Atom(Atom),
     RcStr(RcStr),
 }
@@ -106,7 +106,6 @@ pub enum ConstantString {
 impl ConstantString {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Word(s) => s,
             Self::Atom(s) => s,
             Self::RcStr(s) => s,
         }
@@ -145,7 +144,7 @@ impl From<Atom> for ConstantString {
 
 impl From<&'static str> for ConstantString {
     fn from(v: &'static str) -> Self {
-        ConstantString::Word(v.into())
+        ConstantString::Atom(v.into())
     }
 }
 
@@ -170,8 +169,8 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(BigInt),
-    Regex(Atom, Atom),
+    BigInt(Box<BigInt>),
+    Regex(Box<(Atom, Atom)>),
 }
 
 impl ConstantValue {
@@ -235,14 +234,14 @@ impl From<bool> for ConstantValue {
 
 impl From<&'_ str> for ConstantValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into()))
+        ConstantValue::Str(ConstantString::Atom(v.into()))
     }
 }
 
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Word(v.value)),
+            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -252,8 +251,8 @@ impl From<Lit> for ConstantValue {
             }
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
-            Lit::BigInt(v) => ConstantValue::BigInt(*v.value),
-            Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
+            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
+            Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
         }
     }
@@ -269,14 +268,14 @@ impl Display for ConstantValue {
             ConstantValue::Null => write!(f, "null"),
             ConstantValue::Num(ConstantNumber(n)) => write!(f, "{n}"),
             ConstantValue::BigInt(n) => write!(f, "{n}"),
-            ConstantValue::Regex(exp, flags) => write!(f, "/{exp}/{flags}"),
+            ConstantValue::Regex(regex) => write!(f, "/{}/{}", regex.0, regex.1),
         }
     }
 }
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: JsWord,
+    pub module: Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -429,70 +428,70 @@ pub enum JsValue {
     // ----------------------------
     /// An array of nested values
     Array {
-        total_nodes: usize,
+        total_nodes: u32,
         items: Vec<JsValue>,
         mutable: bool,
     },
     /// An object of nested values
     Object {
-        total_nodes: usize,
+        total_nodes: u32,
         parts: Vec<ObjectPart>,
         mutable: bool,
     },
     /// A list of alternative values
     Alternatives {
-        total_nodes: usize,
+        total_nodes: u32,
         values: Vec<JsValue>,
         logical_property: Option<LogicalProperty>,
     },
     /// A function reference. The return value might contain [JsValue::Argument]
     /// placeholders that need to be replaced when calling this function.
     /// `(total_node_count, func_ident, return_value)`
-    Function(usize, u32, Box<JsValue>),
+    Function(u32, u32, Box<JsValue>),
 
     // OPERATIONS
     // ----------------------------
     /// A string concatenation of values.
     /// `foo.${unknownVar}.js` => 'foo' + Unknown + '.js'
-    Concat(usize, Vec<JsValue>),
+    Concat(u32, Vec<JsValue>),
     /// An addition of values.
     /// This can be converted to [JsValue::Concat] if the type of the variable
     /// is string.
-    Add(usize, Vec<JsValue>),
+    Add(u32, Vec<JsValue>),
     /// Logical negation `!expr`
-    Not(usize, Box<JsValue>),
+    Not(u32, Box<JsValue>),
     /// Logical operator chain e. g. `expr && expr`
-    Logical(usize, LogicalOperator, Vec<JsValue>),
+    Logical(u32, LogicalOperator, Vec<JsValue>),
     /// Binary expression e. g. `expr == expr`
-    Binary(usize, Box<JsValue>, BinaryOperator, Box<JsValue>),
+    Binary(u32, Box<JsValue>, BinaryOperator, Box<JsValue>),
     /// A constructor call.
     /// `(total_node_count, callee, args)`
-    New(usize, Box<JsValue>, Vec<JsValue>),
+    New(u32, Box<JsValue>, Vec<JsValue>),
     /// A function call without a `this` context.
     /// `(total_node_count, callee, args)`
-    Call(usize, Box<JsValue>, Vec<JsValue>),
+    Call(u32, Box<JsValue>, Vec<JsValue>),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
-    SuperCall(usize, Vec<JsValue>),
+    SuperCall(u32, Vec<JsValue>),
     /// A function call with a `this` context.
     /// `(total_node_count, obj, prop, args)`
-    MemberCall(usize, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
+    MemberCall(u32, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
     /// A member access `obj[prop]`
     /// `(total_node_count, obj, prop)`
-    Member(usize, Box<JsValue>, Box<JsValue>),
+    Member(u32, Box<JsValue>, Box<JsValue>),
     /// A tenary operator `test ? cons : alt`
     /// `(total_node_count, test, cons, alt)`
-    Tenary(usize, Box<JsValue>, Box<JsValue>, Box<JsValue>),
+    Tenary(u32, Box<JsValue>, Box<JsValue>, Box<JsValue>),
 
     /// A for-of loop
     ///
     /// `(total_node_count, iterable)`
-    Iterated(usize, Box<JsValue>),
+    Iterated(u32, Box<JsValue>),
 
     /// A `typeof` expression.
     ///
     /// `(total_node_count, operand)`
-    TypeOf(usize, Box<JsValue>),
+    TypeOf(u32, Box<JsValue>),
 
     // PLACEHOLDERS
     // ----------------------------
@@ -501,16 +500,16 @@ pub enum JsValue {
     /// A reference to an function argument.
     /// (func_ident, arg_index)
     Argument(u32, usize),
-    // TODO no predefined kinds, only JsWord
+    // TODO no predefined kinds, only Atom
     /// A reference to a free variable.
-    FreeVar(JsWord),
+    FreeVar(Atom),
     /// This is a reference to a imported module.
     Module(ModuleValue),
 }
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into())).into()
+        ConstantValue::Str(ConstantString::Atom(v.into())).into()
     }
 }
 
@@ -522,6 +521,12 @@ impl From<Atom> for JsValue {
 
 impl From<BigInt> for JsValue {
     fn from(v: BigInt) -> Self {
+        Self::from(Box::new(v))
+    }
+}
+
+impl From<Box<BigInt>> for JsValue {
+    fn from(v: Box<BigInt>) -> Self {
         ConstantValue::BigInt(v).into()
     }
 }
@@ -572,6 +577,12 @@ impl From<&FreeVarReference> for JsValue {
     fn from(v: &FreeVarReference) -> Self {
         match v {
             FreeVarReference::Value(v) => v.into(),
+            FreeVarReference::Ident(_) => {
+                JsValue::unknown_empty(false, "compile time injected ident")
+            }
+            FreeVarReference::Member(_, _) => {
+                JsValue::unknown_empty(false, "compile time injected member")
+            }
             FreeVarReference::EcmaScriptModule { .. } => {
                 JsValue::unknown_empty(false, "compile time injected free var module")
             }
@@ -767,8 +778,8 @@ fn pretty_join(
     }
 }
 
-fn total_nodes(vec: &[JsValue]) -> usize {
-    vec.iter().map(|v| v.total_nodes()).sum::<usize>()
+fn total_nodes(vec: &[JsValue]) -> u32 {
+    vec.iter().map(|v| v.total_nodes()).sum::<u32>()
 }
 
 // Private meta methods
@@ -859,43 +870,43 @@ impl JsValue {
         )
     }
 
-    pub fn iterated(iterable: JsValue) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
+    pub fn iterated(iterable: Box<JsValue>) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
-    pub fn equal(a: JsValue, b: JsValue) -> Self {
+    pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::Equal,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Box::new(b),
+            b,
         )
     }
 
@@ -935,7 +946,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: true,
         }
@@ -949,7 +960,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: false,
         }
@@ -1020,7 +1031,11 @@ impl JsValue {
 
 // Methods regarding node count
 impl JsValue {
-    pub fn total_nodes(&self) -> usize {
+    pub fn has_children(&self) -> bool {
+        self.total_nodes() > 1
+    }
+
+    pub fn total_nodes(&self) -> u32 {
         match self {
             JsValue::Constant(_)
             | JsValue::Url(_, _)
@@ -1101,7 +1116,7 @@ impl JsValue {
                         ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                         ObjectPart::Spread(s) => s.total_nodes(),
                     })
-                    .sum::<usize>();
+                    .sum::<u32>();
             }
             JsValue::New(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
@@ -1147,7 +1162,7 @@ impl JsValue {
     #[cfg(not(debug_assertions))]
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
 
-    pub fn ensure_node_limit(&mut self, limit: usize) {
+    pub fn ensure_node_limit(&mut self, limit: u32) {
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
             a.total_nodes().cmp(&b.total_nodes())
         }
@@ -1708,11 +1723,11 @@ impl JsValue {
                         format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
-                    WellKnownFunctionKind::Import { .. } => (
+                    WellKnownFunctionKind::Import => (
                         "import".to_string(),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
-                    WellKnownFunctionKind::Require { .. } => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -1787,7 +1802,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor { .. } => (
+                    WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -1914,46 +1929,45 @@ impl JsValue {
         }
     }
 
-    /// Returns any matching defined replacement that matches this value.
+    /// Returns any matching defined replacement that matches this value (the replacement that
+    /// matches `$self.$prop`).
     ///
-    /// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
-    ///
-    /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
-    /// `self` is just `foo`.
+    /// Optionally when passed a VarGraph, verifies that the first segment is not a local
+    /// variable/was not reassigned.
     pub fn match_free_var_reference<'a, T>(
         &self,
         var_graph: Option<&VarGraph>,
-        free_var_references: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
-        prefix_self: &Option<DefineableNameSegment>,
+        free_var_references: &'a FxIndexMap<
+            DefineableNameSegment,
+            FxIndexMap<Vec<DefineableNameSegment>, T>,
+        >,
+        prop: &DefineableNameSegment,
     ) -> Option<&'a T> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in free_var_references.iter() {
-                if name.len() != def_name_len + (prefix_self.is_some() as usize) {
-                    continue;
-                }
-                let mut name_rev_it = name.iter().map(Cow::Borrowed).rev();
-                if let Some(prefix_self) = prefix_self {
-                    if name_rev_it.next().unwrap().as_ref() != prefix_self {
+            if let Some(references) = free_var_references.get(prop) {
+                for (name, value) in references {
+                    if name.len() != def_name_len {
                         continue;
                     }
-                }
 
-                if name_rev_it.eq(self.iter_defineable_name_rev()) {
-                    if let Some(var_graph) = var_graph {
-                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                            let first_str: &str = first_str;
-                            if var_graph
-                                .free_var_ids
-                                .get(&first_str.into())
-                                .map_or(false, |id| var_graph.values.contains_key(id))
-                            {
-                                // `typeof foo...` but `foo` was reassigned
-                                return None;
+                    let name_rev_it = name.iter().map(Cow::Borrowed).rev();
+                    if name_rev_it.eq(self.iter_defineable_name_rev()) {
+                        if let Some(var_graph) = var_graph {
+                            if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                                let first_str: &str = first_str;
+                                if var_graph
+                                    .free_var_ids
+                                    .get(&first_str.into())
+                                    .is_some_and(|id| var_graph.values.contains_key(id))
+                                {
+                                    // `typeof foo...` but `foo` was reassigned
+                                    return None;
+                                }
                             }
                         }
-                    }
 
-                    return Some(value);
+                        return Some(value);
+                    }
                 }
             }
         }
@@ -1961,8 +1975,7 @@ impl JsValue {
         None
     }
 
-    /// Returns any matching defined replacement that matches this value. Optionally also prefixes
-    /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
+    /// Returns any matching defined replacement that matches this value.
     pub fn match_define<'a, T>(
         &self,
         defines: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
@@ -2075,18 +2088,15 @@ impl JsValue {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
-            JsValue::New(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::Call(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::SuperCall(_, args) => args.iter().any(JsValue::has_side_effects),
-            JsValue::MemberCall(_, obj, prop, args) => {
-                obj.has_side_effects()
-                    || prop.has_side_effects()
-                    || args.iter().any(JsValue::has_side_effects)
-            }
+            // As function bodies aren't analyzed for side-effects, we have to assume every call can
+            // have sideeffects as well.
+            // Otherwise it would be
+            // `func_body(callee).has_side_effects() ||
+            //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
+            JsValue::New(_, _callee, _args) => true,
+            JsValue::Call(_, _callee, _args) => true,
+            JsValue::SuperCall(_, _args) => true,
+            JsValue::MemberCall(_, _obj, _prop, _args) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
             JsValue::Url(_, _) => false,
@@ -3287,7 +3297,7 @@ impl JsValue {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
                             _ => vec![JsValue::Add(
-                                1 + added.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
                                 added,
                             )],
                         };
@@ -3296,7 +3306,7 @@ impl JsValue {
                             concat.push(item);
                         }
                         *self = JsValue::Concat(
-                            1 + concat.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                            1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
                             concat,
                         );
                         return;
@@ -3727,7 +3737,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     };
 
     let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(pattern, flags)) = filter {
+        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
             regex_from_js(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
@@ -3747,21 +3757,18 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     })
 }
 
-#[turbo_tasks::value(transparent)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
 
-#[turbo_tasks::value_impl]
 impl RequireContextValue {
-    #[turbo_tasks::function]
-    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Vc<Self>> {
+    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
         let mut context_map = FxIndexMap::default();
 
         for (key, entry) in map.await?.iter() {
             context_map.insert(key.clone(), entry.origin_relative.clone());
         }
 
-        Ok(Vc::cell(context_map))
+        Ok(RequireContextValue(context_map))
     }
 }
 
@@ -3788,13 +3795,13 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     RequireContext,
-    RequireContextRequire(Vc<RequireContextValue>),
-    RequireContextRequireKeys(Vc<RequireContextValue>),
-    RequireContextRequireResolve(Vc<RequireContextValue>),
+    RequireContextRequire(RequireContextValue),
+    RequireContextRequireKeys(RequireContextValue),
+    RequireContextRequireResolve(RequireContextValue),
     Define,
-    FsReadMethod(JsWord),
+    FsReadMethod(Atom),
     PathToFileUrl,
-    ChildProcessSpawnMethod(JsWord),
+    ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
     OsPlatform,
@@ -3848,7 +3855,7 @@ pub mod test_utils {
         analyzer::{
             builtin::replace_builtin,
             imports::{ImportAnnotations, ImportAttributes},
-            parse_require_context,
+            parse_require_context, RequireContextValue,
         },
         utils::module_value_to_well_known_object,
     };
@@ -3869,7 +3876,7 @@ pub mod test_utils {
         let mut new_value = match v {
             JsValue::Call(
                 _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import { .. }),
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => JsValue::Module(ModuleValue {
@@ -3899,7 +3906,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        Vc::cell(map),
+                        RequireContextValue(map),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
@@ -3977,18 +3984,22 @@ pub mod test_utils {
 mod tests {
     use std::{mem::take, path::PathBuf, time::Instant};
 
+    use parking_lot::Mutex;
+    use rustc_hash::FxHashMap;
     use swc_core::{
         common::{comments::SingleThreadedComments, Mark},
         ecma::{
-            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            ast::{EsVersion, Id},
+            parser::parse_file_as_program,
+            transforms::base::resolver,
             visit::VisitMutWith,
         },
         testing::{fixture, run_test, NormalizedOutput},
     };
-    use turbo_tasks::{util::FormatDuration, Value};
+    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -4030,10 +4041,17 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context =
-                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
+                let eval_context = EvalContext::new(
+                    &m,
+                    unresolved_mark,
+                    top_level_mark,
+                    Default::default(),
+                    Some(&comments),
+                    None,
+                );
 
                 let mut var_graph = create_graph(&m, &eval_context);
+                let var_cache = Default::default();
 
                 let mut named_values = var_graph
                     .values
@@ -4042,17 +4060,19 @@ mod tests {
                     .map(|((id, ctx), value)| {
                         let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
                         if unique {
-                            (id.to_string(), value)
+                            (id.to_string(), ((id, ctx), value))
                         } else {
-                            (format!("{id}{ctx:?}"), value)
+                            (format!("{id}{ctx:?}"), ((id, ctx), value))
                         }
                     })
                     .collect::<Vec<_>>();
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-                fn explain_all(values: &[(String, JsValue)]) -> String {
+                fn explain_all<'a>(
+                    values: impl IntoIterator<Item = (&'a String, &'a JsValue)>,
+                ) -> String {
                     values
-                        .iter()
+                        .into_iter()
                         .map(|(id, value)| {
                             let (explainer, hints) = value.explain(10, 5);
                             format!("{id} = {explainer}{hints}")
@@ -4067,13 +4087,21 @@ mod tests {
                     let large = large_marker.exists();
 
                     if !large {
-                        NormalizedOutput::from(format!("{:#?}", named_values))
-                            .compare_to_file(&graph_snapshot_path)
-                            .unwrap();
-                    }
-                    NormalizedOutput::from(explain_all(&named_values))
-                        .compare_to_file(&graph_explained_snapshot_path)
+                        NormalizedOutput::from(format!(
+                            "{:#?}",
+                            named_values
+                                .iter()
+                                .map(|(name, (_, value))| (name, value))
+                                .collect::<Vec<_>>()
+                        ))
+                        .compare_to_file(&graph_snapshot_path)
                         .unwrap();
+                    }
+                    NormalizedOutput::from(explain_all(
+                        named_values.iter().map(|(name, (_, value))| (name, value)),
+                    ))
+                    .compare_to_file(&graph_explained_snapshot_path)
+                    .unwrap();
                     if !large {
                         NormalizedOutput::from(format!("{:#?}", var_graph.effects))
                             .compare_to_file(&graph_effects_snapshot_path)
@@ -4086,21 +4114,28 @@ mod tests {
 
                     let start = Instant::now();
                     let mut resolved = Vec::new();
-                    for (id, val) in named_values.iter().cloned() {
+                    for (name, (id, _)) in named_values.iter().cloned() {
                         let start = Instant::now();
                         // Ideally this would use eval_context.imports.get_attributes(span), but the
                         // span isn't available here
-                        let res = resolve(&var_graph, val, ImportAttributes::empty_ref()).await;
+                        let (res, steps) = resolve(
+                            &var_graph,
+                            JsValue::Variable(id),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
-                                "linking {} {id} took {}",
+                                "linking {} {name} took {} in {} steps",
                                 input.display(),
-                                FormatDuration(time)
+                                FormatDuration(time),
+                                steps
                             );
                         }
 
-                        resolved.push((id, res));
+                        resolved.push((name, res));
                     }
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
@@ -4108,7 +4143,7 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(&resolved);
+                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4141,6 +4176,7 @@ mod tests {
                             args: Vec<EffectArg>,
                             queue: &mut Vec<(usize, Effect)>,
                             var_graph: &VarGraph,
+                            var_cache: &Mutex<FxHashMap<Id, JsValue>>,
                             i: usize,
                         ) -> Vec<JsValue> {
                             let mut new_args = Vec::new();
@@ -4148,14 +4184,26 @@ mod tests {
                                 match arg {
                                     EffectArg::Value(v) => {
                                         new_args.push(
-                                            resolve(var_graph, v, ImportAttributes::empty_ref())
-                                                .await,
+                                            resolve(
+                                                var_graph,
+                                                v,
+                                                ImportAttributes::empty_ref(),
+                                                var_cache,
+                                            )
+                                            .await
+                                            .0,
                                         );
                                     }
                                     EffectArg::Closure(v, effects) => {
                                         new_args.push(
-                                            resolve(var_graph, v, ImportAttributes::empty_ref())
-                                                .await,
+                                            resolve(
+                                                var_graph,
+                                                v,
+                                                ImportAttributes::empty_ref(),
+                                                var_cache,
+                                            )
+                                            .await
+                                            .0,
                                         );
                                         queue.extend(
                                             effects.effects.into_iter().rev().map(|e| (i, e)),
@@ -4168,13 +4216,17 @@ mod tests {
                             }
                             new_args
                         }
-                        match effect {
+                        let steps = match effect {
                             Effect::Conditional {
                                 condition, kind, ..
                             } => {
-                                let condition =
-                                    resolve(&var_graph, condition, ImportAttributes::empty_ref())
-                                        .await;
+                                let (condition, steps) = resolve(
+                                    &var_graph,
+                                    *condition,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
                                     ConditionalKind::If { then } => {
@@ -4213,6 +4265,7 @@ mod tests {
                                             .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                                     }
                                 };
+                                steps
                             }
                             Effect::Call {
                                 func,
@@ -4221,13 +4274,15 @@ mod tests {
                                 span,
                                 ..
                             } => {
-                                let func = resolve(
+                                let (func, steps) = resolve(
                                     &var_graph,
-                                    func,
+                                    *func,
                                     eval_context.imports.get_attributes(span),
+                                    &var_cache,
                                 )
                                 .await;
-                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
                                     if new {
@@ -4236,47 +4291,69 @@ mod tests {
                                         JsValue::call(Box::new(func), new_args)
                                     },
                                 ));
+                                steps
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), var));
+                                resolved.push((format!("{parent} -> {i} free var"), *var));
+                                0
                             }
                             Effect::TypeOf { arg, .. } => {
-                                let arg =
-                                    resolve(&var_graph, arg, ImportAttributes::empty_ref()).await;
+                                let (arg, steps) = resolve(
+                                    &var_graph,
+                                    *arg,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
                                 ));
+                                steps
                             }
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
-                                let obj =
-                                    resolve(&var_graph, obj, ImportAttributes::empty_ref()).await;
-                                let prop =
-                                    resolve(&var_graph, prop, ImportAttributes::empty_ref()).await;
-                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                let (obj, obj_steps) = resolve(
+                                    &var_graph,
+                                    *obj,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
+                                let (prop, prop_steps) = resolve(
+                                    &var_graph,
+                                    *prop,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
                                     JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
                                 ));
+                                obj_steps + prop_steps
                             }
                             Effect::Unreachable { .. } => {
                                 resolved.push((
                                     format!("{parent} -> {i} unreachable"),
                                     JsValue::unknown_empty(true, "unreachable"),
                                 ));
+                                0
                             }
-                            Effect::ImportMeta { .. } => {}
-                            Effect::ImportedBinding { .. } => {}
-                            Effect::Member { .. } => {}
-                        }
+                            Effect::ImportMeta { .. }
+                            | Effect::ImportedBinding { .. }
+                            | Effect::Member { .. } => 0,
+                        };
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
-                                "linking effect {} took {}",
+                                "linking effect {} took {} in {} steps",
                                 input.display(),
-                                FormatDuration(time)
+                                FormatDuration(time),
+                                steps
                             );
                         }
                     }
@@ -4290,7 +4367,7 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(&resolved);
+                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4311,10 +4388,15 @@ mod tests {
         .unwrap();
     }
 
-    async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
+    async fn resolve(
+        var_graph: &VarGraph,
+        val: JsValue,
+        attributes: &ImportAttributes,
+        var_cache: &Mutex<FxHashMap<Id, JsValue>>,
+    ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
-            let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                ExecutionEnvironment::NodeJsLambda(
+            let compile_time_info = CompileTimeInfo::builder(
+                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
                             arch: Arch::X64,
@@ -4322,13 +4404,17 @@ mod tests {
                             endianness: Endianness::Little,
                             libc: Libc::Glibc,
                         }
-                        .into(),
-                        ..Default::default()
+                        .resolved_cell(),
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
                     }
-                    .into(),
-                ),
-            )))
-            .cell();
+                    .resolved_cell(),
+                )))
+                .to_resolved()
+                .await?,
+            )
+            .cell()
+            .await?;
             link(
                 var_graph,
                 val,
@@ -4340,7 +4426,8 @@ mod tests {
                         attributes,
                     ))
                 }),
-                Default::default(),
+                &Default::default(),
+                var_cache,
             )
             .await
         })

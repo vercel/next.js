@@ -43,7 +43,7 @@ impl Invalidator {
             turbo_tasks,
             handle,
         } = self;
-        let _ = handle.enter();
+        let _guard = handle.enter();
         if let Some(turbo_tasks) = turbo_tasks.upgrade() {
             turbo_tasks.invalidate(task);
         }
@@ -55,7 +55,7 @@ impl Invalidator {
             turbo_tasks,
             handle,
         } = self;
-        let _ = handle.enter();
+        let _guard = handle.enter();
         if let Some(turbo_tasks) = turbo_tasks.upgrade() {
             turbo_tasks.invalidate_with_reason(
                 task,
@@ -70,7 +70,7 @@ impl Invalidator {
             turbo_tasks,
             handle,
         } = self;
-        let _ = handle.enter();
+        let _guard = handle.enter();
         if let Some(turbo_tasks) = turbo_tasks.upgrade() {
             turbo_tasks
                 .invalidate_with_reason(task, (reason as &'static dyn InvalidationReason).into());

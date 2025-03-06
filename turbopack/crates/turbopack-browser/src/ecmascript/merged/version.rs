@@ -1,20 +1,21 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::version::Version;
 
-use super::super::version::EcmascriptDevChunkVersion;
+use super::super::version::EcmascriptBrowserChunkVersion;
 
 /// The version of a [`super::content::EcmascriptMergedChunkContent`]. This is
 /// essentially a composite [`EcmascriptChunkVersion`].
 #[turbo_tasks::value(serialization = "none", shared)]
-pub(super) struct EcmascriptDevMergedChunkVersion {
+pub(super) struct EcmascriptBrowserMergedChunkVersion {
     #[turbo_tasks(trace_ignore)]
-    pub(super) versions: Vec<ReadRef<EcmascriptDevChunkVersion>>,
+    pub(super) versions: Vec<ReadRef<EcmascriptBrowserChunkVersion>>,
 }
 
 #[turbo_tasks::value_impl]
-impl Version for EcmascriptDevMergedChunkVersion {
+impl Version for EcmascriptBrowserMergedChunkVersion {
     #[turbo_tasks::function]
     async fn id(&self) -> Result<Vc<RcStr>> {
         let mut hasher = Xxh3Hash64Hasher::new();

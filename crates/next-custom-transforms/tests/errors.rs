@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
@@ -11,6 +11,7 @@ use next_custom_transforms::transforms::{
     },
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
 };
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::{FileName, Mark},
     ecma::{
@@ -88,36 +89,12 @@ fn next_ssg_errors(input: PathBuf) {
     );
 }
 
-#[fixture("tests/errors/react-server-components/server-graph/**/input.js")]
-fn react_server_components_server_graph_errors(input: PathBuf) {
+#[fixture("tests/errors/react-server-components/**/input.js")]
+fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/layout.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer: true,
-                    dynamic_io_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            allow_error: true,
-            module: Some(true),
-            ..Default::default()
-        },
-    );
-}
-
-#[fixture("tests/errors/react-server-components/client-graph/**/input.js")]
-fn react_server_components_client_graph_errors(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
+    let dynamic_io_enabled = input.iter().any(|s| s.to_str() == Some("dynamic-io"));
+    let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -125,8 +102,9 @@ fn react_server_components_client_graph_errors(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/page.js")).into(),
                 Config::WithOptions(Options {
-                    is_react_server_layer: false,
-                    dynamic_io_enabled: false,
+                    is_react_server_layer,
+                    dynamic_io_enabled,
+                    use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -163,9 +141,10 @@ fn next_font_loaders_errors(input: PathBuf) {
     );
 }
 
-#[fixture("tests/errors/server-actions/server-graph/**/input.js")]
-fn react_server_actions_server_errors(input: PathBuf) {
+#[fixture("tests/errors/server-actions/**/input.js")]
+fn react_server_actions_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -175,8 +154,9 @@ fn react_server_actions_server_errors(input: PathBuf) {
                 server_components(
                     FileName::Real(PathBuf::from("/app/item.js")).into(),
                     Config::WithOptions(Options {
-                        is_react_server_layer: true,
+                        is_react_server_layer,
                         dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -184,50 +164,14 @@ fn react_server_actions_server_errors(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        is_react_server_layer,
+                        is_development: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
-                ),
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            allow_error: true,
-            module: Some(true),
-            ..Default::default()
-        },
-    );
-}
-
-#[fixture("tests/errors/server-actions/client-graph/**/input.js")]
-fn react_server_actions_client_errors(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            (
-                resolver(Mark::new(), Mark::new(), false),
-                server_components(
-                    FileName::Real(PathBuf::from("/app/item.js")).into(),
-                    Config::WithOptions(Options {
-                        is_react_server_layer: false,
-                        dynamic_io_enabled: true,
-                    }),
-                    tr.comments.as_ref().clone(),
-                    None,
-                ),
-                server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    server_actions::Config {
-                        is_react_server_layer: false,
-                        dynamic_io_enabled: true,
-                        hash_salt: "".into(),
-                    },
-                    tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -273,6 +217,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                     Config::WithOptions(Options {
                         is_react_server_layer: true,
                         dynamic_io_enabled: false,
+                        use_cache_enabled: false,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -281,10 +226,13 @@ fn use_cache_not_allowed(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: false,
+                        is_development: true,
+                        use_cache_enabled: false,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },

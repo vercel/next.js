@@ -3,7 +3,7 @@ import { NEXT_URL } from '../client/components/app-router-headers'
 import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/lib/interception-routes'
+} from '../shared/lib/router/utils/interception-routes'
 import type { Rewrite } from './load-custom-routes'
 
 // a function that converts normalised paths (e.g. /foo/[bar]/[baz]) to the format expected by pathToRegexp (e.g. /foo/:bar/:baz)
@@ -13,8 +13,8 @@ function toPathToRegexpPath(path: string): string {
     const paramName = capture.replace(/\W+/g, '_')
 
     // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (paramName.startsWith('...')) {
-      return `:${paramName.slice(3)}*`
+    if (capture.startsWith('...')) {
+      return `:${capture.slice(3)}*`
     }
     return ':' + paramName
   })

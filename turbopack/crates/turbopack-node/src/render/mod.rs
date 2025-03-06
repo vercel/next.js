@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{FxIndexMap, RcStr, ReadRef};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef};
 
 use crate::{route_matcher::Param, ResponseHeaders, StructuredError};
 
