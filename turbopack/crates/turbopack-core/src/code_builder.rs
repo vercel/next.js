@@ -187,9 +187,15 @@ impl Code {
             }
             last_byte_pos = *byte_pos;
 
-            sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            if pos.column != 0 || map.is_some() {
+                sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            }
         }
 
-        SourceMap::sections_to_rope(sections)
+        if sections.len() == 1 && sections[0].0.line == 0 && sections[0].0.column == 0 {
+            Ok(sections.into_iter().next().unwrap().1)
+        } else {
+            SourceMap::sections_to_rope(sections)
+        }
     }
 }

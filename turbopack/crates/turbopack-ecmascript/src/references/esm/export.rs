@@ -31,6 +31,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
+    parse::ParseResult,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
 };
 
@@ -494,8 +495,14 @@ impl EsmExports {
         self: Vc<Self>,
         _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        parsed: Vc<ParseResult>,
     ) -> Result<CodeGeneration> {
         let expanded = self.expand_exports().await?;
+        let parsed = parsed.await?;
+        let eval_context = match &*parsed {
+            ParseResult::Ok { eval_context, .. } => Some(eval_context),
+            _ => None,
+        };
 
         let mut dynamic_exports = Vec::<Box<Expr>>::new();
         for dynamic_export_asset in &expanded.dynamic_exports {
@@ -522,20 +529,22 @@ impl EsmExports {
                     } else {
                         Cow::Borrowed(name.as_str())
                     };
+                    let ctxt = eval_context
+                        .and_then(|eval_context| {
+                            eval_context.imports.exports.get(name).map(|id| id.1)
+                        })
+                        .unwrap_or_default();
+
                     if *mutable {
                         Some(quote!(
                             "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new(local.into(), DUMMY_SP, Default::default()),
-                            new = Ident::new(
-                                format!("new_{name}").into(),
-                                DUMMY_SP,
-                                Default::default()
-                            ),
+                            local = Ident::new(local.into(), DUMMY_SP, ctxt),
+                            new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
                         ))
                     } else {
                         Some(quote!(
                             "(() => $local)" as Expr,
-                            local = Ident::new((name as &str).into(), DUMMY_SP, Default::default())
+                            local = Ident::new((name as &str).into(), DUMMY_SP, ctxt)
                         ))
                     }
                 }

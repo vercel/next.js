@@ -287,33 +287,6 @@ export async function ncc_node_shell_quote(task, opts) {
     .target('src/compiled/shell-quote')
 }
 
-externals['platform'] = 'next/dist/compiled/platform'
-externals['next/dist/compiled/platform'] = 'next/dist/compiled/platform'
-export async function ncc_node_platform(task, opts) {
-  await task
-    .source(relative(__dirname, require.resolve('platform')))
-    .ncc({ packageName: 'platform', externals })
-    .target('src/compiled/platform')
-
-  const clientFile = join(__dirname, 'src/compiled/platform/platform.js')
-  const content = await fs.readFile(clientFile, 'utf8')
-  // remove AMD define branch as this forces the module to not
-  // be treated as commonjs
-  await fs.writeFile(
-    clientFile,
-    content.replace(
-      new RegExp(
-        'if(typeof define=="function"&&typeof define.amd=="object"&&define.amd){r.platform=d;define((function(){return d}))}else '.replace(
-          /[|\\{}()[\]^$+*?.-]/g,
-          '\\$&'
-        ),
-        'g'
-      ),
-      ''
-    )
-  )
-}
-
 // eslint-disable-next-line camelcase
 externals['acorn'] = 'next/dist/compiled/acorn'
 export async function ncc_acorn(task, opts) {
@@ -2304,7 +2277,6 @@ export async function ncc(task, opts) {
         'ncc_node_stacktrace_parser',
         'ncc_node_data_uri_to_buffer',
         'ncc_node_cssescape',
-        'ncc_node_platform',
         'ncc_node_shell_quote',
         'ncc_acorn',
         'ncc_amphtml_validator',
