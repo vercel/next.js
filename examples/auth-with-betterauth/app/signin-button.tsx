@@ -4,10 +4,11 @@ import { signIn } from "@/lib/auth-client";
 
 export function SignInButton() {
   return (
-    <div
-    >
+    <div>
       <p>You are not logged in</p>
-      <button onClick={() => signIn.social({ provider: "github" })}>Sign in with GitHub</button>
+      <button onClick={() => signIn.social({ provider: "github" })}>
+        Sign in with GitHub
+      </button>
     </div>
   );
 }
