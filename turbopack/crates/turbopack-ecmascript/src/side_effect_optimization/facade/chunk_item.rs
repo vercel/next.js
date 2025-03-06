@@ -31,7 +31,6 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
     pub(crate) module: ResolvedVc<EcmascriptModuleFacadeModule>,
-    pub(crate) parsed: ResolvedVc<ParseResult>,
     pub(crate) module_graph: ResolvedVc<ModuleGraph>,
     pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
