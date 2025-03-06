@@ -663,5 +663,7 @@
   "662": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.",
   "663": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.%s",
   "664": "Expected no-js actions to return from handler early.",
-  "665": "Expected actionId to be defined for a fetch action"
+  "665": "Expected actionId to be defined for a fetch action",
+  "666": "Action handler not found in action module",
+  "667": "This function cannot be used in the edge runtime"
 }
