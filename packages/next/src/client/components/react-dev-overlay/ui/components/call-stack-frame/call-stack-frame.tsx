@@ -40,6 +40,7 @@ export const CallStackFrame: React.FC<{
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-no-source={!hasSource}
+      data-nextjs-call-stack-frame-ignored={frame.ignored}
       style={
         {
           '--index': index,
@@ -83,6 +84,10 @@ export const CALL_STACK_FRAME_STYLES = `
 
   [data-nextjs-call-stack-frame-no-source]:last-child {
     margin-bottom: 0;
+  }
+
+  [data-nextjs-call-stack-frame-ignored="true"] {
+    opacity: 0.6;
   }
 
   [data-nextjs-call-stack-frame] {
