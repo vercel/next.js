@@ -15,6 +15,8 @@ import { join } from 'path'
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 describe('app-dir action handling', () => {
   const { next, isNextDev, isNextStart, isNextDeploy, isTurbopack } =
     nextTestSetup({
@@ -1689,7 +1691,12 @@ describe('app-dir action handling', () => {
             '/redirects/api-redirect',
             '/redirects?success=true',
           ])
-          expect(responseCodes).toEqual([307, 200])
+
+          expect(responseCodes).toEqual([
+            307,
+            // a POST to a route seems to always 405 when PPR is on.
+            isPPREnabled && !isNextDev ? 405 : 200,
+          ])
         }
       }
     )
@@ -1749,7 +1756,11 @@ describe('app-dir action handling', () => {
             '/redirects/api-redirect-permanent',
             '/redirects?success=true',
           ])
-          expect(responseCodes).toEqual([308, 200])
+          expect(responseCodes).toEqual([
+            308,
+            // a POST to a page seems to always 405 when PPR is on.
+            isPPREnabled && !isNextDev ? 405 : 200,
+          ])
         }
       }
     )
