@@ -88,6 +88,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   return (
     <div
       ref={dialogRef}
+      tabIndex={-1}
       data-nextjs-dialog
       role={role}
       aria-labelledby={ariaLabelledBy}
