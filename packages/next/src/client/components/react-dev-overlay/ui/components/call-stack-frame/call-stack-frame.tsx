@@ -8,8 +8,7 @@ import { useOpenInEditor } from '../../utils/use-open-in-editor'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
-  index: number
-}> = function CallStackFrame({ frame, index }) {
+}> = function CallStackFrame({ frame }) {
   // TODO: ability to expand resolved frames
 
   const f: StackFrame = frame.originalStackFrame ?? frame.sourceStackFrame
@@ -41,11 +40,6 @@ export const CallStackFrame: React.FC<{
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-no-source={!hasSource}
       data-nextjs-call-stack-frame-ignored={frame.ignored}
-      style={
-        {
-          '--index': index,
-        } as React.CSSProperties
-      }
     >
       <div className="call-stack-frame-method-name">
         <HotlinkedText text={formattedMethod} />
