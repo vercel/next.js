@@ -3,15 +3,25 @@ import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/exports'
 import { ACTION_HEADER } from '../../client/components/app-router-headers'
 
+export type ServerActionRequestMetadata =
+  | {
+      isFetchAction: true
+      actionId: string
+      isURLEncodedAction: boolean
+      isMultipartAction: boolean
+      isPotentialServerAction: true
+    }
+  | {
+      isFetchAction: false
+      actionId: null
+      isURLEncodedAction: boolean
+      isMultipartAction: boolean
+      isPotentialServerAction: boolean
+    }
+
 export function getServerActionRequestMetadata(
   req: IncomingMessage | BaseNextRequest | NextRequest
-): {
-  actionId: string | null
-  isURLEncodedAction: boolean
-  isMultipartAction: boolean
-  isFetchAction: boolean
-  isPotentialServerAction: boolean
-} {
+): ServerActionRequestMetadata {
   let actionId: string | null
   let contentType: string | null
 
@@ -29,21 +39,26 @@ export function getServerActionRequestMetadata(
   const isMultipartAction = Boolean(
     req.method === 'POST' && contentType?.startsWith('multipart/form-data')
   )
-  const isFetchAction = Boolean(
-    actionId !== undefined &&
-      typeof actionId === 'string' &&
-      req.method === 'POST'
-  )
+  if (actionId !== null && req.method === 'POST') {
+    return {
+      isFetchAction: true,
+      actionId,
+      isMultipartAction,
+      isURLEncodedAction,
+      isPotentialServerAction: true,
+    }
+  }
 
   const isPotentialServerAction = Boolean(
-    isFetchAction || isURLEncodedAction || isMultipartAction
+    isURLEncodedAction || isMultipartAction
   )
 
   return {
-    actionId,
+    isFetchAction: false,
+    // it may technically be non-null, but there's no use for it outside a fetch action.
+    actionId: null,
     isURLEncodedAction,
     isMultipartAction,
-    isFetchAction,
     isPotentialServerAction,
   }
 }

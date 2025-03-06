@@ -870,12 +870,6 @@ export async function handleAction({
           console.error(err)
           return { type: 'not-found' }
         }
-        if (actionId === null) {
-          // `getActionModIdOrError` checks this, but typescript doesn't know that.
-          throw new InvariantError(
-            'Expected actionId to be defined for a fetch action'
-          )
-        }
 
         // The temporary reference set is used for parsing the arguments and in the catch handler,
         // so we want to create it before any of the decoding logic has a chance to throw.
