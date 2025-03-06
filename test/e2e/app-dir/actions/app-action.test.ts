@@ -1633,72 +1633,126 @@ describe('app-dir action handling', () => {
   })
 
   describe('redirects', () => {
-    it('redirects properly when server action handler uses `redirect`', async () => {
-      const postRequests = []
-      const responseCodes = []
+    it.each([
+      {
+        name: 'plaintext POST request',
+        buttonId: 'submit-api-redirect-plaintext',
+        should303: false,
+      },
+      {
+        name: 'urlencoded POST request',
+        buttonId: 'submit-api-redirect-urlencoded',
+        should303: true, // special case. it's weird that we do this, but that's the current behavior
+      },
+      {
+        name: 'multipart POST request',
+        buttonId: 'submit-api-redirect-multipart',
+        should303: true, // special case. it's weird that we do this, but that's the current behavior
+      },
+    ])(
+      'redirects properly when route handler uses `redirect` - $name',
+      async ({ buttonId, should303 }) => {
+        const postRequests = []
+        const responseCodes = []
 
-      const browser = await next.browser('/redirects', {
-        beforePageLoad(page) {
-          page.on('request', (request: Request) => {
-            const url = new URL(request.url())
-            if (request.method() === 'POST') {
-              postRequests.push(url.pathname)
-            }
-          })
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname + url.search)
+              }
+            })
 
-          page.on('response', (response: Response) => {
-            const url = new URL(response.url())
-            const status = response.status()
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
 
-            if (postRequests.includes(`${url.pathname}${url.search}`)) {
-              responseCodes.push(status)
-            }
-          })
-        },
-      })
-      await browser.elementById('submit-api-redirect').click()
-      // await check(() => browser.url(), /success=true/)
-      await retry(async () => {
-        expect(await browser.url()).toContain('success=true')
-      })
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
+        await browser.elementById(buttonId).click()
+        // await check(() => browser.url(), /success=true/)
+        await retry(async () => {
+          expect(await browser.url()).toContain('success=true')
+        })
 
-      // verify that the POST request was only made to the action handler
-      expect(postRequests).toEqual(['/redirects/api-redirect'])
-      expect(responseCodes).toEqual([303])
-    })
+        if (should303) {
+          // verify that the POST request was only made to the route handler
+          expect(postRequests).toEqual(['/redirects/api-redirect'])
+          expect(responseCodes).toEqual([303])
+        } else {
+          expect(postRequests).toEqual([
+            '/redirects/api-redirect',
+            '/redirects?success=true',
+          ])
+          expect(responseCodes).toEqual([307, 200])
+        }
+      }
+    )
 
-    it('redirects properly when server action handler uses `permanentRedirect`', async () => {
-      const postRequests = []
-      const responseCodes = []
+    it.each([
+      {
+        name: 'plaintext POST request',
+        buttonId: 'submit-api-redirect-permanent-plaintext',
+        should303: false,
+      },
+      {
+        name: 'urlencoded POST request',
+        buttonId: 'submit-api-redirect-permanent-urlencoded',
+        should303: true, // special case. it's weird that we do this, but that's the current behavior
+      },
+      {
+        name: 'multipart POST request',
+        buttonId: 'submit-api-redirect-permanent-multipart',
+        should303: true, // special case. it's weird that we do this, but that's the current behavior
+      },
+    ])(
+      'redirects properly when route handler uses `permanentRedirect` - $name',
+      async ({ buttonId, should303 }) => {
+        const postRequests = []
+        const responseCodes = []
 
-      const browser = await next.browser('/redirects', {
-        beforePageLoad(page) {
-          page.on('request', (request: Request) => {
-            const url = new URL(request.url())
-            if (request.method() === 'POST') {
-              postRequests.push(url.pathname)
-            }
-          })
+        const browser = await next.browser('/redirects', {
+          beforePageLoad(page) {
+            page.on('request', (request: Request) => {
+              const url = new URL(request.url())
+              if (request.method() === 'POST') {
+                postRequests.push(url.pathname + url.search)
+              }
+            })
 
-          page.on('response', (response: Response) => {
-            const url = new URL(response.url())
-            const status = response.status()
+            page.on('response', (response: Response) => {
+              const url = new URL(response.url())
+              const status = response.status()
 
-            if (postRequests.includes(`${url.pathname}${url.search}`)) {
-              responseCodes.push(status)
-            }
-          })
-        },
-      })
+              if (postRequests.includes(`${url.pathname}${url.search}`)) {
+                responseCodes.push(status)
+              }
+            })
+          },
+        })
 
-      await browser.elementById('submit-api-redirect-permanent').click()
-      await retry(async () => {
-        expect(await browser.url()).toContain('success=true')
-      })
-      // verify that the POST request was only made to the action handler
-      expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
-      expect(responseCodes).toEqual([303])
-    })
+        await browser.elementById(buttonId).click()
+        await retry(async () => {
+          expect(await browser.url()).toContain('success=true')
+        })
+        if (should303) {
+          // verify that the POST request was only made to the route handler
+          expect(postRequests).toEqual(['/redirects/api-redirect-permanent'])
+          expect(responseCodes).toEqual([303])
+        } else {
+          expect(postRequests).toEqual([
+            '/redirects/api-redirect-permanent',
+            '/redirects?success=true',
+          ])
+          expect(responseCodes).toEqual([308, 200])
+        }
+      }
+    )
 
     it('displays searchParams correctly when redirecting with SearchParams', async () => {
       const browser = await next.browser('/redirects/action-redirect')
