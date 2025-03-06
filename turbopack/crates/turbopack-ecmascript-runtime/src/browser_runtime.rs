@@ -20,7 +20,7 @@ pub async fn get_browser_runtime_code(
     chunk_base_path: Vc<Option<RcStr>>,
     runtime_type: Value<RuntimeType>,
     output_root_to_root_path: Vc<RcStr>,
-    generate_source_map: Vc<bool>,
+    generate_source_map: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;
 

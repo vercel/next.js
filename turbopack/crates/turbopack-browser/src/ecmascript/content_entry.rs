@@ -1,13 +1,13 @@
 use anyhow::Result;
-use tracing::{info_span, Instrument};
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use either::Either;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ModuleId},
+    chunk::{AsyncModuleInfo, ChunkItemExt, ModuleId},
     code_builder::Code,
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
-    EcmascriptChunkItemWithAsyncInfo,
+    EcmascriptChunkItemOrBatchWithAsyncInfo, EcmascriptChunkItemWithAsyncInfo,
 };
 
 /// A chunk item's content entry.
@@ -37,58 +37,60 @@ impl EcmascriptDevChunkContentEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct EcmascriptDevChunkContentEntries(
+pub struct EcmascriptBrowserChunkContentEntries(
     FxIndexMap<ReadRef<ModuleId>, EcmascriptDevChunkContentEntry>,
 );
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevChunkContentEntries {
+impl EcmascriptBrowserChunkContentEntries {
     #[turbo_tasks::function]
     pub async fn new(
         chunk_content: Vc<EcmascriptChunkContent>,
-    ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
+    ) -> Result<Vc<EcmascriptBrowserChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let included_chunk_items = chunk_content
+        let entries: FxIndexMap<_, _> = chunk_content
             .chunk_items
             .iter()
-            .map(
-                async |EcmascriptChunkItemWithAsyncInfo {
-                           ty,
-                           chunk_item,
-                           async_info,
-                       }| {
-                    if matches!(ty, ChunkItemTy::Included) {
-                        Ok(Some((chunk_item, async_info)))
-                    } else {
-                        Ok(None)
-                    }
-                },
-            )
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten();
-
-        let entries: FxIndexMap<_, _> = included_chunk_items
-            .map(|(&chunk_item, &async_module_info)| async move {
-                async move {
-                    Ok((
+            .map(async |item| {
+                Ok(match item {
+                    &EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(
+                        EcmascriptChunkItemWithAsyncInfo {
+                            chunk_item,
+                            async_info,
+                        },
+                    ) => Either::Left(std::iter::once((
                         chunk_item.id().await?,
                         EcmascriptDevChunkContentEntry::new(
                             chunk_item,
-                            async_module_info.map(|info| *info),
+                            async_info.map(|info| *info),
                         )
                         .await?,
-                    ))
-                }
-                .instrument(info_span!(
-                    "chunk item",
-                    name = display(chunk_item.asset_ident().to_string().await?)
-                ))
-                .await
+                    ))),
+                    EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => {
+                        let batch = batch.await?;
+                        Either::Right(
+                            batch
+                                .chunk_items
+                                .iter()
+                                .map(|item| async move {
+                                    Ok((
+                                        item.chunk_item.id().await?,
+                                        EcmascriptDevChunkContentEntry::new(
+                                            item.chunk_item,
+                                            item.async_info.map(|info| *info),
+                                        )
+                                        .await?,
+                                    ))
+                                })
+                                .try_join()
+                                .await?
+                                .into_iter(),
+                        )
+                    }
+                })
             })
-            .try_join()
+            .try_flat_join()
             .await?
             .into_iter()
             .collect();

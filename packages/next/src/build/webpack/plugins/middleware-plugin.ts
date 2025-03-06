@@ -279,7 +279,7 @@ function buildWebpackError({
 
 function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
   const layer = parser.state.module?.layer
-  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.api
+  return layer === WEBPACK_LAYERS.middleware || layer === WEBPACK_LAYERS.apiEdge
 }
 
 function isNodeJsModule(moduleName: string) {
@@ -791,9 +791,13 @@ export default class MiddlewarePlugin {
         compiler,
         compilation,
       })
-      hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
-      hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+
+      // parser hooks aren't available in rspack
+      if (!process.env.NEXT_RSPACK) {
+        hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
+        hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
+      }
 
       /**
        * Extract all metadata for the entry points in a Map object.
@@ -864,7 +868,7 @@ export async function handleWebpackExternalForEdgeRuntime({
 }) {
   if (
     (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
-      contextInfo.issuerLayer === WEBPACK_LAYERS.api) &&
+      contextInfo.issuerLayer === WEBPACK_LAYERS.apiEdge) &&
     isNodeJsModule(request) &&
     !supportedEdgePolyfills.has(request)
   ) {

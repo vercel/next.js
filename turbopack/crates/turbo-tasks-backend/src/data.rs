@@ -320,6 +320,7 @@ pub struct InProgressStateInner {
 pub enum InProgressState {
     Scheduled { done_event: Event },
     InProgress(Box<InProgressStateInner>),
+    Canceled,
 }
 
 transient_traits!(InProgressState);

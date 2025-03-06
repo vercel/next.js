@@ -6,6 +6,11 @@ describe('turbopack-reports', () => {
     dependencies: {
       sqlite3: '5.1.7',
     },
+    packageJson: {
+      pnpm: {
+        onlyBuiltDependencies: ['sqlite3'],
+      },
+    },
   })
 
   it('should render page importing sqlite3', async () => {

@@ -671,9 +671,7 @@
         getCurrentStack: null
       },
       hasOwnProperty = Object.prototype.hasOwnProperty,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
@@ -683,6 +681,7 @@
     var didWarnAboutElementRef = {};
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       reportGlobalError =
         "function" === typeof reportError
           ? reportError
@@ -1188,6 +1187,9 @@
     exports.unstable_useCacheRefresh = function () {
       return resolveDispatcher().useCacheRefresh();
     };
+    exports.unstable_useSwipeTransition = function (previous, current, next) {
+      return resolveDispatcher().useSwipeTransition(previous, current, next);
+    };
     exports.use = function (usable) {
       return resolveDispatcher().use(usable);
     };
@@ -1274,7 +1276,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-32b0cad8-20250213";
+    exports.version = "19.1.0-experimental-e03ac20f-20250305";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

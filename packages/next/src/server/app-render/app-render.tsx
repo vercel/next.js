@@ -321,14 +321,13 @@ function createDivergedMetadataComponents(
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
 } {
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
-    ? Metadata
-    : EmptyMetadata
+  const StreamingMetadata: React.ComponentType<{}> | null =
+    serveStreamingMetadata ? Metadata : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -428,21 +427,11 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   const isInvalidStatusCode =
     typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
 
-  if (is404Page || isInvalidStatusCode) {
+  // Only render noindex for page request, skip for server actions
+  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
-}
-
-function getServeStreamingMetadata(ctx: AppRenderContext) {
-  const isRoutePPREnabled = !!ctx.renderOpts.experimental.isRoutePPREnabled
-  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
-  // If the route is in PPR and the special env is not set, disable the streaming metadata.
-  // TODO: enable streaming metadata in PPR mode by default once it's ready.
-  if (isRoutePPREnabled && process.env.__NEXT_EXPERIMENTAL_PPR !== 'true') {
-    return false
-  }
-  return serveStreamingMetadata
 }
 
 /**
@@ -484,29 +473,34 @@ async function generateDynamicRSCPayload(
     url,
   } = ctx
 
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
   if (!options?.skipFlight) {
     const preloadCallbacks: PreloadCallbacks = []
 
     const searchParams = createServerSearchParamsForMetadata(query, workStore)
-    const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-      createMetadataComponents({
-        tree: loaderTree,
-        searchParams,
-        metadataContext: createTrackedMetadataContext(
-          url.pathname,
-          ctx.renderOpts,
-          workStore
-        ),
-        getDynamicParamFromSegment,
-        appUsingSizeAdjustment,
-        createServerParamsForMetadata,
-        workStore,
-        MetadataBoundary,
-        ViewportBoundary,
-        serveStreamingMetadata,
-      })
+    const {
+      ViewportTree,
+      MetadataTree,
+      getViewportReady,
+      getMetadataReady,
+      StreamingMetadataOutlet,
+    } = createMetadataComponents({
+      tree: loaderTree,
+      searchParams,
+      metadataContext: createTrackedMetadataContext(
+        url.pathname,
+        ctx.renderOpts,
+        workStore
+      ),
+      getDynamicParamFromSegment,
+      appUsingSizeAdjustment,
+      createServerParamsForMetadata,
+      workStore,
+      MetadataBoundary,
+      ViewportBoundary,
+      serveStreamingMetadata,
+    })
 
     const { StreamingMetadata, StaticMetadata } =
       createDivergedMetadataComponents(() => {
@@ -529,6 +523,7 @@ async function generateDynamicRSCPayload(
             <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
+            {StreamingMetadata ? <StreamingMetadata /> : null}
             <StaticMetadata />
           </React.Fragment>
         ),
@@ -539,7 +534,7 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        StreamingMetadata,
+        StreamingMetadataOutlet,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -798,27 +793,32 @@ async function getRSCPayload(
     getDynamicParamFromSegment,
     query
   )
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
-    createMetadataComponents({
-      tree,
-      errorType: is404 ? 'not-found' : undefined,
-      searchParams,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
-      getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
-      createServerParamsForMetadata,
-      workStore,
-      MetadataBoundary,
-      ViewportBoundary,
-      serveStreamingMetadata: serveStreamingMetadata,
-    })
+  const {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+    StreamingMetadataOutlet,
+  } = createMetadataComponents({
+    tree,
+    errorType: is404 ? 'not-found' : undefined,
+    searchParams,
+    metadataContext: createTrackedMetadataContext(
+      url.pathname,
+      ctx.renderOpts,
+      workStore
+    ),
+    getDynamicParamFromSegment,
+    appUsingSizeAdjustment,
+    createServerParamsForMetadata,
+    workStore,
+    MetadataBoundary,
+    ViewportBoundary,
+    serveStreamingMetadata,
+  })
 
   const preloadCallbacks: PreloadCallbacks = []
 
@@ -844,6 +844,7 @@ async function getRSCPayload(
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
     StreamingMetadata,
+    StreamingMetadataOutlet,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -930,7 +931,7 @@ async function getErrorRSCPayload(
     workStore,
   } = ctx
 
-  const serveStreamingMetadata = getServeStreamingMetadata(ctx)
+  const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
   const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
@@ -987,9 +988,7 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>
-        <StreamingMetadata />
-      </head>
+      <head>{StreamingMetadata ? <StreamingMetadata /> : null}</head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
           <template
@@ -1191,18 +1190,19 @@ async function renderToHTMLOrFlightImpl(
     // cache reads we wrap the loadChunk in this tracking. This allows us
     // to treat chunk loading with similar semantics as cache reads to avoid
     // async loading chunks from causing a prerender to abort too early.
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = (...args: Array<any>) => {
+    const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
       trackChunkLoading(loadingChunk)
       return loadingChunk
     }
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setAppIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, null)
   }
 
   if (
@@ -1424,17 +1424,23 @@ async function renderToHTMLOrFlightImpl(
     // If force static is specifically set to false, we should not revalidate
     // the page.
     if (workStore.forceStatic === false || response.collectedRevalidate === 0) {
-      metadata.revalidate = 0
+      metadata.cacheControl = { revalidate: 0, expire: undefined }
     } else {
-      // Copy the revalidation value onto the render result metadata.
-      metadata.revalidate =
-        response.collectedRevalidate >= INFINITE_CACHE
-          ? false
-          : response.collectedRevalidate
+      // Copy the cache control value onto the render result metadata.
+      metadata.cacheControl = {
+        revalidate:
+          response.collectedRevalidate >= INFINITE_CACHE
+            ? false
+            : response.collectedRevalidate,
+        expire:
+          response.collectedExpire >= INFINITE_CACHE
+            ? undefined
+            : response.collectedExpire,
+      }
     }
 
     // provide bailout info for debugging
-    if (metadata.revalidate === 0) {
+    if (metadata.cacheControl?.revalidate === 0) {
       metadata.staticBailoutInfo = {
         description: workStore.dynamicUsageDescription,
         stack: workStore.dynamicUsageStack,
@@ -1464,19 +1470,19 @@ async function renderToHTMLOrFlightImpl(
 
     if (
       process.env.NODE_ENV === 'development' &&
-      renderOpts.setAppIsrStatus &&
+      renderOpts.setIsrStatus &&
       // The type check here ensures that `req` is correctly typed, and the
       // environment variable check provides dead code elimination.
       process.env.NEXT_RUNTIME !== 'edge' &&
       isNodeNextRequest(req) &&
       !isDevWarmupRequest
     ) {
-      const setAppIsrStatus = renderOpts.setAppIsrStatus
+      const setIsrStatus = renderOpts.setIsrStatus
       req.originalRequest.on('end', () => {
         if (!requestStore.usedDynamic && !workStore.forceDynamic) {
           // only node can be ISR so we only need to update the status here
           const { pathname } = new URL(req.url || '/', 'http://n')
-          setAppIsrStatus(pathname, true)
+          setIsrStatus(pathname, true)
         }
       })
     }
@@ -2442,6 +2448,7 @@ async function spawnDynamicValidationInDev(
     }
   )
 
+  let rootDidError = false
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
   try {
     const prerender = require('react-dom/static.edge')
@@ -2472,7 +2479,12 @@ async function spawnDynamicValidationInDev(
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
-                requestStore.usedDynamic = true
+                if (!rootDidError) {
+                  // If the root errored before we observe this error then it wasn't caused by something dynamic.
+                  // If the root did not error or is erroring because of a sync dynamic API or a prerender interrupt error
+                  // then we are a dynamic route.
+                  requestStore.usedDynamic = true
+                }
 
                 const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
@@ -2497,6 +2509,7 @@ async function spawnDynamicValidationInDev(
       }
     )
   } catch (err) {
+    rootDidError = true
     if (
       isPrerenderInterruptedError(err) ||
       finalClientController.signal.aborted

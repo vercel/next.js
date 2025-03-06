@@ -7,14 +7,15 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
         foo: $$ACTION_ARG_1
     };
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "fn",
-    "writable": false
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+    value: "fn",
+    writable: false
 });
 async function Component({ foo }) {
     const a = 123;
     const fn = $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", a, foo));
     const data = await fn();
+    // @ts-expect-error: data is not a valid react child
     return <div>{data}</div>;
 }
 var $$RSC_SERVER_REF_1 = registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);

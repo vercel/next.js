@@ -55,7 +55,7 @@ export default async function Page({
 }: {
   params: Promise<{ userId: string }>
 }) {
-  const userId = (await params).userId
+  const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
       return { id: userId }
@@ -75,7 +75,7 @@ export default async function Page({
 import { unstable_cache } from 'next/cache';
 
 export default async function Page({ params } }) {
-  const userId = (await params).userId
+  const { userId } = await params
   const getCachedUser = unstable_cache(
     async () => {
       return { id: userId };

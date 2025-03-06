@@ -122,13 +122,12 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             .resolved_cell()
                             .emit();
 
-                            return Ok(ResolveResultOption::some(
-                                ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
+                            return Ok(ResolveResultOption::some(*ResolveResult::primary(
+                                ResolveResultItem::Error(ResolvedVc::cell(
                                     format!("Font file not found: Can't resolve {}'", font_path)
                                         .into(),
-                                )))
-                                .into(),
-                            ));
+                                )),
+                            )));
                         }
                     }
                 }
@@ -180,9 +179,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 .to_resolved()
                 .await?;
 
-                Ok(ResolveResultOption::some(
-                    ResolveResult::source(ResolvedVc::upcast(js_asset)).cell(),
-                ))
+                Ok(ResolveResultOption::some(*ResolveResult::source(
+                    ResolvedVc::upcast(js_asset),
+                )))
             }
             "@vercel/turbopack-next/internal/font/local/cssmodule.module.css" => {
                 let query = query_vc.await?.to_string();
@@ -211,9 +210,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                 .to_resolved()
                 .await?;
 
-                Ok(ResolveResultOption::some(
-                    ResolveResult::source(ResolvedVc::upcast(css_asset)).cell(),
-                ))
+                Ok(ResolveResultOption::some(*ResolveResult::source(
+                    ResolvedVc::upcast(css_asset),
+                )))
             }
             "@vercel/turbopack-next/internal/font/local/font" => {
                 let NextFontLocalFontFileOptions {
@@ -243,9 +242,9 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                         .to_resolved()
                         .await?;
 
-                Ok(ResolveResultOption::some(
-                    ResolveResult::source(ResolvedVc::upcast(font_source)).cell(),
-                ))
+                Ok(ResolveResultOption::some(*ResolveResult::source(
+                    ResolvedVc::upcast(font_source),
+                )))
             }
             _ => Ok(ResolveResultOption::none()),
         }

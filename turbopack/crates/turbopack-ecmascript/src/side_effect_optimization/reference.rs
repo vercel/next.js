@@ -17,7 +17,7 @@ use super::{
     facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
 };
 use crate::{
-    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration,
+    chunk::EcmascriptChunkPlaceable, code_gen::CodeGeneration, parse::ParseResult,
     references::esm::base::ReferencedAsset, runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -27,6 +27,7 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModulePartReference {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub parsed: ResolvedVc<ParseResult>,
     pub part: Option<ModulePart>,
 }
 
@@ -35,18 +36,28 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new_part(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        parsed: ResolvedVc<ParseResult>,
         part: ModulePart,
     ) -> Vc<Self> {
         EcmascriptModulePartReference {
             module,
+            parsed,
             part: Some(part),
         }
         .cell()
     }
 
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
-        EcmascriptModulePartReference { module, part: None }.cell()
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        parsed: ResolvedVc<ParseResult>,
+    ) -> Vc<Self> {
+        EcmascriptModulePartReference {
+            module,
+            parsed,
+            part: None,
+        }
+        .cell()
     }
 }
 
@@ -81,7 +92,7 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Facade
                 | ModulePart::RenamedExport { .. }
                 | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                    EcmascriptModuleFacadeModule::new(*self.module, part.clone()),
+                    EcmascriptModuleFacadeModule::new(*self.module, *self.parsed, part.clone()),
                 ),
                 ModulePart::Export(..)
                 | ModulePart::Internal(..)
@@ -97,7 +108,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         } else {
             ResolvedVc::upcast(self.module)
         };
-        Ok(ModuleResolveResult::module(module).cell())
+        Ok(*ModuleResolveResult::module(module))
     }
 }
 

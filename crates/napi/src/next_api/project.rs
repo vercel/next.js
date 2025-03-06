@@ -543,8 +543,8 @@ async fn project_on_exit_internal(project: &ProjectInstance) {
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
-    project_on_exit_internal(&project).await;
     project.turbo_tasks.stop_and_wait().await;
+    project_on_exit_internal(&project).await;
 }
 
 #[napi(object)]
@@ -1010,7 +1010,7 @@ pub fn project_hmr_identifiers_subscribe(
     )
 }
 
-enum UpdateMessage {
+pub enum UpdateMessage {
     Start,
     End(UpdateInfo),
 }

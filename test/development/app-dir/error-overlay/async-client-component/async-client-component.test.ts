@@ -1,11 +1,6 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertNoRedbox,
-  getRedboxDescription,
-  getStackFramesContent,
-  openRedbox,
-} from 'next-test-utils'
+import { assertNoRedbox } from 'next-test-utils'
 
 describe('app-dir - async-client-component', () => {
   const { next } = nextTestSetup({
@@ -15,20 +10,18 @@ describe('app-dir - async-client-component', () => {
   it('app router client component async module', async () => {
     const browser = await next.browser('/client')
 
-    await openRedbox(browser)
-
-    const description = await getRedboxDescription(browser)
-    const componentStack = await getStackFramesContent(browser)
-    const result = {
-      description,
-      componentStack,
-    }
-
-    // TODO(error): display component stack
-    expect(result).toMatchInlineSnapshot(`
+    // There is no stack since this error is issued from the owner
+    // which is a Next.js Component.
+    // Ideally, it would be issued from the async Component instead but that's
+    // harder to implement.
+    await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "componentStack": "",
-       "description": "async/await is not yet supported in Client Components, only Server Components. This error is often caused by accidentally adding \`'use client'\` to a module that was originally written for the server.",
+       "count": 2,
+       "description": "<Page> is an async Client Component. Only Server Components can be async at the moment. This error is often caused by accidentally adding \`'use client'\` to a module that was originally written for the server.",
+       "environmentLabel": null,
+       "label": "Console Error",
+       "source": null,
+       "stack": [],
      }
     `)
   })

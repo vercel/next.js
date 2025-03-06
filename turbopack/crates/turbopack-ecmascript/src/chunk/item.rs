@@ -7,7 +7,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemTy, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -188,9 +188,29 @@ pub struct EcmascriptChunkItemOptions {
     Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
-    pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
+}
+
+impl EcmascriptChunkItemWithAsyncInfo {
+    pub fn from_chunk_item(
+        chunk_item: &ChunkItemWithAsyncModuleInfo,
+    ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
+        let ChunkItemWithAsyncModuleInfo {
+            chunk_item,
+            module: _,
+            async_info,
+        } = chunk_item;
+        let Some(chunk_item) =
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
+        else {
+            bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
+        };
+        Ok(EcmascriptChunkItemWithAsyncInfo {
+            chunk_item,
+            async_info: *async_info,
+        })
+    }
 }
 
 #[turbo_tasks::value_trait]
