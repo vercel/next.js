@@ -51,7 +51,6 @@ import {
   type ActionStore,
 } from '../../app-render/action-async-storage.external'
 import * as sharedModules from './shared-modules'
-import { getIsServerAction } from '../../lib/server-action-request-meta'
 import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies'
 import { cleanURL } from './helpers/clean-url'
 import { StaticGenBailoutError } from '../../../client/components/static-generation-bailout'
@@ -294,7 +293,6 @@ export class AppRouteRouteModule extends RouteModule<
 
   private async do(
     handler: AppRouteHandlerFn,
-    actionStore: ActionStore,
     workStore: WorkStore,
     // @TODO refactor to not take this argument but instead construct the RequestStore
     // inside this function. Right now we get passed a RequestStore even when
@@ -575,14 +573,34 @@ export class AppRouteRouteModule extends RouteModule<
           appendMutableCookies(headers, requestStore.mutableCookies)
         }
 
+        // FIXME: We're forcing some redirects to use `RedirectStatusCode.SeeOther`
+        // but this behavior seems to be a bit accidental.
+        //
+        // This was introduced in https://github.com/vercel/next.js/pull/70769.
+        // We were checking if we this is a server action request (via `getServerActionRequestMetadata().isServerAction`)
+        // and if so, forcing the redirect to use `RedirectStatusCode.SeeOther`.
+        // That can't happen here (in a legitimate way), because this is a route handler, and action requests target pages.
+        // (and an action can't redirect to a route handler URL in a way where the POST would be retried, because actions always use 303).
+        //
+        // But incidentally, that `isServerAction` check was pretty loose, and would return `true`
+        // for any POST that was multipart, urlencoded, or had the Next-Action header.
+        // So in essence, a lot of POSTs to route handlers would have their `redirect()` calls result in a `RedirectStatusCode.SeeOther`.
+        // (requests that used `application/json` or `text/plain` for the body would be fine.)
+        //
+        // We should consider changing this, but it could cause breaking changes, so I'm going to keep it for now,
+        // except for checking for the `Next-Id` header, which no one should rely on.
+        const contentType = request.headers.get('content-type')
+        const forceSeeOther =
+          request.method === 'POST' &&
+          (!!contentType?.startsWith('multipart/form-data') ||
+            contentType === 'application/x-www-form-urlencoded')
+        const status = forceSeeOther
+          ? RedirectStatusCode.SeeOther
+          : getRedirectStatusCodeFromError(err)
+
         // Return the redirect response.
         return new Response(null, {
-          // If we're in an action, we want to use a 303 redirect as we don't
-          // want the POST request to follow the redirect, as it could result in
-          // erroneous re-submissions.
-          status: actionStore.isAction
-            ? RedirectStatusCode.SeeOther
-            : getRedirectStatusCodeFromError(err),
+          status,
           headers,
         })
       } else if (isHTTPAccessFallbackError(err)) {
@@ -662,7 +680,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const actionStore: ActionStore = {
       isAppRoute: true,
-      isAction: getIsServerAction(req),
+      isAction: false,
     }
 
     const implicitTags = getImplicitTags(
@@ -753,7 +771,6 @@ export class AppRouteRouteModule extends RouteModule<
               async () =>
                 this.do(
                   handler,
-                  actionStore,
                   workStore,
                   requestStore,
                   implicitTags,
