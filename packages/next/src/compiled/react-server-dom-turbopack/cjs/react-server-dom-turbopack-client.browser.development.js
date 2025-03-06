@@ -87,7 +87,7 @@
         var chunkFilename = chunks[i],
           entry = chunkCache.get(chunkFilename);
         if (void 0 === entry) {
-          entry = __turbopack_load__(chunkFilename);
+          entry = __turbopack_load_by_url__(chunkFilename);
           promises.push(entry);
           var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
           entry.then(resolve, ignoreReject);
