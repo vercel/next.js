@@ -649,117 +649,217 @@ export async function handleAction({
     }
   }
 
+  const handleNonFetchAction = async (): Promise<HandleActionResult> => {
+    // This might be a no-js action, but it might also be a random POST request.
+
+    if (!isMultipartAction) {
+      // Not a fetch action and not multipart.
+      // It can't be an action request.
+      throw new NotAServerActionError()
+    }
+
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.edge
+      const { decodeAction, decodeFormState } = ComponentMod
+
+      // TODO-APP: Add streaming support
+      const formData = await req.request.formData()
+
+      const action = await decodeAction(formData, serverModuleMap)
+      if (typeof action !== 'function') {
+        // We couldn't decode an action, so this is a non-action POST request.
+        throw new NotAServerActionError()
+      }
+
+      // A no-js action.
+
+      // Only warn if it's a server action, otherwise skip for other post requests
+      warnBadServerActionRequest()
+
+      // execute the action and decode the form state.
+      const actionReturnedState = await workUnitAsyncStorage.run(
+        requestStore,
+        action
+      )
+      const formState = await decodeFormState(
+        actionReturnedState,
+        formData,
+        serverModuleMap
+      )
+
+      requestStore.phase = 'render'
+      return {
+        type: 'needs-render',
+        formState,
+      }
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.node
+      const { decodeAction, decodeFormState } = require(
+        `./react-server.node`
+      ) as typeof import('./react-server.node')
+
+      const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
+      const body = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
+
+      // React doesn't yet publish a busboy version of decodeAction
+      // so we polyfill the parsing of FormData.
+      const formData = await parseBodyAsFormDataNode(body, contentType)
+      const action = await decodeAction(formData, serverModuleMap)
+
+      if (typeof action !== 'function') {
+        // We couldn't decode an action, so this is a non-action POST request.
+        throw new NotAServerActionError()
+      }
+
+      // A no-js action.
+
+      // Only warn if it's a server action, otherwise skip for other post requests
+      warnBadServerActionRequest()
+
+      // execute the action and decode the form state.
+      const actionReturnedState = await workUnitAsyncStorage.run(
+        requestStore,
+        action
+      )
+      const formState = await decodeFormState(
+        actionReturnedState,
+        formData,
+        serverModuleMap
+      )
+
+      requestStore.phase = 'render'
+      return {
+        type: 'needs-render',
+        formState,
+      }
+    } else {
+      throw new Error('Invariant: Unknown request type.')
+    }
+  }
+
+  const parseFetchActionArguments = async (
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    temporaryReferences: TemporaryReferenceSet
+  ): Promise<unknown[]> => {
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      if (!req.body) {
+        throw new Error('invariant: Missing request body.')
+      }
+
+      // TODO: add body limit
+
+      // Use react-server-dom-webpack/server.edge
+      const { decodeReply } = ComponentMod
+
+      if (isMultipartAction) {
+        // TODO-APP: Add streaming support
+        const formData = await req.request.formData()
+        // A fetch action with a multipart body.
+        return await decodeReply(formData, serverModuleMap, {
+          temporaryReferences,
+        })
+      } else {
+        // A fetch action with a non-multipart body.
+
+        const chunks: Buffer[] = []
+        const reader = req.body.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+          chunks.push(value)
+        }
+        const actionData = Buffer.concat(chunks).toString('utf-8')
+
+        if (isURLEncodedAction) {
+          const formData = formDataFromSearchQueryString(actionData)
+          return await decodeReply(formData, serverModuleMap, {
+            temporaryReferences,
+          })
+        } else {
+          return await decodeReply(actionData, serverModuleMap, {
+            temporaryReferences,
+          })
+        }
+      }
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.node which supports streaming
+      const { decodeReply, decodeReplyFromBusboy } = require(
+        `./react-server.node`
+      ) as typeof import('./react-server.node')
+
+      const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
+      const body = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
+
+      if (isMultipartAction) {
+        // A fetch action with a multipart body.
+
+        const busboy = (require('busboy') as typeof import('busboy'))({
+          defParamCharset: 'utf8',
+          headers: req.headers,
+          limits: { fieldSize: bodySizeLimit.byteLength },
+        })
+
+        body.pipe(busboy)
+
+        return await decodeReplyFromBusboy(busboy, serverModuleMap, {
+          temporaryReferences,
+        })
+      } else {
+        // A fetch action with a non-multipart body.
+
+        const chunks: Buffer[] = []
+        for await (const chunk of req.body) {
+          chunks.push(Buffer.from(chunk))
+        }
+        const actionData = Buffer.concat(chunks).toString('utf-8')
+
+        if (isURLEncodedAction) {
+          const formData = formDataFromSearchQueryString(actionData)
+          return await decodeReply(formData, serverModuleMap, {
+            temporaryReferences,
+          })
+        } else {
+          return await decodeReply(actionData, serverModuleMap, {
+            temporaryReferences,
+          })
+        }
+      }
+    } else {
+      throw new Error('Invariant: Unknown request type.')
+    }
+  }
+
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
       async (): Promise<HandleActionResult> => {
         if (!isFetchAction) {
-          // This might be a no-js action, but it might also be a random POST request.
-
-          if (!isMultipartAction) {
-            // Not a fetch action and not multipart.
-            // It can't be an action request.
-            throw new NotAServerActionError()
-          }
-
-          if (
-            // The type check here ensures that `req` is correctly typed, and the
-            // environment variable check provides dead code elimination.
-            process.env.NEXT_RUNTIME === 'edge' &&
-            isWebNextRequest(req)
-          ) {
-            // Use react-server-dom-webpack/server.edge
-            const { decodeAction, decodeFormState } = ComponentMod
-
-            // Multipart POST, but not a fetch action.
-            // Potentially a no-js action, we have to try decoding it to check.
-
-            // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
-
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // A no-js action.
-
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
-
-              const formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              requestStore.phase = 'render'
-
-              return {
-                type: 'needs-render',
-                formState,
-              }
-            } else {
-              // We couldn't decode an action, so this is a non-action POST request.
-              throw new NotAServerActionError()
-            }
-          } else if (
-            // The type check here ensures that `req` is correctly typed, and the
-            // environment variable check provides dead code elimination.
-            process.env.NEXT_RUNTIME !== 'edge' &&
-            isNodeNextRequest(req)
-          ) {
-            // Use react-server-dom-webpack/server.node which supports streaming
-            const { decodeAction, decodeFormState } = require(
-              `./react-server.node`
-            ) as typeof import('./react-server.node')
-            // Multipart POST, but not a fetch action.
-            // Potentially a no-js action, we have to try decoding it to check.
-
-            const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
-            const body = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
-
-            // React doesn't yet publish a busboy version of decodeAction
-            // so we polyfill the parsing of FormData.
-            const formData = await parseBodyAsFormDataNode(body, contentType)
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // A no-js action.
-
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
-
-              const formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              requestStore.phase = 'render'
-
-              return {
-                type: 'needs-render',
-                formState,
-              }
-            } else {
-              // We couldn't decode an action, so this is a non-action POST request.
-              throw new NotAServerActionError()
-            }
-          } else {
-            throw new Error('Invariant: Unknown request type.')
-          }
+          return await handleNonFetchAction()
         }
 
-        //=========================================================
         // This is likely a fetch action (initiated by the client router).
-
         // Validate the actionId and get the module it's from.
         const actionModId = getActionModIdOrError(actionId, serverModuleMap)
 
@@ -770,126 +870,23 @@ export async function handleAction({
           )
         }
 
+        // The temporary reference set is used for parsing the arguments and in the catch handler,
+        // so we want to create it before any of the decoding logic has a chance to throw.
+        const createTemporaryReferenceSet =
+          process.env.NEXT_RUNTIME === 'edge'
+            ? // Use react-server-dom-webpack/server.edge
+              ComponentMod.createTemporaryReferenceSet
+            : // Use react-server-dom-webpack/server.node
+              (
+                require(
+                  `./react-server.node`
+                ) as typeof import('./react-server.node')
+              ).createTemporaryReferenceSet
+        temporaryReferences = createTemporaryReferenceSet()
+
         // Parse the action arguments.
-        let boundActionArguments: unknown[]
-        if (
-          // The type check here ensures that `req` is correctly typed, and the
-          // environment variable check provides dead code elimination.
-          process.env.NEXT_RUNTIME === 'edge' &&
-          isWebNextRequest(req)
-        ) {
-          if (!req.body) {
-            throw new Error('invariant: Missing request body.')
-          }
-
-          // TODO: add body limit
-
-          // Use react-server-dom-webpack/server.edge
-          const { createTemporaryReferenceSet, decodeReply } = ComponentMod
-
-          temporaryReferences = createTemporaryReferenceSet()
-
-          if (isMultipartAction) {
-            // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
-            // A fetch action with a multipart body.
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            // A fetch action with a non-multipart body.
-
-            const chunks: Buffer[] = []
-            const reader = req.body.getReader()
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-              chunks.push(value)
-            }
-            const actionData = Buffer.concat(chunks).toString('utf-8')
-
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
-          }
-        } else if (
-          // The type check here ensures that `req` is correctly typed, and the
-          // environment variable check provides dead code elimination.
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          isNodeNextRequest(req)
-        ) {
-          // Use react-server-dom-webpack/server.node which supports streaming
-          const {
-            createTemporaryReferenceSet,
-            decodeReply,
-            decodeReplyFromBusboy,
-          } = require(
-            `./react-server.node`
-          ) as typeof import('./react-server.node')
-
-          temporaryReferences = createTemporaryReferenceSet()
-
-          const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
-          const body = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
-
-          if (isMultipartAction) {
-            // A fetch action with a multipart body.
-
-            const busboy = (require('busboy') as typeof import('busboy'))({
-              defParamCharset: 'utf8',
-              headers: req.headers,
-              limits: { fieldSize: bodySizeLimit.byteLength },
-            })
-
-            body.pipe(busboy)
-
-            boundActionArguments = await decodeReplyFromBusboy(
-              busboy,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            // A fetch action with a non-multipart body.
-
-            const chunks: Buffer[] = []
-            for await (const chunk of req.body) {
-              chunks.push(Buffer.from(chunk))
-            }
-            const actionData = Buffer.concat(chunks).toString('utf-8')
-
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
-          }
-        } else {
-          throw new Error('Invariant: Unknown request type.')
-        }
+        const boundActionArguments =
+          await parseFetchActionArguments(temporaryReferences)
 
         // Get the action function.
 
