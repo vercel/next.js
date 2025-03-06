@@ -655,7 +655,7 @@ export async function handleAction({
     if (!isMultipartAction) {
       // Not a fetch action and not multipart.
       // It can't be an action request.
-      throw new NotAServerActionError()
+      return { type: 'not-an-action' }
     }
 
     if (
@@ -673,7 +673,7 @@ export async function handleAction({
       const action = await decodeAction(formData, serverModuleMap)
       if (typeof action !== 'function') {
         // We couldn't decode an action, so this is a non-action POST request.
-        throw new NotAServerActionError()
+        return { type: 'not-an-action' }
       }
 
       // A no-js action.
@@ -718,7 +718,7 @@ export async function handleAction({
 
       if (typeof action !== 'function') {
         // We couldn't decode an action, so this is a non-action POST request.
-        throw new NotAServerActionError()
+        return { type: 'not-an-action' }
       }
 
       // A no-js action.
@@ -860,9 +860,16 @@ export async function handleAction({
         }
 
         // This is likely a fetch action (initiated by the client router).
-        // Validate the actionId and get the module it's from.
-        const actionModId = getActionModIdOrError(actionId, serverModuleMap)
 
+        // Validate the actionId and get the module it's from.
+        // We want to do this first to avoid doing unnecessary work for requests we can't handle.
+        let actionModId: string
+        try {
+          actionModId = getActionModIdOrError(actionId, serverModuleMap)
+        } catch (err) {
+          console.error(err)
+          return { type: 'not-found' }
+        }
         if (actionId === null) {
           // `getActionModIdOrError` checks this, but typescript doesn't know that.
           throw new InvariantError(
@@ -939,18 +946,6 @@ export async function handleAction({
       }
     )
   } catch (err) {
-    if (err instanceof ActionNotFoundError) {
-      console.error(err)
-      return { type: 'not-found' }
-    }
-
-    if (err instanceof NotAServerActionError) {
-      // This should be handled elsewhere.
-      return {
-        type: 'not-an-action',
-      }
-    }
-
     if (isRedirectError(err)) {
       const redirectUrl = getURLFromRedirectError(err)
       const redirectType = getRedirectTypeFromError(err)
@@ -1058,9 +1053,6 @@ export async function handleAction({
   }
 }
 
-class ActionNotFoundError extends Error {}
-class NotAServerActionError extends Error {}
-
 /**
  * Attempts to find the module ID for the action from the module map. When this fails, it could be a deployment skew where
  * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
@@ -1072,7 +1064,7 @@ function getActionModIdOrError(
 ): string {
   // if we're missing the action ID header, we can't do any further processing
   if (!actionId) {
-    throw new ActionNotFoundError("Invariant: Missing 'next-action' header.")
+    throw new Error("Invariant: Missing 'next-action' header.")
   }
 
   let actionModId: string | undefined
@@ -1081,7 +1073,7 @@ function getActionModIdOrError(
     // so this can throw despite guarding the accesses with `?.`
     actionModId = serverModuleMap?.[actionId]?.id
   } catch (err) {
-    throw new ActionNotFoundError(
+    throw new Error(
       `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.${
         err instanceof Error ? ` Original error: ${err.message}` : ''
       }`
@@ -1089,7 +1081,7 @@ function getActionModIdOrError(
   }
 
   if (actionModId === undefined) {
-    throw new ActionNotFoundError(
+    throw new Error(
       `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.`
     )
   }
