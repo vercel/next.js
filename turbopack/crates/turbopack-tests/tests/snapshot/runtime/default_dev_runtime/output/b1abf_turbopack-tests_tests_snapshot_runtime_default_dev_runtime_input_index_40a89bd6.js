@@ -1521,7 +1521,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
             } else if (isJs(chunkUrl)) {
                 importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
             } else {
-                throw new Error(`can't infer type of chunk from path ${chunkUrl} in worker`);
+                throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
         } else {
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
@@ -1568,7 +1568,7 @@ async function loadWebAssemblyModule(_source, wasmChunkPath) {
                     document.body.appendChild(script);
                 }
             } else {
-                throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
+                throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
         }
         return resolver.promise;
@@ -1605,7 +1605,7 @@ let DEV_BACKEND;
                     script.remove();
                 }
             } else {
-                throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
+                throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
         },
         reloadChunk (chunkUrl) {
