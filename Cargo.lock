@@ -2986,7 +2986,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -8179,17 +8179,14 @@ dependencies = [
 
 [[package]]
 name = "swc_error_reporters"
-version = "9.1.0"
+version = "9.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "897e83aafbb585409572a46e4dd00c56d25af1268309bfb9613644dd181377a6"
+checksum = "10ad5f4690758cedc202cf0f4c9d2369372c6692307f65bd40031de494662cfa"
 dependencies = [
  "anyhow",
  "miette",
  "once_cell",
  "parking_lot",
- "serde",
- "serde_derive",
- "serde_json",
  "swc_common",
 ]
 
