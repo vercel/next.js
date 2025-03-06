@@ -41,7 +41,7 @@ let DEV_BACKEND: DevRuntimeBackend;
           script.remove();
         }
       } else {
-        throw new Error(`can't infer type of chunk from path ${chunkUrl}`);
+        throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
       }
     },
 
