@@ -46,10 +46,7 @@ export const CallStackFrame: React.FC<{
         } as React.CSSProperties
       }
     >
-      <div
-        data-nextjs-frame-expanded={!frame.ignored}
-        className="call-stack-frame-method-name"
-      >
+      <div className="call-stack-frame-method-name">
         <HotlinkedText text={formattedMethod} />
         {hasSource && (
           <button onClick={open} className="open-in-editor-button">
