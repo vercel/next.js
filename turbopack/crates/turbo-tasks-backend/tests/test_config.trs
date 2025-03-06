@@ -12,10 +12,7 @@
       turbo_tasks_backend::BackendOptions::default(),
       turbo_tasks_backend::default_backing_storage(
         path.as_path(),
-        &turbo_tasks_backend::GitVersionInfo {
-          describe: "test-unversioned",
-          dirty: false,
-        },
+        "test"
       ).unwrap()
     )
   )

@@ -127,8 +127,8 @@ pub fn log_internal_error_and_inform(err_info: &str) {
 }
 
 #[napi]
-pub fn get_target_triple() -> &'static str {
-    env!("VERGEN_CARGO_TARGET_TRIPLE")
+pub fn get_target_triple() -> String {
+    crate::build::BUILD_TARGET.to_string()
 }
 
 pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
