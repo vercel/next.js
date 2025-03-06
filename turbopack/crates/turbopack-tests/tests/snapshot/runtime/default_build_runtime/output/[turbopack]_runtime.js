@@ -466,7 +466,7 @@ function loadChunk(chunkData, source) {
     }
 }
 function loadChunkPath(chunkPath, source) {
-    if (!chunkPath.endsWith(".js")) {
+    if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
         return;
@@ -491,7 +491,7 @@ function loadChunkPath(chunkPath, source) {
 }
 async function loadChunkAsync(source, chunkData) {
     const chunkPath = typeof chunkData === "string" ? chunkData : chunkData.path;
-    if (!chunkPath.endsWith(".js")) {
+    if (!isJs(chunkPath)) {
         // We only support loading JS chunks in Node.js.
         // This branch can be hit when trying to load a CSS chunk.
         return;
@@ -528,6 +528,10 @@ async function loadChunkAsync(source, chunkData) {
             cause: e
         });
     }
+}
+async function loadChunkAsyncByUrl(source, chunkUrl) {
+    const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
+    return loadChunkAsync(source, path1);
 }
 function loadWebAssembly(chunkPath, imports) {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
@@ -607,6 +611,10 @@ function instantiateModule(id, source) {
                 type: 1,
                 parentId: id
             }),
+            L: loadChunkAsyncByUrl.bind(null, {
+                type: 1,
+                parentId: id
+            }),
             w: loadWebAssembly,
             u: loadWebAssemblyModule,
             g: globalThis,
@@ -667,6 +675,12 @@ function getOrInstantiateRuntimeModule(moduleId, chunkPath) {
         return module1;
     }
     return instantiateRuntimeModule(moduleId, chunkPath);
+}
+const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
+/**
+ * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ */ function isJs(chunkUrlOrPath) {
+    return regexJsUrl.test(chunkUrlOrPath);
 }
 module.exports = {
     getOrInstantiateRuntimeModule,
