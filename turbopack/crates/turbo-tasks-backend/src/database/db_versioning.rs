@@ -7,24 +7,31 @@ use std::{
 
 use anyhow::Result;
 
+/// Information gathered by `vergen_git2` in the top-level binary crate and passed down. This
+/// information must be computed in the top-level crate for cargo incremental compilation to work
+/// correctly.
+///
+/// See `crates/napi/build.rs` for details.
+pub struct GitVersionInfo<'a> {
+    /// Output of `git describe --match 'v[0-9]' --dirty`.
+    pub describe: &'a str,
+    /// Is the git repository dirty? Always forced to `false` when the `CI` environment variable is
+    /// set and non-empty.
+    pub dirty: bool,
+}
+
 /// Specifies many databases that have a different version than the current one are retained.
 /// For example if MAX_OTHER_DB_VERSIONS is 2, there can be at most 3 databases in the directory,
 /// the current one and two older/newer ones.
 const MAX_OTHER_DB_VERSIONS: usize = 2;
 
-pub fn handle_db_versioning(base_path: &Path, version_info: &str) -> Result<PathBuf> {
+pub fn handle_db_versioning(base_path: &Path, version_info: &GitVersionInfo) -> Result<PathBuf> {
     if let Ok(version) = env::var("TURBO_ENGINE_VERSION") {
         return Ok(base_path.join(version));
     }
     // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
     // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
     // versioning and always use the same database.
-    let (version_info, git_dirty) = if let Some(version_info) = version_info.strip_suffix("-dirty")
-    {
-        (version_info, true)
-    } else {
-        (version_info, false)
-    };
     let ignore_dirty = env::var("TURBO_ENGINE_IGNORE_DIRTY").ok().is_some();
     let disabled_versioning = env::var("TURBO_ENGINE_DISABLE_VERSIONING").ok().is_some();
     let version = if disabled_versioning {
@@ -33,14 +40,14 @@ pub fn handle_db_versioning(base_path: &Path, version_info: &str) -> Result<Path
              caching database might be required."
         );
         Some("unversioned")
-    } else if !git_dirty {
-        Some(version_info)
+    } else if !version_info.dirty {
+        Some(version_info.describe)
     } else if ignore_dirty {
         println!(
             "WARNING: The git repository is dirty, but Persistent Caching is still enabled. \
              Manual removal of the persistent caching database might be required."
         );
-        Some(version_info)
+        Some(version_info.describe)
     } else {
         println!(
             "WARNING: The git repository is dirty: Persistent Caching is disabled. Use \
