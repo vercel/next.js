@@ -10,7 +10,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
+    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
             op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
@@ -19,7 +19,7 @@ use swc_core::{
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
             PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
-        atoms::JsWord,
+        atoms::Atom,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
@@ -46,7 +46,7 @@ pub(crate) enum ItemId {
 pub(crate) enum ItemIdGroupKind {
     ModuleEvaluation,
     /// `(local, export_name)``
-    Export(Id, JsWord),
+    Export(Id, Atom),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -109,7 +109,7 @@ pub(crate) struct ItemData {
 
     pub content: ModuleItem,
 
-    pub export: Option<JsWord>,
+    pub export: Option<Atom>,
 
     /// This value denotes the module specifier of the [ImportDecl] that declares this
     /// [ItemId].
@@ -1222,7 +1222,10 @@ impl DepGraph {
                         ids.push(id.clone());
 
                         let has_explicit_pure = match &decl.init {
-                            Some(e) => comments.has_flag(e.span().lo, "PURE"),
+                            Some(e) => {
+                                e.span().lo == BytePos::PURE
+                                    || comments.has_flag(e.span().lo, "PURE")
+                            }
                             _ => false,
                         };
 
@@ -1639,7 +1642,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
 }
 /// givin a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
-pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
+pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =
         b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_";
 
@@ -1671,8 +1674,8 @@ pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
 
     let s = unsafe {
         // Safety: We are only using ascii characters
-        // Safety: The stack memory for ret is alive while creating JsWord
-        JsWord::from(std::str::from_utf8_unchecked(&ret))
+        // Safety: The stack memory for ret is alive while creating Atom
+        Atom::from(std::str::from_utf8_unchecked(&ret))
     };
 
     if skip_reserved

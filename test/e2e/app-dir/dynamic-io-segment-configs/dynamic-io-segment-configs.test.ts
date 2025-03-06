@@ -32,7 +32,15 @@ describe('dynamic-io-segment-configs', () => {
         source: await getRedboxSource(browser),
       }
 
-      expect(redbox.description).toMatchInlineSnapshot(`"Failed to compile"`)
+      if (isTurbopack) {
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
+      } else {
+        expect(redbox.description).toMatchInlineSnapshot(
+          `"Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
+        )
+      }
       expect(redbox.source).toContain(
         '"revalidate" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.'
       )
@@ -85,9 +93,15 @@ describe('dynamic-io-segment-configs', () => {
             source: await getRedboxSource(browser),
           }
 
-          expect(redbox.description).toMatchInlineSnapshot(
-            `"Failed to compile"`
-          )
+          if (isTurbopack) {
+            expect(redbox.description).toMatchInlineSnapshot(
+              `"Ecmascript file had an error"`
+            )
+          } else {
+            expect(redbox.description).toMatchInlineSnapshot(
+              `"Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.dynamicIO\`. Please remove it."`
+            )
+          }
           expect(redbox.source).toContain(
             '"runtime" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.'
           )

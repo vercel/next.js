@@ -207,6 +207,16 @@ export class TurbopackManifestLoader {
       mergeActionIds(manifest.node, m.node)
       mergeActionIds(manifest.edge, m.edge)
     }
+    for (const key in manifest.node) {
+      const entry = manifest.node[key]
+      entry.workers = sortObjectByKey(entry.workers)
+      entry.layer = sortObjectByKey(entry.layer)
+    }
+    for (const key in manifest.edge) {
+      const entry = manifest.edge[key]
+      entry.workers = sortObjectByKey(entry.workers)
+      entry.layer = sortObjectByKey(entry.layer)
+    }
 
     return manifest
   }
@@ -254,6 +264,7 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
     }
+    manifest.pages = sortObjectByKey(manifest.pages)
     return manifest
   }
 
@@ -405,6 +416,7 @@ export class TurbopackManifestLoader {
       // polyfillFiles should always be the same, so we can overwrite instead of actually merging
       if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
+    manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest
   }
 
@@ -557,6 +569,8 @@ export class TurbopackManifestLoader {
       manifest.pagesUsingSizeAdjust =
         manifest.pagesUsingSizeAdjust || m.pagesUsingSizeAdjust
     }
+    manifest.app = sortObjectByKey(manifest.app)
+    manifest.pages = sortObjectByKey(manifest.pages)
     return manifest
   }
 
@@ -645,6 +659,8 @@ export class TurbopackManifestLoader {
         instrumentation = m.instrumentation
       }
     }
+    manifest.functions = sortObjectByKey(manifest.functions)
+    manifest.middleware = sortObjectByKey(manifest.middleware)
     const updateFunctionDefinition = (
       fun: EdgeFunctionDefinition
     ): EdgeFunctionDefinition => {
@@ -721,7 +737,7 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest, m)
     }
-    return manifest
+    return sortObjectByKey(manifest)
   }
 
   private async writePagesManifest(): Promise<void> {
@@ -757,4 +773,16 @@ export class TurbopackManifestLoader {
       await this.writeWebpackStats()
     }
   }
+}
+
+function sortObjectByKey(obj: Record<string, any>) {
+  return Object.keys(obj)
+    .sort()
+    .reduce(
+      (acc, key) => {
+        acc[key] = obj[key]
+        return acc
+      },
+      {} as Record<string, any>
+    )
 }

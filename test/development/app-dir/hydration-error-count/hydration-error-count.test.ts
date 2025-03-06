@@ -9,6 +9,7 @@ import {
   goToNextErrorView,
   getRedboxDescriptionWarning,
   getHighlightedDiffLines,
+  assertHasRedbox,
 } from 'next-test-utils'
 import { BrowserInterface } from 'next-webdriver'
 
@@ -128,6 +129,63 @@ describe('hydration-error-count', () => {
      - Invalid HTML tag nesting.
 
      It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.",
+     }
+    `)
+  })
+
+  it('should display runtime error separately from hydration errors', async () => {
+    const browser = await next.browser('/hydration-with-runtime-errors')
+    await assertHasRedbox(browser)
+    expect(await getToastErrorCount(browser)).toBe(3)
+
+    // Move to the last hydration error
+    await goToNextErrorView(browser)
+    expect(browser).toDisplayRedbox(`
+     {
+       "componentStack": "...
+         <OuterLayoutRouter parallelRouterKey="children" template={<RenderFromTemplateContext>}>
+           <RenderFromTemplateContext>
+             <ScrollAndFocusHandler segmentPath={[...]}>
+               <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
+                 <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
+                   <LoadingBoundary loading={null}>
+                     <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                       <RedirectBoundary>
+                         <RedirectErrorBoundary router={{...}}>
+                           <InnerLayoutRouter url="/hydration..." tree={[...]} cacheNode={{lazyData:null, ...}} ...>
+                             <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                               <Page params={Promise} searchParams={Promise}>
+     >                           <p>
+     >                             <p>
+                             ...",
+       "count": 3,
+       "description": "In HTML, <p> cannot be a descendant of <p>.
+     This will cause a hydration error.",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/hydration-with-runtime-errors/page.tsx (12:14) @ Page
+     > 12 |       sneaky <p>very sneaky</p>
+          |              ^",
+       "stack": [
+         "p <anonymous> (0:0)",
+         "Page app/hydration-with-runtime-errors/page.tsx (12:14)",
+       ],
+     }
+    `)
+
+    await goToNextErrorView(browser)
+    expect(browser).toDisplayRedbox(`
+     {
+       "count": 3,
+       "description": "Error: runtime error",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/hydration-with-runtime-errors/page.tsx (7:11) @ Page.useEffect
+     >  7 |     throw new Error('runtime error')
+          |           ^",
+       "stack": [
+         "Page.useEffect app/hydration-with-runtime-errors/page.tsx (7:11)",
+       ],
      }
     `)
   })

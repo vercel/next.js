@@ -941,38 +941,55 @@ export class FlightClientEntryPlugin {
   }
 
   addEntry(
-    compilation: any,
+    compilation: webpack.Compilation,
     context: string,
     dependency: webpack.Dependency,
     options: webpack.EntryOptions
   ): Promise<any> /* Promise<module> */ {
     return new Promise((resolve, reject) => {
-      const entry = compilation.entries.get(options.name)
-      entry.includeDependencies.push(dependency)
-      compilation.hooks.addEntry.call(entry, options)
-      compilation.addModuleTree(
-        {
-          context,
-          dependency,
-          contextInfo: { issuerLayer: options.layer },
-        },
-        (err: Error | undefined, module: any) => {
+      if ('rspack' in compilation.compiler) {
+        compilation.addInclude(context, dependency, options, (err, module) => {
           if (err) {
-            compilation.hooks.failedEntry.call(dependency, options, err)
             return reject(err)
           }
 
-          compilation.hooks.succeedEntry.call(dependency, options, module)
-
           compilation.moduleGraph
-            .getExportsInfo(module)
+            .getExportsInfo(module!)
             .setUsedInUnknownWay(
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
             )
-
           return resolve(module)
-        }
-      )
+        })
+      } else {
+        const entry = compilation.entries.get(options.name!)!
+        entry.includeDependencies.push(dependency)
+        compilation.hooks.addEntry.call(entry as any, options)
+        compilation.addModuleTree(
+          {
+            context,
+            dependency,
+            contextInfo: { issuerLayer: options.layer },
+          },
+          (err: any, module: any) => {
+            if (err) {
+              compilation.hooks.failedEntry.call(dependency, options, err)
+              return reject(err)
+            }
+
+            compilation.hooks.succeedEntry.call(dependency, options, module)
+
+            compilation.moduleGraph
+              .getExportsInfo(module)
+              .setUsedInUnknownWay(
+                this.isEdgeServer
+                  ? EDGE_RUNTIME_WEBPACK
+                  : DEFAULT_RUNTIME_WEBPACK
+              )
+
+            return resolve(module)
+          }
+        )
+      }
     })
   }
 

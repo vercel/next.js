@@ -29,12 +29,12 @@
       { "type": "user", "pattern": "gnoff" },
       { "type": "user", "pattern": "huozhi" },
       { "type": "user", "pattern": "ijjk" },
+      { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
       { "type": "user", "pattern": "samcx" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },
       { "type": "user", "pattern": "styfle" },
-      { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "unstubbable" },
       { "type": "user", "pattern": "wyattjoh" },
       { "type": "user", "pattern": "ztanner" }
@@ -48,12 +48,12 @@
       { "type": "user", "pattern": "timeyoutakeit" }
     ],
     "created-by: Turbopack team": [
-      { "type": "user", "pattern": "arlyon" },
       { "type": "user", "pattern": "bgw" },
       { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "mischnic" },
       { "type": "user", "pattern": "padmaia" },
       { "type": "user", "pattern": "sokra" },
+      { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "wbinnssmith" }
     ],
     "type: next": [

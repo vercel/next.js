@@ -51,12 +51,14 @@ async function loadWebAssemblyModule(
 /**
  * Maps chunk paths to the corresponding resolver.
  */
-const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
+const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map();
 
 (() => {
   BACKEND = {
     async registerChunk(chunkPath, params) {
-      const resolver = getOrCreateResolver(chunkPath);
+      const chunkUrl = getChunkRelativeUrl(chunkPath);
+
+      const resolver = getOrCreateResolver(chunkUrl);
       resolver.resolve();
 
       if (params == null) {
@@ -64,9 +66,11 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
       }
 
       for (const otherChunkData of params.otherChunks) {
-        const otherChunkPath = getChunkPath(otherChunkData);
+        const otherChunkPath = getChunkPath(otherChunkData)
+        const otherChunkUrl = getChunkRelativeUrl(otherChunkPath);
+
         // Chunk might have started loading, so we want to avoid triggering another load.
-        getOrCreateResolver(otherChunkPath);
+        getOrCreateResolver(otherChunkUrl);
       }
 
       // This waits for chunks to be loaded, but also marks included items as available.
@@ -83,13 +87,17 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
       }
     },
 
-    loadChunk(chunkPath, source) {
-      return doLoadChunk(chunkPath, source);
+    /**
+     * Loads the given chunk, and returns a promise that resolves once the chunk
+     * has been loaded.
+    */
+    loadChunk(chunkUrl, source) {
+      return doLoadChunk(chunkUrl, source);
     },
   };
 
-  function getOrCreateResolver(chunkPath: ChunkPath): ChunkResolver {
-    let resolver = chunkResolvers.get(chunkPath);
+  function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
+    let resolver = chunkResolvers.get(chunkUrl);
     if (!resolver) {
       let resolve: () => void;
       let reject: (error?: Error) => void;
@@ -106,17 +114,17 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
         },
         reject: reject!,
       };
-      chunkResolvers.set(chunkPath, resolver);
+      chunkResolvers.set(chunkUrl, resolver);
     }
     return resolver;
   }
 
-  /**
-   * Loads the given chunk, and returns a promise that resolves once the chunk
-   * has been loaded.
-   */
-  async function doLoadChunk(chunkPath: ChunkPath, source: SourceInfo) {
-    const resolver = getOrCreateResolver(chunkPath);
+   /**
+    * Loads the given chunk, and returns a promise that resolves once the chunk
+    * has been loaded.
+    */
+  function doLoadChunk(chunkUrl: ChunkUrl, source: SourceInfo) {
+    const resolver = getOrCreateResolver(chunkUrl);
     if (resolver.resolved) {
       return resolver.promise;
     }
@@ -125,7 +133,7 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
       // We don't need to load chunks references from runtime code, as they're already
       // present in the DOM.
 
-      if (chunkPath.endsWith(".css")) {
+      if (isCss(chunkUrl)) {
         // CSS chunks do not register themselves, and as such must be marked as
         // loaded instantly.
         resolver.resolve();
@@ -138,20 +146,20 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
       return resolver.promise;
     }
 
-    const chunkUrl = getChunkRelativeUrl(chunkPath);
-    const decodedChunkUrl = decodeURI(chunkUrl);
-
     if (typeof importScripts === "function") {
       // We're in a web worker
-      if (chunkPath.endsWith(".css")) {
+      if (isCss(chunkUrl)) {
         // ignore
-      } else if (chunkPath.endsWith(".js")) {
+      } else if (isJs(chunkUrl)) {
         importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl);
       } else {
-        throw new Error(`can't infer type of chunk from path ${chunkPath} in worker`);
+        throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
       }
     } else {
-      if (chunkPath.endsWith(".css")) {
+      // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
+      const decodedChunkUrl = decodeURI(chunkUrl);
+
+      if (isCss(chunkUrl)) {
         const previousLinks = document.querySelectorAll(
           `link[rel=stylesheet][href="${chunkUrl}"],link[rel=stylesheet][href^="${chunkUrl}?"],link[rel=stylesheet][href="${decodedChunkUrl}"],link[rel=stylesheet][href^="${decodedChunkUrl}?"]`
         );
@@ -173,7 +181,7 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
           };
           document.body.appendChild(link);
         }
-      } else if (chunkPath.endsWith(".js")) {
+      } else if (isJs(chunkUrl)) {
         const previousScripts = document.querySelectorAll(
           `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
         );
@@ -197,10 +205,11 @@ const chunkResolvers: Map<ChunkPath, ChunkResolver> = new Map();
           document.body.appendChild(script);
         }
       } else {
-        throw new Error(`can't infer type of chunk from path ${chunkPath}`);
+        throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
       }
     }
 
     return resolver.promise;
   }
+
 })();

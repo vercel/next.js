@@ -238,6 +238,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
     link: 'next/dist/client/app-dir/link',
+    form: 'next/dist/client/app-dir/form',
   }
 
   if (isServerOnlyLayer) {

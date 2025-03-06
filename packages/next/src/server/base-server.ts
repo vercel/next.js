@@ -76,11 +76,7 @@ import {
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import { setConfig } from '../shared/lib/runtime-config.external'
-import {
-  formatRevalidate,
-  type Revalidate,
-  type ExpireTime,
-} from './lib/revalidate'
+import { getCacheControlHeader, type CacheControl } from './lib/cache-control'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -157,7 +153,7 @@ import {
 import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
 import { getIsServerAction } from './lib/server-action-request-meta'
-import { isInterceptionRouteAppPath } from './lib/interception-routes'
+import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { isNodeNextRequest, isNodeNextResponse } from './base-http/helpers'
@@ -180,6 +176,8 @@ import {
   shouldServeStreamingMetadata,
   isHtmlBotRequest,
 } from './lib/streaming-metadata'
+import { getCacheHandlers } from './use-cache/handlers'
+import { InvariantError } from '../shared/lib/invariant-error'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -326,7 +324,7 @@ export class WrappedBuildError extends Error {
 type ResponsePayload = {
   type: 'html' | 'json' | 'rsc'
   body: RenderResult
-  revalidate?: Revalidate | undefined
+  cacheControl?: CacheControl
 }
 
 export type NextEnabledDirectories = {
@@ -404,8 +402,7 @@ export default abstract class Server<
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      expireTime: ExpireTime | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void>
 
@@ -601,6 +598,8 @@ export default abstract class Server<
 
       // @ts-expect-error internal field not publicly exposed
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
+      // `htmlLimitedBots` is passed to server as serialized config in string format
+      htmlLimitedBots: this.nextConfig.htmlLimitedBots,
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
@@ -609,8 +608,6 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
-        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -730,7 +727,7 @@ export default abstract class Server<
 
   private handleNextDataRequest: RouteHandler<ServerRequest, ServerResponse> =
     async (req, res, parsedUrl) => {
-      const middleware = this.getMiddleware()
+      const middleware = await this.getMiddleware()
       const params = matchNextDataPathname(parsedUrl.pathname)
 
       // ignore for non-next data URLs
@@ -1198,25 +1195,30 @@ export default abstract class Server<
           }
 
           const pathnameBeforeRewrite = parsedUrl.pathname
-          const rewriteParams = utils.handleRewrites(req, parsedUrl)
-          const rewriteParamKeys = Object.keys(rewriteParams)
+          const rewriteParamKeys = Object.keys(
+            utils.handleRewrites(req, parsedUrl)
+          )
           const didRewrite = pathnameBeforeRewrite !== parsedUrl.pathname
 
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
 
-          // Normalize all the query params to remove the prefixes.
-          const routeParamKeys = new Set<string>()
-          for (const [key, value] of Object.entries(parsedUrl.query)) {
-            if (typeof value === 'undefined') continue
+          // Create a copy of the query params to avoid mutating the original
+          // object. This prevents any overlapping query params that have the
+          // same normalized key from causing issues.
+          const queryParams = { ...parsedUrl.query }
 
+          for (const [key, value] of Object.entries(parsedUrl.query)) {
             const normalizedKey = normalizeNextQueryParam(key)
-            if (normalizedKey) {
-              parsedUrl.query[normalizedKey] = value
-              routeParamKeys.add(normalizedKey)
-              delete parsedUrl.query[key]
-            }
+            if (!normalizedKey) continue
+
+            // Remove the prefixed key from the query params because we want
+            // to consume it for the dynamic route matcher.
+            delete parsedUrl.query[key]
+
+            if (typeof value === 'undefined') continue
+            queryParams[normalizedKey] = value
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1224,7 +1226,7 @@ export default abstract class Server<
             let params: ParsedUrlQuery | false = {}
 
             let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query,
+              queryParams,
               false
             )
 
@@ -1303,7 +1305,7 @@ export default abstract class Server<
             // from the route matches but ignore missing optional params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                parsedUrl.query,
+                queryParams,
                 true
               )
 
@@ -1363,9 +1365,6 @@ export default abstract class Server<
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
-          }
-          for (const key of routeParamKeys) {
-            delete parsedUrl.query[key]
           }
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
@@ -1431,24 +1430,20 @@ export default abstract class Server<
         ;(globalThis as any).__incrementalCache = incrementalCache
       }
 
-      const _globalThis: typeof globalThis & {
-        __nextCacheHandlers?: Record<
-          string,
-          import('./lib/cache-handlers/types').CacheHandler
-        >
-      } = globalThis
+      // If the header is present, receive the expired tags from all the
+      // cache handlers.
+      const handlers = getCacheHandlers()
+      if (handlers) {
+        const header = req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER]
+        const expiredTags = typeof header === 'string' ? header.split(',') : []
 
-      if (_globalThis.__nextCacheHandlers) {
-        const expiredTags: string[] =
-          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-            ','
-          ) || []
-
-        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler?.receiveExpiredTags === 'function') {
-            await handler.receiveExpiredTags(...expiredTags)
-          }
+        const promises: Promise<void>[] = []
+        for (const handler of handlers) {
+          promises.push(handler.receiveExpiredTags(...expiredTags))
         }
+
+        // Only await if there are any promises to wait for.
+        if (promises.length > 0) await Promise.all(promises)
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -1767,7 +1762,7 @@ export default abstract class Server<
         botType: getBotType(ua),
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
-          this.renderOpts.experimental
+          this.nextConfig.htmlLimitedBots
         ),
       },
     }
@@ -1779,14 +1774,18 @@ export default abstract class Server<
     const { req, res } = ctx
     const originalStatus = res.statusCode
     const { body, type } = payload
-    let { revalidate } = payload
+    let { cacheControl } = payload
     if (!res.sent) {
       const { generateEtags, poweredByHeader, dev } = this.renderOpts
 
       // In dev, we should not cache pages for any reason.
       if (dev) {
         res.setHeader('Cache-Control', 'no-store, must-revalidate')
-        revalidate = undefined
+        cacheControl = undefined
+      }
+
+      if (cacheControl && cacheControl.expire === undefined) {
+        cacheControl.expire = this.nextConfig.expireTime
       }
 
       await this.sendRenderResult(req, res, {
@@ -1794,8 +1793,7 @@ export default abstract class Server<
         type,
         generateEtags,
         poweredByHeader,
-        revalidate,
-        expireTime: this.nextConfig.expireTime,
+        cacheControl,
       })
       res.statusCode = originalStatus
     }
@@ -2068,11 +2066,6 @@ export default abstract class Server<
       }
     }
 
-    const isHtmlBot = isHtmlBotRequest(req)
-    if (isHtmlBot) {
-      this.renderOpts.serveStreamingMetadata = false
-    }
-
     if (
       hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
@@ -2083,11 +2076,6 @@ export default abstract class Server<
       isSSG = true
     } else if (!this.renderOpts.dev) {
       isSSG ||= !!prerenderManifest.routes[toRoute(pathname)]
-      if (isHtmlBot) {
-        // When it's html limited bots request, disable SSG
-        // and perform the full blocking & dynamic rendering.
-        isSSG = false
-      }
     }
 
     // Toggle whether or not this is a Data request
@@ -2228,6 +2216,12 @@ export default abstract class Server<
       'segmentPrefetchRSCRequest'
     )
 
+    const isHtmlBot = isHtmlBotRequest(req)
+    if (isHtmlBot && isRoutePPREnabled) {
+      isSSG = false
+      this.renderOpts.serveStreamingMetadata = false
+    }
+
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
       res.statusCode = 404
@@ -2253,7 +2247,7 @@ export default abstract class Server<
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
-      await this.renderError(null, req, res, pathname)
+      res.body('Method Not Allowed').send()
       return null
     }
 
@@ -2484,7 +2478,9 @@ export default abstract class Server<
         query: origQuery,
       })
 
-      const shouldWaitOnAllReady = !supportsDynamicResponse || isHtmlBot
+      // When html bots request PPR page, perform the full dynamic rendering.
+      const shouldWaitOnAllReady = isHtmlBot && isRoutePPREnabled
+
       const renderOpts: LoadedRenderOpts = {
         ...components,
         ...opts,
@@ -2531,7 +2527,7 @@ export default abstract class Server<
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
         // only available in dev
-        setAppIsrStatus: (this as any).setAppIsrStatus,
+        setIsrStatus: (this as any).setIsrStatus,
       }
 
       if (isDebugStaticShell || isDebugDynamicAccesses) {
@@ -2620,6 +2616,12 @@ export default abstract class Server<
                   ? false
                   : context.renderOpts.collectedRevalidate
 
+              const expire =
+                typeof context.renderOpts.collectedExpire === 'undefined' ||
+                context.renderOpts.collectedExpire >= INFINITE_CACHE
+                  ? undefined
+                  : context.renderOpts.collectedExpire
+
               // Create the cache entry for the response.
               const cacheEntry: ResponseCacheEntry = {
                 value: {
@@ -2628,7 +2630,7 @@ export default abstract class Server<
                   body: Buffer.from(await blob.arrayBuffer()),
                   headers,
                 },
-                revalidate,
+                cacheControl: { revalidate, expire },
                 isFallback: false,
               }
 
@@ -2786,6 +2788,7 @@ export default abstract class Server<
       const { metadata } = result
 
       const {
+        cacheControl,
         headers = {},
         // Add any fetch tags that were on the page to the response headers.
         fetchTags: cacheTags,
@@ -2804,7 +2807,7 @@ export default abstract class Server<
       if (
         isAppPath &&
         isSSG &&
-        metadata.revalidate === 0 &&
+        cacheControl?.revalidate === 0 &&
         !this.renderOpts.dev &&
         !isRoutePPREnabled
       ) {
@@ -2834,7 +2837,7 @@ export default abstract class Server<
       if ('isNotFound' in metadata && metadata.isNotFound) {
         return {
           value: null,
-          revalidate: metadata.revalidate,
+          cacheControl,
           isFallback: false,
         } satisfies ResponseCacheEntry
       }
@@ -2846,7 +2849,7 @@ export default abstract class Server<
             kind: CachedRouteKind.REDIRECT,
             props: metadata.pageData ?? metadata.flightData,
           } satisfies CachedRedirectValue,
-          revalidate: metadata.revalidate,
+          cacheControl,
           isFallback: false,
         } satisfies ResponseCacheEntry
       }
@@ -2868,7 +2871,7 @@ export default abstract class Server<
             status: res.statusCode,
             segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
-          revalidate: metadata.revalidate,
+          cacheControl,
           isFallback: !!fallbackRouteParams,
         } satisfies ResponseCacheEntry
       }
@@ -2881,7 +2884,7 @@ export default abstract class Server<
           headers,
           status: isAppPath ? res.statusCode : undefined,
         } satisfies CachedPageValue,
-        revalidate: metadata.revalidate,
+        cacheControl,
         isFallback: pagesFallback,
       }
     }
@@ -3086,9 +3089,9 @@ export default abstract class Server<
 
         // Otherwise, if we did get a fallback response, we should return it.
         if (fallbackResponse) {
-          // Remove the revalidate from the response to prevent it from being
+          // Remove the cache control from the response to prevent it from being
           // used in the surrounding cache.
-          delete fallbackResponse.revalidate
+          delete fallbackResponse.cacheControl
 
           return fallbackResponse
         }
@@ -3108,7 +3111,7 @@ export default abstract class Server<
         typeof postponed !== 'undefined'
       ) {
         return {
-          revalidate: 1,
+          cacheControl: { revalidate: 1, expire: undefined },
           isFallback: false,
           value: {
             kind: CachedRouteKind.PAGES,
@@ -3132,17 +3135,11 @@ export default abstract class Server<
           : null
 
       // Perform the render.
-      const result = await doRender({
+      return doRender({
         postponed,
         pagesFallback: undefined,
         fallbackRouteParams,
       })
-      if (!result) return null
-
-      return {
-        ...result,
-        revalidate: result.revalidate,
-      }
     }
 
     const cacheEntry = await this.responseCache.get(
@@ -3276,9 +3273,9 @@ export default abstract class Server<
         return {
           type: 'rsc',
           body: RenderResult.fromStatic(matchedSegment),
-          // TODO: Eventually this should use revalidate time of the
-          // individual segment, not the whole page.
-          revalidate: cacheEntry.revalidate,
+          // TODO: Eventually this should use cache control of the individual
+          // segment, not the whole page.
+          cacheControl: cacheEntry.cacheControl,
         }
       }
 
@@ -3292,22 +3289,22 @@ export default abstract class Server<
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),
-        revalidate: cacheEntry?.revalidate,
+        cacheControl: cacheEntry?.cacheControl,
       }
     }
 
     // If the cache value is an image, we should error early.
     if (cachedData?.kind === CachedRouteKind.IMAGE) {
-      throw new Error('invariant SSG should not return an image cache value')
+      throw new InvariantError('SSG should not return an image cache value')
     }
 
-    // Coerce the revalidate parameter from the render.
-    let revalidate: Revalidate | undefined
+    // Coerce the cache control parameter from the render.
+    let cacheControl: CacheControl | undefined
 
     // If this is a resume request in minimal mode it is streamed with dynamic
     // content and should not be cached.
     if (minimalPostponed) {
-      revalidate = 0
+      cacheControl = { revalidate: 0, expire: undefined }
     }
 
     // If this is in minimal mode and this is a flight request that isn't a
@@ -3319,18 +3316,18 @@ export default abstract class Server<
       !isPrefetchRSCRequest &&
       isRoutePPREnabled
     ) {
-      revalidate = 0
+      cacheControl = { revalidate: 0, expire: undefined }
     } else if (!this.renderOpts.dev || (hasServerProps && !isNextDataRequest)) {
       // If this is a preview mode request, we shouldn't cache it
       if (isPreviewMode) {
-        revalidate = 0
+        cacheControl = { revalidate: 0, expire: undefined }
       }
 
       // If this isn't SSG, then we should set change the header only if it is
       // not set already.
       else if (!isSSG) {
         if (!res.getHeader('Cache-Control')) {
-          revalidate = 0
+          cacheControl = { revalidate: 0, expire: undefined }
         }
       }
 
@@ -3342,30 +3339,39 @@ export default abstract class Server<
       // period of 0 so that it doesn't get cached unexpectedly by a CDN
       else if (is404Page) {
         const notFoundRevalidate = getRequestMeta(req, 'notFoundRevalidate')
-        revalidate =
-          typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate
-      } else if (is500Page) {
-        revalidate = 0
-      }
 
-      // If the cache entry has a revalidate value that's a number, use it.
-      else if (typeof cacheEntry.revalidate === 'number') {
-        if (cacheEntry.revalidate < 1) {
-          throw new Error(
-            `Invalid revalidate configuration provided: ${cacheEntry.revalidate} < 1`
-          )
+        cacheControl = {
+          revalidate:
+            typeof notFoundRevalidate === 'undefined' ? 0 : notFoundRevalidate,
+          expire: undefined,
         }
+      } else if (is500Page) {
+        cacheControl = { revalidate: 0, expire: undefined }
+      } else if (cacheEntry.cacheControl) {
+        // If the cache entry has a cache control with a revalidate value that's
+        // a number, use it.
+        if (typeof cacheEntry.cacheControl.revalidate === 'number') {
+          if (cacheEntry.cacheControl.revalidate < 1) {
+            throw new Error(
+              `Invalid revalidate configuration provided: ${cacheEntry.cacheControl.revalidate} < 1`
+            )
+          }
 
-        revalidate = cacheEntry.revalidate
-      }
-      // Otherwise if the revalidate value is false, then we should use the cache
-      // time of one year.
-      else if (cacheEntry.revalidate === false) {
-        revalidate = CACHE_ONE_YEAR
+          cacheControl = {
+            revalidate: cacheEntry.cacheControl.revalidate,
+            expire:
+              cacheEntry.cacheControl?.expire ?? this.nextConfig.expireTime,
+          }
+        }
+        // Otherwise if the revalidate value is false, then we should use the
+        // cache time of one year.
+        else {
+          cacheControl = { revalidate: CACHE_ONE_YEAR, expire: undefined }
+        }
       }
     }
 
-    cacheEntry.revalidate = revalidate
+    cacheEntry.cacheControl = cacheControl
 
     // If there's a callback for `onCacheEntry`, call it with the cache entry
     // and the revalidate options.
@@ -3399,20 +3405,18 @@ export default abstract class Server<
       // so that we can use this as source of truth for the
       // cache-control header instead of what the 404 page returns
       // for the revalidate value
-      addRequestMeta(req, 'notFoundRevalidate', cacheEntry.revalidate)
+      addRequestMeta(
+        req,
+        'notFoundRevalidate',
+        cacheEntry.cacheControl?.revalidate
+      )
 
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (
-        typeof cacheEntry.revalidate !== 'undefined' &&
-        !res.getHeader('Cache-Control')
-      ) {
+      if (cacheEntry.cacheControl && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
-          formatRevalidate({
-            revalidate: cacheEntry.revalidate,
-            expireTime: this.nextConfig.expireTime,
-          })
+          getCacheControlHeader(cacheEntry.cacheControl)
         )
       }
       if (isNextDataRequest) {
@@ -3429,16 +3433,10 @@ export default abstract class Server<
     } else if (cachedData.kind === CachedRouteKind.REDIRECT) {
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
-      if (
-        typeof cacheEntry.revalidate !== 'undefined' &&
-        !res.getHeader('Cache-Control')
-      ) {
+      if (cacheEntry.cacheControl && !res.getHeader('Cache-Control')) {
         res.setHeader(
           'Cache-Control',
-          formatRevalidate({
-            revalidate: cacheEntry.revalidate,
-            expireTime: this.nextConfig.expireTime,
-          })
+          getCacheControlHeader(cacheEntry.cacheControl)
         )
       }
 
@@ -3449,7 +3447,7 @@ export default abstract class Server<
             // @TODO: Handle flight data.
             JSON.stringify(cachedData.props)
           ),
-          revalidate: cacheEntry.revalidate,
+          cacheControl: cacheEntry.cacheControl,
         }
       } else {
         await handleRedirect(cachedData.props)
@@ -3465,16 +3463,13 @@ export default abstract class Server<
       // If cache control is already set on the response we don't
       // override it to allow users to customize it via next.config
       if (
-        typeof cacheEntry.revalidate !== 'undefined' &&
+        cacheEntry.cacheControl &&
         !res.getHeader('Cache-Control') &&
         !headers.get('Cache-Control')
       ) {
         headers.set(
           'Cache-Control',
-          formatRevalidate({
-            revalidate: cacheEntry.revalidate,
-            expireTime: this.nextConfig.expireTime,
-          })
+          getCacheControlHeader(cacheEntry.cacheControl)
         )
       }
 
@@ -3561,7 +3556,9 @@ export default abstract class Server<
             // distinguishing between `force-static` and pages that have no
             // postponed state.
             // TODO: distinguish `force-static` from pages with no postponed state (static)
-            revalidate: isDynamicRSCRequest ? 0 : cacheEntry.revalidate,
+            cacheControl: isDynamicRSCRequest
+              ? { revalidate: 0, expire: undefined }
+              : cacheEntry.cacheControl,
           }
         }
 
@@ -3570,7 +3567,7 @@ export default abstract class Server<
         return {
           type: 'rsc',
           body: RenderResult.fromStatic(cachedData.rscData),
-          revalidate: cacheEntry.revalidate,
+          cacheControl: cacheEntry.cacheControl,
         }
       }
 
@@ -3584,7 +3581,7 @@ export default abstract class Server<
         return {
           type: 'html',
           body,
-          revalidate: cacheEntry.revalidate,
+          cacheControl: cacheEntry.cacheControl,
         }
       }
 
@@ -3604,7 +3601,11 @@ export default abstract class Server<
           })
         )
 
-        return { type: 'html', body, revalidate: 0 }
+        return {
+          type: 'html',
+          body,
+          cacheControl: { revalidate: 0, expire: undefined },
+        }
       }
 
       // This request has postponed, so let's create a new transformer that the
@@ -3651,19 +3652,19 @@ export default abstract class Server<
         // We don't want to cache the response if it has postponed data because
         // the response being sent to the client it's dynamic parts are streamed
         // to the client on the same request.
-        revalidate: 0,
+        cacheControl: { revalidate: 0, expire: undefined },
       }
     } else if (isNextDataRequest) {
       return {
         type: 'json',
         body: RenderResult.fromStatic(JSON.stringify(cachedData.pageData)),
-        revalidate: cacheEntry.revalidate,
+        cacheControl: cacheEntry.cacheControl,
       }
     } else {
       return {
         type: 'html',
         body: cachedData.html,
-        revalidate: cacheEntry.revalidate,
+        cacheControl: cacheEntry.cacheControl,
       }
     }
   }
@@ -3755,7 +3756,7 @@ export default abstract class Server<
     )
   }
 
-  protected abstract getMiddleware(): MiddlewareRoutingItem | undefined
+  protected abstract getMiddleware(): Promise<MiddlewareRoutingItem | undefined>
   protected abstract getFallbackErrorComponents(
     url?: string
   ): Promise<LoadComponentsReturnType | null>
@@ -3872,8 +3873,9 @@ export default abstract class Server<
       return response
     }
 
+    const middleware = await this.getMiddleware()
     if (
-      this.getMiddleware() &&
+      middleware &&
       !!ctx.req.headers['x-nextjs-data'] &&
       (!res.statusCode || res.statusCode === 200 || res.statusCode === 404)
     ) {

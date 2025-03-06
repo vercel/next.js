@@ -41,7 +41,7 @@ pub fn analyze_references(
     stylesheet: &mut StyleSheetLike<'static, 'static>,
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
 ) -> Result<AnalyzedRefs> {
     let mut references = Vec::new();
     let mut urls = Vec::new();
@@ -56,7 +56,7 @@ pub fn analyze_references(
 struct ModuleReferencesVisitor<'a> {
     source: ResolvedVc<Box<dyn Source>>,
     origin: Vc<Box<dyn ResolveOrigin>>,
-    import_context: Vc<ImportContext>,
+    import_context: Option<Vc<ImportContext>>,
     references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
     urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
 }
@@ -65,7 +65,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
     fn new(
         source: ResolvedVc<Box<dyn Source>>,
         origin: Vc<Box<dyn ResolveOrigin>>,
-        import_context: Vc<ImportContext>,
+        import_context: Option<Vc<ImportContext>>,
         references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
         urls: &'a mut Vec<(String, Vc<UrlAssetReference>)>,
     ) -> Self {

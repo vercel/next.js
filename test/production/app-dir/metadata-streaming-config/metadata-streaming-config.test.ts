@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 describe('app-dir - metadata-streaming-config', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -13,9 +10,7 @@ describe('app-dir - metadata-streaming-config', () => {
       await next.readFile('.next/required-server-files.json')
     )
 
-    expect(
-      requiredServerFiles.config.experimental.htmlLimitedBots
-    ).toMatchInlineSnapshot(
+    expect(requiredServerFiles.config.htmlLimitedBots).toMatchInlineSnapshot(
       `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview"`
     )
 

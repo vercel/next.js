@@ -52,6 +52,12 @@ describe('i18n-hybrid', () => {
     files: __dirname,
   })
 
+  it('should warn about i18n in app dir', async () => {
+    expect(next.cliOutput).toContain(
+      'i18n configuration in next.config.js is unsupported in App Router.'
+    )
+  })
+
   it.each(urls.filter((url) => !url.expected))(
     'does not resolve $pathname',
     async (url) => {

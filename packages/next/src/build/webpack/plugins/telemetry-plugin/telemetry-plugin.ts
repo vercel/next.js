@@ -48,6 +48,7 @@ export type Feature =
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
+  | 'webpackPlugins'
   | UseCacheTrackerKey
 interface FeatureUsage {
   featureName: Feature
@@ -105,6 +106,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'skipTrailingSlashRedirect',
   'modularizeImports',
   'esmExternals',
+  'webpackPlugins',
 ]
 
 export type TelemetryLoaderContext = {
@@ -193,7 +195,17 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  apply(compiler: webpack.Compiler): void {
+  public addUsage(
+    featureName: Feature,
+    invocationCount: FeatureUsage['invocationCount']
+  ): void {
+    this.usageTracker.set(featureName, {
+      featureName,
+      invocationCount,
+    })
+  }
+
+  public apply(compiler: webpack.Compiler): void {
     compiler.hooks.make.tapAsync(
       TelemetryPlugin.name,
       async (compilation: webpack.Compilation, callback: () => void) => {
@@ -238,15 +250,15 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
     }
   }
 
-  usages(): FeatureUsage[] {
+  public usages(): FeatureUsage[] {
     return [...this.usageTracker.values()]
   }
 
-  packagesUsedInServerSideProps(): string[] {
+  public packagesUsedInServerSideProps(): string[] {
     return Array.from(eliminatedPackages)
   }
 
-  getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
+  public getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
     return Object.fromEntries(useCacheTracker)
   }
 }

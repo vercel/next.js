@@ -71,11 +71,9 @@ describe('dynamic-io-cache-handlers', () => {
         shouldRejectOnError: true,
         onStdout(data) {
           output += data
-          require('console').log(data)
         },
         onStderr(data) {
           output += data
-          require('console').log(data)
         },
       }
     )
@@ -90,7 +88,6 @@ describe('dynamic-io-cache-handlers', () => {
     expect(res.status).toBe(200)
 
     await retry(() => {
-      expect(output).toContain('symbol receiveExpiredTags')
       expect(output).toContain('symbol get')
       expect(output).toContain('symbol set')
     })
@@ -101,9 +98,35 @@ describe('dynamic-io-cache-handlers', () => {
     expect(res.status).toBe(200)
 
     await retry(() => {
-      expect(output).toContain('symbol receiveExpiredTags')
       expect(output).toContain('symbol expireTags')
       expect(output).toContain('tag1')
+    })
+  })
+
+  it('should call receiveExpiredTags on global default cache handler without tags if none are provided', async () => {
+    const res = await fetchViaHTTP(appPort, '/', {})
+    expect(res.status).toBe(200)
+
+    await retry(async () => {
+      expect(output).toContain('symbol receiveExpiredTags []')
+    })
+  })
+
+  it('should call receiveExpiredTags on global default cache handler', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/',
+      {},
+      {
+        headers: {
+          'x-next-revalidated-tags': 'tag1',
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    await retry(async () => {
+      expect(output).toContain("symbol receiveExpiredTags [ 'tag1' ]")
     })
   })
 })
