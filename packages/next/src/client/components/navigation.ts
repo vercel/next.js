@@ -84,7 +84,7 @@ export function useSearchParams(): ReadonlyURLSearchParams {
  * Useful for showing an optimistic UI state while navigation is in progress.
  */
 // Client components API
-export function useOptimisticSearchParams(): URLSearchParams {
+export function useOptimisticSearchParams(): ReadonlyURLSearchParams {
   const optimisticSearchParams = useContext(OptimisticSearchParamsContext)
   return useReadonlyURLSearchParams(
     optimisticSearchParams,
