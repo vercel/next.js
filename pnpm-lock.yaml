@@ -826,7 +826,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../eslint-plugin-next
       '@rushstack/eslint-patch':
         specifier: ^1.10.3
@@ -890,7 +890,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../next-env
       '@swc/counter':
         specifier: 0.1.3
@@ -1015,19 +1015,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../font
       '@next/polyfill-module':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1055,7 +1055,7 @@ importers:
         version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/react-webpack5':
         specifier: 8.6.0
-        version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+        version: 8.6.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/test':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.3.3))
@@ -1442,7 +1442,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 15.0.0
-        version: 15.0.0(sass@1.77.8)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
+        version: 15.0.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -1703,7 +1703,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 15.2.2-canary.2
+        specifier: 15.2.2-canary.3
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -21801,7 +21801,7 @@ snapshots:
       react: 19.1.0-canary-e03ac20f-20250305
       react-dom: 19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305)
 
-  '@storybook/builder-webpack5@8.6.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
+  '@storybook/builder-webpack5@8.6.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
       '@storybook/core-webpack': 8.6.0(storybook@8.6.0(prettier@3.3.3))
       '@types/semver': 7.5.6
@@ -21809,10 +21809,10 @@ snapshots:
       case-sensitive-paths-webpack-plugin: 2.4.0
       cjs-module-lexer: 1.4.1
       constants-browserify: 1.0.0
-      css-loader: 6.11.0(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
+      css-loader: 6.11.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
       es-module-lexer: 1.6.0
       fork-ts-checker-webpack-plugin: 8.0.0(typescript@5.8.2)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
-      html-webpack-plugin: 5.6.3(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
+      html-webpack-plugin: 5.6.3(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2))
       magic-string: 0.30.17
       path-browserify: 1.0.1
       process: 0.11.10
@@ -21943,9 +21943,9 @@ snapshots:
       react-dom: 19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305)
       storybook: 8.6.0(prettier@3.3.3)
 
-  '@storybook/react-webpack5@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
+  '@storybook/react-webpack5@8.6.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)':
     dependencies:
-      '@storybook/builder-webpack5': 8.6.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
+      '@storybook/builder-webpack5': 8.6.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.3.3)))(react-dom@19.1.0-canary-e03ac20f-20250305(react@19.1.0-canary-e03ac20f-20250305))(react@19.1.0-canary-e03ac20f-20250305)(storybook@8.6.0(prettier@3.3.3))(typescript@5.8.2)
       react: 19.1.0-canary-e03ac20f-20250305
@@ -24959,7 +24959,7 @@ snapshots:
       postcss: 8.4.31
       postcss-selector-parser: 6.0.11
 
-  css-loader@6.11.0(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+  css-loader@6.11.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.49)
       postcss: 8.4.49
@@ -24970,6 +24970,7 @@ snapshots:
       postcss-value-parser: 4.2.0
       semver: 7.6.3
     optionalDependencies:
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15)'
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)
 
   css-prefers-color-scheme@6.0.3(postcss@8.4.31):
@@ -27999,7 +28000,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  html-webpack-plugin@5.6.3(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+  html-webpack-plugin@5.6.3(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
@@ -28007,6 +28008,7 @@ snapshots:
       pretty-error: 4.0.0
       tapable: 2.2.1
     optionalDependencies:
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15)'
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)
 
   htmlparser2@3.10.1:
@@ -33955,10 +33957,11 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(sass@1.77.8)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
+  sass-loader@15.0.0(@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050(@swc/helpers@0.5.15)'
       sass: 1.77.8
       webpack: 5.98.0(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.24.2)
 
