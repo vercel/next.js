@@ -11,6 +11,10 @@ export const blockCrossSite = (
 ): {
   finished?: boolean
 } => {
+  // only process _next URLs
+  if (!req.url?.includes('/_next')) {
+    return {}
+  }
   // block non-cors request from cross-site e.g. script tag on
   // different host
   if (
