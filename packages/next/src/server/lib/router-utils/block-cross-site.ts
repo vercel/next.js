@@ -8,12 +8,10 @@ export const blockCrossSite = (
   res: ServerResponse | Duplex,
   allowedOrigins: string[],
   activePort: string
-): {
-  finished?: boolean
-} => {
+): boolean => {
   // only process _next URLs
   if (!req.url?.includes('/_next')) {
-    return {}
+    return false
   }
   // block non-cors request from cross-site e.g. script tag on
   // different host
@@ -25,9 +23,7 @@ export const blockCrossSite = (
       res.statusCode = 403
     }
     res.end('Unauthorized')
-    return {
-      finished: true,
-    }
+    return true
   }
 
   // ensure websocket requests from allowed origin
@@ -54,12 +50,10 @@ export const blockCrossSite = (
           res.statusCode = 403
         }
         res.end('Unauthorized')
-        return {
-          finished: true,
-        }
+        return true
       }
     }
   }
 
-  return {}
+  return false
 }

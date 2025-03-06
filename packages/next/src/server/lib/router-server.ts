@@ -325,7 +325,7 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
-        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`).finished) {
+        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`)) {
           return
         }
         const origUrl = req.url || '/'
@@ -691,9 +691,7 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
-        if (
-          blockCrossSite(req, socket, allowedOrigins, `${opts.port}`).finished
-        ) {
+        if (blockCrossSite(req, socket, allowedOrigins, `${opts.port}`)) {
           return
         }
         const { basePath, assetPrefix } = config
