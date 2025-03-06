@@ -277,13 +277,13 @@ export class IncrementalCache implements IncrementalCacheType {
       }
     }
 
+    await Promise.all(promises)
+
     const workUnitStore = workUnitAsyncStorage.getStore()
 
     if (workUnitStore?.implicitTags) {
-      promises.push(updateImplicitTagsExpiration(workUnitStore.implicitTags))
+      await updateImplicitTagsExpiration(workUnitStore.implicitTags)
     }
-
-    await Promise.all(promises)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
