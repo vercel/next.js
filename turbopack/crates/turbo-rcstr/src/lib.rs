@@ -63,7 +63,7 @@ unsafe impl Sync for RcStr {}
 
 const DYNAMIC_TAG: u8 = 0b_00;
 const INLINE_TAG: u8 = 0b_01; // len in upper nybble
-const INLINE_TAG_INIT: NonZeroU8 = unsafe { NonZeroU8::new_unchecked(INLINE_TAG) };
+const INLINE_TAG_INIT: NonZeroU8 = NonZeroU8::new(INLINE_TAG).unwrap();
 const TAG_MASK: u8 = 0b_11;
 const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;

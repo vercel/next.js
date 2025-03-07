@@ -94,7 +94,7 @@ describe.each([
                       "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
+                        "turbopack:///[project]/styles/global.scss.css",
                       ],
                       "sourcesContent": [
                         ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
@@ -131,7 +131,7 @@ describe.each([
                       "mappings": "AAAA,iCAAiC",
                       "names": [],
                       "sources": [
-                        "turbopack://[project]/styles/global.scss.css",
+                        "turbopack:///[project]/styles/global.scss.css",
                       ],
                       "sourcesContent": [
                         ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",

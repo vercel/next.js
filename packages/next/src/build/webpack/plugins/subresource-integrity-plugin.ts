@@ -16,7 +16,7 @@ export class SubresourceIntegrityPlugin {
           name: PLUGIN_NAME,
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ADDITIONS,
         },
-        (assets) => {
+        () => {
           // Collect all the assets.
           let files = new Set<string>()
           for (const asset of compilation.getAssets()) {
@@ -27,13 +27,13 @@ export class SubresourceIntegrityPlugin {
           const hashes: Record<string, string> = {}
           for (const file of files.values()) {
             // Get the buffer for the asset.
-            const asset = assets[file]
+            const asset = compilation.getAsset(file)
             if (!asset) {
               throw new Error(`could not get asset: ${file}`)
             }
 
             // Get the buffer for the asset.
-            const buffer = asset.buffer()
+            const buffer = asset.source.buffer()
 
             // Create the hash for the content.
             const hash = crypto
@@ -47,16 +47,22 @@ export class SubresourceIntegrityPlugin {
 
           const json = JSON.stringify(hashes, null, 2)
           const file = 'server/' + SUBRESOURCE_INTEGRITY_MANIFEST
-          assets[file + '.js'] = new sources.RawSource(
-            `self.__SUBRESOURCE_INTEGRITY_MANIFEST=${JSON.stringify(json)}`
-            // Work around webpack 4 type of RawSource being used
-            // TODO: use webpack 5 type by default
-          ) as unknown as webpack.sources.RawSource
-          assets[file + '.json'] = new sources.RawSource(
-            json
-            // Work around webpack 4 type of RawSource being used
-            // TODO: use webpack 5 type by default
-          ) as unknown as webpack.sources.RawSource
+          compilation.emitAsset(
+            file + '.js',
+            new sources.RawSource(
+              `self.__SUBRESOURCE_INTEGRITY_MANIFEST=${JSON.stringify(json)}`
+              // Work around webpack 4 type of RawSource being used
+              // TODO: use webpack 5 type by default
+            ) as unknown as webpack.sources.RawSource
+          )
+          compilation.emitAsset(
+            file + '.json',
+            new sources.RawSource(
+              json
+              // Work around webpack 4 type of RawSource being used
+              // TODO: use webpack 5 type by default
+            ) as unknown as webpack.sources.RawSource
+          )
         }
       )
     })

@@ -20,8 +20,8 @@ use turbo_tasks::{
     registry,
     test_helpers::with_turbo_tasks_for_testing,
     util::{SharedError, StaticOrArc},
-    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadConsistency, TaskId,
-    TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    CellId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions, ReadConsistency,
+    TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
 };
 
 pub use crate::run::{run, run_with_tt, run_without_cache_check, Registration};
@@ -193,6 +193,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
         Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
@@ -207,6 +208,7 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
+        _options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         let map = self.cells.lock().unwrap();
         Ok(Ok(if let Some(cell) = map.get(&(task, index)) {
@@ -221,8 +223,9 @@ impl TurboTasksApi for VcStorage {
         &self,
         current_task: TaskId,
         index: CellId,
+        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        self.read_own_task_cell(current_task, index)
+        self.read_own_task_cell(current_task, index, options)
     }
 
     fn try_read_local_output(
@@ -258,7 +261,12 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
+    fn read_own_task_cell(
+        &self,
+        task: TaskId,
+        index: CellId,
+        _options: ReadCellOptions,
+    ) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
         Ok(if let Some(cell) = map.get(&(task, index)) {
             cell.to_owned()

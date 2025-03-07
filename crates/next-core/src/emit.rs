@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
@@ -111,7 +112,9 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
             .await
             .completed()?
             .into_inner()
-            .into_reverse_topological()
+            .into_postorder_topological()
+            .collect::<FxHashSet<_>>()
+            .into_iter()
             .collect(),
     ))
 }

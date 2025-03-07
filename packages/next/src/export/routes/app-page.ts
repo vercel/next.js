@@ -140,7 +140,7 @@ export async function exportAppPage(
     const { metadata } = result
     const {
       flightData,
-      revalidate = false,
+      cacheControl = { revalidate: false, expire: undefined },
       postponed,
       fetchTags,
       fetchMetrics,
@@ -152,7 +152,7 @@ export async function exportAppPage(
       throw new Error('Invariant: page postponed without PPR being enabled')
     }
 
-    if (revalidate === 0) {
+    if (cacheControl.revalidate === 0) {
       if (isDynamicError) {
         throw new Error(
           `Page with dynamic = "error" encountered dynamic data method on ${path}.`
@@ -160,7 +160,7 @@ export async function exportAppPage(
       }
       const { staticBailoutInfo = {} } = metadata
 
-      if (revalidate === 0 && debugOutput && staticBailoutInfo?.description) {
+      if (debugOutput && staticBailoutInfo?.description) {
         logDynamicUsageWarning({
           path,
           description: staticBailoutInfo.description,
@@ -168,7 +168,7 @@ export async function exportAppPage(
         })
       }
 
-      return { revalidate: 0, fetchMetrics }
+      return { cacheControl, fetchMetrics }
     }
 
     // If page data isn't available, it means that the page couldn't be rendered
@@ -271,7 +271,7 @@ export async function exportAppPage(
       metadata: hasNextSupport ? meta : undefined,
       hasEmptyPrelude: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
-      revalidate,
+      cacheControl,
       fetchMetrics,
     }
   } catch (err) {
@@ -306,7 +306,7 @@ export async function exportAppPage(
       }
     }
 
-    return { revalidate: 0, fetchMetrics }
+    return { cacheControl: { revalidate: 0, expire: undefined }, fetchMetrics }
   }
 }
 

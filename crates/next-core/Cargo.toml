@@ -2,7 +2,7 @@
 name = "next-core"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 
 [lib]
@@ -32,8 +32,8 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.29.0"
-remove_console = "0.30.0"
+react_remove_properties = "0.33.0"
+remove_console = "0.34.0"
 
 auto-hash-map = { workspace = true }
 

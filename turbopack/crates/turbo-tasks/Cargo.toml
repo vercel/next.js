@@ -2,13 +2,14 @@
 name = "turbo-tasks"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 
 [lib]
 bench = false
 
 [features]
+default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 
@@ -41,6 +42,7 @@ serde = { workspace = true, features = ["rc", "derive"] }
 serde_json = { workspace = true }
 serde_regex = "1.1.0"
 shrink-to-fit = { workspace=true,features = ["indexmap", "serde_json", "smallvec", "nightly"] }
+smallvec = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }

@@ -10,7 +10,6 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
@@ -23,9 +22,8 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
-  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
-    htmlLimitedBots: string | undefined
-  }
+  htmlLimitedBots: string | undefined
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -259,6 +257,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  allowedDevOrigins?: string[]
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -317,7 +316,7 @@ export interface ExperimentalConfig {
   /**
    * @deprecated use config.expireTime instead
    */
-  expireTime?: ExpireTime
+  expireTime?: number
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -472,12 +471,6 @@ export interface ExperimentalConfig {
    */
   taint?: boolean
 
-  /**
-   * Enables leveraging experimental captureOwnerStack API in React,
-   * to create a better stack trace for React errors.
-   */
-  reactOwnerStack?: boolean
-
   serverActions?: {
     /**
      * Allows adjusting body parser size limit for server actions.
@@ -592,22 +585,6 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
-
-  /**
-   * Enables the new dev overlay.
-   */
-  newDevOverlay?: boolean
-
-  /**
-   * When enabled will cause async metadata calls to stream rather than block the render.
-   */
-  streamingMetadata?: boolean
-
-  /**
-   * User Agent of bots that can handle streaming metadata.
-   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
-   */
-  htmlLimitedBots?: RegExp
 
   /**
    * Enables the use of the `"use cache"` directive.
@@ -740,9 +717,9 @@ export interface NextConfig extends Record<string, any> {
   rewrites?: () => Promise<
     | Rewrite[]
     | {
-        beforeFiles: Rewrite[]
-        afterFiles: Rewrite[]
-        fallback: Rewrite[]
+        beforeFiles?: Rewrite[]
+        afterFiles?: Rewrite[]
+        fallback?: Rewrite[]
       }
   >
 
@@ -842,18 +819,37 @@ export interface NextConfig extends Record<string, any> {
   images?: ImageConfig
 
   /** Configure indicators in development environment */
-  devIndicators?: {
-    /** Show "building..."" indicator in development */
-    buildActivity?: boolean
-    /** Position of "building..." indicator in browser */
-    buildActivityPosition?:
-      | 'bottom-right'
-      | 'bottom-left'
-      | 'top-right'
-      | 'top-left'
+  devIndicators?:
+    | false
+    | {
+        /**
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
+         * */
+        appIsrStatus?: boolean
 
-    appIsrStatus?: boolean
-  }
+        /**
+         * Show "building..." indicator in development
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
+         */
+        buildActivity?: boolean
+
+        /**
+         * Position of "building..." indicator in browser
+         * @default "bottom-right"
+         * @deprecated Renamed as `position`.
+         */
+        buildActivityPosition?:
+          | 'top-left'
+          | 'top-right'
+          | 'bottom-left'
+          | 'bottom-right'
+
+        /**
+         * Position of the development tools indicator in the browser window.
+         * @default "bottom-left"
+         * */
+        position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+      }
 
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
@@ -1031,7 +1027,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  expireTime?: ExpireTime
+  expireTime?: number
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1071,6 +1067,15 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   *
+   * @default
+   * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export const defaultConfig: NextConfig = {
@@ -1098,9 +1103,7 @@ export const defaultConfig: NextConfig = {
   compress: true,
   images: imageConfigDefault,
   devIndicators: {
-    appIsrStatus: true,
-    buildActivity: true,
-    buildActivityPosition: 'bottom-right',
+    position: 'bottom-left',
   },
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
@@ -1124,12 +1127,15 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
+    ? undefined
+    : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    allowedDevOrigins: [],
     nodeMiddleware: false,
     cacheLife: {
       default: {
@@ -1235,7 +1241,6 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
     authInterrupts: false,
-    reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
@@ -1253,12 +1258,10 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: false,
-    streamingMetadata: false,
-    htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
   },
+  htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 }
 

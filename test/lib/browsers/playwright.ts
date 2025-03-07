@@ -9,6 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
+  Locator,
 } from 'playwright'
 import path from 'path'
 
@@ -515,5 +516,15 @@ export class Playwright extends BrowserInterface {
     return this.chain(() => {
       return page.waitForLoadState('networkidle')
     })
+  }
+
+  locateRedbox(): Locator {
+    return page.locator(
+      'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
+    )
+  }
+
+  locateDevToolsIndicator(): Locator {
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
   }
 }

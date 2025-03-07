@@ -27,10 +27,8 @@ export function normalizeVercelUrl(
   paramKeys: string[],
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  if (!defaultRouteRegex) return
-
-  // make sure to normalize req.url on Vercel to strip dynamic params
-  // from the query which are added during routing
+  // make sure to normalize req.url on Vercel to strip dynamic and rewrite
+  // params from the query which are added during routing
   const _parsedUrl = parseUrl(req.url!, true)
   delete (_parsedUrl as any).search
 
@@ -45,7 +43,8 @@ export function normalizeVercelUrl(
     if (
       isNextQueryPrefix ||
       isNextInterceptionMarkerPrefix ||
-      (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
+      paramKeys.includes(key) ||
+      (defaultRouteRegex && Object.keys(defaultRouteRegex.groups).includes(key))
     ) {
       delete _parsedUrl.query[key]
     }

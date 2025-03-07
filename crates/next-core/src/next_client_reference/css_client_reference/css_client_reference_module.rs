@@ -94,7 +94,7 @@ impl ChunkableModuleReference for CssClientReference {
 impl ModuleReference for CssClientReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        ModuleResolveResult::module(self.module).cell()
+        *ModuleResolveResult::module(self.module)
     }
 }
 

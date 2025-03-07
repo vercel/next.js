@@ -53,7 +53,7 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.to_string().await?.clone_value().into_owned();
+        let mut s = self.path.to_string().owned().await?.into_owned();
 
         let query = self.query.await?;
         if !query.is_empty() {
@@ -310,7 +310,7 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..6];
+            let truncated_hash = &hash[..8];
             write!(name, "_{}", truncated_hash)?;
         }
 
@@ -331,7 +331,7 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(name[..i].as_bytes()));
+            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
             let truncated_hash = &hash[..5];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }

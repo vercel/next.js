@@ -2,7 +2,7 @@
 name = "turbopack-resolve"
 version = "0.1.0"
 description = "Methods to create and modify resolver options"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 

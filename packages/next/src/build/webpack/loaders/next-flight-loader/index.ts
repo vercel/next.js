@@ -1,4 +1,4 @@
-import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { NormalModule, webpack } from 'next/dist/compiled/webpack/webpack'
 import { RSC_MOD_REF_PROXY_ALIAS } from '../../../../lib/constants'
 import {
   BARREL_OPTIMIZATION_PREFIX,
@@ -60,13 +60,18 @@ export default function transformSource(
   if (typeof source !== 'string') {
     throw new Error('Expected source to have been transformed to a string.')
   }
-
   const module = this._module!
 
   // Assign the RSC meta information to buildInfo.
   // Exclude next internal files which are not marked as client files
   const buildInfo = getModuleBuildInfo(module)
   buildInfo.rsc = getRSCModuleInformation(source, true)
+  let prefix = ''
+  if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
+    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+    prefix = `/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */\n`
+    source = prefix + source
+  }
 
   // Resource key is the unique identifier for the resource. When RSC renders
   // a client module, that key is used to identify that module across all compiler
@@ -92,7 +97,7 @@ export default function transformSource(
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     const assumedSourceType = getAssumedSourceType(
       module,
-      (module.parser as javascript.JavascriptParser).sourceType
+      sourceTypeFromModule(module)
     )
 
     const clientRefs = buildInfo.rsc.clientRefs!
@@ -112,7 +117,9 @@ export default function transformSource(
         return
       }
 
-      let esmSource = `\
+      let esmSource =
+        prefix +
+        `\
 import { registerClientReference } from "react-server-dom-webpack/server.edge";
 `
       for (const ref of clientRefs) {
@@ -139,12 +146,13 @@ ${JSON.stringify(ref)},
 
       return this.callback(null, esmSource, sourceMap)
     } else if (assumedSourceType === 'commonjs') {
-      let cjsSource = `\
+      let cjsSource =
+        prefix +
+        `\
 const { createProxy } = require("${MODULE_PROXY_PATH}")
 
 module.exports = createProxy(${stringifiedResourceKey})
 `
-
       return this.callback(null, cjsSource, sourceMap)
     }
   }
@@ -162,4 +170,18 @@ module.exports = createProxy(${stringifiedResourceKey})
     MODULE_PROXY_PATH
   )
   this.callback(null, replacedSource, sourceMap)
+}
+
+function sourceTypeFromModule(module: NormalModule): SourceType {
+  const moduleType = module.type
+  switch (moduleType) {
+    case 'javascript/auto':
+      return 'auto'
+    case 'javascript/dynamic':
+      return 'script'
+    case 'javascript/esm':
+      return 'module'
+    default:
+      throw new Error('Unexpected module type ' + moduleType)
+  }
 }

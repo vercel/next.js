@@ -8,19 +8,19 @@ use turbopack_core::{
     source::Source,
 };
 #[turbo_tasks::value]
-pub struct StaticAsset {
+pub struct StaticOutputAsset {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
-impl StaticAsset {
+impl StaticOutputAsset {
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         source: ResolvedVc<Box<dyn Source>>,
     ) -> Vc<Self> {
-        Self::cell(StaticAsset {
+        Self::cell(StaticOutputAsset {
             chunking_context,
             source,
         })
@@ -28,7 +28,7 @@ impl StaticAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl OutputAsset for StaticAsset {
+impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
     async fn path(&self) -> Result<Vc<FileSystemPath>> {
         let content = self.source.content();
@@ -49,7 +49,7 @@ impl OutputAsset for StaticAsset {
 }
 
 #[turbo_tasks::value_impl]
-impl Asset for StaticAsset {
+impl Asset for StaticOutputAsset {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.source.content()

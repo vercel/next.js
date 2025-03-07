@@ -19,6 +19,10 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
+function stripHTMLComments(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+}
+
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -72,13 +76,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning null', async () => {
     const homeHTML = await next.render('/return-null/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const homeHTML = await next.render('/return-null/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
@@ -90,13 +94,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
@@ -425,6 +429,7 @@ describe('app dir - rsc basics', () => {
   })
 
   // TODO: (PPR) remove once PPR is stable
+  // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
     process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ? '-experimental-'

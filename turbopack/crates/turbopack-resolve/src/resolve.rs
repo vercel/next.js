@@ -98,7 +98,7 @@ async fn base_resolve_options(
     let root = resolve_path_value.fs.root();
     let mut direct_mappings = AliasMap::new();
     let node_externals = if let Some(environment) = emulating {
-        environment.node_externals().await?.clone_value()
+        environment.node_externals().owned().await?
     } else {
         opt.enable_node_externals
     };
@@ -194,7 +194,7 @@ async fn base_resolve_options(
     let extensions = if let Some(custom_extension) = &opt.custom_extensions {
         custom_extension.clone()
     } else if let Some(environment) = emulating {
-        environment.resolve_extensions().await?.clone_value()
+        environment.resolve_extensions().owned().await?
     } else {
         let mut ext = Vec::new();
         if opt.enable_typescript && opt.enable_react {

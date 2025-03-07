@@ -22,7 +22,6 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum InvalidateOperation {
-    // TODO DetermineActiveness
     MakeDirty {
         task_ids: SmallVec<[TaskId; 4]>,
         #[cfg(feature = "trace_task_dirty")]
@@ -274,7 +273,7 @@ pub fn make_task_dirty_internal(
                 AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
             ));
         }
-        task.has_key(&CachedDataItemKey::Activeness {})
+        !ctx.should_track_activeness() || task.has_key(&CachedDataItemKey::Activeness {})
     } else {
         true
     };

@@ -22,7 +22,7 @@ use swc_core::{
     common::Mark,
     ecma::{
         ast::{Id, Ident, Lit},
-        atoms::{Atom, JsWord},
+        atoms::Atom,
     },
 };
 use turbo_rcstr::RcStr;
@@ -275,7 +275,7 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub module: JsWord,
+    pub module: Atom,
     pub annotations: ImportAnnotations,
 }
 
@@ -500,9 +500,9 @@ pub enum JsValue {
     /// A reference to an function argument.
     /// (func_ident, arg_index)
     Argument(u32, usize),
-    // TODO no predefined kinds, only JsWord
+    // TODO no predefined kinds, only Atom
     /// A reference to a free variable.
-    FreeVar(JsWord),
+    FreeVar(Atom),
     /// This is a reference to a imported module.
     Module(ModuleValue),
 }
@@ -1723,11 +1723,11 @@ impl JsValue {
                         format!("path.resolve({cwd})"),
                         "The Node.js path.resolve method: https://nodejs.org/api/path.html#pathresolvepaths",
                     ),
-                    WellKnownFunctionKind::Import { .. } => (
+                    WellKnownFunctionKind::Import => (
                         "import".to_string(),
                         "The dynamic import() method from the ESM specification: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/import#dynamic_imports"
                     ),
-                    WellKnownFunctionKind::Require { .. } => ("require".to_string(), "The require method from CommonJS"),
+                    WellKnownFunctionKind::Require => ("require".to_string(), "The require method from CommonJS"),
                     WellKnownFunctionKind::RequireResolve => ("require.resolve".to_string(), "The require.resolve method from CommonJS"),
                     WellKnownFunctionKind::RequireContext => ("require.context".to_string(), "The require.context method from webpack"),
                     WellKnownFunctionKind::RequireContextRequire(..) => ("require.context(...)".to_string(), "The require.context(...) method from webpack: https://webpack.js.org/api/module-methods/#requirecontext"),
@@ -1802,7 +1802,7 @@ impl JsValue {
                       "load/loadSync".to_string(),
                       "require('@grpc/proto-loader').load(filepath, { includeDirs: [root] }) https://github.com/grpc/grpc-node"
                     ),
-                    WellKnownFunctionKind::WorkerConstructor { .. } => (
+                    WellKnownFunctionKind::WorkerConstructor => (
                       "Worker".to_string(),
                       "The standard Worker constructor: https://developer.mozilla.org/en-US/docs/Web/API/Worker/Worker"
                     ),
@@ -3799,9 +3799,9 @@ pub enum WellKnownFunctionKind {
     RequireContextRequireKeys(RequireContextValue),
     RequireContextRequireResolve(RequireContextValue),
     Define,
-    FsReadMethod(JsWord),
+    FsReadMethod(Atom),
     PathToFileUrl,
-    ChildProcessSpawnMethod(JsWord),
+    ChildProcessSpawnMethod(Atom),
     ChildProcessFork,
     OsArch,
     OsPlatform,
@@ -3876,7 +3876,7 @@ pub mod test_utils {
         let mut new_value = match v {
             JsValue::Call(
                 _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import { .. }),
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => JsValue::Module(ModuleValue {
@@ -4041,8 +4041,14 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context =
-                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
+                let eval_context = EvalContext::new(
+                    &m,
+                    unresolved_mark,
+                    top_level_mark,
+                    Default::default(),
+                    Some(&comments),
+                    None,
+                );
 
                 let mut var_graph = create_graph(&m, &eval_context);
                 let var_cache = Default::default();

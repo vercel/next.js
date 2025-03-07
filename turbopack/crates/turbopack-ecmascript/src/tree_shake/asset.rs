@@ -67,7 +67,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn module_content_without_analysis(
         &self,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
             .module_content_without_analysis(generate_source_map)
@@ -162,6 +162,8 @@ impl EcmascriptModulePartAsset {
                 ..
             } = &*result.await?;
 
+            let parsed = module.parse();
+
             let final_module = if let Some(new_export) = new_export {
                 if *new_export == export {
                     *final_module
@@ -169,6 +171,7 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
+                            parsed,
                             ModulePart::renamed_export(new_export.clone(), export.clone()),
                         )
                         .to_resolved()
@@ -179,6 +182,7 @@ impl EcmascriptModulePartAsset {
                 ResolvedVc::upcast(
                     EcmascriptModuleFacadeModule::new(
                         **final_module,
+                        parsed,
                         ModulePart::renamed_namespace(export.clone()),
                     )
                     .to_resolved()
@@ -292,11 +296,11 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(*self.full_module).await?;
 
-        let analyze = analyze(*self.full_module, self.part.clone()).await?;
+        let analyze = analyze(*self.full_module, self.part.clone());
 
         let deps = match &*split_data {
             SplitResult::Ok { deps, .. } => deps,
-            SplitResult::Failed { .. } => return Ok(*analyze.references),
+            SplitResult::Failed { .. } => return Ok(analyze.references()),
         };
 
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
@@ -306,7 +310,7 @@ impl Module for EcmascriptModulePartAsset {
             ))
         };
 
-        let mut references = analyze.references.await?.to_vec();
+        let mut references = analyze.references().owned().await?;
 
         // Facade depends on evaluation and re-exports
         if self.part == ModulePart::Facade {

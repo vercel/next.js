@@ -26,12 +26,13 @@ describe('use-cache-segment-configs', () => {
         await assertHasRedbox(browser)
 
         const description = await getRedboxDescription(browser)
+        expect(description).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
         const source = await getRedboxSource(browser)
 
-        expect(description).toBe('Failed to compile')
-
         expect(source).toMatchInlineSnapshot(`
-         "./app/runtime/page.tsx:1:14
+         "./app/runtime/page.tsx (1:14)
          Ecmascript file had an error
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^

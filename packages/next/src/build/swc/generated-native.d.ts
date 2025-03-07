@@ -37,6 +37,7 @@ export interface TransformOutput {
   code: string
   map?: string
   output?: string
+  diagnostics: Array<string>
 }
 export declare function mdxCompile(
   value: string,
@@ -128,6 +129,12 @@ export interface NapiProjectOptions {
   previewProps: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling: boolean
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -166,6 +173,12 @@ export interface NapiPartialProjectOptions {
   previewProps?: NapiDraftModeOptions
   /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: string
+  /**
+   * When the code is minified, this opts out of the default mangling of
+   * local names for variables, functions etc., which can be useful for
+   * debugging/profiling purposes.
+   */
+  noMangling?: boolean
 }
 export interface NapiDefineEnv {
   client: Array<NapiEnvVar>

@@ -88,6 +88,40 @@ describe('app-dir - metadata-streaming', () => {
     expect((await browser.elementsByCss('body meta')).length).toBe(9)
   })
 
+  it('should only insert metadata once for parallel routes when slots match', async () => {
+    const browser = await next.browser('/parallel-routes')
+
+    expect((await browser.elementsByCss('head title')).length).toBe(1)
+    expect((await browser.elementsByCss('body title')).length).toBe(0)
+
+    const $ = await next.render$('/parallel-routes')
+    expect($('title').length).toBe(1)
+
+    // validate behavior remains the same on client navigations
+    await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
+  })
+
+  it('should only insert metadata once for parallel routes when there is a missing slot', async () => {
+    const browser = await next.browser('/parallel-routes')
+    await browser.elementByCss('[href="/parallel-routes/no-bar"]').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
+  })
+
   describe('dynamic api', () => {
     it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')
@@ -102,6 +136,55 @@ describe('app-dir - metadata-streaming', () => {
           /Dynamic api \d+/
         )
       })
+    })
+  })
+
+  describe('navigation API', () => {
+    it('should trigger not-found boundary when call notFound', async () => {
+      const browser = await next.browser('/notfound')
+
+      // Show 404 page
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('404')
+      })
+    })
+
+    it('should trigger redirection when call redirect', async () => {
+      const browser = await next.browser('/redirect')
+      // Redirect to home page
+      expect(await browser.elementByCss('p').text()).toBe('index page')
+    })
+
+    it('should trigger custom not-found in the boundary', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      expect(await browser.elementByCss('h1').text()).toBe('Custom Not Found')
+    })
+
+    it('should not duplicate metadata with navigation API', async () => {
+      const browser = await next.browser('/notfound/boundary')
+
+      const titleTags = await browser.elementsByCss('title')
+      expect(titleTags.length).toBe(1)
+    })
+
+    it('should render blocking 404 response status when html limited bots access notFound', async () => {
+      const { status } = await next.fetch('/notfound', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      })
+      expect(status).toBe(404)
+    })
+
+    it('should render blocking 307 response status when html limited bots access redirect', async () => {
+      const { status } = await next.fetch('/redirect', {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+        redirect: 'manual',
+      })
+      expect(status).toBe(307)
     })
   })
 })

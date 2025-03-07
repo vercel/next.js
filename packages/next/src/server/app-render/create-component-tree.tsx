@@ -8,7 +8,7 @@ import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
 import { parseLoaderTree } from './parse-loader-tree'
-import type { AppRenderContext } from './app-render'
+import type { AppRenderContext, GetDynamicParamFromSegment } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
@@ -40,7 +40,8 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -77,6 +78,7 @@ async function createComponentTreeInternal({
   preloadCallbacks,
   authInterrupts,
   StreamingMetadata,
+  StreamingMetadataOutlet,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -90,7 +92,8 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -175,7 +178,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -339,10 +342,10 @@ async function createComponentTreeInternal({
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof MaybeComponent !== 'undefined') &&
+      typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'page')
+      errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
     if (
@@ -387,19 +390,22 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
-  if (rootLayoutAtThisLevel) {
-    workStore.rootParams = currentParams
-  }
-
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
+  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
+
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY ? <StreamingMetadata /> : undefined
+    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet =
+    isNotDefaultSegment && StreamingMetadataOutlet ? (
+      <StreamingMetadataOutlet />
+    ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
       <NotFound />
-      {metadata}
       {notFoundStyles}
     </>
   ) : undefined
@@ -407,7 +413,6 @@ async function createComponentTreeInternal({
   const forbiddenElement = Forbidden ? (
     <>
       <Forbidden />
-      {metadata}
       {forbiddenStyles}
     </>
   ) : undefined
@@ -415,7 +420,6 @@ async function createComponentTreeInternal({
   const unauthorizedElement = Unauthorized ? (
     <>
       <Unauthorized />
-      {metadata}
       {unauthorizedStyles}
     </>
   ) : undefined
@@ -515,7 +519,12 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata,
+            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -577,7 +586,6 @@ async function createComponentTreeInternal({
   }
 
   const Component = MaybeComponent
-
   // If force-dynamic is used and the current render supports postponing, we
   // replace it with a node that will postpone the render. This ensures that the
   // postpone is invoked during the react render phase and not during the next
@@ -703,7 +711,10 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
+          {/* Streaming metadata outlet */}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
@@ -839,7 +850,6 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
-                  {metadata}
                 </>
               ) : undefined
             }
@@ -915,4 +925,56 @@ function createErrorBoundaryClientSegmentRoot({
     )
   }
   return null
+}
+
+export function getRootParams(
+  loaderTree: LoaderTree,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+): Params {
+  return getRootParamsImpl({}, loaderTree, getDynamicParamFromSegment)
+}
+
+function getRootParamsImpl(
+  parentParams: Params,
+  loaderTree: LoaderTree,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment
+): Params {
+  const {
+    segment,
+    modules: { layout },
+    parallelRoutes,
+  } = parseLoaderTree(loaderTree)
+
+  const segmentParam = getDynamicParamFromSegment(segment)
+
+  let currentParams: Params = parentParams
+  if (segmentParam && segmentParam.value !== null) {
+    currentParams = {
+      ...parentParams,
+      [segmentParam.param]: segmentParam.value,
+    }
+  }
+
+  const isRootLayout = typeof layout !== 'undefined'
+
+  if (isRootLayout) {
+    return currentParams
+  } else if (!parallelRoutes.children) {
+    // This should really be an error but there are bugs in Turbopack that cause
+    // the _not-found LoaderTree to not have any layouts. For rootParams sake
+    // this is somewhat irrelevant when you are not customizing the 404 page.
+    // If you are customizing 404
+    // TODO update rootParams to make all params optional if `/app/not-found.tsx` is defined
+    return currentParams
+  } else {
+    return getRootParamsImpl(
+      currentParams,
+      // We stop looking for root params as soon as we hit the first layout
+      // and it is not possible to use parallel route children above the root layout
+      // so every parallelRoutes object that this function can visit will necessarily
+      // have a single `children` prop and no others.
+      parallelRoutes.children,
+      getDynamicParamFromSegment
+    )
+  }
 }

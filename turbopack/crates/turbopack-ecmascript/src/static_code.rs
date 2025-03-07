@@ -18,7 +18,7 @@ use crate::EcmascriptAnalyzable;
 pub struct StaticEcmascriptCode {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
-    generate_source_map: ResolvedVc<bool>,
+    generate_source_map: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -28,7 +28,7 @@ impl StaticEcmascriptCode {
     pub async fn new(
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         asset_path: ResolvedVc<FileSystemPath>,
-        generate_source_map: ResolvedVc<bool>,
+        generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let module = asset_context
             .process(
@@ -54,12 +54,12 @@ impl StaticEcmascriptCode {
     pub async fn code(&self) -> Result<Vc<Code>> {
         let runtime_base_content = self
             .asset
-            .module_content_without_analysis(*self.generate_source_map)
+            .module_content_without_analysis(self.generate_source_map)
             .await?;
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map,
+            runtime_base_content.source_map.clone(),
         );
         Ok(Code::cell(code.build()))
     }

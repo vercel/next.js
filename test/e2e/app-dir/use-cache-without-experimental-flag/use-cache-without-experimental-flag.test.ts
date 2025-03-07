@@ -24,9 +24,6 @@ describe('use-cache-without-experimental-flag', () => {
     return
   }
 
-  const isNewDevOverlay =
-    process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
-
   if (isNextStart) {
     it('should fail the build with an error', async () => {
       const { cliOutput } = await next.build()
@@ -87,45 +84,19 @@ describe('use-cache-without-experimental-flag', () => {
       const errorDescription = await getRedboxDescription(browser)
       const errorSource = await getRedboxSource(browser)
 
-      expect(errorDescription).toBe('Failed to compile')
-
-      // TODO(jiwon): Remove this once we have a new dev overlay at stable.
-      if (isNewDevOverlay) {
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx (1:1)
-
-           Ecmascript file had an error
-           > 1 | 'use cache'
-               | ^^^^^^^^^^^
-             2 |
-             3 | export default async function Page() {
-             4 |   return <p>hello world</p>
-
-           To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
-
-           Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
-          `)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx
-           Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
-             | 
-             | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
-             | 
-              ,-[1:1]
-            1 | 'use cache'
-              : ^^^^^^^^^^^
-            2 | 
-            3 | export default async function Page() {
-            4 |   return <p>hello world</p>
-              \`----"
-          `)
-        }
+      if (isTurbopack) {
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Ecmascript file had an error"`
+        )
       } else {
-        if (isTurbopack) {
-          expect(errorSource).toMatchInlineSnapshot(`
-           "./app/page.tsx:1:1
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config."`
+        )
+      }
+
+      if (isTurbopack) {
+        expect(errorSource).toMatchInlineSnapshot(`
+           "./app/page.tsx (1:1)
            Ecmascript file had an error
            > 1 | 'use cache'
                | ^^^^^^^^^^^
@@ -137,8 +108,8 @@ describe('use-cache-without-experimental-flag', () => {
 
            Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage"
           `)
-        } else {
-          expect(errorSource).toMatchInlineSnapshot(`
+      } else {
+        expect(errorSource).toMatchInlineSnapshot(`
            "./app/page.tsx
            Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
              | 
@@ -152,7 +123,6 @@ describe('use-cache-without-experimental-flag', () => {
             4 |   return <p>hello world</p>
               \`----"
           `)
-        }
       }
     })
 

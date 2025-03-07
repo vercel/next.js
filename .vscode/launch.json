@@ -51,7 +51,7 @@
         "webpack:///./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
         "webpack-internal:///(react-server)/./dist/compiled/*": "${workspaceFolder}/packages/next/src/compiled/*",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         // Enable the following environment variables to use turbopack instead of webpack:
@@ -87,7 +87,7 @@
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
@@ -115,7 +115,7 @@
         "webpack:///(?:../)*packages/next/dist/compiled/(.*)": "${workspaceFolder}/packages/next/src/compiled/$1",
         "webpack://next/./src/*": "${workspaceFolder}/packages/next/src/*",
         "webpack-internal:///\\(rsc\\)/(?:../)*packages/next/dist/(.*)": "${workspaceFolder}/packages/next/src/$1",
-        "turbopack://[project]/*": "${workspaceFolder}/*"
+        "turbopack:///[project]/*": "${workspaceFolder}/*"
       },
       "env": {
         "HEADLESS": "true",

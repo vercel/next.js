@@ -27,19 +27,46 @@ impl IssueCollector {
         };
 
         for issue in issues {
-            issue.to_resolved().await?.emit();
+            AnalyzeIssue::new(
+                issue.severity,
+                issue.source.ident(),
+                Vc::cell(issue.title),
+                issue.message.cell(),
+                issue.code,
+                issue.issue_source,
+            )
+            .to_resolved()
+            .await?
+            .emit();
         }
         Ok(())
     }
 
     pub fn last_emitted_issue(&self) -> Option<Vc<AnalyzeIssue>> {
         let inner = self.inner.lock();
-        inner.emitted_issues.last().copied()
+        inner.emitted_issues.last().map(|issue| {
+            AnalyzeIssue::new(
+                issue.severity,
+                issue.source.ident(),
+                Vc::cell(issue.title.clone()),
+                issue.message.clone().cell(),
+                issue.code.clone(),
+                issue.issue_source.clone(),
+            )
+        })
     }
 }
 
 struct IssueCollectorInner {
-    emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    emitted_issues: Vec<PlainAnalyzeIssue>,
+}
+struct PlainAnalyzeIssue {
+    severity: IssueSeverity,
+    source: ResolvedVc<Box<dyn Source>>,
+    title: RcStr,
+    message: StyledString,
+    code: Option<RcStr>,
+    issue_source: Option<IssueSource>,
 }
 
 pub struct IssueEmitter {
@@ -88,7 +115,7 @@ impl Emitter for IssueEmitter {
             .as_ref()
             .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
 
-        let severity = (if is_lint {
+        let severity = if is_lint {
             IssueSeverity::Suggestion
         } else {
             match level {
@@ -101,8 +128,7 @@ impl Emitter for IssueEmitter {
                 Level::Cancelled => IssueSeverity::Error,
                 Level::FailureNote => IssueSeverity::Note,
             }
-        })
-        .resolved_cell();
+        };
 
         let title;
         if let Some(t) = self.title.as_ref() {
@@ -114,18 +140,20 @@ impl Emitter for IssueEmitter {
         }
 
         let source = db.span.primary_span().map(|span| {
-            IssueSource::from_swc_offsets(self.source, span.lo.to_usize(), span.hi.to_usize())
+            IssueSource::from_swc_offsets(self.source, span.lo.to_u32(), span.hi.to_u32())
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        let issue = AnalyzeIssue::new(
-            *severity,
-            self.source.ident(),
-            Vc::cell(title),
-            StyledString::Text(message.into()).cell(),
+        // This can be invoked by swc on different threads, so we cannot call any turbo-tasks or
+        // create cells here.
+        let issue = PlainAnalyzeIssue {
+            severity,
+            source: self.source,
+            title,
+            message: StyledString::Text(message.into()),
             code,
-            source,
-        );
+            issue_source: source,
+        };
 
         let mut inner = self.inner.lock();
         inner.emitted_issues.push(issue);

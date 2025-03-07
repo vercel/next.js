@@ -21,6 +21,11 @@ import type { NextInfoOptions } from '../cli/next-info.js'
 import type { NextDevOptions } from '../cli/next-dev.js'
 import type { NextBuildOptions } from '../cli/next-build.js'
 
+if (process.env.NEXT_RSPACK) {
+  // silent rspack's schema check
+  process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
+}
+
 if (
   !semver.satisfies(
     process.versions.node,

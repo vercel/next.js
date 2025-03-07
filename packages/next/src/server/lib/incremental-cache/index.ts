@@ -6,8 +6,14 @@ import {
   type IncrementalCache as IncrementalCacheType,
   IncrementalCacheKind,
   CachedRouteKind,
+  type IncrementalResponseCacheEntry,
+  type IncrementalFetchCacheEntry,
+  type GetIncrementalFetchCacheContext,
+  type GetIncrementalResponseCacheContext,
+  type CachedFetchValue,
+  type SetIncrementalFetchCacheContext,
+  type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
-import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
 import FileSystemCache from './file-system-cache'
@@ -20,12 +26,15 @@ import {
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
-import { SharedRevalidateTimings } from './shared-revalidate-timings'
+import { SharedCacheControls } from './shared-cache-controls'
 import { workUnitAsyncStorageInstance } from '../../app-render/work-unit-async-storage-instance'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
 } from '../../app-render/work-unit-async-storage.external'
+import { getCacheHandlers } from '../../use-cache/handlers'
+import { InvariantError } from '../../../shared/lib/invariant-error'
+import type { Revalidate } from '../cache-control'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -51,13 +60,16 @@ export class CacheHandler {
   constructor(_ctx: CacheHandlerContext) {}
 
   public async get(
-    ..._args: Parameters<IncrementalCache['get']>
+    _cacheKey: string,
+    _ctx: GetIncrementalFetchCacheContext | GetIncrementalResponseCacheContext
   ): Promise<CacheHandlerValue | null> {
     return {} as any
   }
 
   public async set(
-    ..._args: Parameters<IncrementalCache['set']>
+    _cacheKey: string,
+    _data: IncrementalCacheValue | null,
+    _ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
   ): Promise<void> {}
 
   public async revalidateTag(
@@ -84,10 +96,10 @@ export class IncrementalCache implements IncrementalCacheType {
   private readonly locks = new Map<string, Promise<void>>()
 
   /**
-   * The revalidate timings for routes. This will source the timings from the
-   * prerender manifest until the in-memory cache is updated with new timings.
+   * The cache controls for routes. This will source the values from the
+   * prerender manifest until the in-memory cache is updated with new values.
    */
-  private readonly revalidateTimings: SharedRevalidateTimings
+  private readonly cacheControls: SharedCacheControls
 
   constructor({
     fs,
@@ -158,7 +170,7 @@ export class IncrementalCache implements IncrementalCacheType {
     this.requestProtocol = requestProtocol
     this.allowedRevalidateHeaderKeys = allowedRevalidateHeaderKeys
     this.prerenderManifest = getPrerenderManifest()
-    this.revalidateTimings = new SharedRevalidateTimings(this.prerenderManifest)
+    this.cacheControls = new SharedCacheControls(this.prerenderManifest)
     this.fetchCacheKeyPrefix = fetchCacheKeyPrefix
     let revalidatedTags: string[] = []
 
@@ -204,10 +216,15 @@ export class IncrementalCache implements IncrementalCacheType {
     if (dev)
       return Math.floor(performance.timeOrigin + performance.now() - 1000)
 
+    const cacheControl = this.cacheControls.get(toRoute(pathname))
+
     // if an entry isn't present in routes we fallback to a default
     // of revalidating after 1 second unless it's a fallback request.
-    const initialRevalidateSeconds =
-      this.revalidateTimings.get(toRoute(pathname)) ?? (isFallback ? false : 1)
+    const initialRevalidateSeconds = cacheControl
+      ? cacheControl.revalidate
+      : isFallback
+        ? false
+        : 1
 
     const revalidateAfter =
       typeof initialRevalidateSeconds === 'number'
@@ -245,22 +262,21 @@ export class IncrementalCache implements IncrementalCacheType {
   }
 
   async revalidateTag(tags: string | string[]): Promise<void> {
-    const _globalThis: typeof globalThis & {
-      __nextCacheHandlers?: Record<
-        string,
-        import('../cache-handlers/types').CacheHandler
-      >
-    } = globalThis
+    const promises: Promise<void>[] = []
 
-    return Promise.all([
-      // call expireTags on all configured cache handlers
-      Object.values(_globalThis.__nextCacheHandlers || {}).map(
-        (cacheHandler) =>
-          typeof cacheHandler.expireTags === 'function' &&
-          cacheHandler.expireTags(...(Array.isArray(tags) ? tags : [tags]))
-      ),
-      this.cacheHandler?.revalidateTag?.(tags),
-    ]).then(() => {})
+    if (this.cacheHandler?.revalidateTag) {
+      promises.push(this.cacheHandler.revalidateTag(tags))
+    }
+
+    const handlers = getCacheHandlers()
+    if (handlers) {
+      tags = Array.isArray(tags) ? tags : [tags]
+      for (const handler of handlers) {
+        promises.push(handler.expireTags(...tags))
+      }
+    }
+
+    await Promise.all(promises)
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -354,7 +370,10 @@ export class IncrementalCache implements IncrementalCacheType {
         ? Object.fromEntries(init.headers as Headers)
         : Object.assign({}, init.headers)
 
+    // w3c trace context headers can break request caching and deduplication
+    // so we remove them from the cache key
     if ('traceparent' in headers) delete headers['traceparent']
+    if ('tracestate' in headers) delete headers['tracestate']
 
     const cacheString = JSON.stringify([
       MAIN_KEY_PREFIX,
@@ -386,19 +405,17 @@ export class IncrementalCache implements IncrementalCacheType {
     }
   }
 
-  // get data from cache if available
   async get(
     cacheKey: string,
-    ctx: {
-      kind: IncrementalCacheKind
-      revalidate?: Revalidate
-      fetchUrl?: string
-      fetchIdx?: number
-      tags?: string[]
-      softTags?: string[]
-      isRoutePPREnabled?: boolean
-      isFallback: boolean | undefined
-    }
+    ctx: GetIncrementalFetchCacheContext
+  ): Promise<IncrementalFetchCacheEntry | null>
+  async get(
+    cacheKey: string,
+    ctx: GetIncrementalResponseCacheContext
+  ): Promise<IncrementalResponseCacheEntry | null>
+  async get(
+    cacheKey: string,
+    ctx: GetIncrementalFetchCacheContext | GetIncrementalResponseCacheContext
   ): Promise<IncrementalCacheEntry | null> {
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
@@ -410,12 +427,7 @@ export class IncrementalCache implements IncrementalCacheType {
       if (resumeDataCache) {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
-          return {
-            isStale: false,
-            value: memoryCacheData,
-            revalidateAfter: false,
-            isFallback: false,
-          }
+          return { isStale: false, value: memoryCacheData }
         }
       }
     }
@@ -431,18 +443,24 @@ export class IncrementalCache implements IncrementalCacheType {
       return null
     }
 
-    const { isFallback } = ctx
-
     cacheKey = this._getPathname(
       cacheKey,
       ctx.kind === IncrementalCacheKind.FETCH
     )
-    let entry: IncrementalCacheEntry | null = null
-    let revalidate = ctx.revalidate
 
     const cacheData = await this.cacheHandler?.get(cacheKey, ctx)
 
-    if (cacheData?.value?.kind === CachedRouteKind.FETCH) {
+    if (ctx.kind === IncrementalCacheKind.FETCH) {
+      if (!cacheData) {
+        return null
+      }
+
+      if (cacheData.value?.kind !== CachedRouteKind.FETCH) {
+        throw new InvariantError(
+          `Expected cached value for cache key ${JSON.stringify(cacheKey)} to be a "FETCH" kind, got ${JSON.stringify(cacheData.value?.kind)} instead.`
+        )
+      }
+
       const combinedTags = [...(ctx.tags || []), ...(ctx.softTags || [])]
       // if a tag was revalidated we don't return stale data
       if (
@@ -453,7 +471,7 @@ export class IncrementalCache implements IncrementalCacheType {
         return null
       }
 
-      revalidate = revalidate || cacheData.value.revalidate
+      const revalidate = ctx.revalidate || cacheData.value.revalidate
       const age =
         (performance.timeOrigin +
           performance.now() -
@@ -464,19 +482,18 @@ export class IncrementalCache implements IncrementalCacheType {
       const data = cacheData.value.data
 
       return {
-        isStale: isStale,
-        value: {
-          kind: CachedRouteKind.FETCH,
-          data,
-          revalidate: revalidate,
-        },
-        revalidateAfter:
-          performance.timeOrigin + performance.now() + revalidate * 1000,
-        isFallback,
-      } satisfies IncrementalCacheEntry
+        isStale,
+        value: { kind: CachedRouteKind.FETCH, data, revalidate },
+      }
+    } else if (cacheData?.value?.kind === CachedRouteKind.FETCH) {
+      throw new InvariantError(
+        `Expected cached value for cache key ${JSON.stringify(cacheKey)} not to be a ${JSON.stringify(ctx.kind)} kind, got "FETCH" instead.`
+      )
     }
 
-    const curRevalidate = this.revalidateTimings.get(toRoute(cacheKey))
+    let entry: IncrementalResponseCacheEntry | null = null
+    const { isFallback } = ctx
+    const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
     let revalidateAfter: Revalidate
@@ -488,7 +505,7 @@ export class IncrementalCache implements IncrementalCacheType {
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
         cacheData?.lastModified || performance.timeOrigin + performance.now(),
-        this.dev ? ctx.kind !== IncrementalCacheKind.FETCH : false,
+        this.dev ?? false,
         ctx.isFallback
       )
       isStale =
@@ -501,7 +518,7 @@ export class IncrementalCache implements IncrementalCacheType {
     if (cacheData) {
       entry = {
         isStale,
-        curRevalidate,
+        cacheControl,
         revalidateAfter,
         value: cacheData.value,
         isFallback,
@@ -520,29 +537,30 @@ export class IncrementalCache implements IncrementalCacheType {
       entry = {
         isStale,
         value: null,
-        curRevalidate,
+        cacheControl,
         revalidateAfter,
         isFallback,
       }
-      this.set(cacheKey, entry.value, ctx)
+      this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }
     return entry
   }
 
-  // populate the incremental cache with new data
+  async set(
+    pathname: string,
+    data: CachedFetchValue | null,
+    ctx: SetIncrementalFetchCacheContext
+  ): Promise<void>
+  async set(
+    pathname: string,
+    data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
+    ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
   async set(
     pathname: string,
     data: IncrementalCacheValue | null,
-    ctx: {
-      revalidate?: Revalidate
-      fetchCache?: boolean
-      fetchUrl?: string
-      fetchIdx?: number
-      tags?: string[]
-      isRoutePPREnabled?: boolean
-      isFallback?: boolean
-    }
-  ) {
+    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+  ): Promise<void> {
     // Even if we otherwise disable caching for testMode or if no fetchCache is
     // configured we still always stash results in the resume data cache if one
     // exists. This is because this is a transient in memory cache that
@@ -580,10 +598,8 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     try {
-      // Set the value for the revalidate seconds so if it changes we can
-      // update the cache with the new value.
-      if (typeof ctx.revalidate !== 'undefined' && !ctx.fetchCache) {
-        this.revalidateTimings.set(toRoute(pathname), ctx.revalidate)
+      if (!ctx.fetchCache && ctx.cacheControl) {
+        this.cacheControls.set(toRoute(pathname), ctx.cacheControl)
       }
 
       await this.cacheHandler?.set(pathname, data, ctx)

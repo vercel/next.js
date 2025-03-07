@@ -65,6 +65,7 @@ mod output;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
+mod read_options;
 mod read_ref;
 pub mod registry;
 mod scope;
@@ -109,6 +110,7 @@ pub use manager::{
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
+pub use read_options::ReadCellOptions;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
 pub use scope::scope;
@@ -126,6 +128,8 @@ pub use vc::{
     VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType,
     VcValueTypeCast,
 };
+
+pub type SliceMap<K, V> = Box<[(K, V)]>;
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;

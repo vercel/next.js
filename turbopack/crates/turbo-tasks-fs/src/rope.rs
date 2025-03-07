@@ -6,7 +6,6 @@ use std::{
     mem,
     ops::{AddAssign, Deref},
     pin::Pin,
-    sync::Arc,
     task::{Context as TaskContext, Poll},
 };
 
@@ -16,7 +15,9 @@ use futures::Stream;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_bytes::ByteBuf;
 use tokio::io::{AsyncRead, ReadBuf};
+use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+use unsize::{CoerceUnsize, Coercion};
 use RopeElem::{Local, Shared};
 
 static EMPTY_BUF: &[u8] = &[];
@@ -141,7 +142,7 @@ impl<T: Into<Bytes>> From<T> for Rope {
         } else {
             Rope {
                 length: bytes.len(),
-                data: InnerRope(Arc::from([Local(bytes)])),
+                data: InnerRope(Arc::from([Local(bytes)]).unsize(Coercion::to_slice())),
             }
         }
     }
@@ -539,7 +540,7 @@ impl InnerRope {
 
 impl Default for InnerRope {
     fn default() -> Self {
-        InnerRope(Arc::from([]))
+        InnerRope(Arc::new([]).unsize(Coercion::to_slice()))
     }
 }
 

@@ -194,6 +194,10 @@ export class NextStartInstance extends NextInstance {
       const curOutput = this._cliOutput.length
       const exportArgs = ['pnpm', 'next', 'build']
 
+      if (this.buildOptions) {
+        exportArgs.push(...this.buildOptions)
+      }
+
       if (this.childProcess) {
         throw new Error(
           `can not run export while server is running, use next.stop() first`

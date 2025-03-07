@@ -77,9 +77,7 @@ impl ParseCss for CssModuleAsset {
         Ok(parse_css(
             *this.source,
             Vc::upcast(self),
-            this.import_context
-                .map(|v| *v)
-                .unwrap_or_else(|| ImportContext::new(vec![], vec![], vec![])),
+            this.import_context.map(|v| *v),
             this.ty,
         ))
     }
@@ -299,7 +297,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: Some(*source_map),
+                source_map: source_map.owned().await?,
             }
             .into())
         } else {

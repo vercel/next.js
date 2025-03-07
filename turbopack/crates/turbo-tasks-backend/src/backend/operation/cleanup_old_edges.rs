@@ -102,8 +102,9 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    let has_active_count = get!(task, Activeness)
-                                        .is_some_and(|a| a.active_counter > 0);
+                                    let has_active_count = ctx.should_track_activeness()
+                                        && get!(task, Activeness)
+                                            .is_some_and(|a| a.active_counter > 0);
                                     drop(task);
                                     if has_active_count {
                                         // TODO combine both operations to avoid the clone

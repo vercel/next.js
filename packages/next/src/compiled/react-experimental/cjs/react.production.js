@@ -370,16 +370,10 @@ exports.__COMPILER_RUNTIME = {
     return ReactSharedInternals.H.useMemoCache(size);
   }
 };
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
-};
 exports.cache = function (fn) {
   return function () {
     return fn.apply(null, arguments);
   };
-};
-exports.captureOwnerStack = function () {
-  return null;
 };
 exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
@@ -457,7 +451,6 @@ exports.experimental_useEffectEvent = function (callback) {
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
-exports.experimental_useResourceEffect = void 0;
 exports.forwardRef = function (render) {
   return { $$typeof: REACT_FORWARD_REF_TYPE, render: render };
 };
@@ -517,6 +510,9 @@ exports.unstable_postpone = function (reason) {
 exports.unstable_useCacheRefresh = function () {
   return ReactSharedInternals.H.useCacheRefresh();
 };
+exports.unstable_useSwipeTransition = function (previous, current, next) {
+  return ReactSharedInternals.H.useSwipeTransition(previous, current, next);
+};
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
@@ -533,8 +529,13 @@ exports.useDebugValue = function () {};
 exports.useDeferredValue = function (value, initialValue) {
   return ReactSharedInternals.H.useDeferredValue(value, initialValue);
 };
-exports.useEffect = function (create, deps) {
-  return ReactSharedInternals.H.useEffect(create, deps);
+exports.useEffect = function (create, createDeps, update) {
+  var dispatcher = ReactSharedInternals.H;
+  if ("function" === typeof update)
+    throw Error(
+      "useEffect CRUD overload is not enabled in this build of React."
+    );
+  return dispatcher.useEffect(create, createDeps);
 };
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
@@ -575,4 +576,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-ff628334-20250205";
+exports.version = "19.1.0-experimental-029e8bd6-20250306";

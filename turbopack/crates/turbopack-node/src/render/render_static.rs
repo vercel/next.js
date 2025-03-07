@@ -15,7 +15,7 @@ use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, EvaluatableAssets},
+    chunk::{ChunkingContext, EvaluatableAsset, EvaluatableAssets},
     error::PrettyPrintError,
     issue::{IssueExt, StyledString},
     module::Module,
@@ -77,7 +77,7 @@ pub async fn render_static_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -204,7 +204,7 @@ struct RenderStreamOptions {
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
-    module: ResolvedVc<Box<dyn Module>>,
+    module: ResolvedVc<Box<dyn EvaluatableAsset>>,
     runtime_entries: ResolvedVc<EvaluatableAssets>,
     fallback_page: ResolvedVc<DevHtmlAsset>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,

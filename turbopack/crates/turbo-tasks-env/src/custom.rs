@@ -24,11 +24,11 @@ impl CustomProcessEnv {
 impl ProcessEnv for CustomProcessEnv {
     #[turbo_tasks::function]
     async fn read_all(&self) -> Result<Vc<EnvMap>> {
-        let prior = self.prior.read_all().await?;
-        let custom = self.custom.await?;
+        let prior = self.prior.read_all().owned().await?;
+        let custom = self.custom.owned().await?;
 
-        let mut extended = prior.clone_value();
-        extended.extend(custom.clone_value());
+        let mut extended = prior;
+        extended.extend(custom);
         Ok(Vc::cell(extended))
     }
 

@@ -35,10 +35,12 @@ import {
   onBeforeRefresh,
   onRefresh,
   onVersionInfo,
+  onStaticIndicator,
+  onDevIndicator,
 } from './client'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
-import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../utils/format-webpack-messages'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -139,6 +141,7 @@ function handleSuccess() {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
+    reportHmrLatency([...turbopackUpdatedModules])
     onBuildOk()
   }
 }
@@ -194,6 +197,7 @@ function handleErrors(errors: any) {
   })
 
   // Only show the first error.
+
   onBuildError(formatted.errors[0])
 
   // Also log them to the console.
@@ -213,7 +217,10 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: number | undefined = undefined
+let startLatency: number | null = null
+let turbopackLastUpdateLatency: number | null = null
+let turbopackUpdatedModules: Set<string> = new Set()
+let isrManifest: Record<string, boolean> = {}
 
 function onBeforeFastRefresh(updatedModules: string[]) {
   if (updatedModules.length > 0) {
@@ -235,26 +242,27 @@ function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
 }
 
 function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
-  if (startLatency) {
-    const endLatency = Date.now()
-    const latency = endLatency - startLatency
-    console.log(`[Fast Refresh] done in ${latency}ms`)
-    sendMessage(
-      JSON.stringify({
-        event: 'client-hmr-latency',
-        id: window.__nextDevClientId,
-        startTime: startLatency,
-        endTime: endLatency,
-        page: window.location.pathname,
-        updatedModules,
-        // Whether the page (tab) was hidden at the time the event occurred.
-        // This can impact the accuracy of the event's timing.
-        isPageHidden: document.visibilityState === 'hidden',
-      })
-    )
-    if (self.__NEXT_HMR_LATENCY_CB) {
-      self.__NEXT_HMR_LATENCY_CB(latency)
-    }
+  if (!startLatency) return
+  // turbopack has a debounce for the BUILT event which we don't want to
+  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
+  let endLatency = turbopackLastUpdateLatency ?? Date.now()
+  const latency = endLatency - startLatency
+  console.log(`[Fast Refresh] done in ${latency}ms`)
+  sendMessage(
+    JSON.stringify({
+      event: 'client-hmr-latency',
+      id: window.__nextDevClientId,
+      startTime: startLatency,
+      endTime: endLatency,
+      page: window.location.pathname,
+      updatedModules,
+      // Whether the page (tab) was hidden at the time the event occurred.
+      // This can impact the accuracy of the event's timing.
+      isPageHidden: document.visibilityState === 'hidden',
+    })
+  )
+  if (self.__NEXT_HMR_LATENCY_CB) {
+    self.__NEXT_HMR_LATENCY_CB(latency)
   }
 }
 
@@ -262,6 +270,25 @@ function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
 function handleAvailableHash(hash: string) {
   // Update last known compilation hash.
   mostRecentCompilationHash = hash
+}
+
+export function handleStaticIndicator() {
+  if (process.env.__NEXT_DEV_INDICATOR) {
+    const routeInfo = window.next.router.components[window.next.router.pathname]
+    const pageComponent = routeInfo?.Component
+    const appComponent = window.next.router.components['/_app']?.Component
+    const isDynamicPage =
+      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo.__N_SSP)
+    const hasAppGetInitialProps =
+      Boolean(appComponent?.getInitialProps) &&
+      appComponent?.getInitialProps !== appComponent?.origGetInitialProps
+
+    const isPageStatic =
+      window.location.pathname in isrManifest ||
+      (!isDynamicPage && !hasAppGetInitialProps)
+
+    onStaticIndicator(isPageStatic)
+  }
 }
 
 /** Handles messages from the sevrer for the Pages Router. */
@@ -272,8 +299,15 @@ function processMessage(obj: HMR_ACTION_TYPES) {
 
   // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
+    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
+      isrManifest = obj.data
+      handleStaticIndicator()
+      break
+    }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
       startLatency = Date.now()
+      turbopackLastUpdateLatency = null
+      turbopackUpdatedModules.clear()
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -285,6 +319,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
 
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) onVersionInfo(obj.versionInfo)
+      if ('devIndicator' in obj) onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -345,7 +380,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
       const updatedModules = extractModulesFromTurbopackMessage(obj.data)
-      onBeforeFastRefresh(updatedModules)
+      onBeforeFastRefresh([...updatedModules])
       for (const listener of turbopackMessageListeners) {
         listener({
           type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
@@ -357,7 +392,10 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         performFullReload(null)
       }
       onRefresh()
-      reportHmrLatency(updatedModules)
+      for (const module of updatedModules) {
+        turbopackUpdatedModules.add(module)
+      }
+      turbopackLastUpdateLatency = Date.now()
       break
     }
     default: {

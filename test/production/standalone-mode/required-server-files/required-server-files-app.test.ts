@@ -114,9 +114,7 @@ describe('required server files app router', () => {
       },
     })
     expect(res.status).toBe(200)
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=31536000, stale-while-revalidate'
-    )
+    expect(res.headers.get('cache-control')).toBe('s-maxage=31536000')
   })
 
   it('should handle optional catchall', async () => {
@@ -176,7 +174,7 @@ describe('required server files app router', () => {
     })
     expect(res.status).toBe(200)
     expect(res.headers.get('cache-control')).toBe(
-      's-maxage=3600, stale-while-revalidate'
+      's-maxage=3600, stale-while-revalidate=31532400'
     )
   })
 
@@ -303,5 +301,23 @@ describe('required server files app router', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('x-next-cache-tags')).toBeFalsy()
     }
+  })
+
+  it('should not override params with query params', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/search/[key]',
+      { key: 'searchParams', nxtPkey: 'params' },
+      {
+        headers: {
+          'x-matched-path': '/search/[key]',
+        },
+      }
+    )
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('dd[data-params]').text()).toBe('params')
+    expect($('dd[data-searchParams]').text()).toBe('searchParams')
   })
 })

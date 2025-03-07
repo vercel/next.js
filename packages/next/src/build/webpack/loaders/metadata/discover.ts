@@ -86,7 +86,9 @@ export async function createStaticMetadataFromRoute(
         const extension = staticManifestExtension.includes(ext.slice(1))
           ? ext.slice(1)
           : 'webmanifest'
-        staticImagesMetadata.manifest = JSON.stringify(`/${name}.${extension}`)
+        staticImagesMetadata.manifest = JSON.stringify(
+          `${basePath}/${name}.${extension}`
+        )
       }
       return
     }

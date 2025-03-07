@@ -10,11 +10,11 @@ use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkableModule, ChunkingContext,
+        ChunkingContextExt, EvaluatableAssets,
     },
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -101,14 +101,14 @@ impl DevHtmlAsset {
 impl DevHtmlAsset {
     #[turbo_tasks::function]
     pub async fn with_path(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.path = path;
         Ok(html.cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_body(self: Vc<Self>, body: RcStr) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.body = Some(body);
         Ok(html.cell())
     }
@@ -162,7 +162,11 @@ impl DevHtmlAsset {
                     )
                 } else {
                     chunking_context.root_chunk_group_assets(
-                        *ResolvedVc::upcast(chunkable_module),
+                        chunkable_module.ident(),
+                        ChunkGroup::Entry {
+                            entries: vec![ResolvedVc::upcast(chunkable_module)],
+                            ty: ChunkGroupType::Evaluated,
+                        },
                         *module_graph,
                     )
                 };

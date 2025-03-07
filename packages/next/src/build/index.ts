@@ -3,7 +3,7 @@ import type { PagesManifest } from './webpack/plugins/pages-manifest-plugin'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { MiddlewareManifest } from './webpack/plugins/middleware-plugin'
 import type { ActionManifest } from './webpack/plugins/flight-client-entry-plugin'
-import type { Revalidate } from '../server/lib/revalidate'
+import type { CacheControl, Revalidate } from '../server/lib/cache-control'
 
 import '../lib/setup-exception-listeners'
 
@@ -80,7 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
-  RESPONSE_CONFIG_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -209,7 +209,7 @@ import { turbopackBuild } from './turbopack-build'
 
 type Fallback = null | boolean | string
 
-export interface SsgRoute {
+export interface PrerenderManifestRoute {
   dataRoute: string | null
   experimentalBypassFor?: RouteHas[]
 
@@ -224,9 +224,19 @@ export interface SsgRoute {
   initialStatus?: number
 
   /**
-   * The revalidation configuration for this route.
+   * The revalidate value for this route. This might be inferred from:
+   * - route segment configs
+   * - fetch calls
+   * - unstable_cache
+   * - "use cache"
    */
   initialRevalidateSeconds: Revalidate
+
+  /**
+   * The expire value for this route, which is inferred from the "use cache"
+   * functions that are used by the route, or the expireTime config.
+   */
+  initialExpireSeconds: number | undefined
 
   /**
    * The prefetch data route associated with this page. If not defined, this
@@ -258,7 +268,7 @@ export interface SsgRoute {
   allowHeader: string[]
 }
 
-export interface DynamicSsgRoute {
+export interface DynamicPrerenderManifestRoute {
   dataRoute: string | null
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
@@ -269,6 +279,11 @@ export interface DynamicSsgRoute {
    * route.
    */
   fallbackRevalidate: Revalidate | undefined
+
+  /**
+   * When defined, it describes the expire configuration for the fallback route.
+   */
+  fallbackExpire: number | undefined
 
   /**
    * The headers that should used when serving the fallback.
@@ -328,8 +343,8 @@ const ALLOWED_HEADERS: string[] = [
 
 export type PrerenderManifest = {
   version: 4
-  routes: { [route: string]: SsgRoute }
-  dynamicRoutes: { [route: string]: DynamicSsgRoute }
+  routes: { [route: string]: PrerenderManifestRoute }
+  dynamicRoutes: { [route: string]: DynamicPrerenderManifestRoute }
   notFoundRoutes: string[]
   preview: __ApiPreviewProps
 }
@@ -645,7 +660,7 @@ async function writeStandaloneDirectory(
         const middlewareOutput = path.join(
           distDir,
           STANDALONE_DIRECTORY,
-          requiredServerFiles.config.distDir,
+          path.relative(outputFileTracingRoot, distDir),
           SERVER_DIRECTORY,
           'middleware.js'
         )
@@ -1345,24 +1360,6 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
-      if (config.experimental.streamingMetadata) {
-        // Write html limited bots config to response-config-manifest
-        const responseConfigManifestPath = path.join(
-          distDir,
-          RESPONSE_CONFIG_MANIFEST
-        )
-        const responseConfigManifest: {
-          version: number
-          htmlLimitedBots: string
-        } = {
-          version: 0,
-          htmlLimitedBots:
-            config.experimental.htmlLimitedBots ||
-            HTML_LIMITED_BOT_UA_RE_STRING,
-        }
-        await writeManifest(responseConfigManifestPath, responseConfigManifest)
-      }
-
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
       await writeFileUtf8(
@@ -1432,22 +1429,16 @@ export default async function build(
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
-          } = await turbopackBuild(true)
+          } = await turbopackBuild(
+            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
+              process.env.NEXT_TURBOPACK_USE_WORKER !== '0'
+          )
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
           buildTraceContext = rest.buildTraceContext
 
-          let durationString
-          if (compilerDuration > 120) {
-            durationString = `${Math.round(compilerDuration / 6) / 10}min`
-          } else if (compilerDuration > 20) {
-            durationString = `${Math.round(compilerDuration)}s`
-          } else if (compilerDuration > 2) {
-            durationString = `${Math.round(compilerDuration * 10) / 10}s`
-          } else {
-            durationString = `${Math.round(compilerDuration * 1000)}ms`
-          }
+          const durationString = durationToString(compilerDuration)
           Log.event(`Compiled successfully in ${durationString}`)
 
           telemetry.record(
@@ -1534,7 +1525,8 @@ export default async function build(
               traceMemoryUsage('Finished client compilation', nextBuildSpan)
             })
 
-            Log.event('Compiled successfully')
+            const durationString = durationToString(durationInSeconds)
+            Log.event(`Compiled successfully in ${durationString}`)
 
             telemetry.record(
               eventBuildCompleted(pagesPaths, {
@@ -2155,7 +2147,7 @@ export default async function build(
                   isRoutePPREnabled,
                   isHybridAmp,
                   ssgPageRoutes,
-                  initialRevalidateSeconds: false,
+                  initialCacheControl: undefined,
                   runtime: pageRuntime,
                   pageDuration: undefined,
                   ssgPageDurations: undefined,
@@ -2270,9 +2262,6 @@ export default async function build(
               path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              ...(config.experimental.streamingMetadata
-                ? [RESPONSE_CONFIG_MANIFEST]
-                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
@@ -2370,6 +2359,18 @@ export default async function build(
                 originalSource: '/:path*',
               },
             ],
+          }
+
+          if (turboNextBuild) {
+            await writeManifest(
+              path.join(
+                distDir,
+                'static',
+                buildId,
+                TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST
+              ),
+              functionsConfigManifest.functions['/_middleware'].matchers || []
+            )
           }
         }
       }
@@ -2726,6 +2727,31 @@ export default async function build(
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
 
+          const getCacheControl = (
+            exportPath: string,
+            defaultRevalidate: Revalidate = false
+          ): CacheControl => {
+            const cacheControl =
+              exportResult.byPath.get(exportPath)?.cacheControl
+
+            if (!cacheControl) {
+              return { revalidate: defaultRevalidate, expire: undefined }
+            }
+
+            if (
+              cacheControl.revalidate !== false &&
+              cacheControl.revalidate > 0 &&
+              cacheControl.expire === undefined
+            ) {
+              return {
+                revalidate: cacheControl.revalidate,
+                expire: config.expireTime,
+              }
+            }
+
+            return cacheControl
+          }
+
           if (debugOutput || process.env.NEXT_SSG_FETCH_METRICS === '1') {
             recordFetchMetrics(exportResult)
           }
@@ -2757,7 +2783,7 @@ export default async function build(
 
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
-              exportResult.byPath.get(page)?.revalidate === 0
+              getCacheControl(page).revalidate === 0
 
             if (hasRevalidateZero && pageInfos.get(page)?.isStatic) {
               // if the page was marked as being static, but it contains dynamic data
@@ -2779,6 +2805,10 @@ export default async function build(
                 ? true
                 : undefined
 
+            const htmlBotsRegexString =
+              // The htmlLimitedBots has been converted to a string during loadConfig
+              config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+
             // this flag is used to selectively bypass the static cache and invoke the lambda directly
             // to enable server actions on static routes
             const bypassFor: RouteHas[] = [
@@ -2788,6 +2818,17 @@ export default async function build(
                 key: 'content-type',
                 value: 'multipart/form-data;.*',
               },
+              // If it's PPR rendered non-static page, bypass the PPR cache when streaming metadata is enabled.
+              // This will skip the postpone data for those bots requests and instead produce a dynamic render.
+              ...(isRoutePPREnabled
+                ? [
+                    {
+                      type: 'header',
+                      key: 'user-agent',
+                      value: htmlBotsRegexString,
+                    },
+                  ]
+                : []),
             ]
 
             // We should collect all the dynamic routes into a single array for
@@ -2858,16 +2899,21 @@ export default async function build(
               if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
               const {
-                revalidate = appConfig.revalidate ?? false,
                 metadata = {},
                 hasEmptyPrelude,
                 hasPostponed,
               } = exportResult.byPath.get(route.pathname) ?? {}
 
+              const cacheControl = getCacheControl(
+                route.pathname,
+                appConfig.revalidate
+              )
+
               pageInfos.set(route.pathname, {
                 ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
+                initialCacheControl: cacheControl,
               })
 
               // update the page (eg /blog/[slug]) to also have the postpone metadata
@@ -2875,9 +2921,10 @@ export default async function build(
                 ...(pageInfos.get(page) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
+                initialCacheControl: cacheControl,
               })
 
-              if (revalidate !== 0) {
+              if (cacheControl.revalidate !== 0) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
                 let dataRoute: string | null
@@ -2910,7 +2957,8 @@ export default async function build(
                     : undefined,
                   experimentalPPR: isRoutePPREnabled,
                   experimentalBypassFor: bypassFor,
-                  initialRevalidateSeconds: revalidate,
+                  initialRevalidateSeconds: cacheControl.revalidate,
+                  initialExpireSeconds: cacheControl.expire,
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
@@ -2947,8 +2995,11 @@ export default async function build(
               for (const route of dynamicRoutes) {
                 const normalizedRoute = normalizePagePath(route.pathname)
 
-                const { metadata, revalidate } =
-                  exportResult.byPath.get(route.pathname) ?? {}
+                const metadata = exportResult.byPath.get(
+                  route.pathname
+                )?.metadata
+
+                const cacheControl = getCacheControl(route.pathname)
 
                 let dataRoute: string | null = null
                 if (!isAppRouteHandler) {
@@ -2991,12 +3042,13 @@ export default async function build(
                 const fallbackMode =
                   route.fallbackMode ?? FallbackMode.NOT_FOUND
 
-                // When we're configured to serve a prerender, we should use the
-                // fallback revalidate from the export result. If it can't be
-                // found, mark that we should keep the shell forever (`false`).
-                let fallbackRevalidate: Revalidate | undefined =
+                // When the route is configured to serve a prerender, we should
+                // use the cache control from the export result. If it can't be
+                // found, mark that we should keep the shell forever
+                // (revalidate: `false` via `getCacheControl()`).
+                const fallbackCacheControl =
                   isRoutePPREnabled && fallbackMode === FallbackMode.PRERENDER
-                    ? revalidate ?? false
+                    ? cacheControl
                     : undefined
 
                 const fallback: Fallback = fallbackModeToFallbackField(
@@ -3026,7 +3078,8 @@ export default async function build(
                   ),
                   dataRoute,
                   fallback,
-                  fallbackRevalidate,
+                  fallbackRevalidate: fallbackCacheControl?.revalidate,
+                  fallbackExpire: fallbackCacheControl?.expire,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
                   fallbackRootParams: route.fallbackRootParams,
@@ -3271,10 +3324,11 @@ export default async function build(
                   for (const locale of i18n.locales) {
                     const localePage = `/${locale}${page === '/' ? '' : page}`
 
+                    const cacheControl = getCacheControl(localePage)
+
                     prerenderManifest.routes[localePage] = {
-                      initialRevalidateSeconds:
-                        exportResult.byPath.get(localePage)?.revalidate ??
-                        false,
+                      initialRevalidateSeconds: cacheControl.revalidate,
+                      initialExpireSeconds: cacheControl.expire,
                       experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
@@ -3288,9 +3342,11 @@ export default async function build(
                     }
                   }
                 } else {
+                  const cacheControl = getCacheControl(page)
+
                   prerenderManifest.routes[page] = {
-                    initialRevalidateSeconds:
-                      exportResult.byPath.get(page)?.revalidate ?? false,
+                    initialRevalidateSeconds: cacheControl.revalidate,
+                    initialExpireSeconds: cacheControl.expire,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
@@ -3304,10 +3360,8 @@ export default async function build(
                     allowHeader: ALLOWED_HEADERS,
                   }
                 }
-                // Set Page Revalidation Interval
                 if (pageInfo) {
-                  pageInfo.initialRevalidateSeconds =
-                    exportResult.byPath.get(page)?.revalidate ?? false
+                  pageInfo.initialCacheControl = getCacheControl(page)
                 }
               } else {
                 // For a dynamic SSG page, we did not copy its data exports and only
@@ -3353,15 +3407,11 @@ export default async function build(
                     )
                   }
 
-                  const initialRevalidateSeconds =
-                    exportResult.byPath.get(route.pathname)?.revalidate ?? false
-
-                  if (typeof initialRevalidateSeconds === 'undefined') {
-                    throw new Error("Invariant: page wasn't built")
-                  }
+                  const cacheControl = getCacheControl(route.pathname)
 
                   prerenderManifest.routes[route.pathname] = {
-                    initialRevalidateSeconds,
+                    initialRevalidateSeconds: cacheControl.revalidate,
+                    initialExpireSeconds: cacheControl.expire,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: page,
@@ -3375,9 +3425,8 @@ export default async function build(
                     allowHeader: ALLOWED_HEADERS,
                   }
 
-                  // Set route Revalidation Interval
                   if (pageInfo) {
-                    pageInfo.initialRevalidateSeconds = initialRevalidateSeconds
+                    pageInfo.initialCacheControl = cacheControl
                   }
                 }
               }
@@ -3479,6 +3528,7 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackExpire: undefined,
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
@@ -3624,4 +3674,18 @@ export default async function build(
       })
     }
   }
+}
+
+function durationToString(compilerDuration: number) {
+  let durationString
+  if (compilerDuration > 120) {
+    durationString = `${(compilerDuration / 60).toFixed(1)}min`
+  } else if (compilerDuration > 40) {
+    durationString = `${compilerDuration.toFixed(0)}s`
+  } else if (compilerDuration > 2) {
+    durationString = `${compilerDuration.toFixed(1)}s`
+  } else {
+    durationString = `${(compilerDuration * 1000).toFixed(0)}ms`
+  }
+  return durationString
 }

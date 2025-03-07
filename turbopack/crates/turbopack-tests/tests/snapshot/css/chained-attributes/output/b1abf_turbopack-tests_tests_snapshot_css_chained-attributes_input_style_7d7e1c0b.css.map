@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css"],"sourcesContent":["@import url(\"./a.css\") layer(layer) supports(not(display: inline-grid)) print;\n\n.style {\n  color: yellow;\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 1, "column": 18}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
