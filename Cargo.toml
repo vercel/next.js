@@ -426,6 +426,8 @@ unicode-segmentation = "1.10.1"
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
+vergen = { version = "9.0.4", features = ["cargo"] }
+vergen-git2 = { version = "1.0.5", features = ["cargo"] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
