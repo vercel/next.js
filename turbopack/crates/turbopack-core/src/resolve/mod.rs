@@ -41,9 +41,10 @@ use crate::{
     output::{OutputAsset, OutputAssets},
     package_json::{read_package_json, PackageJsonIssue},
     raw_module::RawModule,
-    reference_type::ReferenceType,
+    reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
         node::{node_cjs_resolve_options, node_esm_resolve_options},
+        parse::stringify_data_uri,
         pattern::{read_matches, PatternMatch},
         plugin::AfterResolvePlugin,
     },
@@ -1588,10 +1589,14 @@ pub async fn resolve_inline(
             handle_before_resolve_plugins(lookup_path, reference_type.clone(), request, options)
                 .await?;
 
+        let retain_data_url = matches!(
+            *reference_type,
+            ReferenceType::Url(UrlReferenceSubType::CssUrl)
+        );
         let raw_result = match before_plugins_result {
             Some(result) => result,
             None => {
-                resolve_internal(lookup_path, request, options)
+                resolve_internal(lookup_path, request, options, retain_data_url)
                     .resolve()
                     .await?
             }
@@ -1756,14 +1761,16 @@ async fn resolve_internal(
     lookup_path: ResolvedVc<FileSystemPath>,
     request: ResolvedVc<Request>,
     options: ResolvedVc<ResolveOptions>,
+    retain_data_url: bool,
 ) -> Result<Vc<ResolveResult>> {
-    resolve_internal_inline(*lookup_path, *request, *options).await
+    resolve_internal_inline(*lookup_path, *request, *options, retain_data_url).await
 }
 
 async fn resolve_internal_inline(
     lookup_path: Vc<FileSystemPath>,
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
+    retain_data_url: bool,
 ) -> Result<Vc<ResolveResult>> {
     let span = {
         let lookup_path = lookup_path.to_string().await?.to_string();
@@ -1818,7 +1825,9 @@ async fn resolve_internal_inline(
             Request::Alternatives { requests } => {
                 let results = requests
                     .iter()
-                    .map(|req| async { resolve_internal_inline(lookup_path, **req, options).await })
+                    .map(|req| async {
+                        resolve_internal_inline(lookup_path, **req, options, retain_data_url).await
+                    })
                     .try_join()
                     .await?;
 
@@ -1951,6 +1960,7 @@ async fn resolve_internal_inline(
                     lookup_path.root(),
                     relative,
                     options,
+                    retain_data_url,
                 ))
                 .await?
             }
@@ -2003,11 +2013,29 @@ async fn resolve_internal_inline(
                 media_type,
                 encoding,
                 data,
-            } => *ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
-                DataUriSource::new(media_type.clone(), encoding.clone(), **data, lookup_path)
-                    .to_resolved()
-                    .await?,
-            ))),
+            } => {
+                if !retain_data_url {
+                    *ResolveResult::primary(ResolveResultItem::Source(ResolvedVc::upcast(
+                        DataUriSource::new(
+                            media_type.clone(),
+                            encoding.clone(),
+                            **data,
+                            lookup_path,
+                        )
+                        .to_resolved()
+                        .await?,
+                    )))
+                } else {
+                    let uri: RcStr = stringify_data_uri(media_type, encoding, *data)
+                        .await?
+                        .into();
+                    *ResolveResult::primary(ResolveResultItem::External {
+                        name: uri,
+                        ty: ExternalType::Url,
+                        traced: ExternalTraced::Untraced,
+                    })
+                }
+            }
             Request::Uri {
                 protocol,
                 remainder,
@@ -2099,9 +2127,10 @@ async fn resolve_into_folder(
                         } else {
                             options
                         };
-                        let result = &*resolve_internal_inline(*package_path, *request, options)
-                            .await?
-                            .await?;
+                        let result =
+                            &*resolve_internal_inline(*package_path, *request, options, false)
+                                .await?
+                                .await?;
                         // we are not that strict when a main field fails to resolve
                         // we continue to try other alternatives
                         if !result.is_unresolvable_ref() {
@@ -2137,9 +2166,11 @@ async fn resolve_into_folder(
 
     let request = Request::parse(Value::new(pattern));
 
-    Ok(resolve_internal_inline(*package_path, request, options)
-        .await?
-        .with_request(".".into()))
+    Ok(
+        resolve_internal_inline(*package_path, request, options, false)
+            .await?
+            .with_request(".".into()),
+    )
 }
 
 #[tracing::instrument(level = Level::TRACE, skip_all)]
@@ -2424,6 +2455,7 @@ async fn apply_in_package(
                         .with_query(query)
                         .with_fragment(fragment),
                     options,
+                    false,
                 )
                 .with_replaced_request_key(value.into(), Value::new(request_key))
                 .with_affecting_sources(refs.into_iter().map(|src| *src).collect()),
@@ -2596,8 +2628,13 @@ async fn resolve_module_request(
         let relative = Request::relative(Value::new(pattern), query, fragment, true)
             .to_resolved()
             .await?;
-        let relative_result =
-            Box::pin(resolve_internal_inline(lookup_path, *relative, options)).await?;
+        let relative_result = Box::pin(resolve_internal_inline(
+            lookup_path,
+            *relative,
+            options,
+            false,
+        ))
+        .await?;
         let relative_result = relative_result
             .with_replaced_request_key(module_prefix, Value::new(RequestKey::new(module.into())));
 
@@ -2683,7 +2720,7 @@ async fn resolve_into_package(
         let relative = Request::relative(Value::new(new_pat), query, fragment, true)
             .to_resolved()
             .await?;
-        results.push(resolve_internal_inline(*package_path, *relative, *options).await?);
+        results.push(resolve_internal_inline(*package_path, *relative, *options, false).await?);
     }
 
     Ok(merge_results(results))
@@ -2710,7 +2747,7 @@ async fn resolve_import_map_result(
             if request == original_request && lookup_path == original_lookup_path {
                 None
             } else {
-                let result = resolve_internal(lookup_path, request, options);
+                let result = resolve_internal(lookup_path, request, options, false);
                 Some(result.with_replaced_request_key_pattern(
                     request.request_pattern(),
                     original_request.request_pattern(),
@@ -2751,6 +2788,7 @@ async fn resolve_import_map_result(
                             node_esm_resolve_options(alias_lookup_path.root())
                         }
                     },
+                    false,
                 )
                 .await?
                 .is_unresolvable_ref();
@@ -2896,8 +2934,13 @@ async fn handle_exports_imports_field(
             .to_resolved()
             .await?;
 
-            let resolve_result =
-                Box::pin(resolve_internal_inline(package_path, *request, options)).await?;
+            let resolve_result = Box::pin(resolve_internal_inline(
+                package_path,
+                *request,
+                options,
+                false,
+            ))
+            .await?;
             if conditions.is_empty() {
                 resolved_results.push(resolve_result.with_request(path.into()));
             } else {
