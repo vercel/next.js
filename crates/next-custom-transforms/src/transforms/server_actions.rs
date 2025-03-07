@@ -446,7 +446,7 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
-        add_turbopack_disable_export_merging_comment(arrow.span, &self.comments);
+        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -569,7 +569,11 @@ impl<C: Comments> ServerActions<C> {
         new_params.append(&mut function.params);
 
         let action_name: Atom = self.gen_action_ident();
-        let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
+        let mut action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
+        if action_ident.span.lo == self.start_pos {
+            action_ident.span = Span::dummy_with_cmt();
+        }
+
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
@@ -589,10 +593,7 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
-        add_turbopack_disable_export_merging_comment(
-            fn_name.as_ref().map_or(function.span, |name| name.span),
-            &self.comments,
-        );
+        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -769,7 +770,7 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
             arrow.span,
         );
-        add_turbopack_disable_export_merging_comment(arrow.span, &self.comments);
+        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -841,10 +842,7 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
             function.span,
         );
-        add_turbopack_disable_export_merging_comment(
-            fn_name.as_ref().map_or(function.span, |name| name.span),
-            &self.comments,
-        );
+        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
