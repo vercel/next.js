@@ -5,7 +5,7 @@ on:
     branches:
       - main
   pull_request:
-    types: ['opened', 'reopened', 'synchronize']
+    types: ['labeled']
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.sha }}
@@ -27,6 +27,7 @@ jobs:
       - 'linux'
       - 'x64'
       - 'metal'
+    if: ${{ github.event.label.name == 'benchmark' }}
     outputs:
       crates: ${{ steps.list-crates.outputs.crates }}
     steps:
