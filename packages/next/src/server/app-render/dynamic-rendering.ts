@@ -508,14 +508,10 @@ export function createDynamicAccessDebugErrors(
 
     const filteredStack = filteredStackLines.join('\n')
 
-    // TODO: Do we even need to include the expression here, since we're showing
-    // the source of the call site when printing the error?
     const error = new Error(`Dynamic usage detected`)
 
     // Make sure the default "Error: " prefix is not used when the error is
-    // logged. This only works for the terminal though, because Flight does not
-    // serialize the error name. So when replaying the error in the browser, the
-    // "Error: " prefix will be used unfortunately.
+    // logged.
     error.name = 'Debug'
     error.stack = `${error.message}\n${filteredStack}`
 
