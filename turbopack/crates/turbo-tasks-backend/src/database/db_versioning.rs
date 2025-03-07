@@ -7,7 +7,7 @@ use std::{
 
 use anyhow::Result;
 
-/// Information gathered by `vergen_git2` in the top-level binary crate and passed down. This
+/// Information gathered by `vergen_gitcl` in the top-level binary crate and passed down. This
 /// information must be computed in the top-level crate for cargo incremental compilation to work
 /// correctly.
 ///

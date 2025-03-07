@@ -142,7 +142,7 @@ anyhow = { workspace = true }
 napi-build = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
-vergen-git2 = { workspace = true }
+vergen-gitcl = { workspace = true }
 
 # build-dependencies for the native, non-wasm32 build
 [target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]

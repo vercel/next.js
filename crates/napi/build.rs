@@ -9,7 +9,7 @@ fn main() -> anyhow::Result<()> {
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),
     // So failing build if this fails.
-    let cargo = vergen_git2::CargoBuilder::default()
+    let cargo = vergen_gitcl::CargoBuilder::default()
         .target_triple(true)
         .build()?;
     // We use the git dirty state to disable persistent caching (persistent caching relies on a
@@ -27,7 +27,7 @@ fn main() -> anyhow::Result<()> {
     // top-level crate has changed (which would've triggered our rebuild), then the resulting binary
     // must be equivalent to a clean build anyways. Therefore, persistent caching using the HEAD
     // commit hash as a version is okay.
-    let git = vergen_git2::Git2Builder::default()
+    let git = vergen_gitcl::GitclBuilder::default()
         .dirty(/* include_untracked */ true)
         .describe(
             /* tags */ true,
@@ -35,7 +35,7 @@ fn main() -> anyhow::Result<()> {
             /* matches */ Some("v[0-9]*"), // find the last version tag
         )
         .build()?;
-    vergen_git2::Emitter::default()
+    vergen_gitcl::Emitter::default()
         .add_instructions(&cargo)?
         .add_instructions(&git)?
         .fail_on_error()
