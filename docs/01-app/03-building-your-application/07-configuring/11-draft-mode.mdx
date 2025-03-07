@@ -212,3 +212,93 @@ export default async function Page() {
 ```
 
 If you access the draft Route Handler (with `secret` and `slug`) from your headless CMS or manually using the URL, you should now be able to see the draft content. And, if you update your draft without publishing, you should be able to view the draft.
+
+## Draft Mode and Route Segment Configuration
+
+### Understanding draftMode Behavior
+
+`draftMode` in Next.js enables dynamic rendering of pages that are otherwise statically generated. When enabled, it bypasses static generation and fetches data dynamically on every request, making it useful for previewing draft content from a headless CMS.
+
+### How draftMode Interacts with force-static and dynamicParams
+
+#### `force-static`
+
+By default, pages configured with `force-static` are pre-rendered at build time. However, when `draftMode` is enabled, it **takes precedence** over `force-static` due to the `__prerender_bypass` cookie. This forces the page to be dynamically rendered even if `force-static` is set.
+
+#### **Example: Overriding `force-static` with `draftMode`**
+
+```tsx filename="app/page.tsx"
+import { draftMode } from 'next/headers'
+
+export default function Page() {
+  if (draftMode().isEnabled) {
+    return <p>Draft Mode Enabled - Dynamic Content</p>
+  }
+  return <p>Static Content</p>
+}
+
+export const config = {
+  forceStatic: true, // Normally enforces static rendering
+}
+```
+
+- Without `draftMode`: The page is statically generated at build time.
+- With `draftMode`: The page is dynamically rendered on each request, ignoring `force-static`.
+
+#### `dynamicParams`
+
+Setting `dynamicParams: false` ensures that only predefined route parameters are allowed, preventing the creation of arbitrary dynamic routes at request time. Since `force-static` implicitly sets `dynamicParams: false`, they are already aligned.
+
+However, enabling `draftMode` **does not override** `dynamicParams`. If a page requires predefined parameters, `draftMode` alone will not change that behavior.
+
+#### **Example: `dynamicParams: false` with `draftMode`**
+
+```tsx filename="app/page.tsx"
+export async function generateStaticParams() {
+  return [{ slug: 'example' }]
+}
+
+export default function Page({ params }) {
+  return <p>Page for {params.slug}</p>
+}
+
+export const config = {
+  dynamicParams: false, // Only allows pre-generated params
+}
+```
+
+- Without `draftMode`: Only predefined slugs (e.g., `example`) are allowed, others result in a 404.
+- With `draftMode`: The behavior remains unchanged—only valid pre-generated params are allowed.
+
+### Known Issue: Cookie Unavailability in `force-static` Mode
+
+When `force-static` is enabled, cookies—including those used by `draftMode`—are inaccessible. This may cause unexpected behavior if your application depends on cookies.
+
+#### Example Issue: Cookies Unavailable
+
+```tsx filename="app/page.tsx"
+import { cookies } from 'next/headers'
+
+export default function Page() {
+  const cookie = cookies().get('test') // May not be accessible
+  return <p>Cookie: {cookie?.value ?? 'Unavailable'}</p>
+}
+
+export const config = {
+  forceStatic: true,
+}
+```
+
+### **Workaround**
+
+To avoid this limitation, use **headers or query parameters** instead of cookies for draft mode authentication when using `force-static`.
+
+### Summary of `draftMode` Interactions
+
+| Feature                | Behavior with `force-static` | Behavior with `draftMode`           |
+| ---------------------- | ---------------------------- | ----------------------------------- |
+| Static Rendering       | Enabled by default           | Bypassed, forcing dynamic rendering |
+| `dynamicParams: false` | Enforced                     | Not affected                        |
+| Cookie Availability    | Not available                | Not available in `force-static`     |
+
+By understanding these interactions, you can correctly configure your Next.js application while utilizing `draftMode` effectively.
