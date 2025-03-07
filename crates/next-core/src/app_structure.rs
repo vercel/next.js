@@ -1245,6 +1245,17 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             );
         }
 
+        let mut modules = directory_tree.modules.clone();
+
+        if modules.layout.is_none() {
+            modules.layout = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/default-layout.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         let not_found_tree = AppPageLoaderTree {
