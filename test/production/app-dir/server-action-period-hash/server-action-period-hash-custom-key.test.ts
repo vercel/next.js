@@ -42,7 +42,7 @@ describe('app-dir - server-action-period-hash-custom-key', () => {
     compareServerActionManifestKeys(firstManifest, secondManifest, false)
   })
 
-  it('should have different manifest if the encryption key from process env is same', async () => {
+  it('should have same manifest if the encryption key from process env is same', async () => {
     process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
     await next.build()
     const firstManifest = await getServerActionManifest(next)
