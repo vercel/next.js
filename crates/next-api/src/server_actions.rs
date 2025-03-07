@@ -7,7 +7,6 @@ use next_core::{
     },
     util::NextRuntime,
 };
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
     common::comments::Comments,
@@ -406,7 +405,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(FxHashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {
