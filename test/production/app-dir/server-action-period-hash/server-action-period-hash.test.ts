@@ -7,18 +7,9 @@ async function getServerActionManifest(next) {
   return JSON.parse(content)
 }
 
-function compareServerActionManifestKeys(a, b, equal) {
-  a = a.node
-  b = b.node
-
-  const keysA = Object.keys(a)
-  const keysB = Object.keys(b)
-
-  if (equal) {
-    expect(keysA).toEqual(keysB)
-  } else {
-    expect(keysA).not.toEqual(keysB)
-  }
+async function getServerActionManifestNodeKeys(next) {
+  const manifest = await getServerActionManifest(next)
+  return Object.keys(manifest.node)
 }
 
 describe('app-dir - server-action-period-hash', () => {
@@ -29,23 +20,23 @@ describe('app-dir - server-action-period-hash', () => {
 
   it('should have same manifest between continuous two builds', async () => {
     await next.build()
-    const firstManifest = await getServerActionManifest(next)
+    const firstManifest = await getServerActionManifestNodeKeys(next)
 
     await next.build()
-    const secondManifest = await getServerActionManifest(next)
+    const secondManifest = await getServerActionManifestNodeKeys(next)
 
-    compareServerActionManifestKeys(firstManifest, secondManifest, true)
+    expect(firstManifest).toEqual(secondManifest)
   })
 
   it('should have different manifest between two builds with period hash', async () => {
     await next.build()
-    const firstManifest = await getServerActionManifest(next)
+    const firstManifest = await getServerActionManifestNodeKeys(next)
 
     await next.remove('.next') // dismiss cache
     await next.build()
 
-    const secondManifest = await getServerActionManifest(next)
+    const secondManifest = await getServerActionManifestNodeKeys(next)
 
-    compareServerActionManifestKeys(firstManifest, secondManifest, false)
+    expect(firstManifest).not.toEqual(secondManifest)
   })
 })

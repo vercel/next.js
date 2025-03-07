@@ -6,6 +6,7 @@ async function getServerActionManifest(next) {
   )
   return JSON.parse(content)
 }
+
 async function getServerActionManifestNodeKeys(next) {
   const manifest = await getServerActionManifest(next)
   return Object.keys(manifest.node)
