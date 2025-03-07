@@ -34,7 +34,7 @@ tracing = { workspace = true }
 rustc-hash = { workspace = true }
 react_remove_properties = "0.33.0"
 remove_console = "0.34.0"
-
+urlencoding = { workspace = true }
 auto-hash-map = { workspace = true }
 
 swc_core = { workspace = true, features = [

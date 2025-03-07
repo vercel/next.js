@@ -4520,6 +4520,7 @@ dependencies = [
  "turbopack-static",
  "turbopack-trace-server",
  "turbopack-trace-utils",
+ "urlencoding",
 ]
 
 [[package]]
