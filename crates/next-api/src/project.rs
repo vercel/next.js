@@ -704,6 +704,9 @@ impl Project {
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
+        if root.await?.path.is_empty() {
+            panic!("Project root path is empty");
+        }
         let project_relative = this.project_path.strip_prefix(&*this.root_path).unwrap();
         let project_relative = project_relative
             .strip_prefix(MAIN_SEPARATOR)
