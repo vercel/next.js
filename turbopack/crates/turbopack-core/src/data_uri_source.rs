@@ -47,7 +47,7 @@ impl Source for DataUriSource {
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let content_type = self.media_type.split(";").next().unwrap().into();
         let filename = format!(
-            "data-{}",
+            "data:{}",
             &encode_hex(FxBuildHasher.hash_one(&*self.data.await?))[0..6]
         );
         Ok(
