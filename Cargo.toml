@@ -399,9 +399,6 @@ serde_bytes = "0.11.15"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
-shadow-rs = { version = "0.37.0", default-features = false, features = [
-  "tzdb",
-] }
 smallvec = { version = "1.13.1", features = [
   "serde",
   "const_generics",
