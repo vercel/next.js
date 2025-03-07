@@ -13117,6 +13117,8 @@ function setInitialProperties(domElement, tag, props) {
           }
       return;
     case "dialog":
+      listenToNonDelegatedEvent("beforetoggle", domElement);
+      listenToNonDelegatedEvent("toggle", domElement);
       listenToNonDelegatedEvent("cancel", domElement);
       listenToNonDelegatedEvent("close", domElement);
       break;
@@ -15322,14 +15324,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1789 = React.version;
 if (
-  "19.1.0-canary-e03ac20f-20250305" !==
+  "19.1.0-canary-029e8bd6-20250306" !==
   isomorphicReactPackageVersion$jscomp$inline_1789
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1789,
-      "19.1.0-canary-e03ac20f-20250305"
+      "19.1.0-canary-029e8bd6-20250306"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15351,10 +15353,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2283 = {
   bundleType: 0,
-  version: "19.1.0-canary-e03ac20f-20250305",
+  version: "19.1.0-canary-029e8bd6-20250306",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-e03ac20f-20250305"
+  reconcilerVersion: "19.1.0-canary-029e8bd6-20250306"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2284 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -15458,4 +15460,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.1.0-canary-e03ac20f-20250305";
+exports.version = "19.1.0-canary-029e8bd6-20250306";

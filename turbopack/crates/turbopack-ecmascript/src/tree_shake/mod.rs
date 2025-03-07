@@ -575,6 +575,7 @@ pub(super) async fn split(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         Some(source),
                     );
@@ -699,6 +700,7 @@ pub(crate) async fn part_of_module(
                         &program,
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
+                        eval_context.force_free_values.clone(),
                         None,
                         None,
                     );

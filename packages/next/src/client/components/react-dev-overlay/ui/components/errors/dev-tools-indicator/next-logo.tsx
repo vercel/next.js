@@ -190,11 +190,12 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues] {
+            --padding-left: 8px;
             display: flex;
             gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${isBuildError ? '8px' : 'calc(2px * 2)'};
+            padding-right: 8px;
             height: var(--size-32);
             margin: 0 2px;
             border-radius: var(--rounded-full);
@@ -202,6 +203,10 @@ export const NextLogo = forwardRef(function NextLogo(
 
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
+            }
+
+            &:has([data-issues-collapse]) {
+              padding-right: calc(var(--padding-left) / 2);
             }
 
             [data-cross] {
