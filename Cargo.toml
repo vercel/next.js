@@ -51,9 +51,6 @@ opt-level = 3
 [profile.release.package.lightningcss]
 opt-level = "s"
 
-[profile.release.package.std]
-opt-level = 3
-
 [profile.release.package.lightningcss-napi]
 opt-level = "s"
 
