@@ -1456,6 +1456,8 @@ export async function getRedboxCallStack(
           foundInternalFrame = true
         } else if (frame.includes('file://')) {
           stack.push('<FIXME-file-protocol>')
+        } else if (frame.includes('.next/')) {
+          stack.push('<FIXME-next-dist-dir>')
         } else {
           stack.push(frame)
         }

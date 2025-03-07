@@ -427,7 +427,8 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   const isInvalidStatusCode =
     typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
 
-  if (is404Page || isInvalidStatusCode) {
+  // Only render noindex for page request, skip for server actions
+  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -1189,12 +1190,13 @@ async function renderToHTMLOrFlightImpl(
     // cache reads we wrap the loadChunk in this tracking. This allows us
     // to treat chunk loading with similar semantics as cache reads to avoid
     // async loading chunks from causing a prerender to abort too early.
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = (...args: Array<any>) => {
+    const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
       trackChunkLoading(loadingChunk)
       return loadingChunk
     }
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
   if (process.env.NODE_ENV === 'development') {

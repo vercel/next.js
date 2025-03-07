@@ -5,81 +5,166 @@ description: Turbopack is an incremental bundler optimized for JavaScript and Ty
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-[Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js. Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development.
+Turbopack is an **incremental bundler** optimized for JavaScript and TypeScript, written in Rust, and built into **Next.js**. You can use Turbopack with both the Pages and App Router for a **much faster** local development experience.
 
-To enable Turbopack, use the `--turbopack` flag when running the Next.js development server.
+## Why Turbopack?
+
+We built Turbopack to push the performance of Next.js, including:
+
+- **Unified Graph:** Next.js supports multiple output environments (e.g., client and server). Managing multiple compilers and stitching bundles together can be tedious. Turbopack uses a **single, unified graph** for all environments.
+- **Bundling vs Native ESM:** Some tools skip bundling in development and rely on the browser's native ESM. This works well for small apps but can slow down large apps due to excessive network requests. Turbopack **bundles** in dev, but in an optimized way to keep large apps fast.
+- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it.
+- **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
+
+## Getting started
+
+To enable Turbopack in your Next.js project, use the `--turbopack` flag when running the development server:
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "start": "next start"
   }
 }
 ```
 
-## Reference
+Currently, Turbopack only supports `next dev`. Build (`next build`) is **not yet** supported. We are actively working on production support as Turbopack moves closer to stability.
 
-### Supported features
+## Supported features
 
-Turbopack in Next.js requires zero-configuration for most users and can be extended for more advanced use cases. To learn more about the currently supported features for Turbopack, view the [API Reference](/docs/app/api-reference/config/next-config-js/turbo).
+Turbopack in Next.js has **zero-configuration** for the common use cases. Below is a summary of what is supported out of the box, plus some references to how you can configure Turbopack further when needed.
 
-### Unsupported features
+### Language features
 
-Turbopack currently only supports `next dev` and does not support `next build`. We are currently working on support for builds as we move closer towards stability.
+| Feature                     | Status                | Notes                                                                                                                                                                                               |
+| --------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JavaScript & TypeScript** | **Supported**         | Uses SWC under the hood. Type-checking is not done by Turbopack (run `tsc --watch` or rely on your IDE for type checks).                                                                            |
+| **ECMAScript (ESNext)**     | **Supported**         | Turbopack supports the latest ECMAScript features, matching SWC’s coverage.                                                                                                                         |
+| **CommonJS**                | **Supported**         | `require()` syntax is handled out of the box.                                                                                                                                                       |
+| **ESM**                     | **Supported**         | Static and dynamic `import` are fully supported.                                                                                                                                                    |
+| **Babel**                   | Partially Unsupported | Turbopack does not include Babel by default. However, you can [configure `babel-loader` via the Turbopack config](/docs/app/api-reference/config/next-config-js/turbo#configuring-webpack-loaders). |
 
-These features are currently not supported:
+### Framework and React features
 
-- Turbopack leverages [Lightning CSS](https://lightningcss.dev/) which doesn't support some low usage CSS Modules features
-  - `:local` and `:global` as standalone pseudo classes. Only the function variant is supported, for example: `:global(a)`.
-  - The @value rule which has been superseded by CSS variables.
+| Feature                           | Status        | Notes                                                                                                                  |
+| --------------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| **JSX / TSX**                     | **Supported** | SWC handles JSX/TSX compilation.                                                                                       |
+| **Fast Refresh**                  | **Supported** | No configuration needed.                                                                                               |
+| **React Server Components (RSC)** | **Supported** | For the Next.js App Router. Turbopack ensures correct server/client bundling.                                          |
+| **Root layout creation**          | Unsupported   | Automatic creation of a root layout in App Router is not supported. Turbopack will instruct you to create it manually. |
+
+### CSS and styling
+
+| Feature            | Status                  | Notes                                                                                                                                                                                                           |
+| ------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Global CSS**     | **Supported**           | Import `.css` files directly in your application.                                                                                                                                                               |
+| **CSS Modules**    | **Supported**           | `.module.css` files work natively (Lightning CSS).                                                                                                                                                              |
+| **CSS Nesting**    | **Supported**           | Lightning CSS supports [modern CSS nesting](https://lightningcss.dev/).                                                                                                                                         |
+| **@import syntax** | **Supported**           | Combine multiple CSS files.                                                                                                                                                                                     |
+| **PostCSS**        | **Supported**           | Automatically processes `postcss.config.js` in a Node.js worker pool. Useful for Tailwind, Autoprefixer, etc.                                                                                                   |
+| **Sass / SCSS**    | **Supported** (Next.js) | For Next.js, Sass is supported out of the box. In the future, Turbopack standalone usage will likely require a loader config.                                                                                   |
+| **Less**           | Planned via plugins     | Not yet supported by default. Will likely require a loader config once custom loaders are stable.                                                                                                               |
+| **Lightning CSS**  | **In Use**              | Handles CSS transformations. Some low-usage CSS Modules features (like `:local/:global` as standalone pseudo-classes) are not yet supported. [See below for more details.](#unsupported-and-unplanned-features) |
+
+### Assets
+
+| Feature                           | Status        | Notes                                                                                                                      |
+| --------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| **Static Assets** (images, fonts) | **Supported** | Importing `import img from './img.png'` works out of the box. In Next.js, returns an object for the `<Image />` component. |
+| **JSON Imports**                  | **Supported** | Named or default imports from `.json` are supported.                                                                       |
+
+### Module resolution
+
+| Feature               | Status              | Notes                                                                                                                                                       |
+| --------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Path Aliases**      | **Supported**       | Reads `tsconfig.json`'s `paths` and `baseUrl`, matching Next.js behavior.                                                                                   |
+| **Manual Aliases**    | **Supported**       | [Configure `resolveAlias` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbo#resolving-aliases) (similar to `webpack.resolve.alias`). |
+| **Custom Extensions** | **Supported**       | [Configure `resolveExtensions` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbo#resolving-custom-extensions).                       |
+| **AMD**               | Partially Supported | Basic transforms work; advanced AMD usage is limited.                                                                                                       |
+
+### Performance and Fast Refresh
+
+| Feature                  | Status        | Notes                                                                                    |
+| ------------------------ | ------------- | ---------------------------------------------------------------------------------------- |
+| **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
+| **Incremental Bundling** | **Supported** | Turbopack lazily builds only what’s requested by the dev server, speeding up large apps. |
+
+## Unsupported and unplanned features
+
+Some features are not yet implemented or not planned:
+
+- **Production Builds** (`next build`)
+  Turbopack currently only supports `next dev`. Support for production builds is in active development.
+- **Legacy CSS Modules features**
+  - Standalone `:local` and `:global` pseudo-classes (only the function variant `:global(...)` is supported).
+  - The `@value` rule (superseded by CSS variables).
   - `:import` and `:export` ICSS rules.
-- [Invalid CSS comment syntax](https://stackoverflow.com/questions/51843506/are-double-slash-comments-valid-in-css) such as `//`
-  - CSS comments should be written as `/* comment */` per the specification.
-  - Preprocessors such as Sass do support this alternative syntax for comments.
-- [`webpack()`](/docs/app/api-reference/config/next-config-js/webpack) configuration in `next.config.js`
-  - Turbopack replaces Webpack, this means that webpack configuration is not supported.
-  - To configure Turbopack, [see the documentation](/docs/app/api-reference/config/next-config-js/turbo).
-  - A subset of [Webpack loaders](/docs/app/api-reference/config/next-config-js/turbo#configuring-webpack-loaders) are supported in Turbopack.
-- Babel (`.babelrc`)
-  - Turbopack leverages the [SWC](/docs/architecture/nextjs-compiler#why-swc) compiler for all transpilation and optimizations. This means that Babel is not included by default.
-  - If you have a `.babelrc` file, you might no longer need it because Next.js includes common Babel plugins as SWC transforms that can be enabled. You can read more about this in the [compiler documentation](/docs/architecture/nextjs-compiler#supported-features).
-  - If you still need to use Babel after verifying your particular use case is not covered, you can leverage Turbopack's [support for custom webpack loaders](/docs/app/api-reference/config/next-config-js/turbo#configuring-webpack-loaders) to include `babel-loader`.
-- Creating a root layout automatically in App Router.
-  - This behavior is currently not supported since it changes input files, instead, an error will be shown for you to manually add a root layout in the desired location.
-- `@next/font` (legacy font support).
-  - `@next/font` is deprecated in favor of `next/font`. [`next/font`](/docs/app/building-your-application/optimizing/fonts) is fully supported with Turbopack.
-- [Relay transforms](/docs/architecture/nextjs-compiler#relay)
-  - We are planning to implement this in the future.
-- Blocking `.css` imports in `pages/_document.tsx`
-  - Currently with webpack Next.js blocks importing `.css` files in `pages/_document.tsx`
-  - We are planning to implement this warning in the future.
-- [`experimental.typedRoutes`](/docs/app/api-reference/config/next-config-js/typedRoutes)
-  - We are planning to implement this in the future.
-- `experimental.nextScriptWorkers`
-  - We are planning to implement this in the future.
-- `experimental.sri.algorithm`
-  - We are planning to implement this in the future.
-- `experimental.fallbackNodePolyfills`
-  - We are planning to implement this in the future.
-- `experimental.esmExternals`
-  - We are currently not planning to support the legacy esmExternals configuration in Next.js with Turbopack.
-- [AMP](/docs/pages/building-your-application/configuring/amp).
-  - We are currently not planning to support AMP in Next.js with Turbopack.
-- Yarn PnP
-  - We are currently not planning to support Yarn PnP in Next.js with Turbopack.
-- [`experimental.urlImports`](/docs/app/api-reference/config/next-config-js/urlImports)
-  - We are currently not planning to support `experimental.urlImports` in Next.js with Turbopack.
-- [`:import` and `:export` ICSS rules](https://github.com/css-modules/icss)
-  - We are currently not planning to support `:import` and `:export` ICSS rules in Next.js with Turbopack as [Lightning CSS](https://lightningcss.dev/css-modules.html) the CSS parser Turbopack uses does not support these rules.
-- `unstable_allowDynamic` configuration in edge runtime
+- **`webpack()` configuration** in `next.config.js`
+  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`experimental.turbo` config](/docs/app/api-reference/config/next-config-js/turbo) instead.
+- **AMP**
+  Not planned for Turbopack support in Next.js.
+- **Yarn PnP**
+  Not planned for Turbopack support in Next.js.
+- **`experimental.urlImports`**
+  Not planned for Turbopack.
+- **`experimental.esmExternals`**
+  Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
+- **Some Next.js Experimental Flags**
+  - `experimental.typedRoutes`
+  - `experimental.nextScriptWorkers`
+  - `experimental.sri.algorithm`
+  - `experimental.fallbackNodePolyfills`
+    We plan to implement these in the future.
 
-## Examples
+For a full, detailed breakdown of each feature flag and its status, see the [Turbopack API Reference](/docs/app/api-reference/config/next-config-js/turbo).
 
-### Generating Trace Files
+## Configuration
 
-Trace files allow the Next.js team to investigate and improve performance metrics and memory usage. To generate a trace file, append `NEXT_TURBOPACK_TRACING=1` to the `next dev --turbopack` command, this will generate a `.next/trace-turbopack` file.
+Turbopack can be configured via `next.config.js` (or `next.config.ts`) under the `experimental.turbo` key. Configuration options include:
 
-When reporting issues related to Turbopack performance and memory usage, please include the trace file in your [GitHub](https://github.com/vercel/next.js) issue.
+- **`rules`**
+  Define additional [webpack loaders](/docs/app/api-reference/config/next-config-js/turbo#configuring-webpack-loaders) for file transformations.
+- **`resolveAlias`**
+  Create manual aliases (like `resolve.alias` in webpack).
+- **`resolveExtensions`**
+  Change or extend file extensions for module resolution.
+- **`moduleIdStrategy`**
+  Set how module IDs are generated (`'named'` vs `'deterministic'`).
+- **`treeShaking`**
+  Enable or disable tree shaking in dev and future production builds.
+- **`memoryLimit`**
+  Set a memory limit (in bytes) for Turbopack.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    turbo: {
+      // Example: adding an alias and custom file extension
+      resolveAlias: {
+        underscore: 'lodash',
+      },
+      resolveExtensions: ['.mdx', '.tsx', '.ts', '.jsx', '.js', '.json'],
+    },
+  },
+}
+```
+
+For more in-depth configuration examples, see the [Turbopack config documentation](/docs/app/api-reference/config/next-config-js/turbo).
+
+## Generating trace files for performance debugging
+
+If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by appending `NEXT_TURBOPACK_TRACING=1` to your dev command:
+
+```bash
+NEXT_TURBOPACK_TRACING=1 next dev --turbopack
+```
+
+This will produce a `.next/trace-turbopack` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+
+## Summary
+
+Turbopack is a **Rust-based**, **incremental** bundler designed to make local development and builds fast—especially for large applications. It is integrated into Next.js, offering zero-config CSS, React, and TypeScript support.
+
+Stay tuned for more updates as we continue to improve Turbopack and add production build support. In the meantime, give it a try with `next dev --turbopack` and let us know your feedback.

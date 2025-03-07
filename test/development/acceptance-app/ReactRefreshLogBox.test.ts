@@ -115,15 +115,15 @@ describe('ReactRefreshLogBox app', () => {
            |       ^",
          "stack": [
            "eval index.js (3:7)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
            "eval ./app/page.js",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)
@@ -1467,11 +1467,11 @@ describe('ReactRefreshLogBox app', () => {
              |       ^",
            "stack": [
              "eval index.js (1:7)",
-             "<unknown> rsc)/./index.js (<FIXME-project-root>/.next/server/app/server/page.js (43:1)",
-             "<FIXME-file-protocol>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
              "eval ./app/server/page.js",
-             "<unknown> rsc)/./app/server/page.js (<FIXME-project-root>/.next/server/app/server/page.js (33:1)",
-             "<FIXME-file-protocol>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -1639,15 +1639,15 @@ export default function Home() {
            |       ^",
          "stack": [
            "eval app/utils.ts (1:7)",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
            "eval ./app/page.js",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
-           "<FIXME-file-protocol>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
+           "<FIXME-next-dist-dir>",
          ],
        }
       `)
