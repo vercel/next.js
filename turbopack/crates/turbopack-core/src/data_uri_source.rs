@@ -53,7 +53,7 @@ impl Source for DataUriSource {
         );
         Ok(
             AssetIdent::from_path(self.lookup_path.join(filename.into()))
-                .with_content_type(Vc::cell(content_type)),
+                .with_content_type(content_type),
         )
     }
 }

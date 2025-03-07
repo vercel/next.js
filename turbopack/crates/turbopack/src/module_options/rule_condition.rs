@@ -101,8 +101,8 @@ impl RuleCondition {
                 ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
             RuleCondition::ContentTypeStartsWith(start) => {
-                if let Some(content_type) = source.ident().await?.content_type {
-                    content_type.await?.starts_with(start)
+                if let Some(content_type) = source.ident().await?.content_type.as_ref() {
+                    content_type.starts_with(start)
                 } else {
                     false
                 }
