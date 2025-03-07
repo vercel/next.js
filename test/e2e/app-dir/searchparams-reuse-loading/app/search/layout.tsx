@@ -9,5 +9,5 @@ export default function SearchLayout({
   children: React.ReactNode
 }) {
   let searchParams = useSearchParams()
-  return <Fragment key={searchParams.get('q')}>{children}</Fragment>
+  return <Fragment key={searchParams?.get('q')}>{children}</Fragment>
 }
