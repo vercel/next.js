@@ -15,7 +15,7 @@ use sha1::{Digest, Sha1};
 use swc_core::{
     atoms::{atom, Atom},
     common::{
-        comments::{Comment, CommentKind, Comments},
+        comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
         source_map::PURE_SP,
         util::take::Take,
@@ -23,7 +23,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
-        codegen::{text_writer::JsWriter, Emitter},
+        codegen::{self, text_writer::JsWriter, Emitter},
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
@@ -1897,7 +1897,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 })),
                             },
                         ));
-                        client_layer_exports.insert(atom!("default"), export_expr);
+                        client_layer_exports
+                            .insert(atom!("default"), (export_expr, ref_id.clone()));
                     } else {
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
@@ -1944,7 +1945,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     ..Default::default()
                                 })),
                             }));
-                        client_layer_exports.insert(export_name.clone(), export_expr);
+                        client_layer_exports
+                            .insert(export_name.clone(), (export_expr, ref_id.clone()));
                     }
                 } else if !in_cache_file {
                     self.annotations.push(Stmt::Expr(ExprStmt {
@@ -2017,18 +2019,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 // Append annotations to the end of the file.
                 new.extend(self.annotations.drain(..).map(ModuleItem::Stmt));
             }
-        }
-
-        if self.has_action || self.has_cache {
-            // Prepend a special comment to the top of the file.
-            self.comments.add_leading(
-                self.start_pos,
-                Comment {
-                    span: DUMMY_SP,
-                    kind: CommentKind::Block,
-                    text: generate_server_actions_comment(actions).into(),
-                },
-            );
         }
 
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
@@ -2109,45 +2099,73 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             new.rotate_right(2);
         }
 
-        if (self.has_action || self.has_cache) && !self.config.is_react_server_layer {
-            match self.mode {
-                ServerActionsMode::Webpack => {
-                    new.push(client_layer_import.unwrap());
-                    new.rotate_right(1);
-                    new.extend(client_layer_exports.into_iter().map(|(_, v)| v));
-                }
-                ServerActionsMode::Turbopack => {
-                    for (export, stmt) in client_layer_exports {
-                        new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
-                            NamedExport {
-                                specifiers: vec![ExportSpecifier::Named(ExportNamedSpecifier {
-                                    span: DUMMY_SP,
-                                    orig: ModuleExportName::Ident(export.into()),
-                                    exported: None,
-                                    is_type_only: false,
-                                })],
-                                src: Some(Box::new(
-                                    program_to_data_url(&Program::Module(Module {
-                                        span: DUMMY_SP,
-                                        body: vec![
-                                            ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                                                expr: Box::new(Expr::Lit(Lit::Str(
-                                                    "use turbopack no side effects".into(),
-                                                ))),
-                                                span: DUMMY_SP,
-                                            })),
-                                            client_layer_import.clone().unwrap(),
-                                            stmt,
-                                        ],
-                                        shebang: None,
-                                    }))
-                                    .into(),
-                                )),
+        if self.has_action || self.has_cache {
+            if self.config.is_react_server_layer {
+                // Prepend a special comment to the top of the file.
+                self.comments.add_leading(
+                    self.start_pos,
+                    Comment {
+                        span: DUMMY_SP,
+                        kind: CommentKind::Block,
+                        text: generate_server_actions_comment(actions).into(),
+                    },
+                );
+            } else {
+                match self.mode {
+                    ServerActionsMode::Webpack => {
+                        self.comments.add_leading(
+                            self.start_pos,
+                            Comment {
                                 span: DUMMY_SP,
-                                type_only: false,
-                                with: None,
+                                kind: CommentKind::Block,
+                                text: generate_server_actions_comment(actions).into(),
                             },
-                        )));
+                        );
+                        new.push(client_layer_import.unwrap());
+                        new.rotate_right(1);
+                        new.extend(client_layer_exports.into_iter().map(|(_, (v, _))| v));
+                    }
+                    ServerActionsMode::Turbopack => {
+                        for (export, (stmt, ref_id)) in client_layer_exports {
+                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                                NamedExport {
+                                    specifiers: vec![ExportSpecifier::Named(
+                                        ExportNamedSpecifier {
+                                            span: DUMMY_SP,
+                                            orig: ModuleExportName::Ident(export.clone().into()),
+                                            exported: None,
+                                            is_type_only: false,
+                                        },
+                                    )],
+                                    src: Some(Box::new(
+                                        program_to_data_url(
+                                            vec![
+                                                ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                                                    expr: Box::new(Expr::Lit(Lit::Str(
+                                                        "use turbopack no side effects".into(),
+                                                    ))),
+                                                    span: DUMMY_SP,
+                                                })),
+                                                client_layer_import.clone().unwrap(),
+                                                stmt,
+                                            ],
+                                            Comment {
+                                                span: DUMMY_SP,
+                                                kind: CommentKind::Block,
+                                                text: generate_server_actions_comment(
+                                                    std::iter::once((ref_id, export)).collect(),
+                                                )
+                                                .into(),
+                                            },
+                                        )
+                                        .into(),
+                                    )),
+                                    span: DUMMY_SP,
+                                    type_only: false,
+                                    with: None,
+                                },
+                            )));
+                        }
                     }
                 }
             }
@@ -3142,14 +3160,24 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
     HANDLER.with(|handler| handler.struct_span_err(span, &msg).emit());
 }
 
-fn program_to_data_url(program: &Program) -> String {
+fn program_to_data_url(body: Vec<ModuleItem>, prepend_comment: Comment) -> String {
+    let module_span = Span::dummy_with_cmt();
+    let comments = SingleThreadedComments::default();
+    comments.add_leading(module_span.lo, prepend_comment);
+
+    let program = &Program::Module(Module {
+        span: module_span,
+        body,
+        shebang: None,
+    });
+
     let mut output = vec![];
     let sourcemap = Arc::new(SourceMap::default());
     let mut emitter = Emitter {
-        cfg: Default::default(),
+        cfg: codegen::Config::default().with_minify(true),
         cm: sourcemap.clone(),
         wr: Box::new(JsWriter::new(sourcemap.clone(), " ", &mut output, None)),
-        comments: None,
+        comments: Some(&comments),
     };
 
     // println!("Emitting: {:?}", module);
