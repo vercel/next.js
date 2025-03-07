@@ -1,11 +1,8 @@
-use std::hash::BuildHasher;
-
 use anyhow::{bail, Result};
-use rustc_hash::FxBuildHasher;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileContent, FileSystemPath};
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -48,7 +45,11 @@ impl Source for DataUriSource {
         let content_type = self.media_type.split(";").next().unwrap().into();
         let filename = format!(
             "data:{}",
-            &encode_hex(FxBuildHasher.hash_one(&*self.data.await?))[0..6]
+            &encode_hex(hash_xxh3_hash64((
+                &*self.data.await?,
+                &self.media_type,
+                &self.encoding
+            )))[0..6]
         );
         Ok(
             AssetIdent::from_path(self.lookup_path.join(filename.into()))
