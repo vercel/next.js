@@ -797,11 +797,11 @@ impl Project {
 
         let entrypoints = self.entrypoints().await?;
 
-        if !app_dir_only {
-            endpoints.push(entrypoints.pages_error_endpoint);
-            endpoints.push(entrypoints.pages_app_endpoint);
-            endpoints.push(entrypoints.pages_document_endpoint);
-        }
+        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
+        // page routes themselves are excluded below.
+        endpoints.push(entrypoints.pages_error_endpoint);
+        endpoints.push(entrypoints.pages_app_endpoint);
+        endpoints.push(entrypoints.pages_document_endpoint);
 
         if let Some(middleware) = &entrypoints.middleware {
             endpoints.push(middleware.endpoint);

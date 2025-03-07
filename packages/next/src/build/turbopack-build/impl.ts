@@ -135,7 +135,7 @@ export async function turbopackBuild(): Promise<{
     throw new Error(
       `Turbopack build failed with ${
         topLevelErrors.length
-      } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+      } errors:\n${topLevelErrors.map((e) => e.message).join('\n')}`
     )
   }
 
