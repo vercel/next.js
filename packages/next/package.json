@@ -340,7 +340,7 @@
     "vm-browserify": "1.1.2",
     "watchpack": "2.4.0",
     "web-vitals": "4.2.1",
-    "webpack": "5.98.0",
+    "webpack": "5.96.1",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "ws": "8.2.3",

@@ -278,7 +278,7 @@ describe('middleware - development errors', () => {
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
               '\n    at eval (middleware.js:3:12)' +
-              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
+              '\n    at (middleware)/./middleware.js (.next/server/middleware.js:40:1)' +
               '\n    at __webpack_require__ '
       )
     })

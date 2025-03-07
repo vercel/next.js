@@ -264,7 +264,7 @@
     "typescript": "5.8.2",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
-    "webpack": "5.98.0",
+    "webpack": "5.96.1",
     "webpack-bundle-analyzer": "4.7.0",
     "webpack-dev-server": "5.2.0",
     "whatwg-fetch": "3.0.0",
@@ -278,7 +278,7 @@
   "packageManager": "pnpm@9.6.0",
   "pnpm": {
     "overrides": {
-      "webpack": "5.98.0",
+      "webpack": "5.96.1",
       "browserslist": "4.22.2",
       "caniuse-lite": "1.0.30001579",
       "@types/node": "20.17.6",
