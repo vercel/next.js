@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 function toFixed(value, maxDecimals, roundingFunction, optionals) {
     var splitValue = value.toString().split('.'), minDecimals = maxDecimals - (optionals || 0), optionalsRegExp, power, output;
