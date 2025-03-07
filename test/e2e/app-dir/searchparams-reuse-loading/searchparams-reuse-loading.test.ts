@@ -87,6 +87,33 @@ describe('searchparams-reuse-loading', () => {
     )
   })
 
+  it('should respect original searchParams when aliasing is skipped', async () => {
+    const browser = await next.browser('/mpa-navs')
+    await browser.elementByCss("[href='/non-existent-page?id=1']").click()
+
+    // the first link would have been the "aliased" entry since it was prefetched first. Validate that it's the correct URL
+    await retry(async () => {
+      expect(await browser.url()).toContain('/non-existent-page?id=1')
+    })
+
+    expect(await browser.elementByCss('h2').text()).toBe(
+      'This page could not be found.'
+    )
+
+    // The other link would have attempted to use the aliased entry. Ensure the browser ends up on the correct page
+    await browser.loadPage(`${next.url}/mpa-navs`)
+    await retry(async () => {
+      expect(await browser.url()).toContain('/mpa-navs')
+    })
+    await browser.elementByCss("[href='/non-existent-page?id=2']").click()
+    await retry(async () => {
+      expect(await browser.url()).toContain('/non-existent-page?id=2')
+    })
+    expect(await browser.elementByCss('h2').text()).toBe(
+      'This page could not be found.'
+    )
+  })
+
   // Dev doesn't perform prefetching, so this test is skipped, as it relies on intercepting
   // prefetch network requests.
   if (!isNextDev) {
