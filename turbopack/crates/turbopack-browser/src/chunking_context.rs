@@ -67,6 +67,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+        self.chunking_context.chunk_suffix_path = chunk_suffix_path;
+        self
+    }
+
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -135,6 +140,9 @@ pub struct BrowserChunkingContext {
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: ResolvedVc<Option<RcStr>>,
+    /// Suffix path that will be appended to all chunk URLs when loading them.
+    /// This path will not appear in chunk paths or chunk data.
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: ResolvedVc<Option<RcStr>>,
@@ -180,6 +188,7 @@ impl BrowserChunkingContext {
                 should_use_file_source_map_uris: false,
                 asset_root_path,
                 chunk_base_path: ResolvedVc::cell(None),
+                chunk_suffix_path: ResolvedVc::cell(None),
                 asset_base_path: ResolvedVc::cell(None),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
@@ -207,6 +216,11 @@ impl BrowserChunkingContext {
     /// Returns the asset base path.
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
         *self.chunk_base_path
+    }
+
+    /// Returns the asset suffix path.
+    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
+        *self.chunk_suffix_path
     }
 
     /// Returns the minify type.

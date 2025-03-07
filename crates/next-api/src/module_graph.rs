@@ -213,7 +213,7 @@ impl ServerActionsGraph {
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = FxHashMap::default();
+                let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
                         result.insert(node.module, *node_data);

@@ -1,9 +1,10 @@
 use std::{
     iter,
     mem::{replace, take},
+    sync::Arc,
 };
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
@@ -295,6 +296,7 @@ pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
+    pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
@@ -305,6 +307,7 @@ impl EvalContext {
         module: &Program,
         unresolved_mark: Mark,
         top_level_mark: Mark,
+        force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
         source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
@@ -312,6 +315,7 @@ impl EvalContext {
             unresolved_mark,
             top_level_mark,
             imports: ImportMap::analyze(module, source, comments),
+            force_free_values,
         }
     }
 
@@ -378,7 +382,7 @@ impl EvalContext {
         if let Some(imported) = self.imports.get_import(&id) {
             return imported;
         }
-        if is_unresolved(i, self.unresolved_mark) {
+        if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
             JsValue::FreeVar(i.sym.clone())
         } else {
             JsValue::Variable(id)
@@ -1875,7 +1879,9 @@ impl VisitAstPath for Analyzer<'_> {
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
             })
-        } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
+        } else if is_unresolved(ident, self.eval_context.unresolved_mark)
+            || self.eval_context.force_free_values.contains(&ident.to_id())
+        {
             self.add_effect(Effect::FreeVar {
                 var: Box::new(JsValue::FreeVar(ident.sym.clone())),
                 ast_path: as_parent_path(ast_path),
