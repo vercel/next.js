@@ -3,7 +3,9 @@ name: Benchmark
 on:
   push:
     branches:
-      - main
+      - canary
+    paths:
+      - '**/crates/**'
   pull_request:
     types: ['labeled']
 
