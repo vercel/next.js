@@ -9,7 +9,7 @@ export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = a
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
 };
-export const $$RSC_SERVER_ACTION_1 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action($$ACTION_CLOSURE_BOUND) {
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);

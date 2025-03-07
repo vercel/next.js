@@ -4,16 +4,16 @@ import { Form } from 'components';
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function foo() {
     return 'declarator arrow function expression';
 };
-export const $$RSC_SERVER_ACTION_1 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ bar() {
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function bar() {
     return 'function declaration';
 };
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function action() {
     return 'arrow function expression';
 };
-export const $$RSC_SERVER_ACTION_3 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action() {
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_3 = async function action() {
     return 'anonymous function expression';
 };
-export const $$RSC_SERVER_ACTION_4 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ baz() {
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_4 = async function baz() {
     return 'named function expression';
 };
 export default function Page() {

@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { Button } from 'components';
 import deleteFromDb from 'db';
-export const $$RSC_SERVER_ACTION_0 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ deleteItem($$ACTION_CLOSURE_BOUND) {
+export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
@@ -17,7 +17,7 @@ export function Item({ id1, id2 }) {
 }
 export const // FIXME: invalid transformation of hoisted functions (https://github.com/vercel/next.js/issues/57392)
 // (remove output.js from `tsconfig.json#exclude` to see the error)
-$$RSC_SERVER_ACTION_1 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ deleteItem($$ACTION_CLOSURE_BOUND) {
+/*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);
