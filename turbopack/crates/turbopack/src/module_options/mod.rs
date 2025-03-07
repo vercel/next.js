@@ -268,6 +268,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![
                     RuleCondition::ResourcePathEndsWith(".js".to_string()),
                     RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
+                    RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
                     RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
                 ]),
                 vec![ModuleRuleEffect::ModuleType(ModuleType::Ecmascript {
