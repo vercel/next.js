@@ -438,12 +438,7 @@ impl<C: Comments> ServerActions<C> {
             .push((action_name.clone(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(
-                action_ident.clone(),
-                action_id.clone(),
-                arrow.span,
-                &self.comments,
-            ),
+            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -451,6 +446,7 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
+        add_turbopack_disable_export_merging_comment(arrow.span, &self.comments);
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -585,7 +581,6 @@ impl<C: Comments> ServerActions<C> {
                 action_ident.clone(),
                 action_id.clone(),
                 function.span,
-                &self.comments,
             ),
             ids_from_closure
                 .iter()
@@ -593,6 +588,10 @@ impl<C: Comments> ServerActions<C> {
                 .map(|id| Some(id.as_arg()))
                 .collect(),
             action_id.clone(),
+        );
+        add_turbopack_disable_export_merging_comment(
+            fn_name.as_ref().map_or(function.span, |name| name.span),
+            &self.comments,
         );
 
         function.body.visit_mut_with(&mut ClosureReplacer {
@@ -769,8 +768,8 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             arrow.span,
-            &self.comments,
         );
+        add_turbopack_disable_export_merging_comment(arrow.span, &self.comments);
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -841,6 +840,9 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             function.span,
+        );
+        add_turbopack_disable_export_merging_comment(
+            fn_name.as_ref().map_or(function.span, |name| name.span),
             &self.comments,
         );
 
@@ -1941,9 +1943,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.clone(),
                             ref_id.clone(),
                             ident.span,
-                            &self.comments,
                         )),
                     }));
+                    add_turbopack_disable_export_merging_comment(ident.span, &self.comments);
                 }
             }
 
@@ -2328,23 +2330,7 @@ fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     }
 }
 
-fn annotate_ident_as_server_reference(
-    ident: Ident,
-    action_id: Atom,
-    original_span: Span,
-    comments: &dyn Comments,
-) -> Expr {
-    if !original_span.lo.is_dummy() {
-        comments.add_leading(
-            original_span.lo,
-            Comment {
-                kind: CommentKind::Block,
-                span: original_span,
-                text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
-            },
-        );
-    }
-
+fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
@@ -2365,6 +2351,17 @@ fn annotate_ident_as_server_reference(
         ],
         ..Default::default()
     })
+}
+
+fn add_turbopack_disable_export_merging_comment(span: Span, comments: &dyn Comments) {
+    comments.add_leading(
+        span.lo,
+        Comment {
+            kind: CommentKind::Block,
+            span: DUMMY_SP,
+            text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
+        },
+    );
 }
 
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
