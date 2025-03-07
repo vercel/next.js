@@ -694,7 +694,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
+        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
         let export_name: Atom = cache_name;
 
         let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
@@ -829,7 +829,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
+        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
 
         let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
