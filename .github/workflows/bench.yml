@@ -22,7 +22,11 @@ env:
 jobs:
   list-crates:
     name: List crates to benchmark
-    runs-on: ubuntu-22.04
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     outputs:
       crates: ${{ steps.list-crates.outputs.crates }}
     steps:
