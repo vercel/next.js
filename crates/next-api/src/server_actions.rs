@@ -22,10 +22,9 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
-    file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -206,7 +205,7 @@ pub async fn to_rsc_context(
     module: Vc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
-    let source = FileSource::new_with_query(module.ident().path(), module.ident().query());
+    let source = VirtualSource::new_with_ident(module.ident(), module.content());
     let module = asset_context
         .process(
             Vc::upcast(source),
