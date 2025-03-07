@@ -80,19 +80,16 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N0["Items: [ItemId(0, ImportOfModule), ItemId(1, Normal), ItemId(ModuleEvaluation)]"];
     N1["Items: [ItemId(0, ImportBinding(0))]"];
-    N2["Items: [ItemId(1, Normal), ItemId(ModuleEvaluation)]"];
-    N2 --> N0;
-    N2 --> N1;
-    N1 --> N0;
+    N0 --> N1;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
-    Exports: 3,
+    ModuleEvaluation: 0,
+    Exports: 2,
 }
 ```
 
@@ -100,7 +97,12 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
+import { baz } from './module';
 import './module';
+if (1 + 1 == 3) {
+    baz();
+}
+"module evaluation";
 
 ```
 ## Part 1
@@ -116,29 +118,12 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { baz } from './module';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-if (1 + 1 == 3) {
-    baz();
-}
-"module evaluation";
-
-```
-## Part 3
-```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { baz } from './module';
+import './module';
 if (1 + 1 == 3) {
     baz();
 }
@@ -149,8 +134,8 @@ if (1 + 1 == 3) {
 
 ```
 {
-    ModuleEvaluation: 2,
-    Exports: 3,
+    ModuleEvaluation: 0,
+    Exports: 2,
 }
 ```
 
@@ -158,7 +143,12 @@ if (1 + 1 == 3) {
 # Modules (prod)
 ## Part 0
 ```js
+import { baz } from './module';
 import './module';
+if (1 + 1 == 3) {
+    baz();
+}
+"module evaluation";
 
 ```
 ## Part 1
@@ -174,29 +164,12 @@ export { baz as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 2
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { baz } from './module';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-if (1 + 1 == 3) {
-    baz();
-}
-"module evaluation";
-
-```
-## Part 3
-```js
 
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { baz } from './module';
+import './module';
 if (1 + 1 == 3) {
     baz();
 }
