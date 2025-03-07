@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { Button } from 'components';
 import deleteFromDb from 'db';
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function deleteItem($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_0 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ deleteItem($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb($$ACTION_ARG_1);

@@ -14,7 +14,7 @@ export function Item({ id1, id2 }) {
     const deleteItem = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", id1, v2));
     return <Button action={deleteItem}>Delete</Button>;
 }
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function g($$ACTION_CLOSURE_BOUND, y, ...z) {
+export const $$RSC_SERVER_ACTION_1 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ g($$ACTION_CLOSURE_BOUND, y, ...z) {
     var [$$ACTION_ARG_0] = await decryptActionBoundArgs("7f90b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     return $$ACTION_ARG_0 + y + z[0];
 };

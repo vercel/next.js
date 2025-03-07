@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { validator } from 'auth';
 import { Button } from 'components';
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function myAction(a, b, c) {
+export const $$RSC_SERVER_ACTION_0 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ myAction(a, b, c) {
     console.log('a');
 };
 var myAction = registerServerReference($$RSC_SERVER_ACTION_0, "706a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);

@@ -7,7 +7,7 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     writable: false
 });
 const foo = registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
-export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_1 = $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function bar() {
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ bar() {
     return foo();
 });
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {

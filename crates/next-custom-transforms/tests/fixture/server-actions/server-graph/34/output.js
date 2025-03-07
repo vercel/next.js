@@ -10,7 +10,7 @@ Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
 });
 const foo = registerServerReference($$RSC_SERVER_CACHE_0, "803128060c414d59f8552e4788b846c0d2b7f74743", null);
 export { bar };
-export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_1 = $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function bar() {
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "80951c375b4a6a6e89d67b743ec5808127cfde405d", 0, async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ bar() {
     return 'bar';
 });
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
@@ -22,7 +22,7 @@ var bar = registerServerReference($$RSC_SERVER_CACHE_1, "80951c375b4a6a6e89d67b7
 const qux = async function qux() {
     return 'qux';
 };
-export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_2 = $$cache__("default", "8069348c79fce073bae2f70f139565a2fda1c74c74", 0, async function baz() {
+export var $$RSC_SERVER_CACHE_2 = $$cache__("default", "8069348c79fce073bae2f70f139565a2fda1c74c74", 0, async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ baz() {
     return qux() + 'baz';
 });
 Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {

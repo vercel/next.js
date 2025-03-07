@@ -14,7 +14,7 @@ function x() {
     const f2 = 1;
     const g201 = 1;
 }
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_0 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1, $$ACTION_ARG_2, $$ACTION_ARG_3, $$ACTION_ARG_4, $$ACTION_ARG_5] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     const f17 = 1;
     if (true) {

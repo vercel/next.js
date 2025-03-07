@@ -12,7 +12,7 @@ Object["defineProperty"]($$RSC_SERVER_ACTION_0, "name", {
     value: "default",
     writable: false
 });
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function foo(a, b) {
+export const $$RSC_SERVER_ACTION_2 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ foo(a, b) {
     return <div>
       {a}
       {b}

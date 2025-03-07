@@ -4,7 +4,7 @@ export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ a() {}
 export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ b() {}
 export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ c() {}
 function d() {}
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function e() {};
+export const $$RSC_SERVER_ACTION_0 = async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ e() {};
 function Foo() {
     var e = registerServerReference($$RSC_SERVER_ACTION_0, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
 }
