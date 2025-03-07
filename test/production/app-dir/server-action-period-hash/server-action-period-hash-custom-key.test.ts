@@ -27,7 +27,7 @@ describe('app-dir - server-action-period-hash-custom-key', () => {
     skipStart: true,
   })
 
-  it('should have different manifest if the encryption key from process env is changed', async () => {
+  it('should have the same manifest if the encryption key from process env is changed', async () => {
     process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key1'
     await next.build()
     delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
@@ -42,7 +42,7 @@ describe('app-dir - server-action-period-hash-custom-key', () => {
     compareServerActionManifestKeys(firstManifest, secondManifest, false)
   })
 
-  it('should have different manifest if the encryption key from process env is same', async () => {
+  it('should have a different manifest if the encryption key from process env is same', async () => {
     process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY = 'my-secret-key'
     await next.build()
     const firstManifest = await getServerActionManifest(next)
