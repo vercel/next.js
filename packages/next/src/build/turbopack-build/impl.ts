@@ -4,7 +4,7 @@ import {
   formatIssue,
   getTurbopackJsConfig,
   isPersistentCachingEnabled,
-  shouldDisplayIssue,
+  isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
@@ -122,13 +122,13 @@ export async function turbopackBuild(): Promise<{
     message: string
   }[] = []
   for (const issue of entrypoints.issues) {
-    if (!shouldDisplayIssue(issue)) {
-      continue
+    if (issue.severity === 'error' || issue.severity === 'fatal') {
+      topLevelErrors.push({
+        message: formatIssue(issue),
+      })
+    } else if (isRelevantWarning(issue)) {
+      console.warn(formatIssue(issue))
     }
-
-    topLevelErrors.push({
-      message: formatIssue(issue),
-    })
   }
 
   if (topLevelErrors.length > 0) {

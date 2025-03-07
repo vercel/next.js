@@ -188,14 +188,6 @@ export function formatIssue(issue: Issue) {
   return message
 }
 
-export function shouldDisplayIssue(issue: Issue): boolean {
-  return (
-    issue.severity === 'fatal' ||
-    issue.severity === 'error' ||
-    isRelevantWarning(issue)
-  )
-}
-
 export function isRelevantWarning(issue: Issue): boolean {
   return issue.severity === 'warning' && !isNodeModulesIssue(issue)
 }
