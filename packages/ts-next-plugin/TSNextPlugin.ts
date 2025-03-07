@@ -1,6 +1,6 @@
 import path from 'path'
 import ts from 'typescript'
-import { NEXT_TS_ERRORS } from './constant'
+import { NEXT_TS_ERRORS, USE_CLIENT, USE_SERVER } from './constant'
 
 export class DirectiveError extends Error {
   category: ts.Diagnostic['category']
@@ -92,7 +92,7 @@ export class TSNextPlugin {
           ts.isExpressionStatement(node) &&
           ts.isStringLiteral(node.expression)
         ) {
-          if (node.expression.text === 'use client') {
+          if (node.expression.text === USE_CLIENT) {
             if (isDirective) {
               isClientEntry = true
             } else {
@@ -106,7 +106,7 @@ export class TSNextPlugin {
             }
           }
 
-          if (node.expression.text === 'use server') {
+          if (node.expression.text === USE_SERVER) {
             if (isDirective) {
               isServerEntry = true
             } else {

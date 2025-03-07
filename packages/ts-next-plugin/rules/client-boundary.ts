@@ -22,6 +22,7 @@ export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
         }
       }
     }
+
     return diagnostics
   },
 

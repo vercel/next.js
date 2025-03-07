@@ -461,8 +461,17 @@ function createServer(
     process.env.TURBOPACK = '1'
   }
 
-  // The package is used as a TypeScript plugin.
-  if (options && 'typescript' in options && 'version' in (options as any).typescript) {
+  // The `next` package can be used as a TypeScript language server plugin.
+  // This is a special case where we don't want to start the server.
+  // That's why although the `options` values are technically valid,
+  // we keep them out of the public types for `createServer` to avoid confusion.
+  if (
+    options &&
+    'typescript' in options &&
+    options.typescript &&
+    typeof options.typescript === 'object' &&
+    'version' in options.typescript
+  ) {
     return require('ts-plugin-next').createTSPlugin(options)
   }
 

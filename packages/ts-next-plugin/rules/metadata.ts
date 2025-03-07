@@ -235,20 +235,25 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
     return metadataExport
   },
 
-  filterCompletionsAtPosition(
+  /** Provide autocompletion for metadata fields */
+  modifyCompletionsAtPosition(
     fileName: string,
     position: number,
     options: any,
     prior: ts.WithMetadata<ts.CompletionInfo>
   ) {
     const node = this.getMetadataExport(fileName, position)
-    if (!node) return prior
+    if (!node) {
+      return prior
+    }
 
     const { languageService } = tsNextPlugin.info
 
     // We annotate with the type in a virtual language service
     const pos = this.updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return prior
+    if (pos === undefined) {
+      return prior
+    }
 
     // Get completions
     const newPos = position <= pos[0] ? position : position + pos[1]
@@ -262,30 +267,30 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
       completions.isIncomplete = true
 
       completions.entries = completions.entries
-        .filter((e) => {
-          return [
+        .filter((entry) =>
+          [
             ts.ScriptElementKind.memberVariableElement,
             ts.ScriptElementKind.typeElement,
             ts.ScriptElementKind.string,
-          ].includes(e.kind)
-        })
-        .map((e) => {
+          ].includes(entry.kind)
+        )
+        .map((entry) => {
           const insertText =
-            e.kind === ts.ScriptElementKind.memberVariableElement &&
-            /^[a-zA-Z0-9_]+$/.test(e.name)
-              ? `${e.name}: `
-              : e.name
+            entry.kind === ts.ScriptElementKind.memberVariableElement &&
+            /^[a-zA-Z0-9_]+$/.test(entry.name)
+              ? `${entry.name}: `
+              : entry.name
 
           return {
-            name: e.name,
+            name: entry.name,
             insertText,
-            kind: e.kind,
-            kindModifiers: e.kindModifiers,
-            sortText: `!${e.name}`,
+            kind: entry.kind,
+            kindModifiers: entry.kindModifiers,
+            sortText: `!${entry.name}`,
             labelDetails: {
               description: `Next.js metadata`,
             },
-            data: e.data,
+            data: entry.data,
           }
         })
 
@@ -337,11 +342,15 @@ export const metadata = (tsNextPlugin: TSNextPlugin) => ({
   ) {
     if (ts.isFunctionDeclaration(node)) {
       if (node.name?.getText() === GENERATE_METADATA_EXPORT) {
-        if (isTyped(node)) return []
+        if (isTyped(node)) {
+          return []
+        }
 
         // We annotate with the type in a virtual language service
         const pos = this.updateVirtualFileWithType(fileName, node, true)
-        if (!pos) return []
+        if (!pos) {
+          return []
+        }
 
         return this.proxyDiagnostics(fileName, pos, node)
       }

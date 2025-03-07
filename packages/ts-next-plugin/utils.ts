@@ -65,3 +65,35 @@ export const isDefaultFunctionExport = (
   }
   return false
 }
+
+export const isFunctionReturningPromise = (
+  node: ts.Node,
+  typeChecker: ts.TypeChecker
+) => {
+  const type = typeChecker.getTypeAtLocation(node)
+  const signatures = typeChecker.getSignaturesOfType(
+    type,
+    ts.SignatureKind.Call
+  )
+
+  let isPromise = true
+  if (signatures.length) {
+    for (const signature of signatures) {
+      const returnType = signature.getReturnType()
+      if (returnType.isUnion()) {
+        for (const t of returnType.types) {
+          if (!isPromiseType(t, typeChecker)) {
+            isPromise = false
+            break
+          }
+        }
+      } else {
+        isPromise = isPromiseType(returnType, typeChecker)
+      }
+    }
+  } else {
+    isPromise = false
+  }
+
+  return isPromise
+}

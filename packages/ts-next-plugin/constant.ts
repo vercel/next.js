@@ -310,3 +310,6 @@ export const API_DOCS: Record<string, APIDoc> = {
     },
   },
 } satisfies Record<string, APIDoc>
+
+export const USE_CLIENT = 'use client'
+export const USE_SERVER = 'use server'

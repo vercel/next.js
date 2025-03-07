@@ -8,7 +8,7 @@ export const createTSPlugin: ts.server.PluginModuleFactory = () => {
 
     const virtualFiles: Record<
       string,
-      { file: ts.IScriptSnapshot; ver: number }
+      { scriptSnapshot: ts.IScriptSnapshot; ver: number }
     > = {}
 
     const getScriptVersion = info.languageServiceHost.getScriptVersion.bind(
@@ -32,9 +32,9 @@ export const createTSPlugin: ts.server.PluginModuleFactory = () => {
       const file = virtualFiles[fileName]
       if (!file) return getScriptSnapshot(fileName)
       tsNextPlugin.log(
-        `[ProxiedLSHost] getScriptSnapshot(${fileName}) - ${JSON.stringify(file.file, null, 2)}`
+        `[ProxiedLSHost] getScriptSnapshot(${fileName}) - ${JSON.stringify(file.scriptSnapshot, null, 2)}`
       )
-      return file.file
+      return file.scriptSnapshot
     }
 
     const getScriptFileNames = info.languageServiceHost.getScriptFileNames.bind(
@@ -64,7 +64,7 @@ export const createTSPlugin: ts.server.PluginModuleFactory = () => {
       tsNextPlugin.log(`[ProxiedLSHost] readFile(${fileName})`)
       const file = virtualFiles[fileName]
       return file
-        ? file.file.getText(0, file.file.getLength())
+        ? file.scriptSnapshot.getText(0, file.scriptSnapshot.getLength())
         : readFile(fileName)
     }
 
@@ -90,9 +90,9 @@ export const createTSPlugin: ts.server.PluginModuleFactory = () => {
       const existing = virtualFiles[fileName]
       if (existing) {
         virtualFiles[fileName].ver++
-        virtualFiles[fileName].file = snap
+        virtualFiles[fileName].scriptSnapshot = snap
       } else {
-        virtualFiles[fileName] = { ver: 2, file: snap }
+        virtualFiles[fileName] = { ver: 2, scriptSnapshot: snap }
       }
 
       // This is the same function call that the Svelte TS plugin makes

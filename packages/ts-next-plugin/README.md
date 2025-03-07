@@ -9,9 +9,9 @@ This is a TypeScript Language Server plugin for the Next.js app directory.
 - Error ts(71016): the `'use client'` directive is used at the same time as `'use server'` directive
 - Error ts(71015): the `'use server'` directive must be above all other expressions
 - Error ts(71011): validates that server files can only export async functions
-- Error ts(71001): the following `react` and `react-dom` APIs are not allowed in Server Components: `useState`, `useEffect`, `useLayoutEffect`, `useDeferredValue`, `useImperativeHandle`, `useInsertionEffect`, `useReducer`, `useRef`, `useSyncExternalStore`, `useTransition`, `Component`, `PureComponent`, `createContext`, `createFactory`, `experimental_useOptimistic`, `useOptimistic`, and `useActionState`.
-- Hide autocompletions for disallowed APIs such as `useState`
-- Show errors if disallowed APIs such as `useState` are used
+- Error ts(71001): [`DISALLOWED_SERVER_REACT_APIS`](#glossary) are not allowed in Server Components.
+- Hide autocompletions for [`DISALLOWED_SERVER_REACT_APIS`](#glossary).
+- Modify completions for Next.js metadata (and show it higher up).
 
 ### 📺 Client Layer
 
@@ -32,5 +32,9 @@ This is a TypeScript Language Server plugin for the Next.js app directory.
 - Error ts(71002): config files can only export the values: `config`, `generateStaticParams`, `metadata`, `generateMetadata`, `viewport`, and `generateViewport`.
 - Error ts(71012): config values must match the schema
 - Error ts(71013): config values must be serializable
-- Autocompletion and docs for configs
+- Adds autocompletion and docs for configs
 - Hover hints for configs
+
+### Glossary
+
+- `DISALLOWED_SERVER_REACT_APIS` refers to: `useState`, `useEffect`, `useLayoutEffect`, `useDeferredValue`, `useImperativeHandle`, `useInsertionEffect`, `useReducer`, `useRef`, `useSyncExternalStore`, `useTransition`, `Component`, `PureComponent`, `createContext`, `createFactory`, `experimental_useOptimistic`, `useOptimistic`, and `useActionState`

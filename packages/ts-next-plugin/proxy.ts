@@ -48,18 +48,18 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
       entries: [],
     }
 
-    if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
+    if (!tsNextPlugin.isAppEntryFile(fileName)) {
+      return prior
+    }
 
-    // If it's a server entry.
     const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName, {
       throwOnInvalidDirective: false,
     })
+
     if (!isClientEntry) {
-      // Remove specified entries from completion list
       prior.entries = server.filterCompletionsAtPosition(prior.entries)
 
-      // Provide autocompletion for metadata fields
-      prior = metadata.filterCompletionsAtPosition(
+      prior = metadata.modifyCompletionsAtPosition(
         fileName,
         position,
         options,
@@ -67,11 +67,12 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
       )
     }
 
-    // Add auto completions for export configs.
     config.addCompletionsAtPosition(fileName, position, prior)
 
     const source = tsNextPlugin.getSource(fileName)
-    if (!source) return prior
+    if (!source) {
+      return prior
+    }
 
     ts.forEachChild(source!, (node) => {
       // Auto completion for default export function's props.
@@ -88,7 +89,6 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     return prior
   }
 
-  // Show auto completion details
   proxy.getCompletionEntryDetails = (
     fileName: string,
     position: number,
@@ -102,7 +102,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
       entryName,
       data
     )
-    if (entryCompletionEntryDetails) return entryCompletionEntryDetails
+    if (entryCompletionEntryDetails) {
+      return entryCompletionEntryDetails
+    }
 
     const metadataCompletionEntryDetails = metadata.getCompletionEntryDetails(
       fileName,
@@ -113,7 +115,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
       preferences,
       data
     )
-    if (metadataCompletionEntryDetails) return metadataCompletionEntryDetails
+    if (metadataCompletionEntryDetails) {
+      return metadataCompletionEntryDetails
+    }
 
     return info.languageService.getCompletionEntryDetails(
       fileName,
@@ -126,13 +130,14 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
     )
   }
 
-  // Quick info
   proxy.getQuickInfoAtPosition = (fileName: string, position: number) => {
     const prior = info.languageService.getQuickInfoAtPosition(
       fileName,
       position
     )
-    if (!tsNextPlugin.isAppEntryFile(fileName)) return prior
+    if (!tsNextPlugin.isAppEntryFile(fileName)) {
+      return prior
+    }
 
     // Remove type suggestions for disallowed APIs in server components.
     const { isClientEntry } = tsNextPlugin.getEntryInfo(fileName, {
@@ -148,20 +153,25 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
       }
 
       const metadataInfo = metadata.getQuickInfoAtPosition(fileName, position)
-      if (metadataInfo) return metadataInfo
+      if (metadataInfo) {
+        return metadataInfo
+      }
     }
 
     const overridden = config.getQuickInfoAtPosition(fileName, position)
-    if (overridden) return overridden
+    if (overridden) {
+      return overridden
+    }
 
     return prior
   }
 
-  // Show errors for disallowed imports
   proxy.getSemanticDiagnostics = (fileName: string) => {
     const prior = info.languageService.getSemanticDiagnostics(fileName)
     const source = tsNextPlugin.getSource(fileName)
-    if (!source) return prior
+    if (!source) {
+      return prior
+    }
 
     let isClientEntry = false
     let isServerEntry = false
@@ -342,7 +352,9 @@ export const createProxy = (tsNextPlugin: TSNextPlugin) => {
         fileName,
         position
       )
-      if (metadataDefinition) return metadataDefinition
+      if (metadataDefinition) {
+        return metadataDefinition
+      }
     }
 
     return info.languageService.getDefinitionAndBoundSpan(fileName, position)

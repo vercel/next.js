@@ -6,10 +6,9 @@ import {
 import ts from 'typescript'
 
 export const server = {
-  /** On the server layer we need to filter out some invalid completion results. */
+  /** This will remove completions disallowed react APIs for server components */
   filterCompletionsAtPosition(entries: ts.CompletionEntry[]) {
     return entries.filter((e: ts.CompletionEntry) => {
-      // Remove disallowed React APIs.
       if (
         DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
         e.source === 'react'
@@ -29,7 +28,7 @@ export const server = {
     )
   },
 
-  /** Give errors about disallowed imports such as `useState`. */
+  /** Give errors about disallowed imports. */
   getSemanticDiagnosticsForImportDeclaration(
     source: ts.SourceFile,
     node: ts.ImportDeclaration

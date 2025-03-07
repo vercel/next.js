@@ -3,43 +3,17 @@
 import { NEXT_TS_ERRORS } from '../constant'
 import ts from 'typescript'
 import type { TSNextPlugin } from '../TSNextPlugin'
-import { isPromiseType } from '../utils'
+import { isFunctionReturningPromise } from '../utils'
 
 export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
-  isFunctionReturningPromise(node: ts.Node, typeChecker: ts.TypeChecker) {
-    const type = typeChecker.getTypeAtLocation(node)
-    const signatures = typeChecker.getSignaturesOfType(
-      type,
-      ts.SignatureKind.Call
-    )
-
-    let isPromise = true
-    if (signatures.length) {
-      for (const signature of signatures) {
-        const returnType = signature.getReturnType()
-        if (returnType.isUnion()) {
-          for (const t of returnType.types) {
-            if (!isPromiseType(t, typeChecker)) {
-              isPromise = false
-              break
-            }
-          }
-        } else {
-          isPromise = isPromiseType(returnType, typeChecker)
-        }
-      }
-    } else {
-      isPromise = false
-    }
-
-    return isPromise
-  },
   getSemanticDiagnosticsForExportDeclaration(
     source: ts.SourceFile,
     node: ts.ExportDeclaration
   ) {
     const typeChecker = tsNextPlugin.getTypeChecker()
-    if (!typeChecker) return []
+    if (!typeChecker) {
+      return []
+    }
 
     const diagnostics: ts.Diagnostic[] = []
 
@@ -49,7 +23,7 @@ export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
         if (e.isTypeOnly) {
           continue
         }
-        if (!this.isFunctionReturningPromise(e, typeChecker)) {
+        if (!isFunctionReturningPromise(e, typeChecker)) {
           diagnostics.push({
             ...NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN({
               isAlreadyAFunction: false,
@@ -111,11 +85,13 @@ export const serverBoundary = (tsNextPlugin: TSNextPlugin) => ({
       | ts.Identifier
   ) {
     const typeChecker = tsNextPlugin.getTypeChecker()
-    if (!typeChecker) return []
+    if (!typeChecker) {
+      return []
+    }
 
     const diagnostics: ts.Diagnostic[] = []
 
-    if (!this.isFunctionReturningPromise(node, typeChecker)) {
+    if (!isFunctionReturningPromise(node, typeChecker)) {
       diagnostics.push({
         ...NEXT_TS_ERRORS.INVALID_SERVER_ENTRY_RETURN({
           isAlreadyAFunction: true,

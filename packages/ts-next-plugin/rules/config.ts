@@ -52,7 +52,9 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
   ): ReturnType<ts.LanguageService['getQuickInfoAtPosition']> {
     let overridden: ts.QuickInfo | undefined
     this.visitEntryConfig(fileName, position, (entryConfig, declaration) => {
-      if (!(entryConfig in API_DOCS)) return
+      if (!(entryConfig in API_DOCS)) {
+        return
+      }
 
       const name = declaration.name
       const value = declaration.initializer
@@ -128,44 +130,6 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
     return overridden
   },
 
-  createAutoCompletionOptionValue(sort: number, name: string, apiName: string) {
-    const isString = name.startsWith('"')
-    const completion: ts.CompletionEntry = {
-      name,
-      insertText: removeStringQuotes(name),
-      sortText: `${sort}`,
-      kind: isString
-        ? ts.ScriptElementKind.string
-        : ts.ScriptElementKind.unknown,
-      kindModifiers: ts.ScriptElementKindModifier.none,
-      labelDetails: {
-        description: `Next.js ${apiName} option`,
-      },
-      data: {
-        exportName: apiName,
-        moduleSpecifier: 'next/typescript/entry_option_value',
-      },
-    }
-    return completion
-  },
-
-  createAutoCompletionOptionName(sort: number, name: string) {
-    const completion: ts.CompletionEntry = {
-      name,
-      sortText: `!${sort}`,
-      kind: ts.ScriptElementKind.constElement,
-      kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
-      labelDetails: {
-        description: `Next.js ${name} option`,
-      },
-      data: {
-        exportName: name,
-        moduleSpecifier: 'next/typescript/entry_option_name',
-      },
-    }
-    return completion
-  },
-
   /** Auto completion for entry exported configs. */
   addCompletionsAtPosition(
     fileName: string,
@@ -176,23 +140,17 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
       if (!API_DOCS[entryConfig]) {
         if (isPositionInsideNode(position, declaration.name)) {
           prior.entries.push(
-            ...Object.keys(API_DOCS).map((name, index) => {
-              return this.createAutoCompletionOptionName(index, name)
-            })
+            ...Object.keys(API_DOCS).map((name, index) =>
+              createAutoCompletionOptionName(index, name)
+            )
           )
         }
         return
       }
 
       prior.entries.push(
-        ...Object.keys(API_DOCS[entryConfig].options || {}).map(
-          (name, index) => {
-            return this.createAutoCompletionOptionValue(
-              index,
-              name,
-              entryConfig
-            )
-          }
+        ...Object.keys(API_DOCS[entryConfig].options || {}).map((name, index) =>
+          createAutoCompletionOptionValue(index, name, entryConfig)
         )
       )
     })
@@ -213,7 +171,9 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
         content = getAPIDescription(entryName)
       } else {
         const options = API_DOCS[data.exportName].options
-        if (!options) return
+        if (!options) {
+          return
+        }
         content = options[entryName]
       }
       return {
@@ -295,7 +255,9 @@ export const config = (tsNextPlugin: TSNextPlugin) => ({
 const validateOptions = (expression: ts.Expression, option: string) => {
   const valueText = expression.getText()
   const options = API_DOCS[option].options
-  if (!options) return
+  if (!options) {
+    return
+  }
 
   if (
     ts.isStringLiteral(expression) ||
@@ -358,4 +320,46 @@ const validateOptions = (expression: ts.Expression, option: string) => {
 
   // Not a literal, error because it's not statically analyzable
   return NEXT_TS_ERRORS.INVALID_OPTION_NOT_STATIC_VALUE(valueText, option)
+}
+
+/** helper function for creating completion entries */
+const createAutoCompletionOptionName = (sort: number, name: string) => {
+  const completion: ts.CompletionEntry = {
+    name,
+    sortText: `!${sort}`,
+    kind: ts.ScriptElementKind.constElement,
+    kindModifiers: ts.ScriptElementKindModifier.exportedModifier,
+    labelDetails: {
+      description: `Next.js ${name} option`,
+    },
+    data: {
+      exportName: name,
+      moduleSpecifier: 'next/typescript/entry_option_name',
+    },
+  }
+  return completion
+}
+
+/** helper function for creating completion entries */
+const createAutoCompletionOptionValue = (
+  sort: number,
+  name: string,
+  apiName: string
+) => {
+  const isString = name.startsWith('"')
+  const completion: ts.CompletionEntry = {
+    name,
+    insertText: removeStringQuotes(name),
+    sortText: `${sort}`,
+    kind: isString ? ts.ScriptElementKind.string : ts.ScriptElementKind.unknown,
+    kindModifiers: ts.ScriptElementKindModifier.none,
+    labelDetails: {
+      description: `Next.js ${apiName} option`,
+    },
+    data: {
+      exportName: apiName,
+      moduleSpecifier: 'next/typescript/entry_option_value',
+    },
+  }
+  return completion
 }
