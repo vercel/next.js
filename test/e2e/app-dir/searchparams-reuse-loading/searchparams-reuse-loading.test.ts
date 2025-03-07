@@ -87,31 +87,73 @@ describe('searchparams-reuse-loading', () => {
     )
   })
 
-  it('should respect original searchParams when aliasing is skipped', async () => {
-    const browser = await next.browser('/mpa-navs')
-    await browser.elementByCss("[href='/non-existent-page?id=1']").click()
+  describe('when aliasing is skipped', () => {
+    it('should work for not found pages', async () => {
+      const browser = await next.browser('/mpa-navs')
+      await browser.elementByCss("[href='/non-existent-page?id=1']").click()
 
-    // the first link would have been the "aliased" entry since it was prefetched first. Validate that it's the correct URL
-    await retry(async () => {
-      expect(await browser.url()).toContain('/non-existent-page?id=1')
+      // the first link would have been the "aliased" entry since it was prefetched first. Validate that it's the correct URL
+      await retry(async () => {
+        expect(await browser.url()).toContain('/non-existent-page?id=1')
+      })
+
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
+
+      // The other link would have attempted to use the aliased entry. Ensure the browser ends up on the correct page
+      await browser.loadPage(`${next.url}/mpa-navs`)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/mpa-navs')
+      })
+      await browser.elementByCss("[href='/non-existent-page?id=2']").click()
+      await retry(async () => {
+        expect(await browser.url()).toContain('/non-existent-page?id=2')
+      })
+      expect(await browser.elementByCss('h2').text()).toBe(
+        'This page could not be found.'
+      )
     })
 
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be found.'
-    )
+    it('should work for route handlers', async () => {
+      const browser = await next.browser('/mpa-navs')
+      await browser.elementByCss("[href='/route-handler?param=1']").click()
+      await retry(async () => {
+        expect(await browser.url()).toContain('/route-handler?param=1')
+      })
 
-    // The other link would have attempted to use the aliased entry. Ensure the browser ends up on the correct page
-    await browser.loadPage(`${next.url}/mpa-navs`)
-    await retry(async () => {
-      expect(await browser.url()).toContain('/mpa-navs')
+      await browser.loadPage(`${next.url}/mpa-navs`)
+      await retry(async () => {
+        expect(await browser.url()).toContain('/mpa-navs')
+      })
+
+      await browser.elementByCss("[href='/route-handler?param=2']").click()
+      await retry(async () => {
+        expect(await browser.url()).toContain('/route-handler?param=2')
+      })
     })
-    await browser.elementByCss("[href='/non-existent-page?id=2']").click()
-    await retry(async () => {
-      expect(await browser.url()).toContain('/non-existent-page?id=2')
+
+    it('should work for navigating to pages dir', async () => {
+      const browser = await next.browser('/mpa-navs')
+      await browser.elementByCss("[href='/pages-dir?param=1']").click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from pages dir! 1'
+        )
+        expect(await browser.url()).toContain('/pages-dir?param=1')
+      })
+
+      await browser.loadPage(`${next.url}/mpa-navs`)
+
+      await browser.elementByCss("[href='/pages-dir?param=2']").click()
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'Hello from pages dir! 2'
+        )
+        expect(await browser.url()).toContain('/pages-dir?param=2')
+      })
     })
-    expect(await browser.elementByCss('h2').text()).toBe(
-      'This page could not be found.'
-    )
   })
 
   // Dev doesn't perform prefetching, so this test is skipped, as it relies on intercepting
