@@ -1,4 +1,4 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 import * as path from 'path'
 
 const url =
@@ -7,7 +7,7 @@ const url =
 const convertToCorrectSeparator = (str: string) =>
   str.replace(/[\\/]/g, path.sep)
 
-export = defineRule({
+export const noBeforeInteractiveScriptOutsideDocument = defineRule({
   meta: {
     docs: {
       description:
@@ -18,8 +18,8 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
-    let scriptImportName = null
+  create(context: any) {
+    let scriptImportName: string | null = null
 
     return {
       'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(
@@ -27,7 +27,7 @@ export = defineRule({
       ) {
         scriptImportName = node.local.name
       },
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         const pathname = convertToCorrectSeparator(context.filename)
 
         const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
@@ -46,7 +46,7 @@ export = defineRule({
         }
 
         const strategy = node.attributes.find(
-          (child) => child.name && child.name.name === 'strategy'
+          (child: any) => child.name && child.name.name === 'strategy'
         )
 
         if (

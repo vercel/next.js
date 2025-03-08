@@ -1,4 +1,4 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 import * as path from 'path'
 
 const NEXT_EXPORT_FUNCTIONS = [
@@ -11,7 +11,7 @@ const NEXT_EXPORT_FUNCTIONS = [
 const THRESHOLD = 1
 
 // the minimum number of operations required to convert string a to string b.
-function minDistance(a, b) {
+function minDistance(a: string, b: string): number {
   const m = a.length
   const n = b.length
 
@@ -41,7 +41,7 @@ function minDistance(a, b) {
 }
 
 /* eslint-disable eslint-plugin/require-meta-docs-url */
-export = defineRule({
+export const noTypos = defineRule({
   meta: {
     docs: {
       description: 'Prevent common typos in Next.js data fetching functions.',
@@ -51,8 +51,8 @@ export = defineRule({
     schema: [],
   },
 
-  create(context) {
-    function checkTypos(node, name) {
+  create(context: any) {
+    function checkTypos(node: any, name: string) {
       if (NEXT_EXPORT_FUNCTIONS.includes(name)) {
         return
       }
@@ -72,7 +72,7 @@ export = defineRule({
       }
     }
     return {
-      ExportNamedDeclaration(node) {
+      ExportNamedDeclaration(node: any) {
         const page = context.filename.split('pages', 2)[1]
         if (!page || path.parse(page).dir.startsWith('/api')) {
           return
@@ -90,7 +90,7 @@ export = defineRule({
             break
           }
           case 'VariableDeclaration': {
-            decl.declarations.forEach((d) => {
+            decl.declarations.forEach((d: any) => {
               if (d.id.type !== 'Identifier') {
                 return
               }

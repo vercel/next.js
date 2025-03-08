@@ -1,8 +1,8 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 
 const url = 'https://nextjs.org/docs/messages/inline-script-id'
 
-export = defineRule({
+export const inlineScriptId = defineRule({
   meta: {
     docs: {
       description:
@@ -14,15 +14,15 @@ export = defineRule({
     schema: [],
   },
   create(context) {
-    let nextScriptImportName = null
+    let nextScriptImportName: string | null = null
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any) {
         if (node.source.value === 'next/script') {
           nextScriptImportName = node.specifiers[0].local.name
         }
       },
-      JSXElement(node) {
+      JSXElement(node: any) {
         if (nextScriptImportName == null) return
 
         if (
@@ -36,7 +36,7 @@ export = defineRule({
         const attributeNames = new Set()
 
         let hasNonCheckableSpreadAttribute = false
-        node.openingElement.attributes.forEach((attribute) => {
+        node.openingElement.attributes.forEach((attribute: any) => {
           // Early return if we already have a non-checkable spread attribute, for better performance
           if (hasNonCheckableSpreadAttribute) return
 
@@ -44,7 +44,7 @@ export = defineRule({
             attributeNames.add(attribute.name.name)
           } else if (attribute.type === 'JSXSpreadAttribute') {
             if (attribute.argument && attribute.argument.properties) {
-              attribute.argument.properties.forEach((property) => {
+              attribute.argument.properties.forEach((property: any) => {
                 attributeNames.add(property.key.name)
               })
             } else {

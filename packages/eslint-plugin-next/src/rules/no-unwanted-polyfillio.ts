@@ -1,4 +1,4 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 
 // Keep in sync with next.js polyfills file : https://github.com/vercel/next.js/blob/master/packages/next-polyfill-nomodule/src/index.js
 const NEXT_POLYFILLED_FEATURES = [
@@ -73,7 +73,7 @@ const url = 'https://nextjs.org/docs/messages/no-unwanted-polyfillio'
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
-export = defineRule({
+export const noUnwantedPolyfillio = defineRule({
   meta: {
     docs: {
       description: 'Prevent duplicate polyfills from Polyfill.io.',
@@ -85,16 +85,16 @@ export = defineRule({
     schema: [],
   },
 
-  create(context) {
-    let scriptImport = null
+  create(context: any) {
+    let scriptImport: string | null = null
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any) {
         if (node.source && node.source.value === 'next/script') {
           scriptImport = node.specifiers[0].local.name
         }
       },
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (
           node.name &&
           node.name.name !== 'script' &&
@@ -107,7 +107,8 @@ export = defineRule({
         }
 
         const srcNode = node.attributes.find(
-          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'src'
+          (attr: any) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'src'
         )
         if (!srcNode || srcNode.value.type !== 'Literal') {
           return

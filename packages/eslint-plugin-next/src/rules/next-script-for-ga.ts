@@ -1,5 +1,5 @@
-import { defineRule } from '../utils/define-rule'
-import NodeAttributes from '../utils/node-attributes'
+import { defineRule } from '../utils/define-rule.js'
+import NodeAttributes from '../utils/node-attributes.js'
 
 const SUPPORTED_SRCS = [
   'www.google-analytics.com/analytics.js',
@@ -15,11 +15,11 @@ const url = 'https://nextjs.org/docs/messages/next-script-for-ga'
 const ERROR_MSG = `${description} See: ${url}`
 
 // Check if one of the items in the list is a substring of the passed string
-const containsStr = (str, strList) => {
+const containsStr = (str: string, strList: string[]) => {
   return strList.some((s) => str.includes(s))
 }
 
-export = defineRule({
+export const nextScriptForGa = defineRule({
   meta: {
     docs: {
       description,
@@ -29,9 +29,9 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (node.name.name !== 'script') {
           return
         }

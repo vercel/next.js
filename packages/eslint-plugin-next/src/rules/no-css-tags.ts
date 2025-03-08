@@ -1,7 +1,7 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 const url = 'https://nextjs.org/docs/messages/no-css-tags'
 
-export = defineRule({
+export const noCssTags = defineRule({
   meta: {
     docs: {
       description: 'Prevent manual stylesheet tags.',
@@ -11,9 +11,9 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (node.name.name !== 'link') {
           return
         }
@@ -22,15 +22,15 @@ export = defineRule({
         }
 
         const attributes = node.attributes.filter(
-          (attr) => attr.type === 'JSXAttribute'
+          (attr: any) => attr.type === 'JSXAttribute'
         )
         if (
           attributes.find(
-            (attr) =>
+            (attr: any) =>
               attr.name.name === 'rel' && attr.value.value === 'stylesheet'
           ) &&
           attributes.find(
-            (attr) =>
+            (attr: any) =>
               attr.name.name === 'href' &&
               attr.value.type === 'Literal' &&
               !/^https?/.test(attr.value.value)

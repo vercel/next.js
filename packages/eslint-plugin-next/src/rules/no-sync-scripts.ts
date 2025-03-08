@@ -1,8 +1,8 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 
 const url = 'https://nextjs.org/docs/messages/no-sync-scripts'
 
-export = defineRule({
+export const noSyncScripts = defineRule({
   meta: {
     docs: {
       description: 'Prevent synchronous scripts.',
@@ -12,9 +12,9 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (node.name.name !== 'script') {
           return
         }
@@ -22,8 +22,8 @@ export = defineRule({
           return
         }
         const attributeNames = node.attributes
-          .filter((attr) => attr.type === 'JSXAttribute')
-          .map((attr) => attr.name.name)
+          .filter((attr: any) => attr.type === 'JSXAttribute')
+          .map((attr: any) => attr.name.name)
         if (
           attributeNames.includes('src') &&
           !attributeNames.includes('async') &&

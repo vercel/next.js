@@ -1,7 +1,7 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 const url = 'https://nextjs.org/docs/messages/no-title-in-document-head'
 
-export = defineRule({
+export const noTitleInDocumentHead = defineRule({
   meta: {
     docs: {
       description:
@@ -12,17 +12,21 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     let headFromNextDocument = false
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any) {
         if (node.source.value === 'next/document') {
-          if (node.specifiers.some(({ local }) => local.name === 'Head')) {
+          if (
+            node.specifiers.some(
+              ({ local }: { local: any }) => local.name === 'Head'
+            )
+          ) {
             headFromNextDocument = true
           }
         }
       },
-      JSXElement(node) {
+      JSXElement(node: any) {
         if (!headFromNextDocument) {
           return
         }
@@ -36,7 +40,7 @@ export = defineRule({
         }
 
         const titleTag = node.children.find(
-          (child) =>
+          (child: any) =>
             child.openingElement &&
             child.openingElement.name &&
             child.openingElement.name.type === 'JSXIdentifier' &&
