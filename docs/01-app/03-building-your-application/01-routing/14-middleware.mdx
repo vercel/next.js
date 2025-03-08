@@ -377,7 +377,7 @@ export function middleware(request: NextRequest) {
       ...(isAllowedOrigin && { 'Access-Control-Allow-Origin': origin }),
       ...corsOptions,
     }
-    return NextResponse.json({}, { headers: preflightHeaders })
+    return NextResponse.next({ headers: preflightHeaders })
   }
 
   // Handle simple requests
