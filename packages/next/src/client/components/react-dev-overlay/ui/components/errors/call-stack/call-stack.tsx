@@ -11,24 +11,8 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
   const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
 
-  const { visibleFrames, ignoredFrames, ignoreListLength } = useMemo(() => {
-    const visible: OriginalStackFrame[] = []
-    const ignored: OriginalStackFrame[] = []
-
-    for (const frame of frames) {
-      if (!frame.ignored) {
-        visible.push(frame)
-      }
-      if (frame.ignored) {
-        ignored.push(frame)
-      }
-    }
-
-    return {
-      visibleFrames: visible,
-      ignoredFrames: ignored,
-      ignoreListLength: ignored.length,
-    }
+  const ignoredFramesTally = useMemo(() => {
+    return frames.reduce((tally, frame) => tally + (frame.ignored ? 1 : 0), 0)
   }, [frames])
 
   function onToggleIgnoreList() {
@@ -65,36 +49,22 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
             {frames.length}
           </span>
         </p>
-        {ignoreListLength > 0 && (
+        {ignoredFramesTally > 0 && (
           <button
             data-expand-ignore-button={isIgnoreListOpen}
             className="error-overlay-call-stack-ignored-list-toggle-button"
             onClick={onToggleIgnoreList}
           >
-            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored-listed Frames`}
+            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoredFramesTally} ignore-listed frame(s)`}
             <ChevronUpDown />
           </button>
         )}
       </div>
-      {visibleFrames.map((frame, frameIndex) => (
-        <CallStackFrame
-          key={`call-stack-leading-${frameIndex}`}
-          frame={frame}
-          index={frameIndex}
-        />
-      ))}
-
-      {isIgnoreListOpen && (
-        <>
-          {ignoredFrames.map((frame, frameIndex) => (
-            <CallStackFrame
-              key={`call-stack-ignored-${frameIndex}`}
-              frame={frame}
-              index={frameIndex}
-            />
-          ))}
-        </>
-      )}
+      {frames.map((frame, frameIndex) => {
+        return !frame.ignored || isIgnoreListOpen ? (
+          <CallStackFrame key={frameIndex} frame={frame} />
+        ) : null
+      })}
     </div>
   )
 }

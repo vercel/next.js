@@ -8526,11 +8526,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-22e39ea7-20250225" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-029e8bd6-20250306" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-22e39ea7-20250225\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-029e8bd6-20250306\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9956,9 +9956,9 @@
               "Invalid hook call. Hooks can only be called inside of the body of a function component."
             );
           overflow = localIdCounter++;
-          treeId = ":" + resumableState.idPrefix + "R" + treeId;
+          treeId = "\u00ab" + resumableState.idPrefix + "R" + treeId;
           0 < overflow && (treeId += "H" + overflow.toString(32));
-          return treeId + ":";
+          return treeId + "\u00bb";
         },
         useSyncExternalStore: function (
           subscribe,
@@ -10324,5 +10324,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.1.0-experimental-22e39ea7-20250225";
+    exports.version = "19.1.0-experimental-029e8bd6-20250306";
   })();

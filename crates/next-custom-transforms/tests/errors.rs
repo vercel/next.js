@@ -165,6 +165,7 @@ fn react_server_actions_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer,
+                        is_development: true,
                         use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
@@ -225,6 +226,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
+                        is_development: true,
                         use_cache_enabled: false,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),

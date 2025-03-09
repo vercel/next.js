@@ -27,7 +27,7 @@ function NodeJsIcon(props: any) {
       {...props}
     >
       <mask
-        id="a"
+        id="nodejs_icon_mask_a"
         style={{ maskType: 'luminance' }}
         maskUnits="userSpaceOnUse"
         x="0"
@@ -40,14 +40,14 @@ function NodeJsIcon(props: any) {
           fill="#fff"
         />
       </mask>
-      <g mask="url(#a)">
+      <g mask="url(#nodejs_icon_mask_a)">
         <path
           d="M18.648 2.717 3.248-4.86-4.648 11.31l15.4 7.58 7.896-16.174z"
-          fill="url(#b)"
+          fill="url(#nodejs_icon_linear_gradient_b)"
         />
       </g>
       <mask
-        id="c"
+        id="nodejs_icon_mask_c"
         style={{ maskType: 'luminance' }}
         maskUnits="userSpaceOnUse"
         x="1"
@@ -60,15 +60,15 @@ function NodeJsIcon(props: any) {
           fill="#fff"
         />
       </mask>
-      <g mask="url(#c)">
+      <g mask="url(#nodejs_icon_mask_c)">
         <path
           d="M-5.647 4.958 5.226 19.734l14.38-10.667L8.734-5.71-5.647 4.958z"
-          fill="url(#d)"
+          fill="url(#nodejs_icon_linear_gradient_d)"
         />
       </g>
       <g>
         <mask
-          id="e"
+          id="nodejs_icon_mask_e"
           style={{ maskType: 'luminance' }}
           maskUnits="userSpaceOnUse"
           x="1"
@@ -81,13 +81,16 @@ function NodeJsIcon(props: any) {
             fill="#fff"
           />
         </mask>
-        <g mask="url(#e)">
-          <path d="M1.22.002v13.992h11.894V.002H1.22z" fill="url(#f)" />
+        <g mask="url(#nodejs_icon_mask_e)">
+          <path
+            d="M1.22.002v13.992h11.894V.002H1.22z"
+            fill="url(#nodejs_icon_linear_gradient_f)"
+          />
         </g>
       </g>
       <defs>
         <linearGradient
-          id="b"
+          id="nodejs_icon_linear_gradient_b"
           x1="10.943"
           y1="-1.084"
           x2="2.997"
@@ -99,7 +102,7 @@ function NodeJsIcon(props: any) {
           <stop offset=".8" stopColor="#5AAD45" />
         </linearGradient>
         <linearGradient
-          id="d"
+          id="nodejs_icon_linear_gradient_d"
           x1="-.145"
           y1="12.431"
           x2="14.277"
@@ -111,7 +114,7 @@ function NodeJsIcon(props: any) {
           <stop offset="1" stopColor="#76AC64" />
         </linearGradient>
         <linearGradient
-          id="f"
+          id="nodejs_icon_linear_gradient_f"
           x1="1.225"
           y1="6.998"
           x2="13.116"
@@ -140,7 +143,7 @@ function NodeJsDisabledIcon(props: any) {
       {...props}
     >
       <mask
-        id="a"
+        id="nodejs_icon_mask_a"
         style={{ maskType: 'luminance' }}
         maskUnits="userSpaceOnUse"
         x="0"
@@ -153,14 +156,14 @@ function NodeJsDisabledIcon(props: any) {
           fill="#fff"
         />
       </mask>
-      <g mask="url(#a)">
+      <g mask="url(#nodejs_icon_mask_a)">
         <path
           d="M18.648 2.717 3.248-4.86-4.646 11.31l15.399 7.58 7.896-16.174z"
-          fill="url(#b)"
+          fill="url(#nodejs_icon_linear_gradient_b)"
         />
       </g>
       <mask
-        id="c"
+        id="nodejs_icon_mask_c"
         style={{ maskType: 'luminance' }}
         maskUnits="userSpaceOnUse"
         x="1"
@@ -173,15 +176,15 @@ function NodeJsDisabledIcon(props: any) {
           fill="#fff"
         />
       </mask>
-      <g mask="url(#c)">
+      <g mask="url(#nodejs_icon_mask_c)">
         <path
           d="M-5.647 4.96 5.226 19.736 19.606 9.07 8.734-5.707-5.647 4.96z"
-          fill="url(#d)"
+          fill="url(#nodejs_icon_linear_gradient_d)"
         />
       </g>
       <g>
         <mask
-          id="e"
+          id="nodejs_icon_mask_e"
           style={{ maskType: 'luminance' }}
           maskUnits="userSpaceOnUse"
           x="1"
@@ -194,13 +197,16 @@ function NodeJsDisabledIcon(props: any) {
             fill="#fff"
           />
         </mask>
-        <g mask="url(#e)">
-          <path d="M1.222.001v13.992h11.893V0H1.222z" fill="url(#f)" />
+        <g mask="url(#nodejs_icon_mask_e)">
+          <path
+            d="M1.222.001v13.992h11.893V0H1.222z"
+            fill="url(#nodejs_icon_linear_gradient_f)"
+          />
         </g>
       </g>
       <defs>
         <linearGradient
-          id="b"
+          id="nodejs_icon_linear_gradient_b"
           x1="10.944"
           y1="-1.084"
           x2="2.997"
@@ -212,7 +218,7 @@ function NodeJsDisabledIcon(props: any) {
           <stop offset=".8" stopColor="#989A98" />
         </linearGradient>
         <linearGradient
-          id="d"
+          id="nodejs_icon_linear_gradient_d"
           x1="-.145"
           y1="12.433"
           x2="14.277"
@@ -224,7 +230,7 @@ function NodeJsDisabledIcon(props: any) {
           <stop offset="1" stopColor="#929292" />
         </linearGradient>
         <linearGradient
-          id="f"
+          id="nodejs_icon_linear_gradient_f"
           x1="1.226"
           y1="6.997"
           x2="13.117"

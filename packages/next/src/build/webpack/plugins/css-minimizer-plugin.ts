@@ -3,7 +3,7 @@ import postcssScss from 'next/dist/compiled/postcss-scss'
 import postcss from 'postcss'
 import type { Parser } from 'postcss'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { spans } from './profiling-plugin'
+import { getCompilationSpan } from '../utils'
 
 // https://github.com/NMFR/optimize-css-assets-webpack-plugin/blob/0a410a9bf28c7b0e81a3470a13748e68ca2f50aa/src/index.js#L20
 const CSS_REGEX = /\.css(\?.*)?$/i
@@ -64,7 +64,8 @@ export class CssMinimizerPlugin {
           stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_SIZE,
         },
         async (assets: any) => {
-          const compilationSpan = spans.get(compilation) || spans.get(compiler)
+          const compilationSpan =
+            getCompilationSpan(compilation) || getCompilationSpan(compiler)
           const cssMinimizerSpan = compilationSpan!.traceChild(
             'css-minimizer-plugin'
           )

@@ -5,6 +5,7 @@ import type { VersionInfo } from '../../../server/dev/parse-version-info'
 import type { SupportedErrorEvent } from './ui/container/runtime-error/render-error'
 import type { ComponentStackFrame } from './utils/parse-component-stack'
 import type { DebugInfo } from './types'
+import type { DevIndicatorServerState } from '../../../server/dev/dev-indicator-server-state'
 
 type FastRefreshState =
   /** No refresh in progress. */
@@ -35,6 +36,10 @@ export const ACTION_VERSION_INFO = 'version-info'
 export const ACTION_UNHANDLED_ERROR = 'unhandled-error'
 export const ACTION_UNHANDLED_REJECTION = 'unhandled-rejection'
 export const ACTION_DEBUG_INFO = 'debug-info'
+export const ACTION_DEV_INDICATOR = 'dev-indicator'
+
+export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
+export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR
@@ -78,6 +83,11 @@ interface VersionInfoAction {
   versionInfo: VersionInfo
 }
 
+interface DevIndicatorAction {
+  type: typeof ACTION_DEV_INDICATOR
+  devIndicator: DevIndicatorServerState
+}
+
 export type BusEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -88,6 +98,7 @@ export type BusEvent =
   | VersionInfoAction
   | StaticIndicatorAction
   | DebugInfoAction
+  | DevIndicatorAction
 
 function pushErrorFilterDuplicates(
   errors: SupportedErrorEvent[],
@@ -102,13 +113,17 @@ function pushErrorFilterDuplicates(
   ]
 }
 
+const shouldDisableDevIndicator =
+  process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
+
 export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   nextId: 1,
   buildError: null,
   errors: [],
   notFound: false,
   staticIndicator: false,
-  disableDevIndicator: process.env.__NEXT_DEV_INDICATOR?.toString() === 'false',
+  // To prevent flickering, set the initial state to disabled.
+  disableDevIndicator: true,
   refreshState: { type: 'idle' },
   rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
@@ -193,6 +208,13 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
       }
       case ACTION_VERSION_INFO: {
         return { ..._state, versionInfo: action.versionInfo }
+      }
+      case ACTION_DEV_INDICATOR: {
+        return {
+          ..._state,
+          disableDevIndicator:
+            shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
+        }
       }
       default: {
         return _state

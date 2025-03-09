@@ -301,9 +301,8 @@
         'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
       );
     var hasOwnProperty = Object.prototype.hasOwnProperty,
-      isArrayImpl = Array.isArray;
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      isArrayImpl = Array.isArray,
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;

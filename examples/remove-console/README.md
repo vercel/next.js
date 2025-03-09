@@ -1,6 +1,6 @@
 # Remove Console Example
 
-This example shows how to use the Next.js [removeConsole](https://nextjs.org/docs/advanced-features/compiler#remove-console) config option to remove all `console.*` calls except `console.error`, or suppress all logs.
+This example shows how to use the Next.js [removeConsole](https://nextjs.org/docs/architecture/nextjs-compiler#remove-console) config option to remove all `console.*` calls except `console.error`, or suppress all logs.
 
 ## Deploy your own
 

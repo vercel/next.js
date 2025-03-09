@@ -15,6 +15,7 @@ import {
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
   ACTION_DEBUG_INFO,
+  ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
   ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
@@ -48,6 +49,7 @@ import { getReactStitchedError } from '../../errors/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -57,6 +59,7 @@ export interface Dispatcher {
   onBeforeRefresh(): void
   onRefresh(): void
   onStaticIndicator(status: boolean): void
+  onDevIndicator(devIndicator: DevIndicatorServerState): void
 }
 
 let mostRecentCompilationHash: any = null
@@ -379,6 +382,7 @@ function processMessage(
       // Is undefined when it's a 'built' event
       if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
       if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
+      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -565,6 +569,12 @@ export default function HotReload({
       },
       onDebugInfo(debugInfo) {
         dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
+      },
+      onDevIndicator(devIndicator) {
+        dispatch({
+          type: ACTION_DEV_INDICATOR,
+          devIndicator,
+        })
       },
     }
   }, [dispatch])

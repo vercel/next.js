@@ -415,6 +415,7 @@ pub async fn get_client_chunking_context(
     client_root: ResolvedVc<FileSystemPath>,
     client_root_to_root_path: ResolvedVc<RcStr>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
@@ -437,6 +438,7 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
+    .chunk_suffix_path(chunk_suffix_path)
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: !*no_mangling.await?,

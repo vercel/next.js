@@ -29,6 +29,22 @@ const styles = `
     outline: none;
     overflow: hidden;
   }
+  [data-nextjs-dialog]::-webkit-scrollbar {
+    width: 6px;
+    border-radius: 0 0 1rem 1rem;
+    margin-bottom: 1rem;
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar-button {
+    display: none;
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar-track {
+    border-radius: 0 0 1rem 1rem;
+    background-color: var(--color-background-100);
+  }
+  [data-nextjs-dialog]::-webkit-scrollbar-thumb {
+    border-radius: 1rem;
+    background-color: var(--color-gray-500);
+  }
 
   ${
     '' /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */

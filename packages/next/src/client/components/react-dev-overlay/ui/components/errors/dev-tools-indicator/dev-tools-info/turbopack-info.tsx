@@ -1,24 +1,14 @@
-import { DevToolsInfo } from './dev-tools-info'
+import { DevToolsInfo, type DevToolsInfoPropsCore } from './dev-tools-info'
 import { CopyButton } from '../../../copy-button'
+import type { HTMLProps } from 'react'
 
-export function TurbopackInfo({
-  isOpen,
-  setIsOpen,
-  setPreviousOpen,
-  ...props
-}: {
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-  setPreviousOpen: (isOpen: boolean) => void
-  style?: React.CSSProperties
-  ref?: React.RefObject<HTMLElement | null>
-}) {
+export function TurbopackInfo(
+  props: DevToolsInfoPropsCore & HTMLProps<HTMLDivElement>
+) {
   return (
     <DevToolsInfo
       title="Turbopack"
       learnMoreLink="https://nextjs.org/docs/app/api-reference/turbopack"
-      setIsOpen={setIsOpen}
-      setPreviousOpen={setPreviousOpen}
       {...props}
     >
       <article className="dev-tools-info-article">
@@ -114,7 +104,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
   .dev-tools-info-code {
     background: var(--color-gray-400);
     color: var(--color-gray-1000);
-    font-family: var(--font-stack-mono);
+    font-family: var(--font-stack-monospace);
     padding: 2px 4px;
     margin: 0;
     font-size: var(--size-13);
@@ -136,7 +126,7 @@ export const DEV_TOOLS_INFO_TURBOPACK_INFO_STYLES = `
 
   .dev-tools-info-code-block-pre {
     margin: 0;
-    font-family: var(--font-stack-mono);
+    font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
   }
 

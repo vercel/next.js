@@ -62,6 +62,7 @@ export const styles = `
     }
 
     &:disabled {
+      background-color: var(--color-gray-100);
       cursor: not-allowed;
     }
   }

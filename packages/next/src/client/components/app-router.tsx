@@ -58,10 +58,11 @@ import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import { useServerActionDispatcher } from '../app-call-server'
 import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
-import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
+import { prefetch as prefetchWithSegmentCache } from './segment-cache'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
+import { pingVisibleLinks } from './links'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -142,6 +143,17 @@ function HistoryUpdater({
       window.history.replaceState(historyState, '', canonicalUrl)
     }
   }, [appRouterState])
+
+  useEffect(() => {
+    // The Next-Url and the base tree may affect the result of a prefetch
+    // task. Re-prefetch all visible links with the updated values. In most
+    // cases, this will not result in any new network requests, only if
+    // the prefetch result actually varies on one of these inputs.
+    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+      pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
+    }
+  }, [appRouterState.nextUrl, appRouterState.tree])
+
   return null
 }
 

@@ -6,12 +6,12 @@ export function Base() {
       {css`
         :host {
           /* 
-            Although the style applied to the shadow host is isolated,
-            the element that attached the shadow host (i.e. "nextjs-portal")
-            is still affected by the parent's style (e.g. "body"). This may
-            occur style conflicts like "display: flex", with other children
-            elements therefore give the shadow host an absolute position.
-          */
+           * Although the style applied to the shadow host is isolated,
+           * the element that attached the shadow host (i.e. "nextjs-portal")
+           * is still affected by the parent's style (e.g. "body"). This may
+           * occur style conflicts like "display: flex", with other children
+           * elements therefore give the shadow host an absolute position.
+           */
           position: absolute;
 
           --color-font: #757575;
@@ -111,17 +111,6 @@ export function Base() {
 
           @media print {
             display: none;
-          }
-        }
-
-        @media (prefers-color-scheme: dark) {
-          :host {
-            --color-font: white;
-            --color-backdrop: rgb(0, 0, 0, 0.8);
-            --color-border-shadow: rgba(255, 255, 255, 0.145);
-
-            --color-title-color: #fafafa;
-            --color-stack-notes: #a9a9a9;
           }
         }
 

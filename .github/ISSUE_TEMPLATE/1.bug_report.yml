@@ -79,6 +79,9 @@ body:
       multiple: true
       options:
         - 'Not sure'
+        - 'After'
+        - 'Connection'
+        - 'Cookies'
         - 'create-next-app'
         - 'CSS'
         - 'Draft Mode'
@@ -86,6 +89,7 @@ body:
         - 'Dynamic Routes'
         - 'Error Handling'
         - 'Error Overlay'
+        - 'Headers'
         - 'Lazy Loading'
         - 'Font (next/font)'
         - 'Form (next/form)'
@@ -100,7 +104,6 @@ body:
         - 'Middleware'
         - 'Module Resolution'
         - 'Output'
-        - 'Package Managers'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'
         - 'Partial Prerendering (PPR)'
