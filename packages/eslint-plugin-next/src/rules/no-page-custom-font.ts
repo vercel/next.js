@@ -91,7 +91,7 @@ export const noPageCustomFont = defineRule({
 
             const token = program.tokens[i]
 
-            if (token.type === 'Keyword' && token.value === 'export') {
+            if (token?.type === 'Keyword' && token.value === 'export') {
               const nextToken = program.tokens[i + 1]
 
               if (

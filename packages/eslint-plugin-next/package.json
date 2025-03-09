@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "eslint": "9.12.0",
+    "typescript": "5.8.2",
     "tsup": "8.4.0"
   },
   "peerDependencies": {
@@ -33,6 +34,7 @@
   },
   "scripts": {
     "build": "tsup",
+    "typescript": "tsc --noEmit",
     "prepublishOnly": "cd ../../ && turbo run build"
   }
 }

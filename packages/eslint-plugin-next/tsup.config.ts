@@ -1,4 +1,4 @@
-// probably need a nested config here
+// It wants this to be a dep, not devDep, which is wrong
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { defineConfig } from 'tsup'
 

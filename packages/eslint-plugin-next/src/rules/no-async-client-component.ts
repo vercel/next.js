@@ -5,7 +5,7 @@ const description = 'Prevent client components from being async functions.'
 const message = `${description} See: ${url}`
 
 function isCapitalized(str: string): boolean {
-  return /[A-Z]/.test(str?.[0])
+  return /[A-Z]/.test(str?.[0] ?? '')
 }
 
 export const noAsyncClientComponent = defineRule({

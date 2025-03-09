@@ -49,7 +49,7 @@ export const googleFontDisplay = defineRule({
             displayValue === 'fallback'
           ) {
             message = `${
-              displayValue[0].toUpperCase() + displayValue.slice(1)
+              displayValue[0]?.toUpperCase() + displayValue.slice(1)
             } is not recommended.`
           }
         }

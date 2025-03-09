@@ -1,15 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ES2019",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "esModuleInterop": true,
-    "strict": true,
     "declaration": true,
-    "skipLibCheck": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "NodeNext",
+    "moduleDetection": "force",
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
     "outDir": "dist",
-    "rootDir": "src",
-    "baseUrl": "."
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2022",
+    "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*.ts"]
 }

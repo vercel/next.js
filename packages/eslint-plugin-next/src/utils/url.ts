@@ -71,9 +71,9 @@ export function normalizeURL(url: string) {
   if (!url) {
     return
   }
-  url = url.split('?', 1)[0]
-  url = url.split('#', 1)[0]
-  url = url = url.replace(/(\/index\.html)$/, '/')
+  url = url.split('?', 1)[0] as string
+  url = url.split('#', 1)[0] as string
+  url = url.replace(/(\/index\.html)$/, '/')
   // Empty URLs should not be trailed with `/`, e.g. `#heading`
   if (url === '') {
     return url
