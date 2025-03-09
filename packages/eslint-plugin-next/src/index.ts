@@ -164,3 +164,5 @@ export default {
     'recommended/flat': recommendedFlatConfig,
   },
 } as PluginConfig
+
+export const rules = plugin.rules

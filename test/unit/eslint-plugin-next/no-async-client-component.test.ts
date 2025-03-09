@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-async-client-component']
+const NextESLintRule = getRule('no-async-client-component')
 
 const message =
   'Prevent client components from being async functions. See: https://nextjs.org/docs/messages/no-async-client-component'

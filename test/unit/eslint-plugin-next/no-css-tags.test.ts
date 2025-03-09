@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-css-tags']
+const NextESLintRule = getRule('no-css-tags')
 
 const message =
   'Do not include stylesheets manually. See: https://nextjs.org/docs/messages/no-css-tags'
