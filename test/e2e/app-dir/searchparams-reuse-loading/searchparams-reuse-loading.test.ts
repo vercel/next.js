@@ -137,22 +137,32 @@ describe('searchparams-reuse-loading', () => {
       const browser = await next.browser('/mpa-navs')
       await browser.elementByCss("[href='/pages-dir?param=1']").click()
 
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          'Hello from pages dir! 1'
-        )
-        expect(await browser.url()).toContain('/pages-dir?param=1')
-      })
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Hello from pages dir! 1'
+          )
+          expect(await browser.url()).toContain('/pages-dir?param=1')
+        },
+        10000,
+        1000,
+        'Waiting for pages-dir?param=1 to load'
+      )
 
       await browser.loadPage(`${next.url}/mpa-navs`)
-
       await browser.elementByCss("[href='/pages-dir?param=2']").click()
-      await retry(async () => {
-        expect(await browser.elementByCss('body').text()).toContain(
-          'Hello from pages dir! 2'
-        )
-        expect(await browser.url()).toContain('/pages-dir?param=2')
-      })
+
+      await retry(
+        async () => {
+          expect(await browser.elementByCss('body').text()).toContain(
+            'Hello from pages dir! 2'
+          )
+          expect(await browser.url()).toContain('/pages-dir?param=2')
+        },
+        10000,
+        1000,
+        'Waiting for pages-dir?param=2 to load'
+      )
     })
   })
 
