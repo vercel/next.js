@@ -131,19 +131,20 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         "Turbopack Error: {}",
         internal_error_str.lines().next().unwrap_or("Unknown")
     );
+    let version_str = format!("Turbopack version: `{}`", env!("VERGEN_GIT_DESCRIBE"));
     let new_discussion_url = if supports_hyperlinks::supports_hyperlinks() {
         "clicking here.".hyperlink(
             format!(
                 "https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
                 &urlencoding::encode(&title),
-                &urlencoding::encode(&format!("Error message:\n```\n{}\n```", &internal_error_str))
+                &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &internal_error_str))
             )
         )
     } else {
         format!(
             "clicking here: https://github.com/vercel/next.js/discussions/new?category=turbopack-error-report&title={}&body={}&labels=Turbopack,Turbopack%20Panic%20Backtrace",
             &urlencoding::encode(&title),
-            &urlencoding::encode(&format!("Error message:\n```\n{}\n```", title))
+            &urlencoding::encode(&format!("{}\n\nError message:\n```\n{}\n```", &version_str, &title))
         )
     };
 
