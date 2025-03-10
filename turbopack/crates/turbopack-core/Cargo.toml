@@ -18,6 +18,7 @@ async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
 const_format = { workspace = true }
+data-encoding = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
@@ -42,6 +43,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+urlencoding = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }
