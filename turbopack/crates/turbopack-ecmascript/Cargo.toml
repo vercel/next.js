@@ -15,7 +15,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-data-encoding = "2.3.3"
+data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }

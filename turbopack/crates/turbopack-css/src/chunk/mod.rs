@@ -297,6 +297,7 @@ impl OutputAsset for CssChunk {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(self
