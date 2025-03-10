@@ -22,9 +22,10 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{self, rope::RopeBuilder, File, FileSystemPath};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::AssetContent,
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
+    file_source::FileSource,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -202,10 +203,11 @@ async fn build_manifest(
 /// The ActionBrowser layer's module is in the Client context, and we need to
 /// bring it into the RSC context.
 pub async fn to_rsc_context(
-    module: Vc<Box<dyn Module>>,
+    client_module: Vc<Box<dyn Module>>,
+    entry_path: &str,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
-    let source = VirtualSource::new_with_ident(module.ident(), module.content());
+    let source = FileSource::new(client_module.ident().path().root().join(entry_path.into()));
     let module = asset_context
         .process(
             Vc::upcast(source),
@@ -226,7 +228,7 @@ pub async fn to_rsc_context(
 pub fn parse_server_actions(
     program: &Program,
     comments: &dyn Comments,
-) -> Option<BTreeMap<String, String>> {
+) -> Option<(BTreeMap<String, String>, String)> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
         Program::Script(s) => s.span.lo,
@@ -272,7 +274,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         return Ok(Vc::cell(None));
     };
 
-    let Some(mut actions) = parse_server_actions(original, comments) else {
+    let Some((mut actions, entry_path)) = parse_server_actions(original, comments) else {
         return Ok(Vc::cell(None));
     };
 
@@ -293,7 +295,13 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
+    Ok(Vc::cell(Some(
+        ActionMap {
+            actions,
+            entry_path,
+        }
+        .resolved_cell(),
+    )))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
@@ -394,8 +402,12 @@ impl AllActions {
 }
 
 /// Maps the hashed action id to the action's exported function name.
-#[turbo_tasks::value(transparent)]
-pub struct ActionMap(FxIndexMap<String, String>);
+#[turbo_tasks::value]
+#[derive(Debug)]
+pub struct ActionMap {
+    pub actions: FxIndexMap<String, String>,
+    pub entry_path: String,
+}
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]

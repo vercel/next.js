@@ -14,7 +14,9 @@ use crate::{mode::NextMode, next_config::CacheKinds};
 
 #[derive(Debug)]
 pub enum ActionsTransform {
+    /// Browser and SSR
     Client,
+    /// RSC Server
     Server,
 }
 

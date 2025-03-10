@@ -187,10 +187,15 @@ pub fn server_actions<C: Comments>(
 
 /// Serializes the Server Actions into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
-fn generate_server_actions_comment(actions: ActionsMap) -> String {
+fn generate_server_actions_comment(actions: &ActionsMap, entry: Option<&str>) -> String {
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
-        serde_json::to_string(&actions).unwrap()
+        if let Some(entry) = entry {
+            serde_json::to_string(&(actions, entry))
+        } else {
+            serde_json::to_string(&actions)
+        }
+        .unwrap()
     )
 }
 
@@ -2111,7 +2116,14 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     Comment {
                         span: DUMMY_SP,
                         kind: CommentKind::Block,
-                        text: generate_server_actions_comment(actions).into(),
+                        text: generate_server_actions_comment(
+                            &actions,
+                            match self.mode {
+                                ServerActionsMode::Webpack => None,
+                                ServerActionsMode::Turbopack => Some(""),
+                            },
+                        )
+                        .into(),
                     },
                 );
             } else {
@@ -2122,7 +2134,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             Comment {
                                 span: DUMMY_SP,
                                 kind: CommentKind::Block,
-                                text: generate_server_actions_comment(actions).into(),
+                                text: generate_server_actions_comment(&actions, None).into(),
                             },
                         );
                         new.push(client_layer_import.unwrap());
@@ -2165,7 +2177,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 span: DUMMY_SP,
                                                 kind: CommentKind::Block,
                                                 text: generate_server_actions_comment(
-                                                    std::iter::once((ref_id, export)).collect(),
+                                                    &std::iter::once((ref_id, export)).collect(),
+                                                    Some(&self.file_name),
                                                 )
                                                 .into(),
                                             },
