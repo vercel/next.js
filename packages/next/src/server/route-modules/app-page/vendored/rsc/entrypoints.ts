@@ -2,7 +2,6 @@ import * as React from 'react'
 import * as ReactDOM from 'react-dom'
 import * as ReactJsxDevRuntime from 'react/jsx-dev-runtime'
 import * as ReactJsxRuntime from 'react/jsx-runtime'
-//@ts-expect-error TODO: current @types/react does not have exported types for this import
 import * as ReactCompilerRuntime from 'react/compiler-runtime'
 
 function getAltProxyForBindingsDEV(
@@ -10,8 +9,10 @@ function getAltProxyForBindingsDEV(
   pkg:
     | 'react-server-dom-turbopack/server.edge'
     | 'react-server-dom-turbopack/server.node'
+    | 'react-server-dom-turbopack/static.edge'
     | 'react-server-dom-webpack/server.edge'
     | 'react-server-dom-webpack/server.node'
+    | 'react-server-dom-webpack/static.edge'
 ) {
   if (process.env.NODE_ENV === 'development') {
     const altType = type === 'Turbopack' ? 'Webpack' : 'Turbopack'
@@ -32,6 +33,7 @@ function getAltProxyForBindingsDEV(
 
 let ReactServerDOMTurbopackServerEdge, ReactServerDOMWebpackServerEdge
 let ReactServerDOMTurbopackServerNode, ReactServerDOMWebpackServerNode
+let ReactServerDOMTurbopackStaticEdge, ReactServerDOMWebpackStaticEdge
 
 if (process.env.TURBOPACK) {
   // eslint-disable-next-line import/no-extraneous-dependencies
@@ -48,6 +50,14 @@ if (process.env.TURBOPACK) {
     ReactServerDOMWebpackServerNode = getAltProxyForBindingsDEV(
       'Turbopack',
       'react-server-dom-turbopack/server.node'
+    )
+  }
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMTurbopackStaticEdge = require('react-server-dom-turbopack/static.edge')
+  if (process.env.NODE_ENV === 'development') {
+    ReactServerDOMWebpackStaticEdge = getAltProxyForBindingsDEV(
+      'Turbopack',
+      'react-server-dom-turbopack/static.edge'
     )
   }
 } else {
@@ -67,6 +77,14 @@ if (process.env.TURBOPACK) {
       'react-server-dom-webpack/server.node'
     )
   }
+  // eslint-disable-next-line import/no-extraneous-dependencies
+  ReactServerDOMWebpackStaticEdge = require('react-server-dom-webpack/static.edge')
+  if (process.env.NODE_ENV === 'development') {
+    ReactServerDOMTurbopackStaticEdge = getAltProxyForBindingsDEV(
+      'Webpack',
+      'react-server-dom-webpack/static.edge'
+    )
+  }
 }
 
 export {
@@ -79,4 +97,6 @@ export {
   ReactServerDOMTurbopackServerEdge,
   ReactServerDOMWebpackServerNode,
   ReactServerDOMTurbopackServerNode,
+  ReactServerDOMWebpackStaticEdge,
+  ReactServerDOMTurbopackStaticEdge,
 }

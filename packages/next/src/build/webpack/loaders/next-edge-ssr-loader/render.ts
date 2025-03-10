@@ -2,7 +2,10 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
-import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type {
+  DynamicCssManifest,
+  ReactLoadableManifest,
+} from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
 import type { NextFetchEvent } from '../../../../server/web/spec-extension/fetch-event'
@@ -13,13 +16,12 @@ import {
   WebNextResponse,
 } from '../../../../server/base-http/web'
 import { SERVER_RUNTIME } from '../../../../lib/constants'
-import type { ManifestRewriteRoute, PrerenderManifest } from '../../..'
+import type { ManifestRewriteRoute } from '../../..'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
 import type { NextRequestHint } from '../../../../server/web/adapter'
-import type { DeepReadonly } from '../../../../shared/lib/deep-readonly'
 
 export function getRender({
   dev,
@@ -31,8 +33,8 @@ export function getRender({
   pagesType,
   Document,
   buildManifest,
-  prerenderManifest,
   reactLoadableManifest,
+  dynamicCssManifest,
   interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
@@ -54,8 +56,8 @@ export function getRender({
   renderToHTML?: any
   Document: DocumentType
   buildManifest: BuildManifest
-  prerenderManifest: DeepReadonly<PrerenderManifest>
   reactLoadableManifest: ReactLoadableManifest
+  dynamicCssManifest?: DynamicCssManifest
   subresourceIntegrityManifest?: Record<string, string>
   interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
@@ -74,6 +76,7 @@ export function getRender({
     dev,
     buildManifest,
     reactLoadableManifest,
+    dynamicCssManifest,
     subresourceIntegrityManifest,
     Document,
     App: appMod?.default as AppType,
@@ -82,16 +85,15 @@ export function getRender({
 
   const server = new WebServer({
     dev,
+    buildId,
     conf: config,
     minimalMode: true,
     webServerConfig: {
       page,
       pathname: isAppPath ? normalizeAppPath(page) : page,
       pagesType,
-      prerenderManifest,
       interceptionRouteRewrites,
       extendRenderOpts: {
-        buildId,
         runtime: SERVER_RUNTIME.experimentalEdge,
         supportsDynamicResponse: true,
         disableOptimizedLoading: true,
@@ -158,19 +160,16 @@ export function getRender({
     event?: NextFetchEvent
   ) {
     const extendedReq = new WebNextRequest(request)
-    const extendedRes = new WebNextResponse(
-      undefined,
-      // tracking onClose adds overhead, so only do it if `experimental.after` is on.
-      !!process.env.__NEXT_AFTER
-    )
+    const extendedRes = new WebNextResponse(undefined)
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()
+    request.fetchMetrics = extendedReq.fetchMetrics
 
     if (event?.waitUntil) {
       // TODO(after):
       // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
-      // when consumers switch to `unstable_after`.
+      // when consumers switch to `after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

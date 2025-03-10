@@ -1,0 +1,26 @@
+{
+  "name": "@vercel/experimental-nft-next-plugin",
+  "version": "0.0.3-alpha.2",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@vercel/webpack-nft": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": ">= 12"
+  },
+  "devDependencies": {
+    "next": "workspace:*"
+  },
+  "scripts": {
+    "lint": "eslint src/",
+    "lint:prettier": "prettier -c . --cache --ignore-path=../../.prettierignore"
+  }
+}

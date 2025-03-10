@@ -1,8 +1,8 @@
-import type { Update as TurbopackUpdate } from '../../build/swc'
+import type { Update as TurbopackUpdate } from '../../build/swc/types'
 
 export function extractModulesFromTurbopackMessage(
   data: TurbopackUpdate | TurbopackUpdate[]
-) {
+): Set<string> {
   const updatedModules: Set<string> = new Set()
 
   const updates = Array.isArray(data) ? data : [data]
@@ -31,5 +31,5 @@ export function extractModulesFromTurbopackMessage(
     }
   }
 
-  return [...updatedModules]
+  return updatedModules
 }

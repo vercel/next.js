@@ -1,28 +1,24 @@
 import * as Bus from './bus'
-import { parseStack } from '../internal/helpers/parseStack'
-import { parseComponentStack } from '../internal/helpers/parse-component-stack'
+import { parseStack } from '../utils/parse-stack'
+import { parseComponentStack } from '../utils/parse-component-stack'
 import {
-  getReactHydrationDiffSegments,
   hydrationErrorState,
-  patchConsoleError,
-} from '../internal/helpers/hydration-error-info'
+  storeHydrationErrorStateFromConsoleArgs,
+} from '../../errors/hydration-error-info'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
-import {
-  getDefaultHydrationErrorMessage,
-  isHydrationError,
-} from '../../is-hydration-error'
-
-// Patch console.error to collect information about hydration errors
-patchConsoleError()
+import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -33,43 +29,8 @@ function handleError(error: unknown) {
     return
   }
 
-  if (
-    isHydrationError(error) &&
-    !error.message.includes(
-      'https://nextjs.org/docs/messages/react-hydration-error'
-    )
-  ) {
-    const reactHydrationDiffSegments = getReactHydrationDiffSegments(
-      error.message
-    )
-    let parsedHydrationErrorState: typeof hydrationErrorState = {}
-    if (reactHydrationDiffSegments) {
-      parsedHydrationErrorState = {
-        ...(error as any).details,
-        warning: hydrationErrorState.warning || [
-          getDefaultHydrationErrorMessage(),
-        ],
-        notes: reactHydrationDiffSegments[0],
-        reactOutputComponentDiff: reactHydrationDiffSegments[1],
-      }
-    } else {
-      // If there's any extra information in the error message to display,
-      // append it to the error message details property
-      if (hydrationErrorState.warning) {
-        // The patched console.error found hydration errors logged by React
-        // Append the logged warning to the error message
-        parsedHydrationErrorState = {
-          ...(error as any).details,
-          // It contains the warning, component stack, server and client tag names
-          ...hydrationErrorState,
-        }
-      }
-      error.message += `\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error`
-    }
-    ;(error as any).details = parsedHydrationErrorState
-  }
+  attachHydrationErrorState(error)
 
-  const e = error
   const componentStackTrace =
     (error as any)._componentStack || hydrationErrorState.componentStack
   const componentStackFrames =
@@ -79,11 +40,14 @@ function handleError(error: unknown) {
 
   // Skip ModuleBuildError and ModuleNotFoundError, as it will be sent through onBuildError callback.
   // This is to avoid same error as different type showing up on client to cause flashing.
-  if (e.name !== 'ModuleBuildError' && e.name !== 'ModuleNotFoundError') {
+  if (
+    error.name !== 'ModuleBuildError' &&
+    error.name !== 'ModuleNotFoundError'
+  ) {
     Bus.emit({
       type: ACTION_UNHANDLED_ERROR,
       reason: error,
-      frames: parseStack(e.stack!),
+      frames: parseStack(error.stack),
       componentStackFrames,
     })
   }
@@ -93,6 +57,7 @@ let origConsoleError = console.error
 function nextJsHandleConsoleError(...args: any[]) {
   // See https://github.com/facebook/react/blob/d50323eb845c5fde0d720cae888bf35dedd05506/packages/react-reconciler/src/ReactFiberErrorLogger.js#L78
   const error = process.env.NODE_ENV !== 'production' ? args[1] : args[0]
+  storeHydrationErrorStateFromConsoleArgs(...args)
   handleError(error)
   origConsoleError.apply(window.console, args)
 }
@@ -176,6 +141,13 @@ export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
 }
 
-export { getErrorByType } from '../internal/helpers/getErrorByType'
-export { getServerError } from '../internal/helpers/nodeStackFrames'
-export { default as ReactDevOverlay } from './ReactDevOverlay'
+export function onStaticIndicator(isStatic: boolean) {
+  Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
+}
+
+export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
+  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
+}
+
+export { getErrorByType } from '../utils/get-error-by-type'
+export { getServerError } from '../utils/node-stack-frames'

@@ -1,6 +1,6 @@
 {
   "name": "@next/codemod",
-  "version": "15.0.0-canary.55",
+  "version": "15.2.2-canary.6",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -9,16 +9,20 @@
   },
   "dependencies": {
     "cheerio": "1.0.0-rc.9",
+    "commander": "12.1.0",
     "execa": "4.0.3",
+    "find-up": "4.1.0",
     "globby": "11.0.1",
-    "inquirer": "7.3.3",
     "is-git-clean": "1.1.0",
-    "jscodeshift": "0.13.1",
-    "meow": "7.0.1",
-    "picocolors": "1.0.0"
+    "jscodeshift": "17.0.0",
+    "picocolors": "1.0.0",
+    "prompts": "2.4.2",
+    "semver": "7.6.3",
+    "strip-ansi": "6.0.0"
   },
   "files": [
     "transforms/*.js",
+    "transforms/lib/**/*.js",
     "bin/*.js",
     "lib/**/*.js",
     "lib/cra-to-next/gitignore"
@@ -27,10 +31,15 @@
     "build": "pnpm tsc -d -p tsconfig.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm tsc -d -w -p tsconfig.json",
-    "test": "jest"
+    "test": "jest",
+    "test:upgrade-fixture": "./scripts/test-upgrade-fixture.sh"
   },
   "bin": "./bin/next-codemod.js",
   "devDependencies": {
-    "@types/jscodeshift": "0.11.0"
+    "@types/find-up": "4.0.0",
+    "@types/jscodeshift": "0.11.0",
+    "@types/prompts": "2.4.2",
+    "@types/semver": "7.3.1",
+    "typescript": "5.8.2"
   }
 }

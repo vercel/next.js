@@ -1,0 +1,28 @@
+[package]
+name = "turbopack-trace-server"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[[bin]]
+name = "turbo-trace-server"
+path = "src/main.rs"
+bench = false
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+either = { workspace = true }
+flate2 = { version = "1.0.28" }
+indexmap = { workspace = true, features = ["serde"] }
+itertools = { workspace = true }
+postcard = { workspace = true }
+rayon = { workspace = true }
+rustc-demangle = "0.1"
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tungstenite = { version = "0.21.0" }
+turbopack-trace-utils = { workspace = true }
+zstd = { version = "0.13.0" }

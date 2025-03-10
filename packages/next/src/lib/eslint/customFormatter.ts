@@ -94,16 +94,16 @@ function formatMessage(
   return output
 }
 
-export function formatResults(
+export async function formatResults(
   baseDir: string,
   results: LintResult[],
-  format: (r: LintResult[]) => string
-): {
+  format: (r: LintResult[]) => string | Promise<string>
+): Promise<{
   output: string
   outputWithMessages: string
   totalNextPluginErrorCount: number
   totalNextPluginWarningCount: number
-} {
+}> {
   let totalNextPluginErrorCount = 0
   let totalNextPluginWarningCount = 0
   let resultsWithMessages = results.filter(({ messages }) => messages?.length)
@@ -117,7 +117,7 @@ export function formatResults(
 
   // Use user defined formatter or Next.js's built-in custom formatter
   const output = format
-    ? format(resultsWithMessages)
+    ? await format(resultsWithMessages)
     : resultsWithMessages
         .map(({ messages, filePath }) =>
           formatMessage(baseDir, messages, filePath)
@@ -131,7 +131,7 @@ export function formatResults(
         ? output +
           `\n\n${cyan(
             'info'
-          )}  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules`
+          )}  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules`
         : '',
     totalNextPluginErrorCount,
     totalNextPluginWarningCount,

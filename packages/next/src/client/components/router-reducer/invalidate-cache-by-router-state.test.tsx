@@ -1,4 +1,3 @@
-import React from 'react'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { FlightRouterState } from '../../../server/app-render/types'
@@ -10,8 +9,6 @@ describe('invalidateCacheByRouterState', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
@@ -21,8 +18,6 @@ describe('invalidateCacheByRouterState', () => {
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -36,8 +31,6 @@ describe('invalidateCacheByRouterState', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -51,8 +44,6 @@ describe('invalidateCacheByRouterState', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -95,8 +86,6 @@ describe('invalidateCacheByRouterState', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([['children', new Map()]]),

@@ -29,6 +29,8 @@ if (process.env.TEST_WASM) {
   jest.setTimeout(120 * 1000)
 }
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Production Usage', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, '../fixture'),
@@ -178,21 +180,25 @@ describe('Production Usage', () => {
       {
         page: '/_app',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.js/,
+          isReact18
+            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+            : /node_modules\/react\/cjs\/react\.production\.js/,
         ],
         notTests: [/\0/, /\?/, /!/],
       },
       {
         page: '/client-error',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.js/,
+          isReact18
+            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+            : /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [/\0/, /\?/, /!/],
@@ -200,11 +206,13 @@ describe('Production Usage', () => {
       {
         page: '/index',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.js/,
+          isReact18
+            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+            : /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
           /node_modules\/nanoid\/index\.js/,
           /node_modules\/nanoid\/url-alphabet\/index\.js/,
@@ -215,11 +223,13 @@ describe('Production Usage', () => {
       {
         page: '/next-import',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
-          /node_modules\/react\/cjs\/react\.production\.js/,
+          isReact18
+            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+            : /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
         ],
         notTests: [
@@ -232,7 +242,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api',
-        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
+        tests: [
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /\/logo\.module\.css/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -300,39 +313,50 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should not contain currentScript usage for publicPath', async () => {
-    const globResult = await glob('webpack-*.js', {
-      cwd: join(next.testDir, '.next/static/chunks'),
-    })
+  // This test checks webpack chunks in particular
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should not contain currentScript usage for publicPath',
+    async () => {
+      const globResult = await glob('webpack-*.js', {
+        cwd: join(next.testDir, '.next/static/chunks'),
+      })
 
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find webpack-hash.js chunk')
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find webpack-hash.js chunk')
+      }
+
+      const content = await next.readFile(
+        join('.next/static/chunks', globResult[0])
+      )
+
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('.currentScript')
     }
+  )
 
-    const content = await next.readFile(
-      join('.next/static/chunks', globResult[0])
-    )
+  // This test checks webpack chunks in particular
+  ;(process.env.TURBOPACK ? it.skip : it)(
+    'should not contain amp, rsc APIs in main chunk',
+    async () => {
+      const globResult = await glob('main-*.js', {
+        cwd: join(next.testDir, '.next/static/chunks'),
+      })
 
-    expect(content).not.toContain('.currentScript')
-  })
+      if (!globResult || globResult.length !== 1) {
+        throw new Error('could not find main js chunk')
+      }
 
-  it('should not contain amp, rsc APIs in main chunk', async () => {
-    const globResult = await glob('main-*.js', {
-      cwd: join(next.testDir, '.next/static/chunks'),
-    })
+      const content = await fs.readFile(
+        join(next.testDir, '.next/static/chunks', globResult[0]),
+        'utf8'
+      )
 
-    if (!globResult || globResult.length !== 1) {
-      throw new Error('could not find main js chunk')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('useAmp')
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(content).not.toContain('useRefreshRoot')
     }
-
-    const content = await fs.readFile(
-      join(next.testDir, '.next/static/chunks', globResult[0]),
-      'utf8'
-    )
-
-    expect(content).not.toContain('useAmp')
-    expect(content).not.toContain('useRefreshRoot')
-  })
+  )
 
   describe('With basic usage', () => {
     it('should render the page', async () => {
@@ -500,10 +524,12 @@ describe('Production Usage', () => {
 
       const files = buildManifest.pages['/']
 
+      expect(files.length).toBeGreaterThan(0)
+
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${file}`,
+          `/_next/${encodeURI(file)}`,
           undefined,
           {
             method: 'GET',
@@ -521,10 +547,12 @@ describe('Production Usage', () => {
 
       const files = buildManifest.pages['/']
 
+      expect(files.length).toBeGreaterThan(0)
+
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${file}`,
+          `/_next/${encodeURI(file)}`,
           undefined,
           {
             method: 'GET',
@@ -544,17 +572,27 @@ describe('Production Usage', () => {
     it('should set Cache-Control header', async () => {
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        join('./.next', REACT_LOADABLE_MANIFEST)
+        process.env.TURBOPACK
+          ? `.next/server/pages/dynamic/css/${REACT_LOADABLE_MANIFEST}`
+          : `.next/${REACT_LOADABLE_MANIFEST}`
       )
       const url = `http://localhost:${next.appPort}`
 
       const resources: Set<string> = new Set()
 
-      const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
-        return item
-          .replace(/\\/g, '/')
-          .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
-      })
+      let manifestKey: string
+      if (process.env.TURBOPACK) {
+        // the key is an arbitrary and changing number for Turbopack prod, but each page has its own manifest
+        expect(Object.keys(reactLoadableManifest).length).toBe(1)
+        manifestKey = Object.keys(reactLoadableManifest)[0]
+        expect(manifestKey).toBeString()
+      } else {
+        manifestKey = Object.keys(reactLoadableManifest).find((item) =>
+          item
+            .replace(/\\/g, '/')
+            .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
+        )
+      }
 
       // test dynamic chunk
       reactLoadableManifest[manifestKey].files.forEach((f) => {
@@ -571,20 +609,24 @@ describe('Production Usage', () => {
         { pathnameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
-      expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      if (!process.env.TURBOPACK) {
+        expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
+      }
       const mediaStaticAssets = await recursiveReadDir(
         join(next.testDir, '.next', 'static'),
         { pathnameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
-      expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      if (!process.env.TURBOPACK) {
+        expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
+      }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
         resources.add(`/static${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
         [...resources].map((resource) =>
-          fetchViaHTTP(url, join('/_next', resource))
+          fetchViaHTTP(url, join('/_next', encodeURI(resource)))
         )
       )
 
@@ -609,7 +651,7 @@ describe('Production Usage', () => {
 
       expect(res.status).toBe(404)
       expect(res.headers.get('Cache-Control')).toBe(
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
     })
 
@@ -1108,7 +1150,8 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version
+        (await next.readJSON('node_modules/next/package.json')).version +
+          (process.env.TURBOPACK ? '-turbo' : '')
       )
     } finally {
       if (browser) {

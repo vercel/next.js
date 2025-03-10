@@ -1,10 +1,6 @@
 import { WebNextResponse } from './web'
 
 describe('WebNextResponse onClose', () => {
-  it("doesn't track onClose unless enabled", () => {
-    const webNextResponse = new WebNextResponse(undefined, false).body('abcdef')
-    expect(() => webNextResponse.onClose(() => {})).toThrow()
-  })
   it('stream body', async () => {
     const cb = jest.fn()
     const ts = new TransformStream({
@@ -13,7 +9,7 @@ describe('WebNextResponse onClose', () => {
       },
     })
 
-    const webNextResponse = new WebNextResponse(ts, true)
+    const webNextResponse = new WebNextResponse(ts)
     webNextResponse.onClose(cb)
     webNextResponse.send()
     expect(cb).toHaveBeenCalledTimes(0)
@@ -34,7 +30,7 @@ describe('WebNextResponse onClose', () => {
 
   it('string body', async () => {
     const cb = jest.fn()
-    const webNextResponse = new WebNextResponse(undefined, true).body('abcdef')
+    const webNextResponse = new WebNextResponse(undefined).body('abcdef')
     webNextResponse.onClose(cb)
     webNextResponse.send()
     expect(cb).toHaveBeenCalledTimes(0)

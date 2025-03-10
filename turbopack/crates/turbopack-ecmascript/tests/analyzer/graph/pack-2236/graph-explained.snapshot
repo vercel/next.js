@@ -1,0 +1,1 @@
+Redis = ((typeof(FreeVar(EdgeRuntime)) === "undefined") ? FreeVar(require)("ioredis") : module<@upstash/redis, {}>["Redis"])

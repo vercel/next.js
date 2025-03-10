@@ -3,6 +3,7 @@ import type { NextApiRequest, NextApiResponse } from '../../../shared/lib/utils'
 import type { PageConfig, ResponseLimit } from '../../../types'
 import type { __ApiPreviewProps } from '../.'
 import type { CookieSerializeOptions } from 'next/dist/compiled/cookie'
+import type { ServerOnInstrumentationRequestError } from '../../app-render/types'
 
 import bytes from 'next/dist/compiled/bytes'
 import { generateETag } from '../../lib/etag'
@@ -41,6 +42,8 @@ type ApiContext = __ApiPreviewProps & {
   allowedRevalidateHeaderKeys?: string[]
   hostname?: string
   revalidate?: RevalidateFn
+  multiZoneDraftMode?: boolean
+  dev: boolean
 }
 
 function getMaxContentLength(responseLimit?: ResponseLimit) {
@@ -269,10 +272,15 @@ async function revalidate(
   }
   const allowedRevalidateHeaderKeys = [
     ...(context.allowedRevalidateHeaderKeys || []),
-    ...(context.trustHostHeader
-      ? ['cookie', 'x-vercel-protection-bypass']
-      : []),
   ]
+
+  if (context.trustHostHeader || context.dev) {
+    allowedRevalidateHeaderKeys.push('cookie')
+  }
+
+  if (context.trustHostHeader) {
+    allowedRevalidateHeaderKeys.push('x-vercel-protection-bypass')
+  }
 
   for (const key of Object.keys(req.headers)) {
     if (allowedRevalidateHeaderKeys.includes(key)) {
@@ -294,6 +302,7 @@ async function revalidate(
 
       if (
         cacheHeader?.toUpperCase() !== 'REVALIDATED' &&
+        res.status !== 200 &&
         !(res.status === 404 && opts.unstable_onlyGenerated)
       ) {
         throw new Error(`Invalid response ${res.status}`)
@@ -324,7 +333,8 @@ export async function apiResolver(
   apiContext: ApiContext,
   propagateError: boolean,
   dev?: boolean,
-  page?: string
+  page?: string,
+  onError?: ServerOnInstrumentationRequestError
 ): Promise<void> {
   const apiReq = req as NextApiRequest
   const apiRes = res as NextApiResponse
@@ -346,7 +356,7 @@ export async function apiResolver(
     apiReq.query = query
     // Parsing preview data
     setLazyProp({ req: apiReq }, 'previewData', () =>
-      tryGetPreviewData(req, res, apiContext)
+      tryGetPreviewData(req, res, apiContext, !!apiContext.multiZoneDraftMode)
     )
     // Checking if preview mode is enabled
     setLazyProp({ req: apiReq }, 'preview', () =>
@@ -435,6 +445,13 @@ export async function apiResolver(
       }
     }
   } catch (err) {
+    onError?.(err, req, {
+      routerKind: 'Pages Router',
+      routePath: page || '',
+      routeType: 'route',
+      revalidateReason: undefined,
+    })
+
     if (err instanceof ApiError) {
       sendError(apiRes, err.statusCode, err.message)
     } else {

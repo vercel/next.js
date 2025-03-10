@@ -54,7 +54,7 @@ npm run typegen
 # Configuration
 
 - [Step 1. Set up the environment](#step-1-set-up-the-environment)
-  - [Reuse remote envionment variables](#reuse-remote-envionment-variables)
+  - [Reuse remote environment variables](#reuse-remote-environment-variables)
   - [Using the Sanity CLI](#using-the-sanity-cli)
     - [Creating a read token](#creating-a-read-token)
 - [Step 2. Run Next.js locally in development mode](#step-2-run-nextjs-locally-in-development-mode)
@@ -64,13 +64,13 @@ npm run typegen
 
 ## Step 1. Set up the environment
 
-### Reuse remote envionment variables
+### Reuse remote environment variables
 
 If you started with [deploying your own](#deploy-your-own) then you can run this to reuse the environment variables from the Vercel project and skip to the next step:
 
 ```bash
 npx vercel link
-npx vercel pull
+npx vercel env pull
 ```
 
 ### Using the Sanity CLI
@@ -121,7 +121,7 @@ Found existing NEXT_PUBLIC_SANITY_PROJECT_ID, replacing value.
 Found existing NEXT_PUBLIC_SANITY_DATASET, replacing value.
 ```
 
-It's important that when you're asked `Would you like to add configuration files for a Sanity project in this Next.js folder?` that you answer `No` as this example is alredy setup with the required configuration files.
+It's important that when you're asked `Would you like to add configuration files for a Sanity project in this Next.js folder?` that you answer `No` as this example is already setup with the required configuration files.
 
 #### Creating a read token
 
@@ -283,17 +283,23 @@ npx vercel link
 - [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
-- [Kontent](/examples/cms-kontent-ai)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
 - [Prepr](/examples/cms-prepr)
 - [Prismic](/examples/cms-prismic)
 - [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
 - [Sitefinity](/examples/cms-sitefinity)
 - [Storyblok](/examples/cms-storyblok)
 - [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
 - [Umbraco heartcore](/examples/cms-umbraco-heartcore)
 - [Webiny](/examples/cms-webiny)
-- [Blog Starter](/examples/blog-starter)
 - [WordPress](/examples/cms-wordpress)
+- [Blog Starter](/examples/blog-starter)
 
 [vercel-deploy]: https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fcms-sanity&repository-name=cms-sanity&project-name=cms-sanity&demo-title=Blog%20using%20Next.js%20%26%20Sanity&demo-description=Real-time%20updates%2C%20seamless%20editing%2C%20no%20rebuild%20delays.&demo-url=https%3A%2F%2Fnext-blog.sanity.build%2F&demo-image=https%3A%2F%2Fgithub.com%2Fsanity-io%2Fnext-sanity%2Fassets%2F81981%2Fb81296a9-1f53-4eec-8948-3cb51aca1259&integration-ids=oac_hb2LITYajhRQ0i4QznmKH7gx
 [integration]: https://www.sanity.io/docs/vercel-integration

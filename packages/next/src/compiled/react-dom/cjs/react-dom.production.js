@@ -9,6 +9,7 @@
  */
 
 "use strict";
+var React = require("next/dist/compiled/react");
 function formatProdErrorMessage(code) {
   var url = "https://react.dev/errors/" + code;
   if (1 < arguments.length) {
@@ -24,8 +25,6 @@ function formatProdErrorMessage(code) {
     " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
   );
 }
-var ReactSharedInternals =
-  require("next/dist/compiled/react").__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 function noop() {}
 var Internals = {
     d: {
@@ -56,6 +55,8 @@ function createPortal$1(children, containerInfo, implementation) {
     implementation: implementation
   };
 }
+var ReactSharedInternals =
+  React.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
 function getCrossOriginStringAs(as, input) {
   if ("font" === as) return "";
   if ("string" === typeof input)
@@ -206,4 +207,4 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.1.0-canary-029e8bd6-20250306";

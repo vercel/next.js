@@ -3,7 +3,7 @@
 When you add an example to the [examples](https://github.com/vercel/next.js/tree/canary/examples) directory, please follow these guidelines to ensure high-quality examples:
 
 - TypeScript should be leveraged for new examples (no need for separate JavaScript and TypeScript examples, converting old JavaScript examples is preferred)
-- Examples should not add custom ESLint configuration (we have specific templates for ESLint)
+- Examples should not add custom ESLint configuration (we have [specific templates for ESLint](https://github.com/vercel/next.js/tree/canary/examples/with-eslint))
 - If API routes aren't used in an example, they should be omitted
 - If an example exists for a certain library and you would like to showcase a specific feature of that library, the existing example should be updated (instead of adding a new example)
 - Package manager specific config should not be added (e.g. `resolutions` in `package.json`)
@@ -21,7 +21,7 @@ Also, don’t forget to add a `README.md` file with the following format:
 - Examples should be TypeScript first, if possible.
 - Omit the `name` and `version` fields from your `package.json`.
 - Ensure all your dependencies are up to date.
-- Ensure you’re using [`next/image`](https://nextjs.org/docs/api-reference/next/image).
+- Ensure you’re using [`next/image`](https://nextjs.org/docs/app/api-reference/components/image).
 - To add additional installation instructions, please add them where appropriate.
 - To add additional notes, add `## Notes` section at the end.
 - Remove the `Deploy your own` section if your example can’t be immediately deployed to Vercel.
@@ -33,7 +33,7 @@ Description
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/DIRECTORY_NAME)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/DIRECTORY_NAME&project-name=DIRECTORY_NAME&repository-name=DIRECTORY_NAME)
 
@@ -57,5 +57,5 @@ pnpm create next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 bunx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/app/building-your-application/deploying)).
 ````

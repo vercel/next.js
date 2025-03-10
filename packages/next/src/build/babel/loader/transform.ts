@@ -86,6 +86,9 @@ export default function transform(
     target,
     filename,
   })
+  if (!babelConfig) {
+    return { code: source, map: inputSourceMap }
+  }
   getConfigSpan.stop()
 
   const normalizeSpan = parentSpan.traceChild('babel-turbo-normalize-file')

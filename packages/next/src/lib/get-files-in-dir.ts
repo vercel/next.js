@@ -2,9 +2,9 @@ import { join } from 'path'
 import fs from 'fs/promises'
 import type { Dirent, StatsBase } from 'fs'
 
-export async function getFilesInDir(path: string): Promise<string[]> {
+export async function getFilesInDir(path: string): Promise<Set<string>> {
   const dir = await fs.opendir(path)
-  const results = []
+  const results = new Set<string>()
 
   for await (const file of dir) {
     let resolvedFile: Dirent | StatsBase<number> = file
@@ -14,7 +14,7 @@ export async function getFilesInDir(path: string): Promise<string[]> {
     }
 
     if (resolvedFile.isFile()) {
-      results.push(file.name)
+      results.add(file.name)
     }
   }
 

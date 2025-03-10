@@ -13,16 +13,13 @@ describe('worker-restart', () => {
 
     const output = stdout + stderr
     expect(output).toContain(
-      'Sending SIGTERM signal to static worker due to timeout of 10 seconds. Subsequent errors may be a result of the worker exiting.'
+      'Failed to build /bad-page/page: /bad-page (attempt 1 of 3) because it took more than 10 seconds. Retrying again shortly.'
     )
     expect(output).toContain(
-      'Static worker exited with code: null and signal: SIGTERM'
+      'Failed to build /bad-page/page: /bad-page (attempt 2 of 3) because it took more than 10 seconds. Retrying again shortly.'
     )
     expect(output).toContain(
-      'Restarted static page generation for /bad-page because it took more than 10 seconds'
-    )
-    expect(output).toContain(
-      'Static page generation for /bad-page is still timing out after 3 attempts'
+      'Failed to build /bad-page/page: /bad-page after 3 attempts'
     )
     expect(output).not.toContain(
       'Error: Farm is ended, no more calls can be done to it'
@@ -45,5 +42,21 @@ describe('worker-restart', () => {
       'Failed to build /page: / (attempt 2 of 3). Retrying again shortly.'
     )
     expect(output).toContain('Failed to build /page: / after 3 attempts.')
+  })
+
+  it('should fail the build if a worker process is killed', async () => {
+    const { stdout, stderr } = await nextBuild(
+      __dirname + '/fixtures/worker-kill',
+      [],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain(
+      'Next.js build worker exited with code: null and signal: SIGKILL'
+    )
   })
 })

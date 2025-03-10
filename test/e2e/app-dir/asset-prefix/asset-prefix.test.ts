@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('app-dir assetPrefix handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should redirect route when requesting it directly', async () => {
@@ -50,6 +49,20 @@ describe('app-dir assetPrefix handling', () => {
       const { status } = await next.fetch(decodeURI(src))
 
       expect(status).toBe(200)
+    })
+  })
+
+  describe('rewrites', () => {
+    it('rewrites that do not start with assetPrefix should still work', async () => {
+      const res = await next.fetch('/not-custom-asset-prefix/api/test-json', {})
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('{"message":"test"}')
+    })
+
+    it('should respect rewrites that start with assetPrefix', async () => {
+      const res = await next.fetch('/custom-asset-prefix/api/test-json', {})
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('{"message":"test"}')
     })
   })
 })

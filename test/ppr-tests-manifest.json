@@ -5,8 +5,9 @@
       "passed": [],
       "failed": [
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
+        "fetch-cache should not retry for failed fetch-cache GET",
         "fetch-cache should retry 3 times when revalidate times out",
-        "fetch-cache should not retry for failed fetch-cache GET"
+        "fetch-cache should update cache TTL even if cache data does not change"
       ],
       "pending": [],
       "flakey": [],
@@ -20,18 +21,6 @@
         "app-dir static/dynamic handling should output debug info for static bailouts"
       ]
     },
-    "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts": {
-      "failed": [
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should re-use the full cache for only 30 seconds",
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should renew the 30s cache once the data is revalidated",
-        "app dir client cache semantics (30s/5min) prefetch={undefined} - default should refetch the full page after 5 mins"
-      ]
-    },
-    "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
-      "failed": [
-        "app dir client cache semantics (default semantics) prefetch={undefined} - default should refetch the full page after 5 mins"
-      ]
-    },
     "test/e2e/app-dir/headers-static-bailout/headers-static-bailout.test.ts": {
       "failed": [
         "headers-static-bailout it provides a helpful link in case static generation bailout is uncaught"
@@ -40,6 +29,13 @@
     "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts": {
       "failed": [
         "app dir - not found navigation - with overridden node env should be able to navigate to other page from root not-found page"
+      ]
+    },
+    "test/e2e/on-request-error/isr/isr.test.ts": {
+      "failed": [
+        "on-request-error - isr app router ISR should capture correct reason for stale errored page",
+        "on-request-error - isr app router ISR should capture correct reason for on-demand revalidated page",
+        "on-request-error - isr app router ISR should capture revalidate from server action"
       ]
     },
     "test/e2e/opentelemetry/opentelemetry.test.ts": {
@@ -83,7 +79,8 @@
       "test/e2e/**/*.test.{t,j}s{,x}",
       "test/integration/app-*/**/*.test.{t,j}s{,x}",
       "test/production/app-*/**/*.test.{t,j}s{,x}",
-      "test/development/app-*/**/*.test.{t,j}s{,x}"
+      "test/development/app-*/**/*.test.{t,j}s{,x}",
+      "test/development/acceptance-app/**/*.test.{t,j}s{,x}"
     ],
     "exclude": [
       "test/integration/app-dir-export/**/*",
@@ -92,7 +89,20 @@
       "test/e2e/app-dir/ppr-*/**/*",
       "test/e2e/app-dir/app-prefetch*/**/*",
       "test/e2e/app-dir/searchparams-static-bailout/searchparams-static-bailout.test.ts",
-      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts"
+      "test/e2e/app-dir/app-client-cache/client-cache.experimental.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.original.test.ts",
+      "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts",
+      "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts",
+      "test/e2e/app-dir/front-redirect-issue/front-redirect-issue.test.ts",
+      "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts",
+      "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-fallback.test.ts",
+      "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts",
+      "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts",
+      "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts",
+      "test/e2e/app-dir/segment-cache/prefetch-scheduling/prefetch-scheduling.test.ts",
+      "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts",
+      "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts",
+      "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts"
     ]
   }
 }

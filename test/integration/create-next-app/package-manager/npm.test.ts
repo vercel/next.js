@@ -1,4 +1,3 @@
-import { trace } from 'next/dist/trace'
 import {
   DEFAULT_FILES,
   FULL_EXAMPLE_PATH,
@@ -6,20 +5,25 @@ import {
   run,
   useTempDir,
 } from '../utils'
-import { createNextInstall } from '../../../lib/create-next-install'
 
 const lockFile = 'package-lock.json'
 const files = [...DEFAULT_FILES, lockFile]
 
-let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-beforeAll(async () => {
-  nextInstall = await createNextInstall({
-    parentSpan: trace('test'),
-    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
-  })
-})
+describe('create-next-app with package manager npm', () => {
+  let nextTgzFilename: string
 
-describe.skip('create-next-app with package manager npm', () => {
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+  })
+
   it('should use npm for --use-npm flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-npm'
@@ -29,13 +33,13 @@ describe.skip('create-next-app with package manager npm', () => {
           '--ts',
           '--app',
           '--use-npm',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -58,13 +62,13 @@ describe.skip('create-next-app with package manager npm', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'npm' },
@@ -85,7 +89,7 @@ describe.skip('create-next-app with package manager npm', () => {
       const projectName = 'use-npm-with-example'
       const res = await run(
         [projectName, '--use-npm', '--example', FULL_EXAMPLE_PATH],
-        nextInstall.installDir,
+        nextTgzFilename,
         { cwd }
       )
 
@@ -103,7 +107,7 @@ describe.skip('create-next-app with package manager npm', () => {
       const projectName = 'user-agent-npm-with-example'
       const res = await run(
         [projectName, '--example', FULL_EXAMPLE_PATH],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'npm' },

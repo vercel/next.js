@@ -11,6 +11,10 @@ import pkg from "../package.json";
 
 import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "^19.0.0";
+
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
  */
@@ -39,7 +43,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbo,
+  turbopack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -47,22 +51,18 @@ export const installTemplate = async ({
    * Copy the template files to the target directory.
    */
   console.log("\nInitializing project with template:", template, "\n");
+  const isApi = template === "app-api";
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
-  if (!eslint) copySource.push("!eslintrc.json");
-  if (!tailwind)
-    copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
-      "!postcss.config.mjs",
-    );
+  if (!eslint) copySource.push("!eslint.config.mjs");
+  if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
     parents: true,
     cwd: templatePath,
     rename(name) {
       switch (name) {
-        case "gitignore":
-        case "eslintrc.json": {
+        case "gitignore": {
           return `.${name}`;
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:
@@ -99,7 +99,16 @@ export const installTemplate = async ({
       stats: false,
       // We don't want to modify compiler options in [ts/js]config.json
       // and none of the files in the .git folder
-      ignore: ["tsconfig.json", "jsconfig.json", ".git/**/*"],
+      // TODO: Refactor this to be an allowlist, rather than a denylist,
+      // to avoid corrupting files that weren't intended to be replaced
+
+      ignore: [
+        "tsconfig.json",
+        "jsconfig.json",
+        ".git/**/*",
+        "**/fonts/**",
+        "**/favicon.ico",
+      ],
     });
     const writeSema = new Sema(8, { capacity: files.length });
     await Promise.all(
@@ -134,33 +143,21 @@ export const installTemplate = async ({
       }),
     );
 
-    const isAppTemplate = template.startsWith("app");
+    if (!isApi) {
+      const isAppTemplate = template.startsWith("app");
 
-    // Change the `Get started by editing pages/index` / `app/page` to include `src`
-    const indexPageFile = path.join(
-      "src",
-      isAppTemplate ? "app" : "pages",
-      `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
-    );
-
-    await fs.writeFile(
-      indexPageFile,
-      (await fs.readFile(indexPageFile, "utf8")).replace(
-        isAppTemplate ? "app/page" : "pages/index",
-        isAppTemplate ? "src/app/page" : "src/pages/index",
-      ),
-    );
-
-    if (tailwind) {
-      const tailwindConfigFile = path.join(
-        root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+      // Change the `Get started by editing pages/index` / `app/page` to include `src`
+      const indexPageFile = path.join(
+        "src",
+        isAppTemplate ? "app" : "pages",
+        `${isAppTemplate ? "page" : "index"}.${mode === "ts" ? "tsx" : "js"}`,
       );
+
       await fs.writeFile(
-        tailwindConfigFile,
-        (await fs.readFile(tailwindConfigFile, "utf8")).replace(
-          /\.\/(\w+)\/\*\*\/\*\.\{js,ts,jsx,tsx,mdx\}/g,
-          "./src/$1/**/*.{js,ts,jsx,tsx,mdx}",
+        indexPageFile,
+        (await fs.readFile(indexPageFile, "utf8")).replace(
+          isAppTemplate ? "app/page" : "pages/index",
+          isAppTemplate ? "src/app/page" : "src/pages/index",
         ),
       );
     }
@@ -175,7 +172,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbo ? " --turbo" : ""}`,
+      dev: `next dev${turbopack ? " --turbopack" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -184,8 +181,8 @@ export const installTemplate = async ({
      * Default dependencies.
      */
     dependencies: {
-      react: "19.0.0-rc.0",
-      "react-dom": "19.0.0-rc.0",
+      react: nextjsReactPeerVersion,
+      "react-dom": nextjsReactPeerVersion,
       next: version,
     },
     devDependencies: {},
@@ -199,8 +196,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: "^5",
       "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
     };
   }
 
@@ -208,8 +205,8 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      postcss: "^8",
-      tailwindcss: "^3.4.1",
+      "@tailwindcss/postcss": "^4",
+      tailwindcss: "^4",
     };
   }
 
@@ -217,9 +214,25 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^8",
+      eslint: "^9",
       "eslint-config-next": version,
+      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
+      "@eslint/eslintrc": "^3",
     };
+  }
+
+  if (isApi) {
+    delete packageJson.dependencies.react;
+    delete packageJson.dependencies["react-dom"];
+    // We cannot delete `@types/react` now since it is used in
+    // route type definitions e.g. `.next/types/app/page.ts`.
+    // TODO(jiwon): Implement this when we added logic to
+    // auto-install `react` and `react-dom` if page.tsx was used.
+    // We can achieve this during verify-typescript stage and see
+    // if a type error was thrown at `distDir/types/app/page.ts`.
+    delete packageJson.devDependencies["@types/react-dom"];
+
+    delete packageJson.scripts.lint;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

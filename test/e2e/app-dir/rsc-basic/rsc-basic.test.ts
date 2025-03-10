@@ -19,13 +19,13 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
+function stripHTMLComments(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, '')
+}
+
 describe('app dir - rsc basics', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      'styled-components': 'latest',
-      'server-only': 'latest',
-    },
     resolutions: {
       '@babel/core': '7.22.18',
       '@babel/parser': '7.22.16',
@@ -76,13 +76,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning null', async () => {
     const homeHTML = await next.render('/return-null/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const homeHTML = await next.render('/return-null/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-null-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-null-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
@@ -94,13 +94,13 @@ describe('app dir - rsc basics', () => {
   it('should correctly render page returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/page')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const homeHTML = await next.render('/return-undefined/component')
     const $ = cheerio.load(homeHTML)
-    expect($('#return-undefined-layout').html()).toBeEmpty()
+    expect(stripHTMLComments($('#return-undefined-layout').html())).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
@@ -230,6 +230,23 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
+  describe.each(['node', 'edge'])(
+    'client references with TLA (%s)',
+    (runtime) => {
+      let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
+
+      it('should support TLA in sync client reference imports', async () => {
+        const html = await next.render(url + '/sync')
+        expect(html).toContain('client async')
+      })
+
+      it('should support TLA in lazy client reference', async () => {
+        const html = await next.render(url + '/lazy')
+        expect(html).toContain('client async')
+      })
+    }
+  )
+
   if (isPPREnabledByDefault) {
     // TODO: Figure out why this test is flaky when PPR is enabled
   } else {
@@ -351,77 +368,6 @@ describe('app dir - rsc basics', () => {
     expect(content).toContain('bar.server.js:')
   })
 
-  it('should render initial styles of css-in-js in nodejs SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render initial styles of css-in-js in edge SSR correctly', async () => {
-    const $ = await next.render$('/css-in-js/edge')
-    const head = $('head').html()
-
-    // from styled-jsx
-    expect(head).toMatch(/{color:(\s*)purple;?}/) // styled-jsx/style
-    expect(head).toMatch(/{color:(\s*)(?:hotpink|#ff69b4);?}/) // styled-jsx/css
-
-    // from styled-components
-    expect(head).toMatch(/{color:(\s*)(?:blue|#00f);?}/)
-  })
-
-  it('should render css-in-js suspense boundary correctly', async () => {
-    await next.fetch('/css-in-js/suspense').then(async (response) => {
-      const results = []
-
-      await resolveStreamResponse(response, (chunk: string) => {
-        const isSuspenseyDataResolved =
-          /<style[^<>]*>(\s)*.+{padding:2px;(\s)*color:orange;}/.test(chunk)
-        if (isSuspenseyDataResolved) results.push('data')
-
-        // check if rsc refresh script for suspense show up, the test content could change with react version
-        const hasRCScript = /\$RC=function/.test(chunk)
-        if (hasRCScript) results.push('refresh-script')
-
-        const isFallbackResolved = chunk.includes('fallback')
-        if (isFallbackResolved) results.push('fallback')
-      })
-
-      expect(results).toEqual(['fallback', 'data', 'refresh-script'])
-    })
-    // // TODO-APP: fix streaming/suspense within browser for test suite
-    // const browser = await next.browser( '/css-in-js', { waitHydration: false })
-    // const footer = await browser.elementByCss('#footer')
-    // expect(await footer.text()).toBe('wait for fallback')
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer')).borderColor`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-    // // Suspense is not rendered yet
-    // expect(
-    //   await browser.eval(
-    //     `document.querySelector('#footer-inner')`
-    //   )
-    // ).toBe('null')
-
-    // // Wait for suspense boundary
-    // await check(
-    //   () => browser.elementByCss('#footer').text(),
-    //   'wait for footer'
-    // )
-    // expect(
-    //   await browser.eval(
-    //     `window.getComputedStyle(document.querySelector('#footer-inner')).color`
-    //   )
-    // ).toBe('rgb(255, 165, 0)')
-  })
-
   it('should stick to the url without trailing /page suffix', async () => {
     const browser = await next.browser('/edge/dynamic')
     const indexUrl = await browser.url()
@@ -444,7 +390,11 @@ describe('app dir - rsc basics', () => {
       .then(async (response) => {
         const result = await resolveStreamResponse(response)
         expect(result).toContain('component:index.server')
-        expect(result).toMatch(isNextDev ? /0:\["development",/ : /0:\[".*?",/)
+        if (isNextDev) {
+          expect(result).toContain('"b":"development"')
+        } else {
+          expect(result).toMatch(/"b":".*?"/)
+        }
       })
   })
 
@@ -479,11 +429,13 @@ describe('app dir - rsc basics', () => {
   })
 
   // TODO: (PPR) remove once PPR is stable
+  // TODO(new-dev-overlay): remove once new dev overlay is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ? '-experimental-'
+      : '-canary-'
 
-  // TODO: (React 19) During Beta, bundled and installed version match.
-  it.skip('should not use bundled react for pages with app', async () => {
+  it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
     const promises = ssrPaths.map(async (pathname) => {
       const resPages$ = await next.render$(pathname)
@@ -503,7 +455,6 @@ describe('app dir - rsc basics', () => {
     const ssrAppReactVersions = [
       await resApp$('#react').text(),
       await resApp$('#react-dom').text(),
-      await resApp$('#react-dom-server').text(),
     ]
 
     ssrAppReactVersions.forEach((version) =>
@@ -528,43 +479,76 @@ describe('app dir - rsc basics', () => {
       ]
     `)
 
-    browserPagesReactVersions.forEach((version) =>
+    browserPagesReactVersions.forEach((version) => {
       expect(version).not.toMatch(bundledReactVersionPattern)
-    )
-    browserEdgePagesReactVersions.forEach((version) =>
+    })
+    browserEdgePagesReactVersions.forEach((version) => {
       expect(version).not.toMatch(bundledReactVersionPattern)
-    )
+    })
   })
 
   it('should use canary react for app', async () => {
     const resPages$ = await next.render$('/app-react')
-    const ssrPagesReactVersions = [
-      await resPages$('#react').text(),
-      await resPages$('#react-dom').text(),
-      await resPages$('#react-dom-server').text(),
-      await resPages$('#client-react').text(),
-      await resPages$('#client-react-dom').text(),
-      await resPages$('#client-react-dom-server').text(),
+    const [
+      ssrReact,
+      ssrReactDOM,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    ] = [
+      resPages$('#react').text(),
+      resPages$('#react-dom').text(),
+      resPages$('#client-react').text(),
+      resPages$('#client-react-dom').text(),
+      resPages$('#client-react-dom-server').text(),
     ]
-
-    ssrPagesReactVersions.forEach((version) => {
-      expect(version).toMatch(bundledReactVersionPattern)
+    expect({
+      ssrReact,
+      ssrReactDOM,
+      ssrClientReact,
+      ssrClientReactDOM,
+      ssrClientReactDOMServer,
+    }).toEqual({
+      ssrReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReact: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      ssrClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
     })
 
     const browser = await next.browser('/app-react')
-    const browserAppReactVersions = await browser.eval(`
+    const [
+      browserReact,
+      browserReactDOM,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    ] = await browser.eval(`
       [
         document.querySelector('#react').innerText,
         document.querySelector('#react-dom').innerText,
-        document.querySelector('#react-dom-server').innerText,
         document.querySelector('#client-react').innerText,
         document.querySelector('#client-react-dom').innerText,
         document.querySelector('#client-react-dom-server').innerText,
       ]
     `)
-    browserAppReactVersions.forEach((version) =>
-      expect(version).toMatch(bundledReactVersionPattern)
-    )
+    expect({
+      browserReact,
+      browserReactDOM,
+      browserClientReact,
+      browserClientReactDOM,
+      browserClientReactDOMServer,
+    }).toEqual({
+      browserReact: expect.stringMatching(bundledReactVersionPattern),
+      browserReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReact: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOM: expect.stringMatching(bundledReactVersionPattern),
+      browserClientReactDOMServer: expect.stringMatching(
+        bundledReactVersionPattern
+      ),
+    })
   })
 
   it('should be able to call legacy react-dom/server APIs in client components', async () => {
@@ -649,37 +633,68 @@ describe('app dir - rsc basics', () => {
               ${flag}: true
             }
           }
-          `
-        )
+          `,
+          async () => {
+            await next.start()
+            const resPages$ = await next.render$('/app-react')
+            const [
+              ssrReact,
+              ssrReactDOM,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            ] = [
+              resPages$('#react').text(),
+              resPages$('#react-dom').text(),
+              resPages$('#client-react').text(),
+              resPages$('#client-react-dom').text(),
+              resPages$('#client-react-dom-server').text(),
+            ]
+            expect({
+              ssrReact,
+              ssrReactDOM,
+              ssrClientReact,
+              ssrClientReactDOM,
+              ssrClientReactDOMServer,
+            }).toEqual({
+              ssrReact: expect.stringMatching('-experimental-'),
+              ssrReactDOM: expect.stringMatching('-experimental-'),
+              ssrClientReact: expect.stringMatching('-experimental-'),
+              ssrClientReactDOM: expect.stringMatching('-experimental-'),
+              ssrClientReactDOMServer: expect.stringMatching('-experimental-'),
+            })
 
-        await next.start()
-        const resPages$ = await next.render$('/app-react')
-        const ssrPagesReactVersions = [
-          await resPages$('#react').text(),
-          await resPages$('#react-dom').text(),
-          await resPages$('#react-dom-server').text(),
-          await resPages$('#client-react').text(),
-          await resPages$('#client-react-dom').text(),
-          await resPages$('#client-react-dom-server').text(),
-        ]
-
-        ssrPagesReactVersions.forEach((version) => {
-          expect(version).toMatch('-experimental-')
-        })
-
-        const browser = await next.browser('/app-react')
-        const browserAppReactVersions = await browser.eval(`
-          [
-            document.querySelector('#react').innerText,
-            document.querySelector('#react-dom').innerText,
-            document.querySelector('#react-dom-server').innerText,
-            document.querySelector('#client-react').innerText,
-            document.querySelector('#client-react-dom').innerText,
-            document.querySelector('#client-react-dom-server').innerText,
-          ]
-        `)
-        browserAppReactVersions.forEach((version) =>
-          expect(version).toMatch('-experimental-')
+            const browser = await next.browser('/app-react')
+            const [
+              browserReact,
+              browserReactDOM,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            ] = await browser.eval(`
+              [
+                document.querySelector('#react').innerText,
+                document.querySelector('#react-dom').innerText,
+                document.querySelector('#client-react').innerText,
+                document.querySelector('#client-react-dom').innerText,
+                document.querySelector('#client-react-dom-server').innerText,
+              ]
+            `)
+            expect({
+              browserReact,
+              browserReactDOM,
+              browserClientReact,
+              browserClientReactDOM,
+              browserClientReactDOMServer,
+            }).toEqual({
+              browserReact: expect.stringMatching('-experimental-'),
+              browserReactDOM: expect.stringMatching('-experimental-'),
+              browserClientReact: expect.stringMatching('-experimental-'),
+              browserClientReactDOM: expect.stringMatching('-experimental-'),
+              browserClientReactDOMServer:
+                expect.stringMatching('-experimental-'),
+            })
+          }
         )
       }
     )

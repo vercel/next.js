@@ -1,0 +1,305 @@
+[
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 25..32,
+        in_try: true,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "packages/not-found",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Block,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 25..54,
+        in_try: true,
+        new: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 78..85,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "packages/found",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Try,
+            ),
+            TryStmt(
+                Handler,
+            ),
+            CatchClause(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Assign,
+            ),
+            AssignExpr(
+                Right,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 78..103,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "pkg",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "fn",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 108..114,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "pkg",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "fn",
+                ),
+            ),
+        ),
+        args: [],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 108..116,
+        in_try: false,
+        new: false,
+    },
+]

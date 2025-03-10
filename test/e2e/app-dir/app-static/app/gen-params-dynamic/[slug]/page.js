@@ -4,7 +4,8 @@ export async function generateStaticParams() {
   return [{ slug: 'one' }]
 }
 
-export default async function page({ params }) {
+export default async function page(props) {
+  const params = await props.params
   const { slug } = params
   const data = await fetchRetry(
     'https://next-data-api-endpoint.vercel.app/api/random',

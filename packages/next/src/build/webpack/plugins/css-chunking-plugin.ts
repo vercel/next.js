@@ -11,6 +11,10 @@ const MIN_CSS_CHUNK_SIZE = 30 * 1024
  */
 const MAX_CSS_CHUNK_SIZE = 100 * 1024
 
+function isGlobalCss(module: Module) {
+  return !/\.module\.(css|scss|sass)$/.test(module.nameForCondition() || '')
+}
+
 type ChunkState = {
   chunk: Chunk
   modules: Module[]
@@ -125,6 +129,8 @@ export class CssChunkingPlugin {
 
           // Process through all modules
           for (const startModule of remainingModules) {
+            let globalCssMode = isGlobalCss(startModule)
+
             // The current position of processing in all selected chunks
             let allChunkStates = new Map(chunkStatesByModule.get(startModule)!)
 
@@ -225,8 +231,36 @@ export class CssChunkingPlugin {
                     }
                   }
                 }
+
+                // Global CSS must not leak into unrelated chunks
+                const nextIsGlobalCss = isGlobalCss(nextModule)
+                if (nextIsGlobalCss && globalCssMode) {
+                  if (allChunkStates.size !== nextChunkStates.size) {
+                    // Fast check
+                    continue
+                  }
+                }
+                if (globalCssMode) {
+                  for (const chunkState of nextChunkStates.keys()) {
+                    if (!allChunkStates.has(chunkState)) {
+                      // Global CSS would leak into chunkState
+                      continue loop
+                    }
+                  }
+                }
+                if (nextIsGlobalCss) {
+                  for (const chunkState of allChunkStates.keys()) {
+                    if (!nextChunkStates.has(chunkState)) {
+                      // Global CSS would leak into chunkState
+                      continue loop
+                    }
+                  }
+                }
                 potentialNextModules.delete(nextModule)
                 currentSize += size
+                if (nextIsGlobalCss) {
+                  globalCssMode = true
+                }
                 for (const [chunkState, i] of nextChunkStates) {
                   if (allChunkStates.has(chunkState)) {
                     // This reduces the request count of the chunk group

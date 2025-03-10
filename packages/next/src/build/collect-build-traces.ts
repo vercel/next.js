@@ -5,19 +5,12 @@ import {
   TRACE_IGNORES,
   type BuildTraceContext,
   getFilesMapFromReasons,
-  getHash,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
-
-import {
-  TRACE_OUTPUT_VERSION,
-  TURBO_TRACE_DEFAULT_MEMORY_LIMIT,
-} from '../shared/lib/constants'
 
 import path from 'path'
 import fs from 'fs/promises'
-import { loadBindings } from './swc'
 import { nonNullable } from '../lib/non-nullable'
-import * as ciEnvironment from '../telemetry/ci-info'
+import * as ciEnvironment from '../server/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
 import picomatch from 'next/dist/compiled/picomatch'
 import { defaultOverrides } from '../server/require-hook'
@@ -29,8 +22,6 @@ import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
-
-const hashCache: Record<string, string> = {}
 
 function shouldIgnore(
   file: string,
@@ -91,13 +82,11 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isFlyingShuttle,
 }: {
   dir: string
   distDir: string
   staticPages: string[]
   hasSsrAmpPages: boolean
-  isFlyingShuttle?: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
@@ -107,111 +96,15 @@ export async function collectBuildTraces({
 }) {
   const startTime = Date.now()
   debug('starting build traces')
-  let turboTasksForTrace: unknown
-  let bindings = await loadBindings()
-
-  const runTurbotrace = async function () {
-    if (!config.experimental.turbotrace || !buildTraceContext) {
-      return
-    }
-    if (!bindings?.isWasm && typeof bindings.turbo.startTrace === 'function') {
-      let turbotraceOutputPath: string | undefined
-      let turbotraceFiles: string[] | undefined
-      turboTasksForTrace = bindings.turbo.createTurboTasks(
-        (config.experimental.turbotrace?.memoryLimit ??
-          TURBO_TRACE_DEFAULT_MEMORY_LIMIT) *
-          1024 *
-          1024
-      )
-
-      const { entriesTrace, chunksTrace } = buildTraceContext
-      if (entriesTrace) {
-        const {
-          appDir: buildTraceContextAppDir,
-          depModArray,
-          entryNameMap,
-          outputPath,
-          action,
-        } = entriesTrace
-        const depModSet = new Set(depModArray)
-        const filesTracedInEntries: string[] = await bindings.turbo.startTrace(
-          action,
-          turboTasksForTrace
-        )
-
-        const { contextDirectory, input: entriesToTrace } = action
-
-        // only trace the assets under the appDir
-        // exclude files from node_modules, entries and processed by webpack
-        const filesTracedFromEntries = filesTracedInEntries
-          .map((f) => path.join(contextDirectory, f))
-          .filter(
-            (f) =>
-              !f.includes('/node_modules/') &&
-              f.startsWith(buildTraceContextAppDir) &&
-              !entriesToTrace.includes(f) &&
-              !depModSet.has(f)
-          )
-        if (filesTracedFromEntries.length) {
-          // The turbo trace doesn't provide the traced file type and reason at present
-          // let's write the traced files into the first [entry].nft.json
-          const [[, entryName]] = Array.from<[string, string]>(
-            Object.entries(entryNameMap)
-          ).filter(([k]) => k.startsWith(buildTraceContextAppDir))
-          const traceOutputPath = path.join(
-            outputPath,
-            `../${entryName}.js.nft.json`
-          )
-          const traceOutputDir = path.dirname(traceOutputPath)
-
-          turbotraceOutputPath = traceOutputPath
-          turbotraceFiles = filesTracedFromEntries.map((file) =>
-            path.relative(traceOutputDir, file)
-          )
-        }
-      }
-      if (chunksTrace) {
-        const { action, outputPath } = chunksTrace
-        action.input = action.input.filter((f: any) => {
-          const outputPagesPath = path.join(outputPath, '..', 'pages')
-          return (
-            !f.startsWith(outputPagesPath) ||
-            !staticPages.includes(
-              // strip `outputPagesPath` and file ext from absolute
-              f.substring(outputPagesPath.length, f.length - 3)
-            )
-          )
-        })
-        await bindings.turbo.startTrace(action, turboTasksForTrace)
-        if (turbotraceOutputPath && turbotraceFiles) {
-          const existedNftFile = await fs
-            .readFile(turbotraceOutputPath, 'utf8')
-            .then((existedContent) => JSON.parse(existedContent))
-            .catch(() => ({
-              version: TRACE_OUTPUT_VERSION,
-              files: [],
-            }))
-          existedNftFile.files.push(...turbotraceFiles)
-          const filesSet = new Set(existedNftFile.files)
-          existedNftFile.files = [...filesSet]
-          await fs.writeFile(
-            turbotraceOutputPath,
-            JSON.stringify(existedNftFile),
-            'utf8'
-          )
-        }
-      }
-    }
-  }
 
   const { outputFileTracingIncludes = {}, outputFileTracingExcludes = {} } =
-    config.experimental
+    config
   const excludeGlobKeys = Object.keys(outputFileTracingExcludes)
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
   await nextBuildSpan
     .traceChild('node-file-trace-build', {
-      isTurbotrace: Boolean(config.experimental.turbotrace) ? 'true' : 'false',
+      isTurbotrace: 'false', // TODO(arlyon): remove this
     })
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
@@ -222,25 +115,19 @@ export async function collectBuildTraces({
         distDir,
         'next-minimal-server.js.nft.json'
       )
-      const root =
-        config.experimental?.turbotrace?.contextDirectory ??
-        outputFileTracingRoot
+      const root = outputFileTracingRoot
 
       // Under standalone mode, we need to trace the extra IPC server and
       // worker files.
       const isStandalone = config.output === 'standalone'
-      const nextServerEntry = require.resolve('next/dist/server/next-server')
-      const sharedEntriesSet = [
-        ...(config.experimental.turbotrace
-          ? []
-          : Object.keys(defaultOverrides).map((value) =>
-              require.resolve(value, {
-                paths: [require.resolve('next/dist/server/require-hook')],
-              })
-            )),
-      ]
+      const sharedEntriesSet = Object.keys(defaultOverrides).map((value) =>
+        require.resolve(value, {
+          paths: [require.resolve('next/dist/server/require-hook')],
+        })
+      )
 
       const { cacheHandler } = config
+      const { cacheHandlers } = config.experimental
 
       // ensure we trace any dependencies needed for custom
       // incremental cache handler
@@ -252,6 +139,20 @@ export async function collectBuildTraces({
               : path.join(dir, cacheHandler)
           )
         )
+      }
+
+      if (cacheHandlers) {
+        for (const handlerPath of Object.values(cacheHandlers)) {
+          if (handlerPath) {
+            sharedEntriesSet.push(
+              require.resolve(
+                path.isAbsolute(handlerPath)
+                  ? handlerPath
+                  : path.join(dir, handlerPath)
+              )
+            )
+          }
+        }
       }
 
       const serverEntries = [
@@ -319,7 +220,6 @@ export async function collectBuildTraces({
 
         ...(isStandalone ? [] : TRACE_IGNORES),
         ...additionalIgnores,
-        ...(config.experimental.outputFileTracingIgnores || []),
       ]
 
       const sharedIgnoresFn = makeIgnoreFn(sharedIgnores)
@@ -356,7 +256,6 @@ export async function collectBuildTraces({
 
       const routeIgnoreFn = makeIgnoreFn(routesIgnores)
 
-      const traceContext = path.join(nextServerEntry, '..', '..')
       const serverTracedFiles = new Set<string>()
       const minimalServerTracedFiles = new Set<string>()
 
@@ -379,45 +278,7 @@ export async function collectBuildTraces({
         )
       }
 
-      if (config.experimental.turbotrace) {
-        await runTurbotrace()
-
-        const startTrace = bindings.turbo.startTrace
-        const makeTrace = async (entries: string[]) =>
-          startTrace(
-            {
-              action: 'print',
-              input: entries,
-              contextDirectory: traceContext,
-              logLevel: config.experimental.turbotrace?.logLevel,
-              processCwd: config.experimental.turbotrace?.processCwd,
-              logDetail: config.experimental.turbotrace?.logDetail,
-              showAll: config.experimental.turbotrace?.logAll,
-            },
-            turboTasksForTrace
-          )
-
-        // turbotrace does not handle concurrent tracing
-        const vanillaFiles = await makeTrace(serverEntries)
-        const minimalFiles = await makeTrace(minimalServerEntries)
-
-        for (const [set, files] of [
-          [serverTracedFiles, vanillaFiles],
-          [minimalServerTracedFiles, minimalFiles],
-        ] as [Set<string>, string[]][]) {
-          for (const file of files) {
-            if (
-              !(
-                set === minimalServerTracedFiles
-                  ? minimalServerIgnoreFn
-                  : serverIgnoreFn
-              )(path.join(traceContext, file))
-            ) {
-              addToTracedFiles(traceContext, file, set)
-            }
-          }
-        }
-      } else {
+      {
         const chunksToTrace: string[] = [
           ...(buildTraceContext?.chunksTrace?.action.input || []),
           ...serverEntries,
@@ -555,7 +416,7 @@ export async function collectBuildTraces({
             // pages as they don't have server bundles, note there is
             // the caveat with flying shuttle mode as it needs this for
             // detecting changed entries
-            if (staticPages.includes(route) && !isFlyingShuttle) {
+            if (staticPages.includes(route)) {
               return
             }
             const entryOutputPath = path.join(
@@ -573,8 +434,6 @@ export async function collectBuildTraces({
             }
             const traceOutputDir = path.dirname(traceOutputPath)
             const curTracedFiles = new Set<string>()
-            const curFileHashes: Record<string, string> =
-              existingTrace.fileHashes
 
             for (const file of [...entryNameFiles, entryOutputPath]) {
               const curFiles = [
@@ -596,19 +455,6 @@ export async function collectBuildTraces({
                     .relative(traceOutputDir, filePath)
                     .replace(/\\/g, '/')
                   curTracedFiles.add(outputFile)
-
-                  if (isFlyingShuttle) {
-                    try {
-                      let hash = hashCache[filePath]
-
-                      if (!hash) {
-                        hash = getHash(await fs.readFile(filePath))
-                      }
-                      curFileHashes[outputFile] = hash
-                    } catch (err: any) {
-                      // handle symlink errors or similar
-                    }
-                  }
                 }
               }
             }
@@ -622,11 +468,6 @@ export async function collectBuildTraces({
               JSON.stringify({
                 ...existingTrace,
                 files: [...curTracedFiles].sort(),
-                ...(isFlyingShuttle
-                  ? {
-                      fileHashes: curFileHashes,
-                    }
-                  : {}),
               })
             )
           })

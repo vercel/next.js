@@ -8,10 +8,10 @@ import { PHASE_INFO } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import { getRegistry } from '../lib/helpers/get-registry'
 import { parseVersionInfo } from '../server/dev/parse-version-info'
-import { getStaleness } from '../client/components/react-dev-overlay/internal/components/VersionStalenessInfo/VersionStalenessInfo'
+import { getStaleness } from '../client/components/react-dev-overlay/ui/components/version-staleness-info/version-staleness-info'
 import { warn } from '../build/output/log'
 
-type NextInfoOptions = {
+export type NextInfoOptions = {
   verbose?: boolean
 }
 
@@ -82,7 +82,11 @@ function getBinaryVersion(binaryName: string) {
       .toString()
       .trim()
   } catch {
-    return 'N/A'
+    try {
+      return childProcess.execSync(`${binaryName} --version`).toString().trim()
+    } catch {
+      return 'N/A'
+    }
   }
 }
 
@@ -360,7 +364,7 @@ async function printVerboseInfo() {
             const bindings = await loadBindings(
               nextConfig.experimental?.useWasmBinary
             )
-            // Run arbitary function to verify the bindings are loaded correctly.
+            // Run arbitrary function to verify the bindings are loaded correctly.
             const target = bindings.getTargetTriple()
 
             // We think next-swc is installed correctly if getTargetTriple returns.

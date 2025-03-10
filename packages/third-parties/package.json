@@ -1,6 +1,6 @@
 {
   "name": "@next/third-parties",
-  "version": "15.0.0-canary.55",
+  "version": "15.2.2-canary.6",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/third-parties"
@@ -26,12 +26,13 @@
     "third-party-capital": "1.0.20"
   },
   "devDependencies": {
-    "next": "15.0.0-canary.55",
+    "next": "15.2.2-canary.6",
     "outdent": "0.8.0",
-    "prettier": "2.5.1"
+    "prettier": "2.5.1",
+    "typescript": "5.8.2"
   },
   "peerDependencies": {
-    "next": "^13.0.0 || ^14.0.0",
-    "react": "^18.2.0"
+    "next": "^13.0.0 || ^14.0.0 || ^15.0.0",
+    "react": "^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0"
   }
 }

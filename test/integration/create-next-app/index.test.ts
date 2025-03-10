@@ -6,18 +6,22 @@ import {
   projectFilesShouldExist,
   projectFilesShouldNotExist,
 } from './utils'
-import { createNextInstall } from '../../lib/create-next-install'
-import { trace } from 'next/dist/trace'
 
-let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-beforeAll(async () => {
-  nextInstall = await createNextInstall({
-    parentSpan: trace('test'),
-    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+describe('create-next-app', () => {
+  let nextTgzFilename: string
+
+  beforeAll(() => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
   })
-})
 
-describe.skip('create-next-app', () => {
   it('should not create if the target directory is not empty', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'non-empty-dir'
@@ -30,13 +34,13 @@ describe.skip('create-next-app', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -71,12 +75,13 @@ describe.skip('create-next-app', () => {
           projectName,
           '--ts',
           '--app',
+          '--no-turbopack',
           '--eslint',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           reject: false,
@@ -100,14 +105,14 @@ describe.skip('create-next-app', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-tailwind',
           '--no-src-dir',
           '--no-import-alias',
           '--skip-install',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }

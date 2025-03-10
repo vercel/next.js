@@ -1,3 +1,5 @@
+"use client";
+
 import ActiveLink from "./ActiveLink";
 
 const Nav = () => (
@@ -31,8 +33,7 @@ const Nav = () => (
         <ActiveLink
           activeClassName="active"
           className="nav-link"
-          href="/[slug]"
-          as="/dynamic-route"
+          href="/dynamic-route"
         >
           Dynamic Route
         </ActiveLink>

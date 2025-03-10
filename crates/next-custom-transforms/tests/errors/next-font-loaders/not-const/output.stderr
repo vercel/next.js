@@ -1,0 +1,14 @@
+  x Font loader calls must be assigned to a const
+   ,-[input.js:4:1]
+ 3 |     var i = 10
+ 4 | ,-> var inter1 = Inter({
+ 5 | |     variant: '400',
+ 6 | `-> })
+   `----
+  x Font loader calls must be assigned to a const
+    ,-[input.js:9:1]
+  8 |     var i2 = 20
+  9 | ,-> let inter2 = Inter({
+ 10 | |     variant: '400',
+ 11 | `-> })
+    `----

@@ -1,8 +1,8 @@
 import { draftMode } from 'next/headers'
 
-export function GET() {
-  draftMode().enable()
+export async function GET() {
+  ;(await draftMode()).enable()
   return new Response(
-    'Enabled in Route Handler using draftMode().enable(), check cookies'
+    'Enabled in Route Handler using `(await draftMode()).enable()`, check cookies'
   )
 }

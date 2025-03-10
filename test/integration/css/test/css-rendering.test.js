@@ -115,44 +115,57 @@ module.exports = {
       it('should have correct CSS injection order', async () => {
         const browser = await webdriver(appPort, '/')
         try {
-          await checkGreenTitle(browser)
+          // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
+          if (process.env.TURBOPACK) {
+            await checkGreenTitle(browser)
 
-          const prevSiblingHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
-          )
-          const currentPageHref = await browser.eval(
-            `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
-          )
-          expect(prevSiblingHref).toBeDefined()
-          expect(prevSiblingHref).toBe(currentPageHref)
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkBlueTitle(browser)
 
-          // Navigate to other:
-          await browser.waitForElementByCss('#link-other').click()
-          await checkBlueTitle(browser)
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkGreenTitle(browser)
+          } else {
+            await checkGreenTitle(browser)
 
-          const newPrevSibling = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling).toBe('VmVyY2Vs')
-          expect(newPageHref).toBeDefined()
-          expect(newPageHref).not.toBe(currentPageHref)
+            const prevSiblingHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').previousSibling.getAttribute('href')`
+            )
+            const currentPageHref = await browser.eval(
+              `document.querySelector('link[rel=stylesheet][data-n-p]').getAttribute('href')`
+            )
+            expect(prevSiblingHref).toBeDefined()
+            expect(prevSiblingHref).toBe(currentPageHref)
 
-          // Navigate to home:
-          await browser.waitForElementByCss('#link-index').click()
-          await checkGreenTitle(browser)
+            // Navigate to other:
+            await browser.waitForElementByCss('#link-other').click()
+            await checkBlueTitle(browser)
 
-          const newPrevSibling2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
-          )
-          const newPageHref2 = await browser.eval(
-            `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
-          )
-          expect(newPrevSibling2).toBeTruthy()
-          expect(newPageHref2).toBeDefined()
-          expect(newPageHref2).toBe(currentPageHref)
+            const newPrevSibling = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling).toBe('VmVyY2Vs')
+            expect(newPageHref).toBeDefined()
+            expect(newPageHref).not.toBe(currentPageHref)
+
+            // Navigate to home:
+            await browser.waitForElementByCss('#link-index').click()
+            await checkGreenTitle(browser)
+
+            const newPrevSibling2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').previousSibling.getAttribute('data-n-css')`
+            )
+            const newPageHref2 = await browser.eval(
+              `document.querySelector('style[data-n-href]').getAttribute('data-n-href')`
+            )
+            expect(newPrevSibling2).toBeTruthy()
+            expect(newPageHref2).toBeDefined()
+            expect(newPageHref2).toBe(currentPageHref)
+          }
         } finally {
           await browser.close()
         }
@@ -215,14 +228,17 @@ module.exports = {
     )
   })
 
-  describe('CSS Cleanup on Render Failure', () => {
-    const appDir = join(fixturesDir, 'transition-cleanup')
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+  // Turbopack keeps styles which mirrors development with webpack. This test only checks a behavior for webpack.
+  ;(process.env.TURBOPACK ? describe.skip : describe)(
+    'CSS Cleanup on Render Failure',
+    () => {
+      const appDir = join(fixturesDir, 'transition-cleanup')
+      const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
-      beforeAll(async () => {
-        nextConfig.write(
-          `
+      describe.each([true, false])(`useLightnincsss(%s)`, (useLightningcss) => {
+        beforeAll(async () => {
+          nextConfig.write(
+            `
 const config = require('../next.config.js');
 module.exports = {
   ...config,
@@ -230,73 +246,74 @@ module.exports = {
     useLightningcss: ${useLightningcss}
   }
 }`
+          )
+        })
+
+        let app, appPort
+
+        function tests() {
+          async function checkBlackTitle(browser) {
+            await browser.waitForElementByCss('#black-title')
+            const titleColor = await browser.eval(
+              `window.getComputedStyle(document.querySelector('#black-title')).color`
+            )
+            expect(titleColor).toBe('rgb(17, 17, 17)')
+          }
+
+          it('not have intermediary page styles on error rendering', async () => {
+            const browser = await webdriver(appPort, '/')
+            try {
+              await checkBlackTitle(browser)
+
+              const currentPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet][data-n-p]')`
+              )
+              expect(currentPageStyles).toBeDefined()
+
+              // Navigate to other:
+              await browser.waitForElementByCss('#link-other').click()
+              await check(
+                () => browser.eval(`document.body.innerText`),
+                'Application error: a client-side exception has occurred while loading localhost (see the browser console for more information).',
+                true
+              )
+
+              const newPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet][data-n-p]')`
+              )
+              expect(newPageStyles).toBeFalsy()
+
+              const allPageStyles = await browser.eval(
+                `document.querySelector('link[rel=stylesheet]')`
+              )
+              expect(allPageStyles).toBeFalsy()
+            } finally {
+              await browser.close()
+            }
+          })
+        }
+
+        ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+          'production mode',
+          () => {
+            beforeAll(async () => {
+              await remove(join(appDir, '.next'))
+            })
+            beforeAll(async () => {
+              await nextBuild(appDir, [], {})
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+            })
+            afterAll(async () => {
+              await killApp(app)
+            })
+
+            tests()
+          }
         )
       })
-
-      let app, appPort
-
-      function tests() {
-        async function checkBlackTitle(browser) {
-          await browser.waitForElementByCss('#black-title')
-          const titleColor = await browser.eval(
-            `window.getComputedStyle(document.querySelector('#black-title')).color`
-          )
-          expect(titleColor).toBe('rgb(17, 17, 17)')
-        }
-
-        it('not have intermediary page styles on error rendering', async () => {
-          const browser = await webdriver(appPort, '/')
-          try {
-            await checkBlackTitle(browser)
-
-            const currentPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]')`
-            )
-            expect(currentPageStyles).toBeDefined()
-
-            // Navigate to other:
-            await browser.waitForElementByCss('#link-other').click()
-            await check(
-              () => browser.eval(`document.body.innerText`),
-              'Application error: a client-side exception has occurred (see the browser console for more information).',
-              true
-            )
-
-            const newPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet][data-n-p]')`
-            )
-            expect(newPageStyles).toBeFalsy()
-
-            const allPageStyles = await browser.eval(
-              `document.querySelector('link[rel=stylesheet]')`
-            )
-            expect(allPageStyles).toBeFalsy()
-          } finally {
-            await browser.close()
-          }
-        })
-      }
-
-      ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-        'production mode',
-        () => {
-          beforeAll(async () => {
-            await remove(join(appDir, '.next'))
-          })
-          beforeAll(async () => {
-            await nextBuild(appDir, [], {})
-            appPort = await findPort()
-            app = await nextStart(appDir, appPort)
-          })
-          afterAll(async () => {
-            await killApp(app)
-          })
-
-          tests()
-        }
-      )
-    })
-  })
+    }
+  )
 
   describe('Page reload on CSS missing', () => {
     const appDir = join(fixturesDir, 'transition-reload')

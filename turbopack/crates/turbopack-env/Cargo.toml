@@ -1,0 +1,27 @@
+[package]
+name = "turbopack-env"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+indexmap = { workspace = true }
+serde = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

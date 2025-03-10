@@ -1,0 +1,21 @@
+[package]
+name = "turbo-tasks-build"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+cargo-lock = "8.0.2"
+glob = "0.3.0"
+quote = { workspace = true }
+rustc-hash = { workspace = true }
+syn = { workspace = true, features = ["full"] }
+turbo-tasks-macros-shared = { workspace = true }

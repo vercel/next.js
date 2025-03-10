@@ -72,7 +72,9 @@ describe('app-dir edge SSR', () => {
     it('should resolve client component without error', async () => {
       const logs = []
       next.on('stderr', (log) => {
-        logs.push(log)
+        if (!log.includes('experimental edge runtime')) {
+          logs.push(log)
+        }
       })
       const html = await next.render('/with-client')
       expect(html).toContain('My Button')
@@ -104,12 +106,21 @@ describe('app-dir edge SSR', () => {
       const manifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
       )
-      expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
-        {
-          regexp: '^/group$',
-          originalSource: '/group',
-        },
-      ])
+      if (process.env.TURBOPACK) {
+        expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+          {
+            regexp: '^/group(?:/)?$',
+            originalSource: '/group',
+          },
+        ])
+      } else {
+        expect(manifest.functions['/(group)/group/page'].matchers).toEqual([
+          {
+            regexp: '^/group$',
+            originalSource: '/group',
+          },
+        ])
+      }
     })
   }
 })

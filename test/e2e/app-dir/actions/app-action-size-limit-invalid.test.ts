@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 import { accountForOverhead } from './account-for-overhead'
 
 const CONFIG_ERROR =
@@ -11,6 +12,7 @@ describe('app-dir action size limit invalid config', () => {
     skipDeployment: true,
     skipStart: true,
     dependencies: {
+      nanoid: '4.0.1',
       'server-only': 'latest',
     },
   })
@@ -25,7 +27,7 @@ describe('app-dir action size limit invalid config', () => {
 
   beforeAll(() => {
     const onLog = (log: string) => {
-      logs.push(log.trim())
+      logs.push(stripAnsi(log.trim()))
     }
 
     next.on('stdout', onLog)
@@ -114,7 +116,7 @@ describe('app-dir action size limit invalid config', () => {
 
       await retry(() => {
         expect(logs).toContainEqual(
-          expect.stringContaining('[Error]: Body exceeded 1.5mb limit')
+          expect.stringContaining('Error: Body exceeded 1.5mb limit')
         )
         expect(logs).toContainEqual(
           expect.stringContaining(

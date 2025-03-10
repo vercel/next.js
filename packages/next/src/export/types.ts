@@ -1,21 +1,17 @@
-import type { WriteFileOptions } from 'fs'
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
-import type { Revalidate } from '../server/lib/revalidate'
-import type {
-  NextEnabledDirectories,
-  RequestLifecycleOpts,
-} from '../server/base-server'
+import type { CacheControl } from '../server/lib/cache-control'
+import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
+import type { FetchMetrics } from '../server/base-http'
+import type { RouteMetadata } from './routes/types'
 
 export interface AmpValidation {
   page: string
@@ -25,25 +21,29 @@ export interface AmpValidation {
   }
 }
 
-/**
- * Writes a file to the filesystem (and also records the file that was written).
- */
-export type FileWriter = (
-  type: string,
-  path: string,
-  content:
-    | string
-    | NodeJS.ArrayBufferView
-    | Iterable<string | NodeJS.ArrayBufferView>
-    | AsyncIterable<string | NodeJS.ArrayBufferView>,
-  encodingOptions?: WriteFileOptions
-) => Promise<void>
-
 type PathMap = ExportPathMap[keyof ExportPathMap]
 
-export interface ExportPageInput {
-  path: string
+export interface ExportPagesInput {
+  buildId: string
+  paths: string[]
+  exportPathMap: ExportPathMap
+  parentSpanId: number
   dir: string
+  distDir: string
+  outDir: string
+  pagesDataDir: string
+  renderOpts: WorkerRenderOptsPartial
+  nextConfig: NextConfigComplete
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  fetchCache: boolean | undefined
+  cacheHandler: string | undefined
+  fetchCacheKeyPrefix: string | undefined
+  options: ExportAppOptions
+}
+
+export interface ExportPageInput {
+  buildId: string
+  path: string
   pathMap: PathMap
   distDir: string
   outDir: string
@@ -54,58 +54,46 @@ export interface ExportPageInput {
   buildExport?: boolean
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
-  optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
-  parentSpanId: any
+  parentSpanId: number
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
-  cacheMaxMemorySize?: NextConfigComplete['cacheMaxMemorySize']
-  fetchCache?: boolean
-  cacheHandler?: string
-  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
-  enabledDirectories: NextEnabledDirectories
-}
-
-export type ExportedPageFile = {
-  type: string
-  path: string
+  sriEnabled: boolean
 }
 
 export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
-      revalidate: Revalidate
-      metadata?: {
-        status?: number
-        headers?: OutgoingHttpHeaders
-      }
+      cacheControl: CacheControl
+      metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
+      fetchMetrics?: FetchMetrics
     }
   | {
       error: boolean
     }
 
 export type ExportPageResult = ExportRouteResult & {
-  files: ExportedPageFile[]
   duration: number
   turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
 }
+
+export type ExportPagesResult = {
+  result: ExportPageResult | undefined
+  path: string
+  pageKey: string
+}[]
 
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  RequestLifecycleOpts &
   LoadComponentsReturnType
-
-export type ExportWorker = (
-  input: ExportPageInput
-) => Promise<ExportPageResult | undefined>
 
 export interface ExportAppOptions {
   outdir: string
@@ -115,11 +103,9 @@ export interface ExportAppOptions {
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
-  exportPageWorker?: ExportWorker
-  exportAppPageWorker?: ExportWorker
-  endWorker: () => Promise<void>
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
+  numWorkers: number
 }
 
 export type ExportPageMetadata = {
@@ -141,13 +127,13 @@ export type ExportAppResult = {
     string,
     {
       /**
-       * The revalidation time for the page in seconds.
+       * The cache control for the page.
        */
-      revalidate?: Revalidate
+      cacheControl?: CacheControl
       /**
        * The metadata for the page.
        */
-      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      metadata?: Partial<RouteMetadata>
       /**
        * If the page has an empty prelude when using PPR.
        */
@@ -156,6 +142,8 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+
+      fetchMetrics?: FetchMetrics
     }
   >
 
@@ -174,9 +162,3 @@ export type ExportAppResult = {
    */
   turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
 }
-
-export type ExportAppWorker = (
-  dir: string,
-  options: ExportAppOptions,
-  span: Span
-) => Promise<ExportAppResult | null>

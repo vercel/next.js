@@ -17,9 +17,10 @@ describe('GSP build errors', () => {
     'production mode',
     () => {
       afterEach(() => fs.remove(pagesDir))
-
-      it('should fail build from module not found', async () => {
-        await writePage(`
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should fail build from module not found',
+        async () => {
+          await writePage(`
       __non_webpack_require__('a-cool-module')
 
       export function getStaticProps() {
@@ -32,10 +33,13 @@ describe('GSP build errors', () => {
         return null
       }
     `)
-        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(code).toBe(1)
-        expect(stderr).toContain('a-cool-module')
-      })
+          const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(code).toBe(1)
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain('a-cool-module')
+        }
+      )
 
       it('should fail build from ENOENT in getStaticProps', async () => {
         await writePage(`

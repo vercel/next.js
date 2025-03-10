@@ -9,7 +9,6 @@ Check out this [repository](https://github.com/ezeparziale/nextjs-k8s) that cont
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-
 npx create-next-app --example cache-handler-redis cache-handler-redis-app
 ```
 
@@ -24,10 +23,12 @@ pnpm create next-app --example cache-handler-redis cache-handler-redis-app
 Once you have installed the dependencies, you can begin running the example Redis Stack server by using the following command:
 
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 Then, build and start the Next.js app as usual.
+
+To see the cache logs use NEXT_PRIVATE_DEBUG_CACHE=1 [troubleshooting](https://caching-tools.github.io/next-shared-cache/troubleshooting)
 
 ## Documentation
 
@@ -47,7 +48,7 @@ For detailed information on configuration and usage, please refer to our compreh
 
 ## Development and Production Considerations
 
-- The provided `docker-compose.yml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
+- The provided `compose.yaml` is intended for local development. For production deployment, refer to the official [Redis installation](https://redis.io/docs/install/) and [management](https://redis.io/docs/management/) guidelines.
 
 - **Clearing Redis Cache:** To clear the Redis cache, use RedisInsight Workbench or the following CLI command:
 

@@ -47,6 +47,7 @@ export function createDefaultMetadata(): ResolvedMetadata {
     appleWebApp: null,
     formatDetection: null,
     itunes: null,
+    facebook: null,
     abstract: null,
     appLinks: null,
     archives: null,
@@ -54,6 +55,10 @@ export function createDefaultMetadata(): ResolvedMetadata {
     bookmarks: null,
     category: null,
     classification: null,
+    pagination: {
+      previous: null,
+      next: null,
+    },
     other: {},
   }
 }

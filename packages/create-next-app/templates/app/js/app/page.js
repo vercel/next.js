@@ -7,7 +7,7 @@ export default function Home() {
       <main className={styles.main}>
         <Image
           className={styles.logo}
-          src="https://nextjs.org/icons/next.svg"
+          src="/next.svg"
           alt="Next.js logo"
           width={180}
           height={38}
@@ -15,7 +15,7 @@ export default function Home() {
         />
         <ol>
           <li>
-            Get started by editing <code>app/page.js</code>
+            Get started by editing <code>app/page.js</code>.
           </li>
           <li>Save and see your changes instantly.</li>
         </ol>
@@ -29,7 +29,7 @@ export default function Home() {
           >
             <Image
               className={styles.logo}
-              src="https://nextjs.org/icons/vercel.svg"
+              src="/vercel.svg"
               alt="Vercel logomark"
               width={20}
               height={20}
@@ -54,7 +54,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src="https://nextjs.org/icons/file.svg"
+            src="/file.svg"
             alt="File icon"
             width={16}
             height={16}
@@ -68,7 +68,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src="https://nextjs.org/icons/window.svg"
+            src="/window.svg"
             alt="Window icon"
             width={16}
             height={16}
@@ -82,7 +82,7 @@ export default function Home() {
         >
           <Image
             aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
+            src="/globe.svg"
             alt="Globe icon"
             width={16}
             height={16}

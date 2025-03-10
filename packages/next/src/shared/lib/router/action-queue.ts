@@ -1,5 +1,4 @@
 import {
-  isThenable,
   type AppRouterState,
   type ReducerActions,
   type ReducerState,
@@ -8,15 +7,14 @@ import {
   ACTION_NAVIGATE,
   ACTION_RESTORE,
 } from '../../../client/components/router-reducer/router-reducer-types'
-import type { ReduxDevToolsInstance } from '../../../client/components/use-reducer-with-devtools'
 import { reducer } from '../../../client/components/router-reducer/router-reducer'
-import React, { startTransition } from 'react'
+import { startTransition } from 'react'
+import { isThenable } from '../is-thenable'
 
 export type DispatchStatePromise = React.Dispatch<ReducerState>
 
 export type AppRouterActionQueue = {
-  state: AppRouterState | null
-  devToolsInstance?: ReduxDevToolsInstance
+  state: AppRouterState
   dispatch: (payload: ReducerActions, setState: DispatchStatePromise) => void
   action: (state: AppRouterState, action: ReducerActions) => ReducerState
   pending: ActionQueueNode | null
@@ -31,9 +29,6 @@ export type ActionQueueNode = {
   reject: (err: Error) => void
   discarded?: boolean
 }
-
-export const ActionQueueContext =
-  React.createContext<AppRouterActionQueue | null>(null)
 
 function runRemainingActions(
   actionQueue: AppRouterActionQueue,
@@ -74,10 +69,6 @@ async function runAction({
   setState: DispatchStatePromise
 }) {
   const prevState = actionQueue.state
-  if (!prevState) {
-    // This shouldn't happen as the state is initialized in the dispatcher if it's not set
-    throw new Error('Invariant: Router state not initialized')
-  }
 
   actionQueue.pending = action
 
@@ -91,10 +82,6 @@ async function runAction({
     }
 
     actionQueue.state = nextState
-
-    if (actionQueue.devToolsInstance) {
-      actionQueue.devToolsInstance.send(payload, nextState)
-    }
 
     runRemainingActions(actionQueue, setState)
     action.resolve(nextState)
@@ -164,8 +151,9 @@ function dispatchAction(
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
 
-    // Mark this action as the last in the queue
-    actionQueue.last = newAction
+    // The rest of the current queue should still execute after this navigation.
+    // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
+    newAction.next = actionQueue.pending.next
 
     // if the pending action was a server action, mark the queue as needing a refresh once events are processed
     if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
@@ -187,15 +175,16 @@ function dispatchAction(
   }
 }
 
-export function createMutableActionQueue(): AppRouterActionQueue {
+let globalActionQueue: AppRouterActionQueue | null = null
+
+export function createMutableActionQueue(
+  initialState: AppRouterState
+): AppRouterActionQueue {
   const actionQueue: AppRouterActionQueue = {
-    state: null,
+    state: initialState,
     dispatch: (payload: ReducerActions, setState: DispatchStatePromise) =>
       dispatchAction(actionQueue, payload, setState),
     action: async (state: AppRouterState, action: ReducerActions) => {
-      if (state === null) {
-        throw new Error('Invariant: Router state not initialized')
-      }
       const result = reducer(state, action)
       return result
     },
@@ -203,5 +192,22 @@ export function createMutableActionQueue(): AppRouterActionQueue {
     last: null,
   }
 
+  if (typeof window !== 'undefined') {
+    // The action queue is lazily created on hydration, but after that point
+    // it doesn't change. So we can store it in a global rather than pass
+    // it around everywhere via props/context.
+    if (globalActionQueue !== null) {
+      throw new Error(
+        'Internal Next.js Error: createMutableActionQueue was called more ' +
+          'than once'
+      )
+    }
+    globalActionQueue = actionQueue
+  }
+
   return actionQueue
+}
+
+export function getCurrentAppRouterState(): AppRouterState | null {
+  return globalActionQueue !== null ? globalActionQueue.state : null
 }

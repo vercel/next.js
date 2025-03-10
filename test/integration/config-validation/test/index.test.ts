@@ -39,6 +39,17 @@ describe('next.config.js validation', () => {
             `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
           ],
         },
+        {
+          name: 'invalid config array lengths',
+          configContent: `
+        module.exports = {
+          pageExtensions: []
+        }
+      `,
+          outputs: [
+            'Array must contain at least 1 element(s) at "pageExtensions"',
+          ],
+        },
       ])(
         'it should validate correctly for $name',
         async ({ outputs, configContent }) => {

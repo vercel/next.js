@@ -7,14 +7,14 @@
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "styled-components": "^6.1.0"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "styled-components": "^6.1.13"
   },
   "devDependencies": {
-    "@types/node": "^18.18.3",
-    "@types/react": "^18.2.33",
-    "@types/react-dom": "^18.2.14",
-    "typescript": "^5.2.2"
+    "@types/node": "^22.7.4",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "typescript": "^5.6.2"
   }
 }

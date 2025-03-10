@@ -1,6 +1,8 @@
 'use client'
-import testImage from '../../public/test.jpg'
+
+import Link from 'next/link'
 import Image from 'next/image'
+import testImage from '../../public/test.jpg'
 
 export default function Page() {
   return (
@@ -19,6 +21,9 @@ export default function Page() {
       >
         click me
       </button>
+      <Link id="other-app" href="/other-app">
+        other app
+      </Link>
     </>
   )
 }

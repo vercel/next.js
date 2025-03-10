@@ -1,4 +1,0 @@
-{
-  "installCommand": "mv node_modules node_modules.bak && npm i",
-  "buildCommand": "cp -r node_modules.bak/* node_modules && npm run build"
-}

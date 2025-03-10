@@ -216,7 +216,7 @@ function normalizeSourceMap(map: any, resourcePath: string) {
     // We should normalize path because previous loaders like `sass-loader` using backslash when generate source map
     newMap.sources = newMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
-      if (source.indexOf('<') === 0) {
+      if (source.startsWith('<')) {
         return source
       }
 
@@ -297,7 +297,7 @@ function normalizeSourceMapForRuntime(map: any, loaderContext: any) {
 
     resultMap.sources = resultMap.sources.map((source: string) => {
       // Non-standard syntax from `postcss`
-      if (source.indexOf('<') === 0) {
+      if (source.startsWith('<')) {
         return source
       }
 

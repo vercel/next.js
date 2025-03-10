@@ -13,7 +13,7 @@ describe('getFontAxes errors', () => {
     expect(() => getFontAxes('Inter', ['variable'], [], true as any))
       .toThrowErrorMatchingInlineSnapshot(`
       "Invalid axes value for font \`Inter\`, expected an array of axes.
-      Available axes: \`slnt\`"
+      Available axes: \`opsz\`"
     `)
   })
 

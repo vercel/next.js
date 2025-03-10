@@ -1,6 +1,5 @@
 //@ts-check
 
-const os = require('os')
 const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
@@ -17,6 +16,10 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+
+// Do not rename or format. sync-react script relies on this line.
+// prettier-ignore
+const nextjsReactPeerVersion = "^19.0.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -48,7 +51,7 @@ const ENDGROUP = process.env.CI ? '##[endgroup]' : ''
 const externalTestsFilter = getTestFilter()
 
 const timings = []
-const DEFAULT_NUM_RETRIES = os.platform() === 'win32' ? 2 : 1
+const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
@@ -72,7 +75,7 @@ const TIMINGS_API_HEADERS = {
 
 const testFilters = {
   development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
+    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
   ),
   production: new RegExp(
     '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
@@ -378,9 +381,9 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
-      const numPerGroup = Math.ceil(tests.length / groupTotal)
-      let offset = (groupPos - 1) * numPerGroup
-      tests = tests.slice(offset, offset + numPerGroup)
+      // assign every nth test "round-robin" to the group, so that similar slow
+      // tests tend not to get clustered together
+      tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
     }
   }
@@ -398,24 +401,18 @@ ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
 
-  const hasIsolatedTests = tests.some((test) => {
-    return configuredTestTypes.some(
-      (type) =>
-        type !== testFilters.unit && test.file.startsWith(`test/${type}`)
-    )
-  })
-
   if (
     !options.dry &&
-    process.platform !== 'win32' &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
-    ((options.type && options.type !== 'unit') || hasIsolatedTests)
+    ((options.type && options.type !== 'unit') ||
+      tests.some((test) => !testFilters.unit.test(test.file)))
   ) {
-    // for isolated next tests: e2e, dev, prod we create
-    // a starter Next.js install to re-use to speed up tests
-    // to avoid having to run yarn each time
-    console.log(`${GROUP}Creating Next.js install for isolated tests`)
-    const reactVersion = process.env.NEXT_TEST_REACT_VERSION || '19.0.0-rc.0'
+    // For isolated next tests (e2e, dev, prod) and integration tests we create
+    // a starter Next.js install to re-use to speed up tests to avoid having to
+    // run `pnpm install` each time.
+    console.log(`${GROUP}Creating shared Next.js install`)
+    const reactVersion =
+      process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
     const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
@@ -453,12 +450,7 @@ ${ENDGROUP}`)
       const start = new Date().getTime()
       let outputChunks = []
 
-      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
-
       const args = [
-        ...(shouldRecordTestWithReplay
-          ? [`--config=jest.replay.config.js`]
-          : []),
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
@@ -482,13 +474,15 @@ ${ENDGROUP}`)
         // unset CI env so CI behavior is only explicitly
         // tested when enabled
         CI: '',
+        // But some tests need to fork based on machine? CI? behavior differences
+        // Only use read this in tests.
+        // For implementation forks, use `process.env.CI` instead
+        NEXT_TEST_CI: process.env.CI,
 
         ...(options.local
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              RECORD_REPLAY: shouldRecordTestWithReplay,
-
               TRACE_PLAYWRIGHT:
                 process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
               CIRCLECI: '',

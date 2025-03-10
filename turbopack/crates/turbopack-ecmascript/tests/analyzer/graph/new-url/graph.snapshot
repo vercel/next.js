@@ -1,0 +1,33 @@
+[
+    (
+        "asset",
+        New(
+            6,
+            FreeVar(
+                "URL",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "./worker.ts",
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    WellKnownObject(
+                        ImportMeta,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "url",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+]

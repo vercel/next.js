@@ -1,9 +1,8 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from './request/params'
 import type { LoadComponentsReturnType } from './load-components'
-import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -11,14 +10,13 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
 import { generateETag } from './lib/etag'
-import { addRequestMeta } from './request-meta'
+import { addRequestMeta, getRequestMeta } from './request-meta'
 import WebResponseCache from './response-cache/web'
-import { isAPIRoute } from '../lib/is-api-route'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import {
@@ -33,23 +31,24 @@ import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
-import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getEdgeInstrumentationModule } from './web/globals'
+import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { getEdgePreviewProps } from './web/get-edge-preview-props'
 
 interface WebServerOptions extends Options {
+  buildId: string
   webServerConfig: {
     page: string
     pathname: string
     pagesType: PAGE_TYPES
     loadComponent: (page: string) => Promise<LoadComponentsReturnType | null>
-    extendRenderOpts: Partial<BaseServer['renderOpts']> &
-      Pick<BaseServer['renderOpts'], 'buildId'> & {
-        serverActionsManifest?: any
-      }
+    extendRenderOpts: Partial<BaseServer['renderOpts']> & {
+      serverActionsManifest?: any
+    }
     renderToHTML:
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
@@ -81,12 +80,9 @@ export default class NextWebServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol: 'https',
-      pagesDir: this.enabledDirectories.pages,
-      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk: false,
@@ -104,7 +100,7 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected getBuildId() {
-    return this.serverOptions.webServerConfig.extendRenderOpts.buildId
+    return this.serverOptions.buildId
   }
 
   protected getEnabledDirectories() {
@@ -137,19 +133,13 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected getPrerenderManifest() {
-    const { prerenderManifest } = this.serverOptions.webServerConfig
-    if (this.renderOpts?.dev || !prerenderManifest) {
-      return {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: 'development-id',
-        } as any, // `preview` is special case read in next-dev-server
-      }
+    return {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: getEdgePreviewProps(),
     }
-    return prerenderManifest
   }
 
   protected getNextFontManifest() {
@@ -174,16 +164,18 @@ export default class NextWebServer extends BaseServer<
       pathname = normalizedPage
 
       if (isDynamicRoute(pathname)) {
-        const routeRegex = getNamedRouteRegex(pathname, false)
+        const routeRegex = getNamedRouteRegex(pathname, {
+          prefixRouteKeys: false,
+        })
         const dynamicRouteMatcher = getRouteMatcher(routeRegex)
         const defaultRouteMatches = dynamicRouteMatcher(
           pathname
         ) as NextParsedUrlQuery
         const paramsResult = normalizeDynamicRouteParams(
           query,
-          false,
           routeRegex,
-          defaultRouteMatches
+          defaultRouteMatches,
+          false
         )
         const normalizedParams = paramsResult.hasValidParams
           ? paramsResult.params
@@ -194,13 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(
-          req,
-          true,
-          Object.keys(routeRegex.routeKeys),
-          true,
-          routeRegex
-        )
+        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
       }
     }
 
@@ -210,15 +196,11 @@ export default class NextWebServer extends BaseServer<
     if (this.i18nProvider) {
       const { detectedLocale } = await this.i18nProvider.analyze(pathname)
       if (detectedLocale) {
-        parsedUrl.query.__nextLocale = detectedLocale
+        addRequestMeta(req, 'locale', detectedLocale)
       }
     }
 
-    const bubbleNoFallback = !!query._nextBubbleNoFallback
-
-    if (isAPIRoute(pathname)) {
-      delete query._nextBubbleNoFallback
-    }
+    const bubbleNoFallback = getRequestMeta(req, 'bubbleNoFallback')
 
     try {
       await this.render(req, res, pathname, query, parsedUrl, true)
@@ -256,10 +238,18 @@ export default class NextWebServer extends BaseServer<
       res as any,
       pathname,
       query,
+      // Edge runtime does not support ISR/PPR, so we don't need to pass in
+      // the unknown params.
+      null,
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',
-      })
+      }),
+      undefined,
+      false,
+      {
+        buildId: this.serverOptions.buildId,
+      }
     )
   }
 
@@ -271,8 +261,7 @@ export default class NextWebServer extends BaseServer<
       type: 'html' | 'json'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
@@ -363,10 +352,6 @@ export default class NextWebServer extends BaseServer<
     return false
   }
 
-  protected async getFallback() {
-    return ''
-  }
-
   protected getFontManifest() {
     return undefined
   }
@@ -392,18 +377,14 @@ export default class NextWebServer extends BaseServer<
     return undefined
   }
 
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     // The web server does not need to handle middleware. This is done by the
     // upstream proxy (edge runtime or node server).
-    return undefined
+    return Promise.resolve(undefined)
   }
 
   protected getFilesystemPaths() {
     return new Set<string>()
-  }
-
-  protected async getPrefetchRsc(): Promise<string | null> {
-    return null
   }
 
   protected getinterceptionRoutePatterns(): RegExp[] {
@@ -412,5 +393,25 @@ export default class NextWebServer extends BaseServer<
         (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
       ) ?? []
     )
+  }
+
+  protected async loadInstrumentationModule() {
+    return await getEdgeInstrumentationModule()
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+    const err = args[0]
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      typeof __next_log_error__ === 'function'
+    ) {
+      __next_log_error__(err)
+    } else {
+      console.error(err)
+    }
   }
 }

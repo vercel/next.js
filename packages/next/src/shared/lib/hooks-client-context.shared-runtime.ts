@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext } from 'react'
-import type { Params } from '../../shared/lib/router/utils/route-matcher'
+import type { Params } from '../../server/request/params'
 
 export const SearchParamsContext = createContext<URLSearchParams | null>(null)
 export const PathnameContext = createContext<string | null>(null)

@@ -238,7 +238,12 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./app/static-img/page.js')
+        if (process.env.TURBOPACK) {
+          // For this test with Turbopack the root of the project is the root of the Next.js repository because it's not isolated.
+          expect(stderr).toContain('app/static-img/page.js')
+        } else {
+          expect(stderr).toContain('./app/static-img/page.js')
+        }
         // should contain a import trace
         expect(stderr).not.toContain('Import trace for requested module')
       })
@@ -257,8 +262,8 @@ describe('Static Image Component Tests', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(false)
     }
@@ -273,8 +278,8 @@ describe('Static Image Component Tests', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

@@ -10,25 +10,32 @@ import { token } from "@/sanity/lib/token";
  * and will also fetch from the CDN.
  * When using the "previewDrafts" perspective then the data is fetched from the live API and isn't cached, it will also fetch draft content that isn't published yet.
  */
-export async function sanityFetch<QueryResponse>({
+export async function sanityFetch<const QueryString extends string>({
   query,
   params = {},
-  perspective = draftMode().isEnabled ? "previewDrafts" : "published",
+  perspective: _perspective,
   /**
    * Stega embedded Content Source Maps are used by Visual Editing by both the Sanity Presentation Tool and Vercel Visual Editing.
    * The Sanity Presentation Tool will enable Draft Mode when loading up the live preview, and we use it as a signal for when to embed source maps.
    * When outside of the Sanity Studio we also support the Vercel Toolbar Visual Editing feature, which is only enabled in production when it's a Vercel Preview Deployment.
    */
-  stega = perspective === "previewDrafts" ||
-    process.env.VERCEL_ENV === "preview",
+  stega: _stega,
 }: {
-  query: string;
-  params?: QueryParams;
+  query: QueryString;
+  params?: QueryParams | Promise<QueryParams>;
   perspective?: Omit<ClientPerspective, "raw">;
   stega?: boolean;
 }) {
+  const perspective =
+    _perspective || (await draftMode()).isEnabled
+      ? "previewDrafts"
+      : "published";
+  const stega =
+    _stega ||
+    perspective === "previewDrafts" ||
+    process.env.VERCEL_ENV === "preview";
   if (perspective === "previewDrafts") {
-    return client.fetch<QueryResponse>(query, params, {
+    return client.fetch(query, await params, {
       stega,
       perspective: "previewDrafts",
       // The token is required to fetch draft content
@@ -39,7 +46,7 @@ export async function sanityFetch<QueryResponse>({
       next: { revalidate: 0 },
     });
   }
-  return client.fetch<QueryResponse>(query, params, {
+  return client.fetch(query, await params, {
     stega,
     perspective: "published",
     // The `published` perspective is available on the API CDN

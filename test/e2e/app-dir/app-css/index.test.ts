@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 describe('app dir - css', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -89,6 +91,17 @@ describe('app dir - css', () => {
       it('should not contain pages css in app dir page', async () => {
         const html = await next.render('/css/css-page')
         expect(html).not.toContain('/pages/_app.css')
+      })
+
+      it('should support css modules shared between server pages', async () => {
+        const browser = await next.browser('/css/css-page-shared-loading')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            ),
+          'rgb(0, 0, 255)'
+        )
       })
     })
 
@@ -476,15 +489,41 @@ describe('app dir - css', () => {
           } else {
             // Even if it's deduped by Float, it should still only be included once in the payload.
 
-            const matches = initialHtml.match(/\/_next\/static\/css\/.+?\.css/g)
-            const counts = new Map()
-            for (const match of matches) {
-              counts.set(match, (counts.get(match) || 0) + 1)
-            }
-            for (const count of counts.values()) {
-              // There are 3 matches, one for the rendered <link>, one for float preload and one for the <link> inside flight payload.
-              // And there is one match for the not found style
-              expect([1, 3]).toContain(count)
+            const matches = initialHtml
+              .match(/\/_next\/static\/css\/.+?\.css/g)
+              .sort()
+
+            // Heavy on testing React implementation details.
+            // Assertions may change often but what needs to be checked on change is if styles are needlessly duplicated in Flight data
+            // There are 3 matches, one for the rendered <link> (HTML), one for Float preload (Flight) and one for the <link> inside Flight payload.
+            // And there is one match for the not found style
+            if (isPPREnabledByDefault) {
+              expect(matches).toEqual([
+                // may be split across chunks when we bump React
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/not-found.css',
+              ])
+            } else {
+              expect(matches).toEqual([
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/css-duplicate-2/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/css/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/layout.css',
+                '/_next/static/css/app/not-found.css',
+              ])
             }
           }
         })

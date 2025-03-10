@@ -6,21 +6,30 @@
     "start": "next start"
   },
   "dependencies": {
+    "@radix-ui/react-checkbox": "^1.1.1",
+    "@radix-ui/react-dropdown-menu": "^2.1.1",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
     "@supabase/ssr": "latest",
     "@supabase/supabase-js": "latest",
-    "autoprefixer": "10.4.17",
-    "geist": "^1.2.1",
+    "autoprefixer": "10.4.20",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.468.0",
     "next": "latest",
-    "postcss": "8.4.33",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "tailwindcss": "3.4.1",
-    "typescript": "5.3.3"
+    "next-themes": "^0.4.3",
+    "prettier": "^3.3.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
   },
   "devDependencies": {
-    "@types/node": "20.11.5",
-    "@types/react": "18.2.48",
-    "@types/react-dom": "18.2.18",
-    "encoding": "^0.1.13"
+    "@types/node": "22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "19.0.2",
+    "postcss": "8.4.49",
+    "tailwind-merge": "^2.5.2",
+    "tailwindcss": "3.4.17",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "5.7.2"
   }
 }

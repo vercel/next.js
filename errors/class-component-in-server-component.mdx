@@ -10,7 +10,7 @@ You are rendering a React Class Component in a Server Component, `React.Componen
 
 Use a Function Component.
 
-##### Before
+### Before
 
 ```jsx filename="app/page.js"
 export default class Page extends React.Component {
@@ -20,7 +20,7 @@ export default class Page extends React.Component {
 }
 ```
 
-##### After
+### After
 
 ```jsx filename="app/page.js"
 export default function Page() {
@@ -30,7 +30,7 @@ export default function Page() {
 
 Mark the component rendering the React Class Component as a Client Component by adding `'use client'` at the top of the file.
 
-##### Before
+### Before
 
 ```jsx filename="app/page.js"
 export default class Page extends React.Component {
@@ -40,7 +40,7 @@ export default class Page extends React.Component {
 }
 ```
 
-##### After
+### After
 
 ```jsx filename="app/page.js"
 'use client'
@@ -54,4 +54,4 @@ export default class Page extends React.Component {
 
 ## Useful Links
 
-[Server Components](/docs/app/building-your-application/rendering/server-components)
+- [Server Components](/docs/app/building-your-application/rendering/server-components)

@@ -1,8 +1,6 @@
 /* eslint-env jest */
 
 import { nextTestSetup } from 'e2e-utils'
-import { readdir, readFile } from 'fs-extra'
-import { join } from 'path'
 
 const nextConfig = {
   productionBrowserSourceMaps: true,
@@ -33,55 +31,184 @@ describe.each([
   ;(isNextDev ? describe.skip : describe)('Production only', () => {
     describe('CSS Compilation and Prefixing', () => {
       it(`should've compiled and prefixed`, async () => {
-        const cssFolder = join(next.testDir, '.next/static/css')
+        const $ = await next.render$('/')
 
-        const files = await readdir(cssFolder)
-        const cssFiles = files.filter((f) => /\.css$/.test(f))
+        const cssSheet = $('link[rel="stylesheet"]')
+        expect(cssSheet.length).toBe(1)
 
-        expect(cssFiles.length).toBe(1)
-        const cssContent = await readFile(join(cssFolder, cssFiles[0]), 'utf8')
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
-        )
+        const stylesheetUrl = cssSheet.attr('href')
+
+        const cssContent = await next
+          .fetch(stylesheetUrl)
+          .then((res) => res.text())
+        const cssContentWithoutSourceMap = cssContent
+          .replace(/\/\*.*?\*\//g, '')
+          .trim()
+
+        if (process.env.TURBOPACK) {
+          if (dependencies.sass) {
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
+          } else {
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
+          }
+        } else {
+          if (dependencies.sass) {
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
+          } else {
+            expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+              `".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}"`
+            )
+          }
+        }
 
         // Contains a source map
-        console.log({ cssContent })
         expect(cssContent).toMatch(/\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//)
-      })
 
-      it(`should've emitted a source map`, async () => {
-        const cssFolder = join(next.testDir, '.next/static/css')
+        // Check sourcemap
+        const sourceMapUrl = /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//.exec(
+          cssContent
+        )[1]
 
-        const files = await readdir(cssFolder)
-        const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
+        const actualSourceMapUrl = stylesheetUrl.replace(/[^/]+$/, sourceMapUrl)
+        const sourceMapContent = await next
+          .fetch(actualSourceMapUrl)
+          .then((res) => res.text())
+        const sourceMapContentParsed = JSON.parse(sourceMapContent)
+        // Ensure it doesn't have a specific path in the snapshot.
+        delete sourceMapContentParsed.file
+        delete sourceMapContentParsed.sources
 
-        expect(cssMapFiles.length).toBe(1)
-        const cssMapContent = (
-          await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
-        ).trim()
+        if (process.env.TURBOPACK) {
+          if (dependencies.sass) {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "sections": [
+                  {
+                    "map": {
+                      "mappings": "AAAA,iCAAiC",
+                      "names": [],
+                      "sources": [
+                        "turbopack:///[project]/styles/global.scss.css",
+                      ],
+                      "sourcesContent": [
+                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+                      ],
+                      "version": 3,
+                    },
+                    "offset": {
+                      "column": 0,
+                      "line": 1,
+                    },
+                  },
+                  {
+                    "map": {
+                      "mappings": "A",
+                      "names": [],
+                      "sources": [],
+                      "version": 3,
+                    },
+                    "offset": {
+                      "column": 91,
+                      "line": 1,
+                    },
+                  },
+                ],
+                "version": 3,
+              }
+            `)
+          } else {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "sections": [
+                  {
+                    "map": {
+                      "mappings": "AAAA,iCAAiC",
+                      "names": [],
+                      "sources": [
+                        "turbopack:///[project]/styles/global.scss.css",
+                      ],
+                      "sourcesContent": [
+                        ".redText ::placeholder{color:red}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}",
+                      ],
+                      "version": 3,
+                    },
+                    "offset": {
+                      "column": 0,
+                      "line": 1,
+                    },
+                  },
+                  {
+                    "map": {
+                      "mappings": "A",
+                      "names": [],
+                      "sources": [],
+                      "version": 3,
+                    },
+                    "offset": {
+                      "column": 91,
+                      "line": 1,
+                    },
+                  },
+                ],
+                "version": 3,
+              }
+            `)
+          }
+        } else {
+          if (dependencies.sass) {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "ignoreList": [],
+                "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+                "names": [],
+                "sourceRoot": "",
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
 
-        const { version, mappings, sourcesContent } = JSON.parse(cssMapContent)
-        expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
-  {
-    "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
-    "sourcesContent": [
-      "$var: red;
-  .redText {
-    ::placeholder {
-      color: $var;
-    }
-  }
-  
-  .flex-parsing {
-    flex: 0 0 calc(50% - var(--vertical-gutter));
-  }
-  ",
-    ],
-    "version": 3,
-  }
-  `)
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
+            `)
+          } else {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+              {
+                "ignoreList": [],
+                "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+                "names": [],
+                "sourceRoot": "",
+                "sourcesContent": [
+                  "$var: red;
+              .redText {
+                ::placeholder {
+                  color: $var;
+                }
+              }
+
+              .flex-parsing {
+                flex: 0 0 calc(50% - var(--vertical-gutter));
+              }
+              ",
+                ],
+                "version": 3,
+              }
+            `)
+          }
+        }
       })
     })
   })

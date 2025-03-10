@@ -1,0 +1,43 @@
+[package]
+name = "turbopack-css"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+indexmap = { workspace = true }
+indoc = { workspace = true }
+lightningcss = { workspace = true }
+once_cell = { workspace = true }
+parcel_selectors = { workspace = true }
+parcel_sourcemap = "2.1.1"
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+swc_core = { workspace = true, features = [
+  "ecma_ast",
+  "common",
+  "common_concurrent",
+] }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-swc-utils = { workspace = true }
+urlencoding = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

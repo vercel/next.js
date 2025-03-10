@@ -1,5 +1,9 @@
 [env]
 CARGO_WORKSPACE_DIR = { value = "", relative = true }
+TURBO_PNPM_WORKSPACE_DIR = { value = "", relative = true }
+
+[alias]
+xtask = "run --package xtask --"
 
 [build]
 rustflags = [
@@ -13,22 +17,44 @@ rustdocflags = []
 
 [target.x86_64-pc-windows-msvc]
 linker = "rust-lld"
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-C",
+  "target-feature=+crt-static"
+]
 
 [target.i686-pc-windows-msvc]
-rustflags = ["-C", "target-feature=+crt-static"]
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-C",
+  "target-feature=+crt-static"
+]
 
 [target.aarch64-pc-windows-msvc]
 linker = "rust-lld"
 
-[target.aarch64-apple-darwin]
+[target.'cfg(target_os = "macos")']
 linker = "rust-lld"
 
-[target.aarch64-unknown-linux-gnu]
-linker = "aarch64-linux-gnu-gcc"
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+  "-Zunstable-options",
+  "-Csymbol-mangling-version=v0",
+  "-Clinker-flavor=gnu-lld-cc",
+  "-Clink-self-contained=+linker",
+]
 
 [target.aarch64-unknown-linux-musl]
 linker = "aarch64-linux-musl-gcc"
+# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
 rustflags = [
   "--cfg",
   "tokio_unstable",
@@ -36,6 +62,17 @@ rustflags = [
   "-Csymbol-mangling-version=v0",
   "-Ctarget-feature=-crt-static",
   "-Clink-arg=-lgcc",
+]
+
+[target.x86_64-unknown-linux-musl]
+# Config need to be mirrowed to .github/workflows/build_and_deploy.yml
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+  "-Csymbol-mangling-version=v0",
+  "-Ctarget-feature=-crt-static",
 ]
 
 [target.armv7-unknown-linux-gnueabihf]

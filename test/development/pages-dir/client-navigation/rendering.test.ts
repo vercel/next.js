@@ -2,19 +2,16 @@
 
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  fetchViaHTTP,
-  getRedboxHeader,
-  renderViaHTTP,
-} from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
 import url from 'url'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Client Navigation rendering', () => {
-  const { next } = nextTestSetup({
+  const { isTurbopack, next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
@@ -130,12 +127,32 @@ describe('Client Navigation rendering', () => {
 
     test('getInitialProps circular structure', async () => {
       const browser = await webdriver(next.appPort, '/circular-json-error')
-      const expectedErrorMessage =
-        'Circular structure in "getInitialProps" result of page "/circular-json-error".'
 
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toContain(expectedErrorMessage)
+      if (isReact18 && isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [
+             "new Promise <anonymous> (0:0)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": null,
+           "stack": [],
+         }
+        `)
+      }
     })
 
     test('getInitialProps should be class method', async () => {
@@ -144,22 +161,31 @@ describe('Client Navigation rendering', () => {
         '/instance-get-initial-props'
       )
 
-      const expectedErrorMessage =
-        '"InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.'
-
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toContain(expectedErrorMessage)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: "InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     })
 
     test('getInitialProps resolves to null', async () => {
       const browser = await webdriver(next.appPort, '/empty-get-initial-props')
-      const expectedErrorMessage =
-        '"EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.'
 
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toContain(expectedErrorMessage)
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: "EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     })
 
     test('default Content-Type', async () => {
@@ -193,17 +219,54 @@ describe('Client Navigation rendering', () => {
 
     test('default export is not a React Component', async () => {
       const browser = await webdriver(next.appPort, '/no-default-export')
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toMatch(/The default export is not a React Component/)
+
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: The default export is not a React Component in page: "/no-default-export"",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     })
 
     test('error-inside-page', async () => {
       const browser = await webdriver(next.appPort, '/error-inside-page')
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toMatch(/This is an expected error/)
-      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @
+         {default export}
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "{default export} pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "Error: This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ default
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "default pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
+      }
     })
 
     test('error-in-the-global-scope', async () => {
@@ -211,10 +274,48 @@ describe('Client Navigation rendering', () => {
         next.appPort,
         '/error-in-the-global-scope'
       )
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
-      expect(text).toMatch(/aa is not defined/)
-      // Sourcemaps are applied by react-error-overlay, so we can't check them on SSR.
+
+      if (isTurbopack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ [project]/pages/error-in-the-global-scope.js [ssr] (ecmascript)
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "[project]/pages/error-in-the-global-scope.js [ssr] (ecmascript) pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      } else {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "count": 1,
+           "description": "ReferenceError: aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "eval pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      }
     })
 
     it('should set Cache-Control header', async () => {
@@ -223,15 +324,22 @@ describe('Client Navigation rendering', () => {
 
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        `.next/${REACT_LOADABLE_MANIFEST}`
+        process.env.TURBOPACK
+          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `.next/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('ssr.js -> ../../components/hello1')
+          .endsWith(
+            process.env.TURBOPACK
+              ? 'components/hello1.js [client] (ecmascript, next/dynamic entry)'
+              : 'ssr.js -> ../../components/hello1'
+          )
       })
+      expect(manifestKey).toBeString()
 
       // test dynamic chunk
       resources.push('/_next/' + reactLoadableManifest[manifestKey].files[0])
@@ -311,12 +419,17 @@ describe('Client Navigation rendering', () => {
 
     it('should show a valid error when undefined is thrown', async () => {
       const browser = await webdriver(next.appPort, '/throw-undefined')
-      await assertHasRedbox(browser)
-      const text = await getRedboxHeader(browser)
 
-      expect(text).toContain(
-        'An undefined error was thrown, see here for more info:'
-      )
+      await expect(browser).toDisplayRedbox(`
+       {
+         "count": 1,
+         "description": "Error: An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     })
   })
 })
@@ -609,7 +722,13 @@ describe.each([[false], [true]])(
       const documentHeadElement =
         '<meta name="keywords" content="document head test"/>'
 
-      expect(html).toContain(`<head>${nextHeadElement}${documentHeadElement}`)
+      expect(html).toContain(
+        isReact18
+          ? // charset is not actually at the top.
+            // data-next-hide-fouc comes first
+            `</style></noscript>${nextHeadElement}${documentHeadElement}`
+          : `<head>${nextHeadElement}${documentHeadElement}`
+      )
     })
   }
 )

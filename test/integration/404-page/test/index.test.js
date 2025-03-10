@@ -262,7 +262,9 @@ describe('404 Page Support', () => {
         await killApp(app)
 
         expect(cache404).toBe(null)
-        expect(cacheNext).toBe('no-cache, no-store, max-age=0, must-revalidate')
+        expect(cacheNext).toBe(
+          'private, no-cache, no-store, max-age=0, must-revalidate'
+        )
       })
 
       it('shows error with getInitialProps in pages/404 build', async () => {

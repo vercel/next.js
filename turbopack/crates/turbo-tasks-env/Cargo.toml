@@ -1,0 +1,24 @@
+[package]
+name = "turbo-tasks-env"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+dotenvs = "0.1.0"
+indexmap = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

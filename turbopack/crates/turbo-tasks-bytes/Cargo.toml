@@ -1,0 +1,26 @@
+[package]
+name = "turbo-tasks-bytes"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bytes = { workspace = true }
+futures = { workspace = true }
+serde = { workspace = true }
+serde_bytes = "0.11.9"
+turbo-tasks = { workspace = true }
+
+[dev-dependencies]
+serde_test = "1.0.157"
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

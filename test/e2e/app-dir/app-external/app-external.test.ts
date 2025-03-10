@@ -24,8 +24,8 @@ describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      swr: 'latest',
-      undici: 'latest',
+      swr: '2.2.5',
+      undici: '6.21.0',
     },
     packageJson: {
       scripts: {
@@ -158,24 +158,20 @@ describe('app dir - external dependency', () => {
       )
     ).toMatch(/^myFont, "myFont Fallback"$/)
   })
-  // TODO: This test depends on `new Worker` which is not supported in Turbopack yet.
-  ;(process.env.TURBOPACK ? it.skip : it)(
-    'should not apply swc optimizer transform for external packages in browser layer in web worker',
-    async () => {
-      const browser = await next.browser('/browser')
+  it('should not apply swc optimizer transform for external packages in browser layer in web worker', async () => {
+    const browser = await next.browser('/browser')
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
       // eslint-disable-next-line jest/no-standalone-expect
-      expect(await browser.elementByCss('#worker-state').text()).toBe('default')
-
-      await browser.elementByCss('button').click()
-
-      await retry(async () => {
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect(await browser.elementByCss('#worker-state').text()).toBe(
-          'worker.js:browser-module/other'
-        )
-      })
-    }
-  )
+      expect(await browser.elementByCss('#worker-state').text()).toBe(
+        'worker.js:browser-module/other'
+      )
+    })
+  })
 
   describe('react in external esm packages', () => {
     it('should use the same react in client app', async () => {
@@ -229,6 +225,11 @@ describe('app dir - external dependency', () => {
       const $ = await next.render$('/esm/react-namespace-import')
       expect($('#namespace-import-esm').text()).toBe('namespace-import:esm')
     })
+
+    it('should apply serverExternalPackages inside of node_modules', async () => {
+      const html = await next.render('/transitive-external')
+      expect(html).toContain('transitive loaded a')
+    })
   })
 
   describe('mixed syntax external modules', () => {
@@ -261,6 +262,11 @@ describe('app dir - external dependency', () => {
   it('should export client module references in esm', async () => {
     const html = await next.render('/esm-client-ref')
     expect(html).toContain('hello')
+  })
+
+  it('should support client module references with SSR-only ESM externals', async () => {
+    const html = await next.render('/esm-client-ref-external')
+    expect(html).toContain('client external-pure-esm-lib')
   })
 
   it('should support exporting multiple star re-exports', async () => {

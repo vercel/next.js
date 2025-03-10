@@ -9,7 +9,7 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 
 let TSCONFIG_WARNED = false
 
-function parseJsonFile(filePath: string) {
+export function parseJsonFile(filePath: string) {
   const JSON5 = require('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
 
@@ -49,6 +49,7 @@ export default async function loadJsConfig(
 ): Promise<{
   useTypeScript: boolean
   jsConfig: JsConfig
+  jsConfigPath?: string
   resolvedBaseUrl: ResolvedBaseUrl
 }> {
   let typeScriptPath: string | undefined
@@ -110,5 +111,10 @@ export default async function loadJsConfig(
     useTypeScript,
     jsConfig,
     resolvedBaseUrl,
+    jsConfigPath: useTypeScript
+      ? tsConfigPath
+      : fs.existsSync(jsConfigPath)
+        ? jsConfigPath
+        : undefined,
   }
 }

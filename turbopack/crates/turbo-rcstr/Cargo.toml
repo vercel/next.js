@@ -1,0 +1,26 @@
+[package]
+name = "turbo-rcstr"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[features]
+atom_size_64=[]
+atom_size_128=[]
+
+[dependencies]
+triomphe = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+serde = { workspace = true }
+new_debug_unreachable = "1.0.6"
+shrink-to-fit = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "mod"
+harness = false

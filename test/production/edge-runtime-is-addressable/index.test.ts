@@ -1,7 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
-import fs from 'fs-extra'
 import path from 'path'
 
 const files = {
@@ -55,13 +54,20 @@ describe('Edge Runtime is addressable', () => {
   })
 
   test('removes the undefined branch with dead code elimination', async () => {
-    const compiledMiddlewareFile = await fs.readFile(
-      path.join(next.testDir, '.next/server/middleware.js'),
-      'utf8'
+    const middlewareManifest = await next.readJSON(
+      '.next/server/middleware-manifest.json'
     )
 
-    expect(compiledMiddlewareFile).toContain('EdgeRuntime is defined')
-    expect(compiledMiddlewareFile).not.toContain('EdgeRuntime is undefined')
+    const files = middlewareManifest.middleware['/'].files
+
+    let allContentCombined = ''
+    for (const file of files) {
+      const content = await next.readFile(path.join('.next', file))
+      allContentCombined += content
+    }
+
+    expect(allContentCombined).toContain('EdgeRuntime is defined')
+    expect(allContentCombined).not.toContain('EdgeRuntime is undefined')
   })
 })
 

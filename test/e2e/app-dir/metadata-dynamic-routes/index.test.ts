@@ -103,6 +103,50 @@ describe('app dir - metadata dynamic routes', () => {
         `<xhtml:link rel="alternate" hreflang="de" href="https://example.com/de/about" />`
       )
     })
+
+    it('should support images in sitemap', async () => {
+      const xml = await (await next.fetch('/sitemap-image/sitemap.xml')).text()
+
+      expect(xml).toContain(
+        `<image:image>\n<image:loc>https://example.com/image1.jpg</image:loc>\n</image:image>`
+      )
+      expect(xml).toContain(
+        `<image:image>\n<image:loc>https://example.com/image2.jpg</image:loc>\n</image:image>`
+      )
+    })
+
+    it('should support videos in sitemap', async () => {
+      const xml = await (await next.fetch('/sitemap-video/sitemap.xml')).text()
+      expect(xml).toMatchInlineSnapshot(`
+        "<?xml version="1.0" encoding="UTF-8"?>
+        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+        <url>
+        <loc>https://example.com/about</loc>
+        <video:video>
+        <video:title>example</video:title>
+        <video:thumbnail_loc>https://example.com/image.jpg</video:thumbnail_loc>
+        <video:description>this is the description</video:description>
+        <video:content_loc>http://streamserver.example.com/video123.mp4</video:content_loc>
+        <video:player_loc>https://www.example.com/videoplayer.php?video=123</video:player_loc>
+        <video:duration>2</video:duration>
+        <video:view_count>50</video:view_count>
+        <video:tag>summer</video:tag>
+        <video:rating>4</video:rating>
+        <video:expiration_date>2025-09-16</video:expiration_date>
+        <video:publication_date>2024-09-16</video:publication_date>
+        <video:family_friendly>yes</video:family_friendly>
+        <video:requires_subscription>no</video:requires_subscription>
+        <video:live>no</video:live>
+        <video:restriction relationship="allow">IE GB US CA</video:restriction>
+        <video:platform relationship="allow">web</video:platform>
+        <video:uploader info="https://www.example.com/users/grillymcgrillerson">GrillyMcGrillerson</video:uploader>
+        </video:video>
+        </url>
+        </urlset>
+        "
+      `)
+    })
+
     if (isNextStart) {
       it('should optimize routes without multiple generation API as static routes', async () => {
         const appPathsManifest = JSON.parse(

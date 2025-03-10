@@ -1,3 +1,4 @@
-export default function Page({ params }) {
-  return <p id={`photo-modal-${params.id}`}>Photo MODAL {params.id}</p>
+export default async function Page({ params }) {
+  const { id } = await params
+  return <p id={`photo-modal-${id}`}>Photo MODAL {id}</p>
 }

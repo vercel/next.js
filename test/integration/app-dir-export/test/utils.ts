@@ -32,8 +32,15 @@ export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
   // Turbopack and plain next.js have different hash output for the file name
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.TURBOPACK
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.TURBOPACK
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
   'another/first/index.html',
   'another/first/index.txt',
@@ -55,8 +62,15 @@ export const expectedWhenTrailingSlashTrue = [
 
 const expectedWhenTrailingSlashFalse = [
   '404.html',
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.TURBOPACK
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.TURBOPACK
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
   'another.html',
   'another.txt',
@@ -92,6 +106,7 @@ export async function runTests({
   isDev = false,
   trailingSlash = true,
   dynamicPage,
+  dynamicParams,
   dynamicApiRoute,
   generateStaticParamsOpt,
   expectedErrMsg,
@@ -99,6 +114,7 @@ export async function runTests({
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
+  dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
   expectedErrMsg?: string
@@ -115,12 +131,18 @@ export async function runTests({
       `const dynamic = ${dynamicPage}`
     )
   }
+
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
       `const dynamic = 'force-static'`,
       `const dynamic = ${dynamicApiRoute}`
     )
   }
+
+  if (dynamicParams !== undefined) {
+    slugPage.prepend(`export const dynamicParams = ${dynamicParams}\n`)
+  }
+
   if (generateStaticParamsOpt === 'set noop') {
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {

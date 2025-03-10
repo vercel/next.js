@@ -1,0 +1,22 @@
+O = Object*0*
+- *0* Object: The global Object variable
+
+a = ???*0*
+- *0* ???*1*(Object*3*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* Object: The global Object variable
+
+b = ???*0*
+- *0* ???*1*(Object*3*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* Object: The global Object variable

@@ -33,6 +33,12 @@ import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 import { babelIncludeRegexes } from '../../webpack-config'
 import { isResourceInPackages } from '../../handle-externals'
+import type { TelemetryLoaderContext } from '../plugins/telemetry-plugin/telemetry-plugin'
+import {
+  updateTelemetryLoaderCtxFromTransformOutput,
+  type SwcTransformTelemetryOutput,
+} from '../plugins/telemetry-plugin/update-telemetry-loader-context-from-swc'
+import type { LoaderContext } from 'webpack'
 
 const maybeExclude = (
   excludePath: string,
@@ -60,6 +66,7 @@ export interface SWCLoaderOptions {
   supportedBrowsers: string[] | undefined
   swcCacheDir: string
   serverComponents?: boolean
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   esm?: boolean
   transpilePackages?: string[]
@@ -71,12 +78,17 @@ const FORCE_TRANSPILE_CONDITIONS =
   /(next\/font|next\/dynamic|use server|use client)/
 
 async function loaderTransform(
-  this: any,
+  this: LoaderContext<SWCLoaderOptions> & TelemetryLoaderContext,
   source?: string,
   inputSourceMap?: any
 ) {
   // Make the loader async
   const filename = this.resourcePath
+
+  // Ensure `.d.ts` are not processed.
+  if (filename.endsWith('.d.ts')) {
+    return [source, inputSourceMap]
+  }
 
   let loaderOptions: SWCLoaderOptions = this.getOptions() || {}
   const shouldMaybeExclude = maybeExclude(
@@ -105,10 +117,11 @@ async function loaderTransform(
     supportedBrowsers,
     swcCacheDir,
     serverComponents,
+    serverReferenceHashSalt,
     bundleLayer,
     esm,
   } = loaderOptions
-  const isPageFile = filename.startsWith(pagesDir)
+  const isPageFile = pagesDir ? filename.startsWith(pagesDir) : false
   const relativeFilePathFromRoot = path.relative(rootDir, filename)
 
   const swcOptions = getLoaderSWCOptions({
@@ -120,6 +133,7 @@ async function loaderTransform(
     development:
       this.mode === 'development' ||
       !!nextConfig.experimental?.allowDevelopmentBuild,
+    isDynamicIo: nextConfig.experimental?.dynamicIO,
     hasReactRefresh,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
@@ -131,8 +145,11 @@ async function loaderTransform(
     swcCacheDir,
     relativeFilePathFromRoot,
     serverComponents,
+    serverReferenceHashSalt,
     bundleLayer,
     esm,
+    cacheHandlers: nextConfig.experimental?.cacheHandlers,
+    useCacheEnabled: nextConfig.experimental?.useCache,
   })
 
   const programmaticOptions = {
@@ -169,14 +186,17 @@ async function loaderTransform(
       this.mode === 'development'
   }
 
-  return transform(source as any, programmaticOptions).then((output) => {
-    if (output.eliminatedPackages && this.eliminatedPackages) {
-      for (const pkg of JSON.parse(output.eliminatedPackages)) {
-        this.eliminatedPackages.add(pkg)
-      }
+  return transform(source as any, programmaticOptions).then(
+    (
+      output: {
+        code: string
+        map?: string
+      } & SwcTransformTelemetryOutput
+    ) => {
+      updateTelemetryLoaderCtxFromTransformOutput(this, output)
+      return [output.code, output.map ? JSON.parse(output.map) : undefined]
     }
-    return [output.code, output.map ? JSON.parse(output.map) : undefined]
-  })
+  )
 }
 
 const EXCLUDED_PATHS =

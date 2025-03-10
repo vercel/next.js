@@ -46,11 +46,13 @@ export async function tryNextDev({
   cwd,
   projectName,
   isApp = true,
+  isApi = false,
   isEmpty = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
+  isApi?: boolean
   isEmpty?: boolean
 }) {
   const dir = join(cwd, projectName)
@@ -61,7 +63,7 @@ export async function tryNextDev({
 
   try {
     const res = await fetchViaHTTP(port, '/')
-    if (isEmpty) {
+    if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
     } else {
       expect(await res.text()).toContain('Get started by editing')
@@ -86,6 +88,5 @@ export {
   shouldBeTemplateProject,
   shouldBeJavascriptProject,
   shouldBeTypescriptProject,
-  spawnExitPromise,
 } from './lib/utils'
 export { useTempDir } from '../../lib/use-temp-dir'

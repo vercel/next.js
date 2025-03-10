@@ -1,4 +1,7 @@
 packages:
   - 'packages/*'
   - 'bench/*'
-  - 'packages/next-swc/crates/next-core/js'
+  - 'crates/*/js'
+  - 'turbopack/crates/*/js'
+  - 'turbopack/crates/turbopack-tests/tests/execution'
+  - 'turbopack/packages/*'

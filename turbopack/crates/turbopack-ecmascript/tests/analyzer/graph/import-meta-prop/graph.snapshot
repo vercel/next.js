@@ -1,0 +1,18 @@
+[
+    (
+        "x",
+        Member(
+            3,
+            WellKnownObject(
+                ImportMeta,
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "prop",
+                    ),
+                ),
+            ),
+        ),
+    ),
+]

@@ -72,15 +72,15 @@ pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null, S: null },
+  ReactSharedInternals = { H: null, A: null, T: null, S: null, V: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
-function ReactElement(type, key, _ref, self, source, owner, props) {
-  _ref = props.ref;
+function ReactElement(type, key, self, source, owner, props) {
+  self = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== _ref ? _ref : null,
+    ref: void 0 !== self ? self : null,
     props: props
   };
 }
@@ -88,7 +88,6 @@ function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(
     oldElement.type,
     newKey,
-    null,
     void 0,
     void 0,
     void 0,
@@ -358,8 +357,11 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
-exports.act = function () {
-  throw Error("act(...) is not supported in production builds of React.");
+exports.__COMPILER_RUNTIME = {
+  __proto__: null,
+  c: function (size) {
+    return ReactSharedInternals.H.useMemoCache(size);
+  }
 };
 exports.cache = function (fn) {
   return function () {
@@ -391,7 +393,7 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, null, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, void 0, void 0, owner, props);
 };
 exports.createContext = function (defaultValue) {
   defaultValue = {
@@ -431,7 +433,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, null, void 0, void 0, null, props);
+  return ReactElement(type, key, void 0, void 0, null, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -456,13 +458,13 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    transition = {};
-  ReactSharedInternals.T = transition;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
       onStartTransitionFinish = ReactSharedInternals.S;
     null !== onStartTransitionFinish &&
-      onStartTransitionFinish(transition, returnValue);
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
@@ -492,8 +494,13 @@ exports.useDebugValue = function () {};
 exports.useDeferredValue = function (value, initialValue) {
   return ReactSharedInternals.H.useDeferredValue(value, initialValue);
 };
-exports.useEffect = function (create, deps) {
-  return ReactSharedInternals.H.useEffect(create, deps);
+exports.useEffect = function (create, createDeps, update) {
+  var dispatcher = ReactSharedInternals.H;
+  if ("function" === typeof update)
+    throw Error(
+      "useEffect CRUD overload is not enabled in this build of React."
+    );
+  return dispatcher.useEffect(create, createDeps);
 };
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
@@ -536,4 +543,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-rc-6230622a1a-20240610";
+exports.version = "19.1.0-canary-029e8bd6-20250306";

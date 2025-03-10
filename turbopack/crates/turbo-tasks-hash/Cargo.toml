@@ -1,0 +1,17 @@
+[package]
+name = "turbo-tasks-hash"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+turbo-tasks-macros = { workspace = true }
+twox-hash = "1.6.3"

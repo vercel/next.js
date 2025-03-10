@@ -1,0 +1,9 @@
+exported_t_r = module<exported_t_r, {}>
+
+t_i = module<"t_i", {}>
+
+t_r = (module<w_i_f, {}> | module<t_i_f, {}> | module<t_r_t, {}> | module<t_r_f, {}>)
+
+w_i = module<"w_i", {}>
+
+w_r = (module<w_r_t, {}> | module<w_r_f, {}>)

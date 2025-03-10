@@ -38,13 +38,13 @@ async function collectStdoutFromBuild(appDir) {
 }
 
 describe('Config Experimental Warning', () => {
-  afterEach(() => {
+  afterEach(async () => {
     configFile.write('')
     configFile.delete()
     configFileMjs.write('')
     configFileMjs.delete()
     if (app) {
-      killApp(app)
+      await killApp(app)
       app = undefined
     }
   })
@@ -84,7 +84,7 @@ describe('Config Experimental Warning', () => {
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toMatch(experimentalHeader)
-    expect(stdout).toMatch(' · workerThreads')
+    expect(stdout).toMatch(' ✓ workerThreads')
   })
 
   it('should show warning with config from function with experimental', async () => {
@@ -98,7 +98,7 @@ describe('Config Experimental Warning', () => {
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toMatch(experimentalHeader)
-    expect(stdout).toMatch(' · workerThreads')
+    expect(stdout).toMatch(' ✓ workerThreads')
   })
 
   it('should not show warning with default value', async () => {
@@ -112,7 +112,35 @@ describe('Config Experimental Warning', () => {
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).not.toContain(experimentalHeader)
-    expect(stdout).not.toContain(' · workerThreads')
+    expect(stdout).not.toContain('workerThreads')
+  })
+
+  it('should show warning with a symbol indicating that a default `true` value is set to `false`', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          prerenderEarlyExit: false
+        }
+      }
+    `)
+
+    const stdout = await collectStdoutFromDev(appDir)
+    expect(stdout).toMatch(experimentalHeader)
+    expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
+  })
+
+  it('should show the configured value for numerical features', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          cpus: 2
+        }
+      }
+    `)
+
+    const stdout = await collectStdoutFromDev(appDir)
+    expect(stdout).toMatch(experimentalHeader)
+    expect(stdout).toMatch(' · cpus: 2')
   })
 
   it('should show warning with config from object with experimental and multiple keys', async () => {
@@ -127,8 +155,8 @@ describe('Config Experimental Warning', () => {
 
     const stdout = await collectStdoutFromDev(appDir)
     expect(stdout).toContain(experimentalHeader)
-    expect(stdout).toContain(' · workerThreads')
-    expect(stdout).toContain(' · scrollRestoration')
+    expect(stdout).toContain(' ✓ workerThreads')
+    expect(stdout).toContain(' ✓ scrollRestoration')
   })
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
@@ -139,7 +167,7 @@ describe('Config Experimental Warning', () => {
           experimental: {
             workerThreads: true,
             scrollRestoration: true,
-            instrumentationHook: true,
+            parallelServerCompiles: true,
             cpus: 2,
           }
         }
@@ -162,17 +190,19 @@ describe('Config Experimental Warning', () => {
           experimental: {
             workerThreads: true,
             scrollRestoration: true,
-            instrumentationHook: true,
+            parallelServerCompiles: true,
+            prerenderEarlyExit: false,
             cpus: 2,
           }
         }
       `)
         const stdout = await collectStdoutFromBuild(appDir)
         expect(stdout).toMatch(experimentalHeader)
-        expect(stdout).toMatch(' · cpus')
-        expect(stdout).toMatch(' · workerThreads')
-        expect(stdout).toMatch(' · scrollRestoration')
-        expect(stdout).toMatch(' · instrumentationHook')
+        expect(stdout).toMatch(' · cpus: 2')
+        expect(stdout).toMatch(' ✓ workerThreads')
+        expect(stdout).toMatch(' ✓ scrollRestoration')
+        expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
+        expect(stdout).toMatch(' ✓ parallelServerCompiles')
       })
 
       it('should show unrecognized experimental features in warning but not in start log experiments section', async () => {

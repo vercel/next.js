@@ -1,11 +1,13 @@
-import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor } from 'next-test-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { retry, waitFor } from 'next-test-utils'
+import path from 'path'
 
 const envFile = '.env.development.local'
 
 describe(`app-dir-hmr`, () => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
+    patchFileDelay: 1000,
   })
 
   describe('filesystem changes', () => {
@@ -40,11 +42,10 @@ describe(`app-dir-hmr`, () => {
 
       try {
         // Should be 404 in a few seconds
-        await check(async () => {
+        await retry(async () => {
           const body = await browser.elementByCss('body').text()
           expect(body).toContain('404')
-          return 'success'
-        }, 'success')
+        })
 
         // The new page should be rendered
         const newHTML = await next.render('/folder-renamed')
@@ -55,40 +56,137 @@ describe(`app-dir-hmr`, () => {
       }
     })
 
-    it('should update server components pages when env files is changed (nodejs)', async () => {
-      const envContent = await next.readFile(envFile)
+    it('should update server components after navigating to a page with a different runtime', async () => {
       const browser = await next.browser('/env/node')
       expect(await browser.elementByCss('p').text()).toBe('mac')
-      await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
-      try {
-        await check(async () => {
-          expect(await browser.elementByCss('p').text()).toBe('ipad')
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.patchFile(envFile, envContent)
-      }
-    })
-
-    it('should update server components pages when env files is changed (edge)', async () => {
-      const envContent = await next.readFile(envFile)
-      const browser = await next.browser('/env/edge')
+      await browser.loadPage(`${next.url}/env/edge`)
+      await browser.eval('window.__TEST_NO_RELOAD = true')
       expect(await browser.elementByCss('p').text()).toBe('mac')
-      await next.patchFile(envFile, 'MY_DEVICE="ipad"')
 
-      try {
-        await check(async () => {
+      const getCliOutput = next.getCliOutputFromHere()
+      await next.patchFile(envFile, 'MY_DEVICE="ipad"', async () => {
+        await waitFor(() => getCliOutput().includes('Reload env'))
+
+        // use an extra-long timeout since the environment reload can be a
+        // little slow (especially on overloaded CI servers)
+        await retry(async () => {
           expect(await browser.elementByCss('p').text()).toBe('ipad')
-          return 'success'
-        }, /success/)
-      } finally {
-        await next.patchFile(envFile, envContent)
-      }
+        }, 5000 /* ms */)
+
+        expect(
+          await browser.eval('window.__TEST_NO_RELOAD === undefined')
+        ).toBe(false)
+
+        const logs = await browser.log()
+        const fastRefreshLogs = logs.filter((log) => {
+          return log.message.startsWith('[Fast Refresh]')
+        })
+
+        // The exact ordering and number of these messages is implementation
+        // dependent and subject to race conditions, just check that we have at
+        // least one "rebuilding" and "done in" message in the logs, the exact
+        // details are unimportant.
+        expect(fastRefreshLogs).toEqual(
+          expect.arrayContaining([
+            { source: 'log', message: '[Fast Refresh] rebuilding' },
+            {
+              source: 'log',
+              message: expect.stringContaining('[Fast Refresh] done in '),
+            },
+          ])
+        )
+      })
+
+      // ensure it's restored back to "mac" before the next test
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('mac')
+      })
     })
+
+    it.each(['node', 'node-module-var', 'edge', 'edge-module-var'])(
+      'should update server components pages when env files is changed (%s)',
+      async (page) => {
+        const browser = await next.browser(`/env/${page}`)
+        expect(await browser.elementByCss('p').text()).toBe('mac')
+
+        await next.patchFile(envFile, 'MY_DEVICE="ipad"', async () => {
+          let logs
+
+          await retry(async () => {
+            logs = await browser.log()
+            expect(logs).toEqual(
+              expect.arrayContaining([
+                expect.objectContaining({
+                  message: '[Fast Refresh] rebuilding',
+                  source: 'log',
+                }),
+              ])
+            )
+          })
+
+          await retry(async () => {
+            expect(await browser.elementByCss('p').text()).toBe('ipad')
+          })
+
+          expect(logs).toEqual(
+            expect.arrayContaining([
+              expect.objectContaining({
+                message: expect.stringContaining('[Fast Refresh] done in'),
+                source: 'log',
+              }),
+            ])
+          )
+        })
+
+        // ensure it's restored back to "mac" before the next test
+        await retry(async () => {
+          expect(await browser.elementByCss('p').text()).toBe('mac')
+        })
+      }
+    )
 
     it('should have no unexpected action error for hmr', async () => {
       expect(next.cliOutput).not.toContain('Unexpected action')
+    })
+
+    it('can navigate cleanly to a page that requires a change in the Webpack runtime', async () => {
+      // This isn't a very accurate test since the Webpack runtime is somewhat an implementation detail.
+      // To ensure this is still valid, check the `*/webpack.*.hot-update.js` network response content when the navigation is triggered.
+      // If there is new functionality added, the test is still valid.
+      // If not, the test doesn't cover anything new.
+      // TODO: Enforce console.error assertions or MPA navigation assertions in all tests instead.
+      const browser = await next.browser('/bundler-runtime-changes')
+      await browser.eval('window.__TEST_NO_RELOAD = true')
+
+      await browser
+        .elementByCss('a')
+        .click()
+        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]')
+
+      const logs = await browser.log()
+      // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)
+      expect(logs).toEqual(
+        expect.arrayContaining([
+          {
+            message: '[Fast Refresh] rebuilding',
+            source: 'log',
+          },
+          {
+            message: expect.stringContaining('[Fast Refresh] done in'),
+            source: 'log',
+          },
+        ])
+      )
+      expect(logs).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            source: 'error',
+          }),
+        ])
+      )
+      // No MPA navigation triggered
+      expect(await browser.eval('window.__TEST_NO_RELOAD')).toEqual(true)
     })
   })
 })

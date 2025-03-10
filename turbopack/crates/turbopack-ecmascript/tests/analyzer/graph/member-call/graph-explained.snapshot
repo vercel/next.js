@@ -1,0 +1,15 @@
+array = [1, 2, 3]
+
+arrays = ([1, 2, 3] | [4, 5, 6])
+
+concatenated_array = array["concat"](4, 5, 6, [7, 8, 9], `hello ${item}`)
+
+concatenated_array_options = array["concat"]([7, 8, 9])
+
+item = array[1]
+
+item_options = arrays[1]
+
+pick_array1 = [[1, 2, 3]][0]["concat"]([4, 5, 6, FreeVar(unknown)])
+
+pick_array2 = [[1, 2, 3]][0]["concat"](4, 5, 6, FreeVar(unknown))

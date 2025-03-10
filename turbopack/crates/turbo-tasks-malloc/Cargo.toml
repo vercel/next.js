@@ -1,0 +1,22 @@
+[package]
+name = "turbo-tasks-malloc"
+version = "0.1.0"
+description = "A wrapper around mimalloc or the system allocator that tracks allocations"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[target.'cfg(not(any(target_os = "linux", target_family = "wasm", target_env = "musl")))'.dependencies]
+mimalloc = { version = "0.1.42", features = [], optional = true }
+
+[target.'cfg(all(target_os = "linux", not(any(target_family = "wasm", target_env = "musl"))))'.dependencies]
+mimalloc = { version = "0.1.42", features = [
+  "local_dynamic_tls",
+], optional = true }
+
+[features]
+custom_allocator = ["dep:mimalloc"]
+default = ["custom_allocator"]

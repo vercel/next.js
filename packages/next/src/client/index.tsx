@@ -1,6 +1,6 @@
 /* global location */
+// imports polyfill from `@next/polyfill-module` after build.
 import '../build/polyfills/polyfill-module'
-
 import type Router from '../shared/lib/router/router'
 import type {
   AppComponent,
@@ -45,9 +45,9 @@ import {
   SearchParamsContext,
   PathParamsContext,
 } from '../shared/lib/hooks-client-context.shared-runtime'
-import { onRecoverableError } from './on-recoverable-error'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
-import reportToSocket from './tracing/report-to-socket'
+import { isNextRouterError } from './components/is-next-router-error'
 
 /// <reference types="react-dom/experimental" />
 
@@ -178,9 +178,10 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const ReactDevOverlay: typeof import('./components/react-dev-overlay/pages/client').ReactDevOverlay =
-        require('./components/react-dev-overlay/pages/client').ReactDevOverlay
-      return <ReactDevOverlay>{this.props.children}</ReactDevOverlay>
+      const {
+        PagesDevOverlay,
+      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
+      return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
     }
   }
 }
@@ -188,10 +189,13 @@ class Container extends React.Component<{
 export async function initialize(opts: { devClient?: any } = {}): Promise<{
   assetPrefix: string
 }> {
-  tracer.onSpanEnd(reportToSocket)
-
   // This makes sure this specific lines are removed in production
   if (process.env.NODE_ENV === 'development') {
+    tracer.onSpanEnd(
+      (
+        require('./tracing/report-to-socket') as typeof import('./tracing/report-to-socket')
+      ).default
+    )
     devClient = opts.devClient
   }
 
@@ -495,8 +499,8 @@ function markHydrateComplete(): void {
     if (
       process.env.NODE_ENV === 'development' &&
       // Old versions of Safari don't return `PerformanceMeasure`s from `performance.measure()`
-      beforeHydrationMeasure !== undefined &&
-      hydrationMeasure !== undefined
+      beforeHydrationMeasure &&
+      hydrationMeasure
     ) {
       tracer
         .startSpan('navigation-to-hydration', {
@@ -698,6 +702,8 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
   function onHeadCommit(): void {
     if (
+      // Turbopack has it's own css injection handling, this code ends up removing the CSS.
+      !process.env.TURBOPACK &&
       // We use `style-loader` in development, so we don't need to do anything
       // unless we're in production:
       process.env.NODE_ENV === 'production' &&
@@ -925,7 +931,16 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
-          throw getServerError(error, initialErr!.source!)
+          const errSource = initialErr.source!
+
+          // In development, error the navigation API usage in runtime,
+          // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
+          if (isNextRouterError(initialErr)) {
+            error.message =
+              'Next.js navigation API is not allowed to be used in Pages Router.'
+          }
+
+          throw getServerError(error, errSource)
         })
       }
       // We replaced the server-side error with a client-side error, and should

@@ -8,12 +8,14 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getImagesManifest,
   getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -71,7 +73,7 @@ function getRatio(width, height) {
   return height / width
 }
 
-function runTests(mode) {
+function runTests(mode: 'dev' | 'server') {
   it('should load the images', async () => {
     let browser
     try {
@@ -898,6 +900,18 @@ function runTests(mode) {
       }, /Image is missing required "src" property/gm)
     })
 
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
@@ -1574,6 +1588,51 @@ function runTests(mode) {
       }
     }
   })
+
+  it('should call callback ref cleanups when unmounting', async () => {
+    const browser = await webdriver(appPort, '/ref-cleanup')
+    const getLogs = async () => (await browser.log()).map((log) => log.message)
+
+    await retry(async () => {
+      expect(await getLogs()).toContain('callback ref was cleaned up')
+    })
+
+    expect(await getLogs()).not.toContain(
+      'callback refs that returned a cleanup should never be called with null'
+    )
+  })
+
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [],
+          localPatterns: undefined,
+          minimumCacheTTL: 60,
+          path: '/_next/image',
+          qualities: undefined,
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
+            128, 256, 384,
+          ],
+          unoptimized: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Default Tests', () => {

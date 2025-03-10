@@ -16,6 +16,12 @@ jobs:
   triage:
     name: Nissuer
     runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (github.event_name != 'issue_comment' ||
+        (github.event_name == 'issue_comment' && !contains(github.event.issue.labels.*.name, 'stale'))) &&
+        github.event.issue.type.name != 'Documentation'
+      }}
     steps:
       - uses: balazsorban44/nissuer@1.10.0
         with:
@@ -31,7 +37,7 @@ jobs:
               "resolved": ".github/comments/resolved.md"
             }
           reproduction-comment: '.github/comments/invalid-link.md'
-          reproduction-hosts: 'github.com,codesandbox.io,stackblitz.com'
+          reproduction-hosts: 'github.com,bitbucket.org,gitlab.com,codesandbox.io,stackblitz.com'
           reproduction-blocklist: 'github.com/vercel/next.js.*,github.com/\\w*/?$,github.com$'
           reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
           reproduction-invalid-label: 'invalid link'

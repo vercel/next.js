@@ -1,0 +1,5 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./src"
+  }
+}

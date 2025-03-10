@@ -23,6 +23,8 @@ type EventCliSessionStarted = {
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
   imageRemotePatternsCount: number | null
+  imageLocalPatternsCount: number | null
+  imageQualities: string | null
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
@@ -35,6 +37,9 @@ type EventCliSessionStarted = {
   pagesDir: boolean | null
   staticStaleTime: number | null
   dynamicStaleTime: number | null
+  reactCompiler: boolean
+  reactCompilerCompilationMode: string | null
+  reactCompilerPanicThreshold: string | null
 }
 
 function hasBabelConfig(dir: string): boolean {
@@ -75,6 +80,8 @@ export function eventCliSession(
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
     | 'imageRemotePatternsCount'
+    | 'imageLocalPatternsCount'
+    | 'imageQualities'
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
@@ -83,6 +90,9 @@ export function eventCliSession(
     | 'reactStrictMode'
     | 'staticStaleTime'
     | 'dynamicStaleTime'
+    | 'reactCompiler'
+    | 'reactCompilerCompilationMode'
+    | 'reactCompilerPanicThreshold'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -114,7 +124,11 @@ export function eventCliSession(
     imageRemotePatternsCount: images?.remotePatterns
       ? images.remotePatterns.length
       : null,
+    imageLocalPatternsCount: images?.localPatterns
+      ? images.localPatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
+    imageQualities: images?.qualities ? images.qualities.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,
     nextConfigOutput: nextConfig?.output || null,
@@ -126,6 +140,15 @@ export function eventCliSession(
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
     dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
+    reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
+    reactCompilerCompilationMode:
+      typeof nextConfig.experimental.reactCompiler !== 'boolean'
+        ? nextConfig.experimental.reactCompiler?.compilationMode ?? null
+        : null,
+    reactCompilerPanicThreshold:
+      typeof nextConfig.experimental.reactCompiler !== 'boolean'
+        ? nextConfig.experimental.reactCompiler?.panicThreshold ?? null
+        : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

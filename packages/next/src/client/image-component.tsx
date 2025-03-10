@@ -31,6 +31,7 @@ import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 
 // @ts-ignore - This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
+import { useMergedRef } from './use-merged-ref'
 
 // This is replaced by webpack define plugin
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
@@ -206,6 +207,54 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
+    const ownRef = useCallback(
+      (img: ImgElementWithDataProp | null) => {
+        if (!img) {
+          return
+        }
+        if (onError) {
+          // If the image has an error before react hydrates, then the error is lost.
+          // The workaround is to wait until the image is mounted which is after hydration,
+          // then we set the src again to trigger the error handler (if there was an error).
+          // eslint-disable-next-line no-self-assign
+          img.src = img.src
+        }
+        if (process.env.NODE_ENV !== 'production') {
+          if (!src) {
+            console.error(`Image is missing required "src" property:`, img)
+          }
+          if (img.getAttribute('alt') === null) {
+            console.error(
+              `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
+            )
+          }
+        }
+        if (img.complete) {
+          handleLoading(
+            img,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            unoptimized,
+            sizesInput
+          )
+        }
+      },
+      [
+        src,
+        placeholder,
+        onLoadRef,
+        onLoadingCompleteRef,
+        setBlurComplete,
+        onError,
+        unoptimized,
+        sizesInput,
+      ]
+    )
+
+    const ref = useMergedRef(forwardedRef, ownRef)
+
     return (
       <img
         {...rest}
@@ -229,59 +278,7 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         sizes={sizes}
         srcSet={srcSet}
         src={src}
-        ref={useCallback(
-          (img: ImgElementWithDataProp | null) => {
-            if (forwardedRef) {
-              if (typeof forwardedRef === 'function') forwardedRef(img)
-              else if (typeof forwardedRef === 'object') {
-                // @ts-ignore - .current is read only it's usually assigned by react internally
-                forwardedRef.current = img
-              }
-            }
-            if (!img) {
-              return
-            }
-            if (onError) {
-              // If the image has an error before react hydrates, then the error is lost.
-              // The workaround is to wait until the image is mounted which is after hydration,
-              // then we set the src again to trigger the error handler (if there was an error).
-              // eslint-disable-next-line no-self-assign
-              img.src = img.src
-            }
-            if (process.env.NODE_ENV !== 'production') {
-              if (!src) {
-                console.error(`Image is missing required "src" property:`, img)
-              }
-              if (img.getAttribute('alt') === null) {
-                console.error(
-                  `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
-                )
-              }
-            }
-            if (img.complete) {
-              handleLoading(
-                img,
-                placeholder,
-                onLoadRef,
-                onLoadingCompleteRef,
-                setBlurComplete,
-                unoptimized,
-                sizesInput
-              )
-            }
-          },
-          [
-            src,
-            placeholder,
-            onLoadRef,
-            onLoadingCompleteRef,
-            setBlurComplete,
-            onError,
-            unoptimized,
-            sizesInput,
-            forwardedRef,
-          ]
-        )}
+        ref={ref}
         onLoad={(event) => {
           const img = event.currentTarget as ImgElementWithDataProp
           handleLoading(
@@ -374,7 +371,8 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       const c = configEnv || configContext || imageConfigDefault
       const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
       const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-      return { ...c, allSizes, deviceSizes }
+      const qualities = c.qualities?.sort((a, b) => a - b)
+      return { ...c, allSizes, deviceSizes, qualities }
     }, [configContext])
 
     const { onLoad, onLoadingComplete } = props

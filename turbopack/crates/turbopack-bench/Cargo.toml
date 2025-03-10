@@ -1,0 +1,43 @@
+[package]
+name = "turbopack-bench"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "mod"
+harness = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+chromiumoxide = { workspace = true, features = [
+  "tokio-runtime",
+], default-features = false }
+criterion = { workspace = true, features = ["async_tokio"] }
+futures = { workspace = true }
+once_cell = { workspace = true }
+owo-colors = { workspace = true }
+parking_lot = { workspace = true }
+portpicker = "0.1.1"
+rand = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tungstenite = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+turbopack-create-test-app = { workspace = true }
+url = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+nix = "0.26.1"

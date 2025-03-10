@@ -1,0 +1,89 @@
+[
+    (
+        "a",
+        Function(
+            2,
+            37,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "b",
+        Function(
+            2,
+            76,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "c",
+        Function(
+            2,
+            116,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "x",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                "y",
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    ".js",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "y",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Str(
+                        Atom(
+                            "hello",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "world",
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

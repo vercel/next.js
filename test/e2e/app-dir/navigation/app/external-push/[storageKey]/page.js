@@ -1,17 +1,19 @@
 /*global navigation*/
 'use client'
 
+import { use } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useTransition } from 'react'
 
 let listening = false
 let startedNavigating = false
 
-export default function Page({ params: { storageKey } }) {
+export default function Page({ params }) {
   if (typeof window === 'undefined') {
     throw new Error('Client render only')
   }
 
+  const { storageKey } = use(params)
   let router = useRouter()
   let path = usePathname()
   let searchParams = useSearchParams().toString()

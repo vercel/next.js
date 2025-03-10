@@ -1,7 +1,6 @@
 import { hydrate, router } from './'
 import initOnDemandEntries from './dev/on-demand-entries-client'
-import initializeBuildWatcher from './dev/dev-build-watcher'
-import type { ShowHideHandler } from './dev/dev-build-watcher'
+import { devBuildIndicator } from './dev/dev-build-indicator/internal/dev-build-indicator'
 import { displayContent } from './dev/fouc'
 import {
   connectHMR,
@@ -12,23 +11,18 @@ import {
   urlQueryToSearchParams,
 } from '../shared/lib/router/utils/querystring'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
-import { RuntimeErrorHandler } from './components/react-dev-overlay/internal/helpers/runtime-error-handler'
+import { RuntimeErrorHandler } from './components/errors/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './components/react-dev-overlay/shared'
 import { performFullReload } from './components/react-dev-overlay/pages/hot-reloader-client'
+import { initializeDevBuildIndicatorForPageRouter } from './dev/dev-build-indicator/initialize-for-page-router'
 
-export function pageBootrap(assetPrefix: string) {
+export function pageBootstrap(assetPrefix: string) {
   connectHMR({ assetPrefix, path: '/_next/webpack-hmr' })
 
   return hydrate({ beforeRender: displayContent }).then(() => {
     initOnDemandEntries()
 
-    let buildIndicatorHandler: ShowHideHandler | undefined
-
-    if (process.env.__NEXT_BUILD_INDICATOR) {
-      initializeBuildWatcher((handler) => {
-        buildIndicatorHandler = handler
-      }, process.env.__NEXT_BUILD_INDICATOR_POSITION)
-    }
+    initializeDevBuildIndicatorForPageRouter()
 
     let reloading = false
 
@@ -98,10 +92,8 @@ export function pageBootrap(assetPrefix: string) {
 
             if (!router.clc && pages.includes(router.pathname)) {
               console.log('Refreshing page data due to server-side change')
-
-              buildIndicatorHandler?.show()
-
-              const clearIndicator = () => buildIndicatorHandler?.hide()
+              devBuildIndicator.show()
+              const clearIndicator = () => devBuildIndicator.hide()
 
               router
                 .replace(

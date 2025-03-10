@@ -1,22 +1,22 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import retry from 'async-retry'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
-import retry from 'async-retry'
-import { red, green, cyan } from 'picocolors'
+import { cyan, green, red } from 'picocolors'
 import type { RepoInfo } from './helpers/examples'
 import {
   downloadAndExtractExample,
   downloadAndExtractRepo,
-  getRepoInfo,
   existsInRepo,
+  getRepoInfo,
   hasRepo,
 } from './helpers/examples'
+import type { PackageManager } from './helpers/get-pkg-manager'
 import { tryGitInit } from './helpers/git'
 import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
-import type { PackageManager } from './helpers/get-pkg-manager'
 
 import type { TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
@@ -31,12 +31,14 @@ export async function createApp({
   typescript,
   tailwind,
   eslint,
-  appRouter,
+  app,
   srcDir,
   importAlias,
   skipInstall,
   empty,
-  turbo,
+  api,
+  turbopack,
+  disableGit,
 }: {
   appPath: string
   packageManager: PackageManager
@@ -45,16 +47,18 @@ export async function createApp({
   typescript: boolean
   tailwind: boolean
   eslint: boolean
-  appRouter: boolean
+  app: boolean
   srcDir: boolean
   importAlias: string
   skipInstall: boolean
   empty: boolean
-  turbo: boolean
+  api?: boolean
+  turbopack: boolean
+  disableGit?: boolean
 }): Promise<void> {
   let repoInfo: RepoInfo | undefined
   const mode: TemplateMode = typescript ? 'ts' : 'js'
-  const template: TemplateType = `${appRouter ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
+  const template: TemplateType = `${app ? 'app' : 'default'}${tailwind ? '-tw' : ''}${empty ? '-empty' : ''}`
 
   if (example) {
     let repoUrl: URL | undefined
@@ -62,8 +66,9 @@ export async function createApp({
     try {
       repoUrl = new URL(example)
     } catch (error: unknown) {
-      const err = error as Error & { code: string | undefined }
-      if (err.code !== 'ERR_INVALID_URL') {
+      const err = error as Error
+      // TypeError is thrown when the URL is invalid. Equivalent of doing `err.code !== "ERR_INVALID_URL"` in Node.js
+      if (!(err instanceof TypeError)) {
         console.error(error)
         process.exit(1)
       }
@@ -222,7 +227,7 @@ export async function createApp({
     await installTemplate({
       appName,
       root,
-      template,
+      template: api ? 'app-api' : template,
       mode,
       packageManager,
       isOnline,
@@ -231,11 +236,14 @@ export async function createApp({
       srcDir,
       importAlias,
       skipInstall,
-      turbo,
+      turbopack,
     })
   }
 
-  if (tryGitInit(root)) {
+  if (disableGit) {
+    console.log('Skipping git initialization.')
+    console.log()
+  } else if (tryGitInit(root)) {
     console.log('Initialized a git repository.')
     console.log()
   }

@@ -16,9 +16,15 @@
       "amp-test-utils": ["./test/lib/amp-test-utils"],
       "next-webdriver": ["./test/lib/next-webdriver"],
       "e2e-utils": ["./test/lib/e2e-utils"],
+      "e2e-utils/*": ["./test/lib/e2e-utils/*"],
       "test-data-service/*": ["./test/lib/test-data-service/*"],
       "test-log": ["./test/lib/test-log"]
     }
   },
-  "include": ["test/**/*.test.ts", "test/**/*.test.tsx", "test/lib/**/*.ts"]
+  "include": [
+    "test/**/*.test.ts",
+    "test/**/*.test.tsx",
+    "test/lib/**/*.ts",
+    "turbo/**/*.ts"
+  ]
 }

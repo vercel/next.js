@@ -44,10 +44,11 @@ var isArrayImpl = Array.isArray,
   REACT_PROFILER_TYPE = Symbol.for("react.profiler"),
   REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
   REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
+  REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -58,13 +59,13 @@ function getIteratorFn(maybeIterable) {
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   assign = Object.assign;
-function ReactElement(type, key, _ref, self, source, owner, props) {
-  _ref = props.ref;
+function ReactElement(type, key, self, source, owner, props) {
+  self = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== _ref ? _ref : null,
+    ref: void 0 !== self ? self : null,
     props: props
   };
 }
@@ -72,7 +73,6 @@ function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(
     oldElement.type,
     newKey,
-    null,
     void 0,
     void 0,
     void 0,
@@ -427,7 +427,7 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, null, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, void 0, void 0, owner, props);
 };
 exports.createElement = function (type, config, children) {
   var propName,
@@ -451,7 +451,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, null, void 0, void 0, null, props);
+  return ReactElement(type, key, void 0, void 0, null, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -520,13 +520,13 @@ exports.memo = function (type, compare) {
 };
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
-    transition = {};
-  ReactSharedInternals.T = transition;
+    currentTransition = {};
+  ReactSharedInternals.T = currentTransition;
   try {
     var returnValue = scope(),
       onStartTransitionFinish = ReactSharedInternals.S;
     null !== onStartTransitionFinish &&
-      onStartTransitionFinish(transition, returnValue);
+      onStartTransitionFinish(currentTransition, returnValue);
     "object" === typeof returnValue &&
       null !== returnValue &&
       "function" === typeof returnValue.then &&
@@ -537,8 +537,8 @@ exports.startTransition = function (scope) {
     ReactSharedInternals.T = prevTransition;
   }
 };
-exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
-exports.unstable_SuspenseList = REACT_SUSPENSE_TYPE;
+exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
@@ -551,9 +551,6 @@ exports.unstable_postpone = function (reason) {
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
 };
-exports.useActionState = function (action, initialState, permalink) {
-  return ReactSharedInternals.H.useActionState(action, initialState, permalink);
-};
 exports.useCallback = function (callback, deps) {
   return ReactSharedInternals.H.useCallback(callback, deps);
 };
@@ -564,4 +561,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.0.0-experimental-6230622a1a-20240610";
+exports.version = "19.1.0-experimental-029e8bd6-20250306";

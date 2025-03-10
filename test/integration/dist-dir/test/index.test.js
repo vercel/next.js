@@ -102,7 +102,7 @@ describe('distDir', () => {
         })
         await fs.writeFile(nextConfig, origNextConfig)
 
-        expect(stderr.length).toBe(0)
+        expect(stderr).toBeEmpty()
       })
     }
   )

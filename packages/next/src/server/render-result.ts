@@ -1,5 +1,5 @@
 import type { OutgoingHttpHeaders, ServerResponse } from 'http'
-import type { Revalidate } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 import type { FetchMetrics } from './base-http'
 
 import {
@@ -10,12 +10,13 @@ import {
   streamToString,
 } from './stream-utils/node-web-streams-helper'
 import { isAbortError, pipeToNodeResponse } from './pipe-readable'
+import type { RenderResumeDataCache } from './resume-data-cache/resume-data-cache'
 
 type ContentTypeOption = string | undefined
 
 export type AppPageRenderResultMetadata = {
   flightData?: Buffer
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   staticBailoutInfo?: {
     stack?: string
     description?: string
@@ -32,11 +33,19 @@ export type AppPageRenderResultMetadata = {
   headers?: OutgoingHttpHeaders
   fetchTags?: string
   fetchMetrics?: FetchMetrics
+
+  segmentData?: Map<string, Buffer>
+
+  /**
+   * In development, the cache is warmed up before the render. This is attached
+   * to the metadata so that it can be used during the render.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
 }
 
 export type PagesRenderResultMetadata = {
   pageData?: any
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   assetQueryString?: string
   isNotFound?: boolean
   isRedirect?: boolean

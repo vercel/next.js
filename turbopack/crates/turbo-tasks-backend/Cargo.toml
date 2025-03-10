@@ -1,0 +1,66 @@
+[package]
+name = "turbo-tasks-backend"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[features]
+default = []
+verify_serialization = []
+trace_aggregation_update = []
+trace_find_and_schedule = []
+trace_task_completion = []
+trace_task_dirty = []
+lmdb = ["dep:lmdb-rkv"]
+
+[dependencies]
+anyhow = { workspace = true }
+arc-swap = { version = "1.7.1" }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+byteorder = "1.5.0"
+dashmap = { workspace = true, features = ["raw-api"]}
+either = { workspace = true }
+hashbrown = { workspace = true, features = ["raw"] }
+indexmap = { workspace = true }
+lmdb-rkv = { version = "0.14.0", optional = true }
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+pot = "3.0.0"
+rand = { workspace = true }
+rayon = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+serde_path_to_error = { workspace = true }
+smallvec = { workspace = true }
+tokio = { workspace = true }
+tokio-scoped = "0.2.0"
+tracing = { workspace = true }
+thread_local = { workspace = true }
+turbo-persistence = { workspace = true }
+turbo-prehash = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+turbo-tasks-testing = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+regex = { workspace = true }
+serde_json = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[[bench]]
+name = "mod"
+harness = false

@@ -75,14 +75,16 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"imageFutureEnabled": true/)
           expect(event1).toMatch(/"imageDomainsCount": 2/)
           expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
+          expect(event1).toMatch(/"imageLocalPatternsCount": 2/)
           expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+          expect(event1).toMatch(/"imageQualities": "25,50,75"/)
           expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
           expect(event1).toMatch(/"nextConfigOutput": null/)
           expect(event1).toMatch(/"trailingSlashEnabled": false/)
           expect(event1).toMatch(/"reactStrictMode": false/)
           expect(event1).toMatch(/"turboFlag": false/)
           expect(event1).toMatch(/"pagesDir": true/)
-          expect(event1).toMatch(/"appDir": false/)
+          expect(event1).toMatch(/"appDir": true/)
         } catch (err) {
           require('console').error('failing stderr', stderr, err)
           throw err
@@ -121,6 +123,8 @@ describe('config telemetry', () => {
           expect(event2).toMatch(/"localeDetectionEnabled": true/)
           expect(event2).toMatch(/"imageDomainsCount": 2/)
           expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
+          expect(event2).toMatch(/"imageLocalPatternsCount": 2/)
+          expect(event2).toMatch(/"imageQualities": "25,50,75"/)
           expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
           expect(event2).toMatch(/"nextConfigOutput": null/)
           expect(event2).toMatch(/"trailingSlashEnabled": false/)
@@ -133,7 +137,7 @@ describe('config telemetry', () => {
 
       it('detects output config for session start', async () => {
         await fs.writeFile(
-          './next.config.js',
+          path.join(appDir, 'next.config.js'),
           'module.exports = { output: "export" }'
         )
         try {
@@ -153,7 +157,7 @@ describe('config telemetry', () => {
             throw err
           }
         } finally {
-          await fs.remove('./next.config.js')
+          await fs.remove(path.join(appDir, 'next.config.js'))
         }
       })
 
@@ -264,98 +268,131 @@ describe('config telemetry', () => {
         expect(event1).toMatch(/"@next\/next\/.+?": "(off|warn|error)"/)
       })
 
-      it('emits telemery for usage of optimizeFonts, image, script & dynamic', async () => {
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-          lint: true,
-        })
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemery for usage of image, script & dynamic',
+        async () => {
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            lint: true,
+          })
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
 
-        expect(featureUsageEvents).toEqual(
-          expect.arrayContaining([
-            {
-              featureName: 'optimizeFonts',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'next/image',
-              invocationCount: 2,
-            },
-            {
-              featureName: 'next/script',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'next/dynamic',
-              invocationCount: 1,
-            },
-          ])
-        )
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toEqual(
+            expect.arrayContaining([
+              {
+                featureName: 'next/image',
+                // FIXME: Should be +1 from App Router
+                invocationCount: 2,
+              },
+              {
+                featureName: 'next/script',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'next/dynamic',
+                invocationCount: 1,
+              },
+            ])
+          )
+        }
+      )
 
-      it('emits telemetry for usage of swc', async () => {
-        await fs.remove(path.join(appDir, 'next.config.js'))
-        await fs.remove(path.join(appDir, 'jsconfig.json'))
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for usage of swc',
+        async () => {
+          await fs.remove(path.join(appDir, 'next.config.js'))
+          await fs.remove(path.join(appDir, 'jsconfig.json'))
+          await fs.rename(
+            path.join(appDir, 'next.config.swc'),
+            path.join(appDir, 'next.config.js')
+          )
+          await fs.rename(
+            path.join(appDir, 'jsconfig.swc'),
+            path.join(appDir, 'jsconfig.json')
+          )
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.swc')
+          )
+          await fs.rename(
+            path.join(appDir, 'jsconfig.json'),
+            path.join(appDir, 'jsconfig.swc')
+          )
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toEqual(
+            expect.arrayContaining([
+              {
+                featureName: 'swcLoader',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcRelay',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcStyledComponents',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcReactRemoveProperties',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcExperimentalDecorators',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcRemoveConsole',
+                invocationCount: 1,
+              },
+              {
+                featureName: 'swcImportSource',
+                invocationCount: 0,
+              },
+            ])
+          )
+        }
+      )
+
+      it('emits telemetry for usage of `experimental/dynamicIO`', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.swc'),
+          path.join(appDir, 'next.config.dynamic-io'),
           path.join(appDir, 'next.config.js')
         )
-        await fs.rename(
-          path.join(appDir, 'jsconfig.swc'),
-          path.join(appDir, 'jsconfig.json')
-        )
+
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
         })
+
         await fs.rename(
           path.join(appDir, 'next.config.js'),
-          path.join(appDir, 'next.config.swc')
+          path.join(appDir, 'next.config.dynamic-io')
         )
-        await fs.rename(
-          path.join(appDir, 'jsconfig.json'),
-          path.join(appDir, 'jsconfig.swc')
-        )
-        const featureUsageEvents = findAllTelemetryEvents(
+
+        const events = findAllTelemetryEvents(
           stderr,
           'NEXT_BUILD_FEATURE_USAGE'
         )
-        expect(featureUsageEvents).toEqual(
-          expect.arrayContaining([
-            {
-              featureName: 'swcLoader',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcRelay',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcStyledComponents',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcReactRemoveProperties',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcExperimentalDecorators',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcRemoveConsole',
-              invocationCount: 1,
-            },
-            {
-              featureName: 'swcImportSource',
-              invocationCount: 0,
-            },
-          ])
-        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/dynamicIO',
+          invocationCount: 1,
+        })
       })
 
       it('emits telemetry for usage of `optimizeCss`', async () => {
@@ -482,95 +519,248 @@ describe('config telemetry', () => {
         ])
       })
 
-      it('emits telemetry for usage of next/legacy/image', async () => {
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for usage of next/legacy/image',
+        async () => {
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            // FIXME: Should be +1 from App Router
+            featureName: 'next/legacy/image',
+            invocationCount: 2,
+          })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'next/image',
+            // FIXME: Should be +1 from App Router
+            invocationCount: 2,
+          })
+        }
+      )
+
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for usage of @vercel/og',
+        async () => {
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'vercelImageGeneration',
+            invocationCount: 1,
+          })
+        }
+      )
+
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for transpilePackages',
+        async () => {
+          await fs.rename(
+            path.join(appDir, 'next.config.transpile-packages'),
+            path.join(appDir, 'next.config.js')
+          )
+
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.transpile-packages')
+          )
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'transpilePackages',
+            invocationCount: 1,
+          })
+        }
+      )
+
+      // Turbopack intentionally does not support these events
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for middleware related options',
+        async () => {
+          await fs.rename(
+            path.join(appDir, 'next.config.middleware-options'),
+            path.join(appDir, 'next.config.js')
+          )
+
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.middleware-options')
+          )
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'skipMiddlewareUrlNormalize',
+            invocationCount: 1,
+          })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'skipTrailingSlashRedirect',
+            invocationCount: 1,
+          })
+        }
+      )
+
+      it('emits telemetry for default React Compiler options', async () => {
         const { stderr } = await nextBuild(appDir, [], {
           stderr: true,
           env: { NEXT_TELEMETRY_DEBUG: 1 },
         })
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'next/legacy/image',
-          invocationCount: 2,
-        })
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'next/image',
-          invocationCount: 2,
-        })
+
+        try {
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event).toMatch(/"reactCompiler": false/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": null/)
+          expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
       })
 
-      it('emits telemetry for usage of @vercel/og', async () => {
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'vercelImageGeneration',
-          invocationCount: 1,
-        })
-      })
-
-      it('emits telemetry for transpilePackages', async () => {
+      it('emits telemetry for enabled React Compiler', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.transpile-packages'),
+          path.join(appDir, 'next.config.reactCompiler-base'),
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
 
-        await fs.rename(
-          path.join(appDir, 'next.config.js'),
-          path.join(appDir, 'next.config.transpile-packages')
-        )
-
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'transpilePackages',
-          invocationCount: 1,
-        })
+          expect(event).toMatch(/"reactCompiler": true/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": null/)
+          expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.reactCompiler-base')
+          )
+        }
       })
 
-      it('emits telemetry for middleware related options', async () => {
+      it('emits telemetry for configured React Compiler options', async () => {
         await fs.rename(
-          path.join(appDir, 'next.config.middleware-options'),
+          path.join(appDir, 'next.config.reactCompiler-options'),
           path.join(appDir, 'next.config.js')
         )
 
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
+        let stderr
+        try {
+          const app = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+          stderr = app.stderr
+          const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
 
-        await fs.rename(
-          path.join(appDir, 'next.config.js'),
-          path.join(appDir, 'next.config.middleware-options')
-        )
-
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'skipMiddlewareUrlNormalize',
-          invocationCount: 1,
-        })
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'skipTrailingSlashRedirect',
-          invocationCount: 1,
-        })
+          expect(event).toMatch(/"reactCompiler": true/)
+          expect(event).toMatch(/"reactCompilerCompilationMode": "annotation"/)
+          expect(event).toMatch(
+            /"reactCompilerPanicThreshold": "CRITICAL_ERRORS"/
+          )
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.reactCompiler-options')
+          )
+        }
       })
+
+      // TODO: support use cache tracking in Turbopack
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for useCache directive',
+        async () => {
+          // use cache depends on dynamicIO flag
+          await fs.rename(
+            path.join(appDir, 'next.config.use-cache'),
+            path.join(appDir, 'next.config.js')
+          )
+
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '~app'))
+          await fs.move(path.join(appDir, '_app'), path.join(appDir, 'app'))
+
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.use-cache')
+          )
+
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '_app'))
+          await fs.move(path.join(appDir, '~app'), path.join(appDir, 'app'))
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/default',
+            invocationCount: 2,
+          })
+
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/custom',
+            invocationCount: 3,
+          })
+        }
+      )
     }
   )
 })

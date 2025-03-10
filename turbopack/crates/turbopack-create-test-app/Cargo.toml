@@ -1,0 +1,28 @@
+[package]
+name = "turbopack-create-test-app"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+
+# don't publish this crate (for now)
+publish = false
+
+[[bin]]
+name = "turbopack-create-test-app"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+indoc = { workspace = true }
+pathdiff = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }

@@ -23,6 +23,7 @@ packages/react-dev-overlay/lib/**
 .github/actions/next-stats-action/.work
 packages/next-codemod/transforms/__testfixtures__/**/*
 packages/next-codemod/transforms/__tests__/**/*
+packages/next-codemod/bin/__testfixtures__/**/*
 packages/next-codemod/**/*.js
 packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
@@ -34,7 +35,7 @@ test/production/emit-decorator-metadata/**/*.js
 !test/**/*.test.*
 test/e2e/app-dir/rsc-errors/app/swc/use-client/page.js
 test-timings.json
-packages/next-swc/crates/**
+crates/**
 bench/nested-deps/**
 bench/nested-deps-app-router/**
 bench/heavy-npm-deps/**
@@ -44,4 +45,12 @@ test/development/basic/hmr/components/parse-error.js
 packages/next-swc/docs/assets/**/*
 test/lib/amp-validator-wasm.js
 test/production/pages-dir/production/fixture/amp-validator-wasm.js
+test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
+test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/e2e/async-modules/amp-validator-wasm.js
+test/development/next-lint-eslint-formatter-compact/**/*.js
+test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs
+
+# turbopack crates
+turbopack/crates/*/tests/**
+turbopack/crates/*/js/src/compiled

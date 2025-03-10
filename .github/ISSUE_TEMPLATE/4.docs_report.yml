@@ -1,19 +1,21 @@
-name: 'Docs Report'
-description: Create a report for Next.js documentation.
+name: 'Report a documentation issue'
+description: Report an issue with the Next.js documentation.
 title: 'Docs: '
-labels:
-  - 'Documentation'
+type: Documentation
 body:
   - type: markdown
     attributes:
-      value: Before opening a new docs issue, is this something you can help us with? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
+      value: |
+        Before opening a new documentation issue, is this something you can help us with? Your contributions are welcomed and appreciated. See our [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) to learn how to edit the Next.js docs.
+
+        If you are reporting about an documentation request, please open it in our [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas) instead.
   - type: markdown
     attributes:
       value: Thank you for helping us update our docs!
   - type: textarea
     attributes:
-      label: What is the update you wish to see?
-      description: 'Example: I would like to fix an example using the `<Link>` component. Or, the `<Link>` component docs are missing information.'
+      label: What is the documentation issue?
+      description: 'Example: There is incorrect or stale information about the `<Link>` component.'
     validations:
       required: true
   - type: textarea

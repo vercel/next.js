@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import cheerio from 'cheerio'
-import { readdir, readFile, remove } from 'fs-extra'
+import { remove } from 'fs-extra'
 import {
   findPort,
   File,
@@ -8,6 +8,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  fetchViaHTTP,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -29,6 +30,8 @@ describe('CSS Support', () => {
         describe.each([true, false])(
           `useLightnincsss(%s)`,
           (useLightningcss) => {
+            let appPort
+            let app
             beforeAll(async () => {
               nextConfig.write(
                 `
@@ -40,55 +43,263 @@ module.exports = {
   }
 }`
               )
+
+              const { code } = await nextBuild(appDir)
+              if (code !== 0) {
+                throw new Error('Build failed')
+              }
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
+            })
+            afterAll(async () => {
+              await killApp(app)
             })
 
             afterAll(async () => {
               nextConfig.delete()
             })
 
-            it('should compile successfully', async () => {
-              const { code, stdout } = await nextBuild(appDir, [], {
-                stdout: true,
-              })
-              expect(code).toBe(0)
-              expect(stdout).toMatch(/Compiled successfully/)
-            })
-
             it(`should've compiled and prefixed`, async () => {
-              const cssFolder = join(appDir, '.next/static/css')
+              const content = await renderViaHTTP(appPort, '/')
+              const $ = cheerio.load(content)
 
-              const files = await readdir(cssFolder)
-              const cssFiles = files.filter((f) => /\.css$/.test(f))
+              const cssSheet = $('link[rel="stylesheet"]')
+              expect(cssSheet.length).toBe(1)
 
-              expect(cssFiles.length).toBe(1)
-              const cssContent = await readFile(
-                join(cssFolder, cssFiles[0]),
-                'utf8'
-              )
-              expect(
-                cssContent.replace(/\/\*.*?\*\//g, '').trim()
-              ).toMatchSnapshot()
+              const stylesheetUrl = cssSheet.attr('href')
+
+              const cssContent = await fetchViaHTTP(
+                appPort,
+                stylesheetUrl
+              ).then((res) => res.text())
+
+              const cssContentWithoutSourceMap = cssContent
+                .replace(/\/\*.*?\*\//g, '')
+                .trim()
+
+              if (process.env.TURBOPACK && useLightningcss) {
+                expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+                  `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                )
+              } else if (process.env.TURBOPACK && !useLightningcss) {
+                expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+                  `"@media (480px<=width<768px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                )
+              } else if (useLightningcss) {
+                expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                )
+              } else {
+                expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
+                  `"@media (min-width:480px) and (max-width:767px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:80%}"`
+                )
+              }
 
               // Contains a source map
               expect(cssContent).toMatch(
                 /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
               )
-            })
 
-            it(`should've emitted a source map`, async () => {
-              const cssFolder = join(appDir, '.next/static/css')
+              const sourceMapUrl =
+                /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//.exec(cssContent)[1]
+              const actualSourceMapUrl = stylesheetUrl.replace(
+                /[^/]+$/,
+                sourceMapUrl
+              )
 
-              const files = await readdir(cssFolder)
-              const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
+              const sourceMapContent = await fetchViaHTTP(
+                appPort,
+                actualSourceMapUrl
+              ).then((res) => res.text())
+              const sourceMapContentParsed = JSON.parse(sourceMapContent)
+              // Ensure it doesn't have a specific path in the snapshot.
+              delete sourceMapContentParsed.file
+              delete sourceMapContentParsed.sources
 
-              expect(cssMapFiles.length).toBe(1)
-              const cssMapContent = (
-                await readFile(join(cssFolder, cssMapFiles[0]), 'utf8')
-              ).trim()
+              if (process.env.TURBOPACK && useLightningcss) {
+                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+                  {
+                    "sections": [
+                      {
+                        "map": {
+                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
+                          "names": [],
+                          "sources": [
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                          ],
+                          "sourcesContent": [
+                            "@media (480px <= width < 768px) {
+                    ::placeholder {
+                      color: green;
+                    }
+                  }
 
-              const { version, mappings, sourcesContent } =
-                JSON.parse(cssMapContent)
-              expect({ version, mappings, sourcesContent }).toMatchSnapshot()
+                  .flex-parsing {
+                    flex: 0 0 calc(50% - var(--vertical-gutter));
+                  }
+
+                  .transform-parsing {
+                    transform: translate3d(0px, 0px);
+                  }
+
+                  .css-grid-shorthand {
+                    grid-column: span 2;
+                  }
+
+                  .g-docs-sidenav .filter::-webkit-input-placeholder {
+                    opacity: 80%;
+                  }
+                  ",
+                          ],
+                          "version": 3,
+                        },
+                        "offset": {
+                          "column": 0,
+                          "line": 1,
+                        },
+                      },
+                      {
+                        "map": {
+                          "mappings": "A",
+                          "names": [],
+                          "sources": [],
+                          "version": 3,
+                        },
+                        "offset": {
+                          "column": 264,
+                          "line": 1,
+                        },
+                      },
+                    ],
+                    "version": 3,
+                  }
+                `)
+              } else if (process.env.TURBOPACK && !useLightningcss) {
+                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+                  {
+                    "sections": [
+                      {
+                        "map": {
+                          "mappings": "AAAA,4BACE,2BAKF,0DAIA,kDAIA,uCAIA",
+                          "names": [],
+                          "sources": [
+                            "turbopack:///[project]/test/integration/css-fixtures/compilation-and-prefixing/styles/global.css",
+                          ],
+                          "sourcesContent": [
+                            "@media (480px <= width < 768px) {
+                    ::placeholder {
+                      color: green;
+                    }
+                  }
+
+                  .flex-parsing {
+                    flex: 0 0 calc(50% - var(--vertical-gutter));
+                  }
+
+                  .transform-parsing {
+                    transform: translate3d(0px, 0px);
+                  }
+
+                  .css-grid-shorthand {
+                    grid-column: span 2;
+                  }
+
+                  .g-docs-sidenav .filter::-webkit-input-placeholder {
+                    opacity: 80%;
+                  }
+                  ",
+                          ],
+                          "version": 3,
+                        },
+                        "offset": {
+                          "column": 0,
+                          "line": 1,
+                        },
+                      },
+                      {
+                        "map": {
+                          "mappings": "A",
+                          "names": [],
+                          "sources": [],
+                          "version": 3,
+                        },
+                        "offset": {
+                          "column": 264,
+                          "line": 1,
+                        },
+                      },
+                    ],
+                    "version": 3,
+                  }
+                `)
+              } else if (useLightningcss) {
+                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+                 {
+                   "mappings": "AAAA,qDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
+                   "names": [],
+                   "sourceRoot": "",
+                   "sourcesContent": [
+                     "@media (min-width: 480px) and (not (min-width: 768px)) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
+
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
+
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
+
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
+
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: .8;
+                 }
+
+                 ",
+                   ],
+                   "version": 3,
+                 }
+                `)
+              } else {
+                expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+                  {
+                    "mappings": "AAAA,+CACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,WACF",
+                    "names": [],
+                    "sourceRoot": "",
+                    "sourcesContent": [
+                      "@media (480px <= width < 768px) {
+                    ::placeholder {
+                      color: green;
+                    }
+                  }
+
+                  .flex-parsing {
+                    flex: 0 0 calc(50% - var(--vertical-gutter));
+                  }
+
+                  .transform-parsing {
+                    transform: translate3d(0px, 0px);
+                  }
+
+                  .css-grid-shorthand {
+                    grid-column: span 2;
+                  }
+
+                  .g-docs-sidenav .filter::-webkit-input-placeholder {
+                    opacity: 80%;
+                  }
+                  ",
+                    ],
+                    "version": 3,
+                  }
+                `)
+              }
             })
           }
         )
@@ -119,22 +330,16 @@ module.exports = {
 
             let appPort
             let app
-            let code
-            let stdout
             beforeAll(async () => {
-              ;({ code, stdout } = await nextBuild(appDir, [], {
-                stdout: true,
-              }))
+              const { code } = await nextBuild(appDir)
+              if (code !== 0) {
+                throw new Error('Build failed')
+              }
               appPort = await findPort()
               app = await nextStart(appDir, appPort)
             })
             afterAll(async () => {
               await killApp(app)
-            })
-
-            it('should have compiled successfully', () => {
-              expect(code).toBe(0)
-              expect(stdout).toMatch(/Compiled successfully/)
             })
 
             it('should have the correct color on mount after navigation', async () => {
@@ -180,23 +385,17 @@ module.exports = {
 
             let appPort
             let app
-            let stdout
-            let code
             beforeAll(async () => {
               await remove(join(appDir, '.next'))
-              ;({ code, stdout } = await nextBuild(appDir, [], {
-                stdout: true,
-              }))
+              const { code } = await nextBuild(appDir)
+              if (code !== 0) {
+                throw new Error('Build failed')
+              }
               appPort = await findPort()
               app = await nextStart(appDir, appPort)
             })
             afterAll(async () => {
               await killApp(app)
-            })
-
-            it('should have compiled successfully', () => {
-              expect(code).toBe(0)
-              expect(stdout).toMatch(/Compiled successfully/)
             })
 
             it('should have CSS for page', async () => {
@@ -215,13 +414,13 @@ module.exports = {
               const cssPreload = $('link[rel="preload"][as="style"]')
               expect(cssPreload.length).toBe(1)
               expect(cssPreload.attr('href')).toMatch(
-                /^\/_next\/static\/css\/.*\.css$/
+                /^\/_next\/static\/.*\.css$/
               )
 
               const cssSheet = $('link[rel="stylesheet"]')
               expect(cssSheet.length).toBe(1)
               expect(cssSheet.attr('href')).toMatch(
-                /^\/_next\/static\/css\/.*\.css$/
+                /^\/_next\/static\/.*\.css$/
               )
 
               /* ensure CSS preloaded first */
@@ -255,29 +454,38 @@ module.exports = {
               )
             })
 
+            let appPort
+            let app
             beforeAll(async () => {
               await remove(join(appDir, '.next'))
+              const { code } = await nextBuild(appDir)
+              if (code !== 0) {
+                throw new Error('Build failed')
+              }
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
             })
-
-            it('should compile successfully', async () => {
-              const { code, stdout } = await nextBuild(appDir, [], {
-                stdout: true,
-              })
-              expect(code).toBe(0)
-              expect(stdout).toMatch(/Compiled successfully/)
+            afterAll(async () => {
+              await killApp(app)
             })
 
             it(`should've emitted a single CSS file`, async () => {
-              const cssFolder = join(appDir, '.next/static/css')
+              const content = await renderViaHTTP(appPort, '/')
+              const $ = cheerio.load(content)
 
-              const files = await readdir(cssFolder)
-              const cssFiles = files.filter((f) => /\.css$/.test(f))
+              const cssSheet = $('link[rel="stylesheet"]')
+              expect(cssSheet.length).toBe(1)
 
-              expect(cssFiles.length).toBe(1)
-              const cssContent = await readFile(
-                join(cssFolder, cssFiles[0]),
-                'utf8'
+              const stylesheet = cssSheet.attr('href')
+
+              const cssContent = (
+                await fetchViaHTTP(appPort, stylesheet).then((res) =>
+                  res.text()
+                )
               )
+                .replace(/\/\*.*?\*\//g, '')
+                .trim()
+
               expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatch(
                 /nprogress/
               )
@@ -306,32 +514,63 @@ module.exports = {
               )
             })
 
+            let appPort
+            let app
             beforeAll(async () => {
               await remove(join(appDir, '.next'))
+              const { code } = await nextBuild(appDir)
+              if (code !== 0) {
+                throw new Error('Build failed')
+              }
+              appPort = await findPort()
+              app = await nextStart(appDir, appPort)
             })
-
-            it('should compile successfully', async () => {
-              const { code, stdout } = await nextBuild(appDir, [], {
-                stdout: true,
-              })
-              expect(code).toBe(0)
-              expect(stdout).toMatch(/Compiled successfully/)
+            afterAll(async () => {
+              await killApp(app)
             })
 
             it(`should've emitted a single CSS file`, async () => {
-              const cssFolder = join(appDir, '.next/static/css')
+              const content = await renderViaHTTP(appPort, '/')
+              const $ = cheerio.load(content)
 
-              const files = await readdir(cssFolder)
-              const cssFiles = files.filter((f) => /\.css$/.test(f))
+              const cssSheet = $('link[rel="stylesheet"]')
+              expect(cssSheet.length).toBe(1)
 
-              expect(cssFiles.length).toBe(1)
-              const cssContent = await readFile(
-                join(cssFolder, cssFiles[0]),
-                'utf8'
+              const stylesheet = cssSheet.attr('href')
+
+              const cssContent = (
+                await fetchViaHTTP(appPort, stylesheet).then((res) =>
+                  res.text()
+                )
               )
-              expect(
-                cssContent.replace(/\/\*.*?\*\//g, '').trim()
-              ).toMatchSnapshot()
+                .replace(/\/\*.*?\*\//g, '')
+                .trim()
+
+              if (process.env.TURBOPACK && useLightningcss) {
+                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+                  .toMatchInlineSnapshot(`
+                 ".other{color:#00f}
+
+
+                 .test{color:red}"
+                `)
+              } else if (process.env.TURBOPACK && !useLightningcss) {
+                expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
+                  .toMatchInlineSnapshot(`
+                 ".other{color:#00f}
+
+
+                 .test{color:red}"
+                `)
+              } else if (useLightningcss) {
+                expect(
+                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                ).toMatchInlineSnapshot(`".other{color:#00f}.test{color:red}"`)
+              } else {
+                expect(
+                  cssContent.replace(/\/\*.*?\*\//g, '').trim()
+                ).toMatchInlineSnapshot(`".other{color:blue}.test{color:red}"`)
+              }
             })
           }
         )
@@ -364,23 +603,17 @@ module.exports = {
 
         let appPort
         let app
-        let stdout
-        let code
         beforeAll(async () => {
           await remove(join(appDir, '.next'))
-          ;({ code, stdout } = await nextBuild(appDir, [], {
-            stdout: true,
-          }))
+          const { code } = await nextBuild(appDir)
+          if (code !== 0) {
+            throw new Error('Build failed')
+          }
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
         afterAll(async () => {
           await killApp(app)
-        })
-
-        it('should have compiled successfully', () => {
-          expect(code).toBe(0)
-          expect(stdout).toMatch(/Compiled successfully/)
         })
 
         it('should have the border width (property ordering)', async () => {

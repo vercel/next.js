@@ -1,11 +1,12 @@
-name: Bug Report for Examples
-description: Create a bug report for Next.js examples.
-labels: ['examples']
+name: Report an issue with an example
+description: Report an issue with one of our Next.js examples.
+type: Examples
 body:
   - type: markdown
     attributes:
       value: |
-        *Note:* If you leave out sections, the issue might be moved to the ["Help" section](https://github.com/vercel/next.js/discussions/categories/help).
+        *Note:* If you leave out sections, the issue might be moved to the ["Help"](https://github.com/vercel/next.js/discussions/categories/help) section.
+
         Thanks for taking the time to file a bug report for [one of the examples](https://github.com/vercel/next.js/tree/canary/examples)! Please fill out this form as completely as possible.
   - type: checkboxes
     attributes:

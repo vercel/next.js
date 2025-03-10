@@ -6,14 +6,9 @@ import { nextTestSetup, FileRef } from 'e2e-utils'
 import type { Response } from 'node-fetch'
 
 describe('app-dir with middleware', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should filter correctly after middleware rewrite', async () => {
     const browser = await next.browser('/start')
@@ -128,6 +123,13 @@ describe('app-dir with middleware', () => {
     })
   })
 
+  it('retains a link response header from the middleware', async () => {
+    const res = await next.fetch('/preloads')
+    expect(res.headers.get('link')).toContain(
+      '<https://example.com/page>; rel="alternate"; hreflang="en"'
+    )
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 
@@ -161,11 +163,95 @@ describe('app-dir with middleware', () => {
         /Cookie 2: \d+\.\d+/
       )
     })
+
+    // Cleanup
+    await browser.deleteCookies()
+  })
+
+  it('should respect cookie options of merged middleware cookies', async () => {
+    const browser = await next.browser('/rsc-cookies/cookie-options')
+
+    const totalCookies = await browser.elementById('total-cookies').text()
+
+    // a secure cookie was set in middleware
+    expect(totalCookies).toBe('Total Cookie Length: 1')
+
+    // we don't expect to be able to read it
+    expect(await browser.eval('document.cookie')).toBeFalsy()
+
+    await browser.elementById('submit-server-action').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
+    })
+
+    // ensure that we still can't read the secure cookie
+    expect(await browser.eval('document.cookie')).toBeFalsy()
+
+    // Cleanup
+    await browser.deleteCookies()
+  })
+
+  it('should omit internal headers for middleware cookies', async () => {
+    const response = await next.fetch('/rsc-cookies/cookie-options')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+
+    const response2 = await next.fetch('/cookies/api')
+    expect(response2.status).toBe(200)
+    expect(response2.headers.get('x-middleware-set-cookie')).toBeNull()
+    expect(response2.headers.get('set-cookie')).toBeDefined()
+    expect(response2.headers.get('set-cookie')).toContain('example')
+  })
+
+  it('should ignore x-middleware-set-cookie as a request header', async () => {
+    const $ = await next.render$(
+      '/cookies',
+      {},
+      {
+        headers: {
+          'x-middleware-set-cookie': 'test',
+        },
+      }
+    )
+
+    expect($('#cookies').text()).toBe('cookies: 0')
+  })
+
+  it('should be possible to read cookies that are set during the middleware handling of a server action', async () => {
+    const browser = await next.browser('/rsc-cookies')
+    const initialRandom1 = await browser.elementById('rsc-cookie-1').text()
+    const initialRandom2 = await browser.elementById('rsc-cookie-2').text()
+    const totalCookies = await browser.elementById('total-cookies').text()
+
+    // cookies were set in middleware, assert they are present and match the Math.random() pattern
+    expect(initialRandom1).toMatch(/Cookie 1: \d+\.\d+/)
+    expect(initialRandom2).toMatch(/Cookie 2: \d+\.\d+/)
+    expect(totalCookies).toBe('Total Cookie Length: 2')
+
+    expect(await browser.eval('document.cookie')).toBeTruthy()
+
+    await browser.deleteCookies()
+
+    // assert that document.cookie is empty
+    expect(await browser.eval('document.cookie')).toBeFalsy()
+
+    await browser.elementById('submit-server-action').click()
+
+    await retry(async () => {
+      expect(await browser.elementById('action-result').text()).toMatch(
+        /Action Result: \d+\.\d+/
+      )
+    })
+
+    await browser.deleteCookies()
   })
 })
 
 describe('app dir - middleware without pages dir', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
       'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
@@ -181,12 +267,7 @@ describe('app dir - middleware without pages dir', () => {
       }
     `,
     },
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // eslint-disable-next-line jest/no-identical-title
   it('Updates headers', async () => {
@@ -197,7 +278,7 @@ describe('app dir - middleware without pages dir', () => {
 })
 
 describe('app dir - middleware with middleware in src dir', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       'src/app': new FileRef(path.join(__dirname, 'app')),
       'next.config.js': new FileRef(path.join(__dirname, 'next.config.js')),
@@ -206,19 +287,14 @@ describe('app dir - middleware with middleware in src dir', () => {
       import { cookies } from 'next/headers'
 
       export async function middleware(request) {
-        const cookie = cookies().get('test-cookie')
+        const cookie = (await cookies()).get('test-cookie')
         return NextResponse.json({ cookie })
       }
     `,
     },
-    skipDeployment: true,
   })
 
-  if (skipped) {
-    return
-  }
-
-  it('works without crashing when using requestAsyncStorage', async () => {
+  it('works without crashing when using RequestStore', async () => {
     const browser = await next.browser('/')
     await browser.addCookie({
       name: 'test-cookie',

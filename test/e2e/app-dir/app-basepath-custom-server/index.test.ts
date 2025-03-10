@@ -7,6 +7,7 @@ describe('custom-app-server-action-redirect', () => {
     files: join(__dirname, 'custom-server'),
     skipDeployment: true,
     startCommand: 'node server.js',
+    serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
       'get-port': '5.1.1',
     },

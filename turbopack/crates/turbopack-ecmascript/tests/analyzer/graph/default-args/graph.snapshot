@@ -1,0 +1,119 @@
+[
+    (
+        "*arrow function 105*",
+        Function(
+            2,
+            105,
+            Variable(
+                (
+                    "value2",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "Fun",
+        Function(
+            2,
+            39,
+            Variable(
+                (
+                    "value",
+                    #3,
+                ),
+            ),
+        ),
+    ),
+    (
+        "Fun2",
+        Variable(
+            (
+                "*arrow function 105*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "value",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Member(
+                    3,
+                    Argument(
+                        39,
+                        0,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "value",
+                            ),
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Module(
+                        ModuleValue {
+                            module: "./module.js",
+                            annotations: ImportAnnotations {
+                                map: {},
+                            },
+                        },
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "named",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "value2",
+        Alternatives {
+            total_nodes: 7,
+            values: [
+                Member(
+                    3,
+                    Argument(
+                        105,
+                        0,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "value2",
+                            ),
+                        ),
+                    ),
+                ),
+                Member(
+                    3,
+                    Module(
+                        ModuleValue {
+                            module: "./module.js",
+                            annotations: ImportAnnotations {
+                                map: {},
+                            },
+                        },
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "named",
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

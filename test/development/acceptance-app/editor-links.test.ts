@@ -1,7 +1,7 @@
-import { check } from 'next-test-utils'
+import { check, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 async function clickSourceFile(browser: any) {
@@ -33,7 +33,7 @@ describe('Error overlay - editor links', () => {
 
   it('should be possible to open source file on build error', async () => {
     let editorRequestsCount = 0
-    const { session, browser, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -56,7 +56,7 @@ describe('Error overlay - editor links', () => {
         },
       }
     )
-
+    const { session, browser } = sandbox
     await session.patch(
       'index.js',
       outdent`
@@ -65,18 +65,30 @@ describe('Error overlay - editor links', () => {
       `
     )
 
+    // Ensure the Next Logo is not loading. This is to assert that the build did stop.
+    await retry(async () => {
+      const loaded = await browser.eval(() => {
+        return Boolean(
+          [].slice
+            .call(document.querySelectorAll('nextjs-portal'))
+            .find((p) =>
+              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
+            )
+        )
+      })
+      expect(loaded).toBe(true)
+    })
+
     await session.assertHasRedbox()
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
-
-    await cleanup()
   })
   ;(process.env.TURBOPACK ? describe.skip : describe)(
     'opening links in import traces',
     () => {
       it('should be possible to open import trace files on RSC parse error', async () => {
         let editorRequestsCount = 0
-        const { session, browser, cleanup } = await sandbox(
+        await using sandbox = await createSandbox(
           next,
           new Map([
             [
@@ -101,7 +113,7 @@ describe('Error overlay - editor links', () => {
             },
           }
         )
-
+        const { session, browser } = sandbox
         await session.patch(
           'index.js',
           outdent`
@@ -113,13 +125,11 @@ describe('Error overlay - editor links', () => {
         await session.assertHasRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /4/)
-
-        await cleanup()
       })
 
       it('should be possible to open import trace files on module not found error', async () => {
         let editorRequestsCount = 0
-        const { session, browser, cleanup } = await sandbox(
+        await using sandbox = await createSandbox(
           next,
           new Map([
             [
@@ -144,7 +154,7 @@ describe('Error overlay - editor links', () => {
             },
           }
         )
-
+        const { session, browser } = sandbox
         await session.patch(
           'index.js',
           outdent`
@@ -156,8 +166,6 @@ describe('Error overlay - editor links', () => {
         await session.assertHasRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /3/)
-
-        await cleanup()
       })
     }
   )

@@ -1,0 +1,42 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+description = "https://github.com/matklad/cargo-xtask/"
+license = "MIT"
+edition = "2021"
+
+# don't publish this crate
+publish = false
+
+[[bin]]
+name = "xtask"
+path = "src/main.rs"
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+cargo-lock = "8.0.2"
+chrono = { workspace = true }
+clap = { workspace = true }
+indexmap = { workspace = true }
+inquire = { version = "0.5.1" }
+num-format = "0.4.4"
+owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
+semver = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+tabled = { version = "0.10.0", features = ["color"] }
+walkdir = "2.3.2"
+
+[dependencies.plotters]
+version = "0.3.4"
+default-features = false
+features = [
+  "full_palette",
+  "line_series",
+  "svg_backend",
+]

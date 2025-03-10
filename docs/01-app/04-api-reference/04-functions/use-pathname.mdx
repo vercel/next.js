@@ -1,0 +1,95 @@
+---
+title: usePathname
+description: API Reference for the usePathname hook.
+---
+
+`usePathname` is a **Client Component** hook that lets you read the current URL's **pathname**.
+
+```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export default function ExampleClientComponent() {
+  const pathname = usePathname()
+  return <p>Current pathname: {pathname}</p>
+}
+```
+
+```jsx filename="app/example-client-component.js" switcher
+'use client'
+
+import { usePathname } from 'next/navigation'
+
+export default function ExampleClientComponent() {
+  const pathname = usePathname()
+  return <p>Current pathname: {pathname}</p>
+}
+```
+
+`usePathname` intentionally requires using a [Client Component](/docs/app/building-your-application/rendering/client-components). It's important to note Client Components are not a de-optimization. They are an integral part of the [Server Components](/docs/app/building-your-application/rendering/server-components) architecture.
+
+For example, a Client Component with `usePathname` will be rendered into HTML on the initial page load. When navigating to a new route, this component does not need to be re-fetched. Instead, the component is downloaded once (in the client JavaScript bundle), and re-renders based on the current state.
+
+> **Good to know**:
+>
+> - Reading the current URL from a [Server Component](/docs/app/building-your-application/rendering/server-components) is not supported. This design is intentional to support layout state being preserved across page navigations.
+> - Compatibility mode:
+>   - `usePathname` can return `null` when a [fallback route](/docs/pages/api-reference/functions/get-static-paths#fallback-true) is being rendered or when a `pages` directory page has been [automatically statically optimized](/docs/pages/building-your-application/rendering/automatic-static-optimization) by Next.js and the router is not ready.
+>   - When using `usePathname` with rewrites in [`next.config`](/docs/app/api-reference/config/next-config-js/rewrites) or [`Middleware`](/docs/app/building-your-application/routing/middleware), `useState` and `useEffect` must also be used in order to avoid hydration mismatch errors. See the [rewrites example](https://github.com/vercel/next.js/tree/canary/examples/rewrites) for more information.
+>   - Next.js will automatically update your types if it detects both an `app` and `pages` directory in your project.
+
+## Parameters
+
+```tsx
+const pathname = usePathname()
+```
+
+`usePathname` does not take any parameters.
+
+## Returns
+
+`usePathname` returns a string of the current URL's pathname. For example:
+
+| URL                 | Returned value        |
+| ------------------- | --------------------- |
+| `/`                 | `'/'`                 |
+| `/dashboard`        | `'/dashboard'`        |
+| `/dashboard?v=2`    | `'/dashboard'`        |
+| `/blog/hello-world` | `'/blog/hello-world'` |
+
+## Examples
+
+### Do something in response to a route change
+
+```tsx filename="app/example-client-component.tsx" switcher
+'use client'
+
+import { usePathname, useSearchParams } from 'next/navigation'
+
+function ExampleClientComponent() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    // Do something here...
+  }, [pathname, searchParams])
+}
+```
+
+```jsx filename="app/example-client-component.js" switcher
+'use client'
+
+import { usePathname, useSearchParams } from 'next/navigation'
+
+function ExampleClientComponent() {
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  useEffect(() => {
+    // Do something here...
+  }, [pathname, searchParams])
+}
+```
+
+| Version   | Changes                   |
+| --------- | ------------------------- |
+| `v13.0.0` | `usePathname` introduced. |

@@ -1,0 +1,62 @@
+[package]
+name = "turbopack"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[features]
+test_persistent_cache = []
+bench_against_node_nft = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+lazy_static = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+smallvec = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-css = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-json = { workspace = true }
+turbopack-mdx = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-resolve = { workspace = true }
+turbopack-static = { workspace = true }
+turbopack-wasm = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+difference = "2.0"
+futures = { workspace = true }
+rstest = { workspace = true }
+rstest_reuse = "0.5.0"
+tokio = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+turbo-tasks-memory = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[[bench]]
+name = "mod"
+harness = false

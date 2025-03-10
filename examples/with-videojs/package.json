@@ -1,22 +1,22 @@
 {
   "private": true,
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start"
   },
   "dependencies": {
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "video.js": "^7.20.3",
-    "videojs-youtube": "^2.6.1"
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "video.js": "^8.17.4",
+    "videojs-youtube": "^3.0.1"
   },
   "devDependencies": {
-    "@types/node": "^18.11.9",
-    "@types/react": "^18.0.25",
-    "@types/react-dom": "^18.0.9",
-    "@types/video.js": "^7.3.49",
-    "typescript": "^4.9.3"
+    "@types/node": "^22.5.5",
+    "@types/react": "^18.3.7",
+    "@types/react-dom": "^18.3.0",
+    "@types/video.js": "^7.3.58",
+    "typescript": "^5.6.2"
   }
 }

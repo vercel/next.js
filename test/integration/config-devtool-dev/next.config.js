@@ -1,6 +1,6 @@
 module.exports = {
   webpack: (config) => {
-    config.devtool = false
+    config.devtool = 'cheap-module-source-map'
     return config
   },
 }

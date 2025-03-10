@@ -1,10 +1,5 @@
 module.exports = {
   basePath: '/docs',
-  experimental: {
-    amp: {
-      validator: require.resolve('../../lib/amp-validator-wasm.js'),
-    },
-  },
   i18n: {
     // localeDetection: false,
     locales: [

@@ -1,105 +1,166 @@
 diff --git a/lib/RawSource.js b/lib/RawSource.js
-index 098d317..06e6b8f 100644
+index 71f1341c43dd45dc82b633eabe0a1cfe99bbe25d..b56ea1a17ba81295826dc1c820d462cca8643bc1 100644
 --- a/lib/RawSource.js
 +++ b/lib/RawSource.js
-@@ -6,6 +6,10 @@
+@@ -6,76 +6,91 @@
  "use strict";
  
  const streamChunksOfRawSource = require("./helpers/streamChunksOfRawSource");
 +const {
-+	internString,
-+	isDualStringBufferCachingEnabled
++  internString,
++  isDualStringBufferCachingEnabled,
 +} = require("./helpers/stringBufferUtils");
  const Source = require("./Source");
  
  class RawSource extends Source {
-@@ -17,8 +21,13 @@ class RawSource extends Source {
- 		}
- 		this._valueIsBuffer = !convertToString && isBuffer;
+-	constructor(value, convertToString = false) {
+-		super();
+-		const isBuffer = Buffer.isBuffer(value);
+-		if (!isBuffer && typeof value !== "string") {
+-			throw new TypeError("argument 'value' must be either string of Buffer");
+-		}
+-		this._valueIsBuffer = !convertToString && isBuffer;
 -		this._value = convertToString && isBuffer ? undefined : value;
-+		this._value =
-+			convertToString && isBuffer
-+				? undefined
-+				: typeof value === "string"
-+				? internString(value)
-+				: value;
- 		this._valueAsBuffer = isBuffer ? value : undefined;
+-		this._valueAsBuffer = isBuffer ? value : undefined;
 -		this._valueAsString = isBuffer ? undefined : value;
-+		this._valueAsString = isBuffer ? undefined : internString(value);
- 	}
+-	}
++  constructor(value, convertToString = false) {
++    super();
++    const isBuffer = Buffer.isBuffer(value);
++    if (!isBuffer && typeof value !== "string") {
++      throw new TypeError("argument 'value' must be either string or Buffer");
++    }
++    this._valueIsBuffer = !convertToString && isBuffer;
++    const internedString =
++      typeof value === "string" ? internString(value) : undefined;
++    this._value =
++      convertToString && isBuffer
++        ? undefined
++        : typeof value === "string"
++        ? internedString
++        : value;
++    this._valueAsBuffer = isBuffer ? value : undefined;
++    this._valueAsString = isBuffer ? undefined : internedString;
++  }
  
- 	isBuffer() {
-@@ -27,14 +36,22 @@ class RawSource extends Source {
+-	isBuffer() {
+-		return this._valueIsBuffer;
+-	}
++  isBuffer() {
++    return this._valueIsBuffer;
++  }
  
- 	source() {
- 		if (this._value === undefined) {
--			this._value = this._valueAsBuffer.toString("utf-8");
-+			const value = internString(this._valueAsBuffer.toString("utf-8"));
-+			if (isDualStringBufferCachingEnabled()) {
-+				this._value = value;
-+			}
-+			return value;
- 		}
- 		return this._value;
- 	}
- 
- 	buffer() {
- 		if (this._valueAsBuffer === undefined) {
--			this._valueAsBuffer = Buffer.from(this._value, "utf-8");
-+			const value = Buffer.from(this._value, "utf-8");
-+			if (isDualStringBufferCachingEnabled()) {
-+				this._valueAsBuffer = value;
-+			}
-+			return value;
- 		}
- 		return this._valueAsBuffer;
- 	}
-@@ -51,17 +68,21 @@ class RawSource extends Source {
- 	 * @returns {void}
- 	 */
- 	streamChunks(options, onChunk, onSource, onName) {
+-	source() {
 -		if (this._value === undefined) {
-+		if (this._value === undefined && isDualStringBufferCachingEnabled()) {
- 			this._value = Buffer.from(this._valueAsBuffer, "utf-8");
- 		}
--		if (this._valueAsString === undefined) {
--			this._valueAsString =
-+		let strValue = this._valueAsString;
-+		if (strValue === undefined) {
-+			strValue =
- 				typeof this._value === "string"
- 					? this._value
--					: this._value.toString("utf-8");
-+					: internString(this._value.toString("utf-8"));
-+			if (isDualStringBufferCachingEnabled()) {
-+				this._valueAsString = strValue;
-+			}
- 		}
- 		return streamChunksOfRawSource(
--			this._valueAsString,
-+			strValue,
- 			onChunk,
- 			onSource,
- 			onName,
-@@ -70,11 +91,8 @@ class RawSource extends Source {
- 	}
+-			this._value = this._valueAsBuffer.toString("utf-8");
+-		}
+-		return this._value;
+-	}
++  source() {
++    if (this._value === undefined) {
++      const value = this._valueAsBuffer.toString("utf-8");
++      if (isDualStringBufferCachingEnabled()) {
++        this._value = internString(value);
++      }
++      return value;
++    }
++    return this._value;
++  }
  
- 	updateHash(hash) {
+-	buffer() {
 -		if (this._valueAsBuffer === undefined) {
 -			this._valueAsBuffer = Buffer.from(this._value, "utf-8");
 -		}
- 		hash.update("RawSource");
+-		return this._valueAsBuffer;
+-	}
++  buffer() {
++    if (this._valueAsBuffer === undefined) {
++      const value = Buffer.from(this._value, "utf-8");
++      if (isDualStringBufferCachingEnabled()) {
++        this._valueAsBuffer = value;
++      }
++      return value;
++    }
++    return this._valueAsBuffer;
++  }
+ 
+-	map(options) {
+-		return null;
+-	}
++  map(options) {
++    return null;
++  }
+ 
+-	/**
+-	 * @param {object} options options
+-	 * @param {function(string, number, number, number, number, number, number): void} onChunk called for each chunk of code
+-	 * @param {function(number, string, string)} onSource called for each source
+-	 * @param {function(number, string)} onName called for each name
+-	 * @returns {void}
+-	 */
+-	streamChunks(options, onChunk, onSource, onName) {
+-		if (this._value === undefined) {
+-			this._value = Buffer.from(this._valueAsBuffer, "utf-8");
+-		}
+-		if (this._valueAsString === undefined) {
+-			this._valueAsString =
+-				typeof this._value === "string"
+-					? this._value
+-					: this._value.toString("utf-8");
+-		}
+-		return streamChunksOfRawSource(
+-			this._valueAsString,
+-			onChunk,
+-			onSource,
+-			onName,
+-			!!(options && options.finalSource)
+-		);
+-	}
++  /**
++   * @param {object} options options
++   * @param {function(string, number, number, number, number, number, number): void} onChunk called for each chunk of code
++   * @param {function(number, string, string)} onSource called for each source
++   * @param {function(number, string)} onName called for each name
++   * @returns {void}
++   */
++  streamChunks(options, onChunk, onSource, onName) {
++    let strValue = this._valueAsString;
++    if (strValue === undefined) {
++      const value = this.source();
++      strValue = typeof value === "string" ? value : value.toString("utf-8");
++      if (isDualStringBufferCachingEnabled()) {
++        this._valueAsString = internString(strValue);
++      }
++    }
++    return streamChunksOfRawSource(
++      strValue,
++      onChunk,
++      onSource,
++      onName,
++      !!(options && options.finalSource)
++    );
++  }
+ 
+-	updateHash(hash) {
+-		if (this._valueAsBuffer === undefined) {
+-			this._valueAsBuffer = Buffer.from(this._value, "utf-8");
+-		}
+-		hash.update("RawSource");
 -		hash.update(this._valueAsBuffer);
-+		hash.update(this.buffer());
- 	}
+-	}
++  updateHash(hash) {
++    hash.update("RawSource");
++    hash.update(this.buffer());
++  }
  }
  
+ module.exports = RawSource;
 diff --git a/lib/helpers/stringBufferUtils.js b/lib/helpers/stringBufferUtils.js
 new file mode 100644
-index 0000000..3b210f1
+index 0000000000000000000000000000000000000000..3d8b85e61643412796e12e2aac6905c5e3a8d5b9
 --- /dev/null
 +++ b/lib/helpers/stringBufferUtils.js
-@@ -0,0 +1,107 @@
+@@ -0,0 +1,120 @@
 +/*
 +	MIT License http://www.opensource.org/licenses/mit-license.php
 +	Author Mark Knichel @mknichel
@@ -116,7 +177,7 @@ index 0000000..3b210f1
 + * stored twice.
 + */
 +function isDualStringBufferCachingEnabled() {
-+	return dualStringBufferCaching;
++  return dualStringBufferCaching;
 +}
 +
 +/**
@@ -128,7 +189,7 @@ index 0000000..3b210f1
 + * @returns {void}
 + */
 +function enableDualStringBufferCaching() {
-+	dualStringBufferCaching = true;
++  dualStringBufferCaching = true;
 +}
 +
 +/**
@@ -139,7 +200,7 @@ index 0000000..3b210f1
 + * @returns {void}
 + */
 +function disableDualStringBufferCaching() {
-+	dualStringBufferCaching = false;
++  dualStringBufferCaching = false;
 +}
 +
 +const interningStringMap = new Map();
@@ -156,61 +217,103 @@ index 0000000..3b210f1
 + * of the same value if it has already been interned.
 + */
 +function internString(str) {
-+	if (!isStringInterningEnabled() || !str || typeof str !== "string") {
-+		return str;
-+	}
-+	let internedString = interningStringMap.get(str);
-+	if (internedString === undefined) {
-+		internedString = str;
-+		interningStringMap.set(str, internedString);
-+	}
-+	return internedString;
++  if (
++    !isStringInterningEnabled() ||
++    !str ||
++    str.length < 128 ||
++    typeof str !== "string"
++  ) {
++    return str;
++  }
++  let internedString = interningStringMap.get(str);
++  if (internedString === undefined) {
++    internedString = str;
++    interningStringMap.set(str, internedString);
++  }
++  return internedString;
 +}
 +
 +let enableStringInterningRefCount = 0;
 +
 +function isStringInterningEnabled() {
-+	return enableStringInterningRefCount > 0;
++  return enableStringInterningRefCount > 0;
 +}
 +
 +/**
-+ * Enables a memory optimization to avoid repeat copies of the same string in
++ * Starts a memory optimization to avoid repeat copies of the same string in
 + * memory by caching a single reference to the string. This can reduce memory
 + * usage if the same string is repeated many times in the compiler, such as
 + * when Webpack layers are used with the same files.
 + *
-+ * @returns {void}
-+ */
-+function enableStringInterning() {
-+	enableStringInterningRefCount++;
-+}
-+
-+/**
-+ * Disables string interning. This should be called to free the memory used by
-+ * the interned strings after the compiler no longer needs to reuse the
-+ * interned strings such as at the end of the compilation.
++ * {@link exitStringInterningRange} should be called when string interning is
++ * no longer necessary to free up the memory used by the interned strings. If
++ * {@link enterStringInterningRange} has been called multiple times, then
++ * this method may not immediately free all the memory until
++ * {@link exitStringInterningRange} has been called to end all string
++ * interning ranges.
 + *
 + * @returns {void}
 + */
-+function disableStringInterning() {
-+	if (--enableStringInterningRefCount <= 0) {
-+		interningStringMap.clear();
-+		enableStringInterningRefCount = 0;
-+	}
++function enterStringInterningRange() {
++  enableStringInterningRefCount++;
++}
++
++/**
++ * Stops the current string interning range. Once all string interning ranges
++ * have been exited, this method will free all the memory used by the interned
++ * strings. This method should be called once for each time that
++ * {@link enterStringInterningRange} was called.
++ *
++ * @returns {void}
++ */
++function exitStringInterningRange() {
++  if (--enableStringInterningRefCount <= 0) {
++    interningStringMap.clear();
++    enableStringInterningRefCount = 0;
++  }
 +}
 +
 +module.exports = {
-+	disableDualStringBufferCaching,
-+	disableStringInterning,
-+	enableDualStringBufferCaching,
-+	enableStringInterning,
-+	internString,
-+	isDualStringBufferCachingEnabled
++  disableDualStringBufferCaching,
++  enableDualStringBufferCaching,
++  internString,
++  isDualStringBufferCachingEnabled,
++  enterStringInterningRange,
++  exitStringInterningRange,
 +};
 diff --git a/lib/index.js b/lib/index.js
-index 0c11c2f..86a7234 100644
+index 0c11c2f4cf5387e249cf12fa0fcb746dfcfec539..9ca1b100d8250d4f3c41e5931f710efbbca21611 100644
 --- a/lib/index.js
 +++ b/lib/index.js
+@@ -4,17 +4,17 @@
+ */
+ 
+ const defineExport = (name, fn) => {
+-	let value;
+-	Object.defineProperty(exports, name, {
+-		get: () => {
+-			if (fn !== undefined) {
+-				value = fn();
+-				fn = undefined;
+-			}
+-			return value;
+-		},
+-		configurable: true
+-	});
++  let value;
++  Object.defineProperty(exports, name, {
++    get: () => {
++      if (fn !== undefined) {
++        value = fn();
++        fn = undefined;
++      }
++      return value;
++    },
++    configurable: true,
++  });
+ };
+ 
+ defineExport("Source", () => require("./Source"));
 @@ -28,3 +28,4 @@ defineExport("ReplaceSource", () => require("./ReplaceSource"));
  defineExport("PrefixSource", () => require("./PrefixSource"));
  defineExport("SizeOnlySource", () => require("./SizeOnlySource"));

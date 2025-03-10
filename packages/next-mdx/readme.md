@@ -128,8 +128,6 @@ const withMDX = require('@next/mdx')({
     // https://github.com/remarkjs/remark-gfm#install
     remarkPlugins: [],
     rehypePlugins: [],
-    // If you use `MDXProvider`, uncomment the following line.
-    // providerImportSource: "@mdx-js/react",
   },
 })
 

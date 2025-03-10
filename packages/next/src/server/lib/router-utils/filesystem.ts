@@ -1,4 +1,5 @@
 import type {
+  FunctionsConfigManifest,
   ManifestRoute,
   PrerenderManifest,
   RoutesManifest,
@@ -13,7 +14,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
@@ -30,6 +31,7 @@ import { getMiddlewareRouteMatcher } from '../../../shared/lib/router/utils/midd
 import {
   APP_PATH_ROUTES_MANIFEST,
   BUILD_ID_FILE,
+  FUNCTIONS_CONFIG_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
   PRERENDER_MANIFEST,
@@ -38,8 +40,8 @@ import {
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 export type FsOutput = {
   type:
@@ -104,17 +106,13 @@ export async function setupFsCheck(opts: {
   ) => void
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<string, FsOutput | null>({
-        max: 1024 * 1024,
-        length(value, key) {
-          if (!value) return key?.length || 0
-          return (
-            (key || '').length +
-            (value.fsPath || '').length +
-            value.itemPath.length +
-            value.type.length
-          )
-        },
+    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
+        if (!value) return 0
+        return (
+          (value.fsPath || '').length +
+          value.itemPath.length +
+          value.type.length
+        )
       })
     : undefined
 
@@ -162,7 +160,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
         // Ensure filename is encoded and normalized.
-        publicFolderItems.add(encodeURI(normalizePathSep(file)))
+        publicFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -173,7 +171,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(legacyStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
-        legacyStaticFolderItems.add(encodeURI(normalizePathSep(file)))
+        legacyStaticFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -188,7 +186,10 @@ export async function setupFsCheck(opts: {
       for (const file of await recursiveReadDir(nextStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
         nextStaticFolderItems.add(
-          path.posix.join('/_next/static', encodeURI(normalizePathSep(file)))
+          path.posix.join(
+            '/_next/static',
+            encodeURIPath(normalizePathSep(file))
+          )
         )
       }
     } catch (err) {
@@ -201,6 +202,11 @@ export async function setupFsCheck(opts: {
       distDir,
       'server',
       MIDDLEWARE_MANIFEST
+    )
+    const functionsConfigManifestPath = path.join(
+      distDir,
+      'server',
+      FUNCTIONS_CONFIG_MANIFEST
     )
     const pagesManifestPath = path.join(distDir, 'server', PAGES_MANIFEST)
     const appRoutesManifestPath = path.join(distDir, APP_PATH_ROUTES_MANIFEST)
@@ -216,6 +222,10 @@ export async function setupFsCheck(opts: {
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
     ) as MiddlewareManifest
+
+    const functionsConfigManifest = JSON.parse(
+      await fs.readFile(functionsConfigManifestPath, 'utf8').catch(() => '{}')
+    ) as FunctionsConfigManifest
 
     const pagesManifest = JSON.parse(
       await fs.readFile(pagesManifestPath, 'utf8')
@@ -274,6 +284,12 @@ export async function setupFsCheck(opts: {
     if (middlewareManifest.middleware?.['/']?.matchers) {
       middlewareMatcher = getMiddlewareRouteMatcher(
         middlewareManifest.middleware?.['/']?.matchers
+      )
+    } else if (functionsConfigManifest?.functions['/_middleware']) {
+      middlewareMatcher = getMiddlewareRouteMatcher(
+        functionsConfigManifest.functions['/_middleware'].matchers ?? [
+          { regexp: '.*', originalSource: '/:path*' },
+        ]
       )
     }
 
@@ -381,9 +397,6 @@ export async function setupFsCheck(opts: {
     prefetchRSC: opts.config.experimental.ppr
       ? new PrefetchRSCPathnameNormalizer()
       : undefined,
-    postponed: opts.config.experimental.ppr
-      ? new PostponedPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -421,21 +434,18 @@ export async function setupFsCheck(opts: {
         return lruResult
       }
 
-      const { basePath, assetPrefix } = opts.config
+      const { basePath } = opts.config
 
       const hasBasePath = pathHasPrefix(itemPath, basePath)
-      const hasAssetPrefix = pathHasPrefix(itemPath, assetPrefix)
 
-      // Return null if either path doesn't start with basePath or assetPrefix
-      if ((basePath || assetPrefix) && !hasBasePath && !hasAssetPrefix) {
+      // Return null if path doesn't start with basePath
+      if (basePath && !hasBasePath) {
         return null
       }
 
-      // Either remove basePath or assetPrefix, not both (due to routes with same name as basePath)
+      // Remove basePath if it exists.
       if (basePath && hasBasePath) {
         itemPath = removePathPrefix(itemPath, basePath) || '/'
-      } else if (assetPrefix && hasAssetPrefix) {
-        itemPath = removePathPrefix(itemPath, assetPrefix) || '/'
       }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
@@ -445,8 +455,6 @@ export async function setupFsCheck(opts: {
           itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
         } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed?.match(itemPath)) {
-          itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }
 
@@ -568,7 +576,7 @@ export async function setupFsCheck(opts: {
             // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
-              const encodedCurItemPath = encodeURI(curItemPath)
+              const encodedCurItemPath = encodeURIPath(curItemPath)
               matchedItem = items.has(encodedCurItemPath)
             } catch {}
           }

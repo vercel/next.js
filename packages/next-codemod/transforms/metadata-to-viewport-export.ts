@@ -1,7 +1,8 @@
 import type { API, FileInfo } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
-export default function transformer(file: FileInfo, api: API) {
-  const j = api.jscodeshift
+export default function transformer(file: FileInfo, _api: API) {
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   // Find the metadata export

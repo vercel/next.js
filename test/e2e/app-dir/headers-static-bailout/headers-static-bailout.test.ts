@@ -46,19 +46,12 @@ describe('headers-static-bailout', () => {
       outdent`
         import { cookies } from 'next/headers'
 
-        async function foo() {
-          return new Promise((resolve) =>
-            // break out of the expected async context, causing an uncaught build-time error
-            setTimeout(() => {
-              resolve(cookies().getAll())
-            }, 1000)
-          )
-        }
-        
         export default async function Page() {
-          await foo()
+          setTimeout(() => {
+            cookies().then(c => c.getAll())
+          }, 0)
           return <div>Hello World</div>
-        }          
+        }
         `
     )
     const { cliOutput } = await next.build()

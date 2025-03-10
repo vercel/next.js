@@ -1,16 +1,15 @@
-import type { ExportRouteResult, FileWriter } from '../types'
+import type { ExportRouteResult } from '../types'
 import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
 import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 
-import { join } from 'path'
 import {
+  INFINITE_CACHE,
   NEXT_BODY_SUFFIX,
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
 } from '../../lib/constants'
 import { NodeNextRequest } from '../../server/base-http/node'
-import { RouteModuleLoader } from '../../server/lib/module-loader/route-module-loader'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
@@ -21,12 +20,14 @@ import type {
   MockedResponse,
 } from '../../server/lib/mock-request'
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
-import { SERVER_DIRECTORY } from '../../shared/lib/constants'
-import { hasNextSupport } from '../../telemetry/ci-info'
+import { hasNextSupport } from '../../server/ci-info'
 import { isStaticGenEnabled } from '../../server/route-modules/app-route/helpers/is-static-gen-enabled'
 import type { ExperimentalConfig } from '../../server/config-shared'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import type { Params } from '../../server/request/params'
+import { AfterRunner } from '../../server/after/run-with-after'
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -36,13 +37,21 @@ export const enum ExportedAppRouteFiles {
 export async function exportAppRoute(
   req: MockedRequest,
   res: MockedResponse,
-  params: { [key: string]: string | string[] } | undefined,
+  params: Params | undefined,
   page: string,
+  module: AppRouteRouteModule,
   incrementalCache: IncrementalCache | undefined,
-  distDir: string,
+  cacheLifeProfiles:
+    | undefined
+    | {
+        [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+      },
   htmlFilepath: string,
-  fileWriter: FileWriter,
-  experimental: Required<Pick<ExperimentalConfig, 'after'>>
+  fileWriter: MultiFileWriter,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
+  >,
+  buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
   req.url = `http://localhost:3000${req.url}`
@@ -52,6 +61,8 @@ export async function exportAppRoute(
     new NodeNextRequest(req),
     signalFromNodeResponse(res)
   )
+
+  const afterRunner = new AfterRunner()
 
   // Create the context for the handler. This contains the params from
   // the route and the context for the request.
@@ -73,8 +84,13 @@ export async function exportAppRoute(
       nextExport: true,
       supportsDynamicResponse: false,
       incrementalCache,
-      waitUntil: undefined,
-      onClose: undefined,
+      waitUntil: afterRunner.context.waitUntil,
+      onClose: afterRunner.context.onClose,
+      onAfterTaskError: afterRunner.context.onTaskError,
+      cacheLifeProfiles,
+    },
+    sharedContext: {
+      buildId,
     },
   }
 
@@ -82,38 +98,52 @@ export async function exportAppRoute(
     context.renderOpts.isRevalidate = true
   }
 
-  // This is a route handler, which means it has it's handler in the
-  // bundled file already, we should just use that.
-  const filename = join(distDir, SERVER_DIRECTORY, 'app', page)
-
   try {
-    // Route module loading and handling.
-    const module = await RouteModuleLoader.load<AppRouteRouteModule>(filename)
     const userland = module.userland
     // we don't bail from the static optimization for
     // metadata routes
     const normalizedPage = normalizeAppPath(page)
     const isMetadataRoute = isMetadataRouteFile(normalizedPage, [], false)
 
-    if (!isStaticGenEnabled(userland) && !isMetadataRoute) {
-      return { revalidate: 0 }
+    if (
+      !isStaticGenEnabled(userland) &&
+      !isMetadataRoute &&
+      // We don't disable static gen when dynamicIO is enabled because we
+      // expect that anything dynamic in the GET handler will make it dynamic
+      // and thus avoid the cache surprises that led to us removing static gen
+      // unless specifically opted into
+      experimental.dynamicIO !== true
+    ) {
+      return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
     const response = await module.handle(request, context)
 
     const isValidStatus = response.status < 400 || response.status === 404
     if (!isValidStatus) {
-      return { revalidate: 0 }
+      return { cacheControl: { revalidate: 0, expire: undefined } }
     }
 
     const blob = await response.blob()
+
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
+
     const revalidate =
-      typeof context.renderOpts.store?.revalidate === 'undefined'
+      typeof context.renderOpts.collectedRevalidate === 'undefined' ||
+      context.renderOpts.collectedRevalidate >= INFINITE_CACHE
         ? false
-        : context.renderOpts.store.revalidate
+        : context.renderOpts.collectedRevalidate
+
+    const expire =
+      typeof context.renderOpts.collectedExpire === 'undefined' ||
+      context.renderOpts.collectedExpire >= INFINITE_CACHE
+        ? undefined
+        : context.renderOpts.collectedExpire
 
     const headers = toNodeOutgoingHttpHeaders(response.headers)
-    const cacheTags = (context.renderOpts as any).fetchTags
+    const cacheTags = context.renderOpts.collectedTags
 
     if (cacheTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
@@ -125,23 +155,17 @@ export async function exportAppRoute(
 
     // Writing response body to a file.
     const body = Buffer.from(await blob.arrayBuffer())
-    await fileWriter(
-      ExportedAppRouteFiles.BODY,
-      htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX),
-      body,
-      'utf8'
-    )
+    fileWriter.append(htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX), body)
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
-    await fileWriter(
-      ExportedAppRouteFiles.META,
+    fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta)
     )
 
     return {
-      revalidate: revalidate,
+      cacheControl: { revalidate, expire },
       metadata: meta,
     }
   } catch (err) {
@@ -149,6 +173,6 @@ export async function exportAppRoute(
       throw err
     }
 
-    return { revalidate: 0 }
+    return { cacheControl: { revalidate: 0, expire: undefined } }
   }
 }

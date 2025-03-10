@@ -17,7 +17,8 @@ import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 export function tryGetPreviewData(
   req: IncomingMessage | BaseNextRequest | Request,
   res: ServerResponse | BaseNextResponse,
-  options: __ApiPreviewProps
+  options: __ApiPreviewProps,
+  multiZoneDraftMode: boolean
 ): PreviewData {
   // if an On-Demand revalidation is being done preview mode
   // is disabled
@@ -61,13 +62,17 @@ export function tryGetPreviewData(
 
   // Case: one cookie is set, but not the other.
   if (!previewModeId || !tokenPreviewData) {
-    clearPreviewData(res as NextApiResponse)
+    if (!multiZoneDraftMode) {
+      clearPreviewData(res as NextApiResponse)
+    }
     return false
   }
 
   // Case: preview session is for an old build.
   if (previewModeId !== options.previewModeId) {
-    clearPreviewData(res as NextApiResponse)
+    if (!multiZoneDraftMode) {
+      clearPreviewData(res as NextApiResponse)
+    }
     return false
   }
 

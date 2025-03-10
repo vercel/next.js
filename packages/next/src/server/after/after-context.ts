@@ -1,89 +1,77 @@
 import PromiseQueue from 'next/dist/compiled/p-queue'
-import {
-  requestAsyncStorage,
-  type RequestStore,
-} from '../../client/components/request-async-storage.external'
-import type { CacheScope } from './react-cache-scope'
-import { ResponseCookies } from '../web/spec-extension/cookies'
 import type { RequestLifecycleOpts } from '../base-server'
 import type { AfterCallback, AfterTask } from './after'
 import { InvariantError } from '../../shared/lib/invariant-error'
-
-export interface AfterContext {
-  run<T>(requestStore: RequestStore, callback: () => T): T
-  after(task: AfterTask): void
-}
+import { isThenable } from '../../shared/lib/is-thenable'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { withExecuteRevalidates } from './revalidation-utils'
+import { bindSnapshot } from '../app-render/async-local-storage'
+import {
+  workUnitAsyncStorage,
+  type WorkUnitStore,
+} from '../app-render/work-unit-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  onClose: RequestLifecycleOpts['onClose'] | undefined
-  cacheScope: CacheScope | undefined
+  onClose: RequestLifecycleOpts['onClose']
+  onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
-export function createAfterContext(opts: AfterContextOpts): AfterContext {
-  return new AfterContextImpl(opts)
-}
-
-export class AfterContextImpl implements AfterContext {
+export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
-  private onClose: RequestLifecycleOpts['onClose'] | undefined
-  private cacheScope: CacheScope | undefined
-
-  private requestStore: RequestStore | undefined
+  private onClose: RequestLifecycleOpts['onClose']
+  private onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 
   private runCallbacksOnClosePromise: Promise<void> | undefined
   private callbackQueue: PromiseQueue
+  private workUnitStores = new Set<WorkUnitStore>()
 
-  constructor({ waitUntil, onClose, cacheScope }: AfterContextOpts) {
+  constructor({ waitUntil, onClose, onTaskError }: AfterContextOpts) {
     this.waitUntil = waitUntil
     this.onClose = onClose
-    this.cacheScope = cacheScope
+    this.onTaskError = onTaskError
 
     this.callbackQueue = new PromiseQueue()
     this.callbackQueue.pause()
   }
 
-  public run<T>(requestStore: RequestStore, callback: () => T): T {
-    this.requestStore = requestStore
-    if (this.cacheScope) {
-      return this.cacheScope.run(() => callback())
-    } else {
-      return callback()
-    }
-  }
-
   public after(task: AfterTask): void {
-    if (isPromise(task)) {
-      task.catch(() => {}) // avoid unhandled rejection crashes
+    if (isThenable(task)) {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task)
+      this.waitUntil(
+        task.catch((error) => this.reportTaskError('promise', error))
+      )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
     } else {
-      throw new Error(
-        '`unstable_after()`: Argument must be a promise or a function'
-      )
+      throw new Error('`after()`: Argument must be a promise or a function')
     }
   }
 
   private addCallback(callback: AfterCallback) {
-    // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
+    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
-    if (!this.requestStore) {
-      throw new InvariantError(
-        'unstable_after: Expected `AfterContext.requestStore` to be initialized'
-      )
+
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      this.workUnitStores.add(workUnitStore)
     }
-    if (!this.onClose) {
-      throw new InvariantError(
-        'unstable_after: Missing `onClose` implementation'
-      )
-    }
+
+    const afterTaskStore = afterTaskAsyncStorage.getStore()
+
+    // This is used for checking if request APIs can be called inside `after`.
+    // Note that we need to check the phase in which the *topmost* `after` was called (which should be "action"),
+    // not the current phase (which might be "after" if we're in a nested after).
+    // Otherwise, we might allow `after(() => headers())`, but not `after(() => after(() => headers()))`.
+    const rootTaskSpawnPhase = afterTaskStore
+      ? afterTaskStore.rootTaskSpawnPhase // nested after
+      : workUnitStore?.phase // topmost after
 
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
@@ -91,81 +79,76 @@ export class AfterContextImpl implements AfterContext {
       this.waitUntil(this.runCallbacksOnClosePromise)
     }
 
-    const wrappedCallback = async () => {
+    // Bind the callback to the current execution context (i.e. preserve all currently available ALS-es).
+    // We do this because we want all of these to be equivalent in every regard except timing:
+    //   after(() => x())
+    //   after(x())
+    //   await x()
+    const wrappedCallback = bindSnapshot(async () => {
       try {
-        await callback()
-      } catch (err) {
-        // TODO(after): this is fine for now, but will need better intergration with our error reporting.
-        console.error(
-          'An error occurred in a function passed to `unstable_after()`:',
-          err
+        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+          callback()
         )
+      } catch (error) {
+        this.reportTaskError('function', error)
       }
-    }
+    })
 
     this.callbackQueue.add(wrappedCallback)
   }
 
   private async runCallbacksOnClose() {
     await new Promise<void>((resolve) => this.onClose!(resolve))
-    return this.runCallbacks(this.requestStore!)
+    return this.runCallbacks()
   }
 
-  private async runCallbacks(requestStore: RequestStore): Promise<void> {
+  private async runCallbacks(): Promise<void> {
     if (this.callbackQueue.size === 0) return
 
-    const runCallbacksImpl = async () => {
-      this.callbackQueue.start()
-      return this.callbackQueue.onIdle()
+    for (const workUnitStore of this.workUnitStores) {
+      workUnitStore.phase = 'after'
     }
 
-    const readonlyRequestStore: RequestStore =
-      wrapRequestStoreForAfterCallbacks(requestStore)
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      throw new InvariantError('Missing workStore in AfterContext.runCallbacks')
+    }
 
-    return requestAsyncStorage.run(readonlyRequestStore, () => {
-      if (this.cacheScope) {
-        return this.cacheScope.run(runCallbacksImpl)
-      } else {
-        return runCallbacksImpl()
-      }
+    return withExecuteRevalidates(workStore, () => {
+      this.callbackQueue.start()
+      return this.callbackQueue.onIdle()
     })
+  }
+
+  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
+    // TODO(after): this is fine for now, but will need better intergration with our error reporting.
+    // TODO(after): should we log this if we have a onTaskError callback?
+    console.error(
+      taskKind === 'promise'
+        ? `A promise passed to \`after()\` rejected:`
+        : `An error occurred in a function passed to \`after()\`:`,
+      error
+    )
+    if (this.onTaskError) {
+      // this is very defensive, but we really don't want anything to blow up in an error handler
+      try {
+        this.onTaskError?.(error)
+      } catch (handlerError) {
+        console.error(
+          new InvariantError(
+            '`onTaskError` threw while handling an error thrown from an `after` task',
+            {
+              cause: handlerError,
+            }
+          )
+        )
+      }
+    }
   }
 }
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(
-    '`unstable_after()` will not work correctly, because `waitUntil` is not available in the current environment.'
-  )
-}
-
-/** Disable mutations of `requestStore` within `after()` and disallow nested after calls.  */
-function wrapRequestStoreForAfterCallbacks(
-  requestStore: RequestStore
-): RequestStore {
-  return {
-    url: requestStore.url,
-    get headers() {
-      return requestStore.headers
-    },
-    get cookies() {
-      return requestStore.cookies
-    },
-    get draftMode() {
-      return requestStore.draftMode
-    },
-    // TODO(after): calling a `cookies.set()` in an after() that's in an action doesn't currently error.
-    mutableCookies: new ResponseCookies(new Headers()),
-    assetPrefix: requestStore.assetPrefix,
-    reactLoadableManifest: requestStore.reactLoadableManifest,
-    afterContext: requestStore.afterContext,
-  }
-}
-
-function isPromise(p: unknown): p is Promise<unknown> {
-  return (
-    p !== null &&
-    typeof p === 'object' &&
-    'then' in p &&
-    typeof p.then === 'function'
+    '`after()` will not work correctly, because `waitUntil` is not available in the current environment.'
   )
 }

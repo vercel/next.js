@@ -1,0 +1,284 @@
+[
+    (
+        "*arrow function 1213*",
+        Function(
+            4,
+            1213,
+            Call(
+                3,
+                Variable(
+                    (
+                        "__webpack_require__",
+                        #3,
+                    ),
+                ),
+                [
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported expression",
+                        has_side_effects: true,
+                    },
+                ],
+            ),
+        ),
+    ),
+    (
+        "*arrow function 131*",
+        Function(
+            2,
+            131,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "*arrow function 389*",
+        Function(
+            2,
+            389,
+            Variable(
+                (
+                    "handler",
+                    #4,
+                ),
+            ),
+        ),
+    ),
+    (
+        "__unused_webpack_module",
+        Argument(
+            131,
+            0,
+        ),
+    ),
+    (
+        "__webpack_exec__",
+        Variable(
+            (
+                "*arrow function 1213*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "__webpack_exports__#3",
+        Call(
+            3,
+            Variable(
+                (
+                    "__webpack_exec__",
+                    #3,
+                ),
+            ),
+            [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5166.0,
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "__webpack_exports__#4",
+        Argument(
+            131,
+            1,
+        ),
+    ),
+    (
+        "__webpack_require__#3",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "../../webpack-api-runtime.js",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "__webpack_require__#4",
+        Argument(
+            131,
+            2,
+        ),
+    ),
+    (
+        "_req",
+        Argument(
+            760,
+            0,
+        ),
+    ),
+    (
+        "exports",
+        Object {
+            total_nodes: 1,
+            parts: [],
+            mutable: true,
+        },
+    ),
+    (
+        "handler",
+        Function(
+            2,
+            760,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "hello",
+        MemberCall(
+            5,
+            Variable(
+                (
+                    "promises_namespaceObject",
+                    #4,
+                ),
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "readFile",
+                    ),
+                ),
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "./hello.txt",
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "utf-8",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "moduleId",
+        Argument(
+            1213,
+            0,
+        ),
+    ),
+    (
+        "promises_namespaceObject",
+        Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "fs/promises",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+    ),
+    (
+        "res",
+        Argument(
+            760,
+            1,
+        ),
+    ),
+    (
+        "users",
+        Array {
+            total_nodes: 10,
+            items: [
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        1.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        2.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "id",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Num(
+                                    ConstantNumber(
+                                        3.0,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+            mutable: true,
+        },
+    ),
+]

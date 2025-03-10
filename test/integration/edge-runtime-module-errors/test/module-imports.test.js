@@ -4,13 +4,13 @@
 import { remove } from 'fs-extra'
 import { join } from 'path'
 import {
-  check,
   fetchViaHTTP,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import {
   context,
@@ -78,21 +78,19 @@ describe('Edge runtime code with imports', () => {
       },
     },
   ])('$title statically importing node.js module', ({ init, url }) => {
-    const moduleName = 'path'
+    const moduleName = 'fs'
     const importStatement = `import { basename } from "${moduleName}"`
 
     beforeEach(() => init(importStatement))
 
     it('throws unsupported module error in dev at runtime and highlights the faulty line', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(500)
-
-      const text = await res.text()
-      await check(async () => {
+      await retry(async () => {
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(res.status).toBe(500)
+        const text = await res.text()
         expectUnsupportedModuleDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
@@ -152,14 +150,13 @@ describe('Edge runtime code with imports', () => {
 
     it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(500)
+      await retry(async () => {
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(res.status).toBe(500)
 
-      const text = await res.text()
-      await check(async () => {
+        const text = await res.text()
         expectModuleNotFoundDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
@@ -218,14 +215,13 @@ describe('Edge runtime code with imports', () => {
 
     it('throws not-found module error in dev at runtime and highlights the faulty line', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(500)
+      await retry(async () => {
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(res.status).toBe(500)
 
-      const text = await res.text()
-      await check(async () => {
+        const text = await res.text()
         expectModuleNotFoundDevError(moduleName, importStatement, text)
-        return 'success'
-      }, 'success')
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
@@ -285,9 +281,11 @@ describe('Edge runtime code with imports', () => {
 
     it('does not throw in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(res.status).toBe(200)
-      expectNoError(moduleName)
+      await retry(async () => {
+        const res = await fetchViaHTTP(context.appPort, url)
+        expect(res.status).toBe(200)
+        expectNoError(moduleName)
+      })
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

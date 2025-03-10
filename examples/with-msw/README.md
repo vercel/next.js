@@ -16,11 +16,19 @@ The service worker file will automatically be generated in `public/mockServiceWo
 npx msw init public/
 ```
 
+```bash
+yarn msw init public/
+```
+
+```bash
+pnpm msw init public/
+```
+
 More information on this setup step can be found in the MSW documentation [here](https://mswjs.io/docs/getting-started/integrate/browser#setup).
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-msw)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-msw&project-name=with-msw&repository-name=with-msw)
 

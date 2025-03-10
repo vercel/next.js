@@ -5,7 +5,7 @@ async function isLoggedIn() {
   // sleep for 1s
   await new Promise((resolve) => setTimeout(resolve, 1000))
 
-  const cookieData = cookies()
+  const cookieData = await cookies()
   const hasSession = !!cookieData.get('logged-in')
 
   return hasSession

@@ -1,6 +1,7 @@
 {
   "name": "@next/font",
-  "version": "15.0.0-canary.55",
+  "private": true,
+  "version": "15.2.2-canary.6",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/font"
@@ -13,7 +14,7 @@
   ],
   "license": "MIT",
   "scripts": {
-    "build": "node ../../scripts/rm.mjs dist && pnpm ncc-fontkit && tsc -d -p tsconfig.json",
+    "build": "node ../../scripts/rm.mjs dist && pnpm ncc-fontkit && tsc -d -p tsconfig.build.json",
     "prepublishOnly": "cd ../../ && turbo run build",
     "dev": "pnpm ncc-fontkit && tsc -d -w -p tsconfig.json",
     "typescript": "tsec --noEmit -p tsconfig.json",
@@ -22,9 +23,7 @@
   "devDependencies": {
     "@types/fontkit": "2.0.0",
     "@vercel/ncc": "0.34.0",
-    "fontkit": "2.0.2"
-  },
-  "peerDependencies": {
-    "next": "14.3.0-canary.15"
+    "fontkit": "2.0.2",
+    "typescript": "5.8.2"
   }
 }

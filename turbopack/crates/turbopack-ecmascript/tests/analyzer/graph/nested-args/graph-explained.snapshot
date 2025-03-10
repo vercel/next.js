@@ -1,0 +1,25 @@
+a#3 = arguments[0]
+
+a#6 = arguments[0]
+
+a#9 = arguments[0]
+
+b#10 = arguments[0]
+
+b#5 = arguments[0]
+
+inner = (...) => (a + b)
+
+outer = (...) => inner("b")
+
+r = (...) => (undefined | a | (r((a + 1)) + 1))
+
+v1 = x(1)(2)
+
+v2 = r(2)
+
+v3 = outer("a")
+
+x = (...) => y
+
+y = (...) => (a + b)

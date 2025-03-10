@@ -1,0 +1,77 @@
+[package]
+name = "turbopack-cli"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[[bin]]
+name = "turbopack-cli"
+path = "src/main.rs"
+bench = false
+
+[lib]
+bench = false
+
+[[bench]]
+name = "mod"
+harness = false
+
+[features]
+default = ["custom_allocator"]
+serializable = []
+tokio_console = [
+  "dep:console-subscriber",
+  "tokio/tracing",
+  "turbo-tasks/tokio_tracing",
+]
+profile = []
+custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+clap = { workspace = true, features = ["derive", "env"] }
+console-subscriber = { workspace = true, optional = true }
+dunce = { workspace = true }
+futures = { workspace = true }
+mime = { workspace = true }
+owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["json"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fetch = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+turbopack = { workspace = true }
+turbopack-browser = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-dev-server = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, features = [
+  "transform_emotion",
+] }
+turbopack-ecmascript-runtime = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-nodejs = { workspace = true }
+turbopack-resolve = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+webbrowser = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+regex = { workspace = true }
+turbopack-bench = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

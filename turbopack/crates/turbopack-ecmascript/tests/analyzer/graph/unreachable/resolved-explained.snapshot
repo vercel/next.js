@@ -1,0 +1,31 @@
+*arrow function 567* = (...) => (undefined | FreeVar(undefined))
+
+a = (...) => (undefined | FreeVar(undefined))
+
+b = (...) => (undefined | FreeVar(undefined))
+
+c = (...) => (undefined | FreeVar(undefined))
+
+d = (...) => (undefined | FreeVar(undefined))
+
+e#16 = ???*0*
+- *0* e
+  ⚠️  pattern without value
+
+e#2 = (...) => (undefined | FreeVar(undefined))
+
+f = (...) => (undefined | FreeVar(undefined))
+
+g = (...) => (undefined | FreeVar(undefined))
+
+h = (...) => undefined
+
+x#10 = ???*0*
+- *0* x
+  ⚠️  pattern without value
+
+x#17 = (...) => (undefined | FreeVar(undefined))
+
+y = ???*0*
+- *0* unknown mutation
+  ⚠️  This value might have side effects

@@ -9,6 +9,7 @@ import {
   killApp,
   waitFor,
   nextBuild,
+  findAllTelemetryEvents,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -112,11 +113,14 @@ describe('Telemetry CLI', () => {
         })
 
         expect(stderr).toMatch(/isSrcDir.*?false/)
-        expect(stderr).toMatch(/package.*?"fs"/)
-        expect(stderr).toMatch(/package.*?"path"/)
-        expect(stderr).toMatch(/package.*?"http"/)
-        expect(stderr).toMatch(/NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS/)
 
+        // Turbopack intentionally does not support these events
+        if (!process.env.TURBOPACK) {
+          expect(stderr).toMatch(/package.*?"fs"/)
+          expect(stderr).toMatch(/package.*?"path"/)
+          expect(stderr).toMatch(/package.*?"http"/)
+          expect(stderr).toMatch(/NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS/)
+        }
         await fs.move(
           path.join(appDir, 'pages'),
           path.join(appDir, 'src/pages')
@@ -170,7 +174,10 @@ describe('Telemetry CLI', () => {
           path.join(appDir, 'pages', 'warning.skip')
         )
 
-        expect(stderr).toMatch(/Compiled with warnings/)
+        // Turbopack does not have this specific log line.
+        if (!process.env.TURBOPACK) {
+          expect(stderr).toMatch(/Compiled with warnings/)
+        }
         expect(stderr).toMatch(/NEXT_BUILD_COMPLETED/)
       })
 
@@ -349,6 +356,24 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": true/)
         expect(event).toMatch(/"hasBabelConfig": false/)
+
+        // This event doesn't get recorded for Turbopack as the webpack config is not executed.
+        if (!process.env.TURBOPACK) {
+          // Check if features are detected correctly when custom webpack config exists
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'swcStyledComponents',
+            invocationCount: 0,
+          })
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'webpackPlugins',
+            invocationCount: 1,
+          })
+        }
       })
       it('detect static 404 correctly for `next build`', async () => {
         const { stderr } = await nextBuild(appDir, [], {
@@ -374,10 +399,10 @@ describe('Telemetry CLI', () => {
         expect(event1).toMatch(/"staticPropsPageCount": 2/)
         expect(event1).toMatch(/"serverPropsPageCount": 2/)
         expect(event1).toMatch(/"ssrPageCount": 3/)
-        expect(event1).toMatch(/"staticPageCount": 4/)
-        expect(event1).toMatch(/"totalPageCount": 11/)
-        expect(event1).toMatch(/"totalAppPagesCount": 0/)
-        expect(event1).toMatch(/"staticAppPagesCount": 0/)
+        expect(event1).toMatch(/"staticPageCount": 5/)
+        expect(event1).toMatch(/"totalPageCount": 12/)
+        expect(event1).toMatch(/"totalAppPagesCount": 3/)
+        expect(event1).toMatch(/"staticAppPagesCount": 3/)
         expect(event1).toMatch(/"serverAppPagesCount": 0/)
         expect(event1).toMatch(/"edgeRuntimeAppCount": 0/)
         expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)

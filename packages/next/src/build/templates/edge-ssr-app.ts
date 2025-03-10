@@ -13,9 +13,13 @@ import type { NextConfigComplete } from '../../server/config-shared'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import { createServerModuleMap } from '../../server/app-render/action-utils'
+import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
+
+// Initialize the cache handlers interface.
+initializeCacheHandlers()
 
 const Document: DocumentType = null!
 const appMod = null
@@ -37,7 +41,6 @@ declare const nextConfig: NextConfigComplete
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
 const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
@@ -51,11 +54,11 @@ const interceptionRouteRewrites =
 
 if (rscManifest && rscServerManifest) {
   setReferenceManifestsSingleton({
+    page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
     serverModuleMap: createServerModuleMap({
       serverActionsManifest: rscServerManifest,
-      pageName: 'VAR_PAGE',
     }),
   })
 }
@@ -70,7 +73,6 @@ const render = getRender({
   error500Mod,
   Document,
   buildManifest,
-  prerenderManifest,
   renderToHTML,
   reactLoadableManifest,
   clientReferenceManifest: isServerComponent ? rscManifest : null,

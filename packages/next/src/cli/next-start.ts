@@ -9,17 +9,23 @@ import {
   isPortIsReserved,
 } from '../lib/helpers/get-reserved-port'
 
-type NextStartOptions = {
+export type NextStartOptions = {
   port: number
   hostname?: string
   keepAliveTimeout?: number
 }
 
+/**
+ * Start the Next.js server
+ *
+ * @param options The options for the start command
+ * @param directory The directory to start the server in
+ */
 const nextStart = async (options: NextStartOptions, directory?: string) => {
   const dir = getProjectDir(directory)
-  const host = options.hostname
+  const hostname = options.hostname
   const port = options.port
-  let keepAliveTimeout = options.keepAliveTimeout
+  const keepAliveTimeout = options.keepAliveTimeout
 
   if (isPortIsReserved(port)) {
     printAndExit(getReservedPortExplanation(port), 1)
@@ -28,7 +34,7 @@ const nextStart = async (options: NextStartOptions, directory?: string) => {
   await startServer({
     dir,
     isDev: false,
-    hostname: host,
+    hostname,
     port,
     keepAliveTimeout,
   })

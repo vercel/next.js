@@ -1,6 +1,6 @@
 import type { OutgoingHttpHeaders } from 'http'
 import type RenderResult from '../render-result'
-import type { Revalidate } from '../lib/revalidate'
+import type { CacheControl, Revalidate } from '../lib/cache-control'
 import type { RouteKind } from '../route-kind'
 
 export interface ResponseCacheBase {
@@ -16,21 +16,47 @@ export interface ResponseCacheBase {
        * this is so it knows where to look up the cache entry from. If not
        * provided it will test the filesystem to check.
        */
-      routeKind?: RouteKind
+      routeKind: RouteKind
 
+      /**
+       * True if this is a fallback request.
+       */
+      isFallback?: boolean
+
+      /**
+       * True if the route is enabled for PPR.
+       */
       isRoutePPREnabled?: boolean
     }
   ): Promise<ResponseCacheEntry | null>
 }
 
+// The server components HMR cache might store other data as well in the future,
+// at which point this should be refactored to a discriminated union type.
+export interface ServerComponentsHmrCache {
+  get(key: string): CachedFetchData | undefined
+  set(key: string, data: CachedFetchData): void
+}
+
+export type CachedFetchData = {
+  headers: Record<string, string>
+  body: string
+  url: string
+  status?: number
+}
+
+export const enum CachedRouteKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  REDIRECT = 'REDIRECT',
+  IMAGE = 'IMAGE',
+}
+
 export interface CachedFetchValue {
-  kind: 'FETCH'
-  data: {
-    headers: { [k: string]: string }
-    body: string
-    url: string
-    status?: number
-  }
+  kind: CachedRouteKind.FETCH
+  data: CachedFetchData
   // tags are only present with file-system-cache
   // fetch cache stores tags outside of cache entry
   tags?: string[]
@@ -38,12 +64,12 @@ export interface CachedFetchValue {
 }
 
 export interface CachedRedirectValue {
-  kind: 'REDIRECT'
+  kind: CachedRouteKind.REDIRECT
   props: Object
 }
 
 export interface CachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -51,10 +77,11 @@ export interface CachedAppPageValue {
   status: number | undefined
   postponed: string | undefined
   headers: OutgoingHttpHeaders | undefined
+  segmentData: Map<string, Buffer> | undefined
 }
 
 export interface CachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   html: RenderResult
@@ -64,7 +91,7 @@ export interface CachedPageValue {
 }
 
 export interface CachedRouteValue {
-  kind: 'ROUTE'
+  kind: CachedRouteKind.APP_ROUTE
   // this needs to be a RenderResult so since renderResponse
   // expects that type instead of a string
   body: Buffer
@@ -73,8 +100,9 @@ export interface CachedRouteValue {
 }
 
 export interface CachedImageValue {
-  kind: 'IMAGE'
+  kind: CachedRouteKind.IMAGE
   etag: string
+  upstreamEtag: string
   buffer: Buffer
   extension: string
   isMiss?: boolean
@@ -82,7 +110,7 @@ export interface CachedImageValue {
 }
 
 export interface IncrementalCachedAppPageValue {
-  kind: 'APP_PAGE'
+  kind: CachedRouteKind.APP_PAGE
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -90,10 +118,11 @@ export interface IncrementalCachedAppPageValue {
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
   status: number | undefined
+  segmentData: Map<string, Buffer> | undefined
 }
 
 export interface IncrementalCachedPageValue {
-  kind: 'PAGE'
+  kind: CachedRouteKind.PAGES
   // this needs to be a string since the cache expects to store
   // the string value
   html: string
@@ -102,14 +131,32 @@ export interface IncrementalCachedPageValue {
   status: number | undefined
 }
 
-export type IncrementalCacheEntry = {
-  curRevalidate?: Revalidate
-  // milliseconds to revalidate after
-  revalidateAfter: Revalidate
-  // -1 here dictates a blocking revalidate should be used
+export interface IncrementalResponseCacheEntry {
+  cacheControl?: CacheControl
+  /**
+   * timestamp in milliseconds to revalidate after
+   */
+  revalidateAfter?: Revalidate
+  /**
+   * `-1` here dictates a blocking revalidate should be used
+   */
   isStale?: boolean | -1
-  value: IncrementalCacheValue | null
+  isMiss?: boolean
+  isFallback: boolean | undefined
+  value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
+
+export interface IncrementalFetchCacheEntry {
+  /**
+   * `-1` here dictates a blocking revalidate should be used
+   */
+  isStale?: boolean | -1
+  value: CachedFetchValue
+}
+
+export type IncrementalCacheEntry =
+  | IncrementalResponseCacheEntry
+  | IncrementalFetchCacheEntry
 
 export type IncrementalCacheValue =
   | CachedRedirectValue
@@ -127,52 +174,105 @@ export type ResponseCacheValue =
   | CachedRouteValue
 
 export type ResponseCacheEntry = {
-  revalidate?: Revalidate
+  cacheControl?: CacheControl
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback: boolean | undefined
 }
 
 /**
  * @param hasResolved whether the responseGenerator has resolved it's promise
  * @param previousCacheEntry the previous cache entry if it exists or the current
  */
-export type ResponseGenerator = (
-  hasResolved: boolean,
-  previousCacheEntry?: IncrementalCacheItem,
+export type ResponseGenerator = (state: {
+  hasResolved: boolean
+  previousCacheEntry?: IncrementalResponseCacheEntry | null
   isRevalidating?: boolean
-) => Promise<ResponseCacheEntry | null>
+}) => Promise<ResponseCacheEntry | null>
 
-export type IncrementalCacheItem = {
-  revalidateAfter?: number | false
-  curRevalidate?: number | false
-  revalidate?: number | false
-  value: IncrementalCacheValue | null
-  isStale?: boolean | -1
-  isMiss?: boolean
-} | null
+export const enum IncrementalCacheKind {
+  APP_PAGE = 'APP_PAGE',
+  APP_ROUTE = 'APP_ROUTE',
+  PAGES = 'PAGES',
+  FETCH = 'FETCH',
+  IMAGE = 'IMAGE',
+}
 
-export type IncrementalCacheKindHint = 'app' | 'pages' | 'fetch'
+export interface GetIncrementalFetchCacheContext {
+  kind: IncrementalCacheKind.FETCH
+  revalidate?: Revalidate
+  fetchUrl?: string
+  fetchIdx?: number
+  tags?: string[]
+  softTags?: string[]
+}
 
-export interface IncrementalCache {
-  get: (
+export interface GetIncrementalResponseCacheContext {
+  kind: Exclude<IncrementalCacheKind, IncrementalCacheKind.FETCH>
+
+  /**
+   * True if the route is enabled for PPR.
+   */
+  isRoutePPREnabled?: boolean
+
+  /**
+   * True if this is a fallback request.
+   */
+  isFallback: boolean
+}
+
+export interface SetIncrementalFetchCacheContext {
+  fetchCache: true
+  fetchUrl?: string
+  fetchIdx?: number
+  tags?: string[]
+}
+
+export interface SetIncrementalResponseCacheContext {
+  fetchCache?: false
+  cacheControl?: CacheControl
+
+  /**
+   * True if the route is enabled for PPR.
+   */
+  isRoutePPREnabled?: boolean
+
+  /**
+   * True if this is a fallback request.
+   */
+  isFallback?: boolean
+}
+
+export interface IncrementalResponseCache {
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalResponseCacheContext
+  ): Promise<IncrementalResponseCacheEntry | null>
+  set(
     key: string,
-    ctx?: {
-      /**
-       * The kind of cache entry to get. If not provided it will try to
-       * determine the kind from the filesystem.
-       */
-      kindHint?: IncrementalCacheKindHint
+    data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
+    ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
+}
 
-      isRoutePPREnabled?: boolean
-    }
-  ) => Promise<IncrementalCacheItem>
-  set: (
+export interface IncrementalCache extends IncrementalResponseCache {
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalFetchCacheContext
+  ): Promise<IncrementalFetchCacheEntry | null>
+  get(
+    cacheKey: string,
+    ctx: GetIncrementalResponseCacheContext
+  ): Promise<IncrementalResponseCacheEntry | null>
+  set(
     key: string,
-    data: IncrementalCacheValue | null,
-    ctx: {
-      revalidate: Revalidate
-      isRoutePPREnabled?: boolean
-    }
-  ) => Promise<void>
+    data: CachedFetchValue | null,
+    ctx: SetIncrementalFetchCacheContext
+  ): Promise<void>
+  set(
+    key: string,
+    data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
+    ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
 }

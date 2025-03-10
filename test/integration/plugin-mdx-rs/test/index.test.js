@@ -18,8 +18,8 @@ describe('MDX-rs Configuration', () => {
       context.appPort = await findPort()
       context.server = await launchApp(join(__dirname, '../'), context.appPort)
     })
-    afterAll(() => {
-      killApp(context.server)
+    afterAll(async () => {
+      await killApp(context.server)
     })
     it('should render an MDX page correctly', async () => {
       expect(await renderViaHTTP(context.appPort, '/')).toMatch(/Hello MDX/)
@@ -60,8 +60,8 @@ describe('MDX-rs Configuration', () => {
       context.appPort = await findPort()
       context.server = await launchApp(join(__dirname, '../'), context.appPort)
     })
-    afterAll(() => {
-      killApp(context.server)
+    afterAll(async () => {
+      await killApp(context.server)
       nextConfig.restore()
     })
 

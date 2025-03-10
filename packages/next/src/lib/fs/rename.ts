@@ -25,8 +25,7 @@ SOFTWARE.
 // This file is based on https://github.com/microsoft/vscode/blob/f860fcf11022f10a992440fd54c6e45674e39617/src/vs/base/node/pfs.ts
 // See the LICENSE at the top of the file
 
-import * as fs from 'graceful-fs'
-import { promisify } from 'util'
+import { rename as fsRename, stat } from 'node:fs/promises'
 
 /**
  * A drop-in replacement for `fs.rename` that:
@@ -49,7 +48,7 @@ export async function rename(
     // graceful-fs will immediately return without retry for fs.rename().
     await renameWithRetry(source, target, Date.now(), windowsRetryTimeout)
   } else {
-    await promisify(fs.rename)(source, target)
+    await fsRename(source, target)
   }
 }
 
@@ -61,7 +60,7 @@ async function renameWithRetry(
   attempt = 0
 ): Promise<void> {
   try {
-    return await promisify(fs.rename)(source, target)
+    return await fsRename(source, target)
   } catch (error: any) {
     if (
       error.code !== 'EACCES' &&
@@ -82,8 +81,8 @@ async function renameWithRetry(
     if (attempt === 0) {
       let abortRetry = false
       try {
-        const stat = await promisify(fs.stat)(target)
-        if (!stat.isFile()) {
+        const statTarget = await stat(target)
+        if (!statTarget.isFile()) {
           abortRetry = true // if target is not a file, EPERM error may be raised and we should not attempt to retry
         }
       } catch (e) {

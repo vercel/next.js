@@ -5,12 +5,20 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
-import type { SwrDelta } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import type { __ApiPreviewProps } from '../api-utils'
 
 import s from 'next/dist/compiled/superstruct'
 import type { RequestLifecycleOpts } from '../base-server'
+import type { InstrumentationOnRequestError } from '../instrumentation/types'
+import type { NextRequestHint } from '../web/adapter'
+import type { BaseNextRequest } from '../base-http'
+import type { IncomingMessage } from 'http'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -40,7 +48,15 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
     s.lazy(() => flightRouterStateSchema)
   ),
   s.optional(s.nullable(s.string())),
-  s.optional(s.nullable(s.union([s.literal('refetch'), s.literal('refresh')]))),
+  s.optional(
+    s.nullable(
+      s.union([
+        s.literal('refetch'),
+        s.literal('refresh'),
+        s.literal('inside-shared-layout'),
+      ])
+    )
+  ),
   s.optional(s.boolean()),
 ])
 
@@ -51,13 +67,32 @@ export type FlightRouterState = [
   segment: Segment,
   parallelRoutes: { [parallelRouterKey: string]: FlightRouterState },
   url?: string | null,
-  /*
-  /* "refresh" and "refetch", despite being similarly named, have different semantics.
-   * - "refetch" is a server indicator which informs where rendering should start from.
-   * - "refresh" is a client router indicator that it should re-fetch the data from the server for the current segment.
-   *   It uses the "url" property above to determine where to fetch from.
+  /**
+   * "refresh" and "refetch", despite being similarly named, have different
+   * semantics:
+   * - "refetch" is used during a request to inform the server where rendering
+   *   should start from.
+   *
+   * - "refresh" is used by the client to mark that a segment should re-fetch the
+   *   data from the server for the current segment. It uses the "url" property
+   *   above to determine where to fetch from.
+   *
+   * - "inside-shared-layout" is used during a prefetch request to inform the
+   *   server that even if the segment matches, it should be treated as if it's
+   *   within the "new" part of a navigation — inside the shared layout. If
+   *   the segment doesn't match, then it has no effect, since it would be
+   *   treated as new regardless. If it does match, though, the server does not
+   *   need to render it, because the client already has it.
+   *
+   *   A bit confusing, but that's because it has only one extremely narrow use
+   *   case — during a non-PPR prefetch, the server uses it to find the first
+   *   loading boundary beneath a shared layout.
+   *
+   *   TODO: We should rethink the protocol for dynamic requests. It might not
+   *   make sense for the client to send a FlightRouterState, since this type is
+   *   overloaded with concerns.
    */
-  refresh?: 'refetch' | 'refresh' | null,
+  refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
   isRootLayout?: boolean,
 ]
 
@@ -86,11 +121,20 @@ export type FlightSegmentPath =
  */
 export type CacheNodeSeedData = [
   segment: Segment,
+  node: React.ReactNode | null,
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  node: React.ReactNode | null,
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  isPartial: boolean,
+]
+
+export type FlightDataSegment = [
+  /* segment of the rendered slice: */ Segment,
+  /* treePatch */ FlightRouterState,
+  /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
+  /* head: viewport */ HeadData,
+  /* isHeadPartial */ boolean,
 ]
 
 export type FlightDataPath =
@@ -100,11 +144,7 @@ export type FlightDataPath =
   | [
       // Holds full path to the segment.
       ...FlightSegmentPath[],
-      /* segment of the rendered slice: */ Segment,
-      /* treePatch */ FlightRouterState,
-      /* cacheNodeSeedData */ CacheNodeSeedData, // Can be null during prefetch if there's no loading component
-      /* head */ React.ReactNode | null,
-      /* layerAssets (imported styles/scripts) */ React.ReactNode | null,
+      ...FlightDataSegment,
     ]
 
 /**
@@ -114,19 +154,18 @@ export type FlightData = Array<FlightDataPath> | string
 
 export type ActionResult = Promise<any>
 
-// Response from `createFromFetch` for normal rendering
-export type NextFlightResponse = [buildId: string, flightData: FlightData]
-
-// Response from `createFromFetch` for server actions. Action's flight data can be null
-export type ActionFlightResponse =
-  | [ActionResult, [buildId: string, flightData: FlightData | null]]
-  // This case happens when `redirect()` is called in a server action.
-  | NextFlightResponse
+export type ServerOnInstrumentationRequestError = (
+  error: unknown,
+  // The request could be middleware, node server or web server request,
+  // we normalized them into an aligned format to `onRequestError` API later.
+  request: NextRequestHint | BaseNextRequest | IncomingMessage,
+  errorContext: Parameters<InstrumentationOnRequestError>[2]
+) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
-  buildId: string
   basePath: string
   trailingSlash: boolean
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
@@ -137,12 +176,17 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
-  isBot?: boolean
+  botType?: 'dom' | 'html' | undefined
+  serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
+  setIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
-  appDirDevErrorLogger?: (err: any) => Promise<void>
+  onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
   deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
@@ -159,22 +203,33 @@ export interface RenderOptsPartial {
   }
   params?: ParsedUrlQuery
   isPrefetch?: boolean
+  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
      * prerendering.
      */
     isRoutePPREnabled?: boolean
-    swrDelta: SwrDelta | undefined
+    expireTime: number | undefined
     clientTraceMetadata: string[] | undefined
-    after: boolean
+    dynamicIO: boolean
+    clientSegmentCache: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
+
   /**
-   * When true, only the static shell of the page will be rendered. This will
-   * also enable other debugging features such as logging in development.
+   * Should wait for react stream allReady to resolve all suspense boundaries,
+   * in order to perform a full page render.
    */
-  isDebugStaticShell?: boolean
+  shouldWaitOnAllReady?: boolean
+
+  /**
+   * The resume data cache that was generated for this partially prerendered
+   * page during dev warmup.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
 
   /**
    * When true, the page will be rendered using the static rendering to detect
@@ -182,9 +237,64 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   isDebugDynamicAccesses?: boolean
+
+  /**
+   * The maximum length of the headers that are emitted by React and added to
+   * the response.
+   */
+  reactMaxHeadersLength: number | undefined
+
   isStaticGeneration?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
   RenderOptsPartial &
   RequestLifecycleOpts
+
+export type PreloadCallbacks = (() => void)[]
+
+export type InitialRSCPayload = {
+  /** buildId */
+  b: string
+  /** assetPrefix */
+  p: string
+  /** initialCanonicalUrlParts */
+  c: string[]
+  /** couldBeIntercepted */
+  i: boolean
+  /** initialFlightData */
+  f: FlightDataPath[]
+  /** missingSlots */
+  m: Set<string> | undefined
+  /** GlobalError */
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
+  /** postponed */
+  s: boolean
+  /** prerendered */
+  S: boolean
+}
+
+// Response from `createFromFetch` for normal rendering
+export type NavigationFlightResponse = {
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+  /** prerendered */
+  S: boolean
+}
+
+// Response from `createFromFetch` for server actions. Action's flight data can be null
+export type ActionFlightResponse = {
+  /** actionResult */
+  a: ActionResult
+  /** buildId */
+  b: string
+  /** flightData */
+  f: FlightData
+}
+
+export type RSCPayload =
+  | InitialRSCPayload
+  | NavigationFlightResponse
+  | ActionFlightResponse

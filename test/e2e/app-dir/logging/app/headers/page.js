@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 
-export default function Page() {
-  headers()
+export default async function Page() {
+  await headers()
   return <p>{'headers()'}</p>
 }

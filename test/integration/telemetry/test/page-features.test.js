@@ -11,70 +11,40 @@ import {
 
 const appDir = path.join(__dirname, '..')
 
-const setupAppDir = async () => {
-  await fs.mkdir(path.join(__dirname, '../app'))
-  await fs.writeFile(
-    path.join(__dirname, '../app/layout.js'),
-    `
-      export default function RootLayout({ children }) {
-        return <html>
-          <head/>
-          <body>{children}</body>
-        </html>
-      }
-    `
-  )
-  await fs.ensureFile(path.join(__dirname, '../app/hello/page.js'))
-  await fs.writeFile(
-    path.join(__dirname, '../app/hello/page.js'),
-    'export default function Page() { return "hello world" }'
-  )
-
-  return async function teardownAppDir() {
-    await fs.remove(path.join(__dirname, '../app'))
-  }
-}
-
 describe('page features telemetry', () => {
   if (process.env.TURBOPACK) {
     it('detects --turbo correctly for `next dev`', async () => {
       let port = await findPort()
       let stderr = ''
 
-      const teardown = await setupAppDir()
+      const handleStderr = (msg) => {
+        stderr += msg
+      }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+        turbo: true,
+      })
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+      await renderViaHTTP(port, '/hello')
+
+      if (app) {
+        await killApp(app)
+      }
 
       try {
-        const handleStderr = (msg) => {
-          stderr += msg
-        }
-        let app = await launchApp(appDir, port, {
-          onStderr: handleStderr,
-          env: {
-            NEXT_TELEMETRY_DEBUG: 1,
-          },
-          turbo: true,
-        })
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
+        expect(stderr).toContain('NEXT_CLI_SESSION_STARTED')
+        const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(stderr)
+          .pop()
 
-        if (app) {
-          await killApp(app)
-        }
-
-        try {
-          expect(stderr).toContain('NEXT_CLI_SESSION_STARTED')
-          const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-            .exec(stderr)
-            .pop()
-
-          expect(event1).toMatch(/"pagesDir": true/)
-          expect(event1).toMatch(/"turboFlag": true/)
-        } catch (err) {
-          require('console').error('failing stderr', stderr, err)
-          throw err
-        }
-      } finally {
-        await teardown()
+        expect(event1).toMatch(/"pagesDir": true/)
+        expect(event1).toMatch(/"turboFlag": true/)
+      } catch (err) {
+        require('console').error('failing stderr', stderr, err)
+        throw err
       }
     })
 
@@ -82,119 +52,104 @@ describe('page features telemetry', () => {
       let port = await findPort()
       let stderr = ''
 
-      const teardown = await setupAppDir()
-
-      try {
-        const handleStderr = (msg) => {
-          stderr += msg
-        }
-        let app = await launchApp(appDir, port, {
-          onStderr: handleStderr,
-          env: {
-            NEXT_TELEMETRY_DEBUG: 1,
-          },
-          turbo: true,
-        })
-
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
-
-        if (app) {
-          await killApp(app, 'SIGTERM')
-        }
-        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
-
-        expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
-        const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
-          .pop()
-
-        expect(event1).toMatch(/"pagesDir": true/)
-        expect(event1).toMatch(/"turboFlag": true/)
-
-        expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
-      } finally {
-        await teardown()
+      const handleStderr = (msg) => {
+        stderr += msg
       }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+        turbo: true,
+      })
+
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+      await renderViaHTTP(port, '/hello')
+
+      if (app) {
+        await killApp(app, 'SIGTERM')
+      }
+      await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+      expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
+      const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"turboFlag": true/)
+
+      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
+        false
+      )
     })
   } else {
     it('detects correctly for `next dev` stopped (no turbo)', async () => {
       let port = await findPort()
       let stderr = ''
 
-      const teardown = await setupAppDir()
-
-      try {
-        const handleStderr = (msg) => {
-          stderr += msg
-        }
-        let app = await launchApp(appDir, port, {
-          onStderr: handleStderr,
-          env: {
-            NEXT_TELEMETRY_DEBUG: 1,
-          },
-        })
-
-        await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
-        await renderViaHTTP(port, '/hello')
-
-        if (app) {
-          await killApp(app, 'SIGTERM')
-        }
-
-        await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
-
-        expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
-        const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
-          .pop()
-
-        expect(event1).toMatch(/"turboFlag": false/)
-        expect(event1).toMatch(/"pagesDir": true/)
-        expect(event1).toMatch(/"appDir": true/)
-
-        expect(
-          await fs.pathExists(path.join(appDir, '.next/_events.json'))
-        ).toBe(false)
-      } finally {
-        await teardown()
+      const handleStderr = (msg) => {
+        stderr += msg
       }
+      let app = await launchApp(appDir, port, {
+        onStderr: handleStderr,
+        env: {
+          NEXT_TELEMETRY_DEBUG: 1,
+        },
+      })
+
+      await check(() => stderr, /NEXT_CLI_SESSION_STARTED/)
+      await renderViaHTTP(port, '/hello')
+
+      if (app) {
+        await killApp(app, 'SIGTERM')
+      }
+
+      await check(() => stderr, /NEXT_CLI_SESSION_STOPPED/)
+
+      expect(stderr).toContain('NEXT_CLI_SESSION_STOPPED')
+      const event1 = /NEXT_CLI_SESSION_STOPPED[\s\S]+?{([\s\S]+?)}/
+        .exec(stderr)
+        .pop()
+
+      expect(event1).toMatch(/"turboFlag": false/)
+      expect(event1).toMatch(/"pagesDir": true/)
+      expect(event1).toMatch(/"appDir": true/)
+
+      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
+        false
+      )
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should detect app page counts', async () => {
-          const teardown = await setupAppDir()
-
-          try {
-            await fs.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
-            await fs.writeFile(
-              path.join(__dirname, '../app/ssr/page.js'),
-              `
+          await fs.ensureFile(path.join(__dirname, '../app/ssr/page.js'))
+          await fs.writeFile(
+            path.join(__dirname, '../app/ssr/page.js'),
+            `
           export const revalidate = 0
           export default function Page() {
             return <p>ssr page</p>
           }
         `
-            )
-            await fs.ensureFile(path.join(__dirname, '../app/edge-ssr/page.js'))
-            await fs.writeFile(
-              path.join(__dirname, '../app/edge-ssr/page.js'),
-              `
-          export const runtime = 'experimental-edge'
+          )
+          await fs.ensureFile(path.join(__dirname, '../app/edge-ssr/page.js'))
+          await fs.writeFile(
+            path.join(__dirname, '../app/edge-ssr/page.js'),
+            `
+          export const runtime = 'edge'
           export default function Page() {
             return <p>edge-ssr page</p>
           }
         `
-            )
-            await fs.ensureFile(
-              path.join(__dirname, '../app/app-ssg/[slug]/page.js')
-            )
-            await fs.writeFile(
-              path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
-              `
+          )
+          await fs.ensureFile(
+            path.join(__dirname, '../app/app-ssg/[slug]/page.js')
+          )
+          await fs.writeFile(
+            path.join(__dirname, '../app/app-ssg/[slug]/page.js'),
+            `
           export function generateStaticParams() {
             return [
               { slug: 'post-1' },
@@ -205,39 +160,36 @@ describe('page features telemetry', () => {
             return <p>ssg page</p>
           }
         `
-            )
-            const { stderr } = await nextBuild(appDir, [], {
-              stderr: true,
-              env: { NEXT_TELEMETRY_DEBUG: 1 },
-            })
+          )
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
 
-            try {
-              expect(stderr).toContain('NEXT_BUILD_OPTIMIZED')
-              const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-                .exec(stderr)
-                .pop()
-              expect(event1).toMatch(/"staticPropsPageCount": 2/)
-              expect(event1).toMatch(/"serverPropsPageCount": 2/)
-              expect(event1).toMatch(/"ssrPageCount": 3/)
-              expect(event1).toMatch(/"staticPageCount": 4/)
-              expect(event1).toMatch(/"totalPageCount": 11/)
-              expect(event1).toMatch(/"totalAppPagesCount": 5/)
-              expect(event1).toMatch(/"serverAppPagesCount": 2/)
-              expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
-              expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
+          try {
+            expect(stderr).toContain('NEXT_BUILD_OPTIMIZED')
+            const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
+              .exec(stderr)
+              .pop()
+            expect(event1).toMatch(/"staticPropsPageCount": 2/)
+            expect(event1).toMatch(/"serverPropsPageCount": 2/)
+            expect(event1).toMatch(/"ssrPageCount": 3/)
+            expect(event1).toMatch(/"staticPageCount": 5/)
+            expect(event1).toMatch(/"totalPageCount": 12/)
+            expect(event1).toMatch(/"totalAppPagesCount": 6/)
+            expect(event1).toMatch(/"serverAppPagesCount": 2/)
+            expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
+            expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
 
-              expect(stderr).toContain('NEXT_BUILD_COMPLETED')
-              const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
-                .exec(stderr)
-                .pop()
+            expect(stderr).toContain('NEXT_BUILD_COMPLETED')
+            const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
+              .exec(stderr)
+              .pop()
 
-              expect(event2).toMatch(/"totalAppPagesCount": 5/)
-            } catch (err) {
-              require('console').error('failing stderr', stderr, err)
-              throw err
-            }
-          } finally {
-            await teardown()
+            expect(event2).toMatch(/"totalAppPagesCount": 6/)
+          } catch (err) {
+            require('console').error('failing stderr', stderr, err)
+            throw err
           }
         })
 

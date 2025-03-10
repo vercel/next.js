@@ -1,0 +1,30 @@
+[package]
+name = "turbopack-swc-utils"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+parking_lot = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbopack-core = { workspace = true }
+
+swc_core = { workspace = true, features = [
+  "base",
+  "common",
+  "common_concurrent",
+  "common_sourcemap",
+] }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

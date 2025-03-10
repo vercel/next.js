@@ -1,0 +1,30 @@
+[package]
+name = "turbopack-cli-utils"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+crossterm = "0.26.0"
+owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+turbo-tasks = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-resolve = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

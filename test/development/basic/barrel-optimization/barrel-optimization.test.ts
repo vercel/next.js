@@ -38,9 +38,9 @@ import { nextTestSetup } from 'e2e-utils'
 
         expect(modules.length).toBeGreaterThanOrEqual(1)
         for (const [, , , , moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // Ensure that the number of modules is less than 1500 - otherwise we're
           // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1000)
+          expect(parseInt(moduleCount)).toBeLessThan(1500)
         }
       })
 
@@ -63,9 +63,9 @@ import { nextTestSetup } from 'e2e-utils'
 
         expect(modules.length).toBeGreaterThanOrEqual(1)
         for (const [, , , , moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // Ensure that the number of modules is less than 1500 - otherwise we're
           // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1000)
+          expect(parseInt(moduleCount)).toBeLessThan(1500)
         }
       })
 
@@ -81,9 +81,9 @@ import { nextTestSetup } from 'e2e-utils'
 
         expect(modules.length).toBeGreaterThanOrEqual(1)
         for (const [, moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // Ensure that the number of modules is less than 1500 - otherwise we're
           // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1000)
+          expect(parseInt(moduleCount)).toBeLessThan(1500)
         }
       })
 
@@ -99,9 +99,9 @@ import { nextTestSetup } from 'e2e-utils'
 
         expect(modules.length).toBeGreaterThanOrEqual(1)
         for (const [, moduleCount] of modules) {
-          // Ensure that the number of modules is less than 1000 - otherwise we're
+          // Ensure that the number of modules is less than 1500 - otherwise we're
           // importing the entire library.
-          expect(parseInt(moduleCount)).toBeLessThan(1000)
+          expect(parseInt(moduleCount)).toBeLessThan(1500)
         }
       })
 

@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -11,7 +11,9 @@ describe('ReactRefresh app', () => {
   })
 
   test('can edit a component without losing state', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
+
     await session.patch(
       'index.js',
       outdent`
@@ -55,11 +57,11 @@ describe('ReactRefresh app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-    await cleanup()
   })
 
   test('cyclic dependencies', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.write(
       'NudgeOverview.js',
@@ -213,7 +215,5 @@ describe('ReactRefresh app', () => {
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Hello: 300')
     expect(didFullRefresh).toBe(false)
-
-    await cleanup()
   })
 })

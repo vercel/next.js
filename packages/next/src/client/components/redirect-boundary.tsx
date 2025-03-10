@@ -2,12 +2,8 @@
 import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
-import {
-  RedirectType,
-  getRedirectTypeFromError,
-  getURLFromRedirectError,
-  isRedirectError,
-} from './redirect'
+import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import { RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -58,7 +54,7 @@ export class RedirectErrorBoundary extends React.Component<
     throw error
   }
 
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific the the `@types/react` version.
+  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
     const { redirect, redirectType } = this.state
     if (redirect !== null && redirectType !== null) {

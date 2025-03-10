@@ -1,8 +1,7 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler } from './router-utils/setup-dev-bundler'
+import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
-import type { NextServer } from '../next'
 
 // This is required before other imports to ensure the require hook is setup.
 import '../node-environment'
@@ -13,6 +12,7 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
+import * as Log from '../../build/output/log'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -41,6 +41,15 @@ import { getNextPathnameInfo } from '../../shared/lib/router/utils/get-next-path
 import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type AppIsrManifestAction,
+} from '../dev/hot-reloader-types'
+import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
+import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import type { ServerInitResult } from './render-server'
+import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite } from './router-utils/block-cross-site'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -49,10 +58,9 @@ const isNextFont = (pathname: string | null) =>
 export type RenderServer = Pick<
   typeof import('./render-server'),
   | 'initialize'
-  | 'deleteCache'
   | 'clearModuleContext'
-  | 'deleteAppClientCache'
   | 'propagateServerField'
+  | 'getServerField'
 >
 
 export interface LazyRenderServerInstance {
@@ -65,16 +73,16 @@ export async function initialize(opts: {
   dir: string
   port: number
   dev: boolean
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   server?: import('http').Server
   minimalMode?: boolean
   hostname?: string
-  isNodeDebugging: boolean
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
   startServerSpan?: Span
   quiet?: boolean
-}): Promise<[WorkerRequestHandler, WorkerUpgradeHandler, NextServer]> {
+}): Promise<ServerInitResult> {
   if (!process.env.NODE_ENV) {
     // @ts-ignore not readonly
     process.env.NODE_ENV = opts.dev ? 'development' : 'production'
@@ -105,6 +113,8 @@ export async function initialize(opts: {
 
   let devBundlerService: DevBundlerService | undefined
 
+  let originalFetch = globalThis.fetch
+
   if (opts.dev) {
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
@@ -116,6 +126,11 @@ export async function initialize(opts: {
 
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
+
+    const resetFetch = () => {
+      globalThis.fetch = originalFetch
+      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
+    }
 
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
@@ -133,6 +148,8 @@ export async function initialize(opts: {
         isCustomServer: opts.customServer,
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
+        onDevServerCleanup: opts.onDevServerCleanup,
+        resetFetch,
       })
     )
 
@@ -149,7 +166,20 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
+  const allowedOrigins = [
+    'localhost',
+    ...(config.experimental.allowedDevOrigins || []),
+  ]
+  if (opts.hostname) {
+    allowedOrigins.push(opts.hostname)
+  }
+
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // internal headers should not be honored by the request handler
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+
     if (
       !opts.minimalMode &&
       config.i18n &&
@@ -225,7 +255,7 @@ export async function initialize(opts: {
       if (
         config.i18n &&
         removePathPrefix(invokePath, config.basePath).startsWith(
-          `/${parsedUrl.query.__nextLocale}/api`
+          `/${getRequestMeta(req, 'locale')}/api`
         )
       ) {
         invokePath = fsChecker.handleLocale(
@@ -295,6 +325,9 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
+        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`)) {
+          return
+        }
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -407,12 +440,12 @@ export async function initialize(opts: {
             fsChecker.pageFiles.has(matchedOutput.itemPath))
         ) {
           res.statusCode = 500
+          const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
           await invokeRender(parsedUrl, '/_error', handleIndex, {
             invokeStatus: 500,
-            invokeError: new Error(
-              `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-            ),
+            invokeError: new Error(message),
           })
+          Log.error(message)
           return
         }
 
@@ -526,7 +559,7 @@ export async function initialize(opts: {
       // 404 case
       res.setHeader(
         'Cache-Control',
-        'no-cache, no-store, max-age=0, must-revalidate'
+        'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
@@ -586,12 +619,12 @@ export async function initialize(opts: {
   let requestHandler: WorkerRequestHandler = requestHandlerImpl
   if (config.experimental.testProxy) {
     // Intercept fetch and other testmode apis.
-    const {
-      wrapRequestHandlerWorker,
-      interceptTestApis,
-    } = require('next/dist/experimental/testmode/server')
+    const { wrapRequestHandlerWorker, interceptTestApis } =
+      require('next/dist/experimental/testmode/server') as typeof import('next/src/experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
+    // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
+    originalFetch = globalThis.fetch
   }
   requestHandlers[opts.dir] = requestHandler
 
@@ -602,13 +635,16 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
-    isNodeDebugging: !!opts.isNodeDebugging,
-    serverFields: developmentBundler?.serverFields || {},
+    serverFields: {
+      ...(developmentBundler?.serverFields || {}),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+    } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: devBundlerService,
     startServerSpan: opts.startServerSpan,
     quiet: opts.quiet,
+    onDevServerCleanup: opts.onDevServerCleanup,
   }
   renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
 
@@ -624,7 +660,11 @@ export async function initialize(opts: {
       // not really errors. They're just part of rendering.
       return
     }
-    await developmentBundler?.logErrorWithOriginalStack(err, type)
+    if (type === 'unhandledRejection') {
+      Log.error('unhandledRejection: ', err)
+    } else if (type === 'uncaughtException') {
+      Log.error('uncaughtException: ', err)
+    }
   }
 
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))
@@ -651,16 +691,45 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
+        if (blockCrossSite(req, socket, allowedOrigins, `${opts.port}`)) {
+          return
+        }
         const { basePath, assetPrefix } = config
 
+        let hmrPrefix = basePath
+
+        // assetPrefix overrides basePath for HMR path
+        if (assetPrefix) {
+          hmrPrefix = normalizedAssetPrefix(assetPrefix)
+
+          if (URL.canParse(hmrPrefix)) {
+            // remove trailing slash from pathname
+            // return empty string if pathname is '/'
+            // to avoid conflicts with '/_next' below
+            hmrPrefix = new URL(hmrPrefix).pathname.replace(/\/$/, '')
+          }
+        }
+
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${assetPrefix || basePath}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
         // matches the basePath for the handler responding to the request
         if (isHMRRequest) {
-          return developmentBundler.hotReloader.onHMR(req, socket, head)
+          return developmentBundler.hotReloader.onHMR(
+            req,
+            socket,
+            head,
+            (client) => {
+              client.send(
+                JSON.stringify({
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
+                  data: devBundlerService?.appIsrManifest || {},
+                } satisfies AppIsrManifestAction)
+              )
+            }
+          )
         }
       }
 
@@ -696,5 +765,12 @@ export async function initialize(opts: {
     }
   }
 
-  return [requestHandler, upgradeHandler, handlers.app]
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }

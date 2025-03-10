@@ -1,3 +1,4 @@
+import path from 'path'
 import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
 import type {
   NextConfig,
@@ -6,10 +7,14 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { isWebpackServerOnlyLayer } from '../utils'
+import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
-const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+const nextDirname = path.dirname(require.resolve('next/package.json'))
+
+const nextDistPath = new RegExp(
+  `${escapeStringRegexp(nextDirname)}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
+)
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
@@ -62,7 +67,11 @@ function getBaseSWCOptions({
   jsConfig,
   swcCacheDir,
   serverComponents,
+  serverReferenceHashSalt,
   bundleLayer,
+  isDynamicIo,
+  cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -77,9 +86,14 @@ function getBaseSWCOptions({
   jsConfig: any
   swcCacheDir?: string
   serverComponents?: boolean
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
+  isDynamicIo?: boolean
+  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
+  const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
   const enableDecorators = Boolean(
@@ -197,20 +211,27 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
+            dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
           }
         : undefined,
     serverActions:
-      serverComponents && !jest
+      isAppRouterPagesLayer && !jest
         ? {
-            // always enable server actions
-            // TODO: remove this option
-            enabled: true,
             isReactServerLayer,
+            isDevelopment: development,
+            useCacheEnabled,
+            hashSalt: serverReferenceHashSalt,
+            cacheKinds: ['default', 'remote'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
           }
         : undefined,
     // For app router we prefer to bundle ESM,
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
+    lintCodemodComments: true,
+    debugFunctionName: development,
   }
 }
 
@@ -273,6 +294,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  serverReferenceHashSalt,
 }: {
   isServer: boolean
   filename: string
@@ -284,6 +306,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
     filename,
@@ -301,6 +324,7 @@ export function getJestSWCOptions({
     // Disable server / client graph assertions for Jest
     bundleLayer: undefined,
     serverComponents: false,
+    serverReferenceHashSalt,
   })
 
   const useCjsModules = shouldOutputCommonJs(filename)
@@ -330,6 +354,7 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
+  isDynamicIo,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
@@ -341,8 +366,11 @@ export function getLoaderSWCOptions({
   swcCacheDir,
   relativeFilePathFromRoot,
   serverComponents,
+  serverReferenceHashSalt,
   bundleLayer,
   esm,
+  cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   development: boolean
@@ -353,6 +381,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
+  isDynamicIo?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -364,7 +393,10 @@ export function getLoaderSWCOptions({
   relativeFilePathFromRoot: string
   esm?: boolean
   serverComponents?: boolean
+  serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
+  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -379,7 +411,11 @@ export function getLoaderSWCOptions({
     swcCacheDir,
     bundleLayer,
     serverComponents,
+    serverReferenceHashSalt,
     esm: !!esm,
+    isDynamicIo,
+    cacheHandlers,
+    useCacheEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -477,7 +513,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

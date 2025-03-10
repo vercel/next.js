@@ -1,0 +1,11 @@
+{
+   "compilerOptions": {
+     "baseUrl": "..",
+     "paths": {
+       "foo": ["./prop"],
+       "./foo": ["./prop"],
+       "@/*": ["./*"],
+     }
+   },
+   "include": ["../*.ts"]
+ }

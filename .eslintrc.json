@@ -1,4 +1,9 @@
 {
+  // This is the default eslint config that is used by IDEs. It does not use
+  // computation-heavy type-checked rules to ensure maximum responsiveness while
+  // writing code. In addition, there is .eslintrc.cli.json that does use
+  // type-checked rules, and it is used when running `pnpm lint-eslint`.
+  "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
   "parser": "@babel/eslint-parser",
   "plugins": ["react", "react-hooks", "jest", "import", "jsdoc"],
@@ -7,7 +12,8 @@
     "commonjs": true,
     "es6": true,
     "node": true,
-    "jest": true
+    "jest": true,
+    "es2020": true
   },
   "parserOptions": {
     "requireConfigFile": false,
@@ -39,7 +45,11 @@
         "jest/no-conditional-expect": "off",
         "jest/valid-title": "off",
         "jest/no-interpolation-in-snapshots": "off",
-        "jest/no-export": "off"
+        "jest/no-export": "off",
+        "jest/no-standalone-expect": [
+          "error",
+          { "additionalTestBlockFunctions": ["retry"] }
+        ]
       }
     },
     { "files": ["**/__tests__/**"], "env": { "jest": true } },
@@ -60,7 +70,10 @@
         "@typescript-eslint/array-type": "off",
         "@typescript-eslint/ban-ts-comment": "off",
         "@typescript-eslint/ban-tslint-comment": "off",
-        "@typescript-eslint/ban-types": "off",
+        "@typescript-eslint/no-empty-object-type": "off",
+        "@typescript-eslint/no-restricted-types": "off",
+        "@typescript-eslint/no-unsafe-function-type": "off",
+        "@typescript-eslint/no-wrapper-object-types": "off",
         "@typescript-eslint/class-literal-property-style": "off",
         "@typescript-eslint/consistent-generic-constructors": "off",
         "@typescript-eslint/consistent-indexed-object-style": "off",
@@ -71,6 +84,7 @@
         "@typescript-eslint/no-empty-interface": "off",
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-inferrable-types": "off",
+        "@typescript-eslint/no-require-imports": "off",
         "@typescript-eslint/no-var-requires": "off",
         "@typescript-eslint/prefer-for-of": "off",
         "@typescript-eslint/prefer-function-type": "off",
@@ -96,7 +110,12 @@
           "error",
           {
             "args": "none",
-            "ignoreRestSiblings": true
+            "ignoreRestSiblings": true,
+            "argsIgnorePattern": "^_",
+            "caughtErrors": "none",
+            "caughtErrorsIgnorePattern": "^_",
+            "destructuredArrayIgnorePattern": "^_",
+            "varsIgnorePattern": "^_"
           }
         ],
         "no-use-before-define": "off",
@@ -147,7 +166,7 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
-        "packages/next/webpack.config.js"
+        "packages/next/next-runtime.webpack-config.js"
       ],
       "rules": {
         "no-shadow": ["error", { "builtinGlobals": false }],
@@ -168,7 +187,9 @@
           {
             "args": "all",
             "argsIgnorePattern": "^_",
-            "ignoreRestSiblings": true
+            "caughtErrors": "none",
+            "ignoreRestSiblings": true,
+            "varsIgnorePattern": "^_"
           }
         ]
       }
@@ -207,6 +228,14 @@
           }
         ],
         "@typescript-eslint/no-import-type-side-effects": "error"
+      }
+    },
+    {
+      "files": ["*.mdx"],
+      "extends": ["plugin:mdx/recommended"],
+      "parser": "eslint-mdx",
+      "rules": {
+        "react/jsx-no-undef": "off"
       }
     }
   ],
@@ -298,6 +327,7 @@
       "error",
       {
         "args": "none",
+        "caughtErrors": "none",
         "ignoreRestSiblings": true
       }
     ],

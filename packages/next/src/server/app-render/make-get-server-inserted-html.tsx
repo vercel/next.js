@@ -1,23 +1,15 @@
 import React, { type JSX } from 'react'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import {
   getURLFromRedirectError,
-  isRedirectError,
   getRedirectStatusCodeFromError,
 } from '../../client/components/redirect'
+import { isRedirectError } from '../../client/components/redirect-error'
 import { renderToReadableStream } from 'react-dom/server.edge'
 import { streamToString } from '../stream-utils/node-web-streams-helper'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { addPathPrefix } from '../../shared/lib/router/utils/add-path-prefix'
 import type { ClientTraceDataEntry } from '../lib/trace/tracer'
-
-export function getTracedMetadata(
-  traceData: ClientTraceDataEntry[],
-  clientTraceMetadata: string[] | undefined
-): ClientTraceDataEntry[] | undefined {
-  if (!clientTraceMetadata) return undefined
-  return traceData.filter(({ key }) => clientTraceMetadata.includes(key))
-}
 
 export function makeGetServerInsertedHTML({
   polyfills,
@@ -29,7 +21,7 @@ export function makeGetServerInsertedHTML({
   polyfills: JSX.IntrinsicElements['script'][]
   renderServerInsertedHTML: () => React.ReactNode
   tracingMetadata: ClientTraceDataEntry[] | undefined
-  serverCapturedErrors: Error[]
+  serverCapturedErrors: Array<unknown>
   basePath: string
 }) {
   let flushedErrorMetaTagsUntilIndex = 0
@@ -48,7 +40,7 @@ export function makeGetServerInsertedHTML({
       const error = serverCapturedErrors[flushedErrorMetaTagsUntilIndex]
       flushedErrorMetaTagsUntilIndex++
 
-      if (isNotFoundError(error)) {
+      if (isHTTPAccessFallbackError(error)) {
         errorMetaTags.push(
           <meta name="robots" content="noindex" key={error.digest} />,
           process.env.NODE_ENV === 'development' ? (

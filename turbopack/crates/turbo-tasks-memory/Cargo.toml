@@ -1,0 +1,56 @@
+[package]
+name = "turbo-tasks-memory"
+version = "0.1.0"
+description = "TBD"
+license = "MIT"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+auto-hash-map = { workspace = true }
+concurrent-queue = { workspace = true }
+dashmap = { workspace = true }
+either = { workspace = true }
+indexmap = { workspace = true }
+num_cpus = "1.13.1"
+once_cell = { workspace = true }
+parking_lot = { workspace = true }
+ref-cast = "1.0.20"
+rustc-hash = { workspace = true }
+serde = { workspace = true }
+smallvec = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+turbo-prehash = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
+
+[dev-dependencies]
+criterion = { workspace = true, features = ["async_tokio"] }
+loom = "0.7.2"
+rand = { workspace = true, features = ["small_rng"] }
+regex = { workspace = true }
+rstest = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks-testing = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[features]
+track_unfinished = []
+default = []
+
+[[bench]]
+name = "mod"
+harness = false

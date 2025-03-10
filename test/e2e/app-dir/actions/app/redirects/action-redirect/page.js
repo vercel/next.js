@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
-export default function Page({ searchParams }) {
-  const foo = cookies().get('foo')
-  const bar = cookies().get('bar')
+export default async function Page({ searchParams }) {
+  const foo = (await cookies()).get('foo')
+  const bar = (await cookies()).get('bar')
   return (
     <div>
       <h1>
@@ -12,8 +12,8 @@ export default function Page({ searchParams }) {
       <form
         action={async () => {
           'use server'
-          cookies().delete('foo')
-          cookies().set('bar', '2')
+          ;(await cookies()).delete('foo')
+          ;(await cookies()).set('bar', '2')
           redirect('/redirects/action-redirect/redirect-target')
         }}
       >
@@ -21,7 +21,7 @@ export default function Page({ searchParams }) {
           Set Cookies and Redirect
         </button>
       </form>
-      <h2>baz={searchParams.baz ?? ''}</h2>
+      <h2>baz={(await searchParams).baz ?? ''}</h2>
       <form
         action={async () => {
           'use server'

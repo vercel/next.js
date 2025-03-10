@@ -18,6 +18,8 @@ import timers from 'timers'
 import tty from 'tty'
 import util from 'util'
 import zlib from 'zlib'
+
+import '_http_common'
 import 'setimmediate'
 
 async function getData() {
