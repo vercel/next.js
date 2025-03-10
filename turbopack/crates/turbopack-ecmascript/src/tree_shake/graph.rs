@@ -44,6 +44,8 @@ pub(crate) enum ItemId {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
+    /// Used only for testing
+    #[allow(unused)]
     ModuleEvaluation,
     /// `(local, export_name)``
     Export(Id, Atom),
@@ -130,6 +132,8 @@ pub(crate) struct ItemData {
 
     /// Server actions breaks when we merge exports.
     pub disable_export_merging: bool,
+
+    pub is_module_evaluation: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -145,6 +149,8 @@ impl fmt::Debug for ItemData {
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
             .field("explicit_deps", &self.explicit_deps)
+            .field("disable_export_merging", &self.disable_export_merging)
+            .field("is_module_evaluation", &self.is_module_evaluation)
             .finish()
     }
 }
@@ -165,6 +171,7 @@ impl Default for ItemData {
             binding_source: Default::default(),
             explicit_deps: Default::default(),
             disable_export_merging: Default::default(),
+            is_module_evaluation: Default::default(),
         }
     }
 }
@@ -389,10 +396,10 @@ impl DepGraph {
                 }
             }
 
-            for item in group {
-                match item {
+            for item_id in group {
+                match item_id {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
+                        if let Some(export) = &data[item_id].export {
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -418,11 +425,12 @@ impl DepGraph {
                             ));
                         }
                     }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        outputs.insert(Key::ModuleEvaluation, ix as u32);
-                    }
 
-                    _ => {}
+                    _ => {
+                        if data[item_id].is_module_evaluation {
+                            outputs.insert(Key::ModuleEvaluation, ix as u32);
+                        }
+                    }
                 }
             }
 
@@ -1370,21 +1378,21 @@ impl DepGraph {
             }
         }
 
-        {
-            // `module evaluation side effects` Node
-            let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
-            ids.push(id.clone());
-            items.insert(
-                id,
-                ItemData {
-                    content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: "module evaluation".into(),
-                    })),
-                    ..Default::default()
-                },
-            );
-        }
+        // {
+        //     // `module evaluation side effects` Node
+        //     let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
+        //     ids.push(id.clone());
+        //     items.insert(
+        //         id,
+        //         ItemData {
+        //             content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+        //                 span: DUMMY_SP,
+        //                 expr: "module evaluation".into(),
+        //             })),
+        //             ..Default::default()
+        //         },
+        //     );
+        // }
 
         for (local, export_name, disable_export_merging) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));

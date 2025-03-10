@@ -354,10 +354,13 @@ impl Analyzer<'_> {
             if let ItemId::Group(kind) = item_id {
                 match kind {
                     ItemIdGroupKind::ModuleEvaluation => {
-                        // Create a strong dependency to LAST_SIDE_EFFECTS
+                        // We use last side effect as a module evaluation
 
-                        self.g
-                            .add_strong_deps(item_id, self.last_side_effects.last());
+                        if let Some(last) = self.last_side_effects.last() {
+                            if let Some(item) = self.items.get_mut(last) {
+                                item.is_module_evaluation = true;
+                            }
+                        }
                     }
                     ItemIdGroupKind::Export(local, _) => {
                         // Create a strong dependency to LAST_WRITES for this var
