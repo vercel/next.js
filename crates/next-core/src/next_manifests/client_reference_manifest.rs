@@ -1,6 +1,7 @@
 use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -201,16 +202,13 @@ impl ClientReferenceManifest {
                                     .map(ToString::to_string)
                             })
                             // It's possible that a chunk also emits CSS files, that will
-                            // be handled separatedly.
+                            // be handled separately.
                             .filter(|path| path.ends_with(".js"))
                             .map(|path| {
                                 format!(
                                     "{}{}{}",
                                     prefix_path,
-                                    path.split('/')
-                                        .map(urlencoding::encode)
-                                        .collect::<Vec<_>>()
-                                        .join("/"),
+                                    path.split('/').map(urlencoding::encode).format("/"),
                                     suffix_path
                                 )
                             })
