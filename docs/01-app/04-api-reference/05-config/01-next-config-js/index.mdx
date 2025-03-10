@@ -18,85 +18,6 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-## ECMAScript Modules
-
-`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
-
-If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs`:
-
-```js filename="next.config.mjs"
-// @ts-check
-
-/**
- * @type {import('next').NextConfig}
- */
-const nextConfig = {
-  /* config options here */
-}
-
-export default nextConfig
-```
-
-> **Good to know**: `next.config` with the `.cjs`, `.cts`, or `.mts` extensions are currently **not** supported.
-
-## Configuration as a Function
-
-You can also use a function:
-
-```js filename="next.config.mjs"
-// @ts-check
-
-export default (phase, { defaultConfig }) => {
-  /**
-   * @type {import('next').NextConfig}
-   */
-  const nextConfig = {
-    /* config options here */
-  }
-  return nextConfig
-}
-```
-
-### Async Configuration
-
-Since Next.js 12.1.0, you can use an async function:
-
-```js filename="next.config.js"
-// @ts-check
-
-module.exports = async (phase, { defaultConfig }) => {
-  /**
-   * @type {import('next').NextConfig}
-   */
-  const nextConfig = {
-    /* config options here */
-  }
-  return nextConfig
-}
-```
-
-### Phase
-
-`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
-
-```js filename="next.config.js"
-// @ts-check
-
-const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
-
-module.exports = (phase, { defaultConfig }) => {
-  if (phase === PHASE_DEVELOPMENT_SERVER) {
-    return {
-      /* development only config options here */
-    }
-  }
-
-  return {
-    /* config options for all phases except development here */
-  }
-}
-```
-
 ## TypeScript
 
 If you are using TypeScript in your project, you can use `next.config.ts` to use TypeScript in your configuration:
@@ -117,7 +38,112 @@ However, none of the configs are required, and it's not necessary to understand 
 
 > Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack or Babel.
 
-This page documents all the available configuration options:
+## ECMAScript Modules
+
+`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
+
+If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs` or `next.config.ts`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" switcher
+// @ts-check
+
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
+> **Good to know**: `next.config` with the `.cjs`, `.cts`, or `.mts` extensions are currently **not** supported.
+
+## Configuration as a Function
+
+You can also use a function:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+export default (
+  phase: string,
+  { defaultConfig }: { defaultConfig: NextConfig }
+) => {
+  const nextConfig: NextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
+```js filename="next.config.mjs" switcher
+// @ts-check
+
+export default (phase, { defaultConfig }) => {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
+> **Good to know**: Since Next.js 12.1.0, you can provide an async function as the default export instead.
+> This is useful if your configuration depends on fetching remote values, such as feature flags.
+
+### Phase
+
+`phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+
+export default (
+  phase: string,
+  { defaultConfig }: { defaultConfig: NextConfig }
+) => {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      /* development only config options here */
+    }
+  }
+  return {
+    /* config options for all phases except development here */
+  }
+}
+```
+
+```js filename="next.config.js" switcher
+// @ts-check
+
+const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
+
+module.exports = (phase, { defaultConfig }) => {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      /* development only config options here */
+    }
+  }
+
+  return {
+    /* config options for all phases except development here */
+  }
+}
+```
 
 ## Unit Testing (experimental)
 
