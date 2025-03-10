@@ -118,24 +118,29 @@ export async function turbopackBuild(): Promise<{
     encryptionKey,
   })
 
-  const topLevelErrors: {
-    message: string
-  }[] = []
+  const topLevelErrors = []
+  const topLevelWarnings = []
   for (const issue of entrypoints.issues) {
     if (issue.severity === 'error' || issue.severity === 'fatal') {
-      topLevelErrors.push({
-        message: formatIssue(issue),
-      })
+      topLevelErrors.push(formatIssue(issue))
     } else if (isRelevantWarning(issue)) {
-      console.warn(formatIssue(issue))
+      topLevelWarnings.push(formatIssue(issue))
     }
+  }
+
+  if (topLevelWarnings.length > 0) {
+    console.warn(
+      `Turbopack build encountered ${
+        topLevelWarnings.length
+      } warnings:\n${topLevelWarnings.join('\n')}`
+    )
   }
 
   if (topLevelErrors.length > 0) {
     throw new Error(
       `Turbopack build failed with ${
         topLevelErrors.length
-      } errors:\n${topLevelErrors.map((e) => e.message).join('\n')}`
+      } errors:\n${topLevelErrors.join('\n')}`
     )
   }
 
