@@ -145,10 +145,6 @@ export const CODE_FRAME_STYLES = `
     margin: auto 6px;
   }
 
-  .code-frame-pre {
-    white-space: pre-wrap;
-  }
-
   .code-frame-header {
     width: 100%;
     transition: background 100ms ease-out;
