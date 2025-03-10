@@ -663,7 +663,7 @@ export function getImgProps(
           imgStyle.objectFit
         )
           ? imgStyle.objectFit
-          : 'cover',
+          : '100% 100%',
         backgroundPosition: imgStyle.objectPosition || '50% 50%',
         backgroundRepeat: 'no-repeat',
         backgroundImage,
