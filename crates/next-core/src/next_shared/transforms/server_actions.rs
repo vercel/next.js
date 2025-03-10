@@ -67,6 +67,7 @@ impl CustomTransformer for NextServerActions {
                 cache_kinds: self.cache_kinds.owned().await?,
             },
             ctx.comments.clone(),
+            ctx.source_map.clone(),
             Default::default(),
             ServerActionsMode::Turbopack,
         );

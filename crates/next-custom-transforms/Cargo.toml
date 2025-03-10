@@ -14,6 +14,7 @@ plugin = [
 workspace = true
 
 [dependencies]
+base64 = "0.21.0"
 chrono = "0.4"
 easy-error = "1.0.0"
 either = "1"

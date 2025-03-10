@@ -7,6 +7,7 @@ use std::{
     sync::Arc,
 };
 
+use base64::{display::Base64Display, prelude::BASE64_STANDARD};
 use hex::encode as hex_encode;
 use indoc::formatdoc;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -17,7 +18,7 @@ use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments, SingleThreadedComments},
         errors::HANDLER,
-        source_map::PURE_SP,
+        source_map::{SourceMapGenConfig, PURE_SP},
         util::take::Take,
         BytePos, FileName, Mark, SourceMap, Span, SyntaxContext, DUMMY_SP,
     },
@@ -136,6 +137,7 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
+    cm: Arc<SourceMap>,
     use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
     mode: ServerActionsMode,
 ) -> impl Pass {
@@ -143,6 +145,7 @@ pub fn server_actions<C: Comments>(
         config,
         mode,
         comments,
+        cm,
         file_name: file_name.to_string(),
         start_pos: BytePos(0),
         file_directive: None,
@@ -196,6 +199,7 @@ struct ServerActions<C: Comments> {
     config: Config,
     file_name: String,
     comments: C,
+    cm: Arc<SourceMap>,
     mode: ServerActionsMode,
 
     start_pos: BytePos,
@@ -2126,6 +2130,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         new.extend(client_layer_exports.into_iter().map(|(_, (v, _))| v));
                     }
                     ServerActionsMode::Turbopack => {
+                        new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
+                            expr: Box::new(Expr::Lit(Lit::Str(
+                                "use turbopack no side effects".into(),
+                            ))),
+                            span: DUMMY_SP,
+                        })));
+                        new.rotate_right(1);
                         for (export, (stmt, ref_id)) in client_layer_exports {
                             new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
                                 NamedExport {
@@ -2139,6 +2150,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     )],
                                     src: Some(Box::new(
                                         program_to_data_url(
+                                            &self.cm,
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                                     expr: Box::new(Expr::Lit(Lit::Str(
@@ -3160,7 +3172,11 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
     HANDLER.with(|handler| handler.struct_span_err(span, &msg).emit());
 }
 
-fn program_to_data_url(body: Vec<ModuleItem>, prepend_comment: Comment) -> String {
+fn program_to_data_url(
+    cm: &Arc<SourceMap>,
+    body: Vec<ModuleItem>,
+    prepend_comment: Comment,
+) -> String {
     let module_span = Span::dummy_with_cmt();
     let comments = SingleThreadedComments::default();
     comments.add_leading(module_span.lo, prepend_comment);
@@ -3172,18 +3188,55 @@ fn program_to_data_url(body: Vec<ModuleItem>, prepend_comment: Comment) -> Strin
     });
 
     let mut output = vec![];
+    let mut mappings = vec![];
     let sourcemap = Arc::new(SourceMap::default());
     let mut emitter = Emitter {
         cfg: codegen::Config::default().with_minify(true),
         cm: sourcemap.clone(),
-        wr: Box::new(JsWriter::new(sourcemap.clone(), " ", &mut output, None)),
+        wr: Box::new(JsWriter::new(
+            sourcemap.clone(),
+            " ",
+            &mut output,
+            Some(&mut mappings),
+        )),
         comments: Some(&comments),
     };
 
-    // println!("Emitting: {:?}", module);
     emitter.emit_program(program).unwrap();
     drop(emitter);
 
-    let output = String::from_utf8(output).expect("codegen generated non-utf8 output");
+    pub struct InlineSourcesContentConfig {}
+    impl SourceMapGenConfig for InlineSourcesContentConfig {
+        fn file_name_to_source(&self, f: &FileName) -> String {
+            f.to_string()
+        }
+
+        fn inline_sources_content(&self, _f: &FileName) -> bool {
+            true
+        }
+    }
+
+    let map = cm.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
+    let map = {
+        if map.get_token_count() > 0 {
+            let mut buf = vec![];
+            map.to_writer(&mut buf)
+                .expect("failed to generate sourcemap");
+            Some(buf)
+        } else {
+            None
+        }
+    };
+
+    let mut output = String::from_utf8(output).expect("codegen generated non-utf8 output");
+    if let Some(map) = map {
+        output.extend(
+            format!(
+                "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}",
+                Base64Display::new(&map, &BASE64_STANDARD)
+            )
+            .chars(),
+        );
+    }
     format!("data:text/javascript,{}", urlencoding::encode(&output))
 }

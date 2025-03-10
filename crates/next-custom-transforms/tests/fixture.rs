@@ -562,6 +562,7 @@ fn server_actions_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
                     mode,
                 ),
@@ -581,7 +582,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 next_font_loaders(FontLoaderConfig {
@@ -597,7 +598,8 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
                     ServerActionsMode::Webpack,
                 ),
@@ -896,7 +898,7 @@ fn test_source_maps(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|_tr| {
+        &|tr| {
             (
                 resolver(Mark::new(), Mark::new(), false),
                 server_actions(
@@ -908,7 +910,8 @@ fn test_source_maps(input: PathBuf) {
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter([]),
                     },
-                    _tr.comments.as_ref().clone(),
+                    tr.comments.as_ref().clone(),
+                    tr.cm.clone(),
                     Default::default(),
                     mode,
                 ),

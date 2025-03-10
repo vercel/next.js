@@ -322,6 +322,7 @@ where
                     &file.name,
                     config.clone(),
                     comments.clone(),
+                    cm.clone(),
                     use_cache_telemetry_tracker,
                     ServerActionsMode::Webpack,
                 )),
