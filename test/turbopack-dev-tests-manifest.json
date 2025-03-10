@@ -1888,10 +1888,9 @@
       "Error recovery app render error not shown right after syntax error",
       "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
-      "Error recovery app stuck error",
-      "Error recovery app syntax > runtime error"
+      "Error recovery app stuck error"
     ],
-    "failed": [],
+    "failed": ["Error recovery app syntax > runtime error"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
