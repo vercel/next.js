@@ -1,6 +1,6 @@
 # Items
 
-Count: 2
+Count: 1
 
 ## Item 1: Stmt 0, `Normal`
 
@@ -15,41 +15,32 @@ process.turbopack = {};
 ```mermaid
 graph TD
     Item1;
-    Item2;
-    Item2["ModuleEvaluation"];
 ```
 # Phase 2
 ```mermaid
 graph TD
     Item1;
-    Item2;
-    Item2["ModuleEvaluation"];
 ```
 # Phase 3
 ```mermaid
 graph TD
     Item1;
-    Item2;
-    Item2["ModuleEvaluation"];
 ```
 # Phase 4
 ```mermaid
 graph TD
     Item1;
-    Item2;
-    Item2["ModuleEvaluation"];
-    Item2 --> Item1;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, Normal), ItemId(ModuleEvaluation)]"];
+    N0["Items: [ItemId(0, Normal)]"];
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 0,
+    ModuleEvaluation: 2,
     Exports: 1,
 }
 ```
@@ -59,24 +50,25 @@ graph TD
 ## Part 0
 ```js
 process.turbopack = {};
-"module evaluation";
 
 ```
 ## Part 1
 ```js
 
 ```
+## Part 2
+```js
+
+```
 ## Merged (module eval)
 ```js
-process.turbopack = {};
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 0,
+    ModuleEvaluation: 2,
     Exports: 1,
 }
 ```
@@ -86,16 +78,17 @@ process.turbopack = {};
 ## Part 0
 ```js
 process.turbopack = {};
-"module evaluation";
 
 ```
 ## Part 1
 ```js
 
 ```
+## Part 2
+```js
+
+```
 ## Merged (module eval)
 ```js
-process.turbopack = {};
-"module evaluation";
 
 ```

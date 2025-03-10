@@ -1,6 +1,6 @@
 # Items
 
-Count: 19
+Count: 18
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -160,19 +160,17 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export routeModule"];
     Item14;
-    Item14["export routeModule"];
+    Item14["export requestAsyncStorage"];
     Item15;
-    Item15["export requestAsyncStorage"];
+    Item15["export workAsyncStorage"];
     Item16;
-    Item16["export workAsyncStorage"];
+    Item16["export serverHooks"];
     Item17;
-    Item17["export serverHooks"];
+    Item17["export originalPathname"];
     Item18;
-    Item18["export originalPathname"];
-    Item19;
-    Item19["export patchFetch"];
+    Item18["export patchFetch"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -193,19 +191,17 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export routeModule"];
     Item14;
-    Item14["export routeModule"];
+    Item14["export requestAsyncStorage"];
     Item15;
-    Item15["export requestAsyncStorage"];
+    Item15["export workAsyncStorage"];
     Item16;
-    Item16["export workAsyncStorage"];
+    Item16["export serverHooks"];
     Item17;
-    Item17["export serverHooks"];
+    Item17["export originalPathname"];
     Item18;
-    Item18["export originalPathname"];
-    Item19;
-    Item19["export patchFetch"];
+    Item18["export patchFetch"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -215,12 +211,12 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
-    Item14 --> Item9;
+    Item13 --> Item9;
+    Item14 --> Item10;
     Item15 --> Item10;
     Item16 --> Item10;
-    Item17 --> Item10;
-    Item18 --> Item11;
-    Item19 --> Item12;
+    Item17 --> Item11;
+    Item18 --> Item12;
 ```
 # Phase 3
 ```mermaid
@@ -238,19 +234,17 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export routeModule"];
     Item14;
-    Item14["export routeModule"];
+    Item14["export requestAsyncStorage"];
     Item15;
-    Item15["export requestAsyncStorage"];
+    Item15["export workAsyncStorage"];
     Item16;
-    Item16["export workAsyncStorage"];
+    Item16["export serverHooks"];
     Item17;
-    Item17["export serverHooks"];
+    Item17["export originalPathname"];
     Item18;
-    Item18["export originalPathname"];
-    Item19;
-    Item19["export patchFetch"];
+    Item18["export patchFetch"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -260,16 +254,16 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
-    Item14 --> Item9;
+    Item13 --> Item9;
+    Item14 --> Item10;
     Item15 --> Item10;
     Item16 --> Item10;
-    Item17 --> Item10;
-    Item18 --> Item11;
-    Item19 --> Item12;
+    Item17 --> Item11;
+    Item18 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
-    Item12 -.-> Item17;
     Item12 -.-> Item16;
+    Item12 -.-> Item15;
 ```
 # Phase 4
 ```mermaid
@@ -287,19 +281,17 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export routeModule"];
     Item14;
-    Item14["export routeModule"];
+    Item14["export requestAsyncStorage"];
     Item15;
-    Item15["export requestAsyncStorage"];
+    Item15["export workAsyncStorage"];
     Item16;
-    Item16["export workAsyncStorage"];
+    Item16["export serverHooks"];
     Item17;
-    Item17["export serverHooks"];
+    Item17["export originalPathname"];
     Item18;
-    Item18["export originalPathname"];
-    Item19;
-    Item19["export patchFetch"];
+    Item18["export patchFetch"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -309,17 +301,16 @@ graph TD
     Item9 --> Item4;
     Item9 -.-> Item7;
     Item10 --> Item9;
-    Item14 --> Item9;
+    Item13 --> Item9;
+    Item14 --> Item10;
     Item15 --> Item10;
     Item16 --> Item10;
-    Item17 --> Item10;
-    Item18 --> Item11;
-    Item19 --> Item12;
+    Item17 --> Item11;
+    Item18 --> Item12;
     Item12 --> Item7;
     Item12 --> Item10;
-    Item12 -.-> Item17;
     Item12 -.-> Item16;
-    Item13 --> Item9;
+    Item12 -.-> Item15;
 ```
 # Final
 ```mermaid
@@ -336,9 +327,8 @@ graph TD
     N9["Items: [ItemId(5, VarDeclarator(0))]"];
     N10["Items: [ItemId(6, VarDeclarator(0)), ItemId(Export((&quot;originalPathname&quot;, #2), &quot;originalPathname&quot;))]"];
     N11["Items: [ItemId(7, Normal), ItemId(Export((&quot;patchFetch&quot;, #2), &quot;patchFetch&quot;)), ItemId(Export((&quot;serverHooks&quot;, #2), &quot;serverHooks&quot;)), ItemId(Export((&quot;workAsyncStorage&quot;, #2), &quot;workAsyncStorage&quot;))]"];
-    N12["Items: [ItemId(ModuleEvaluation)]"];
-    N13["Items: [ItemId(Export((&quot;requestAsyncStorage&quot;, #2), &quot;requestAsyncStorage&quot;))]"];
-    N14["Items: [ItemId(Export((&quot;routeModule&quot;, #2), &quot;routeModule&quot;))]"];
+    N12["Items: [ItemId(Export((&quot;requestAsyncStorage&quot;, #2), &quot;requestAsyncStorage&quot;))]"];
+    N13["Items: [ItemId(Export((&quot;routeModule&quot;, #2), &quot;routeModule&quot;))]"];
     N2 --> N0;
     N4 --> N2;
     N6 --> N4;
@@ -348,21 +338,20 @@ graph TD
     N8 --> N6;
     N8 -.-> N5;
     N9 --> N8;
-    N14 --> N8;
-    N13 --> N9;
+    N13 --> N8;
+    N12 --> N9;
     N5 --> N4;
     N1 --> N0;
-    N11 --> N5;
+    N11 --> N9;
     N7 --> N6;
     N3 --> N2;
-    N12 --> N8;
-    N11 --> N9;
+    N11 --> N5;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 12,
+    ModuleEvaluation: 15,
     Export(
         "originalPathname",
     ): 10,
@@ -371,17 +360,17 @@ graph TD
     ): 11,
     Export(
         "requestAsyncStorage",
-    ): 13,
+    ): 12,
     Export(
         "routeModule",
-    ): 14,
+    ): 13,
     Export(
         "serverHooks",
     ): 11,
     Export(
         "workAsyncStorage",
     ): 11,
-    Exports: 15,
+    Exports: 14,
 }
 ```
 
@@ -551,21 +540,13 @@ export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 13
-```js
 import { f as requestAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
 };
 export { requestAsyncStorage };
 
 ```
-## Part 14
+## Part 13
 ```js
 import { e as routeModule } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
@@ -573,7 +554,7 @@ import { e as routeModule } from "__TURBOPACK_PART__" assert {
 export { routeModule };
 
 ```
-## Part 15
+## Part 14
 ```js
 export { originalPathname } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export originalPathname"
@@ -595,19 +576,19 @@ export { routeModule } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 15
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 12,
+    ModuleEvaluation: 17,
     Export(
         "originalPathname",
     ): 10,
@@ -616,17 +597,17 @@ import "__TURBOPACK_PART__" assert {
     ): 11,
     Export(
         "requestAsyncStorage",
-    ): 13,
+    ): 12,
     Export(
         "routeModule",
-    ): 14,
+    ): 13,
     Export(
         "serverHooks",
-    ): 15,
+    ): 14,
     Export(
         "workAsyncStorage",
-    ): 16,
-    Exports: 17,
+    ): 15,
+    Exports: 16,
 }
 ```
 
@@ -791,21 +772,13 @@ export { patchFetch as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 12
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 13
-```js
 import { f as requestAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
 };
 export { requestAsyncStorage };
 
 ```
-## Part 14
+## Part 13
 ```js
 import { e as routeModule } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
@@ -813,7 +786,7 @@ import { e as routeModule } from "__TURBOPACK_PART__" assert {
 export { routeModule };
 
 ```
-## Part 15
+## Part 14
 ```js
 import { h as serverHooks } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
@@ -821,7 +794,7 @@ import { h as serverHooks } from "__TURBOPACK_PART__" assert {
 export { serverHooks };
 
 ```
-## Part 16
+## Part 15
 ```js
 import { g as workAsyncStorage } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -9
@@ -829,7 +802,7 @@ import { g as workAsyncStorage } from "__TURBOPACK_PART__" assert {
 export { workAsyncStorage };
 
 ```
-## Part 17
+## Part 16
 ```js
 export { originalPathname } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export originalPathname"
@@ -851,11 +824,11 @@ export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 17
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
 
 ```

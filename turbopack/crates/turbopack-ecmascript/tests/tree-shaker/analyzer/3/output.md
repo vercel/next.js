@@ -1,6 +1,6 @@
 # Items
 
-Count: 15
+Count: 14
 
 ## Item 1: Stmt 0, `Normal`
 
@@ -154,13 +154,11 @@ graph TD
     Item10;
     Item11;
     Item12;
-    Item12["ModuleEvaluation"];
+    Item12["export c1_1"];
     Item13;
-    Item13["export c1_1"];
+    Item13["export c1_3"];
     Item14;
-    Item14["export c1_3"];
-    Item15;
-    Item15["export c2_2"];
+    Item14["export c2_2"];
 ```
 # Phase 2
 ```mermaid
@@ -177,13 +175,11 @@ graph TD
     Item10;
     Item11;
     Item12;
-    Item12["ModuleEvaluation"];
+    Item12["export c1_1"];
     Item13;
-    Item13["export c1_1"];
+    Item13["export c1_3"];
     Item14;
-    Item14["export c1_3"];
-    Item15;
-    Item15["export c2_2"];
+    Item14["export c2_2"];
     Item10 --> Item6;
     Item10 -.-> Item5;
     Item10 -.-> Item1;
@@ -203,9 +199,9 @@ graph TD
     Item11 -.-> Item3;
     Item11 -.-> Item9;
     Item11 -.-> Item7;
-    Item13 --> Item4;
-    Item14 --> Item6;
-    Item15 --> Item8;
+    Item12 --> Item4;
+    Item13 --> Item6;
+    Item14 --> Item8;
 ```
 # Phase 3
 ```mermaid
@@ -222,13 +218,11 @@ graph TD
     Item10;
     Item11;
     Item12;
-    Item12["ModuleEvaluation"];
+    Item12["export c1_1"];
     Item13;
-    Item13["export c1_1"];
+    Item13["export c1_3"];
     Item14;
-    Item14["export c1_3"];
-    Item15;
-    Item15["export c2_2"];
+    Item14["export c2_2"];
     Item10 --> Item6;
     Item10 -.-> Item5;
     Item10 -.-> Item1;
@@ -248,9 +242,9 @@ graph TD
     Item11 -.-> Item3;
     Item11 -.-> Item9;
     Item11 -.-> Item7;
-    Item13 --> Item4;
-    Item14 --> Item6;
-    Item15 --> Item8;
+    Item12 --> Item4;
+    Item13 --> Item6;
+    Item14 --> Item8;
     Item4 --> Item5;
     Item5 --> Item6;
     Item5 --> Item1;
@@ -276,13 +270,11 @@ graph TD
     Item10;
     Item11;
     Item12;
-    Item12["ModuleEvaluation"];
+    Item12["export c1_1"];
     Item13;
-    Item13["export c1_1"];
+    Item13["export c1_3"];
     Item14;
-    Item14["export c1_3"];
-    Item15;
-    Item15["export c2_2"];
+    Item14["export c2_2"];
     Item10 --> Item6;
     Item10 -.-> Item5;
     Item10 -.-> Item1;
@@ -302,9 +294,9 @@ graph TD
     Item11 -.-> Item3;
     Item11 -.-> Item9;
     Item11 -.-> Item7;
-    Item13 --> Item4;
-    Item14 --> Item6;
-    Item15 --> Item8;
+    Item12 --> Item4;
+    Item13 --> Item6;
+    Item14 --> Item8;
     Item4 --> Item5;
     Item5 --> Item6;
     Item5 --> Item1;
@@ -314,7 +306,6 @@ graph TD
     Item7 --> Item3;
     Item8 --> Item9;
     Item9 --> Item7;
-    Item12 --> Item11;
 ```
 # Final
 ```mermaid
@@ -324,7 +315,7 @@ graph TD
     N2["Items: [ItemId(2, Normal)]"];
     N3["Items: [ItemId(3, Normal), ItemId(4, Normal), ItemId(5, Normal)]"];
     N4["Items: [ItemId(6, Normal), ItemId(7, Normal), ItemId(8, Normal)]"];
-    N5["Items: [ItemId(9, Normal), ItemId(10, Normal), ItemId(ModuleEvaluation)]"];
+    N5["Items: [ItemId(9, Normal), ItemId(10, Normal)]"];
     N6["Items: [ItemId(Export((&quot;c1_1&quot;, #2), &quot;c1_1&quot;))]"];
     N7["Items: [ItemId(Export((&quot;c1_3&quot;, #2), &quot;c1_3&quot;))]"];
     N8["Items: [ItemId(Export((&quot;c2_2&quot;, #2), &quot;c2_2&quot;))]"];
@@ -333,18 +324,18 @@ graph TD
     N3 --> N0;
     N3 --> N1;
     N4 --> N2;
-    N5 -.-> N2;
-    N5 -.-> N1;
-    N5 -.-> N0;
-    N5 -.-> N3;
-    N6 --> N3;
     N5 -.-> N4;
+    N6 --> N3;
+    N5 -.-> N3;
+    N5 -.-> N0;
+    N5 -.-> N1;
+    N5 -.-> N2;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 10,
     Export(
         "c1_1",
     ): 6,
@@ -446,17 +437,16 @@ import { h as c2_2 } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -4
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
 };
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: 2
 };
 c1_3();
 c2_2();
-"module evaluation";
 
 ```
 ## Part 6
@@ -496,33 +486,19 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 10
+```js
+
+```
 ## Merged (module eval)
 ```js
-import { f as c1_3 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
-};
-import { h as c2_2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -4
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-c1_3();
-c2_2();
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 7,
     Export(
         "c1_1",
     ): 3,
@@ -604,7 +580,6 @@ import { h as c2_2 } from "__TURBOPACK_PART__" assert {
 };
 c1_3();
 c2_2();
-"module evaluation";
 
 ```
 ## Part 3
@@ -644,24 +619,19 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 7
+```js
+
+```
 ## Merged (module eval)
 ```js
-import { e as c1_3 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
-};
-import { h as c2_2 } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
-};
-c1_3();
-c2_2();
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 7,
     Export(
         "c1_1",
     ): 3,
@@ -688,7 +658,7 @@ export { c1_3 };
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 7,
     Export(
         "c1_1",
     ): 3,

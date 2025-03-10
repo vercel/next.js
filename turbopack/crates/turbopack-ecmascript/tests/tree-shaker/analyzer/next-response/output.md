@@ -1,6 +1,6 @@
 # Items
 
-Count: 17
+Count: 16
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -281,9 +281,7 @@ graph TD
     Item14;
     Item15;
     Item16;
-    Item16["ModuleEvaluation"];
-    Item17;
-    Item17["export NextResponse"];
+    Item16["export NextResponse"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -308,9 +306,7 @@ graph TD
     Item14;
     Item15;
     Item16;
-    Item16["ModuleEvaluation"];
-    Item17;
-    Item17["export NextResponse"];
+    Item16["export NextResponse"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -326,7 +322,7 @@ graph TD
     Item15 --> Item8;
     Item15 --> Item13;
     Item15 --> Item9;
-    Item17 --> Item15;
+    Item16 --> Item15;
 ```
 # Phase 3
 ```mermaid
@@ -347,9 +343,7 @@ graph TD
     Item14;
     Item15;
     Item16;
-    Item16["ModuleEvaluation"];
-    Item17;
-    Item17["export NextResponse"];
+    Item16["export NextResponse"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -365,7 +359,7 @@ graph TD
     Item15 --> Item8;
     Item15 --> Item13;
     Item15 --> Item9;
-    Item17 --> Item15;
+    Item16 --> Item15;
 ```
 # Phase 4
 ```mermaid
@@ -386,9 +380,7 @@ graph TD
     Item14;
     Item15;
     Item16;
-    Item16["ModuleEvaluation"];
-    Item17;
-    Item17["export NextResponse"];
+    Item16["export NextResponse"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -404,8 +396,7 @@ graph TD
     Item15 --> Item8;
     Item15 --> Item13;
     Item15 --> Item9;
-    Item17 --> Item15;
-    Item16 --> Item13;
+    Item16 --> Item15;
 ```
 # Final
 ```mermaid
@@ -421,41 +412,34 @@ graph TD
     N8["Items: [ItemId(3, ImportBinding(0))]"];
     N9["Items: [ItemId(4, ImportOfModule)]"];
     N10["Items: [ItemId(4, ImportBinding(0))]"];
-    N11["Items: [ItemId(5, VarDeclarator(0))]"];
-    N12["Items: [ItemId(6, VarDeclarator(0))]"];
-    N13["Items: [ItemId(7, Normal), ItemId(8, Normal), ItemId(Export((&quot;NextResponse&quot;, #2), &quot;NextResponse&quot;))]"];
-    N14["Items: [ItemId(ModuleEvaluation)]"];
+    N11["Items: [ItemId(5, VarDeclarator(0)), ItemId(6, VarDeclarator(0)), ItemId(7, Normal), ItemId(8, Normal), ItemId(Export((&quot;NextResponse&quot;, #2), &quot;NextResponse&quot;))]"];
     N2 --> N0;
     N4 --> N2;
     N7 --> N4;
     N9 --> N7;
     N11 --> N9;
-    N12 --> N11;
-    N13 --> N6;
-    N13 --> N12;
-    N13 --> N5;
-    N13 --> N3;
-    N13 --> N11;
-    N13 --> N8;
     N8 --> N7;
-    N13 --> N1;
-    N13 --> N10;
-    N10 --> N9;
-    N14 --> N12;
-    N1 --> N0;
-    N3 --> N2;
-    N5 --> N4;
+    N11 --> N6;
     N6 --> N4;
+    N11 --> N5;
+    N11 --> N3;
+    N3 --> N2;
+    N11 --> N8;
+    N5 --> N4;
+    N11 --> N1;
+    N11 --> N10;
+    N10 --> N9;
+    N1 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 14,
+    ModuleEvaluation: 13,
     Export(
         "NextResponse",
-    ): 13,
-    Exports: 15,
+    ): 11,
+    Exports: 12,
 }
 ```
 
@@ -567,37 +551,17 @@ export { ResponseCookies as f } from "__TURBOPACK_VAR__" assert {
 ## Part 11
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-const INTERNALS = Symbol('internal response');
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 12
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-const REDIRECTS = new Set([
-    301,
-    302,
-    303,
-    307,
-    308
-]);
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 13
-```js
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import { validateURL } from '../utils';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { NextURL } from '../next-url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import { toNodeOutgoingHttpHeaders } from '../utils';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -610,20 +574,17 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 import { ReflectAdapter } from './adapters/reflect';
-import { g as INTERNALS } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
-};
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 9
 };
-import { NextURL } from '../next-url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-import { h as REDIRECTS } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
-};
+const INTERNALS = Symbol('internal response');
+const REDIRECTS = new Set([
+    301,
+    302,
+    303,
+    307,
+    308
+]);
 function handleMiddlewareField(init, headers) {
     var _init_request;
     if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
@@ -727,6 +688,12 @@ class NextResponse extends Response {
     }
 }
 export { NextResponse };
+export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -735,38 +702,30 @@ export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 14
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-"module evaluation";
-
-```
-## Part 15
+## Part 12
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
 };
 
 ```
+## Part 13
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 14,
+    ModuleEvaluation: 13,
     Export(
         "NextResponse",
-    ): 13,
-    Exports: 15,
+    ): 11,
+    Exports: 12,
 }
 ```
 
@@ -878,37 +837,17 @@ export { ResponseCookies as f } from "__TURBOPACK_VAR__" assert {
 ## Part 11
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-const INTERNALS = Symbol('internal response');
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 12
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 11
-};
-const REDIRECTS = new Set([
-    301,
-    302,
-    303,
-    307,
-    308
-]);
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 13
-```js
-import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 4
 };
 import { validateURL } from '../utils';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { NextURL } from '../next-url';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import { toNodeOutgoingHttpHeaders } from '../utils';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 9
 };
@@ -921,20 +860,17 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 7
 };
 import { ReflectAdapter } from './adapters/reflect';
-import { g as INTERNALS } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -11
-};
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 9
 };
-import { NextURL } from '../next-url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-import { h as REDIRECTS } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -12
-};
+const INTERNALS = Symbol('internal response');
+const REDIRECTS = new Set([
+    301,
+    302,
+    303,
+    307,
+    308
+]);
 function handleMiddlewareField(init, headers) {
     var _init_request;
     if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
@@ -1038,6 +974,12 @@ class NextResponse extends Response {
     }
 }
 export { NextResponse };
+export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -1046,26 +988,18 @@ export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
 };
 
 ```
-## Part 14
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-"module evaluation";
-
-```
-## Part 15
+## Part 12
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
 };
 
 ```
+## Part 13
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 12
-};
-"module evaluation";
 
 ```

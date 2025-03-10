@@ -1,6 +1,6 @@
 # Items
 
-Count: 7
+Count: 6
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -154,9 +154,7 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
 ```
 # Phase 2
 ```mermaid
@@ -167,14 +165,12 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
+    Item6 --> Item5;
 ```
 # Phase 3
 ```mermaid
@@ -185,14 +181,12 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
+    Item6 --> Item5;
 ```
 # Phase 4
 ```mermaid
@@ -203,14 +197,11 @@ graph TD
     Item4;
     Item5;
     Item6;
-    Item6["ModuleEvaluation"];
-    Item7;
-    Item7["export run"];
+    Item6["export run"];
     Item3 --> Item2;
     Item5 --> Item3;
     Item5 --> Item4;
     Item5 --> Item1;
-    Item7 --> Item5;
     Item6 --> Item5;
 ```
 # Final
@@ -218,24 +209,19 @@ graph TD
 graph TD
     N0["Items: [ItemId(0, ImportOfModule)]"];
     N1["Items: [ItemId(0, ImportBinding(0))]"];
-    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0))]"];
-    N3["Items: [ItemId(ModuleEvaluation)]"];
-    N4["Items: [ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
-    N2 --> N1;
+    N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(2, VarDeclarator(0)), ItemId(3, VarDeclarator(0)), ItemId(Export((&quot;run&quot;, #2), &quot;run&quot;))]"];
     N1 --> N0;
-    N3 --> N2;
     N2 --> N0;
-    N4 --> N2;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 3,
+    ModuleEvaluation: 4,
     Export(
         "run",
-    ): 4,
-    Exports: 5,
+    ): 2,
+    Exports: 3,
 }
 ```
 
@@ -359,6 +345,7 @@ const run = async (moduleFactory)=>{
         }
     }
 };
+export { run };
 export { ipc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -372,44 +359,28 @@ export { run as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
-
-```
-## Part 4
-```js
-import { d as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-export { run };
-
-```
-## Part 5
-```js
 export { run } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export run"
 };
 
 ```
+## Part 4
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 3,
+    ModuleEvaluation: 4,
     Export(
         "run",
-    ): 4,
-    Exports: 5,
+    ): 2,
+    Exports: 3,
 }
 ```
 
@@ -533,6 +504,7 @@ const run = async (moduleFactory)=>{
         }
     }
 };
+export { run };
 export { ipc as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
@@ -546,32 +518,16 @@ export { run as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
-
-```
-## Part 4
-```js
-import { d as run } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-export { run };
-
-```
-## Part 5
-```js
 export { run } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export run"
 };
 
 ```
+## Part 4
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-"module evaluation";
 
 ```

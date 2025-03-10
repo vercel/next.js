@@ -1,6 +1,6 @@
 # Items
 
-Count: 28
+Count: 27
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -319,23 +319,21 @@ graph TD
     Item18;
     Item19;
     Item20;
-    Item20["ModuleEvaluation"];
+    Item20["export createPrerenderState"];
     Item21;
-    Item21["export createPrerenderState"];
+    Item21["export markCurrentScopeAsDynamic"];
     Item22;
-    Item22["export markCurrentScopeAsDynamic"];
+    Item22["export trackDynamicDataAccessed"];
     Item23;
-    Item23["export trackDynamicDataAccessed"];
+    Item23["export Postpone"];
     Item24;
-    Item24["export Postpone"];
+    Item24["export trackDynamicFetch"];
     Item25;
-    Item25["export trackDynamicFetch"];
+    Item25["export usedDynamicAPIs"];
     Item26;
-    Item26["export usedDynamicAPIs"];
+    Item26["export formatDynamicAPIAccesses"];
     Item27;
-    Item27["export formatDynamicAPIAccesses"];
-    Item28;
-    Item28["export createPostponedAbortSignal"];
+    Item27["export createPostponedAbortSignal"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -363,23 +361,21 @@ graph TD
     Item18;
     Item19;
     Item20;
-    Item20["ModuleEvaluation"];
+    Item20["export createPrerenderState"];
     Item21;
-    Item21["export createPrerenderState"];
+    Item21["export markCurrentScopeAsDynamic"];
     Item22;
-    Item22["export markCurrentScopeAsDynamic"];
+    Item22["export trackDynamicDataAccessed"];
     Item23;
-    Item23["export trackDynamicDataAccessed"];
+    Item23["export Postpone"];
     Item24;
-    Item24["export Postpone"];
+    Item24["export trackDynamicFetch"];
     Item25;
-    Item25["export trackDynamicFetch"];
+    Item25["export usedDynamicAPIs"];
     Item26;
-    Item26["export usedDynamicAPIs"];
+    Item26["export formatDynamicAPIAccesses"];
     Item27;
-    Item27["export formatDynamicAPIAccesses"];
-    Item28;
-    Item28["export createPostponedAbortSignal"];
+    Item27["export createPostponedAbortSignal"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -390,14 +386,14 @@ graph TD
     Item9 -.-> Item15;
     Item9 -.-> Item6;
     Item9 -.-> Item18;
-    Item21 --> Item10;
-    Item22 --> Item11;
-    Item23 --> Item12;
-    Item24 --> Item13;
-    Item25 --> Item14;
-    Item26 --> Item16;
-    Item27 --> Item17;
-    Item28 --> Item19;
+    Item20 --> Item10;
+    Item21 --> Item11;
+    Item22 --> Item12;
+    Item23 --> Item13;
+    Item24 --> Item14;
+    Item25 --> Item16;
+    Item26 --> Item17;
+    Item27 --> Item19;
 ```
 # Phase 3
 ```mermaid
@@ -422,23 +418,21 @@ graph TD
     Item18;
     Item19;
     Item20;
-    Item20["ModuleEvaluation"];
+    Item20["export createPrerenderState"];
     Item21;
-    Item21["export createPrerenderState"];
+    Item21["export markCurrentScopeAsDynamic"];
     Item22;
-    Item22["export markCurrentScopeAsDynamic"];
+    Item22["export trackDynamicDataAccessed"];
     Item23;
-    Item23["export trackDynamicDataAccessed"];
+    Item23["export Postpone"];
     Item24;
-    Item24["export Postpone"];
+    Item24["export trackDynamicFetch"];
     Item25;
-    Item25["export trackDynamicFetch"];
+    Item25["export usedDynamicAPIs"];
     Item26;
-    Item26["export usedDynamicAPIs"];
+    Item26["export formatDynamicAPIAccesses"];
     Item27;
-    Item27["export formatDynamicAPIAccesses"];
-    Item28;
-    Item28["export createPostponedAbortSignal"];
+    Item27["export createPostponedAbortSignal"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -449,14 +443,14 @@ graph TD
     Item9 -.-> Item15;
     Item9 -.-> Item6;
     Item9 -.-> Item18;
-    Item21 --> Item10;
-    Item22 --> Item11;
-    Item23 --> Item12;
-    Item24 --> Item13;
-    Item25 --> Item14;
-    Item26 --> Item16;
-    Item27 --> Item17;
-    Item28 --> Item19;
+    Item20 --> Item10;
+    Item21 --> Item11;
+    Item22 --> Item12;
+    Item23 --> Item13;
+    Item24 --> Item14;
+    Item25 --> Item16;
+    Item26 --> Item17;
+    Item27 --> Item19;
     Item11 --> Item8;
     Item11 --> Item7;
     Item11 --> Item15;
@@ -498,23 +492,21 @@ graph TD
     Item18;
     Item19;
     Item20;
-    Item20["ModuleEvaluation"];
+    Item20["export createPrerenderState"];
     Item21;
-    Item21["export createPrerenderState"];
+    Item21["export markCurrentScopeAsDynamic"];
     Item22;
-    Item22["export markCurrentScopeAsDynamic"];
+    Item22["export trackDynamicDataAccessed"];
     Item23;
-    Item23["export trackDynamicDataAccessed"];
+    Item23["export Postpone"];
     Item24;
-    Item24["export Postpone"];
+    Item24["export trackDynamicFetch"];
     Item25;
-    Item25["export trackDynamicFetch"];
+    Item25["export usedDynamicAPIs"];
     Item26;
-    Item26["export usedDynamicAPIs"];
+    Item26["export formatDynamicAPIAccesses"];
     Item27;
-    Item27["export formatDynamicAPIAccesses"];
-    Item28;
-    Item28["export createPostponedAbortSignal"];
+    Item27["export createPostponedAbortSignal"];
     Item2 --> Item1;
     Item3 --> Item2;
     Item4 --> Item3;
@@ -525,14 +517,14 @@ graph TD
     Item9 -.-> Item15;
     Item9 -.-> Item6;
     Item9 -.-> Item18;
-    Item21 --> Item10;
-    Item22 --> Item11;
-    Item23 --> Item12;
-    Item24 --> Item13;
-    Item25 --> Item14;
-    Item26 --> Item16;
-    Item27 --> Item17;
-    Item28 --> Item19;
+    Item20 --> Item10;
+    Item21 --> Item11;
+    Item22 --> Item12;
+    Item23 --> Item13;
+    Item24 --> Item14;
+    Item25 --> Item16;
+    Item26 --> Item17;
+    Item27 --> Item19;
     Item11 --> Item8;
     Item11 --> Item7;
     Item11 --> Item15;
@@ -550,7 +542,6 @@ graph TD
     Item19 --> Item18;
     Item19 --> Item9;
     Item19 --> Item5;
-    Item20 --> Item9;
 ```
 # Final
 ```mermaid
@@ -572,7 +563,6 @@ graph TD
     N14["Items: [ItemId(11, Normal), ItemId(Export((&quot;usedDynamicAPIs&quot;, #2), &quot;usedDynamicAPIs&quot;))]"];
     N15["Items: [ItemId(12, Normal), ItemId(Export((&quot;formatDynamicAPIAccesses&quot;, #2), &quot;formatDynamicAPIAccesses&quot;))]"];
     N16["Items: [ItemId(14, Normal), ItemId(Export((&quot;createPostponedAbortSignal&quot;, #2), &quot;createPostponedAbortSignal&quot;))]"];
-    N17["Items: [ItemId(ModuleEvaluation)]"];
     N2 --> N0;
     N4 --> N2;
     N6 --> N4;
@@ -581,14 +571,14 @@ graph TD
     N8 -.-> N7;
     N8 -.-> N5;
     N8 -.-> N3;
-    N3 --> N2;
+    N1 --> N0;
     N11 --> N7;
     N13 --> N8;
     N16 --> N1;
     N5 --> N4;
-    N1 --> N0;
     N7 --> N6;
-    N17 --> N8;
+    N16 --> N8;
+    N3 --> N2;
     N10 --> N3;
     N10 --> N8;
     N10 --> N5;
@@ -597,13 +587,12 @@ graph TD
     N11 --> N3;
     N11 --> N8;
     N11 --> N5;
-    N16 --> N8;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 17,
+    ModuleEvaluation: 18,
     Export(
         "Postpone",
     ): 12,
@@ -628,7 +617,7 @@ graph TD
     Export(
         "usedDynamicAPIs",
     ): 14,
-    Exports: 18,
+    Exports: 17,
 }
 ```
 
@@ -939,14 +928,6 @@ export { createPostponedAbortSignal as o } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 17
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 18
-```js
 export { createPrerenderState } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export createPrerenderState"
 };
@@ -973,19 +954,19 @@ export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 18
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 19,
+    ModuleEvaluation: 20,
     Export(
         "Postpone",
     ): 12,
@@ -1010,7 +991,7 @@ import "__TURBOPACK_PART__" assert {
     Export(
         "usedDynamicAPIs",
     ): 15,
-    Exports: 20,
+    Exports: 19,
 }
 ```
 
@@ -1336,14 +1317,6 @@ export { createPostponedAbortSignal as o } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 19
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 20
-```js
 export { createPrerenderState } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export createPrerenderState"
 };
@@ -1370,11 +1343,11 @@ export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
 };
 
 ```
+## Part 20
+```js
+
+```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
 
 ```

@@ -4,7 +4,6 @@
 
 var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
-"module evaluation";
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/dce/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

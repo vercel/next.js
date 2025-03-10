@@ -1,5 +1,10 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4c35f_tests_snapshot_basic-tree-shake_tree-shake-test-1_input_index_7800ef35.js", {
+(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4c35f_tests_snapshot_basic-tree-shake_tree-shake-test-1_input_index_7693c546.js", {
 
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <module evaluation>": (function(__turbopack_context__) {
+
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+{
+}}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>": ((__turbopack_context__) => {
 "use strict";
 
@@ -24,9 +29,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += "!";
 __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += "!";
-__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += "!";
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <module evaluation>": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>": ((__turbopack_context__) => {
 "use strict";
 
 var { g: global, __dirname } = __turbopack_context__;
@@ -36,10 +40,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__1$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 1>");
 ;
 ;
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"]);
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"]);
-console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"]);
-"module evaluation";
+__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += "!";
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 3>": ((__turbopack_context__) => {
 "use strict";
@@ -62,7 +63,7 @@ __turbopack_context__.s({
     "dogRef": (()=>dogRef)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__1$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 1>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
 ;
 ;
 function getDog() {
@@ -81,7 +82,7 @@ const dogRef = {
 ;
 ;
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>": ((__turbopack_context__) => {
 "use strict";
 
 var { g: global, __dirname } = __turbopack_context__;
@@ -95,7 +96,7 @@ __turbopack_context__.s({
 let cat = "cat";
 ;
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 6>": ((__turbopack_context__) => {
 "use strict";
 
 var { g: global, __dirname } = __turbopack_context__;
@@ -107,13 +108,13 @@ __turbopack_context__.s({
     ]),
     "initialCat": (()=>initialCat)
 });
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");
 ;
-const initialCat = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__["e"];
+const initialCat = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["e"];
 ;
 ;
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 6>": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 7>": ((__turbopack_context__) => {
 "use strict";
 
 var { g: global, __dirname } = __turbopack_context__;
@@ -126,26 +127,26 @@ __turbopack_context__.s({
     "getChimera": (()=>getChimera)
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 0>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__1$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 1>");
 ;
 ;
 ;
 function getChimera() {
-    return __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__["e"] + __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"];
+    return __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["e"] + __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"];
 }
 ;
 ;
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 7>": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 8>": ((__turbopack_context__) => {
 "use strict";
 
 var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.s({
-    "cat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__["e"])
+    "cat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["e"])
 });
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__4$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 4>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");
 ;
 ;
 }}),
@@ -155,15 +156,15 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.s({
-    "cat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__7$3e$__["cat"]),
+    "cat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__8$3e$__["cat"]),
     "dogRef": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__3$3e$__["dogRef"]),
-    "getChimera": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__6$3e$__["getChimera"]),
-    "initialCat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__["initialCat"])
+    "getChimera": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__7$3e$__["getChimera"]),
+    "initialCat": (()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__6$3e$__["initialCat"])
 });
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__3$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 3>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__5$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 5>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__6$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 6>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__7$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 7>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$tree$2d$shake$2d$test$2d$1$2f$input$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__8$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/tree-shake-test-1/input/index.js [test] (ecmascript) <internal part 8>");
 ;
 ;
 ;
@@ -187,4 +188,4 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 }}),
 }]);
 
-//# sourceMappingURL=4c35f_tests_snapshot_basic-tree-shake_tree-shake-test-1_input_index_7800ef35.js.map
+//# sourceMappingURL=4c35f_tests_snapshot_basic-tree-shake_tree-shake-test-1_input_index_7693c546.js.map
