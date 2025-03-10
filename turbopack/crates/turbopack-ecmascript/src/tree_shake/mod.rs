@@ -354,7 +354,7 @@ impl Analyzer<'_> {
             if let ItemId::Group(kind) = item_id {
                 match kind {
                     ItemIdGroupKind::ModuleEvaluation => {
-                        // We use last side effect as a module evaluation
+                        // We use the last side effect as a module evaluation
 
                         if let Some(last) = self.last_side_effects.last() {
                             if let Some(item) = self.items.get_mut(last) {
