@@ -13,8 +13,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     border-radius: var(--rounded-md-2);
   }
   [data-nextjs-container-errors-pseudo-html-line] {
-    display: inline-block;
-    width: 100%;
+    display: block;
     padding-left: 40px;
     line-height: calc(5 / 3);
   }
@@ -74,7 +73,6 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   }
   .nextjs__container_errors__component-stack code {
     display: block;
-    width: 100%;
     white-space: pre-wrap;
     scroll-snap-type: y mandatory;
     overflow-y: hidden;

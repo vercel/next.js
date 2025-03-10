@@ -49,22 +49,16 @@ import { CollapseIcon } from '../../icons/collapse-icon'
  *
  */
 export function PseudoHtmlDiff({
-  firstContent,
-  secondContent,
-  hydrationMismatchType,
   reactOutputComponentDiff,
   ...props
 }: {
-  firstContent: string
-  secondContent: string
   reactOutputComponentDiff: string
-  hydrationMismatchType: 'tag' | 'text' | 'text-in-tag'
 } & React.HTMLAttributes<HTMLPreElement>) {
   const [isDiffCollapsed, toggleCollapseHtml] = useState(true)
 
   const htmlComponents = useMemo(() => {
     const componentStacks: React.ReactNode[] = []
-    const reactComponentDiffLines = reactOutputComponentDiff!.split('\n')
+    const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
     reactComponentDiffLines.forEach((line, index) => {
       const isDiffLine = line[0] === '+' || line[0] === '-'
       const isHighlightedLine = line[0] === '>'

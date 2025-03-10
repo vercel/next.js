@@ -1,14 +1,11 @@
 import { useState, useMemo, useEffect, useRef, Suspense } from 'react'
 import type { DebugInfo } from '../../types'
+import type { HydrationErrorState } from '../../../errors/hydration-error-info'
 import { Overlay } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
-import {
-  type HydrationErrorState,
-  getHydrationWarningType,
-} from '../../../errors/hydration-error-info'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
@@ -125,7 +122,6 @@ export function Errors({
   const [warningTemplate, serverContent, clientContent] =
     errorDetails.warning || [null, '', '']
 
-  const hydrationErrorType = getHydrationWarningType(warningTemplate)
   const hydrationWarning = warningTemplate
     ? warningTemplate
         .replace('%s', serverContent)
@@ -193,9 +189,6 @@ export function Errors({
         !!errorDetails.reactOutputComponentDiff) ? (
         <PseudoHtmlDiff
           className="nextjs__container_errors__component-stack"
-          hydrationMismatchType={hydrationErrorType}
-          firstContent={serverContent}
-          secondContent={clientContent}
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
         />
       ) : null}
