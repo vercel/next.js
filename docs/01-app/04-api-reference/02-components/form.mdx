@@ -17,7 +17,7 @@ import Form from 'next/form'
 export default function Page() {
   return (
     <Form action="/search">
-      {/* On submission, the input value will be appended to 
+      {/* On submission, the input value will be appended to
           the URL, e.g. /search?query=abc */}
       <input name="query" />
       <button type="submit">Submit</button>
@@ -32,7 +32,7 @@ import Form from 'next/form'
 export default function Search() {
   return (
     <Form action="/search">
-      {/* On submission, the input value will be appended to 
+      {/* On submission, the input value will be appended to
           the URL, e.g. /search?query=abc */}
       <input name="query" />
       <button type="submit">Submit</button>
@@ -51,7 +51,7 @@ import Form from 'next/form'
 export default function Page() {
   return (
     <Form action="/search">
-      {/* On submission, the input value will be appended to 
+      {/* On submission, the input value will be appended to
           the URL, e.g. /search?query=abc */}
       <input name="query" />
       <button type="submit">Submit</button>
@@ -66,7 +66,7 @@ import Form from 'next/form'
 export default function Search() {
   return (
     <Form action="/search">
-      {/* On submission, the input value will be appended to 
+      {/* On submission, the input value will be appended to
           the URL, e.g. /search?query=abc */}
       <input name="query" />
       <button type="submit">Submit</button>
@@ -373,7 +373,8 @@ export default async function PostPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const data = await getPost((await params).id)
+  const { id } = await params
+  const data = await getPost(id)
 
   return (
     <div>
@@ -388,7 +389,8 @@ export default async function PostPage({
 import { getPost } from '@/posts/data'
 
 export default async function PostPage({ params }) {
-  const data = await getPost((await params).id)
+  const { id } = await params
+  const data = await getPost(id)
 
   return (
     <div>

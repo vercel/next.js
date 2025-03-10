@@ -151,6 +151,23 @@ impl GenerateSourceMap for Code {
     /// chunk items into a single map file.
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
+        Ok(Vc::cell(Some(self.generate_source_map_ref()?)))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Code {
+    /// Returns the hash of the source code of this Code.
+    #[turbo_tasks::function]
+    pub fn source_code_hash(&self) -> Vc<u64> {
+        let code = self;
+        let hash = hash_xxh3_hash64(code.source_code());
+        Vc::cell(hash)
+    }
+}
+
+impl Code {
+    pub fn generate_source_map_ref(&self) -> Result<Rope> {
         let mut pos = SourcePos::new();
         let mut last_byte_pos = 0;
 
@@ -170,21 +187,15 @@ impl GenerateSourceMap for Code {
             }
             last_byte_pos = *byte_pos;
 
-            sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            if pos.column != 0 || map.is_some() {
+                sections.push((pos, map.clone().unwrap_or_else(SourceMap::empty_rope)))
+            }
         }
 
-        let source_map = SourceMap::sections_to_rope(sections)?;
-        Ok(Vc::cell(Some(source_map)))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Code {
-    /// Returns the hash of the source code of this Code.
-    #[turbo_tasks::function]
-    pub fn source_code_hash(&self) -> Vc<u64> {
-        let code = self;
-        let hash = hash_xxh3_hash64(code.source_code());
-        Vc::cell(hash)
+        if sections.len() == 1 && sections[0].0.line == 0 && sections[0].0.column == 0 {
+            Ok(sections.into_iter().next().unwrap().1)
+        } else {
+            SourceMap::sections_to_rope(sections)
+        }
     }
 }

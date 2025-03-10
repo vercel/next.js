@@ -32,7 +32,7 @@ import {
   navigate as navigateUsingSegmentCache,
   NavigationResultTag,
   type NavigationResult,
-} from '../../segment-cache/navigation'
+} from '../../segment-cache'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -203,9 +203,6 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
-    // TODO: Currently this always returns an async result, but in the future
-    // it will return a sync result if the navigation was prefetched. Hence
-    // a result type that's more complicated than you might expect.
     const result = navigateUsingSegmentCache(
       url,
       state.cache,
@@ -237,6 +234,24 @@ export function navigateReducer(
         isFirstRead = true
       }
 
+      if (prefetchValues.aliased) {
+        const result = handleAliasedPrefetchEntry(
+          state,
+          flightData,
+          url,
+          mutable
+        )
+
+        // We didn't return new router state because we didn't apply the aliased entry for some reason.
+        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
+        // will create an on-demand prefetch entry.
+        if (result === false) {
+          return navigateReducer(state, { ...action, allowAliasing: false })
+        }
+
+        return result
+      }
+
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(state, mutable, flightData, pendingPush)
@@ -260,24 +275,6 @@ export function navigateReducer(
         mutable.hashFragment = hash
         mutable.scrollableSegments = []
         return handleMutable(state, mutable)
-      }
-
-      if (prefetchValues.aliased) {
-        const result = handleAliasedPrefetchEntry(
-          state,
-          flightData,
-          url,
-          mutable
-        )
-
-        // We didn't return new router state because we didn't apply the aliased entry for some reason.
-        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
-        // will create an on-demand prefetch entry.
-        if (result === false) {
-          return navigateReducer(state, { ...action, allowAliasing: false })
-        }
-
-        return result
       }
 
       let currentTree = state.tree
@@ -337,6 +334,7 @@ export function navigateReducer(
               seedData,
               head,
               isHeadPartial,
+              false,
               scrollableSegments
             )
 

@@ -1456,6 +1456,8 @@ export async function getRedboxCallStack(
           foundInternalFrame = true
         } else if (frame.includes('file://')) {
           stack.push('<FIXME-file-protocol>')
+        } else if (frame.includes('.next/')) {
+          stack.push('<FIXME-next-dist-dir>')
         } else {
           stack.push(frame)
         }
@@ -1518,28 +1520,6 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
   })
 
   return matches
-}
-
-/**
- * For better editor support, pass in the variants this should run on (`default` and/or `turbo`) as cases.
- *
- * This is necessary if separate snapshots are needed for next.js with webpack vs turbopack.
- */
-export const describeVariants = {
-  each(variants: TestVariants[]) {
-    return (name: string, fn: (variants: TestVariants) => any) => {
-      if (
-        !Array.isArray(variants) ||
-        !variants.every((val) => typeof val === 'string')
-      ) {
-        throw new Error('variants need to be an array of strings')
-      }
-
-      for (const variant of variants) {
-        getSnapshotTestDescribe(variant).each([variant])(name, fn)
-      }
-    }
-  },
 }
 
 export const getTitle = (browser: BrowserInterface) =>
@@ -1696,7 +1676,7 @@ export async function getStackFramesContent(browser) {
   const stackFramesContent = (
     await Promise.all(
       stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
+        const functionNameEl = await frame.$('.call-stack-frame-method-name')
         const sourceEl = await frame.$('[data-has-source="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()

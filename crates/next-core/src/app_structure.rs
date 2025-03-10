@@ -1245,6 +1245,43 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             );
         }
 
+        let mut modules = directory_tree.modules.clone();
+
+        // fill in the default modules for the not-found entrypoint
+        if modules.layout.is_none() {
+            modules.layout = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/default-layout.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+
+        if modules.not_found.is_none() {
+            modules.not_found = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/not-found-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        if modules.forbidden.is_none() {
+            modules.forbidden = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/forbidden-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        if modules.unauthorized.is_none() {
+            modules.unauthorized = Some(
+                get_next_package(*app_dir)
+                    .join("dist/client/components/unauthorized-error.js".into())
+                    .to_resolved()
+                    .await?,
+            );
+        }
+
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
         let not_found_tree = AppPageLoaderTree {

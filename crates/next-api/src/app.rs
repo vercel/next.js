@@ -1902,10 +1902,23 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![(
-            vec![self.app_endpoint_entry().await?.rsc_entry],
-            ChunkGroupType::Entry,
-        )]))
+        let this = self.await?;
+        Ok(Vc::cell(vec![
+            (
+                vec![self.app_endpoint_entry().await?.rsc_entry],
+                ChunkGroupType::Entry,
+            ),
+            (
+                this.app_project
+                    .client_runtime_entries()
+                    .await?
+                    .iter()
+                    .copied()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+                ChunkGroupType::Entry,
+            ),
+        ]))
     }
 
     #[turbo_tasks::function]

@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource, openRedbox } from 'next-test-utils'
 
 describe('hook-function-names', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -11,64 +10,41 @@ describe('hook-function-names', () => {
 
     await browser.elementByCss('button').click()
 
-    await openRedbox(browser)
-
-    if (isTurbopack) {
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
-
-           5 | const Button = ({ message }: { message: string }) => {
-           6 |   const handleClick = useCallback(() => {
-        >  7 |     throw new Error(message)
-             |           ^
-           8 |   }, [message])
-           9 |
-          10 |   return ("
-      `)
-    } else {
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
-
-               5 | const Button = ({ message }: { message: string }) => {
-               6 |   const handleClick = useCallback(() => {
-            >  7 |     throw new Error(message)
-                 |           ^
-               8 |   }, [message])
-               9 |
-              10 |   return ("
-        `)
-    }
+    await expect(browser).toDisplayCollapsedRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Kaputt!",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
+     >  7 |     throw new Error(message)
+          |           ^",
+       "stack": [
+         "Button.useCallback[handleClick] app/button/page.tsx (7:11)",
+         "button <anonymous> (0:0)",
+         "Button app/button/page.tsx (11:5)",
+         "Page app/button/page.tsx (18:10)",
+       ],
+     }
+    `)
   })
 
   it('should show readable hook names in stacks for default-exported components', async () => {
     const browser = await next.browser('/')
 
-    await assertHasRedbox(browser)
-
-    if (isTurbopack) {
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-        "app/page.tsx (7:11) @ Page.useEffect
-
-           5 | export default function Page() {
-           6 |   useEffect(() => {
-        >  7 |     throw new Error('error in useEffect')
-             |           ^
-           8 |   }, [])
-           9 |
-          10 |   return <p>Hello world!</p>"
-      `)
-    } else {
-      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-              "app/page.tsx (7:11) @ Page.useEffect
-
-                 5 | export default function Page() {
-                 6 |   useEffect(() => {
-              >  7 |     throw new Error('error in useEffect')
-                   |           ^
-                 8 |   }, [])
-                 9 |
-                10 |   return <p>Hello world!</p>"
-          `)
-    }
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: error in useEffect",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/page.tsx (7:11) @ Page.useEffect
+     >  7 |     throw new Error('error in useEffect')
+          |           ^",
+       "stack": [
+         "Page.useEffect app/page.tsx (7:11)",
+       ],
+     }
+    `)
   })
 })

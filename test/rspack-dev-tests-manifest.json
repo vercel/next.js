@@ -2123,11 +2123,12 @@
       "ReactRefreshRegression can fast refresh a page with config",
       "ReactRefreshRegression can fast refresh a page with getServerSideProps",
       "ReactRefreshRegression can fast refresh a page with getStaticProps",
-      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled",
       "ReactRefreshRegression shows an overlay for a server-side error",
       "ReactRefreshRegression styled-components hydration mismatch"
     ],
-    "failed": [],
+    "failed": [
+      "ReactRefreshRegression custom loader mdx should have Fast Refresh enabled"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2160,12 +2161,12 @@
     "passed": [
       "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery render error not shown right after syntax error",
-      "pages/ error recovery stuck error",
-      "pages/ error recovery syntax > runtime error"
+      "pages/ error recovery stuck error"
     ],
     "failed": [
-      "pages/ error recovery logbox: can recover from a syntax error without losing state"
+      "pages/ error recovery logbox: can recover from a syntax error without losing state",
+      "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery syntax > runtime error"
     ],
     "pending": [],
     "flakey": [],
@@ -2284,8 +2285,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-fetch-hmr/dev-fetch-hmr.test.ts": {
-    "passed": ["dev-fetch-hmr should retain module level fetch patching"],
-    "failed": [],
+    "passed": [],
+    "failed": ["dev-fetch-hmr should retain module level fetch patching"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2341,12 +2342,12 @@
   },
   "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should clear segment errors after correcting them",
       "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
       "Dynamic IO Dev Errors should show a red box error on client navigations",
       "Dynamic IO Dev Errors should show a red box error on the SSR render"
     ],
     "failed": [
+      "Dynamic IO Dev Errors should clear segment errors after correcting them",
       "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary"
     ],
     "pending": [],
@@ -2489,7 +2490,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/development/app-dir/logging-incoming-request/logging-incoming-request-false.test.ts": {
     "passed": [
@@ -2613,12 +2614,12 @@
   },
   "test/development/app-dir/server-navigation-error/server-navigation-error.test.ts": {
     "passed": [
-      "server-navigation-error pages router should error on navigation API notFound",
       "server-navigation-error pages router should error on navigation API redirect"
     ],
     "failed": [
       "server-navigation-error middleware should error on navigation API not-found",
-      "server-navigation-error middleware should error on navigation API redirect "
+      "server-navigation-error middleware should error on navigation API redirect ",
+      "server-navigation-error pages router should error on navigation API notFound"
     ],
     "pending": [],
     "flakey": [],
@@ -2821,12 +2822,10 @@
   },
   "test/development/basic/hmr/error-recovery.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from 404 after a page has been added",
@@ -2834,12 +2833,10 @@
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in getInitialProps in client",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
@@ -2847,12 +2844,10 @@
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in getInitialProps in client",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from 404 after a page has been added",
@@ -2860,12 +2855,10 @@
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in getInitialProps in client",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover from errors in the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should show the error on all pages",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after an error reported via SSR",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after exporting an invalid page",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after undefined exported as default",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after webpack parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover from 404 after a page has been added",
@@ -2876,13 +2869,21 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: { basePath: '', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '' } should recover after loader parse error in an imported file",
       "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page"
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should detect syntax errors and recover",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should not continously poll a custom error page",
+      "HMR - Error Recovery, nextConfig: { basePath: '/docs', assetPrefix: '/asset-prefix' } should recover after loader parse error in an imported file"
     ],
     "pending": [],
     "flakey": [],
@@ -3321,7 +3322,6 @@
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
       "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
-      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
@@ -3332,6 +3332,7 @@
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
       "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
+      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
@@ -3414,7 +3415,6 @@
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (<Link />)",
       "Client Navigation resets scroll at the correct time should reset scroll before the new page runs its lifecycles (Router#push)",
       "Client Navigation runtime errors should show redbox when a client side error is thrown inside a component",
-      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
       "Client Navigation should emit routeChangeError on hash change cancel",
       "Client Navigation should handle boolean async prop in next/script client-side: false",
       "Client Navigation should handle boolean async prop in next/script client-side: true",
@@ -3462,7 +3462,6 @@
       "Client Navigation with different types of urls should work with / page",
       "Client Navigation with different types of urls should work with dir/ page",
       "Client Navigation with different types of urls should work with normal page",
-      "Client Navigation with empty getInitialProps() should render a redbox",
       "Client Navigation with getInitialProp redirect should redirect the page via client side",
       "Client Navigation with getInitialProp redirect should redirect the page when loading",
       "Client Navigation with hash changes check hydration mis-match should not have hydration mis-match for hash link",
@@ -3516,7 +3515,10 @@
       "updating <Head /> with strictNextHead=true while client routing should warn when scripts are in head",
       "updating <Head /> with strictNextHead=true while client routing should warn when stylesheets or scripts are in head"
     ],
-    "failed": [],
+    "failed": [
+      "Client Navigation runtime errors should show redbox when a client side error is thrown outside a component",
+      "Client Navigation with empty getInitialProps() should render a redbox"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3999,7 +4001,7 @@
     "failed": ["app dir HMR should not cause error when removing loading.js"],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
     "passed": [
@@ -4341,8 +4343,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
-    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
-    "failed": [],
+    "passed": [],
+    "failed": ["app-routes-subrequests shortcuts after 5 subrequests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4727,7 +4729,6 @@
       "app dir - basic <Link /> should soft replace",
       "app dir - basic HMR should HMR correctly for client component",
       "app dir - basic HMR should HMR correctly for server component",
-      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic bootstrap scripts should only bootstrap with one script, prinitializing the rest",
       "app dir - basic data fetch with response over 16KB with chunked encoding should load page when fetching a large amount of data",
       "app dir - basic known bugs should handle as on next/link",
@@ -4817,6 +4818,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
+      "app dir - basic bootstrap scripts should fail to bootstrap when using CSP in Dev due to eval",
       "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
@@ -5342,10 +5344,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-import/dynamic-import.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "dynamic-import should render the dynamically imported component"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5464,11 +5466,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/dynamic-io-segment-configs/dynamic-io-segment-configs.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "dynamic-io-segment-configs it should error when using segment configs that aren't supported by dynamicIO",
       "dynamic-io-segment-configs should propagate configurations from layouts to pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5822,17 +5824,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
-    ],
+    "passed": [],
     "failed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6182,7 +6183,6 @@
     "passed": [
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - fetch logging should not log requests for HMR refreshes",
-      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with fetches default logging should exclude Middleware invoked and _rsc requests",
@@ -6222,7 +6222,6 @@
       "app-dir - logging with verbose logging for edge runtime should log each page request only once",
       "app-dir - logging with verbose logging for edge runtime should log requests for client-side navigations",
       "app-dir - logging with verbose logging for edge runtime should log requests with correct indentation",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not limit the number of requests that are logged",
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
@@ -6231,7 +6230,10 @@
       "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7981,10 +7983,11 @@
       "app dir - rsc basics should support streaming for flight response",
       "app dir - rsc basics should suspense next/image in server components",
       "app dir - rsc basics should suspense next/legacy/image in server components",
-      "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - rsc basics should track client components in dynamic imports"
+    ],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
@@ -9157,7 +9160,6 @@
   "test/e2e/cancel-request/stream-cancel.test.ts": {
     "passed": [
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stalled stream",
-      "streaming responses cancel inner stream after disconnect edge app route handler cancels stream making progress",
       "streaming responses cancel inner stream after disconnect edge app route handler cancels stream that never sent data",
       "streaming responses cancel inner stream after disconnect edge pages api cancels stalled stream",
       "streaming responses cancel inner stream after disconnect edge pages api cancels stream making progress",
@@ -9172,7 +9174,9 @@
       "streaming responses cancel inner stream after disconnect node pages api cancels stream making progress",
       "streaming responses cancel inner stream after disconnect node pages api cancels stream that never sent data"
     ],
-    "failed": [],
+    "failed": [
+      "streaming responses cancel inner stream after disconnect edge app route handler cancels stream making progress"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10397,7 +10401,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/multi-zone/multi-zone.test.ts": {
     "passed": [
@@ -10438,17 +10442,17 @@
     "runtimeError": false
   },
   "test/e2e/new-link-behavior/material-ui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "New Link Behavior with material-ui should render MuiLink with <a>"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/new-link-behavior/stitches.test.ts": {
-    "passed": ["New Link Behavior with stitches should render <a>"],
-    "failed": [],
+    "passed": [],
+    "failed": ["New Link Behavior with stitches should render <a>"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10564,10 +10568,10 @@
     "runtimeError": false
   },
   "test/e2e/next-image-forward-ref/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next-image-forward-ref allows framer-motion to animate opacity"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11763,11 +11767,12 @@
   },
   "test/integration/app-dir-export/test/dynamic-missing-gsp-dev.test.ts": {
     "passed": [
-      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams",
       "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is missing generateStaticParams",
       "app dir - with output export - dynamic missing gsp dev development mode should error when dynamic route is set to true"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - with output export - dynamic missing gsp dev development mode should error when client component has generateStaticParams"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12526,13 +12531,13 @@
     "runtimeError": false
   },
   "test/integration/create-next-app/templates/app-api.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "create-next-app --api (Headless App) should create JavaScript project with --js flag",
       "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
       "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
       "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13899,7 +13904,6 @@
       "Edge runtime code with imports Edge API importing vanilla 3rd party module does not throw in dev at runtime",
       "Edge runtime code with imports Edge API using Buffer polyfill does not throw in dev at runtime",
       "Edge runtime code with imports Middleware importing vanilla 3rd party module does not throw in dev at runtime",
-      "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware using Buffer polyfill does not throw in dev at runtime"
     ],
     "failed": [
@@ -13907,7 +13911,8 @@
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Edge API statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
       "Edge runtime code with imports Middleware dynamically importing node.js module development mode throws unsupported module error in dev at runtime and highlights the faulty line",
-      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line"
+      "Edge runtime code with imports Middleware dynamically importing node.js module in a lib development mode throws unsupported module error in dev at runtime and highlights the faulty line",
+      "Edge runtime code with imports Middleware statically importing 3rd party module throws not-found module error in dev at runtime and highlights the faulty line"
     ],
     "pending": [
       "Edge runtime code with imports Edge API dynamically importing node.js module in a lib production mode throws unsupported module error in production at runtime and prints error on logs",

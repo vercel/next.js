@@ -10,7 +10,6 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
@@ -258,6 +257,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  allowedDevOrigins?: string[]
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -316,7 +316,7 @@ export interface ExperimentalConfig {
   /**
    * @deprecated use config.expireTime instead
    */
-  expireTime?: ExpireTime
+  expireTime?: number
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -1027,7 +1027,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  expireTime?: ExpireTime
+  expireTime?: number
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1127,12 +1127,15 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
+    ? undefined
+    : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    allowedDevOrigins: [],
     nodeMiddleware: false,
     cacheLife: {
       default: {

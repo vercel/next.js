@@ -1855,8 +1855,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             for (ident, export_name, ref_id) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
                     if export_name == "default" {
-                        self.comments.add_pure_comment(ident.span.lo);
-
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
@@ -1868,6 +1866,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     span: if self.config.is_react_server_layer
                                         || self.config.is_development
                                     {
+                                        self.comments.add_pure_comment(ident.span.lo);
                                         ident.span
                                     } else {
                                         PURE_SP
@@ -1888,9 +1887,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
-                        let dummy_pure_span = Span::dummy_with_cmt();
-                        self.comments.add_pure_comment(dummy_pure_span.lo);
-
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
@@ -1918,7 +1914,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                             .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: dummy_pure_span,
+                                            span: PURE_SP,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),

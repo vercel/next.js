@@ -2,10 +2,13 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/1.css [test] (css, async loader)")(__turbopack_context__.i);
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/2.css [test] (css, async loader)")(__turbopack_context__.i);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/x.css [test] (css, async loader)")(__turbopack_context__.i);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/y.css [test] (css, async loader)")(__turbopack_context__.i);
+__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/i.css [test] (css, async loader)")(__turbopack_context__.i);
 }}),
 }]);
 
