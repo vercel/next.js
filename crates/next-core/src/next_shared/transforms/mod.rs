@@ -86,6 +86,8 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
         RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
         RuleCondition::ResourcePathEndsWith(".mjs".to_string()),
         RuleCondition::ResourcePathEndsWith(".cjs".to_string()),
+        RuleCondition::ContentTypeStartsWith("application/javascript".to_string()),
+        RuleCondition::ContentTypeStartsWith("text/javascript".to_string()),
     ];
 
     if enable_mdx_rs {
