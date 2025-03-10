@@ -207,6 +207,9 @@ pub async fn to_rsc_context(
     entry_path: &str,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
+    // TODO a cleaner solution would something similar to the EcmascriptClientReferenceModule, as
+    // opposed to the following hack to construct the RSC module corresponding to this client
+    // module.
     let source = FileSource::new(client_module.ident().path().root().join(entry_path.into()));
     let module = asset_context
         .process(
