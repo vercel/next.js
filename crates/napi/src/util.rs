@@ -63,7 +63,7 @@ pub fn log_internal_error_and_inform(internal_error: &anyhow::Error) {
         eprintln!(
             "{}: An unexpected Turbopack error occurred:\n{}",
             "FATAL".red().bold(),
-            internal_error.to_string()
+            PrettyPrintError(internal_error)
         );
         return;
     }
