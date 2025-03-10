@@ -1392,22 +1392,6 @@ impl DepGraph {
             }
         }
 
-        // {
-        //     // `module evaluation side effects` Node
-        //     let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
-        //     ids.push(id.clone());
-        //     items.insert(
-        //         id,
-        //         ItemData {
-        //             content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        //                 span: DUMMY_SP,
-        //                 expr: "module evaluation".into(),
-        //             })),
-        //             ..Default::default()
-        //         },
-        //     );
-        // }
-
         for (local, export_name, disable_export_merging) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
