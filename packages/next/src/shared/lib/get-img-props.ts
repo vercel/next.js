@@ -80,10 +80,13 @@ export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
 }
 
 const VALID_LOADING_VALUES = ['lazy', 'eager', undefined] as const
+
+// Object-fit values that are not valid background-size values
 const INVALID_BACKGROUND_SIZE_VALUES = [
-  'fill',
   '-moz-initial',
+  'fill',
   'none',
+  'scale-down',
   undefined,
 ]
 type LoadingValue = (typeof VALID_LOADING_VALUES)[number]
@@ -657,13 +660,17 @@ export function getImgProps(
         : `url("${placeholder}")` // assume `data:image/`
       : null
 
+  const backgroundSize = !INVALID_BACKGROUND_SIZE_VALUES.includes(
+    imgStyle.objectFit
+  )
+    ? imgStyle.objectFit
+    : imgStyle.objectFit === 'fill'
+      ? '100% 100%' // the background-size equivalent of `fill`
+      : 'cover'
+
   let placeholderStyle: PlaceholderStyle = backgroundImage
     ? {
-        backgroundSize: !INVALID_BACKGROUND_SIZE_VALUES.includes(
-          imgStyle.objectFit
-        )
-          ? imgStyle.objectFit
-          : '100% 100%',
+        backgroundSize,
         backgroundPosition: imgStyle.objectPosition || '50% 50%',
         backgroundRepeat: 'no-repeat',
         backgroundImage,
