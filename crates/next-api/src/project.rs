@@ -791,11 +791,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_endpoints(self: Vc<Self>) -> Result<Vc<Endpoints>> {
+    pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
 
+        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
+        // page routes themselves are excluded below.
         endpoints.push(entrypoints.pages_error_endpoint);
         endpoints.push(entrypoints.pages_app_endpoint);
         endpoints.push(entrypoints.pages_document_endpoint);
@@ -815,10 +817,14 @@ impl Project {
                     html_endpoint,
                     data_endpoint: _,
                 } => {
-                    endpoints.push(*html_endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*html_endpoint);
+                    }
                 }
                 Route::PageApi { endpoint } => {
-                    endpoints.push(*endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*endpoint);
+                    }
                 }
                 Route::AppPage(page_routes) => {
                     for AppPageRoute {
@@ -848,7 +854,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let mut modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.entries().owned().await?))
@@ -864,7 +870,7 @@ impl Project {
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
         let modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
