@@ -83,6 +83,7 @@ impl ClientReferenceManifest {
                 .map(|p| p.to_string())
                 .unwrap_or("".into());
 
+            // TODO: Add `suffix` to the manifest for React to use.
             // entry_manifest.module_loading.prefix = prefix_path;
 
             entry_manifest.module_loading.cross_origin = next_config
