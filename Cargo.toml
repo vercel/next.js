@@ -396,9 +396,6 @@ serde_bytes = "0.11.15"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
-shadow-rs = { version = "0.37.0", default-features = false, features = [
-  "tzdb",
-] }
 smallvec = { version = "1.13.1", features = [
   "serde",
   "const_generics",
@@ -423,6 +420,8 @@ unicode-segmentation = "1.10.1"
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
+vergen = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
+vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]

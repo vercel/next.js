@@ -68,7 +68,6 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
-    build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -1069,7 +1068,7 @@ impl Project {
         // First, emit an event for the binary target triple.
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
-        emit_event(build::BUILD_TARGET, true);
+        emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
 
         // Go over jsconfig and report enabled features.
         let compiler_options = self.js_config().compiler_options().await?;
