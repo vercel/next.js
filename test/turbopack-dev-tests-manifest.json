@@ -7339,12 +7339,12 @@
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
       "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
       "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
