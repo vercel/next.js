@@ -318,12 +318,12 @@ impl AssetIdent {
             has_hash = true;
         }
         if let Some(layer) = layer {
-            1_u8.deterministic_hash(&mut hasher);
+            5_u8.deterministic_hash(&mut hasher);
             layer.await?.deterministic_hash(&mut hasher);
             has_hash = true;
         }
         if let Some(content_type) = content_type {
-            1_u8.deterministic_hash(&mut hasher);
+            6_u8.deterministic_hash(&mut hasher);
             content_type.deterministic_hash(&mut hasher);
             has_hash = true;
         }
