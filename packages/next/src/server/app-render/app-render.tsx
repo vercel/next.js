@@ -1712,7 +1712,7 @@ async function renderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -1935,7 +1935,6 @@ async function renderToStream(
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
-          nonce: ctx.nonce,
         })
       }
     }
@@ -2008,7 +2007,6 @@ async function renderToStream(
       getServerInsertedHTML,
       getServerInsertedMetadata,
       validateRootLayout,
-      nonce: ctx.nonce,
     })
   } catch (err) {
     if (
@@ -2160,7 +2158,6 @@ async function renderToStream(
         }),
         getServerInsertedMetadata,
         validateRootLayout,
-        nonce: ctx.nonce,
       })
     } catch (finalErr: any) {
       if (
@@ -2303,9 +2300,9 @@ async function spawnDynamicValidationInDev(
     }
   }
 
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata()
   const nonce = '1'
+  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(nonce)
 
   if (initialServerStream) {
     const [warmupStream, renderStream] = initialServerStream.tee()
@@ -2588,7 +2585,7 @@ async function prerenderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -3577,7 +3574,6 @@ async function prerenderToStream(
             getServerInsertedHTML,
             getServerInsertedMetadata,
             validateRootLayout,
-            nonce: ctx.nonce,
           }),
           dynamicAccess: consumeDynamicAccess(
             serverDynamicTracking,
@@ -3907,7 +3903,6 @@ async function prerenderToStream(
           isStaticGeneration: true,
           getServerInsertedHTML,
           getServerInsertedMetadata,
-          nonce: ctx.nonce,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4085,7 +4080,6 @@ async function prerenderToStream(
           }),
           getServerInsertedMetadata,
           validateRootLayout,
-          nonce: ctx.nonce,
         }),
         dynamicAccess: null,
         collectedRevalidate:

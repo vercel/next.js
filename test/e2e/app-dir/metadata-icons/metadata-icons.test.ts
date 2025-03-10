@@ -32,13 +32,16 @@ describe('app-dir - metadata-icons', () => {
 
   it('should re-insert the body icons into the head', async () => {
     const browser = await next.browser('/custom-icon')
-    const iconsInBody = await browser.elementsByCss('body link[rel="icon"]')
-    // favicon.ico + /heart.png
-    expect(iconsInBody.length).toBe(2)
 
-    const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
-    // re-inserted favicon.ico + /heart.png
-    expect(iconsInHead.length).toBe(2)
+    await retry(async () => {
+      const iconsInBody = await browser.elementsByCss('body link[rel="icon"]')
+      // favicon.ico + /heart.png
+      expect(iconsInBody.length).toBe(2)
+
+      const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
+      // re-inserted favicon.ico + /heart.png
+      expect(iconsInHead.length).toBe(2)
+    })
   })
 
   it('should re-insert the apple icons into the head after navigation', async () => {
