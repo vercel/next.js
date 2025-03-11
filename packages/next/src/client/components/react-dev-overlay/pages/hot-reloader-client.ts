@@ -52,6 +52,7 @@ import {
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
 } from '../shared'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import reportHmrLatency from '../utils/report-hmr-latency'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -65,7 +66,6 @@ declare global {
   const __webpack_hash__: string
   interface Window {
     __nextDevClientId: number
-    __NEXT_HMR_LATENCY_CB: any
   }
 }
 
@@ -144,7 +144,12 @@ function handleSuccess() {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   } else {
-    reportHmrLatency([...turbopackUpdatedModules])
+    reportHmrLatency(
+      sendMessage,
+      [...turbopackUpdatedModules],
+      startLatency!,
+      turbopackLastUpdateLatency ?? Date.now()
+    )
     onBuildOk()
   }
 }
@@ -241,32 +246,12 @@ function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
 
   onRefresh()
 
-  reportHmrLatency()
-}
-
-function reportHmrLatency(updatedModules: ReadonlyArray<string> = []) {
-  if (!startLatency) return
-  // turbopack has a debounce for the BUILT event which we don't want to
-  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
-  let endLatency = turbopackLastUpdateLatency ?? Date.now()
-  const latency = endLatency - startLatency
-  console.log(`[Fast Refresh] done in ${latency}ms`)
-  sendMessage(
-    JSON.stringify({
-      event: 'client-hmr-latency',
-      id: window.__nextDevClientId,
-      startTime: startLatency,
-      endTime: endLatency,
-      page: window.location.pathname,
-      updatedModules,
-      // Whether the page (tab) was hidden at the time the event occurred.
-      // This can impact the accuracy of the event's timing.
-      isPageHidden: document.visibilityState === 'hidden',
-    })
+  reportHmrLatency(
+    sendMessage,
+    updatedModules,
+    startLatency!,
+    turbopackLastUpdateLatency ?? Date.now()
   )
-  if (self.__NEXT_HMR_LATENCY_CB) {
-    self.__NEXT_HMR_LATENCY_CB(latency)
-  }
 }
 
 // There is a newer version of the code available.

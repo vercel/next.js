@@ -51,6 +51,7 @@ import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
+import reportHmrLatency from '../utils/report-hmr-latency'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -100,34 +101,9 @@ function handleSuccessfulHotUpdateWebpack(
 ) {
   resolvePendingHotUpdateWebpack()
   dispatcher.onBuildOk()
-  reportHmrLatency(sendMessage, updatedModules)
+  reportHmrLatency(sendMessage, updatedModules, startLatency!, Date.now())
 
   dispatcher.onRefresh()
-}
-
-function reportHmrLatency(
-  sendMessage: (message: string) => void,
-  updatedModules: ReadonlyArray<string>
-) {
-  if (!startLatency) return
-  // turbopack has a debounce for the "built" event which we don't want to
-  // incorrectly show in this number, use the last TURBOPACK_MESSAGE time
-  let endLatency = turbopackLastUpdateLatency ?? Date.now()
-  const latency = endLatency - startLatency
-  console.log(`[Fast Refresh] done in ${latency}ms`)
-  sendMessage(
-    JSON.stringify({
-      event: 'client-hmr-latency',
-      id: window.__nextDevClientId,
-      startTime: startLatency,
-      endTime: endLatency,
-      page: window.location.pathname,
-      updatedModules,
-      // Whether the page (tab) was hidden at the time the event occurred.
-      // This can impact the accuracy of the event's timing.
-      isPageHidden: document.visibilityState === 'hidden',
-    })
-  )
 }
 
 // There is a newer version of the code available.
@@ -204,7 +180,7 @@ function tryApplyUpdates(
   if (!isUpdateAvailable() || !canApplyUpdates()) {
     resolvePendingHotUpdateWebpack()
     dispatcher.onBuildOk()
-    reportHmrLatency(sendMessage, [])
+    reportHmrLatency(sendMessage, [], startLatency!, Date.now())
     return
   }
 
@@ -315,7 +291,12 @@ function processMessage(
   function handleHotUpdate() {
     if (process.env.TURBOPACK) {
       dispatcher.onBuildOk()
-      reportHmrLatency(sendMessage, [...turbopackUpdatedModules])
+      reportHmrLatency(
+        sendMessage,
+        [...turbopackUpdatedModules],
+        startLatency!,
+        turbopackLastUpdateLatency ?? Date.now()
+      )
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
