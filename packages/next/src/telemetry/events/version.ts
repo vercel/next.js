@@ -33,6 +33,7 @@ type EventCliSessionStarted = {
   reactStrictMode: boolean
   webpackVersion: number | null
   turboFlag: boolean
+  isRspack: boolean
   appDir: boolean | null
   pagesDir: boolean | null
   staticStaleTime: number | null
@@ -93,6 +94,7 @@ export function eventCliSession(
     | 'reactCompiler'
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
+    | 'isRspack'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -136,6 +138,7 @@ export function eventCliSession(
     reactStrictMode: !!nextConfig?.reactStrictMode,
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
+    isRspack: process.env.NEXT_RSPACK !== undefined,
     appDir: event.appDir,
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
