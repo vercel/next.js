@@ -17961,11 +17961,11 @@
       "runtimeError": false
     },
     "test/production/edge-config-validations/index.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
+      "passed": [
         "Edge config validations fails to build when unstable_allowDynamic is not a string"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
