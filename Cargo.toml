@@ -342,6 +342,7 @@ const_format = "0.2.30"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
+data-encoding = "2.3.3"
 dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"

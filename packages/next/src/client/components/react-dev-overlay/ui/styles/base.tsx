@@ -70,44 +70,51 @@ export function Base() {
           --rounded-full: 9999px;
 
           /* 
-            Suffix N of --size-N as px value when the base font size is 16px.
-            Example: --size-1 is 1px, --size-2 is 2px, --size-3 is 3px, etc.
+            These used to be in rem units but we have realised
+            that using rem to style the Dev Overlays is not a
+            good idea because if the user sets their root font size
+            to something tiny, they will not have a great time using
+            the Overlays because they will appear unexpectedly tiny.
+
+            In the future, we want to use these variables to offer
+            a custom preference in the dropdown menu to alter the size
+            of the Overlays.
+
+            Ref: https://github.com/vercel/next.js/discussions/76812
           */
-          --size-1: 0.0625rem; /* 1px */
-          --size-2: 0.125rem; /* 2px */
-          --size-3: 0.1875rem; /* 3px */
-          --size-4: 0.25rem; /* ...and more */
-          --size-5: 0.3125rem;
-          --size-6: 0.375rem;
-          --size-7: 0.4375rem;
-          --size-8: 0.5rem;
-          --size-9: 0.5625rem;
-          --size-10: 0.625rem;
-          --size-11: 0.6875rem;
-          --size-12: 0.75rem;
-          --size-13: 0.8125rem;
-          --size-14: 0.875rem;
-          --size-15: 0.9375rem;
-          /* If the base font size of the dev overlay changes e.g. 18px, 
-          just slide the window and make --size-18 as 1rem. */
-          --size-16: 1rem;
-          --size-17: 1.0625rem;
-          --size-18: 1.125rem;
-          --size-20: 1.25rem;
-          --size-22: 1.375rem;
-          --size-24: 1.5rem;
-          --size-26: 1.625rem;
-          --size-28: 1.75rem;
-          --size-30: 1.875rem;
-          --size-32: 2rem;
-          --size-34: 2.125rem;
-          --size-36: 2.25rem;
-          --size-38: 2.375rem;
-          --size-40: 2.5rem;
-          --size-42: 2.625rem;
-          --size-44: 2.75rem;
-          --size-46: 2.875rem;
-          --size-48: 3rem;
+          --size-1: 1px;
+          --size-2: 2px;
+          --size-3: 3px;
+          --size-4: 4px;
+          --size-5: 5px;
+          --size-6: 6px;
+          --size-7: 7px;
+          --size-8: 8px;
+          --size-9: 9px;
+          --size-10: 10px;
+          --size-11: 11px;
+          --size-12: 12px;
+          --size-13: 13px;
+          --size-14: 14px;
+          --size-15: 15px;
+          --size-16: 16px;
+          --size-17: 17px;
+          --size-18: 18px;
+          --size-20: 20px;
+          --size-22: 22px;
+          --size-24: 24px;
+          --size-26: 26px;
+          --size-28: 28px;
+          --size-30: 30px;
+          --size-32: 32px;
+          --size-34: 34px;
+          --size-36: 36px;
+          --size-38: 38px;
+          --size-40: 40px;
+          --size-42: 42px;
+          --size-44: 44px;
+          --size-46: 46px;
+          --size-48: 48px;
 
           @media print {
             display: none;

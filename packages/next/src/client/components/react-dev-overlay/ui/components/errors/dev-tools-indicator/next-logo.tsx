@@ -12,8 +12,7 @@ interface Props extends React.ComponentProps<'button'> {
   toggleErrorOverlay: () => void
 }
 
-const SIZE = '2.25rem' // 36px in 16px base
-const SIZE_PX = 36
+const SIZE = 36
 const SHORT_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
@@ -46,7 +45,7 @@ export const NextLogo = forwardRef(function NextLogo(
   const style = useMemo(() => {
     let width: number | string = SIZE
     // Animates the badge, if expanded
-    if (measuredWidth > SIZE_PX) width = measuredWidth
+    if (measuredWidth > SIZE) width = measuredWidth
     // No animations on page load, assume the intrinsic width immediately
     if (pristine && hasError) width = 'auto'
     // Default state, collapsed
@@ -62,7 +61,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': SIZE,
+          '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors

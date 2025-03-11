@@ -66,6 +66,8 @@ rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
+supports-hyperlinks = "3.1.0"
+terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
