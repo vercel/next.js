@@ -147,7 +147,7 @@ import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-u
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getIsPossibleServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -216,7 +216,7 @@ export type AppRenderContext = {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
-  isAction: boolean
+  isPossibleServerAction: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
@@ -443,17 +443,18 @@ function makeGetDynamicParamFromSegment(
 function NonIndex({
   pagePath,
   statusCode,
-  isAction,
+  isPossibleServerAction,
 }: {
   pagePath: string
   statusCode: number | undefined
-  isAction: boolean
+  isPossibleServerAction: boolean
 }) {
   const is404Page = pagePath === '/404'
   const isInvalidStatusCode = typeof statusCode === 'number' && statusCode > 400
 
   // Only render noindex for page request, skip for server actions
-  if (!isAction && (is404Page || isInvalidStatusCode)) {
+  // TODO: is this correct if `isPossibleServerAction` is a false positive?
+  if (!isPossibleServerAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -544,7 +545,7 @@ async function generateDynamicRSCPayload(
             <NonIndex
               pagePath={ctx.pagePath}
               statusCode={ctx.res.statusCode}
-              isAction={ctx.isAction}
+              isPossibleServerAction={ctx.isPossibleServerAction}
             />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
@@ -590,7 +591,8 @@ function createErrorContext(
   return {
     routerKind: 'App Router',
     routePath: ctx.pagePath,
-    routeType: ctx.isAction ? 'action' : 'render',
+    // TODO: is this correct if `isPossibleServerAction` is a false positive?
+    routeType: ctx.isPossibleServerAction ? 'action' : 'render',
     renderSource,
     revalidateReason: getRevalidateReason(ctx.workStore),
   }
@@ -889,7 +891,7 @@ async function getRSCPayload(
       <NonIndex
         pagePath={ctx.pagePath}
         statusCode={ctx.res.statusCode}
-        isAction={ctx.isAction}
+        isPossibleServerAction={ctx.isPossibleServerAction}
       />
       <ViewportTree key={ctx.requestId} />
       <StaticMetadata />
@@ -995,7 +997,7 @@ async function getErrorRSCPayload(
       <NonIndex
         pagePath={ctx.pagePath}
         statusCode={ctx.res.statusCode}
-        isAction={ctx.isAction}
+        isPossibleServerAction={ctx.isPossibleServerAction}
       />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={requestId} />
@@ -1355,7 +1357,7 @@ async function renderToHTMLOrFlightImpl(
     fallbackRouteParams
   )
 
-  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
+  const isPossibleActionRequest = getIsPossibleServerAction(req)
 
   const implicitTags = await getImplicitTags(
     workStore.page,
@@ -1372,7 +1374,7 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,
-    isAction: isActionRequest,
+    isPossibleServerAction: isPossibleActionRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -1559,7 +1561,7 @@ async function renderToHTMLOrFlightImpl(
     )
 
     let formState: null | any = null
-    if (isActionRequest) {
+    if (isPossibleActionRequest) {
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
