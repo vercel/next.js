@@ -18,6 +18,9 @@ describe('app dir - basic', () => {
       dependencies: {
         nanoid: '4.0.1',
       },
+      env: {
+        NEXT_PUBLIC_TEST_ID: Date.now() + '',
+      },
     })
 
   if (isNextStart) {
@@ -1788,4 +1791,33 @@ describe('app dir - basic', () => {
       })
     }
   })
+
+  // this one comes at the end to not change behavior from above
+  // assertions with compile mode specifically
+  if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+    it('should run generate command correctly', async () => {
+      await next.stop()
+
+      next.buildCommand = `pnpm next build --experimental-build-mode=generate`
+      await next.start()
+
+      let browser = await next.browser('/')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+
+      browser = await next.browser('/dashboard/deployments/123')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+    })
+  }
 })

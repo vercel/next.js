@@ -306,7 +306,9 @@ export default async function getBaseWebpackConfig(
     clientRouterFilters,
     fetchCacheKeyPrefix,
     edgePreviewProps,
+    isCompileMode,
   }: {
+    isCompileMode?: boolean
     buildId: string
     encryptionKey: string
     config: NextConfigComplete
@@ -1909,6 +1911,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        omitNonDeterministic: isCompileMode,
       }),
       isClient &&
         new ReactLoadablePlugin({
