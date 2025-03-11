@@ -1,6 +1,6 @@
 # Items
 
-Count: 9
+Count: 8
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -91,9 +91,7 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
-    Item9;
-    Item9["export GET"];
+    Item8["export GET"];
     Item2 --> Item1;
     Item3 --> Item2;
 ```
@@ -108,12 +106,10 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
-    Item9;
-    Item9["export GET"];
+    Item8["export GET"];
     Item2 --> Item1;
     Item3 --> Item2;
-    Item9 --> Item7;
+    Item8 --> Item7;
 ```
 # Phase 3
 ```mermaid
@@ -126,12 +122,10 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
-    Item9;
-    Item9["export GET"];
+    Item8["export GET"];
     Item2 --> Item1;
     Item3 --> Item2;
-    Item9 --> Item7;
+    Item8 --> Item7;
     Item7 --> Item4;
     Item7 --> Item5;
     Item7 --> Item6;
@@ -147,16 +141,13 @@ graph TD
     Item6;
     Item7;
     Item8;
-    Item8["ModuleEvaluation"];
-    Item9;
-    Item9["export GET"];
+    Item8["export GET"];
     Item2 --> Item1;
     Item3 --> Item2;
-    Item9 --> Item7;
+    Item8 --> Item7;
     Item7 --> Item4;
     Item7 --> Item5;
     Item7 --> Item6;
-    Item8 --> Item3;
 ```
 # Final
 ```mermaid
@@ -168,14 +159,12 @@ graph TD
     N4["Items: [ItemId(2, ImportOfModule)]"];
     N5["Items: [ItemId(2, ImportBinding(0))]"];
     N6["Items: [ItemId(3, Normal), ItemId(Export((&quot;GET&quot;, #2), &quot;GET&quot;))]"];
-    N7["Items: [ItemId(ModuleEvaluation)]"];
     N2 --> N0;
     N4 --> N2;
     N5 --> N4;
     N6 --> N5;
     N6 --> N3;
     N6 --> N1;
-    N7 --> N4;
     N1 --> N0;
     N3 --> N2;
 ```
@@ -183,11 +172,11 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 4,
     Export(
         "GET",
     ): 6,
-    Exports: 8,
+    Exports: 7,
 }
 ```
 
@@ -234,6 +223,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 ## Part 5
@@ -275,14 +265,6 @@ export { GET as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
-
-```
-## Part 8
-```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
 };
@@ -291,20 +273,21 @@ export { GET } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 2
 };
-"module evaluation";
+import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 4,
     Export(
         "GET",
     ): 6,
-    Exports: 8,
+    Exports: 7,
 }
 ```
 
@@ -351,6 +334,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 ## Part 5
@@ -392,14 +376,6 @@ export { GET as d } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 7
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-"module evaluation";
-
-```
-## Part 8
-```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
 };
@@ -408,8 +384,9 @@ export { GET } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 2
 };
-"module evaluation";
+import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
