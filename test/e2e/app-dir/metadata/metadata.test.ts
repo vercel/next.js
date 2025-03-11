@@ -172,6 +172,15 @@ describe('app dir - metadata', () => {
       })
     })
 
+    it('should support pinterest related tags', async () => {
+      const browser = await next.browser('/pinterest')
+      const matchDom = createDomMatcher(browser)
+
+      await matchDom('meta', 'property="pinterest-rich-pin"', {
+        content: 'true',
+      })
+    })
+
     it('should support alternate tags', async () => {
       const browser = await next.browser('/alternates')
       const matchDom = createDomMatcher(browser)
