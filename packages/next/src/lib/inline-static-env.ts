@@ -104,7 +104,6 @@ export async function inlineStaticEnv({
   const hashChanges: Array<{
     originalHash: string
     newHash: string
-    file: string
   }> = []
 
   // hashes need updating for any changed client files
@@ -123,7 +122,7 @@ export async function inlineStaticEnv({
       .digest('hex')
       .substring(0, 16)
 
-    hashChanges.push({ originalHash, newHash, file })
+    hashChanges.push({ originalHash, newHash })
     const filepath = path.join(clientDir, file)
     await fs.promises.rename(filepath, filepath.replace(originalHash, newHash))
   }

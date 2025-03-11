@@ -1794,6 +1794,7 @@ describe('app dir - basic', () => {
 
   // this one comes at the end to not change behavior from above
   // assertions with compile mode specifically
+  // consider breaking out into separate fixture if we expand this any more
   if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should run generate command correctly', async () => {
       await next.stop()
