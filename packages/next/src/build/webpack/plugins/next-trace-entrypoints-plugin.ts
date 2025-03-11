@@ -582,23 +582,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         'next-trace-entrypoint-plugin'
       )
 
-      compilation.hooks.processAssets.tapAsync(
-        {
-          name: PLUGIN_NAME,
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-        },
-        (_assets: any, callback: any) => {
-          this.createTraceAssets(compilation, traceEntrypointsPluginSpan)
-            .then(() => callback())
-            .catch((err) => callback(err))
-        }
-      )
-
-      // rspack doesn't support all API below so only create trace assets
-      if (process.env.NEXT_RSPACK) {
-        return
-      }
-
       const readlink = async (path: string): Promise<string | null> => {
         try {
           return await new Promise((resolve, reject) => {

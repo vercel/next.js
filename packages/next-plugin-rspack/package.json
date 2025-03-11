@@ -6,7 +6,7 @@
     "directory": "packages/next-plugin-rspack"
   },
   "dependencies": {
-    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-37cc738d-20250207113050",
+    "@rspack/core": "npm:@rspack-canary/core@1.2.8-canary-565afbad-20250311101237",
     "@rspack/plugin-react-refresh": "1.0.1"
   }
 }
