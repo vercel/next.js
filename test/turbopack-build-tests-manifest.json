@@ -17873,8 +17873,7 @@
       "runtimeError": false
     },
     "test/production/deployment-id-handling/deployment-id-handling.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "deployment-id-handling disabled should not append dpl query to all assets for /",
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app",
         "deployment-id-handling disabled should not append dpl query to all assets for /from-app/edge",
@@ -17894,6 +17893,7 @@
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
