@@ -2125,12 +2125,11 @@
         "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
         "dynamic-io should prerender pages that only use cached fetches",
         "dynamic-io should prerender pages that render in a microtask",
-        "dynamic-io should prerender static not-found pages"
-      ],
-      "failed": [],
-      "pending": [
+        "dynamic-io should prerender static not-found pages",
         "dynamic-io should prerender pages that cached the whole page"
       ],
+      "failed": [],
+      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -17462,6 +17461,15 @@
       "passed": [
         "Skipped in Turbopack app-dir - optimizePackageImports - basic should build successfully",
         "Skipped in Turbopack app-dir - optimizePackageImports - basic should handle mixed imports from barrel optimized lib correctly"
+      ],
+      "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
+      "passed": [
+        "browser-chunks must not bundle any server modules into browser chunks"
       ],
       "failed": [],
       "pending": [],
