@@ -3,7 +3,7 @@ use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
 /// An `AsciiSet` that matches the behavior of JavaScript's `encodeURIComponent`.
 /// - It leaves `A-Z a-z 0-9 - _ . ~` unescaped.
 /// - It percent-encodes all other ASCII characters (and of course non-ASCII).
-/// The `CONTROLS` set covers `\0`-`\x1F` and `\x7F`.
+/// - The `CONTROLS` set covers `\0`-`\x1F` and `\x7F`.
 const ENCODE_URI_COMPONENT_SET: &AsciiSet = &CONTROLS
     // Add everything else JS `encodeURIComponent` would encode:
     .add(b' ')
