@@ -12,7 +12,7 @@ import { renderToString } from '../render-to-string'
  *
  */
 const REINSERT_ICON_SCRIPT = `\
-document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el.cloneNode()))`
+document.querySelectorAll('body link[rel="icon"], body link[rel="apple-touch-icon"]').forEach(el => document.head.appendChild(el))`
 
 export function createServerInsertedMetadata(nonce: string | undefined) {
   let metadataResolver: MetadataResolver | null = null
