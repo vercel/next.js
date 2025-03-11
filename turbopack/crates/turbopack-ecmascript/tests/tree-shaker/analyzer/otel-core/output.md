@@ -185,7 +185,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 3,
     Export(
         "getEnv",
     ): 5,
@@ -231,6 +231,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import './globalThis';
+export { };
 
 ```
 ## Part 4
@@ -297,19 +298,20 @@ export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import './globalThis';
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 3,
     Export(
         "getEnv",
     ): 5,
@@ -355,6 +357,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import './globalThis';
+export { };
 
 ```
 ## Part 4
@@ -421,11 +424,12 @@ export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import './globalThis';
+export { };
 
 ```

@@ -100,7 +100,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 3,
+    ModuleEvaluation: 1,
     Export(
         "effect",
     ): 0,
@@ -132,6 +132,7 @@ export { effect as b } from "__TURBOPACK_VAR__" assert {
 ## Part 1
 ```js
 await Promise.resolve();
+export { };
 
 ```
 ## Part 2
@@ -144,19 +145,17 @@ export { effects } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 3
-```js
-
-```
 ## Merged (module eval)
 ```js
+await Promise.resolve();
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 3,
     Export(
         "effect",
     ): 1,
@@ -202,6 +201,7 @@ export { effects };
 ## Part 3
 ```js
 await Promise.resolve();
+export { };
 
 ```
 ## Part 4
@@ -214,11 +214,9 @@ export { effects } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
+await Promise.resolve();
+export { };
 
 ```

@@ -1000,7 +1000,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 9,
     Export(
         "IPC",
     ): 10,
@@ -1319,6 +1319,7 @@ improveConsole("assert", "stderr", true);
 export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 10
@@ -1350,19 +1351,64 @@ export { structuredError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 13
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+const improveConsole = (name, stream, addStack)=>{
+    const original = console[name];
+    const stdio = process[stream];
+    console[name] = (...args)=>{
+        stdio.write(`TURBOPACK_OUTPUT_B\n`);
+        original(...args);
+        if (addStack) {
+            const stack = new Error().stack?.replace(/^.+\n.+\n/, "") + "\n";
+            stdio.write("TURBOPACK_OUTPUT_S\n");
+            stdio.write(stack);
+        }
+        stdio.write("TURBOPACK_OUTPUT_E\n");
+    };
+};
+improveConsole("error", "stderr", true);
+improveConsole("warn", "stderr", true);
+improveConsole("count", "stdout", true);
+improveConsole("trace", "stderr", false);
+improveConsole("log", "stdout", true);
+improveConsole("group", "stdout", true);
+improveConsole("groupCollapsed", "stdout", true);
+improveConsole("table", "stdout", true);
+improveConsole("debug", "stdout", true);
+improveConsole("info", "stdout", true);
+improveConsole("dir", "stdout", true);
+improveConsole("dirxml", "stdout", true);
+improveConsole("timeEnd", "stdout", true);
+improveConsole("timeLog", "stdout", true);
+improveConsole("timeStamp", "stdout", true);
+improveConsole("assert", "stderr", true);
+export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 9,
     Export(
         "IPC",
     ): 10,
@@ -1651,6 +1697,7 @@ improveConsole("assert", "stderr", true);
 export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 10
@@ -1682,11 +1729,44 @@ export { structuredError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 13
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+const improveConsole = (name, stream, addStack)=>{
+    const original = console[name];
+    const stdio = process[stream];
+    console[name] = (...args)=>{
+        stdio.write(`TURBOPACK_OUTPUT_B\n`);
+        original(...args);
+        if (addStack) {
+            const stack = new Error().stack?.replace(/^.+\n.+\n/, "") + "\n";
+            stdio.write("TURBOPACK_OUTPUT_S\n");
+            stdio.write(stack);
+        }
+        stdio.write("TURBOPACK_OUTPUT_E\n");
+    };
+};
+improveConsole("error", "stderr", true);
+improveConsole("warn", "stderr", true);
+improveConsole("count", "stdout", true);
+improveConsole("trace", "stderr", false);
+improveConsole("log", "stdout", true);
+improveConsole("group", "stdout", true);
+improveConsole("groupCollapsed", "stdout", true);
+improveConsole("table", "stdout", true);
+improveConsole("debug", "stdout", true);
+improveConsole("info", "stdout", true);
+improveConsole("dir", "stdout", true);
+improveConsole("dirxml", "stdout", true);
+improveConsole("timeEnd", "stdout", true);
+improveConsole("timeLog", "stdout", true);
+improveConsole("timeStamp", "stdout", true);
+improveConsole("assert", "stderr", true);
+export { improveConsole as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

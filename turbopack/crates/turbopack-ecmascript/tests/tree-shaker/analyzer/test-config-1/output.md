@@ -367,7 +367,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 7,
     Export(
         "external1",
     ): 9,
@@ -483,6 +483,7 @@ import "__TURBOPACK_PART__" assert {
 };
 console.log(foobarCopy);
 foobarCopy += "Unused";
+export { };
 
 ```
 ## Part 8
@@ -564,19 +565,33 @@ export { foo } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 13
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { e as foobarCopy } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+console.log(foobarCopy);
+foobarCopy += "Unused";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 7,
     Export(
         "external1",
     ): 9,
@@ -680,6 +695,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 6
 };
 console.log(foobarCopy);
+export { };
 
 ```
 ## Part 8
@@ -758,19 +774,26 @@ export { foobar } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 13
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { e as foobarCopy } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+console.log(foobarCopy);
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 7,
     Export(
         "external1",
     ): 9,
@@ -819,7 +842,7 @@ export { external1 as g } from "__TURBOPACK_VAR__" assert {
 
 ```
 {
-    ModuleEvaluation: 13,
+    ModuleEvaluation: 7,
     Export(
         "external1",
     ): 9,

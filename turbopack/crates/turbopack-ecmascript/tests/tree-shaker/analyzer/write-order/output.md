@@ -214,7 +214,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 1,
     Export(
         "func",
     ): 1,
@@ -255,6 +255,7 @@ export { order };
 export { func as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 2
@@ -300,19 +301,31 @@ export { shared } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+function func() {
+    order.push("d");
+}
+order.push("c");
+export { func };
+export { order };
+export { func as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 3,
     Export(
         "func",
     ): 1,
@@ -384,6 +397,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 order.push("c");
+export { };
 
 ```
 ## Part 4
@@ -418,11 +432,15 @@ export { shared } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 7
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+order.push("c");
+export { };
 
 ```

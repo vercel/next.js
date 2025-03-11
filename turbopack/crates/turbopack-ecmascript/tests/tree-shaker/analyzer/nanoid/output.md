@@ -382,7 +382,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 16,
+    ModuleEvaluation: 8,
     Export(
         "customAlphabet",
     ): 9,
@@ -533,6 +533,7 @@ let customRandom = (alphabet, size, getRandom)=>{
 export { customRandom as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -636,19 +637,37 @@ export { urlAlphabet } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 16
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+let customRandom = (alphabet, size, getRandom)=>{
+    let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1;
+    let step = Math.ceil((1.6 * mask * size) / alphabet.length);
+    return ()=>{
+        let id = '';
+        while(true){
+            let bytes = getRandom(step);
+            let i = step;
+            while(i--){
+                id += alphabet[bytes[i] & mask] || '';
+                if (id.length === size) return id;
+            }
+        }
+    };
+};
+export { customRandom as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 16,
+    ModuleEvaluation: 8,
     Export(
         "customAlphabet",
     ): 9,
@@ -799,6 +818,7 @@ let customRandom = (alphabet, size, getRandom)=>{
 export { customRandom as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -902,11 +922,29 @@ export { urlAlphabet } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 16
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+let customRandom = (alphabet, size, getRandom)=>{
+    let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1;
+    let step = Math.ceil((1.6 * mask * size) / alphabet.length);
+    return ()=>{
+        let id = '';
+        while(true){
+            let bytes = getRandom(step);
+            let i = step;
+            while(i--){
+                id += alphabet[bytes[i] & mask] || '';
+                if (id.length === size) return id;
+            }
+        }
+    };
+};
+export { customRandom as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

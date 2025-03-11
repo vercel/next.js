@@ -78,7 +78,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -107,25 +107,27 @@ import { a as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 console.log(a);
+export { };
 
 ```
 ## Part 3
 ```js
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
+};
+console.log(a);
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -154,17 +156,19 @@ import { a as a } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -1
 };
 console.log(a);
+export { };
 
 ```
 ## Part 3
 ```js
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as a } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
+};
+console.log(a);
+export { };
 
 ```

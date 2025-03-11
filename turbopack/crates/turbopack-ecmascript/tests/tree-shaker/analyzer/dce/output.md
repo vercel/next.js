@@ -82,7 +82,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -117,25 +117,30 @@ import "__TURBOPACK_PART__" assert {
 if (1 + 1 == 3) {
     baz();
 }
+export { };
 
 ```
 ## Part 3
 ```js
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { baz } from './module';
+if (1 + 1 == 3) {
+    baz();
+}
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Exports: 3,
 }
 ```
@@ -170,17 +175,22 @@ import "__TURBOPACK_PART__" assert {
 if (1 + 1 == 3) {
     baz();
 }
+export { };
 
 ```
 ## Part 3
 ```js
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { baz } from './module';
+if (1 + 1 == 3) {
+    baz();
+}
+export { };
 
 ```

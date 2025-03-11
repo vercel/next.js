@@ -361,7 +361,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 2,
     Export(
         "cat",
     ): 6,
@@ -430,6 +430,7 @@ export { setDog as c } from "__TURBOPACK_VAR__" assert {
 export { dogRef as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 3
@@ -496,19 +497,44 @@ export { cat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+function getDog() {
+    return dog;
+}
+function setDog(newDog) {
+    dog = newDog;
+}
+console.log(dog);
+const dogRef = {
+    initial: dog,
+    get: getDog,
+    set: setDog
+};
+export { dogRef };
+export { getDog as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { setDog as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { dogRef as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 10,
+    ModuleEvaluation: 2,
     Export(
         "cat",
     ): 8,
@@ -558,6 +584,7 @@ import "__TURBOPACK_PART__" assert {
 console.log(dog);
 console.log(dog);
 console.log(dog);
+export { };
 
 ```
 ## Part 3
@@ -666,11 +693,20 @@ export { cat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 10
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as dog } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+console.log(dog);
+console.log(dog);
+console.log(dog);
+export { };
 
 ```

@@ -592,7 +592,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 18,
+    ModuleEvaluation: 8,
     Export(
         "Postpone",
     ): 12,
@@ -738,6 +738,7 @@ export { postponeWithTracking as f } from "__TURBOPACK_VAR__" assert {
 export { assertPostpone as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -954,19 +955,56 @@ export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 18
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import React from 'react';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
+};
+const hasPostpone = typeof React.unstable_postpone === 'function';
+function postponeWithTracking(prerenderState, expression, pathname) {
+    assertPostpone();
+    const reason = `Route ${pathname} needs to bail out of prerendering at this point because it used ${expression}. ` + `React throws this special object to indicate where. It should not be caught by ` + `your own try/catch. Learn more: https://nextjs.org/docs/messages/ppr-caught-error`;
+    prerenderState.dynamicAccesses.push({
+        stack: prerenderState.isDebugSkeleton ? new Error().stack : undefined,
+        expression
+    });
+    React.unstable_postpone(reason);
+}
+function assertPostpone() {
+    if (!hasPostpone) {
+        throw new Error(`Invariant: React.unstable_postpone is not defined. This suggests the wrong version of React was loaded. This is a bug in Next.js`);
+    }
+}
+export { hasPostpone as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { postponeWithTracking as f } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { assertPostpone as g } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 20,
+    ModuleEvaluation: 8,
     Export(
         "Postpone",
     ): 12,
@@ -1083,6 +1121,7 @@ const hasPostpone = typeof React.unstable_postpone === 'function';
 export { hasPostpone as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -1343,11 +1382,19 @@ export { createPostponedAbortSignal } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 20
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import React from 'react';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+const hasPostpone = typeof React.unstable_postpone === 'function';
+export { hasPostpone as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

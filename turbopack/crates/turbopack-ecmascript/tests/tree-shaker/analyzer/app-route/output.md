@@ -351,7 +351,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 15,
+    ModuleEvaluation: 8,
     Export(
         "originalPathname",
     ): 10,
@@ -484,6 +484,7 @@ const routeModule = new AppRouteRouteModule({
 export { routeModule as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -576,19 +577,46 @@ export { routeModule } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 15
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { AppRouteRouteModule } from '../../server/future/route-modules/app-route/module.compiled';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { RouteKind } from '../../server/future/route-kind';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import * as userland from 'VAR_USERLAND';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 5
+};
+const routeModule = new AppRouteRouteModule({
+    definition: {
+        kind: RouteKind.APP_ROUTE,
+        page: 'VAR_DEFINITION_PAGE',
+        pathname: 'VAR_DEFINITION_PATHNAME',
+        filename: 'VAR_DEFINITION_FILENAME',
+        bundlePath: 'VAR_DEFINITION_BUNDLE_PATH'
+    },
+    resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
+    nextConfigOutput,
+    userland
+});
+export { routeModule as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 17,
+    ModuleEvaluation: 8,
     Export(
         "originalPathname",
     ): 10,
@@ -718,6 +746,7 @@ const routeModule = new AppRouteRouteModule({
 export { routeModule as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -824,11 +853,35 @@ export { workAsyncStorage } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 17
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { AppRouteRouteModule } from '../../server/future/route-modules/app-route/module.compiled';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { RouteKind } from '../../server/future/route-kind';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import * as userland from 'VAR_USERLAND';
+const routeModule = new AppRouteRouteModule({
+    definition: {
+        kind: RouteKind.APP_ROUTE,
+        page: 'VAR_DEFINITION_PAGE',
+        pathname: 'VAR_DEFINITION_PATHNAME',
+        filename: 'VAR_DEFINITION_FILENAME',
+        bundlePath: 'VAR_DEFINITION_BUNDLE_PATH'
+    },
+    resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
+    nextConfigOutput,
+    userland
+});
+export { routeModule as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

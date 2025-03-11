@@ -172,7 +172,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 4,
     Export(
         "GET",
     ): 6,
@@ -223,6 +223,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 ## Part 5
@@ -269,19 +270,20 @@ export { GET } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 4,
     Export(
         "GET",
     ): 6,
@@ -332,6 +334,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
 };
 import 'my-module/MyModuleClientComponent';
+export { };
 
 ```
 ## Part 5
@@ -378,11 +381,12 @@ export { GET } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import 'my-module/MyModuleClientComponent';
+export { };
 
 ```

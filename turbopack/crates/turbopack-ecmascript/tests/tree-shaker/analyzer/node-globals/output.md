@@ -40,7 +40,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 0,
     Exports: 1,
 }
 ```
@@ -50,25 +50,24 @@ graph TD
 ## Part 0
 ```js
 process.turbopack = {};
+export { };
 
 ```
 ## Part 1
 ```js
 
 ```
-## Part 2
-```js
-
-```
 ## Merged (module eval)
 ```js
+process.turbopack = {};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 0,
     Exports: 1,
 }
 ```
@@ -78,17 +77,16 @@ process.turbopack = {};
 ## Part 0
 ```js
 process.turbopack = {};
+export { };
 
 ```
 ## Part 1
 ```js
 
 ```
-## Part 2
-```js
-
-```
 ## Merged (module eval)
 ```js
+process.turbopack = {};
+export { };
 
 ```

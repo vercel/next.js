@@ -181,10 +181,12 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 4
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```
 # Entrypoints
@@ -252,9 +254,11 @@ export { DOG } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 4
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```

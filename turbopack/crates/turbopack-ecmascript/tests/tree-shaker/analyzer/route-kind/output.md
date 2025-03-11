@@ -78,7 +78,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 0,
     Export(
         "RouteKind",
     ): 0,
@@ -101,6 +101,7 @@ export { RouteKind };
 export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 1
@@ -110,19 +111,27 @@ export { RouteKind } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 2
-```js
-
-```
 ## Merged (module eval)
 ```js
+var RouteKind;
+(function(RouteKind) {
+    RouteKind["PAGES"] = "PAGES";
+    RouteKind["PAGES_API"] = "PAGES_API";
+    RouteKind["APP_PAGE"] = "APP_PAGE";
+    RouteKind["APP_ROUTE"] = "APP_ROUTE";
+})(RouteKind || (RouteKind = {}));
+export { RouteKind };
+export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 2,
+    ModuleEvaluation: 0,
     Export(
         "RouteKind",
     ): 0,
@@ -145,6 +154,7 @@ export { RouteKind };
 export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 1
@@ -154,11 +164,19 @@ export { RouteKind } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 2
-```js
-
-```
 ## Merged (module eval)
 ```js
+var RouteKind;
+(function(RouteKind) {
+    RouteKind["PAGES"] = "PAGES";
+    RouteKind["PAGES_API"] = "PAGES_API";
+    RouteKind["APP_PAGE"] = "APP_PAGE";
+    RouteKind["APP_ROUTE"] = "APP_ROUTE";
+})(RouteKind || (RouteKind = {}));
+export { RouteKind };
+export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

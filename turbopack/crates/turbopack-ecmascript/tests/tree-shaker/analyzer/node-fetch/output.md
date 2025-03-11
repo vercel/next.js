@@ -128,7 +128,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Export(
         "default",
     ): 2,
@@ -173,6 +173,7 @@ export { fetch as c } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 3
@@ -182,19 +183,33 @@ export { default } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import Stream from 'node:stream';
+const streamDestructionSupported = 'destroy' in Stream.Readable.prototype;
+function fetch() {}
+const __TURBOPACK__default__export__ = fetch;
+export { __TURBOPACK__default__export__ as default };
+export { streamDestructionSupported as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { fetch as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 2,
     Export(
         "default",
     ): 2,
@@ -239,6 +254,7 @@ export { fetch as c } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 3
@@ -248,11 +264,25 @@ export { default } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import Stream from 'node:stream';
+const streamDestructionSupported = 'destroy' in Stream.Readable.prototype;
+function fetch() {}
+const __TURBOPACK__default__export__ = fetch;
+export { __TURBOPACK__default__export__ as default };
+export { streamDestructionSupported as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { fetch as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

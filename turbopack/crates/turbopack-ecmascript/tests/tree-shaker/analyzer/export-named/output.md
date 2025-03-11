@@ -70,7 +70,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 0,
     Export(
         "fakeCat",
     ): 2,
@@ -83,6 +83,7 @@ graph TD
 ## Part 0
 ```js
 import "./lib";
+export { };
 
 ```
 ## Part 1
@@ -111,19 +112,17 @@ export { fakeCat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "./lib";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
+    ModuleEvaluation: 0,
     Export(
         "fakeCat",
     ): 2,
@@ -136,6 +135,7 @@ export { fakeCat } from "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "./lib";
+export { };
 
 ```
 ## Part 1
@@ -164,11 +164,9 @@ export { fakeCat } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 4
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "./lib";
+export { };
 
 ```

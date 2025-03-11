@@ -364,10 +364,12 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 6
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```
 # Entrypoints
@@ -515,9 +517,11 @@ export { sendMessage } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 6
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```

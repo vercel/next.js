@@ -622,7 +622,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 15,
+    ModuleEvaluation: 6,
     Export(
         "BubbledError",
     ): 10,
@@ -942,6 +942,7 @@ export { NextTracerImpl as q } from "__TURBOPACK_VAR__" assert {
 export { getTracer as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 7
@@ -1051,19 +1052,217 @@ export { isBubbledError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 15
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { NextVanillaSpanAllowlist } from './constants';
+import { c as api } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import { i as ROOT_CONTEXT } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import { j as closeSpanWithError } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
+};
+import { LogSpanAllowList } from './constants';
+import { k as rootSpanAttributesStore } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -13
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 7
+};
+const isPromise = (p)=>{
+    return p !== null && typeof p === 'object' && typeof p.then === 'function';
+};
+const rootSpanIdKey = api.createContextKey('next.rootSpanId');
+let lastSpanId = 0;
+const getSpanId = ()=>lastSpanId++;
+const clientTraceDataSetter = {
+    set (carrier, key, value) {
+        carrier.push({
+            key,
+            value
+        });
+    }
+};
+class NextTracerImpl {
+    getTracerInstance() {
+        return trace.getTracer('next.js', '0.0.1');
+    }
+    getContext() {
+        return context;
+    }
+    getTracePropagationData() {
+        const activeContext = context.active();
+        const entries = [];
+        propagation.inject(activeContext, entries, clientTraceDataSetter);
+        return entries;
+    }
+    getActiveScopeSpan() {
+        return trace.getSpan(context == null ? void 0 : context.active());
+    }
+    withPropagatedContext(carrier, fn, getter) {
+        const activeContext = context.active();
+        if (trace.getSpanContext(activeContext)) {
+            return fn();
+        }
+        const remoteContext = propagation.extract(activeContext, carrier, getter);
+        return context.with(remoteContext, fn);
+    }
+    trace(...args) {
+        var _trace_getSpanContext;
+        const [type, fnOrOptions, fnOrEmpty] = args;
+        const { fn, options } = typeof fnOrOptions === 'function' ? {
+            fn: fnOrOptions,
+            options: {}
+        } : {
+            fn: fnOrEmpty,
+            options: {
+                ...fnOrOptions
+            }
+        };
+        const spanName = options.spanName ?? type;
+        if (!NextVanillaSpanAllowlist.includes(type) && process.env.NEXT_OTEL_VERBOSE !== '1' || options.hideSpan) {
+            return fn();
+        }
+        let spanContext = this.getSpanContext((options == null ? void 0 : options.parentSpan) ?? this.getActiveScopeSpan());
+        let isRootSpan = false;
+        if (!spanContext) {
+            spanContext = (context == null ? void 0 : context.active()) ?? ROOT_CONTEXT;
+            isRootSpan = true;
+        } else if ((_trace_getSpanContext = trace.getSpanContext(spanContext)) == null ? void 0 : _trace_getSpanContext.isRemote) {
+            isRootSpan = true;
+        }
+        const spanId = getSpanId();
+        options.attributes = {
+            'next.span_name': spanName,
+            'next.span_type': type,
+            ...options.attributes
+        };
+        return context.with(spanContext.setValue(rootSpanIdKey, spanId), ()=>this.getTracerInstance().startActiveSpan(spanName, options, (span)=>{
+                const startTime = 'performance' in globalThis && 'measure' in performance ? globalThis.performance.now() : undefined;
+                const onCleanup = ()=>{
+                    rootSpanAttributesStore.delete(spanId);
+                    if (startTime && process.env.NEXT_OTEL_PERFORMANCE_PREFIX && LogSpanAllowList.includes(type || '')) {
+                        performance.measure(`${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(type.split('.').pop() || '').replace(/[A-Z]/g, (match)=>'-' + match.toLowerCase())}`, {
+                            start: startTime,
+                            end: performance.now()
+                        });
+                    }
+                };
+                if (isRootSpan) {
+                    rootSpanAttributesStore.set(spanId, new Map(Object.entries(options.attributes ?? {})));
+                }
+                try {
+                    if (fn.length > 1) {
+                        return fn(span, (err)=>closeSpanWithError(span, err));
+                    }
+                    const result = fn(span);
+                    if (isPromise(result)) {
+                        return result.then((res)=>{
+                            span.end();
+                            return res;
+                        }).catch((err)=>{
+                            closeSpanWithError(span, err);
+                            throw err;
+                        }).finally(onCleanup);
+                    } else {
+                        span.end();
+                        onCleanup();
+                    }
+                    return result;
+                } catch (err) {
+                    closeSpanWithError(span, err);
+                    onCleanup();
+                    throw err;
+                }
+            }));
+    }
+    wrap(...args) {
+        const tracer = this;
+        const [name, options, fn] = args.length === 3 ? args : [
+            args[0],
+            {},
+            args[1]
+        ];
+        if (!NextVanillaSpanAllowlist.includes(name) && process.env.NEXT_OTEL_VERBOSE !== '1') {
+            return fn;
+        }
+        return function() {
+            let optionsObj = options;
+            if (typeof optionsObj === 'function' && typeof fn === 'function') {
+                optionsObj = optionsObj.apply(this, arguments);
+            }
+            const lastArgId = arguments.length - 1;
+            const cb = arguments[lastArgId];
+            if (typeof cb === 'function') {
+                const scopeBoundCb = tracer.getContext().bind(context.active(), cb);
+                return tracer.trace(name, optionsObj, (_span, done)=>{
+                    arguments[lastArgId] = function(err) {
+                        done == null ? void 0 : done(err);
+                        return scopeBoundCb.apply(this, arguments);
+                    };
+                    return fn.apply(this, arguments);
+                });
+            } else {
+                return tracer.trace(name, optionsObj, ()=>fn.apply(this, arguments));
+            }
+        };
+    }
+    startSpan(...args) {
+        const [type, options] = args;
+        const spanContext = this.getSpanContext((options == null ? void 0 : options.parentSpan) ?? this.getActiveScopeSpan());
+        return this.getTracerInstance().startSpan(type, options, spanContext);
+    }
+    getSpanContext(parentSpan) {
+        const spanContext = parentSpan ? trace.setSpan(context.active(), parentSpan) : undefined;
+        return spanContext;
+    }
+    getRootSpanAttributes() {
+        const spanId = context.active().getValue(rootSpanIdKey);
+        return rootSpanAttributesStore.get(spanId);
+    }
+}
+const getTracer = (()=>{
+    const tracer = new NextTracerImpl();
+    return ()=>tracer;
+})();
+export { getTracer };
+export { isPromise as l } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { rootSpanIdKey as m } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { lastSpanId as n } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getSpanId as o } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { clientTraceDataSetter as p } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { NextTracerImpl as q } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getTracer as r } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 14,
+    ModuleEvaluation: 6,
     Export(
         "BubbledError",
     ): 10,
@@ -1381,6 +1580,7 @@ export { NextTracerImpl as q } from "__TURBOPACK_VAR__" assert {
 export { getTracer as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 7
@@ -1482,11 +1682,207 @@ export { isBubbledError } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 14
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { d as context } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import { c as api } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import { j as closeSpanWithError } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -9
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { LogSpanAllowList } from './constants';
+import { NextVanillaSpanAllowlist } from './constants';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+const isPromise = (p)=>{
+    return p !== null && typeof p === 'object' && typeof p.then === 'function';
+};
+const rootSpanAttributesStore = new Map();
+const rootSpanIdKey = api.createContextKey('next.rootSpanId');
+let lastSpanId = 0;
+const getSpanId = ()=>lastSpanId++;
+const clientTraceDataSetter = {
+    set (carrier, key, value) {
+        carrier.push({
+            key,
+            value
+        });
+    }
+};
+class NextTracerImpl {
+    getTracerInstance() {
+        return trace.getTracer('next.js', '0.0.1');
+    }
+    getContext() {
+        return context;
+    }
+    getTracePropagationData() {
+        const activeContext = context.active();
+        const entries = [];
+        propagation.inject(activeContext, entries, clientTraceDataSetter);
+        return entries;
+    }
+    getActiveScopeSpan() {
+        return trace.getSpan(context == null ? void 0 : context.active());
+    }
+    withPropagatedContext(carrier, fn, getter) {
+        const activeContext = context.active();
+        if (trace.getSpanContext(activeContext)) {
+            return fn();
+        }
+        const remoteContext = propagation.extract(activeContext, carrier, getter);
+        return context.with(remoteContext, fn);
+    }
+    trace(...args) {
+        var _trace_getSpanContext;
+        const [type, fnOrOptions, fnOrEmpty] = args;
+        const { fn, options } = typeof fnOrOptions === 'function' ? {
+            fn: fnOrOptions,
+            options: {}
+        } : {
+            fn: fnOrEmpty,
+            options: {
+                ...fnOrOptions
+            }
+        };
+        const spanName = options.spanName ?? type;
+        if (!NextVanillaSpanAllowlist.includes(type) && process.env.NEXT_OTEL_VERBOSE !== '1' || options.hideSpan) {
+            return fn();
+        }
+        let spanContext = this.getSpanContext((options == null ? void 0 : options.parentSpan) ?? this.getActiveScopeSpan());
+        let isRootSpan = false;
+        if (!spanContext) {
+            spanContext = (context == null ? void 0 : context.active()) ?? ROOT_CONTEXT;
+            isRootSpan = true;
+        } else if ((_trace_getSpanContext = trace.getSpanContext(spanContext)) == null ? void 0 : _trace_getSpanContext.isRemote) {
+            isRootSpan = true;
+        }
+        const spanId = getSpanId();
+        options.attributes = {
+            'next.span_name': spanName,
+            'next.span_type': type,
+            ...options.attributes
+        };
+        return context.with(spanContext.setValue(rootSpanIdKey, spanId), ()=>this.getTracerInstance().startActiveSpan(spanName, options, (span)=>{
+                const startTime = 'performance' in globalThis && 'measure' in performance ? globalThis.performance.now() : undefined;
+                const onCleanup = ()=>{
+                    rootSpanAttributesStore.delete(spanId);
+                    if (startTime && process.env.NEXT_OTEL_PERFORMANCE_PREFIX && LogSpanAllowList.includes(type || '')) {
+                        performance.measure(`${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(type.split('.').pop() || '').replace(/[A-Z]/g, (match)=>'-' + match.toLowerCase())}`, {
+                            start: startTime,
+                            end: performance.now()
+                        });
+                    }
+                };
+                if (isRootSpan) {
+                    rootSpanAttributesStore.set(spanId, new Map(Object.entries(options.attributes ?? {})));
+                }
+                try {
+                    if (fn.length > 1) {
+                        return fn(span, (err)=>closeSpanWithError(span, err));
+                    }
+                    const result = fn(span);
+                    if (isPromise(result)) {
+                        return result.then((res)=>{
+                            span.end();
+                            return res;
+                        }).catch((err)=>{
+                            closeSpanWithError(span, err);
+                            throw err;
+                        }).finally(onCleanup);
+                    } else {
+                        span.end();
+                        onCleanup();
+                    }
+                    return result;
+                } catch (err) {
+                    closeSpanWithError(span, err);
+                    onCleanup();
+                    throw err;
+                }
+            }));
+    }
+    wrap(...args) {
+        const tracer = this;
+        const [name, options, fn] = args.length === 3 ? args : [
+            args[0],
+            {},
+            args[1]
+        ];
+        if (!NextVanillaSpanAllowlist.includes(name) && process.env.NEXT_OTEL_VERBOSE !== '1') {
+            return fn;
+        }
+        return function() {
+            let optionsObj = options;
+            if (typeof optionsObj === 'function' && typeof fn === 'function') {
+                optionsObj = optionsObj.apply(this, arguments);
+            }
+            const lastArgId = arguments.length - 1;
+            const cb = arguments[lastArgId];
+            if (typeof cb === 'function') {
+                const scopeBoundCb = tracer.getContext().bind(context.active(), cb);
+                return tracer.trace(name, optionsObj, (_span, done)=>{
+                    arguments[lastArgId] = function(err) {
+                        done == null ? void 0 : done(err);
+                        return scopeBoundCb.apply(this, arguments);
+                    };
+                    return fn.apply(this, arguments);
+                });
+            } else {
+                return tracer.trace(name, optionsObj, ()=>fn.apply(this, arguments));
+            }
+        };
+    }
+    startSpan(...args) {
+        const [type, options] = args;
+        const spanContext = this.getSpanContext((options == null ? void 0 : options.parentSpan) ?? this.getActiveScopeSpan());
+        return this.getTracerInstance().startSpan(type, options, spanContext);
+    }
+    getSpanContext(parentSpan) {
+        const spanContext = parentSpan ? trace.setSpan(context.active(), parentSpan) : undefined;
+        return spanContext;
+    }
+    getRootSpanAttributes() {
+        const spanId = context.active().getValue(rootSpanIdKey);
+        return rootSpanAttributesStore.get(spanId);
+    }
+}
+const getTracer = (()=>{
+    const tracer = new NextTracerImpl();
+    return ()=>tracer;
+})();
+export { getTracer };
+export { isPromise as k } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { rootSpanAttributesStore as l } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { rootSpanIdKey as m } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { lastSpanId as n } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getSpanId as o } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { clientTraceDataSetter as p } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { NextTracerImpl as q } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { getTracer as r } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

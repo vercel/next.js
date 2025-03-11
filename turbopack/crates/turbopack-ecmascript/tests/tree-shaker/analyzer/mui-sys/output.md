@@ -991,7 +991,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 39,
+    ModuleEvaluation: 29,
     Export(
         "columnGap",
     ): 16,
@@ -1525,6 +1525,7 @@ export { grid as s } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 30
@@ -1634,19 +1635,65 @@ export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 39
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import compose from './compose';
+import { g as gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -11
+};
+import { h as columnGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14
+};
+import { i as rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
+};
+import { j as gridColumn } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -20
+};
+import { k as gridRow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -21
+};
+import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -22
+};
+import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -23
+};
+import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -24
+};
+import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -25
+};
+import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -26
+};
+import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -27
+};
+import { r as gridArea } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -28
+};
+const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
+const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
+export { grid as s } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 39,
+    ModuleEvaluation: 29,
     Export(
         "columnGap",
     ): 16,
@@ -2180,6 +2227,7 @@ export { grid as s } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 30
@@ -2289,11 +2337,57 @@ export { gridTemplateRows } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 39
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import compose from './compose';
+import { g as gap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -11
+};
+import { h as columnGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -14
+};
+import { i as rowGap } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -17
+};
+import { j as gridColumn } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -20
+};
+import { k as gridRow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -21
+};
+import { l as gridAutoFlow } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -22
+};
+import { m as gridAutoColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -23
+};
+import { n as gridAutoRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -24
+};
+import { o as gridTemplateColumns } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -25
+};
+import { p as gridTemplateRows } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -26
+};
+import { q as gridTemplateAreas } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -27
+};
+import { r as gridArea } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -28
+};
+const grid = compose(gap, columnGap, rowGap, gridColumn, gridRow, gridAutoFlow, gridAutoColumns, gridAutoRows, gridTemplateColumns, gridTemplateRows, gridTemplateAreas, gridArea);
+const __TURBOPACK__default__export__ = grid;
+export { __TURBOPACK__default__export__ as default };
+export { grid as s } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as t } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

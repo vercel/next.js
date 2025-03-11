@@ -219,7 +219,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 2,
     Export(
         "a",
     ): 5,
@@ -272,6 +272,7 @@ import "__TURBOPACK_PART__" assert {
 };
 order.push("c");
 export { order };
+export { };
 
 ```
 ## Part 3
@@ -327,19 +328,24 @@ export { a } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 7
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+order.push("c");
+export { order };
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 2,
     Export(
         "a",
     ): 5,
@@ -392,6 +398,7 @@ import "__TURBOPACK_PART__" assert {
 };
 order.push("c");
 export { order };
+export { };
 
 ```
 ## Part 3
@@ -447,11 +454,16 @@ export { a } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 7
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as order } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+order.push("c");
+export { order };
+export { };
 
 ```

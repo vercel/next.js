@@ -328,7 +328,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 4,
     Exports: 7,
 }
 ```
@@ -395,6 +395,7 @@ x = 100;
 export { a as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 5
@@ -423,19 +424,35 @@ export { z as c } from "__TURBOPACK_VAR__" assert {
 ```js
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { b as y } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -5
+};
+import { c as z } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -6
+};
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+x = y + z;
+x = x + 1;
+x *= 2;
+console.log(x);
+let a = x;
+x = x + a + 5;
+x = 100;
+export { a as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 1,
     Exports: 7,
 }
 ```
@@ -461,6 +478,7 @@ import "__TURBOPACK_PART__" assert {
 console.log(x);
 console.log(x);
 console.log(x);
+export { };
 
 ```
 ## Part 2
@@ -524,11 +542,17 @@ x = 100;
 ```js
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { a as x } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+console.log(x);
+console.log(x);
+console.log(x);
+export { };
 
 ```

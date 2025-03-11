@@ -764,7 +764,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 36,
+    ModuleEvaluation: 23,
     Export(
         "config",
     ): 25,
@@ -1170,6 +1170,7 @@ export { routeModule };
 export { routeModule as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 24
@@ -1300,19 +1301,57 @@ export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 36
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { RouteKind } from '../../server/future/route-kind';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+import App from 'VAR_MODULE_APP';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import Document from 'VAR_MODULE_DOCUMENT';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 10
+};
+import * as userland from 'VAR_USERLAND';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 22
+};
+const routeModule = new PagesRouteModule({
+    definition: {
+        kind: RouteKind.PAGES,
+        page: 'VAR_DEFINITION_PAGE',
+        pathname: 'VAR_DEFINITION_PATHNAME',
+        bundlePath: '',
+        filename: ''
+    },
+    components: {
+        App,
+        Document
+    },
+    userland
+});
+export { routeModule };
+export { routeModule as r } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 36,
+    ModuleEvaluation: 23,
     Export(
         "config",
     ): 25,
@@ -1718,6 +1757,7 @@ export { routeModule };
 export { routeModule as r } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 24
@@ -1848,11 +1888,49 @@ export { unstable_getStaticProps } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 36
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+import { RouteKind } from '../../server/future/route-kind';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 8
+};
+import App from 'VAR_MODULE_APP';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 6
+};
+import Document from 'VAR_MODULE_DOCUMENT';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 10
+};
+import * as userland from 'VAR_USERLAND';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 22
+};
+const routeModule = new PagesRouteModule({
+    definition: {
+        kind: RouteKind.PAGES,
+        page: 'VAR_DEFINITION_PAGE',
+        pathname: 'VAR_DEFINITION_PATHNAME',
+        bundlePath: '',
+        filename: ''
+    },
+    components: {
+        App,
+        Document
+    },
+    userland
+});
+export { routeModule };
+export { routeModule as r } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

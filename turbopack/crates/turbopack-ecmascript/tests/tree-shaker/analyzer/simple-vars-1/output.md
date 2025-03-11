@@ -121,10 +121,12 @@ export { b } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 3
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```
 # Entrypoints
@@ -174,9 +176,11 @@ export { b } from "__TURBOPACK_PART__" assert {
 ```
 ## Part 3
 ```js
+export { };
 
 ```
 ## Merged (module eval)
 ```js
+export { };
 
 ```

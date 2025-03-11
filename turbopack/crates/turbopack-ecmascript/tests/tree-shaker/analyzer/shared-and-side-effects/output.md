@@ -230,7 +230,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 1,
     Export(
         "a",
     ): 3,
@@ -282,6 +282,7 @@ const a = {
 export { a as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 2
@@ -320,19 +321,28 @@ export { a } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { d as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+externalObject.propertyWithSetter = 42;
+console.log(shared);
+const a = {
+    shared,
+    a: "aaaaaaaaaaa"
+};
+export { a as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 8,
+    ModuleEvaluation: 2,
     Export(
         "a",
     ): 6,
@@ -375,6 +385,7 @@ import "__TURBOPACK_PART__" assert {
 };
 externalObject.propertyWithSetter = 42;
 console.log(shared);
+export { };
 
 ```
 ## Part 3
@@ -449,11 +460,16 @@ export { a } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 8
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { c as shared } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+externalObject.propertyWithSetter = 42;
+console.log(shared);
+export { };
 
 ```

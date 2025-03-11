@@ -335,7 +335,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 10,
+    ModuleEvaluation: 5,
     Export(
         "c1_1",
     ): 6,
@@ -447,6 +447,7 @@ import "__TURBOPACK_PART__" assert {
 };
 c1_3();
 c2_2();
+export { };
 
 ```
 ## Part 6
@@ -486,19 +487,33 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 10
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { f as c1_3 } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -3
+};
+import { h as c2_2 } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -4
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 1
+};
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 2
+};
+c1_3();
+c2_2();
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 2,
     Export(
         "c1_1",
     ): 3,
@@ -580,6 +595,7 @@ import { h as c2_2 } from "__TURBOPACK_PART__" assert {
 };
 c1_3();
 c2_2();
+export { };
 
 ```
 ## Part 3
@@ -619,19 +635,24 @@ export { c2_2 } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 7
-```js
-
-```
 ## Merged (module eval)
 ```js
+import { e as c1_3 } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
+import { h as c2_2 } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
+};
+c1_3();
+c2_2();
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 2,
     Export(
         "c1_1",
     ): 3,
@@ -658,7 +679,7 @@ export { c1_3 };
 
 ```
 {
-    ModuleEvaluation: 7,
+    ModuleEvaluation: 2,
     Export(
         "c1_1",
     ): 3,

@@ -293,7 +293,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 12,
+    ModuleEvaluation: 10,
     Export(
         "default",
     ): 10,
@@ -480,6 +480,7 @@ export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 11
@@ -489,19 +490,69 @@ export { default } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 12
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { Html } from 'next/document';
+import { Head } from 'next/document';
+import { Main } from 'next/document';
+import { NextScript } from 'next/document';
+class MyDocument extends Document {
+    static async getInitialProps(ctx) {
+        const initialProps = await Document.getInitialProps(ctx);
+        return {
+            ...initialProps,
+            styles: _jsxs(_Fragment, {
+                children: [
+                    initialProps.styles,
+                    _jsx("style", {
+                        dangerouslySetInnerHTML: {
+                            __html: `html { background: hotpink; }`
+                        }
+                    })
+                ]
+            })
+        };
+    }
+    render() {
+        return _jsxs(Html, {
+            children: [
+                _jsx(Head, {}),
+                _jsxs("body", {
+                    children: [
+                        _jsx(Main, {}),
+                        _jsx(NextScript, {})
+                    ]
+                })
+            ]
+        });
+    }
+}
+const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 12,
+    ModuleEvaluation: 10,
     Export(
         "default",
     ): 10,
@@ -688,6 +739,7 @@ export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
 export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 11
@@ -697,11 +749,61 @@ export { default } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 12
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 4
+};
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { Html } from 'next/document';
+import { Head } from 'next/document';
+import { Main } from 'next/document';
+import { NextScript } from 'next/document';
+class MyDocument extends Document {
+    static async getInitialProps(ctx) {
+        const initialProps = await Document.getInitialProps(ctx);
+        return {
+            ...initialProps,
+            styles: _jsxs(_Fragment, {
+                children: [
+                    initialProps.styles,
+                    _jsx("style", {
+                        dangerouslySetInnerHTML: {
+                            __html: `html { background: hotpink; }`
+                        }
+                    })
+                ]
+            })
+        };
+    }
+    render() {
+        return _jsxs(Html, {
+            children: [
+                _jsx(Head, {}),
+                _jsxs("body", {
+                    children: [
+                        _jsx(Main, {}),
+                        _jsx(NextScript, {})
+                    ]
+                })
+            ]
+        });
+    }
+}
+const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

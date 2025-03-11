@@ -118,7 +118,7 @@ graph TD
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 0,
     Export(
         "GET",
     ): 2,
@@ -134,6 +134,7 @@ graph TD
 ## Part 0
 ```js
 import "next/server";
+export { };
 
 ```
 ## Part 1
@@ -183,19 +184,17 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "next/server";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 5,
+    ModuleEvaluation: 0,
     Export(
         "GET",
     ): 2,
@@ -211,6 +210,7 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "next/server";
+export { };
 
 ```
 ## Part 1
@@ -260,11 +260,9 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 };
 
 ```
-## Part 5
-```js
-
-```
 ## Merged (module eval)
 ```js
+import "next/server";
+export { };
 
 ```
