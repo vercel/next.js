@@ -2491,7 +2491,9 @@ export default async function build(
         requiredServerFilesManifest
       )
 
-      if (isGenerateMode) {
+      // we don't need to inline for turbopack build as
+      // it will handle it's own caching separate of compile
+      if (isGenerateMode && !turboNextBuild) {
         await nextBuildSpan
           .traceChild('inline-static-env')
           .traceAsyncFn(async () => {
