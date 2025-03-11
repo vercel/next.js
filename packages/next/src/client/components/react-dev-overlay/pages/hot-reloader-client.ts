@@ -46,7 +46,6 @@ import type {
   HMR_ACTION_TYPES,
   TurbopackMsgToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
-import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extract-modules-from-turbopack-message'
 import {
   REACT_REFRESH_FULL_RELOAD,
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
@@ -54,6 +53,10 @@ import {
 } from '../shared'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import reportHmrLatency from '../utils/report-hmr-latency'
+import {
+  extractModulesFromTurbopackMessage,
+  TurbopackHmr,
+} from '../utils/turbopack-hot-reloader-common'
 // This alternative WebpackDevServer combines the functionality of:
 // https://github.com/webpack/webpack-dev-server/blob/webpack-1/client/index.js
 // https://github.com/webpack/webpack/blob/webpack-1/hot/dev-server.js
@@ -127,11 +130,12 @@ function handleSuccess() {
   clearOutdatedErrors()
 
   if (process.env.TURBOPACK) {
+    const built = turbopackHmr!.onBuilt()
     reportHmrLatency(
       sendMessage,
-      [...turbopackUpdatedModules],
-      startLatency!,
-      turbopackLastUpdateLatency ?? Date.now()
+      [...built.updatedModules],
+      built.startMsSinceEpoch,
+      built.endMsSinceEpoch
     )
     onBuildOk()
   } else {
@@ -219,9 +223,10 @@ function handleErrors(errors: any) {
   }
 }
 
-let startLatency: number | null = null
-let turbopackLastUpdateLatency: number | null = null
-let turbopackUpdatedModules: Set<string> = new Set()
+let webpackStartMsSinceEpoch: number | null = null
+const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
+  ? new TurbopackHmr()
+  : null
 let isrManifest: Record<string, boolean> = {}
 
 function onBeforeFastRefresh(updatedModules: string[]) {
@@ -243,8 +248,8 @@ function onFastRefresh(updatedModules: ReadonlyArray<string> = []) {
   reportHmrLatency(
     sendMessage,
     updatedModules,
-    startLatency!,
-    turbopackLastUpdateLatency ?? Date.now()
+    webpackStartMsSinceEpoch!,
+    Date.now()
   )
 }
 
@@ -286,9 +291,11 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
-      startLatency = Date.now()
-      turbopackLastUpdateLatency = null
-      turbopackUpdatedModules.clear()
+      if (process.env.TURBOPACK) {
+        turbopackHmr!.onBuilding()
+      } else {
+        webpackStartMsSinceEpoch = Date.now()
+      }
       console.log('[Fast Refresh] rebuilding')
       break
     }
@@ -373,10 +380,7 @@ function processMessage(obj: HMR_ACTION_TYPES) {
         performFullReload(null)
       }
       onRefresh()
-      for (const module of updatedModules) {
-        turbopackUpdatedModules.add(module)
-      }
-      turbopackLastUpdateLatency = Date.now()
+      turbopackHmr!.onTurbopackMessage(obj)
       break
     }
     default: {
