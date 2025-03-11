@@ -143,7 +143,13 @@ export function UserPreferences({
   )
 }
 
-function Select({ children, prefix, ...props }) {
+function Select({
+  children,
+  prefix,
+  ...props
+}: {
+  prefix?: React.ReactNode
+} & React.HTMLProps<HTMLSelectElement>) {
   return (
     <div className="select-button">
       {prefix}
