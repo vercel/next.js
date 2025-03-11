@@ -149,7 +149,7 @@ function Select({
   ...props
 }: {
   prefix?: React.ReactNode
-} & React.HTMLProps<HTMLSelectElement>) {
+} & Omit<React.HTMLProps<HTMLSelectElement>, 'prefix'>) {
   return (
     <div className="select-button">
       {prefix}
