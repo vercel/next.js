@@ -8,18 +8,19 @@ describe('browser-chunks', () => {
     skipDeployment: true,
   })
 
+  let sources = []
+  beforeAll(async () => {
+    const sourcemaps = await next.readFiles('.next/static/chunks', (filename) =>
+      filename.endsWith('.js.map')
+    )
+
+    sources = sourcemaps.flatMap(
+      (sourcemap) => (JSON.parse(sourcemap) as SourceMapPayload).sources
+    )
+  })
   ;(isTurbopack ? it.skip : it)(
     'must not bundle any server modules into browser chunks',
-    async () => {
-      const sourcemaps = await next.readFiles(
-        '.next/static/chunks',
-        (filename) => filename.endsWith('.js.map')
-      )
-
-      const sources = sourcemaps.flatMap(
-        (sourcemap) => (JSON.parse(sourcemap) as SourceMapPayload).sources
-      )
-
+    () => {
       const serverSources = sources.filter(
         (source) =>
           /webpack:\/\/_N_E\/(\.\.\/)*src\/server\//.test(source) ||
@@ -27,6 +28,18 @@ describe('browser-chunks', () => {
           source.includes('next/dist/server')
       )
 
+      if (serverSources.length > 0) {
+        console.error(
+          `Found the following server modules:\n  ${serverSources.join('\n  ')}\nIf any of these modules are allowed to be included in browser chunks, move them to src/shared or src/client.`
+        )
+
+        throw new Error('Did not expect any server modules in browser chunks.')
+      }
+    }
+  )
+  ;(isTurbopack ? it.skip : it)(
+    'must not bundle any dev overlay into browser chunks (production)',
+    () => {
       const devOverlaySources = sources.filter((source) => {
         return (
           /webpack:\/\/_N_E\/(\.\.\/)*src\/client\/components\/react-dev-overlay\//.test(
@@ -38,23 +51,15 @@ describe('browser-chunks', () => {
         )
       })
 
-      if (serverSources.length > 0) {
-        console.error(
-          `Found the following server modules:\n  ${serverSources.join('\n  ')}\nIf any of these modules are allowed to be included in browser chunks, move them to src/shared or src/client.`
-        )
-
-        throw new Error('Did not expect any server modules in browser chunks.')
-      }
-
       if (devOverlaySources.length > 0) {
+        const message = `Found the following dev overlay modules:\n  ${devOverlaySources.join('\n')}`
         console.error(
-          `Found the following dev overlay modules:\n  ${devOverlaySources.join(
-            '\n  '
-          )}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
+          `${message}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
         )
 
         throw new Error(
-          'Did not expect any dev overlay modules in browser chunks.'
+          'Did not expect any dev overlay modules in browser chunks.\n' +
+            message
         )
       }
     }
