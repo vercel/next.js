@@ -205,12 +205,16 @@ async fn build_manifest(
 pub async fn to_rsc_context(
     client_module: Vc<Box<dyn Module>>,
     entry_path: &str,
+    entry_query: &str,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<ResolvedVc<Box<dyn Module>>> {
     // TODO a cleaner solution would something similar to the EcmascriptClientReferenceModule, as
     // opposed to the following hack to construct the RSC module corresponding to this client
     // module.
-    let source = FileSource::new(client_module.ident().path().root().join(entry_path.into()));
+    let source = FileSource::new_with_query(
+        client_module.ident().path().root().join(entry_path.into()),
+        Vc::cell(entry_query.into()),
+    );
     let module = asset_context
         .process(
             Vc::upcast(source),
@@ -231,7 +235,7 @@ pub async fn to_rsc_context(
 pub fn parse_server_actions(
     program: &Program,
     comments: &dyn Comments,
-) -> Option<(BTreeMap<String, String>, String)> {
+) -> Option<(BTreeMap<String, String>, String, String)> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
         Program::Script(s) => s.span.lo,
@@ -277,7 +281,8 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         return Ok(Vc::cell(None));
     };
 
-    let Some((mut actions, entry_path)) = parse_server_actions(original, comments) else {
+    let Some((mut actions, entry_path, entry_query)) = parse_server_actions(original, comments)
+    else {
         return Ok(Vc::cell(None));
     };
 
@@ -302,6 +307,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
         ActionMap {
             actions,
             entry_path,
+            entry_query,
         }
         .resolved_cell(),
     )))
@@ -410,6 +416,7 @@ impl AllActions {
 pub struct ActionMap {
     pub actions: FxIndexMap<String, String>,
     pub entry_path: String,
+    pub entry_query: String,
 }
 
 /// An Option wrapper around [ActionMap].

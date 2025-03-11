@@ -116,6 +116,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
+    pub query_str: RcStr,
     pub file_path: ResolvedVc<FileSystemPath>,
 }
 

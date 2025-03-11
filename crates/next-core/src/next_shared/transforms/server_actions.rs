@@ -61,6 +61,7 @@ impl CustomTransformer for NextServerActions {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
+            Some(ctx.query_str.clone()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 is_development: self.mode.is_development(),

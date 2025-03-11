@@ -241,6 +241,7 @@ impl ServerActionsGraph {
                                         to_rsc_context(
                                             **module,
                                             &actions.entry_path,
+                                            &actions.entry_query,
                                             rsc_asset_context,
                                         )
                                         .await?

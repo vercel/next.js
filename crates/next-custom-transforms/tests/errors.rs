@@ -161,6 +161,7 @@ fn react_server_actions_errors(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer,
                         is_development: true,
@@ -224,6 +225,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                 ),
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
+                    None,
                     server_actions::Config {
                         is_react_server_layer: true,
                         is_development: true,

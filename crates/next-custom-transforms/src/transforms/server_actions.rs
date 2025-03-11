@@ -135,6 +135,7 @@ pub type ActionsMap = BTreeMap<Atom, Atom>;
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
 pub fn server_actions<C: Comments>(
     file_name: &FileName,
+    file_query: Option<RcStr>,
     config: Config,
     comments: C,
     cm: Arc<SourceMap>,
@@ -147,6 +148,7 @@ pub fn server_actions<C: Comments>(
         comments,
         cm,
         file_name: file_name.to_string(),
+        file_query,
         start_pos: BytePos(0),
         file_directive: None,
         in_exported_expr: false,
@@ -187,11 +189,14 @@ pub fn server_actions<C: Comments>(
 
 /// Serializes the Server Actions into a magic comment prefixed by
 /// `__next_internal_action_entry_do_not_use__`.
-fn generate_server_actions_comment(actions: &ActionsMap, entry: Option<&str>) -> String {
+fn generate_server_actions_comment(
+    actions: &ActionsMap,
+    entry_path_query: Option<(&str, &str)>,
+) -> String {
     format!(
         " __next_internal_action_entry_do_not_use__ {} ",
-        if let Some(entry) = entry {
-            serde_json::to_string(&(actions, entry))
+        if let Some(entry_path_query) = entry_path_query {
+            serde_json::to_string(&(actions, entry_path_query.0, entry_path_query.1))
         } else {
             serde_json::to_string(&actions)
         }
@@ -203,6 +208,7 @@ struct ServerActions<C: Comments> {
     #[allow(unused)]
     config: Config,
     file_name: String,
+    file_query: Option<RcStr>,
     comments: C,
     cm: Arc<SourceMap>,
     mode: ServerActionsMode,
@@ -2120,7 +2126,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             &actions,
                             match self.mode {
                                 ServerActionsMode::Webpack => None,
-                                ServerActionsMode::Turbopack => Some(""),
+                                ServerActionsMode::Turbopack => Some(("", "")),
                             },
                         )
                         .into(),
@@ -2178,7 +2184,10 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                                 kind: CommentKind::Block,
                                                 text: generate_server_actions_comment(
                                                     &std::iter::once((ref_id, export)).collect(),
-                                                    Some(&self.file_name),
+                                                    Some((
+                                                        &self.file_name,
+                                                        self.file_query.as_ref().map_or("", |v| v),
+                                                    )),
                                                 )
                                                 .into(),
                                             },
