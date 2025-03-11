@@ -6,7 +6,7 @@ var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/4c35f_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_1d5fd9a6.js"
+  "output/4c35f_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_8a8dadb7.js"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
         return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript)");
     });

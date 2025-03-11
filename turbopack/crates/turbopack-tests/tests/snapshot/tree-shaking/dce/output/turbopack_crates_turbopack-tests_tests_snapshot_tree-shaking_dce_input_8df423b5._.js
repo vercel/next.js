@@ -1,9 +1,12 @@
 (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_tree-shaking_dce_input_8df423b5._.js", {
 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/dce/input/module.js [test] (ecmascript) <module evaluation>": (function(__turbopack_context__) {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/dce/input/module.js [test] (ecmascript) <module evaluation>": ((__turbopack_context__) => {
+"use strict";
 
-var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname } = __turbopack_context__;
 {
+__turbopack_context__.s({});
+;
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/tree-shaking/dce/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
