@@ -4586,7 +4586,9 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
+ "supports-hyperlinks",
  "swc_core",
+ "terminal_hyperlink",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -6960,6 +6962,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
+name = "supports-hyperlinks"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "804f44ed3c63152de6a9f90acbea1a110441de43006ea51bcce8f436196a288b"
+
+[[package]]
 name = "swc"
 version = "16.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8483,6 +8491,12 @@ checksum = "be55cf8942feac5c765c2c993422806843c9a9a45d4d5c407ad6dd2ea95eb9b6"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "terminal_hyperlink"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db7bfa7333cbbfca467f40042a640d3c86063d6e4085cef4a6effdbad7005d50"
 
 [[package]]
 name = "terminal_size"

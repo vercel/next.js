@@ -201,11 +201,17 @@ By default, Next.js sets a **[revalidation period](/docs/app/building-your-appli
 While this revalidation period may be useful for content you don't expect to change often, you can use the `cacheLife` and `cacheTag` APIs to configure the cache behavior:
 
 - [`cacheLife`](/docs/app/api-reference/functions/cacheLife): For time-based revalidation periods.
-- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For on-demand revalidation.
+- [`cacheTag`](/docs/app/api-reference/functions/cacheTag): For tagging cached data.
 
 Both of these APIs integrate across the client and server caching layers, meaning you can configure your caching semantics in one place and have them apply everywhere.
 
 See the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) docs for more information.
+
+### Invalidating
+
+To invalidate the cached data, you can use the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function.
+
+See the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) docs for more information.
 
 ### Interleaving
 
