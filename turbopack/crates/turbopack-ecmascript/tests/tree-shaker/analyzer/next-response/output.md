@@ -401,45 +401,29 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N0["Items: [ItemId(0, ImportOfModule), ItemId(1, ImportOfModule), ItemId(2, ImportOfModule), ItemId(3, ImportOfModule), ItemId(4, ImportOfModule), ItemId(5, VarDeclarator(0)), ItemId(6, VarDeclarator(0)), ItemId(7, Normal), ItemId(8, Normal), ItemId(Export((&quot;NextResponse&quot;, #2), &quot;NextResponse&quot;))]"];
     N1["Items: [ItemId(0, ImportBinding(0))]"];
-    N2["Items: [ItemId(1, ImportOfModule)]"];
-    N3["Items: [ItemId(1, ImportBinding(0))]"];
-    N4["Items: [ItemId(2, ImportOfModule)]"];
-    N5["Items: [ItemId(2, ImportBinding(0))]"];
-    N6["Items: [ItemId(2, ImportBinding(1))]"];
-    N7["Items: [ItemId(3, ImportOfModule)]"];
-    N8["Items: [ItemId(3, ImportBinding(0))]"];
-    N9["Items: [ItemId(4, ImportOfModule)]"];
-    N10["Items: [ItemId(4, ImportBinding(0))]"];
-    N11["Items: [ItemId(5, VarDeclarator(0)), ItemId(6, VarDeclarator(0)), ItemId(7, Normal), ItemId(8, Normal), ItemId(Export((&quot;NextResponse&quot;, #2), &quot;NextResponse&quot;))]"];
-    N2 --> N0;
-    N4 --> N2;
-    N7 --> N4;
-    N9 --> N7;
-    N11 --> N9;
-    N8 --> N7;
-    N11 --> N6;
-    N6 --> N4;
-    N11 --> N5;
-    N11 --> N3;
-    N3 --> N2;
-    N11 --> N8;
-    N5 --> N4;
-    N11 --> N1;
-    N11 --> N10;
-    N10 --> N9;
-    N1 --> N0;
+    N2["Items: [ItemId(1, ImportBinding(0))]"];
+    N3["Items: [ItemId(2, ImportBinding(0))]"];
+    N4["Items: [ItemId(2, ImportBinding(1))]"];
+    N5["Items: [ItemId(3, ImportBinding(0))]"];
+    N6["Items: [ItemId(4, ImportBinding(0))]"];
+    N0 --> N3;
+    N0 --> N6;
+    N0 --> N5;
+    N0 --> N4;
+    N0 --> N1;
+    N0 --> N2;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 0,
     Export(
         "NextResponse",
-    ): 11,
-    Exports: 12,
+    ): 0,
+    Exports: 7,
 }
 ```
 
@@ -447,7 +431,141 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
+import { validateURL } from '../utils';
+import { NextURL } from '../next-url';
+import { toNodeOutgoingHttpHeaders } from '../utils';
+import { ResponseCookies } from './cookies';
+import { stringifyCookie } from '../../web/spec-extension/cookies';
+import { ReflectAdapter } from './adapters/reflect';
 import '../../web/spec-extension/cookies';
+import '../next-url';
+import '../utils';
+import './adapters/reflect';
+import './cookies';
+const INTERNALS = Symbol('internal response');
+const REDIRECTS = new Set([
+    301,
+    302,
+    303,
+    307,
+    308
+]);
+function handleMiddlewareField(init, headers) {
+    var _init_request;
+    if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
+        if (!(init.request.headers instanceof Headers)) {
+            throw new Error('request.headers must be an instance of Headers');
+        }
+        const keys = [];
+        for (const [key, value] of init.request.headers){
+            headers.set('x-middleware-request-' + key, value);
+            keys.push(key);
+        }
+        headers.set('x-middleware-override-headers', keys.join(','));
+    }
+}
+class NextResponse extends Response {
+    constructor(body, init = {}){
+        super(body, init);
+        const headers = this.headers;
+        const cookies = new ResponseCookies(headers);
+        const cookiesProxy = new Proxy(cookies, {
+            get (target, prop, receiver) {
+                switch(prop){
+                    case 'delete':
+                    case 'set':
+                        {
+                            return (...args)=>{
+                                const result = Reflect.apply(target[prop], target, args);
+                                const newHeaders = new Headers(headers);
+                                if (result instanceof ResponseCookies) {
+                                    headers.set('x-middleware-set-cookie', result.getAll().map((cookie)=>stringifyCookie(cookie)).join(','));
+                                }
+                                handleMiddlewareField(init, newHeaders);
+                                return result;
+                            };
+                        }
+                    default:
+                        return ReflectAdapter.get(target, prop, receiver);
+                }
+            }
+        });
+        this[INTERNALS] = {
+            cookies: cookiesProxy,
+            url: init.url ? new NextURL(init.url, {
+                headers: toNodeOutgoingHttpHeaders(headers),
+                nextConfig: init.nextConfig
+            }) : undefined
+        };
+    }
+    [Symbol.for('edge-runtime.inspect.custom')]() {
+        return {
+            cookies: this.cookies,
+            url: this.url,
+            body: this.body,
+            bodyUsed: this.bodyUsed,
+            headers: Object.fromEntries(this.headers),
+            ok: this.ok,
+            redirected: this.redirected,
+            status: this.status,
+            statusText: this.statusText,
+            type: this.type
+        };
+    }
+    get cookies() {
+        return this[INTERNALS].cookies;
+    }
+    static json(body, init) {
+        const response = Response.json(body, init);
+        return new NextResponse(response.body, response);
+    }
+    static redirect(url, init) {
+        const status = typeof init === 'number' ? init : (init == null ? void 0 : init.status) ?? 307;
+        if (!REDIRECTS.has(status)) {
+            throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
+        }
+        const initObj = typeof init === 'object' ? init : {};
+        const headers = new Headers(initObj == null ? void 0 : initObj.headers);
+        headers.set('Location', validateURL(url));
+        return new NextResponse(null, {
+            ...initObj,
+            headers,
+            status
+        });
+    }
+    static rewrite(destination, init) {
+        const headers = new Headers(init == null ? void 0 : init.headers);
+        headers.set('x-middleware-rewrite', validateURL(destination));
+        handleMiddlewareField(init, headers);
+        return new NextResponse(null, {
+            ...init,
+            headers
+        });
+    }
+    static next(init) {
+        const headers = new Headers(init == null ? void 0 : init.headers);
+        headers.set('x-middleware-next', '1');
+        handleMiddlewareField(init, headers);
+        return new NextResponse(null, {
+            ...init,
+            headers
+        });
+    }
+}
+export { NextResponse };
+export { INTERNALS as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { REDIRECTS as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { handleMiddlewareField as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { NextResponse as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 ## Part 1
@@ -456,7 +574,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import { stringifyCookie } from '../../web/spec-extension/cookies';
-export { stringifyCookie as a } from "__TURBOPACK_VAR__" assert {
+export { stringifyCookie as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -466,16 +584,19 @@ export { stringifyCookie as a } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import '../next-url';
+import { NextURL } from '../next-url';
+export { NextURL as f } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import { NextURL } from '../next-url';
-export { NextURL as b } from "__TURBOPACK_VAR__" assert {
+import { toNodeOutgoingHttpHeaders } from '../utils';
+export { toNodeOutgoingHttpHeaders as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -483,18 +604,21 @@ export { NextURL as b } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import '../utils';
+import { validateURL } from '../utils';
+export { validateURL as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
-import { toNodeOutgoingHttpHeaders } from '../utils';
-export { toNodeOutgoingHttpHeaders as c } from "__TURBOPACK_VAR__" assert {
+import { ReflectAdapter } from './adapters/reflect';
+export { ReflectAdapter as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -502,208 +626,15 @@ export { toNodeOutgoingHttpHeaders as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
-import { validateURL } from '../utils';
-export { validateURL as d } from "__TURBOPACK_VAR__" assert {
+import { ResponseCookies } from './cookies';
+export { ResponseCookies as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 7
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import './adapters/reflect';
-
-```
-## Part 8
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import { ReflectAdapter } from './adapters/reflect';
-export { ReflectAdapter as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import './cookies';
-
-```
-## Part 10
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import { ResponseCookies } from './cookies';
-export { ResponseCookies as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 11
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { validateURL } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { NextURL } from '../next-url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import { ResponseCookies } from './cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { stringifyCookie } from '../../web/spec-extension/cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import { ReflectAdapter } from './adapters/reflect';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-const INTERNALS = Symbol('internal response');
-const REDIRECTS = new Set([
-    301,
-    302,
-    303,
-    307,
-    308
-]);
-function handleMiddlewareField(init, headers) {
-    var _init_request;
-    if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
-        if (!(init.request.headers instanceof Headers)) {
-            throw new Error('request.headers must be an instance of Headers');
-        }
-        const keys = [];
-        for (const [key, value] of init.request.headers){
-            headers.set('x-middleware-request-' + key, value);
-            keys.push(key);
-        }
-        headers.set('x-middleware-override-headers', keys.join(','));
-    }
-}
-class NextResponse extends Response {
-    constructor(body, init = {}){
-        super(body, init);
-        const headers = this.headers;
-        const cookies = new ResponseCookies(headers);
-        const cookiesProxy = new Proxy(cookies, {
-            get (target, prop, receiver) {
-                switch(prop){
-                    case 'delete':
-                    case 'set':
-                        {
-                            return (...args)=>{
-                                const result = Reflect.apply(target[prop], target, args);
-                                const newHeaders = new Headers(headers);
-                                if (result instanceof ResponseCookies) {
-                                    headers.set('x-middleware-set-cookie', result.getAll().map((cookie)=>stringifyCookie(cookie)).join(','));
-                                }
-                                handleMiddlewareField(init, newHeaders);
-                                return result;
-                            };
-                        }
-                    default:
-                        return ReflectAdapter.get(target, prop, receiver);
-                }
-            }
-        });
-        this[INTERNALS] = {
-            cookies: cookiesProxy,
-            url: init.url ? new NextURL(init.url, {
-                headers: toNodeOutgoingHttpHeaders(headers),
-                nextConfig: init.nextConfig
-            }) : undefined
-        };
-    }
-    [Symbol.for('edge-runtime.inspect.custom')]() {
-        return {
-            cookies: this.cookies,
-            url: this.url,
-            body: this.body,
-            bodyUsed: this.bodyUsed,
-            headers: Object.fromEntries(this.headers),
-            ok: this.ok,
-            redirected: this.redirected,
-            status: this.status,
-            statusText: this.statusText,
-            type: this.type
-        };
-    }
-    get cookies() {
-        return this[INTERNALS].cookies;
-    }
-    static json(body, init) {
-        const response = Response.json(body, init);
-        return new NextResponse(response.body, response);
-    }
-    static redirect(url, init) {
-        const status = typeof init === 'number' ? init : (init == null ? void 0 : init.status) ?? 307;
-        if (!REDIRECTS.has(status)) {
-            throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
-        }
-        const initObj = typeof init === 'object' ? init : {};
-        const headers = new Headers(initObj == null ? void 0 : initObj.headers);
-        headers.set('Location', validateURL(url));
-        return new NextResponse(null, {
-            ...initObj,
-            headers,
-            status
-        });
-    }
-    static rewrite(destination, init) {
-        const headers = new Headers(init == null ? void 0 : init.headers);
-        headers.set('x-middleware-rewrite', validateURL(destination));
-        handleMiddlewareField(init, headers);
-        return new NextResponse(null, {
-            ...init,
-            headers
-        });
-    }
-    static next(init) {
-        const headers = new Headers(init == null ? void 0 : init.headers);
-        headers.set('x-middleware-next', '1');
-        handleMiddlewareField(init, headers);
-        return new NextResponse(null, {
-            ...init,
-            headers
-        });
-    }
-}
-export { NextResponse };
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { };
-
-```
-## Part 12
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
@@ -712,27 +643,17 @@ export { NextResponse } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import { validateURL } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { NextURL } from '../next-url';
 import { toNodeOutgoingHttpHeaders } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { ResponseCookies } from './cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { stringifyCookie } from '../../web/spec-extension/cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
 import { ReflectAdapter } from './adapters/reflect';
+import '../../web/spec-extension/cookies';
+import '../next-url';
+import '../utils';
+import './adapters/reflect';
+import './cookies';
 const INTERNALS = Symbol('internal response');
 const REDIRECTS = new Set([
     301,
@@ -844,16 +765,16 @@ class NextResponse extends Response {
     }
 }
 export { NextResponse };
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
+export { INTERNALS as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
+export { REDIRECTS as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
+export { handleMiddlewareField as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
+export { NextResponse as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { };
@@ -863,11 +784,11 @@ export { };
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 0,
     Export(
         "NextResponse",
-    ): 11,
-    Exports: 12,
+    ): 0,
+    Exports: 7,
 }
 ```
 
@@ -875,7 +796,141 @@ export { };
 # Modules (prod)
 ## Part 0
 ```js
+import { validateURL } from '../utils';
+import { NextURL } from '../next-url';
+import { toNodeOutgoingHttpHeaders } from '../utils';
+import { ResponseCookies } from './cookies';
+import { stringifyCookie } from '../../web/spec-extension/cookies';
+import { ReflectAdapter } from './adapters/reflect';
 import '../../web/spec-extension/cookies';
+import '../next-url';
+import '../utils';
+import './adapters/reflect';
+import './cookies';
+const INTERNALS = Symbol('internal response');
+const REDIRECTS = new Set([
+    301,
+    302,
+    303,
+    307,
+    308
+]);
+function handleMiddlewareField(init, headers) {
+    var _init_request;
+    if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
+        if (!(init.request.headers instanceof Headers)) {
+            throw new Error('request.headers must be an instance of Headers');
+        }
+        const keys = [];
+        for (const [key, value] of init.request.headers){
+            headers.set('x-middleware-request-' + key, value);
+            keys.push(key);
+        }
+        headers.set('x-middleware-override-headers', keys.join(','));
+    }
+}
+class NextResponse extends Response {
+    constructor(body, init = {}){
+        super(body, init);
+        const headers = this.headers;
+        const cookies = new ResponseCookies(headers);
+        const cookiesProxy = new Proxy(cookies, {
+            get (target, prop, receiver) {
+                switch(prop){
+                    case 'delete':
+                    case 'set':
+                        {
+                            return (...args)=>{
+                                const result = Reflect.apply(target[prop], target, args);
+                                const newHeaders = new Headers(headers);
+                                if (result instanceof ResponseCookies) {
+                                    headers.set('x-middleware-set-cookie', result.getAll().map((cookie)=>stringifyCookie(cookie)).join(','));
+                                }
+                                handleMiddlewareField(init, newHeaders);
+                                return result;
+                            };
+                        }
+                    default:
+                        return ReflectAdapter.get(target, prop, receiver);
+                }
+            }
+        });
+        this[INTERNALS] = {
+            cookies: cookiesProxy,
+            url: init.url ? new NextURL(init.url, {
+                headers: toNodeOutgoingHttpHeaders(headers),
+                nextConfig: init.nextConfig
+            }) : undefined
+        };
+    }
+    [Symbol.for('edge-runtime.inspect.custom')]() {
+        return {
+            cookies: this.cookies,
+            url: this.url,
+            body: this.body,
+            bodyUsed: this.bodyUsed,
+            headers: Object.fromEntries(this.headers),
+            ok: this.ok,
+            redirected: this.redirected,
+            status: this.status,
+            statusText: this.statusText,
+            type: this.type
+        };
+    }
+    get cookies() {
+        return this[INTERNALS].cookies;
+    }
+    static json(body, init) {
+        const response = Response.json(body, init);
+        return new NextResponse(response.body, response);
+    }
+    static redirect(url, init) {
+        const status = typeof init === 'number' ? init : (init == null ? void 0 : init.status) ?? 307;
+        if (!REDIRECTS.has(status)) {
+            throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
+        }
+        const initObj = typeof init === 'object' ? init : {};
+        const headers = new Headers(initObj == null ? void 0 : initObj.headers);
+        headers.set('Location', validateURL(url));
+        return new NextResponse(null, {
+            ...initObj,
+            headers,
+            status
+        });
+    }
+    static rewrite(destination, init) {
+        const headers = new Headers(init == null ? void 0 : init.headers);
+        headers.set('x-middleware-rewrite', validateURL(destination));
+        handleMiddlewareField(init, headers);
+        return new NextResponse(null, {
+            ...init,
+            headers
+        });
+    }
+    static next(init) {
+        const headers = new Headers(init == null ? void 0 : init.headers);
+        headers.set('x-middleware-next', '1');
+        handleMiddlewareField(init, headers);
+        return new NextResponse(null, {
+            ...init,
+            headers
+        });
+    }
+}
+export { NextResponse };
+export { INTERNALS as a } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { REDIRECTS as b } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { handleMiddlewareField as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { NextResponse as d } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 ## Part 1
@@ -884,7 +939,7 @@ import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
 import { stringifyCookie } from '../../web/spec-extension/cookies';
-export { stringifyCookie as a } from "__TURBOPACK_VAR__" assert {
+export { stringifyCookie as e } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -894,16 +949,19 @@ export { stringifyCookie as a } from "__TURBOPACK_VAR__" assert {
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import '../next-url';
+import { NextURL } from '../next-url';
+export { NextURL as f } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 3
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import { NextURL } from '../next-url';
-export { NextURL as b } from "__TURBOPACK_VAR__" assert {
+import { toNodeOutgoingHttpHeaders } from '../utils';
+export { toNodeOutgoingHttpHeaders as g } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -911,18 +969,21 @@ export { NextURL as b } from "__TURBOPACK_VAR__" assert {
 ## Part 4
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+    __turbopack_part__: 0
 };
-import '../utils';
+import { validateURL } from '../utils';
+export { validateURL as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
-import { toNodeOutgoingHttpHeaders } from '../utils';
-export { toNodeOutgoingHttpHeaders as c } from "__TURBOPACK_VAR__" assert {
+import { ReflectAdapter } from './adapters/reflect';
+export { ReflectAdapter as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -930,208 +991,15 @@ export { toNodeOutgoingHttpHeaders as c } from "__TURBOPACK_VAR__" assert {
 ## Part 6
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
+    __turbopack_part__: 0
 };
-import { validateURL } from '../utils';
-export { validateURL as d } from "__TURBOPACK_VAR__" assert {
+import { ResponseCookies } from './cookies';
+export { ResponseCookies as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 7
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import './adapters/reflect';
-
-```
-## Part 8
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import { ReflectAdapter } from './adapters/reflect';
-export { ReflectAdapter as e } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import './cookies';
-
-```
-## Part 10
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import { ResponseCookies } from './cookies';
-export { ResponseCookies as f } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 11
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { validateURL } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { NextURL } from '../next-url';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
-import { toNodeOutgoingHttpHeaders } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-import { ResponseCookies } from './cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { stringifyCookie } from '../../web/spec-extension/cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import { ReflectAdapter } from './adapters/reflect';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
-const INTERNALS = Symbol('internal response');
-const REDIRECTS = new Set([
-    301,
-    302,
-    303,
-    307,
-    308
-]);
-function handleMiddlewareField(init, headers) {
-    var _init_request;
-    if (init == null ? void 0 : (_init_request = init.request) == null ? void 0 : _init_request.headers) {
-        if (!(init.request.headers instanceof Headers)) {
-            throw new Error('request.headers must be an instance of Headers');
-        }
-        const keys = [];
-        for (const [key, value] of init.request.headers){
-            headers.set('x-middleware-request-' + key, value);
-            keys.push(key);
-        }
-        headers.set('x-middleware-override-headers', keys.join(','));
-    }
-}
-class NextResponse extends Response {
-    constructor(body, init = {}){
-        super(body, init);
-        const headers = this.headers;
-        const cookies = new ResponseCookies(headers);
-        const cookiesProxy = new Proxy(cookies, {
-            get (target, prop, receiver) {
-                switch(prop){
-                    case 'delete':
-                    case 'set':
-                        {
-                            return (...args)=>{
-                                const result = Reflect.apply(target[prop], target, args);
-                                const newHeaders = new Headers(headers);
-                                if (result instanceof ResponseCookies) {
-                                    headers.set('x-middleware-set-cookie', result.getAll().map((cookie)=>stringifyCookie(cookie)).join(','));
-                                }
-                                handleMiddlewareField(init, newHeaders);
-                                return result;
-                            };
-                        }
-                    default:
-                        return ReflectAdapter.get(target, prop, receiver);
-                }
-            }
-        });
-        this[INTERNALS] = {
-            cookies: cookiesProxy,
-            url: init.url ? new NextURL(init.url, {
-                headers: toNodeOutgoingHttpHeaders(headers),
-                nextConfig: init.nextConfig
-            }) : undefined
-        };
-    }
-    [Symbol.for('edge-runtime.inspect.custom')]() {
-        return {
-            cookies: this.cookies,
-            url: this.url,
-            body: this.body,
-            bodyUsed: this.bodyUsed,
-            headers: Object.fromEntries(this.headers),
-            ok: this.ok,
-            redirected: this.redirected,
-            status: this.status,
-            statusText: this.statusText,
-            type: this.type
-        };
-    }
-    get cookies() {
-        return this[INTERNALS].cookies;
-    }
-    static json(body, init) {
-        const response = Response.json(body, init);
-        return new NextResponse(response.body, response);
-    }
-    static redirect(url, init) {
-        const status = typeof init === 'number' ? init : (init == null ? void 0 : init.status) ?? 307;
-        if (!REDIRECTS.has(status)) {
-            throw new RangeError('Failed to execute "redirect" on "response": Invalid status code');
-        }
-        const initObj = typeof init === 'object' ? init : {};
-        const headers = new Headers(initObj == null ? void 0 : initObj.headers);
-        headers.set('Location', validateURL(url));
-        return new NextResponse(null, {
-            ...initObj,
-            headers,
-            status
-        });
-    }
-    static rewrite(destination, init) {
-        const headers = new Headers(init == null ? void 0 : init.headers);
-        headers.set('x-middleware-rewrite', validateURL(destination));
-        handleMiddlewareField(init, headers);
-        return new NextResponse(null, {
-            ...init,
-            headers
-        });
-    }
-    static next(init) {
-        const headers = new Headers(init == null ? void 0 : init.headers);
-        headers.set('x-middleware-next', '1');
-        handleMiddlewareField(init, headers);
-        return new NextResponse(null, {
-            ...init,
-            headers
-        });
-    }
-}
-export { NextResponse };
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-export { };
-
-```
-## Part 12
 ```js
 export { NextResponse } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export NextResponse"
@@ -1140,27 +1008,17 @@ export { NextResponse } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 4
-};
 import { validateURL } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
 import { NextURL } from '../next-url';
 import { toNodeOutgoingHttpHeaders } from '../utils';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 9
-};
 import { ResponseCookies } from './cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { stringifyCookie } from '../../web/spec-extension/cookies';
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
 import { ReflectAdapter } from './adapters/reflect';
+import '../../web/spec-extension/cookies';
+import '../next-url';
+import '../utils';
+import './adapters/reflect';
+import './cookies';
 const INTERNALS = Symbol('internal response');
 const REDIRECTS = new Set([
     301,
@@ -1272,16 +1130,16 @@ class NextResponse extends Response {
     }
 }
 export { NextResponse };
-export { INTERNALS as g } from "__TURBOPACK_VAR__" assert {
+export { INTERNALS as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { REDIRECTS as h } from "__TURBOPACK_VAR__" assert {
+export { REDIRECTS as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { handleMiddlewareField as i } from "__TURBOPACK_VAR__" assert {
+export { handleMiddlewareField as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
-export { NextResponse as j } from "__TURBOPACK_VAR__" assert {
+export { NextResponse as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { };
