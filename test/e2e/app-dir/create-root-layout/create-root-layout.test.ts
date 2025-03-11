@@ -3,6 +3,8 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+
+// Skip on Turbopack because the user should create the layout manually
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'app-dir create root layout',
   () => {
