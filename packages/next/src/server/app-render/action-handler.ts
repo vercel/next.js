@@ -777,6 +777,127 @@ export async function handleAction({
     }
   }
 
+  const parseFetchActionArguments = async (
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    temporaryReferences: TemporaryReferenceSet
+  ): Promise<unknown[]> => {
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      if (!req.body) {
+        throw new Error('invariant: Missing request body.')
+      }
+
+      // TODO: add body limit
+
+      // Use react-server-dom-webpack/server.edge
+      const { decodeReply } = ComponentMod
+
+      if (isMultipartAction) {
+        // TODO-APP: Add streaming support
+        const formData = await req.request.formData()
+        // A fetch action with a multipart body.
+
+        return await decodeReply(formData, serverModuleMap, {
+          temporaryReferences,
+        })
+      } else {
+        // A fetch action with a non-multipart body.
+        // In practice, this happens if `encodeReply` returned a string instead of FormData,
+        // which can happen for very simple JSON-like values that don't need multiple flight rows.
+
+        const chunks: Buffer[] = []
+        const reader = req.body.getReader()
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+          chunks.push(value)
+        }
+        const actionData = Buffer.concat(chunks).toString('utf-8')
+
+        if (isURLEncodedAction) {
+          const formData = formDataFromSearchQueryString(actionData)
+          return await decodeReply(formData, serverModuleMap, {
+            temporaryReferences,
+          })
+        } else {
+          return await decodeReply(actionData, serverModuleMap, {
+            temporaryReferences,
+          })
+        }
+      }
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.node which supports streaming
+      const { decodeReply, decodeReplyFromBusboy } = require(
+        `./react-server.node`
+      ) as typeof import('./react-server.node')
+
+      const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
+      const sizeLimitedBody = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
+
+      if (isMultipartAction) {
+        // A fetch action with a multipart body.
+
+        const { pipeline } =
+          require('node:stream') as typeof import('node:stream')
+
+        const busboy = (
+          require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+        )({
+          defParamCharset: 'utf8',
+          headers: req.headers,
+          limits: { fieldSize: bodySizeLimit.byteLength },
+        })
+
+        // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
+        pipeline(
+          sizeLimitedBody,
+          busboy,
+          // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+          // We'll propagate the errors properly when consuming the stream.
+          () => {}
+        )
+
+        return await decodeReplyFromBusboy(busboy, serverModuleMap, {
+          temporaryReferences,
+        })
+      } else {
+        // A fetch action with a non-multipart body.
+        // In practice, this happens if `encodeReply` returned a string instead of FormData,
+        // which can happen for very simple JSON-like values that don't need multiple flight rows.
+
+        const chunks: Buffer[] = []
+        for await (const chunk of sizeLimitedBody) {
+          chunks.push(Buffer.from(chunk))
+        }
+        const actionData = Buffer.concat(chunks).toString('utf-8')
+
+        if (isURLEncodedAction) {
+          const formData = formDataFromSearchQueryString(actionData)
+          return await decodeReply(formData, serverModuleMap, {
+            temporaryReferences,
+          })
+        } else {
+          return await decodeReply(actionData, serverModuleMap, {
+            temporaryReferences,
+          })
+        }
+      }
+    } else {
+      throw new Error('Invariant: Unknown request type.')
+    }
+  }
+
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
@@ -795,147 +916,23 @@ export async function handleAction({
           return handleUnrecognizedFetchAction(err)
         }
 
+        // The temporary reference set is used for parsing the arguments and in the catch handler,
+        // so we want to create it before any of the decoding logic has a chance to throw.
+        const createTemporaryReferenceSet =
+          process.env.NEXT_RUNTIME === 'edge'
+            ? // Use react-server-dom-webpack/server.edge
+              ComponentMod.createTemporaryReferenceSet
+            : // Use react-server-dom-webpack/server.node
+              (
+                require(
+                  `./react-server.node`
+                ) as typeof import('./react-server.node')
+              ).createTemporaryReferenceSet
+        temporaryReferences = createTemporaryReferenceSet()
+
         // Parse the action arguments.
-        let boundActionArguments: unknown[]
-
-        if (
-          // The type check here ensures that `req` is correctly typed, and the
-          // environment variable check provides dead code elimination.
-          process.env.NEXT_RUNTIME === 'edge' &&
-          isWebNextRequest(req)
-        ) {
-          if (!req.body) {
-            throw new Error('invariant: Missing request body.')
-          }
-
-          // TODO: add body limit
-
-          // Use react-server-dom-webpack/server.edge
-          const { decodeReply } = ComponentMod
-
-          if (isMultipartAction) {
-            // TODO-APP: Add streaming support
-            const formData = await req.request.formData()
-            // A fetch action with a multipart body.
-
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              {
-                temporaryReferences,
-              }
-            )
-          } else {
-            // A fetch action with a non-multipart body.
-            // In practice, this happens if `encodeReply` returned a string instead of FormData,
-            // which can happen for very simple JSON-like values that don't need multiple flight rows.
-
-            const chunks: Buffer[] = []
-            const reader = req.body.getReader()
-            while (true) {
-              const { done, value } = await reader.read()
-              if (done) {
-                break
-              }
-              chunks.push(value)
-            }
-            const actionData = Buffer.concat(chunks).toString('utf-8')
-
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                {
-                  temporaryReferences,
-                }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                {
-                  temporaryReferences,
-                }
-              )
-            }
-          }
-        } else if (
-          // The type check here ensures that `req` is correctly typed, and the
-          // environment variable check provides dead code elimination.
-          process.env.NEXT_RUNTIME !== 'edge' &&
-          isNodeNextRequest(req)
-        ) {
-          // Use react-server-dom-webpack/server.node which supports streaming
-          const { decodeReply, decodeReplyFromBusboy } = require(
-            `./react-server.node`
-          ) as typeof import('./react-server.node')
-
-          const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
-          const sizeLimitedBody = getSizeLimitedRequestBodyNode(
-            req,
-            bodySizeLimit
-          )
-
-          if (isMultipartAction) {
-            // A fetch action with a multipart body.
-
-            const { pipeline } =
-              require('node:stream') as typeof import('node:stream')
-
-            const busboy = (
-              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
-            )({
-              defParamCharset: 'utf8',
-              headers: req.headers,
-              limits: { fieldSize: bodySizeLimit.byteLength },
-            })
-
-            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
-            pipeline(
-              sizeLimitedBody,
-              busboy,
-              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-              // We'll propagate the errors properly when consuming the stream.
-              () => {}
-            )
-
-            boundActionArguments = await decodeReplyFromBusboy(
-              busboy,
-              serverModuleMap,
-              {
-                temporaryReferences,
-              }
-            )
-          } else {
-            // A fetch action with a non-multipart body.
-            // In practice, this happens if `encodeReply` returned a string instead of FormData,
-            // which can happen for very simple JSON-like values that don't need multiple flight rows.
-
-            const chunks: Buffer[] = []
-            for await (const chunk of sizeLimitedBody) {
-              chunks.push(Buffer.from(chunk))
-            }
-            const actionData = Buffer.concat(chunks).toString('utf-8')
-
-            if (isURLEncodedAction) {
-              const formData = formDataFromSearchQueryString(actionData)
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              boundActionArguments = await decodeReply(
-                actionData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            }
-          }
-        } else {
-          throw new Error('Invariant: Unknown request type.')
-        }
+        const actionArguments =
+          await parseFetchActionArguments(temporaryReferences)
 
         // Get the action function.
 
@@ -959,7 +956,7 @@ export async function handleAction({
 
         const returnVal = await executeActionAndPrepareForRender(
           actionHandler,
-          boundActionArguments,
+          actionArguments,
           workStore,
           requestStore
         ).finally(() => {
