@@ -22,6 +22,7 @@ import {
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
   REACT_REFRESH_FULL_RELOAD,
+  reportInvalidHmrMessage,
   useErrorOverlayReducer,
 } from '../shared'
 import { parseStack } from '../utils/parse-stack'
@@ -666,13 +667,8 @@ export default function HotReload({
           appIsrManifestRef,
           pathnameRef
         )
-      } catch (err: any) {
-        console.warn(
-          '[HMR] Invalid message: ' +
-            JSON.stringify(event.data) +
-            '\n' +
-            (err?.stack ?? '')
-        )
+      } catch (err: unknown) {
+        reportInvalidHmrMessage(event, err)
       }
     }
 

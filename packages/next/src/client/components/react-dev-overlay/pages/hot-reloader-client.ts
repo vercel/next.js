@@ -50,6 +50,7 @@ import { extractModulesFromTurbopackMessage } from '../../../../server/dev/extra
 import {
   REACT_REFRESH_FULL_RELOAD,
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
+  reportInvalidHmrMessage,
 } from '../shared'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import reportHmrLatency from '../utils/report-hmr-latency'
@@ -83,13 +84,8 @@ export default function connect() {
 
     try {
       processMessage(payload)
-    } catch (err: any) {
-      console.warn(
-        '[HMR] Invalid message: ' +
-          JSON.stringify(payload) +
-          '\n' +
-          (err?.stack ?? '')
-      )
+    } catch (err: unknown) {
+      reportInvalidHmrMessage(payload, err)
     }
   })
 
