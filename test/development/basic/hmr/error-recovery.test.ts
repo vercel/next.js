@@ -99,15 +99,13 @@ describe.each([
         throw err
       }
     })
-    ;(process.env.TURBOPACK ? it.skip : it)(
-      // this test fails frequently with turbopack
-      'should not continously poll a custom error page',
-      async () => {
-        const errorPage = join('pages', '_error.js')
 
-        await next.patchFile(
-          errorPage,
-          outdent`
+    it('should not continously poll a custom error page', async () => {
+      const errorPage = join('pages', '_error.js')
+
+      await next.patchFile(
+        errorPage,
+        outdent`
           function Error({ statusCode, message, count }) {
             return (
               <div>
@@ -127,32 +125,31 @@ describe.each([
 
           export default Error
         `
-        )
+      )
 
-        try {
-          // navigate to a 404 page
-          await next.browser(basePath + '/does-not-exist')
+      try {
+        // navigate to a 404 page
+        await next.browser(basePath + '/does-not-exist')
 
-          await retry(() => {
-            // eslint-disable-next-line jest/no-standalone-expect
-            expect(next.cliOutput).toMatch(/getInitialProps called/)
-          })
-
-          const outputIndex = next.cliOutput.length
-
-          // wait a few seconds to ensure polling didn't happen
-          await waitFor(3000)
-
-          const logOccurrences =
-            next.cliOutput.slice(outputIndex).split('getInitialProps called')
-              .length - 1
+        await retry(() => {
           // eslint-disable-next-line jest/no-standalone-expect
-          expect(logOccurrences).toBe(0)
-        } finally {
-          await next.deleteFile(errorPage)
-        }
+          expect(next.cliOutput).toMatch(/getInitialProps called/)
+        })
+
+        const outputIndex = next.cliOutput.length
+
+        // wait a few seconds to ensure polling didn't happen
+        await waitFor(3000)
+
+        const logOccurrences =
+          next.cliOutput.slice(outputIndex).split('getInitialProps called')
+            .length - 1
+        // eslint-disable-next-line jest/no-standalone-expect
+        expect(logOccurrences).toBe(0)
+      } finally {
+        await next.deleteFile(errorPage)
       }
-    )
+    })
 
     it('should detect syntax errors and recover', async () => {
       const browser = await next.browser(basePath + '/hmr/about2')
