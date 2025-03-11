@@ -1004,11 +1004,7 @@ export async function handleAction({
         const actionMod = (await ComponentMod.__next_app__.require(
           actionModId
         )) as Record<string, (...args: unknown[]) => Promise<unknown>>
-        const actionHandler =
-          actionMod[
-            // `actionId` must exist if we got here, as otherwise `getActionModIdOrError` would have thrown earlier
-            actionId!
-          ]
+        const actionHandler = actionMod[actionId]
 
         const returnVal = await executeActionAndPrepareForRender(
           actionHandler,
@@ -1167,12 +1163,11 @@ async function executeActionAndPrepareForRender<
 }
 
 /**
- * Attempts to find the module ID for the action from the module map. When this fails, it could be a deployment skew where
- * the action came from a different deployment. It could also simply be an invalid POST request that is not a server action.
- * In either case, we'll throw an error to be handled by the caller.
+ * Attempts to find the module ID for the action from the module map.
+ * When this fails, it could be a deployment skew where the action came from a different deployment.
  */
 function getActionModIdOrError(
-  actionId: string | null,
+  actionId: string,
   serverModuleMap: ServerModuleMap
 ): string {
   // if we're missing the action ID header, we can't do any further processing
