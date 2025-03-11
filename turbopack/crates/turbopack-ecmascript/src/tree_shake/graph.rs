@@ -45,7 +45,7 @@ pub(crate) enum ItemId {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
     /// Used only for testing
-    #[allow(unused)]
+    #[cfg(test)]
     ModuleEvaluation,
     /// `(local, export_name)``
     Export(Id, Atom),
