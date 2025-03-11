@@ -413,7 +413,6 @@ function processMessage(
       )
 
       if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
-        // Handle hot updates
         handleHotUpdate()
       }
       return

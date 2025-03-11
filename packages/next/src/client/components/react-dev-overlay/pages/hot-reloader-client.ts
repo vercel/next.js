@@ -279,7 +279,6 @@ function processMessage(obj: HMR_ACTION_TYPES) {
     return
   }
 
-  // Use turbopack message for analytics, (still need built for webpack)
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
       isrManifest = obj.data
