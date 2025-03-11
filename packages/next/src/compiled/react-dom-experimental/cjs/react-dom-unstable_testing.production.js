@@ -7905,23 +7905,29 @@ function insertOrAppendPlacementNodeIntoContainer(node, before, parent) {
   if (5 === tag || 6 === tag)
     (node = node.stateNode),
       before
-        ? (9 === parent.nodeType
-            ? parent.body
-            : "HTML" === parent.nodeName
-              ? parent.ownerDocument.body
-              : parent
-          ).insertBefore(node, before)
-        : ((before =
+        ? ((parent =
             9 === parent.nodeType
               ? parent.body
               : "HTML" === parent.nodeName
                 ? parent.ownerDocument.body
                 : parent),
-          before.appendChild(node),
-          (parent = parent._reactRootContainer),
-          (null !== parent && void 0 !== parent) ||
-            null !== before.onclick ||
-            (before.onclick = noop$1)),
+          supportsMoveBefore && null !== node.parentNode
+            ? parent.moveBefore(node, before)
+            : parent.insertBefore(node, before))
+        : ((before = parent),
+          (parent =
+            9 === before.nodeType
+              ? before.body
+              : "HTML" === before.nodeName
+                ? before.ownerDocument.body
+                : before),
+          supportsMoveBefore && null !== node.parentNode
+            ? parent.moveBefore(node, null)
+            : parent.appendChild(node),
+          (before = before._reactRootContainer),
+          (null !== before && void 0 !== before) ||
+            null !== parent.onclick ||
+            (parent.onclick = noop$1)),
       (viewTransitionMutationContext = !0);
   else if (
     4 !== tag &&
@@ -7944,7 +7950,11 @@ function insertOrAppendPlacementNode(node, before, parent) {
   var tag = node.tag;
   if (5 === tag || 6 === tag)
     (node = node.stateNode),
-      before ? parent.insertBefore(node, before) : parent.appendChild(node),
+      before
+        ? supportsMoveBefore && null !== node.parentNode
+          ? parent.moveBefore(node, before)
+          : parent.insertBefore(node, before)
+        : appendChild(parent, node),
       (viewTransitionMutationContext = !0);
   else if (
     4 !== tag &&
@@ -11395,14 +11405,14 @@ function recursivelyInsertClonesFromExistingTree(parentFiber, hostParentClone) {
     switch (parentFiber.tag) {
       case 5:
         var clone = parentFiber.stateNode.cloneNode(!0);
-        hostParentClone.appendChild(clone);
+        appendChild(hostParentClone, clone);
         unhideHostChildren && unhideInstance(clone, parentFiber.memoizedProps);
         break;
       case 6:
         clone = parentFiber.stateNode;
         if (null === clone) throw Error(formatProdErrorMessage(162));
         clone = clone.cloneNode(!1);
-        hostParentClone.appendChild(clone);
+        appendChild(hostParentClone, clone);
         unhideHostChildren && (clone.nodeValue = parentFiber.memoizedProps);
         break;
       case 4:
@@ -11441,7 +11451,7 @@ function recursivelyInsertClones(parentFiber, hostParentClone$jscomp$0) {
           break;
         case 5:
           var clone = finishedWork.stateNode;
-          if (null === current) hostParentClone.appendChild(clone);
+          if (null === current) appendChild(hostParentClone, clone);
           else {
             null === finishedWork.child
               ? ((clone = clone.cloneNode(!0)),
@@ -11461,21 +11471,21 @@ function recursivelyInsertClones(parentFiber, hostParentClone$jscomp$0) {
             unhideHostChildren
               ? ((unhideHostChildren = !1),
                 recursivelyInsertClones(finishedWork, clone),
-                hostParentClone.appendChild(clone),
+                appendChild(hostParentClone, clone),
                 (unhideHostChildren = !0),
                 unhideInstance(clone, finishedWork.memoizedProps))
               : (recursivelyInsertClones(finishedWork, clone),
-                hostParentClone.appendChild(clone));
+                appendChild(hostParentClone, clone));
           }
           break;
         case 6:
           clone = finishedWork.stateNode;
           if (null === clone) throw Error(formatProdErrorMessage(162));
           null === current
-            ? hostParentClone.appendChild(clone)
+            ? appendChild(hostParentClone, clone)
             : ((clone = clone.cloneNode(!1)),
               flags & 4 && (clone.nodeValue = current.memoizedProps),
-              hostParentClone.appendChild(clone),
+              appendChild(hostParentClone, clone),
               unhideHostChildren &&
                 (clone.nodeValue = finishedWork.memoizedProps));
           break;
@@ -15448,6 +15458,14 @@ function handleErrorInNextTick(error) {
     throw error;
   });
 }
+var supportsMoveBefore =
+  "undefined" !== typeof window &&
+  "function" === typeof window.Element.prototype.moveBefore;
+function appendChild(parentInstance, child) {
+  supportsMoveBefore && null !== child.parentNode
+    ? parentInstance.moveBefore(child, null)
+    : parentInstance.appendChild(child);
+}
 function isSingletonScope(type) {
   return "head" === type;
 }
@@ -15571,6 +15589,21 @@ function measureInstance(instance) {
       rect.left <= ownerWindow.innerWidth
   };
 }
+function cancelAllViewTransitionAnimations(scope) {
+  for (
+    var animations = scope.getAnimations({ subtree: !0 }), i = 0;
+    i < animations.length;
+    i++
+  ) {
+    var anim = animations[i],
+      effect = anim.effect,
+      pseudo = effect.pseudoElement;
+    null != pseudo &&
+      pseudo.startsWith("::view-transition") &&
+      effect.target === scope &&
+      anim.cancel();
+  }
+}
 function startViewTransition(
   rootContainer,
   transitionTypes,
@@ -15623,6 +15656,7 @@ function startViewTransition(
     ownerDocument.__reactViewTransition = transition;
     transition.ready.then(spawnedWorkCallback, spawnedWorkCallback);
     transition.finished.then(function () {
+      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
       passiveCallback();
@@ -15735,49 +15769,52 @@ function startGestureTransition(
         }
         for (i = 0; i < animations.length; i++) {
           var anim = animations[i];
-          pseudoElement = anim.effect;
-          var pseudoElement$254 = pseudoElement.pseudoElement;
-          if (
-            null != pseudoElement$254 &&
-            pseudoElement$254.startsWith("::view-transition")
-          ) {
-            anim.cancel();
-            var isGeneratedGroupAnim = !1,
-              isExitGroupAnim = !1;
-            if (pseudoElement$254.startsWith("::view-transition-group")) {
-              var groupName = pseudoElement$254.slice(23);
-              foundNews.has(groupName)
-                ? ((anim = anim.animationName),
-                  (isGeneratedGroupAnim =
-                    null != anim &&
-                    anim.startsWith("-ua-view-transition-group-anim-")))
-                : (isExitGroupAnim = !0);
+          if ("running" === anim.playState) {
+            pseudoElement = anim.effect;
+            var pseudoElement$254 = pseudoElement.pseudoElement;
+            if (
+              null != pseudoElement$254 &&
+              pseudoElement$254.startsWith("::view-transition") &&
+              pseudoElement.target === documentElement
+            ) {
+              anim.cancel();
+              var isGeneratedGroupAnim = !1,
+                isExitGroupAnim = !1;
+              if (pseudoElement$254.startsWith("::view-transition-group")) {
+                var groupName = pseudoElement$254.slice(23);
+                foundNews.has(groupName)
+                  ? ((anim = anim.animationName),
+                    (isGeneratedGroupAnim =
+                      null != anim &&
+                      anim.startsWith("-ua-view-transition-group-anim-")))
+                  : (isExitGroupAnim = !0);
+              }
+              animateGesture(
+                pseudoElement.getKeyframes(),
+                pseudoElement.target,
+                pseudoElement$254,
+                timeline,
+                rangeStart,
+                rangeEnd,
+                isGeneratedGroupAnim,
+                isExitGroupAnim
+              );
+              pseudoElement$254.startsWith("::view-transition-old") &&
+                ((pseudoElement$254 = pseudoElement$254.slice(21)),
+                foundGroups.has(pseudoElement$254) ||
+                  foundNews.has(pseudoElement$254) ||
+                  (foundGroups.add(pseudoElement$254),
+                  animateGesture(
+                    [{}, {}],
+                    pseudoElement.target,
+                    "::view-transition-group" + pseudoElement$254,
+                    timeline,
+                    rangeStart,
+                    rangeEnd,
+                    !1,
+                    !0
+                  )));
             }
-            animateGesture(
-              pseudoElement.getKeyframes(),
-              pseudoElement.target,
-              pseudoElement$254,
-              timeline,
-              rangeStart,
-              rangeEnd,
-              isGeneratedGroupAnim,
-              isExitGroupAnim
-            );
-            pseudoElement$254.startsWith("::view-transition-old") &&
-              ((pseudoElement$254 = pseudoElement$254.slice(21)),
-              foundGroups.has(pseudoElement$254) ||
-                foundNews.has(pseudoElement$254) ||
-                (foundGroups.add(pseudoElement$254),
-                animateGesture(
-                  [{}, {}],
-                  pseudoElement.target,
-                  "::view-transition-group" + pseudoElement$254,
-                  timeline,
-                  rangeStart,
-                  rangeEnd,
-                  !1,
-                  !0
-                )));
           }
         }
         documentElement
@@ -15796,20 +15833,7 @@ function startGestureTransition(
           : readyCallback;
     transition.ready.then(readyForAnimations, readyCallback);
     transition.finished.then(function () {
-      for (
-        var animations = ownerDocument.documentElement.getAnimations({
-            subtree: !0
-          }),
-          i = 0;
-        i < animations.length;
-        i++
-      ) {
-        var anim = animations[i],
-          pseudo = anim.effect.pseudoElement;
-        null != pseudo &&
-          pseudo.startsWith("::view-transition") &&
-          anim.cancel();
-      }
+      cancelAllViewTransitionAnimations(ownerDocument.documentElement);
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
     });
@@ -17630,14 +17654,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1938 = React.version;
 if (
-  "19.1.0-experimental-029e8bd6-20250306" !==
+  "19.1.0-experimental-0ca3deeb-20250311" !==
   isomorphicReactPackageVersion$jscomp$inline_1938
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1938,
-      "19.1.0-experimental-029e8bd6-20250306"
+      "19.1.0-experimental-0ca3deeb-20250311"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -17657,24 +17681,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2560 = {
+var internals$jscomp$inline_2535 = {
   bundleType: 0,
-  version: "19.1.0-experimental-029e8bd6-20250306",
+  version: "19.1.0-experimental-0ca3deeb-20250311",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-029e8bd6-20250306"
+  reconcilerVersion: "19.1.0-experimental-0ca3deeb-20250311"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2561 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2536 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2561.isDisabled &&
-    hook$jscomp$inline_2561.supportsFiber
+    !hook$jscomp$inline_2536.isDisabled &&
+    hook$jscomp$inline_2536.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2561.inject(
-        internals$jscomp$inline_2560
+      (rendererID = hook$jscomp$inline_2536.inject(
+        internals$jscomp$inline_2535
       )),
-        (injectedHook = hook$jscomp$inline_2561);
+        (injectedHook = hook$jscomp$inline_2536);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -17917,4 +17941,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.1.0-experimental-029e8bd6-20250306";
+exports.version = "19.1.0-experimental-0ca3deeb-20250311";
