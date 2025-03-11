@@ -21,6 +21,7 @@ import webdriver from 'next-webdriver'
 jest.setTimeout(1000 * 60 * 2)
 const appDir = join(__dirname, '../')
 
+// experimental.urlImports is not implemented in Turbopack
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   `Handle url imports`,
   () => {
