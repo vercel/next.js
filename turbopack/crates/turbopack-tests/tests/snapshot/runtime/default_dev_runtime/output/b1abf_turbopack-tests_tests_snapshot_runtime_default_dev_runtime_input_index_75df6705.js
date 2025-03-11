@@ -542,14 +542,10 @@ function getWorkerBlobURL(chunks) {
         chunkPath
     });
 }
-// Handles `(` and `)` in URLs too.
-function encodeRFC3986URIComponent(string) {
-    return encodeURIComponent(string).replace(/[!'()*]/g, (c)=>`%${c.charCodeAt(0).toString(16).toUpperCase()}`);
-}
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split("/").map((p)=>encodeRFC3986URIComponent(p)).join("/")}${CHUNK_SUFFIX_PATH}`;
+    return `${CHUNK_BASE_PATH}${chunkPath.split("/").map((p)=>encodeURIComponent(p)).join("/")}${CHUNK_SUFFIX_PATH}`;
 }
 /**
  * Marks a chunk list as a runtime chunk list. There can be more than one
