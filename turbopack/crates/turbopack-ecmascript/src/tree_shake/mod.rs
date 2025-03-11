@@ -350,26 +350,20 @@ impl Analyzer<'_> {
 
     /// Phase 4: Exports
     fn handle_exports(&mut self, _module: &Module) {
+        // We use the last side effect as a module evaluation
+        if let Some(last) = self.last_side_effects.last() {
+            if let Some(item) = self.items.get_mut(last) {
+                item.is_module_evaluation = true;
+            }
+        }
+
         for item_id in self.item_ids.iter() {
-            if let ItemId::Group(kind) = item_id {
-                match kind {
-                    ItemIdGroupKind::ModuleEvaluation => {
-                        // We use the last side effect as a module evaluation
+            if let ItemId::Group(ItemIdGroupKind::Export(local, _)) = item_id {
+                // Create a strong dependency to LAST_WRITES for this var
 
-                        if let Some(last) = self.last_side_effects.last() {
-                            if let Some(item) = self.items.get_mut(last) {
-                                item.is_module_evaluation = true;
-                            }
-                        }
-                    }
-                    ItemIdGroupKind::Export(local, _) => {
-                        // Create a strong dependency to LAST_WRITES for this var
+                let state = self.vars.entry(local.clone()).or_default();
 
-                        let state = self.vars.entry(local.clone()).or_default();
-
-                        self.g.add_strong_deps(item_id, state.last_writes.iter());
-                    }
-                }
+                self.g.add_strong_deps(item_id, state.last_writes.iter());
             }
         }
     }
