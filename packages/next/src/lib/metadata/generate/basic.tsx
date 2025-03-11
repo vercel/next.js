@@ -162,15 +162,11 @@ export function PinterestMeta({
 }: {
   pinterest: ResolvedMetadata['pinterest']
 }) {
-  if (!pinterest) return null
+  if (!pinterest || !pinterest.richPin) return null
 
   const { richPin } = pinterest
 
-  return MetaFilter([
-    richPin !== null ? (
-      <meta property="pinterest-rich-pin" content={richPin.toString()} />
-    ) : null,
-  ])
+  return <meta property="pinterest-rich-pin" content={richPin.toString()} />
 }
 
 const formatDetectionKeys = [
