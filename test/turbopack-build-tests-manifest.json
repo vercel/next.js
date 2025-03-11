@@ -2629,10 +2629,11 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
-      "passed": [],
+      "passed": [
+        "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
+      ],
       "failed": [],
       "pending": [
-        "Error test if the loader file export a named function in Build and Start build and start only should show the build error",
         "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
         "Error test if the loader file export a named function in Development development only should show the error when using `getImageProps` method"
       ],
