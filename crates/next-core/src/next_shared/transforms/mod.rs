@@ -95,6 +95,7 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
             vec![
                 RuleCondition::ResourcePathEndsWith(".md".to_string()),
                 RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
+                RuleCondition::ContentTypeStartsWith("text/markdown".to_string()),
             ]
             .as_mut(),
         );
