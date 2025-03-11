@@ -372,13 +372,12 @@ interface Metadata extends DeprecatedMetadataFields {
   facebook?: null | Facebook | undefined
 
   /**
-   * The Pinterest metadata for the document.
-   * You can choose whether or not to opt out of rich pin data.
+   * The Pinterest metadata for the document to choose whether opt out of rich pin data.
    *
    * @example
    * ```tsx
-   *
-   * <meta name="pinterest-rich-pin" content="false" />
+   * pinterest: { richPin: true }
+   * // Renders <meta name="pinterest-rich-pin" content="true" />
    * ```
    */
   pinterest?: null | Pinterest
