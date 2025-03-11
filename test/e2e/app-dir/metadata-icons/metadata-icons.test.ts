@@ -35,10 +35,10 @@ describe('app-dir - metadata-icons', () => {
 
     await retry(async () => {
       const iconsInBody = await browser.elementsByCss('body link[rel="icon"]')
-      // favicon.ico + /heart.png
-      expect(iconsInBody.length).toBe(2)
-
       const iconsInHead = await browser.elementsByCss('head link[rel="icon"]')
+
+      // moved to head
+      expect(iconsInBody.length).toBe(0)
       // re-inserted favicon.ico + /heart.png
       expect(iconsInHead.length).toBe(2)
     })
