@@ -335,7 +335,7 @@ impl DepGraph {
                 .clone()
         };
 
-        let mut has_module_evaluation = false;
+        let mut module_evaluation_ix = None;
 
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
@@ -430,7 +430,8 @@ impl DepGraph {
 
                     _ => {
                         if data[item_id].is_module_evaluation {
-                            has_module_evaluation = true;
+                            debug_assert_eq!(module_evaluation_ix, None);
+                            module_evaluation_ix = Some(ix as u32);
                             outputs.insert(Key::ModuleEvaluation, ix as u32);
                         }
                     }
@@ -699,14 +700,28 @@ impl DepGraph {
 
         // Currently we need to have `Key::ModuleEvaluation` in the outputs
         // even if it is empty.
-        if !has_module_evaluation {
+        if module_evaluation_ix.is_none() {
             outputs.insert(Key::ModuleEvaluation, modules.len() as u32);
+            module_evaluation_ix = Some(modules.len() as u32);
             modules.push(Module {
                 span: DUMMY_SP,
                 body: vec![],
                 shebang: None,
             });
         }
+
+        // Push `export {}` to the module evaluation to make it module.
+        modules[module_evaluation_ix.unwrap() as usize]
+            .body
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                NamedExport {
+                    span: DUMMY_SP,
+                    specifiers: Default::default(),
+                    src: None,
+                    type_only: false,
+                    with: None,
+                },
+            )));
 
         SplitModuleResult {
             entrypoints: outputs,
