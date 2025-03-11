@@ -680,5 +680,6 @@
   "679": "A CacheSignal cannot subscribe to itself",
   "680": "Server Action \"%s\" was not found on the server. \\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "681": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.%s\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
-  "682": "This function cannot be used in the edge runtime"
+  "682": "This function cannot be used in the edge runtime",
+  "683": "Action handler not found in action module"
 }

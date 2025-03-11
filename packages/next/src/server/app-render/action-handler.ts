@@ -625,8 +625,10 @@ export async function handleAction({
     }
   }
 
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
-    console.error(err)
+  const handleUnrecognizedFetchAction = (err?: unknown): HandleActionResult => {
+    if (err) {
+      console.error(err)
+    }
 
     // Return an empty response with a header that the client router will interpret.
     // We don't need to waste time encoding a flight response, and using a blank body + header
@@ -898,6 +900,45 @@ export async function handleAction({
     }
   }
 
+  const getActionHandler = async (
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    actionId: string
+  ): Promise<((...args: unknown[]) => Promise<unknown>) | null> => {
+    // actions.js
+    // app/page.js
+    //   action worker1
+    //     appRender1
+
+    // app/foo/page.js
+    //   action worker2
+    //     appRender
+
+    // / -> fire action -> POST / -> appRender1 -> modId for the action file
+    // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
+
+    //  Validate the actionId.
+    let actionModId: string
+    try {
+      actionModId = getActionModIdOrError(actionId, serverModuleMap)
+    } catch (err) {
+      console.error(err)
+      return null
+    }
+
+    const actionMod = (await ComponentMod.__next_app__.require(
+      actionModId
+    )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+
+    const actionHandler = actionMod[actionId]
+    // if the `actionId` is valid, and resolved to a valid `actionModId`, but the module does not contain the action,
+    // then something went very wrong in the bundling process, and we should error.
+    if (!actionHandler) {
+      throw new InvariantError('Action handler not found in action module')
+    }
+
+    return actionHandler
+  }
+
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
@@ -908,12 +949,11 @@ export async function handleAction({
 
         // A fetch action (initiated by the client router).
 
-        // Check the action id. if it's not valid, we can bail out immediately.
-        let actionModId: string
-        try {
-          actionModId = getActionModIdOrError(actionId, serverModuleMap)
-        } catch (err) {
-          return handleUnrecognizedFetchAction(err)
+        // Get the action function.
+        const actionHandler = await getActionHandler(actionId)
+        if (!actionHandler) {
+          // We didn't recognize the provided actionId, so we can't run the action.
+          return handleUnrecognizedFetchAction()
         }
 
         // The temporary reference set is used for parsing the arguments and in the catch handler,
@@ -934,26 +974,7 @@ export async function handleAction({
         const actionArguments =
           await parseFetchActionArguments(temporaryReferences)
 
-        // Get the action function.
-
-        // actions.js
-        // app/page.js
-        //   action worker1
-        //     appRender1
-
-        // app/foo/page.js
-        //   action worker2
-        //     appRender
-
-        // / -> fire action -> POST / -> appRender1 -> modId for the action file
-        // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
-
-        const actionMod = (await ComponentMod.__next_app__.require(
-          actionModId
-        )) as Record<string, (...args: unknown[]) => Promise<unknown>>
-
-        const actionHandler = actionMod[actionId]
-
+        // Run the action.
         const returnVal = await executeActionAndPrepareForRender(
           actionHandler,
           actionArguments,
