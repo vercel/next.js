@@ -86,15 +86,6 @@ export function waitForWebpackRuntimeHotUpdate() {
   return pendingHotUpdateWebpack
 }
 
-function handleBeforeHotUpdateWebpack(
-  dispatcher: Dispatcher,
-  hasUpdates: boolean
-) {
-  if (hasUpdates) {
-    dispatcher.onBeforeRefresh()
-  }
-}
-
 function handleSuccessfulHotUpdateWebpack(
   dispatcher: Dispatcher,
   sendMessage: (message: string) => void,
@@ -301,7 +292,9 @@ function processMessage(
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {
-          handleBeforeHotUpdateWebpack(dispatcher, hasUpdates)
+          if (hasUpdates) {
+            dispatcher.onBeforeRefresh()
+          }
         },
         function onSuccessfulHotUpdate(webpackUpdatedModules: string[]) {
           // Only dismiss it when we're sure it's a hot update.
