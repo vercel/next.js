@@ -152,7 +152,7 @@ import {
 } from './route-modules/checks'
 import { PrefetchRSCPathnameNormalizer } from './normalizers/request/prefetch-rsc'
 import { NextDataPathnameNormalizer } from './normalizers/request/next-data'
-import { getIsServerAction } from './lib/server-action-request-meta'
+import { getIsPotentialServerAction } from './lib/server-action-request-meta'
 import { isInterceptionRouteAppPath } from '../shared/lib/router/utils/interception-routes'
 import { toRoute } from './lib/to-route'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -2023,7 +2023,7 @@ export default abstract class Server<
 
     const hasServerProps = !!components.getServerSideProps
     let hasGetStaticPaths = !!components.getStaticPaths
-    const isServerAction = getIsServerAction(req)
+    const isPotentialServerAction = getIsPotentialServerAction(req)
     const hasGetInitialProps = !!components.Component?.getInitialProps
     let isSSG = !!components.getStaticProps
 
@@ -2246,7 +2246,7 @@ export default abstract class Server<
 
     if (
       // Server actions can use non-GET/HEAD methods.
-      !isServerAction &&
+      !isPotentialServerAction &&
       // Resume can use non-GET/HEAD methods.
       !minimalPostponed &&
       !is404Page &&
@@ -2386,7 +2386,7 @@ export default abstract class Server<
       !isPreviewMode &&
       isSSG &&
       !opts.supportsDynamicResponse &&
-      !isServerAction &&
+      !isPotentialServerAction &&
       !minimalPostponed &&
       !isDynamicRSCRequest
     ) {
@@ -2532,7 +2532,7 @@ export default abstract class Server<
         shouldWaitOnAllReady,
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
-        isServerAction,
+        isPotentialServerAction,
         postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
@@ -2772,7 +2772,7 @@ export default abstract class Server<
               this.nextConfig.experimental.dynamicIO &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
-              !isServerAction
+              !isPotentialServerAction
             ) {
               const warmup = await module.warmup(req, res, context)
 

@@ -487,11 +487,13 @@ export async function handleAction({
     isURLEncodedAction,
     isMultipartAction,
     isFetchAction,
-    isServerAction,
+    isPotentialServerAction,
   } = getServerActionRequestMetadata(req)
 
-  // If it's not a Server Action, skip handling.
-  if (!isServerAction) {
+  // If it can't be a Server Action, skip handling.
+  // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
+  // But won't know if it's an MPA action or not until we call `decodeAction` below.
+  if (!isPotentialServerAction) {
     return
   }
 

@@ -146,7 +146,7 @@ import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-u
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getIsPotentialServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -213,7 +213,7 @@ export type AppRenderContext = {
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
-  isAction: boolean
+  isPotentialServerAction: boolean
   requestTimestamp: number
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
@@ -428,7 +428,8 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
     typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
 
   // Only render noindex for page request, skip for server actions
-  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
+  // TODO: is this correct if `isPotentialServerAction` is a false positive?
+  if (!ctx.isPotentialServerAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -565,7 +566,8 @@ function createErrorContext(
   return {
     routerKind: 'App Router',
     routePath: ctx.pagePath,
-    routeType: ctx.isAction ? 'action' : 'render',
+    // TODO: is this correct if `isPotentialServerAction` is a false positive?
+    routeType: ctx.isPotentialServerAction ? 'action' : 'render',
     renderSource,
     revalidateReason: getRevalidateReason(ctx.workStore),
   }
@@ -1304,7 +1306,7 @@ async function renderToHTMLOrFlightImpl(
     fallbackRouteParams
   )
 
-  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
+  const isPotentialActionRequest = getIsPotentialServerAction(req)
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
@@ -1315,7 +1317,7 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,
-    isAction: isActionRequest,
+    isPotentialServerAction: isPotentialActionRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -1505,7 +1507,7 @@ async function renderToHTMLOrFlightImpl(
     )
 
     let formState: null | any = null
-    if (isActionRequest) {
+    if (isPotentialActionRequest) {
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,

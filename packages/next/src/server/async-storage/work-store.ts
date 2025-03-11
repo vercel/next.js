@@ -29,7 +29,7 @@ export type WorkStoreContext = {
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     fetchCache?: AppSegmentConfig['fetchCache']
-    isServerAction?: boolean
+    isPotentialServerAction?: boolean
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
@@ -101,7 +101,7 @@ export function createWorkStore({
     !renderOpts.shouldWaitOnAllReady &&
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
-    !renderOpts.isServerAction
+    !renderOpts.isPotentialServerAction
 
   const store: WorkStore = {
     isStaticGeneration,
