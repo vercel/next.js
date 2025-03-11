@@ -130,7 +130,15 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  if (!process.env.TURBOPACK) {
+  if (process.env.TURBOPACK) {
+    reportHmrLatency(
+      sendMessage,
+      [...turbopackUpdatedModules],
+      startLatency!,
+      turbopackLastUpdateLatency ?? Date.now()
+    )
+    onBuildOk()
+  } else {
     const isHotUpdate =
       !isFirstCompilation ||
       (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
@@ -141,14 +149,6 @@ function handleSuccess() {
     if (isHotUpdate) {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
-  } else {
-    reportHmrLatency(
-      sendMessage,
-      [...turbopackUpdatedModules],
-      startLatency!,
-      turbopackLastUpdateLatency ?? Date.now()
-    )
-    onBuildOk()
   }
 }
 
