@@ -73,9 +73,7 @@ window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
 let customHmrEventHandler: any
 let turbopackMessageListeners: ((msg: TurbopackMsgToBrowser) => void)[] = []
-let MODE: 'webpack' | 'turbopack' = 'webpack'
-export default function connect(mode: 'webpack' | 'turbopack') {
-  MODE = mode
+export default function connect() {
   register()
 
   addMessageListener((payload) => {
@@ -132,7 +130,7 @@ function clearOutdatedErrors() {
 function handleSuccess() {
   clearOutdatedErrors()
 
-  if (MODE === 'webpack') {
+  if (!process.env.TURBOPACK) {
     const isHotUpdate =
       !isFirstCompilation ||
       (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
