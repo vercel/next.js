@@ -1,4 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+
+// Skip as Turbopack doesn't support the `!=!` syntax
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'app dir - rsc webpack loader',
   () => {
@@ -16,7 +18,6 @@ import { nextTestSetup } from 'e2e-utils'
       },
     })
 
-    // Skip as Turbopack doesn't support webpack loaders.
     it('should support webpack loader rules', async () => {
       const browser = await next.browser('/loader-rule')
 
