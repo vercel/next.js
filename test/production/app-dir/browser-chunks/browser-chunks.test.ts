@@ -27,12 +27,35 @@ describe('browser-chunks', () => {
           source.includes('next/dist/server')
       )
 
+      const devOverlaySources = sources.filter((source) => {
+        return (
+          /webpack:\/\/_N_E\/(\.\.\/)*src\/client\/components\/react-dev-overlay\//.test(
+            source
+          ) ||
+          /next\/dist\/(esm\/)?client\/components\/react-dev-overlay/.test(
+            source
+          )
+        )
+      })
+
       if (serverSources.length > 0) {
         console.error(
           `Found the following server modules:\n  ${serverSources.join('\n  ')}\nIf any of these modules are allowed to be included in browser chunks, move them to src/shared or src/client.`
         )
 
         throw new Error('Did not expect any server modules in browser chunks.')
+      }
+
+      if (devOverlaySources.length > 0) {
+        console.error(
+          `Found the following dev overlay modules:\n  ${devOverlaySources.join(
+            '\n  '
+          )}\nIf any of these modules are allowed to be included in production chunks, check the import and render conditions.`
+        )
+
+        throw new Error(
+          'Did not expect any dev overlay modules in browser chunks.'
+        )
       }
     }
   )
