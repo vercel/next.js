@@ -45,13 +45,7 @@ export function createServerInsertedMetadata(nonce: string | undefined) {
         element: (
           <>
             {metadataToFlush}
-            <script
-              defer
-              nonce={nonce}
-              dangerouslySetInnerHTML={{
-                __html: REINSERT_ICON_SCRIPT,
-              }}
-            />
+            <script nonce={nonce}>{REINSERT_ICON_SCRIPT}</script>
           </>
         ),
       })

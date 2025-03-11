@@ -3089,7 +3089,6 @@ async function prerenderToStream(
             stream: await continueDynamicPrerender(prelude, {
               getServerInsertedHTML,
               getServerInsertedMetadata,
-              nonce: ctx.nonce,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3152,7 +3151,6 @@ async function prerenderToStream(
               ),
               getServerInsertedHTML,
               getServerInsertedMetadata,
-              nonce: ctx.nonce,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3726,7 +3724,6 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3747,7 +3744,6 @@ async function prerenderToStream(
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3808,7 +3804,6 @@ async function prerenderToStream(
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
-            nonce: ctx.nonce,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?

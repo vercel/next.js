@@ -582,7 +582,6 @@ export async function continueFizzStream(
 type ContinueDynamicPrerenderOptions = {
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
-  nonce: string | undefined
 }
 
 export async function continueDynamicPrerender(
@@ -610,7 +609,6 @@ type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
-  nonce: string | undefined
 }
 
 export async function continueStaticPrerender(
