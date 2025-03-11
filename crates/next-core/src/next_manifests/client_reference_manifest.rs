@@ -26,6 +26,7 @@ use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
+    next_manifests::encode_uri_component::encode_uri_component,
     util::NextRuntime,
 };
 
@@ -208,7 +209,7 @@ impl ClientReferenceManifest {
                                 format!(
                                     "{}{}{}",
                                     prefix_path,
-                                    path.split('/').map(urlencoding::encode).format("/"),
+                                    path.split('/').map(encode_uri_component).format("/"),
                                     suffix_path
                                 )
                             })

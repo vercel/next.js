@@ -294,22 +294,13 @@ function instantiateRuntimeModule(
 ): Module {
   return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath });
 }
-
-// Handles `(` and `)` in URLs too.
-function encodeRFC3986URIComponent(string: string) {
-  return encodeURIComponent(string).replace(
-    /[!'()*]/g,
-    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
-  );
-}
-
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
 function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
   return `${CHUNK_BASE_PATH}${chunkPath
     .split("/")
-    .map((p) => encodeRFC3986URIComponent(p))
+    .map((p) => encodeURIComponent(p))
     .join("/")}${CHUNK_SUFFIX_PATH}` as ChunkUrl;
 }
 

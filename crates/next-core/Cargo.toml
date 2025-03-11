@@ -37,6 +37,7 @@ remove_console = "0.34.0"
 urlencoding = { workspace = true }
 itertools = { workspace = true }
 auto-hash-map = { workspace = true }
+percent-encoding = "2.3.1"
 
 swc_core = { workspace = true, features = [
   "base",

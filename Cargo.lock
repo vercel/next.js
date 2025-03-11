@@ -4489,6 +4489,7 @@ dependencies = [
  "modularize_imports",
  "next-custom-transforms",
  "once_cell",
+ "percent-encoding",
  "qstring",
  "react_remove_properties",
  "regex",
