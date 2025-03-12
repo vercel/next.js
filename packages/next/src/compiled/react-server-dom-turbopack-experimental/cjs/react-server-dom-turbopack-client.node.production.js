@@ -606,8 +606,13 @@ function isSignatureEqual(referenceId, numberOfBoundArgs) {
       );
   }
 }
-function registerServerReference(proxy, reference$jscomp$0, encodeFormAction) {
-  Object.defineProperties(proxy, {
+function registerBoundServerReference(
+  reference$jscomp$0,
+  id,
+  bound,
+  encodeFormAction
+) {
+  Object.defineProperties(reference$jscomp$0, {
     $$FORM_ACTION: {
       value:
         void 0 === encodeFormAction
@@ -626,7 +631,7 @@ function registerServerReference(proxy, reference$jscomp$0, encodeFormAction) {
     $$IS_SIGNATURE_EQUAL: { value: isSignatureEqual },
     bind: { value: bind }
   });
-  knownServerReferences.set(proxy, reference$jscomp$0);
+  knownServerReferences.set(reference$jscomp$0, { id: id, bound: bound });
 }
 var FunctionBind = Function.prototype.bind,
   ArraySlice = Array.prototype.slice;
@@ -664,7 +669,7 @@ function createBoundServerReference(metaData, callServer, encodeFormAction) {
   }
   var id = metaData.id,
     bound = metaData.bound;
-  registerServerReference(action, { id: id, bound: bound }, encodeFormAction);
+  registerBoundServerReference(action, id, bound, encodeFormAction);
   return action;
 }
 function createServerReference$1(id, callServer, encodeFormAction) {
@@ -672,7 +677,7 @@ function createServerReference$1(id, callServer, encodeFormAction) {
     var args = Array.prototype.slice.call(arguments);
     return callServer(id, args);
   }
-  registerServerReference(action, { id: id, bound: null }, encodeFormAction);
+  registerBoundServerReference(action, id, null, encodeFormAction);
   return action;
 }
 function ReactPromise(status, value, reason, response) {
@@ -940,13 +945,24 @@ function loadServerReference(response, metaData, parentObject, key) {
       response._encodeFormAction
     );
   var serverReference = resolveServerReference(
-    response._serverReferenceConfig,
-    metaData.id
-  );
-  if ((response = preloadModule(serverReference)))
-    metaData.bound && (response = Promise.all([response, metaData.bound]));
-  else if (metaData.bound) response = Promise.resolve(metaData.bound);
-  else return requireModule(serverReference);
+      response._serverReferenceConfig,
+      metaData.id
+    ),
+    promise = preloadModule(serverReference);
+  if (promise)
+    metaData.bound && (promise = Promise.all([promise, metaData.bound]));
+  else if (metaData.bound) promise = Promise.resolve(metaData.bound);
+  else
+    return (
+      (promise = requireModule(serverReference)),
+      registerBoundServerReference(
+        promise,
+        metaData.id,
+        metaData.bound,
+        response._encodeFormAction
+      ),
+      promise
+    );
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -958,7 +974,7 @@ function loadServerReference(response, metaData, parentObject, key) {
       deps: 1,
       errored: !1
     };
-  response.then(
+  promise.then(
     function () {
       var resolvedValue = requireModule(serverReference);
       if (metaData.bound) {
@@ -966,6 +982,12 @@ function loadServerReference(response, metaData, parentObject, key) {
         boundArgs.unshift(null);
         resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
       }
+      registerBoundServerReference(
+        resolvedValue,
+        metaData.id,
+        metaData.bound,
+        response._encodeFormAction
+      );
       parentObject[key] = resolvedValue;
       "" === key && null === handler.value && (handler.value = resolvedValue);
       if (
@@ -1772,4 +1794,8 @@ exports.createFromNodeStream = function (
 };
 exports.createServerReference = function (id) {
   return createServerReference$1(id, noServerCall);
+};
+exports.registerServerReference = function (reference, id, encodeFormAction) {
+  registerBoundServerReference(reference, id, null, encodeFormAction);
+  return reference;
 };

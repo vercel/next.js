@@ -534,28 +534,31 @@ describe('Error recovery app', () => {
       outdent`
         import * as React from 'react';
         let i = 0
-        setInterval(() => {
-          i++
-          throw Error('no ' + i)
-        }, 1000)
+        window.triggerError = () => {
+          // TODO(veil): sync thrown errors do not trigger Redbox.
+          setTimeout(() => {
+            i++
+            throw Error('no ' + i)
+          }, 0)
+        }
         export default function FunctionNamed() {
           return <div />
         }
       `
     )
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await browser.eval('window.triggerError()')
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "count": 1,
        "description": "Error: no 1",
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",
-       "source": "index.js (5:9) @ eval
-     > 5 |   throw Error('no ' + i)
-         |         ^",
+       "source": "index.js (7:11) @ eval
+     >  7 |     throw Error('no ' + i)
+          |           ^",
        "stack": [
-         "eval index.js (5:9)",
+         "eval index.js (7:11)",
        ],
      }
     `)
@@ -566,10 +569,13 @@ describe('Error recovery app', () => {
       outdent`
         import * as React from 'react';
         let i = 0
-        setInterval(() => {
-          i++
-          throw Error('no ' + i)
-        }, 1000)
+        window.triggerError = () => {
+          // TODO(veil): sync thrown errors do not trigger Redbox.
+          setTimeout(() => {
+            i++
+            throw Error('no ' + i)
+          }, 0)
+        }
         export default function FunctionNamed() {
       `
     )
@@ -598,13 +604,10 @@ describe('Error recovery app', () => {
          "label": "Build Error",
          "source": "./index.js
        Error:   x Expected '}', got '<eof>'
-          ,-[7:1]
-        4 |   i++
-        5 |   throw Error('no ' + i)
-        6 | }, 1000)
-        7 | export default function FunctionNamed() {
-          :                                         ^
-          \`----
+           ,-[10:1]
+        10 | export default function FunctionNamed() {
+           :                                         ^
+           \`----
        Caused by:
            Syntax Error
        Import trace for requested module:
@@ -616,7 +619,7 @@ describe('Error recovery app', () => {
     }
 
     // Test that runtime error does not take over:
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await browser.eval('window.triggerError()')
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
@@ -640,13 +643,10 @@ describe('Error recovery app', () => {
          "label": "Build Error",
          "source": "./index.js
        Error:   x Expected '}', got '<eof>'
-          ,-[7:1]
-        4 |   i++
-        5 |   throw Error('no ' + i)
-        6 | }, 1000)
-        7 | export default function FunctionNamed() {
-          :                                         ^
-          \`----
+           ,-[10:1]
+        10 | export default function FunctionNamed() {
+           :                                         ^
+           \`----
        Caused by:
            Syntax Error
        Import trace for requested module:

@@ -68,7 +68,6 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
-    build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -792,11 +791,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_endpoints(self: Vc<Self>) -> Result<Vc<Endpoints>> {
+    pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
 
+        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
+        // page routes themselves are excluded below.
         endpoints.push(entrypoints.pages_error_endpoint);
         endpoints.push(entrypoints.pages_app_endpoint);
         endpoints.push(entrypoints.pages_document_endpoint);
@@ -816,10 +817,14 @@ impl Project {
                     html_endpoint,
                     data_endpoint: _,
                 } => {
-                    endpoints.push(*html_endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*html_endpoint);
+                    }
                 }
                 Route::PageApi { endpoint } => {
-                    endpoints.push(*endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*endpoint);
+                    }
                 }
                 Route::AppPage(page_routes) => {
                     for AppPageRoute {
@@ -849,7 +854,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let mut modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.entries().owned().await?))
@@ -865,7 +870,7 @@ impl Project {
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
         let modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
@@ -966,6 +971,7 @@ impl Project {
             self.client_relative_path(),
             Vc::cell("/ROOT".into()),
             self.next_config().computed_asset_prefix(),
+            self.next_config().chunk_suffix_path(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
@@ -1068,7 +1074,7 @@ impl Project {
         // First, emit an event for the binary target triple.
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
-        emit_event(build::BUILD_TARGET, true);
+        emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
 
         // Go over jsconfig and report enabled features.
         let compiler_options = self.js_config().compiler_options().await?;

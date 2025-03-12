@@ -128,6 +128,7 @@ impl Chunk for EcmascriptChunk {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(AssetIdent::new(Value::new(ident)))

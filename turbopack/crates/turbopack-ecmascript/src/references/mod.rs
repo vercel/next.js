@@ -23,6 +23,7 @@ use std::{borrow::Cow, collections::BTreeMap, future::Future, mem::take, ops::De
 use anyhow::{bail, Result};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
+use either::Either;
 use indexmap::map::Entry;
 use lazy_static::lazy_static;
 use num_traits::Zero;
@@ -42,6 +43,7 @@ use swc_core::{
     },
     ecma::{
         ast::*,
+        utils::IsDirective,
         visit::{
             fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
@@ -169,6 +171,7 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
+    pub has_side_effect_free_directive: bool,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: ResolvedVc<OptionStringifiedSourceMap>,
@@ -221,6 +224,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<OptionStringifiedSourceMap>>,
+    has_side_effect_free_directive: bool,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -238,6 +242,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
+            has_side_effect_free_directive: false,
         }
     }
 
@@ -295,6 +300,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
+    }
+
+    /// Set whether this module is side-efffect free according to a user-provided directive.
+    pub fn set_has_side_effect_free_directive(&mut self, value: bool) {
+        self.has_side_effect_free_directive = value;
     }
 
     /// Sets whether the analysis was successful.
@@ -411,6 +421,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
+                has_side_effect_free_directive: self.has_side_effect_free_directive,
                 successful: self.successful,
                 source_map,
             },
@@ -586,6 +597,33 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         return analysis.build(Default::default(), false).await;
     };
 
+    let has_side_effect_free_directive = match program {
+        Program::Module(module) => Either::Left(
+            module
+                .body
+                .iter()
+                .take_while(|i| match i {
+                    ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+                    ModuleItem::ModuleDecl(_) => false,
+                })
+                .filter_map(|i| i.as_stmt()),
+        ),
+        Program::Script(script) => Either::Right(
+            script
+                .body
+                .iter()
+                .take_while(|stmt| stmt.directive_continue()),
+        ),
+    }
+    .any(|f| match f {
+        Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
+            Expr::Lit(Lit::Str(Str { value, .. })) => value == "use turbopack no side effects",
+            _ => false,
+        },
+        _ => false,
+    });
+    analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
+
     let compile_time_info = compile_time_info_for_module_type(
         *raw_module.compile_time_info,
         eval_context.is_esm(specified_type),
@@ -734,7 +772,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         }
                         ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
                         ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
-                            bail!("Internal imports doesn't exist in reexports only mode")
+                            bail!(
+                                "Internal imports doesn't exist in reexports only mode when \
+                                 importing {:?} from {}",
+                                r.imported_symbol,
+                                r.module_path
+                            );
                         }
                         ImportedSymbol::Exports => None,
                     },

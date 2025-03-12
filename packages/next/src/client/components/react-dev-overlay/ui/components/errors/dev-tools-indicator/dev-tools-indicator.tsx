@@ -269,7 +269,7 @@ function DevToolsPopover({
           // Reset the toast component's default positions.
           bottom: 'initial',
           left: 'initial',
-          [vertical]: '10px',
+          [vertical]: '20px',
           [horizontal]: '20px',
         } as CSSProperties
       }

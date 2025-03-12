@@ -1,3 +1,4 @@
+import * as React from 'react'
 import type { DebugInfo } from '../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
@@ -33,6 +34,7 @@ import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
+import { useFocusTrap } from '../dev-tools-indicator/utils'
 
 interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
@@ -81,10 +83,12 @@ export function ErrorOverlayLayout({
   }
 
   const hasFooter = Boolean(footerMessage || errorCode)
+  const dialogRef = React.useRef<HTMLDivElement | null>(null)
+  useFocusTrap(dialogRef, null, rendered)
 
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
-      <div data-nextjs-dialog-root {...animationProps}>
+      <div data-nextjs-dialog-root ref={dialogRef} {...animationProps}>
         <ErrorOverlayDialog
           onClose={onClose}
           dialogResizerRef={dialogResizerRef}

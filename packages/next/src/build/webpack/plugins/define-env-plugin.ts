@@ -38,6 +38,7 @@ export interface DefineEnvPluginOptions {
   isNodeOrEdgeCompilation: boolean
   isNodeServer: boolean
   middlewareMatchers: MiddlewareMatcher[] | undefined
+  omitNonDeterministic?: boolean
 }
 
 interface DefineEnv {
@@ -140,6 +141,7 @@ export function getDefineEnv({
   isNodeOrEdgeCompilation,
   isNodeServer,
   middlewareMatchers,
+  omitNonDeterministic,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
@@ -304,7 +306,30 @@ export function getDefineEnv({
     defineEnv[key] = userDefines[key]
   }
 
-  return serializeDefineEnv(defineEnv)
+  const serializedDefineEnv = serializeDefineEnv(defineEnv)
+
+  // we delay inlining these values until after the build
+  // with flying shuttle enabled so we can update them
+  // without invalidating entries
+  if (!dev && omitNonDeterministic) {
+    // client uses window. instead of leaving process.env
+    // in case process isn't polyfilled on client already
+    // since by this point it won't be added by webpack
+    const safeKey = (key: string) =>
+      isClient ? `window.${key.split('.').pop()}` : key
+
+    for (const key in nextPublicEnv) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+    for (const key in nextConfigEnv) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+    for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
+      serializedDefineEnv[key] = safeKey(key)
+    }
+  }
+
+  return serializedDefineEnv
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

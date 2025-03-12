@@ -17883,9 +17883,7 @@
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should have deployment id env available",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in RSC payload request headers",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should contain deployment id in prefetch request",
-        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available"
-      ],
-      "failed": [
+        "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should have deployment id env available",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app",
         "deployment-id-handling enabled with CUSTOM_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
@@ -17895,6 +17893,7 @@
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /from-app/edge",
         "deployment-id-handling enabled with NEXT_DEPLOYMENT_ID should append dpl query to all assets correctly for /pages-edge"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -18687,6 +18686,16 @@
       ],
       "failed": [],
       "pending": ["TypeScript basic should work with babel"],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
+      "passed": [],
+      "failed": [],
+      "pending": [
+        "browser-chunks must not bundle any server modules into browser chunks",
+        "browser-chunks must not bundle any dev overlay into browser chunks"
+      ],
       "flakey": [],
       "runtimeError": false
     },

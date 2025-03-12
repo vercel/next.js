@@ -51,9 +51,6 @@ opt-level = 3
 [profile.release.package.lightningcss]
 opt-level = "s"
 
-[profile.release.package.std]
-opt-level = 3
-
 [profile.release.package.lightningcss-napi]
 opt-level = "s"
 
@@ -299,7 +296,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "16.0.0", features = [
+swc_core = { version = "16.4.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -345,6 +342,7 @@ const_format = "0.2.30"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
+data-encoding = "2.3.3"
 dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"
@@ -361,7 +359,7 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.63", features = [
+lightningcss = { version = "1.0.0-alpha.64", features = [
   "serde",
   "visitor",
   "into_owned",
@@ -399,9 +397,6 @@ serde_bytes = "0.11.15"
 serde_path_to_error = "0.1.16"
 serde_qs = "0.13.0"
 serde_with = "3.12.0"
-shadow-rs = { version = "0.37.0", default-features = false, features = [
-  "tzdb",
-] }
 smallvec = { version = "1.13.1", features = [
   "serde",
   "const_generics",
@@ -426,6 +421,8 @@ unicode-segmentation = "1.10.1"
 unsize = "1.1.0"
 url = "2.2.2"
 urlencoding = "2.1.2"
+vergen = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
+vergen-gitcl = { git = "https://github.com/bgw/vergen.git", branch = "bgw/no-optional-locks", features = ["cargo"] }
 webbrowser = "0.8.7"
 
 [patch.crates-io]
@@ -435,4 +432,4 @@ wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 
-mdxjs = { git="https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-15" }
+mdxjs = { git="https://github.com/kdy1/mdxjs-rs.git", branch = "swc-core-16" }

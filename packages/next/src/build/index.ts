@@ -206,6 +206,8 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
+import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
+import { inlineStaticEnv, populateStaticEnv } from '../lib/inline-static-env'
 
 type Fallback = null | boolean | string
 
@@ -821,6 +823,7 @@ export default async function build(
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
   const isGenerateMode = experimentalBuildMode === 'generate'
+  NextBuildContext.isCompileMode = isCompileMode
 
   let loadedConfig: NextConfigComplete | undefined
   try {
@@ -879,6 +882,12 @@ export default async function build(
         config
       )
       NextBuildContext.buildId = buildId
+
+      // when using compile mode static env isn't inlined so we
+      // need to populate in normal runtime env
+      if (isCompileMode || isGenerateMode) {
+        populateStaticEnv(config)
+      }
 
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
@@ -2468,6 +2477,10 @@ export default async function build(
           featureName: 'experimental/ppr',
           invocationCount: config.experimental.ppr ? 1 : 0,
         },
+        {
+          featureName: 'turbopackPersistentCaching',
+          invocationCount: isPersistentCachingEnabled(config) ? 1 : 0,
+        },
       ]
       telemetry.record(
         features.map((feature) => {
@@ -2482,6 +2495,20 @@ export default async function build(
         distDir,
         requiredServerFilesManifest
       )
+
+      // we don't need to inline for turbopack build as
+      // it will handle it's own caching separate of compile
+      if (isGenerateMode && !turboNextBuild) {
+        await nextBuildSpan
+          .traceChild('inline-static-env')
+          .traceAsyncFn(async () => {
+            await inlineStaticEnv({
+              distDir,
+              config,
+              buildId,
+            })
+          })
+      }
 
       const middlewareManifest: MiddlewareManifest = await readManifest(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
