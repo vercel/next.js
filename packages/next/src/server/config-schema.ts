@@ -261,6 +261,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     excludeDefaultMomentLocales: z.boolean().optional(),
     experimental: z
       .strictObject({
+        generateOnlyEnv: z.boolean().optional(),
         allowedDevOrigins: z.array(z.string()).optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),

@@ -2509,6 +2509,17 @@ export default async function build(
               buildId,
             })
           })
+
+        // users might only want to inline env during experimental generate
+        // instead of also prerendering e.g. for testmode so exit after
+        if (config.experimental.generateOnlyEnv) {
+          Log.info(
+            'Only inlining static env due to experimental.generateOnlyEnv'
+          )
+        }
+        await flushAllTraces()
+        teardownTraceSubscriber()
+        process.exit(0)
       }
 
       const middlewareManifest: MiddlewareManifest = await readManifest(
