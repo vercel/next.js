@@ -128,28 +128,31 @@ function clearOutdatedErrors() {
 // Successful compilation.
 function handleSuccess() {
   clearOutdatedErrors()
+  hasCompileErrors = false
 
   if (process.env.TURBOPACK) {
-    const built = turbopackHmr!.onBuilt()
-    reportHmrLatency(
-      sendMessage,
-      [...built.updatedModules],
-      built.startMsSinceEpoch,
-      built.endMsSinceEpoch
-    )
+    const hmrUpdate = turbopackHmr!.onBuilt()
+    if (hmrUpdate != null) {
+      reportHmrLatency(
+        sendMessage,
+        [...hmrUpdate.updatedModules],
+        hmrUpdate.startMsSinceEpoch,
+        hmrUpdate.endMsSinceEpoch
+      )
+    }
     onBuildOk()
   } else {
     const isHotUpdate =
       !isFirstCompilation ||
       (window.__NEXT_DATA__.page !== '/_error' && isUpdateAvailable())
-    isFirstCompilation = false
-    hasCompileErrors = false
 
     // Attempt to apply hot updates or reload.
     if (isHotUpdate) {
       tryApplyUpdates(onBeforeFastRefresh, onFastRefresh)
     }
   }
+
+  isFirstCompilation = false
 }
 
 // Compilation with warnings (e.g. ESLint).

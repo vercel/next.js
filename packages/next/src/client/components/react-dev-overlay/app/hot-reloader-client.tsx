@@ -288,14 +288,16 @@ function processMessage(
 
   function handleHotUpdate() {
     if (process.env.TURBOPACK) {
-      const built = turbopackHmr!.onBuilt()
+      const hmrUpdate = turbopackHmr!.onBuilt()
+      if (hmrUpdate != null) {
+        reportHmrLatency(
+          sendMessage,
+          [...hmrUpdate.updatedModules],
+          hmrUpdate.startMsSinceEpoch,
+          hmrUpdate.endMsSinceEpoch
+        )
+      }
       dispatcher.onBuildOk()
-      reportHmrLatency(
-        sendMessage,
-        [...built.updatedModules],
-        built.startMsSinceEpoch,
-        built.endMsSinceEpoch
-      )
     } else {
       tryApplyUpdates(
         function onBeforeHotUpdate(hasUpdates: boolean) {

@@ -1,7 +1,7 @@
 import type { TurbopackMessageAction } from '../../../../server/dev/hot-reloader-types'
 import type { Update as TurbopackUpdate } from '../../../../build/swc/types'
 
-interface Built {
+interface HmrUpdate {
   updatedModules: Set<string>
   startMsSinceEpoch: number
   endMsSinceEpoch: number
@@ -29,7 +29,12 @@ export class TurbopackHmr {
     }
   }
 
-  onBuilt(): Built {
+  onBuilt(): HmrUpdate | null {
+    // it's possible for `this.#startMsSinceEpoch` to not be set if this was the initial
+    // computation, just return null in this case.
+    if (this.#startMsSinceEpoch == null) {
+      return null
+    }
     const result = {
       updatedModules: this.#updatedModules,
       startMsSinceEpoch: this.#startMsSinceEpoch!,
