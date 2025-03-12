@@ -455,7 +455,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task_id
     }
 
-    #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool {
         self.check_access(item.category());
         if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
