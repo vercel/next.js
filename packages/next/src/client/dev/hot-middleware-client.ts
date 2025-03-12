@@ -20,8 +20,8 @@ declare const window: NextWindow
 
 let reloading = false
 
-export default (mode: 'webpack' | 'turbopack') => {
-  const devClient = connect(mode)
+export default () => {
+  const devClient = connect()
 
   devClient.subscribeToHmrEvent((obj: any) => {
     if (reloading) return
