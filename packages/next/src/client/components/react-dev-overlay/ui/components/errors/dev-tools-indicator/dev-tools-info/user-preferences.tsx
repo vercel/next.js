@@ -113,7 +113,7 @@ export function UserPreferences({
           <div className="preference-header">
             <label htmlFor="theme">Size</label>
             <p className="preference-description">
-              Adjust the size of the overlay.
+              Adjust the size of your dev tools.
             </p>
           </div>
           <Select
