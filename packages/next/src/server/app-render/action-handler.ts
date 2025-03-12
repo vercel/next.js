@@ -638,8 +638,8 @@ export async function handleAction({
       { isAction: true },
       async (): Promise<HandleActionResult> => {
         // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
-        let actionModId: string | undefined
-        let boundActionArguments: unknown[] = []
+        let actionModId: string
+        let boundActionArguments: unknown[]
 
         if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -667,6 +667,12 @@ export async function handleAction({
             // TODO-APP: Add streaming support
             const formData = await req.request.formData()
             if (isFetchAction) {
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               // A fetch action with a multipart body.
               boundActionArguments = await decodeReply(
                 formData,
@@ -836,6 +842,12 @@ export async function handleAction({
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
+              try {
+                actionModId = getActionModIdOrError(actionId, serverModuleMap)
+              } catch (err) {
+                return handleUnrecognizedFetchAction(err)
+              }
+
               const busboy = (
                 require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
               )({
@@ -989,19 +1001,12 @@ export async function handleAction({
         // / -> fire action -> POST / -> appRender1 -> modId for the action file
         // /foo -> fire action -> POST /foo -> appRender2 -> modId for the action file
 
-        try {
-          actionModId =
-            actionModId ?? getActionModIdOrError(actionId, serverModuleMap)
-        } catch (err) {
-          return handleUnrecognizedFetchAction(err)
-        }
-
         const actionMod = (await ComponentMod.__next_app__.require(
           actionModId
         )) as Record<string, (...args: unknown[]) => Promise<unknown>>
         const actionHandler =
           actionMod[
-            // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+            // `actionId` must exist if we got here, as otherwise `getActionModIdOrError` would have thrown earlier
             actionId!
           ]
 
