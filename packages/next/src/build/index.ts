@@ -207,7 +207,8 @@ import {
 
 import { turbopackBuild } from './turbopack-build'
 import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
-import { inlineStaticEnv, populateStaticEnv } from '../lib/inline-static-env'
+import { inlineStaticEnv } from '../lib/inline-static-env'
+import { populateStaticEnv } from '../lib/static-env'
 
 type Fallback = null | boolean | string
 
