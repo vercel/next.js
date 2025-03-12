@@ -197,7 +197,7 @@ function getBaseSWCOptions({
     relay: compilerOptions?.relay,
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: compilerOptions?.styledJsx ?? {
-      useLightningcss: jsConfig.experimental?.useLightningcss ?? false,
+      useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
