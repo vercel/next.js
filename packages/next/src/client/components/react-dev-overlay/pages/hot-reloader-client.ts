@@ -260,7 +260,7 @@ export function handleStaticIndicator() {
     const pageComponent = routeInfo?.Component
     const appComponent = window.next.router.components['/_app']?.Component
     const isDynamicPage =
-      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo.__N_SSP)
+      Boolean(pageComponent?.getInitialProps) || Boolean(routeInfo?.__N_SSP)
     const hasAppGetInitialProps =
       Boolean(appComponent?.getInitialProps) &&
       appComponent?.getInitialProps !== appComponent?.origGetInitialProps
