@@ -111,14 +111,14 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <label htmlFor="theme">Size</label>
+            <label htmlFor="size">Size</label>
             <p className="preference-description">
               Adjust the size of your dev tools.
             </p>
           </div>
           <Select
-            id="theme"
-            name="theme"
+            id="size"
+            name="size"
             value={scale}
             onChange={handleSizeChange}
           >
