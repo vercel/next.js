@@ -18,7 +18,7 @@
     "temporalio": "^0.17.2"
   },
   "devDependencies": {
-    "@babel/core": "7.22.5",
+    "@babel/core": "7.26.10",
     "@tsconfig/node16": "^1.0.0",
     "@types/node": "^12.12.21",
     "@types/node-fetch": "^3.0.3",

@@ -1,4 +1,5 @@
 import arrayLikeToArray from "./arrayLikeToArray.js";
-export default function _arrayWithoutHoles(arr) {
-  if (Array.isArray(arr)) return arrayLikeToArray(arr);
+function _arrayWithoutHoles(r) {
+  if (Array.isArray(r)) return arrayLikeToArray(r);
 }
+export { _arrayWithoutHoles as default };
