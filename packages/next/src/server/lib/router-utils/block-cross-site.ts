@@ -25,7 +25,7 @@ export const blockCrossSite = (
     }
     res.end('Unauthorized')
     warnOnce(
-      `Blocked cross-origin request to /_next/*. To allow this, configure "experimental.allowedDevOrigins" in next.config`
+      `Blocked cross-origin request to /_next/*. To allow this, configure "allowedDevOrigins" in next.config`
     )
     return true
   }
@@ -55,7 +55,7 @@ export const blockCrossSite = (
         }
         res.end('Unauthorized')
         warnOnce(
-          `Blocked cross-origin request from ${originLowerCase}. To allow this, configure "experimental.allowedDevOrigins" in next.config`
+          `Blocked cross-origin request from ${originLowerCase}. To allow this, configure "allowedDevOrigins" in next.config`
         )
         return true
       }

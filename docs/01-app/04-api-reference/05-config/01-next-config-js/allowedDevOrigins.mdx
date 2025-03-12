@@ -1,0 +1,18 @@
+---
+title: allowedDevOrigins
+description: Use `allowedDevOrigins` to configure additional origins that can request the dev server.
+---
+
+{/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
+
+To configure a Next.js application to allow requests from origins other than the hostname the server was booted with or localhost you can use the `allowedDevOrigins` config option.
+
+`allowedDevOrigins` allows you to set additional origins that can be used in dev mode. For example, to use `local-origin.dev` instead of only `localhost`, open `next.config.js` and add the `allowedDevOrigins` config:
+
+```js filename="next.config.js"
+module.exports = {
+  allowedDevOrigins: ['local-origin.dev'],
+}
+```
+
+The reason for cross-origin requests are blocked by default is to prevent unauthorized requesting of internal assets/endpoints which are available in dev mode. This behavior is also present in other dev servers like webpack-dev-middleware to ensure the same protection.

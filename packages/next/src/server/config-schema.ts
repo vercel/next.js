@@ -128,6 +128,7 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut>
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
+    allowedDevOrigins: z.array(z.string()).optional(),
     amp: z
       .object({
         canonicalBase: z.string().optional(),
@@ -262,7 +263,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     experimental: z
       .strictObject({
         generateOnlyEnv: z.boolean().optional(),
-        allowedDevOrigins: z.array(z.string()).optional(),
         nodeMiddleware: z.boolean().optional(),
         after: z.boolean().optional(),
         appDocumentPreloading: z.boolean().optional(),
