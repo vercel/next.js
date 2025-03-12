@@ -6,7 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{ChunkGroupType, ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
     environment::Environment,
     file_source::FileSource,
     module::Module,
@@ -104,11 +104,17 @@ pub async fn create_web_entry_source(
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
     node_env: Vc<NodeEnv>,
+    source_maps_type: SourceMapsType,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
-    let asset_context =
-        get_client_asset_context(root_path, execution_context, compile_time_info, node_env);
+    let asset_context = get_client_asset_context(
+        root_path,
+        execution_context,
+        compile_time_info,
+        node_env,
+        source_maps_type,
+    );
     let chunking_context = get_client_chunking_context(
         root_path,
         server_root,
@@ -139,26 +145,27 @@ pub async fn create_web_entry_source(
         .try_flat_join()
         .await?;
 
-    let all_modules = Vc::cell(
-        entries
-            .iter()
-            .copied()
-            .chain(
-                runtime_entries
-                    .await?
-                    .iter()
-                    .map(|&entry| ResolvedVc::upcast(entry)),
-            )
-            .collect::<Vec<ResolvedVc<Box<dyn Module>>>>(),
-    );
-    let module_graph = ModuleGraph::from_modules(all_modules).to_resolved().await?;
+    let all_modules = entries
+        .iter()
+        .copied()
+        .chain(
+            runtime_entries
+                .await?
+                .iter()
+                .map(|&entry| ResolvedVc::upcast(entry)),
+        )
+        .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![(all_modules, ChunkGroupType::Evaluated)]))
+            .to_resolved()
+            .await?;
 
     let entries: Vec<_> = entries
         .into_iter()
         .map(|module| async move {
             if let (Some(chunkable_module), Some(entry)) = (
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
-                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module),
+                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module),
             ) {
                 Ok(DevHtmlEntry {
                     chunkable_module,
@@ -167,7 +174,7 @@ pub async fn create_web_entry_source(
                     runtime_entries: Some(runtime_entries.with_entry(*entry).to_resolved().await?),
                 })
             } else if let Some(chunkable_module) =
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)
             {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code

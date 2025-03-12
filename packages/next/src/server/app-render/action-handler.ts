@@ -30,10 +30,7 @@ import {
   filterReqHeaders,
   actionsForbiddenHeaders,
 } from '../lib/server-ipc/utils'
-import {
-  appendMutableCookies,
-  getModifiedCookieValues,
-} from '../web/spec-extension/adapters/request-cookies'
+import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
@@ -915,12 +912,14 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
-        await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      const actionMod = (await ComponentMod.__next_app__.require(
+        actionModId
+      )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+      const actionHandler =
+        actionMod[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
 
       const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
         actionHandler.apply(null, boundActionArguments)
@@ -974,13 +973,6 @@ export async function handleAction({
             workStore
           ),
         }
-      }
-
-      // If there were mutable cookies set, we need to set them on the
-      // response.
-      const headers = new Headers()
-      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-        res.setHeader('set-cookie', Array.from(headers.values()))
       }
 
       res.setHeader('Location', redirectUrl)
@@ -1085,7 +1077,7 @@ function getActionModIdOrError(
     throw new Error(
       `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
         err instanceof Error ? `Original error: ${err.message}` : ''
-      }`
+      }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
 }

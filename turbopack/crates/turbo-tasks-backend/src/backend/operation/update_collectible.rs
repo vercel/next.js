@@ -1,9 +1,11 @@
 use std::cmp::min;
 
+use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
+        get_many,
         operation::{
             get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
             AggregationUpdateQueue, ExecuteContext, Operation,
@@ -70,7 +72,25 @@ impl UpdateCollectibleOperation {
             }
         }
         if count != 0 {
-            update_count!(task, Collectible { collectible }, count);
+            if update_count!(task, Collectible { collectible }, count) {
+                let ty = collectible.collectible_type;
+                let dependent: SmallVec<[TaskId; 4]> = get_many!(
+                    task,
+                    CollectiblesDependent {
+                        collectible_type,
+                        task,
+                    } if collectible_type == ty => {
+                        task
+                    }
+                );
+                if !dependent.is_empty() {
+                    queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
+                        task_ids: dependent,
+                        #[cfg(feature = "trace_task_dirty")]
+                        collectible_type: ty,
+                    })
+                }
+            }
             queue.extend(AggregationUpdateJob::data_update(
                 &mut task,
                 AggregatedDataUpdate::new().collectibles_update(vec![(collectible, count)]),

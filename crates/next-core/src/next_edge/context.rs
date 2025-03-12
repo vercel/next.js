@@ -6,7 +6,10 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -187,7 +190,7 @@ pub async fn get_edge_resolve_options_context(
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
-        custom_extensions: next_config.resolve_extension().await?.clone_value(),
+        custom_extensions: next_config.resolve_extension().owned().await?,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -208,6 +211,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -226,15 +231,22 @@ pub async fn get_edge_chunking_context_with_client_assets(
     )
     .asset_base_path(asset_prefix)
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
             ..Default::default()
         })
     }
@@ -251,6 +263,8 @@ pub async fn get_edge_chunking_context(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
+    no_mangling: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -270,15 +284,22 @@ pub async fn get_edge_chunking_context(
     // asset from the output directory.
     .asset_base_path(ResolvedVc::cell(Some("blob:server/edge/".into())))
     .minify_type(if *turbo_minify.await? {
-        MinifyType::Minify
+        MinifyType::Minify {
+            mangle: !*no_mangling.await?,
+        }
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
             ..Default::default()
         })
     }

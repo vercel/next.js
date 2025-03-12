@@ -22,7 +22,7 @@ import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
@@ -41,6 +41,7 @@ import {
   NEXT_FONT_MANIFEST,
   PHASE_PRODUCTION_BUILD,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import { findDir } from '../lib/find-pages-dir'
 import { NodeNextRequest, NodeNextResponse } from './base-http/node'
@@ -76,7 +77,7 @@ import { getCloneableBody } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache, {
   CachedRouteKind,
-  type IncrementalCacheItem,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -108,8 +109,8 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
-import DefaultCacheHandler from './lib/cache-handlers/default'
-import { cacheHandlerGlobal, cacheHandlersSymbol } from './use-cache/constants'
+import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
+import type { UnwrapPromise } from '../lib/coalesced-function'
 
 export * from './base-server'
 
@@ -377,27 +378,25 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
-  protected async loadCustomCacheHandlers() {
+  private async loadCustomCacheHandlers() {
     const { cacheHandlers } = this.nextConfig.experimental
+    if (!cacheHandlers) return
 
-    if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
-      cacheHandlerGlobal.__nextCacheHandlers = {}
+    // If we've already initialized the cache handlers interface, don't do it
+    // again.
+    if (!initializeCacheHandlers()) return
 
-      for (const key of Object.keys(cacheHandlers)) {
-        if (cacheHandlers[key]) {
-          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(this.distDir, cacheHandlers[key])
-            )
+    for (const [kind, handler] of Object.entries(cacheHandlers)) {
+      if (!handler) continue
+
+      setCacheHandler(
+        kind,
+        interopDefault(
+          await dynamicImportEsmDefault(
+            formatDynamicImportPath(this.distDir, handler)
           )
-        }
-      }
-
-      if (!cacheHandlers.default) {
-        cacheHandlerGlobal.__nextCacheHandlers.default =
-          cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
-          DefaultCacheHandler
-      }
+        )
+      )
     }
   }
 
@@ -430,7 +429,6 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -522,8 +520,7 @@ export default class NextNodeServer extends BaseServer<
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      expireTime: ExpireTime | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -533,8 +530,7 @@ export default class NextNodeServer extends BaseServer<
       type: options.type,
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
-      revalidate: options.revalidate,
-      expireTime: options.expireTime,
+      cacheControl: options.cacheControl,
     })
   }
 
@@ -667,7 +663,7 @@ export default class NextNodeServer extends BaseServer<
     req: NodeNextRequest,
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult,
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   ): Promise<{
     buffer: Buffer
     contentType: string
@@ -887,6 +883,10 @@ export default class NextNodeServer extends BaseServer<
     if (!parsedUrl.pathname || !parsedUrl.pathname.startsWith('/_next/image')) {
       return false
     }
+    // Ignore if its a middleware request
+    if (getRequestMeta(req, 'middlewareInvoke')) {
+      return false
+    }
 
     if (
       this.minimalMode ||
@@ -957,7 +957,7 @@ export default class NextNodeServer extends BaseServer<
                 upstreamEtag,
               },
               isFallback: false,
-              revalidate: maxAge,
+              cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
           {
@@ -983,7 +983,7 @@ export default class NextNodeServer extends BaseServer<
           paramsResult.isStatic,
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
-          cacheEntry.revalidate || 0,
+          cacheEntry.cacheControl?.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
         return true
@@ -1211,6 +1211,7 @@ export default class NextNodeServer extends BaseServer<
 
     if (
       mocked.res.getHeader('x-nextjs-cache') !== 'REVALIDATED' &&
+      mocked.res.statusCode !== 200 &&
       !(mocked.res.statusCode === 404 && opts.unstable_onlyGenerated)
     ) {
       throw new Error(`Invalid response ${mocked.res.statusCode}`)
@@ -1331,16 +1332,32 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-    return manifest
+    if (this.minimalMode) {
+      return null
+    } else {
+      const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+      return manifest
+    }
   }
 
   /** Returns the middleware routing item if there is one. */
-  protected getMiddleware(): MiddlewareRoutingItem | undefined {
+  protected async getMiddleware(): Promise<MiddlewareRoutingItem | undefined> {
     const manifest = this.getMiddlewareManifest()
     const middleware = manifest?.middleware?.['/']
     if (!middleware) {
+      const middlewareModule = await this.loadNodeMiddleware()
+
+      if (middlewareModule) {
+        return {
+          match: getMiddlewareRouteMatcher(
+            middlewareModule.config?.matchers || [
+              { regexp: '.*', originalSource: '/:path*' },
+            ]
+          ),
+          page: '/',
+        }
+      }
+
       return
     }
 
@@ -1418,6 +1435,31 @@ export default class NextNodeServer extends BaseServer<
     }
   }
 
+  private async loadNodeMiddleware() {
+    if (!this.nextConfig.experimental.nodeMiddleware) {
+      return
+    }
+
+    try {
+      const functionsConfig = this.renderOpts.dev
+        ? {}
+        : require(join(this.distDir, 'server', FUNCTIONS_CONFIG_MANIFEST))
+
+      if (this.renderOpts.dev || functionsConfig?.functions?.['/_middleware']) {
+        // if used with top level await, this will be a promise
+        return require(join(this.distDir, 'server', 'middleware.js'))
+      }
+    } catch (err) {
+      if (
+        isError(err) &&
+        err.code !== 'ENOENT' &&
+        err.code !== 'MODULE_NOT_FOUND'
+      ) {
+        throw err
+      }
+    }
+  }
+
   /**
    * Checks if a middleware exists. This method is useful for the development
    * server where we need to check the filesystem. Here we just check the
@@ -1425,6 +1467,11 @@ export default class NextNodeServer extends BaseServer<
    */
   protected async hasMiddleware(pathname: string): Promise<boolean> {
     const info = this.getEdgeFunctionInfo({ page: pathname, middleware: true })
+    const nodeMiddleware = await this.loadNodeMiddleware()
+
+    if (!info && nodeMiddleware) {
+      return true
+    }
     return Boolean(info && info.paths.length > 0)
   }
 
@@ -1496,7 +1543,7 @@ export default class NextNodeServer extends BaseServer<
       params?: { [key: string]: string | string[] }
     } = {}
 
-    const middleware = this.getMiddleware()
+    const middleware = await this.getMiddleware()
     if (!middleware) {
       return { finished: false }
     }
@@ -1510,36 +1557,63 @@ export default class NextNodeServer extends BaseServer<
       middleware: true,
     })
 
-    if (!middlewareInfo) {
-      throw new MiddlewareNotFoundError()
-    }
-
     const method = (params.request.method || 'GET').toUpperCase()
-    const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
-
-    const result = await run({
-      distDir: this.distDir,
-      name: middlewareInfo.name,
-      paths: middlewareInfo.paths,
-      edgeFunctionEntry: middlewareInfo,
-      request: {
-        headers: params.request.headers,
-        method,
-        nextConfig: {
-          basePath: this.nextConfig.basePath,
-          i18n: this.nextConfig.i18n,
-          trailingSlash: this.nextConfig.trailingSlash,
-          experimental: this.nextConfig.experimental,
-        },
-        url: url,
-        page,
-        body: getRequestMeta(params.request, 'clonableBody'),
-        signal: signalFromNodeResponse(params.response.originalResponse),
-        waitUntil: this.getWaitUntil(),
+    const requestData = {
+      headers: params.request.headers,
+      method,
+      nextConfig: {
+        basePath: this.nextConfig.basePath,
+        i18n: this.nextConfig.i18n,
+        trailingSlash: this.nextConfig.trailingSlash,
+        experimental: this.nextConfig.experimental,
       },
-      useCache: true,
-      onWarning: params.onWarning,
-    })
+      url: url,
+      page,
+      body:
+        method !== 'GET' && method !== 'HEAD'
+          ? (getRequestMeta(params.request, 'clonableBody') as any)
+          : undefined,
+
+      signal: signalFromNodeResponse(params.response.originalResponse),
+      waitUntil: this.getWaitUntil(),
+    }
+    let result:
+      | UnwrapPromise<ReturnType<typeof import('./web/sandbox').run>>
+      | undefined
+
+    // if no middleware info check for Node.js middleware
+    // this is not in the middleware-manifest as that historically
+    // has only included edge-functions, we need to do a breaking
+    // version bump for that manifest to write this info there if
+    // we decide we want to
+    if (!middlewareInfo) {
+      let middlewareModule
+      middlewareModule = await this.loadNodeMiddleware()
+
+      if (!middlewareModule) {
+        throw new MiddlewareNotFoundError()
+      }
+      const adapterFn: typeof import('./web/adapter').adapter =
+        middlewareModule.default || middlewareModule
+
+      result = await adapterFn({
+        handler: middlewareModule.middleware || middlewareModule,
+        request: requestData,
+        page: 'middleware',
+      })
+    } else {
+      const { run } = require('./web/sandbox') as typeof import('./web/sandbox')
+
+      result = await run({
+        distDir: this.distDir,
+        name: middlewareInfo.name,
+        paths: middlewareInfo.paths,
+        edgeFunctionEntry: middlewareInfo,
+        request: requestData,
+        useCache: true,
+        onWarning: params.onWarning,
+      })
+    }
 
     if (!this.renderOpts.dev) {
       result.waitUntil.catch((error) => {
@@ -1592,7 +1666,7 @@ export default class NextNodeServer extends BaseServer<
       return true
     }
 
-    const middleware = this.getMiddleware()
+    const middleware = await this.getMiddleware()
     if (!middleware) {
       return handleFinished()
     }

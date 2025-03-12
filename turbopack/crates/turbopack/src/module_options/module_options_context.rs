@@ -3,7 +3,9 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::MinifyType, condition::ContextCondition, environment::Environment,
+    chunk::{MinifyType, SourceMapsType},
+    condition::ContextCondition,
+    environment::Environment,
     resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
@@ -133,6 +135,11 @@ pub struct ModuleOptionsContext {
     /// runtime.
     pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
 
+    /// If true, it stores the last successful parse result in state and keeps using it when
+    /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
+    /// are temporarily introduced.
+    pub keep_last_successful_parse: bool,
+
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,
     /// A list of rules to use a different module option context for certain
@@ -160,6 +167,8 @@ pub struct EcmascriptOptionsContext {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -176,6 +185,9 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     pub minify_type: MinifyType,
+
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }

@@ -1,10 +1,7 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{
-    transition::{ContextTransition, Transition},
-    ModuleAssetContext,
-};
+use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
@@ -18,7 +15,7 @@ use crate::next_client_reference::ecmascript_client_reference::ecmascript_client
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
     client_transition: ResolvedVc<Box<dyn Transition>>,
-    ssr_transition: ResolvedVc<ContextTransition>,
+    ssr_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -26,7 +23,7 @@ impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
         client_transition: ResolvedVc<Box<dyn Transition>>,
-        ssr_transition: ResolvedVc<ContextTransition>,
+        ssr_transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
             client_transition,
@@ -53,7 +50,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let part = match &*reference_type {
             ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(
                 part,
-            )) => Some(*part),
+            )) => Some(part),
             _ => None,
         };
 
@@ -62,7 +59,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(*part),
+            Some(part) => source.ident().with_part(part.clone()),
             None => source.ident(),
         };
         let ident_ref = ident.await?;
@@ -102,13 +99,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let Some(client_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module)
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
         let Some(ssr_module) =
-            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module)
         else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };

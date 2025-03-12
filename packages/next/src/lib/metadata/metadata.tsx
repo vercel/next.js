@@ -1,9 +1,9 @@
+import React, { Suspense, cache, cloneElement } from 'react'
 import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
-
-import { cache, cloneElement } from 'react'
+import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -12,6 +12,7 @@ import {
   ViewportMeta,
   VerificationMeta,
   FacebookMeta,
+  PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -37,7 +38,11 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import { AsyncMetadata } from './async-metadata'
+import {
+  AsyncMetadata,
+  AsyncMetadataOutlet,
+} from '../../client/components/metadata/async-metadata'
+import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -74,6 +79,7 @@ export function createMetadataComponents({
   ViewportTree: React.ComponentType
   getMetadataReady: () => Promise<void>
   getViewportReady: () => Promise<void>
+  StreamingMetadataOutlet: React.ComponentType
 } {
   function ViewportTree() {
     return (
@@ -144,13 +150,21 @@ export function createMetadataComponents({
     )
   }
 
-  async function resolveFinalMetadata() {
+  async function resolveFinalMetadata(): Promise<StreamingMetadataResolvedState> {
+    let result: React.ReactNode
+    let error = null
     try {
-      return await metadata()
-    } catch (error) {
-      if (!errorType && isHTTPAccessFallbackError(error)) {
+      result = await metadata()
+      return {
+        metadata: result,
+        error: null,
+        digest: undefined,
+      }
+    } catch (metadataErr) {
+      error = metadataErr
+      if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         try {
-          return await getNotFoundMetadata(
+          result = await getNotFoundMetadata(
             tree,
             searchParams,
             getDynamicParamFromSegment,
@@ -158,20 +172,47 @@ export function createMetadataComponents({
             createServerParamsForMetadata,
             workStore
           )
-        } catch {}
+          return {
+            metadata: result,
+            error,
+            digest: (error as any)?.digest,
+          }
+        } catch (notFoundMetadataErr) {
+          error = notFoundMetadataErr
+          // In PPR rendering we still need to throw the postpone error.
+          // If metadata is postponed, React needs to be aware of the location of error.
+          if (serveStreamingMetadata && isPostpone(notFoundMetadataErr)) {
+            throw notFoundMetadataErr
+          }
+        }
+      }
+      // In PPR rendering we still need to throw the postpone error.
+      // If metadata is postponed, React needs to be aware of the location of error.
+      if (serveStreamingMetadata && isPostpone(metadataErr)) {
+        throw metadataErr
       }
       // We don't actually want to error in this component. We will
       // also error in the MetadataOutlet which causes the error to
       // bubble from the right position in the page to be caught by the
       // appropriate boundaries
-      return null
+      return {
+        metadata: result,
+        error,
+        digest: (error as any)?.digest,
+      }
     }
   }
   async function Metadata() {
+    const promise = resolveFinalMetadata()
     if (serveStreamingMetadata) {
-      return <AsyncMetadata promise={resolveFinalMetadata()} />
+      return (
+        <Suspense fallback={null}>
+          <AsyncMetadata promise={promise} />
+        </Suspense>
+      )
     }
-    return await resolveFinalMetadata()
+    const metadataState = await promise
+    return metadataState.metadata
   }
 
   Metadata.displayName = METADATA_BOUNDARY_NAME
@@ -190,11 +231,19 @@ export function createMetadataComponents({
     return undefined
   }
 
+  function StreamingMetadataOutlet() {
+    if (serveStreamingMetadata) {
+      return <AsyncMetadataOutlet promise={resolveFinalMetadata()} />
+    }
+    return null
+  }
+
   return {
     ViewportTree,
     MetadataTree,
     getViewportReady,
     getMetadataReady,
+    StreamingMetadataOutlet,
   }
 }
 
@@ -344,6 +393,7 @@ function createMetadataElements(metadata: ResolvedMetadata) {
     AlternatesMetadata({ alternates: metadata.alternates }),
     ItunesMeta({ itunes: metadata.itunes }),
     FacebookMeta({ facebook: metadata.facebook }),
+    PinterestMeta({ pinterest: metadata.pinterest }),
     FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
     VerificationMeta({ verification: metadata.verification }),
     AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),

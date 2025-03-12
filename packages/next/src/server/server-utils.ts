@@ -24,36 +24,33 @@ import { normalizeNextQueryParam } from './web/utils'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
-  trustQuery: boolean,
-  paramKeys?: string[],
-  pageIsDynamic?: boolean,
-  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
+  paramKeys: string[],
+  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  // make sure to normalize req.url on Vercel to strip dynamic params
-  // from the query which are added during routing
-  if (pageIsDynamic && trustQuery && defaultRouteRegex) {
-    const _parsedUrl = parseUrl(req.url!, true)
-    delete (_parsedUrl as any).search
+  // make sure to normalize req.url on Vercel to strip dynamic and rewrite
+  // params from the query which are added during routing
+  const _parsedUrl = parseUrl(req.url!, true)
+  delete (_parsedUrl as any).search
 
-    for (const key of Object.keys(_parsedUrl.query)) {
-      const isNextQueryPrefix =
-        key !== NEXT_QUERY_PARAM_PREFIX &&
-        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+  for (const key of Object.keys(_parsedUrl.query)) {
+    const isNextQueryPrefix =
+      key !== NEXT_QUERY_PARAM_PREFIX && key.startsWith(NEXT_QUERY_PARAM_PREFIX)
 
-      const isNextInterceptionMarkerPrefix =
-        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
-        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+    const isNextInterceptionMarkerPrefix =
+      key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+      key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
 
-      if (
-        isNextQueryPrefix ||
-        isNextInterceptionMarkerPrefix ||
-        (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
-      ) {
-        delete _parsedUrl.query[key]
-      }
+    if (
+      isNextQueryPrefix ||
+      isNextInterceptionMarkerPrefix ||
+      paramKeys.includes(key) ||
+      (defaultRouteRegex && Object.keys(defaultRouteRegex.groups).includes(key))
+    ) {
+      delete _parsedUrl.query[key]
     }
-    req.url = formatUrl(_parsedUrl)
   }
+
+  req.url = formatUrl(_parsedUrl)
 }
 
 export function interpolateDynamicPath(
@@ -89,27 +86,21 @@ export function interpolateDynamicPath(
 }
 
 export function normalizeDynamicRouteParams(
-  params: ParsedUrlQuery,
-  ignoreOptional?: boolean,
-  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined,
-  defaultRouteMatches?: ParsedUrlQuery | undefined
+  query: ParsedUrlQuery,
+  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex>,
+  defaultRouteMatches: ParsedUrlQuery,
+  ignoreMissingOptional: boolean
 ) {
   let hasValidParams = true
-  if (!defaultRouteRegex) return { params, hasValidParams: false }
+  let params: ParsedUrlQuery = {}
 
-  params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
-    let value: string | string[] | undefined = params[key]
+  for (const key of Object.keys(defaultRouteRegex.groups)) {
+    let value: string | string[] | undefined = query[key]
 
     if (typeof value === 'string') {
       value = normalizeRscURL(value)
-    }
-    if (Array.isArray(value)) {
-      value = value.map((val) => {
-        if (typeof val === 'string') {
-          val = normalizeRscURL(val)
-        }
-        return val
-      })
+    } else if (Array.isArray(value)) {
+      value = value.map(normalizeRscURL)
     }
 
     // if the value matches the default value we can't rely
@@ -128,9 +119,9 @@ export function normalizeDynamicRouteParams(
 
     if (
       isDefaultValue ||
-      (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+      (typeof value === 'undefined' && !(isOptional && ignoreMissingOptional))
     ) {
-      hasValidParams = false
+      return { params: {}, hasValidParams: false }
     }
 
     // non-provided optional values should be undefined so normalize
@@ -145,7 +136,7 @@ export function normalizeDynamicRouteParams(
           (value[0] === 'index' || value[0] === `[[...${key}]]`)))
     ) {
       value = undefined
-      delete params[key]
+      delete query[key]
     }
 
     // query values from the proxy aren't already split into arrays
@@ -159,10 +150,9 @@ export function normalizeDynamicRouteParams(
     }
 
     if (value) {
-      prev[key] = value
+      params[key] = value
     }
-    return prev
-  }, {} as ParsedUrlQuery)
+  }
 
   return {
     params,
@@ -375,28 +365,30 @@ export function getUtils({
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
+    /**
+     * Normalize dynamic route params.
+     *
+     * @param query - The query params to normalize.
+     * @param ignoreMissingOptional - Whether to ignore missing optional params.
+     * @returns The normalized params and whether they are valid.
+     */
     normalizeDynamicRouteParams: (
-      params: ParsedUrlQuery,
-      ignoreOptional?: boolean
-    ) =>
-      normalizeDynamicRouteParams(
-        params,
-        ignoreOptional,
+      query: ParsedUrlQuery,
+      ignoreMissingOptional: boolean
+    ) => {
+      if (!defaultRouteRegex || !defaultRouteMatches) {
+        return { params: {}, hasValidParams: false }
+      }
+
+      return normalizeDynamicRouteParams(
+        query,
         defaultRouteRegex,
-        defaultRouteMatches
-      ),
-    normalizeVercelUrl: (
-      req: BaseNextRequest,
-      trustQuery: boolean,
-      paramKeys?: string[]
-    ) =>
-      normalizeVercelUrl(
-        req,
-        trustQuery,
-        paramKeys,
-        pageIsDynamic,
-        defaultRouteRegex
-      ),
+        defaultRouteMatches,
+        ignoreMissingOptional
+      )
+    },
+    normalizeVercelUrl: (req: BaseNextRequest, paramKeys: string[]) =>
+      normalizeVercelUrl(req, paramKeys, defaultRouteRegex),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>

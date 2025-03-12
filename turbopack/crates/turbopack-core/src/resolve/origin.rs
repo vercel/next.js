@@ -10,7 +10,7 @@ use crate::{context::AssetContext, module::OptionModule, reference_type::Referen
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ResolveOrigin {
     /// The origin path where resolving starts. This is pointing to a file,
     /// since that might be needed to infer custom resolving options for that
@@ -86,7 +86,7 @@ async fn resolve_asset(
     reference_type: Value<ReferenceType>,
 ) -> Result<Vc<ModuleResolveResult>> {
     if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
-        return Ok(ModuleResolveResult::module(asset).cell());
+        return Ok(*ModuleResolveResult::module(asset));
     }
     Ok(resolve_origin
         .asset_context()

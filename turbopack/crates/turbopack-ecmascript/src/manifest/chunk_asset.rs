@@ -8,7 +8,9 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{
+        chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch, ModuleGraph,
+    },
     output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
@@ -60,22 +62,34 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub(super) fn chunks(&self) -> Vc<OutputAssets> {
         self.chunking_context.chunk_group_assets(
-            *ResolvedVc::upcast(self.inner),
+            self.inner.ident(),
+            ChunkGroup::Async(ResolvedVc::upcast(self.inner)),
             *self.module_graph,
             Value::new(self.availability_info),
         )
     }
 
     #[turbo_tasks::function]
-    pub async fn manifest_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    pub async fn manifest_chunks(self: ResolvedVc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_modules() {
-            if chunk_items.get(*this.inner).await?.is_some() {
-                return Ok(Vc::cell(vec![]));
+            let inner_module = ResolvedVc::upcast(this.inner);
+            let batches = this
+                .module_graph
+                .module_batches(this.chunking_context.batching_config())
+                .await?;
+            let module_or_batch = batches.get_entry(inner_module).await?;
+            if let Some(chunkable_module_or_batch) =
+                ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+            {
+                if *chunk_items.get(chunkable_module_or_batch).await? {
+                    return Ok(Vc::cell(vec![]));
+                }
             }
         }
         Ok(this.chunking_context.chunk_group_assets(
-            Vc::upcast(self),
+            self.ident(),
+            ChunkGroup::Async(ResolvedVc::upcast(self)),
             *this.module_graph,
             Value::new(this.availability_info),
         ))

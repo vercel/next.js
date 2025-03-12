@@ -4,7 +4,13 @@ import React, { type JSX } from 'react'
 import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
-import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
+
+const workAsyncStorage =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+      ).workAsyncStorage
+    : undefined
 
 const styles = {
   error: {
@@ -28,7 +34,9 @@ const styles = {
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
-  reset: () => void
+  // global-error, there's no `reset` function;
+  // regular error boundary, there's a `reset` function.
+  reset?: () => void
 }>
 
 export interface ErrorBoundaryProps {
@@ -52,10 +60,12 @@ interface ErrorBoundaryHandlerState {
 // function crashes so we can maintain our previous cache
 // instead of caching the error page
 function HandleISRError({ error }: { error: any }) {
-  const store = workAsyncStorage.getStore()
-  if (store?.isRevalidate || store?.isStaticGeneration) {
-    console.error(error)
-    throw error
+  if (workAsyncStorage) {
+    const store = workAsyncStorage.getStore()
+    if (store?.isRevalidate || store?.isStaticGeneration) {
+      console.error(error)
+      throw error
+    }
   }
 
   return null
@@ -155,11 +165,10 @@ export function GlobalError({ error }: { error: any }) {
         <div style={styles.error}>
           <div>
             <h2 style={styles.text}>
-              {`Application error: a ${
-                digest ? 'server' : 'client'
-              }-side exception has occurred (see the ${
-                digest ? 'server logs' : 'browser console'
-              } for more information).`}
+              Application error: a {digest ? 'server' : 'client'}-side exception
+              has occurred while loading {window.location.hostname} (see the{' '}
+              {digest ? 'server logs' : 'browser console'} for more
+              information).
             </h2>
             {digest ? <p style={styles.text}>{`Digest: ${digest}`}</p> : null}
           </div>

@@ -21,7 +21,6 @@ import {
   getDefineEnv,
 } from '../webpack/plugins/define-env-plugin'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
-import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -33,6 +32,7 @@ import type {
   HmrIdentifiers,
   Project,
   ProjectOptions,
+  RawEntrypoints,
   Route,
   TurboEngineOptions,
   TurbopackResult,
@@ -41,6 +41,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
+import { TurbopackInternalError } from '../../shared/lib/turbopack/utils'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -440,6 +441,58 @@ function bindingToApi(
     callback: (err: Error, value: T) => void
   ) => Promise<{ __napiType: 'RootTask' }>
 
+  type NapiEndpoint = { __napiType: 'Endpoint' }
+
+  type NapiEntrypoints = {
+    routes: NapiRoute[]
+    middleware?: NapiMiddleware
+    instrumentation?: NapiInstrumentation
+    pagesDocumentEndpoint: NapiEndpoint
+    pagesAppEndpoint: NapiEndpoint
+    pagesErrorEndpoint: NapiEndpoint
+  }
+
+  type NapiMiddleware = {
+    endpoint: NapiEndpoint
+    runtime: 'nodejs' | 'edge'
+    matcher?: string[]
+  }
+
+  type NapiInstrumentation = {
+    nodeJs: NapiEndpoint
+    edge: NapiEndpoint
+  }
+
+  type NapiRoute = {
+    pathname: string
+  } & (
+    | {
+        type: 'page'
+        htmlEndpoint: NapiEndpoint
+        dataEndpoint: NapiEndpoint
+      }
+    | {
+        type: 'page-api'
+        endpoint: NapiEndpoint
+      }
+    | {
+        type: 'app-page'
+        pages: {
+          originalName: string
+          htmlEndpoint: NapiEndpoint
+          rscEndpoint: NapiEndpoint
+        }[]
+      }
+    | {
+        type: 'app-route'
+        originalName: string
+        endpoint: NapiEndpoint
+      }
+    | {
+        type: 'conflict'
+      }
+  )
+
   const cancel = new (class Cancel extends Error {})()
 
   /**
@@ -586,59 +639,20 @@ function bindingToApi(
       )
     }
 
+    async writeAllEntrypointsToDisk(
+      appDirOnly: boolean
+    ): Promise<TurbopackResult<RawEntrypoints>> {
+      return await withErrorCause(async () => {
+        const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
+          this._nativeProject,
+          appDirOnly
+        )) as TurbopackResult<NapiEntrypoints>
+
+        return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      })
+    }
+
     entrypointsSubscribe() {
-      type NapiEndpoint = { __napiType: 'Endpoint' }
-
-      type NapiEntrypoints = {
-        routes: NapiRoute[]
-        middleware?: NapiMiddleware
-        instrumentation?: NapiInstrumentation
-        pagesDocumentEndpoint: NapiEndpoint
-        pagesAppEndpoint: NapiEndpoint
-        pagesErrorEndpoint: NapiEndpoint
-      }
-
-      type NapiMiddleware = {
-        endpoint: NapiEndpoint
-        runtime: 'nodejs' | 'edge'
-        matcher?: string[]
-      }
-
-      type NapiInstrumentation = {
-        nodeJs: NapiEndpoint
-        edge: NapiEndpoint
-      }
-
-      type NapiRoute = {
-        pathname: string
-      } & (
-        | {
-            type: 'page'
-            htmlEndpoint: NapiEndpoint
-            dataEndpoint: NapiEndpoint
-          }
-        | {
-            type: 'page-api'
-            endpoint: NapiEndpoint
-          }
-        | {
-            type: 'app-page'
-            pages: {
-              originalName: string
-              htmlEndpoint: NapiEndpoint
-              rscEndpoint: NapiEndpoint
-            }[]
-          }
-        | {
-            type: 'app-route'
-            originalName: string
-            endpoint: NapiEndpoint
-          }
-        | {
-            type: 'conflict'
-          }
-      )
-
       const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
         false,
         async (callback) =>
@@ -646,86 +660,7 @@ function bindingToApi(
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          const routes = new Map()
-          for (const { pathname, ...nativeRoute } of entrypoints.routes) {
-            let route: Route
-            const routeType = nativeRoute.type
-            switch (routeType) {
-              case 'page':
-                route = {
-                  type: 'page',
-                  htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
-                  dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
-                }
-                break
-              case 'page-api':
-                route = {
-                  type: 'page-api',
-                  endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'app-page':
-                route = {
-                  type: 'app-page',
-                  pages: nativeRoute.pages.map((page) => ({
-                    originalName: page.originalName,
-                    htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
-                    rscEndpoint: new EndpointImpl(page.rscEndpoint),
-                  })),
-                }
-                break
-              case 'app-route':
-                route = {
-                  type: 'app-route',
-                  originalName: nativeRoute.originalName,
-                  endpoint: new EndpointImpl(nativeRoute.endpoint),
-                }
-                break
-              case 'conflict':
-                route = {
-                  type: 'conflict',
-                }
-                break
-              default:
-                const _exhaustiveCheck: never = routeType
-                invariant(
-                  nativeRoute,
-                  () => `Unknown route type: ${_exhaustiveCheck}`
-                )
-            }
-            routes.set(pathname, route)
-          }
-          const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
-            endpoint: new EndpointImpl(middleware.endpoint),
-            runtime: middleware.runtime,
-            matcher: middleware.matcher,
-          })
-          const middleware = entrypoints.middleware
-            ? napiMiddlewareToMiddleware(entrypoints.middleware)
-            : undefined
-          const napiInstrumentationToInstrumentation = (
-            instrumentation: NapiInstrumentation
-          ) => ({
-            nodeJs: new EndpointImpl(instrumentation.nodeJs),
-            edge: new EndpointImpl(instrumentation.edge),
-          })
-          const instrumentation = entrypoints.instrumentation
-            ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
-            : undefined
-          yield {
-            routes,
-            middleware,
-            instrumentation,
-            pagesDocumentEndpoint: new EndpointImpl(
-              entrypoints.pagesDocumentEndpoint
-            ),
-            pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
-            pagesErrorEndpoint: new EndpointImpl(
-              entrypoints.pagesErrorEndpoint
-            ),
-            issues: entrypoints.issues,
-            diagnostics: entrypoints.diagnostics,
-          }
+          yield napiEntrypointsToRawEntrypoints(entrypoints)
         }
       })()
     }
@@ -978,6 +913,90 @@ function bindingToApi(
           )
         }
       }
+    }
+  }
+
+  function napiEntrypointsToRawEntrypoints(
+    entrypoints: TurbopackResult<NapiEntrypoints>
+  ): TurbopackResult<RawEntrypoints> {
+    const routes = new Map()
+    for (const { pathname, ...nativeRoute } of entrypoints.routes) {
+      let route: Route
+      const routeType = nativeRoute.type
+      switch (routeType) {
+        case 'page':
+          route = {
+            type: 'page',
+            htmlEndpoint: new EndpointImpl(nativeRoute.htmlEndpoint),
+            dataEndpoint: new EndpointImpl(nativeRoute.dataEndpoint),
+          }
+          break
+        case 'page-api':
+          route = {
+            type: 'page-api',
+            endpoint: new EndpointImpl(nativeRoute.endpoint),
+          }
+          break
+        case 'app-page':
+          route = {
+            type: 'app-page',
+            pages: nativeRoute.pages.map((page) => ({
+              originalName: page.originalName,
+              htmlEndpoint: new EndpointImpl(page.htmlEndpoint),
+              rscEndpoint: new EndpointImpl(page.rscEndpoint),
+            })),
+          }
+          break
+        case 'app-route':
+          route = {
+            type: 'app-route',
+            originalName: nativeRoute.originalName,
+            endpoint: new EndpointImpl(nativeRoute.endpoint),
+          }
+          break
+        case 'conflict':
+          route = {
+            type: 'conflict',
+          }
+          break
+        default:
+          const _exhaustiveCheck: never = routeType
+          invariant(
+            nativeRoute,
+            () => `Unknown route type: ${_exhaustiveCheck}`
+          )
+      }
+      routes.set(pathname, route)
+    }
+    const napiMiddlewareToMiddleware = (middleware: NapiMiddleware) => ({
+      endpoint: new EndpointImpl(middleware.endpoint),
+      runtime: middleware.runtime,
+      matcher: middleware.matcher,
+    })
+    const middleware = entrypoints.middleware
+      ? napiMiddlewareToMiddleware(entrypoints.middleware)
+      : undefined
+    const napiInstrumentationToInstrumentation = (
+      instrumentation: NapiInstrumentation
+    ) => ({
+      nodeJs: new EndpointImpl(instrumentation.nodeJs),
+      edge: new EndpointImpl(instrumentation.edge),
+    })
+    const instrumentation = entrypoints.instrumentation
+      ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+      : undefined
+
+    return {
+      routes,
+      middleware,
+      instrumentation,
+      pagesDocumentEndpoint: new EndpointImpl(
+        entrypoints.pagesDocumentEndpoint
+      ),
+      pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
+      pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
+      issues: entrypoints.issues,
+      diagnostics: entrypoints.diagnostics,
     }
   }
 
@@ -1290,7 +1309,10 @@ export function transformSync(src: string, options?: any): any {
   return bindings.transformSync(src, options)
 }
 
-export async function minify(src: string, options: any): Promise<string> {
+export async function minify(
+  src: string,
+  options: any
+): Promise<{ code: string; map: any }> {
   let bindings = await loadBindings()
   return bindings.minify(src, options)
 }

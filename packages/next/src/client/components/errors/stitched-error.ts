@@ -1,19 +1,13 @@
 import React from 'react'
 import isError from '../../../lib/is-error'
+import { copyNextErrorCode } from '../../../lib/error-telemetry-utils'
 
 const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
-const captureOwnerStack = (React as any).captureOwnerStack
-  ? (React as any).captureOwnerStack
-  : () => ''
-
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  if (typeof (React as any).captureOwnerStack !== 'function') {
-    return err
-  }
   const isErrorInstance = isError(err)
   const originStack = isErrorInstance ? err.stack || '' : ''
   const originMessage = isErrorInstance ? err.message : ''
@@ -29,6 +23,7 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
   const newError = new Error(originMessage)
   // Copy all enumerable properties, e.g. digest
   Object.assign(newError, err)
+  copyNextErrorCode(err, newError)
   newError.stack = newStack
 
   // Avoid duplicate overriding stack frames
@@ -38,9 +33,13 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
 }
 
 function appendOwnerStack(error: Error) {
+  if (!React.captureOwnerStack) {
+    return
+  }
   let stack = error.stack || ''
+  // This module is only bundled in development mode so this is safe.
+  const ownerStack = React.captureOwnerStack()
   // Avoid duplicate overriding stack frames
-  const ownerStack = captureOwnerStack()
   if (ownerStack && stack.endsWith(ownerStack) === false) {
     stack += ownerStack
     // Override stack

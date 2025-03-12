@@ -49,7 +49,7 @@ pub async fn get_next_client_transforms_rules(
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
-    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
@@ -73,13 +73,17 @@ pub async fn get_next_client_transforms_rules(
         }
         ClientContextType::App { .. } => {
             is_app_dir = true;
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                encryption_key,
-                enable_mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Client,
+                    encryption_key,
+                    enable_mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };

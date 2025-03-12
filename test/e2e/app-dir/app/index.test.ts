@@ -18,6 +18,9 @@ describe('app dir - basic', () => {
       dependencies: {
         nanoid: '4.0.1',
       },
+      env: {
+        NEXT_PUBLIC_TEST_ID: Date.now() + '',
+      },
     })
 
   if (isNextStart) {
@@ -65,15 +68,6 @@ describe('app dir - basic', () => {
   }
 
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
-    it('should not have loader generated function for edge runtime', async () => {
-      expect(
-        await next.readFile('.next/server/app/dashboard/page.js')
-      ).not.toContain('_stringifiedConfig')
-      expect(await next.readFile('.next/server/middleware.js')).not.toContain(
-        '_middlewareConfig'
-      )
-    })
-
     if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
       it('should have correct size in build output', async () => {
         expect(next.cliOutput).toMatch(
@@ -172,28 +166,32 @@ describe('app dir - basic', () => {
     })
   }
 
-  it('should encode chunk path correctly', async () => {
-    await next.fetch('/dynamic-client/first/second')
-    const browser = await next.browser('/')
-    const requests = []
-    browser.on('request', (req) => {
-      requests.push(req.url())
-    })
+  // Turbopack has different chunking in dev/production which results in the entrypoint name not being included in the outputs.
+  if (!process.env.TURBOPACK) {
+    it('should encode chunk path correctly', async () => {
+      await next.fetch('/dynamic-client/first/second')
+      const browser = await next.browser('/')
+      const requests = []
+      browser.on('request', (req) => {
+        requests.push(req.url())
+      })
 
-    await browser.eval('window.location.href = "/dynamic-client/first/second"')
-
-    await check(async () => {
-      return requests.some(
-        (req) =>
-          req.includes(
-            encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-          ) && req.includes('.js')
+      await browser.eval(
+        'window.location.href = "/dynamic-client/first/second"'
       )
-        ? 'found'
-        : // When it fails will log out the paths.
-          JSON.stringify(requests)
-    }, 'found')
-  })
+
+      await browser.waitForElementByCss('#id-page-params')
+
+      expect(
+        requests.some(
+          (req) =>
+            req.includes(
+              encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
+            ) && req.includes('.js')
+        )
+      ).toBe(true)
+    })
+  }
 
   it.each([
     { pathname: '/redirect-1' },
@@ -1793,4 +1791,34 @@ describe('app dir - basic', () => {
       })
     }
   })
+
+  // this one comes at the end to not change behavior from above
+  // assertions with compile mode specifically
+  // consider breaking out into separate fixture if we expand this any more
+  if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+    it('should run generate command correctly', async () => {
+      await next.stop()
+
+      next.buildCommand = `pnpm next build --experimental-build-mode=generate`
+      await next.start()
+
+      let browser = await next.browser('/')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+
+      browser = await next.browser('/dashboard/deployments/123')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+    })
+  }
 })

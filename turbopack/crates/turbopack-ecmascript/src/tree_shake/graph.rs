@@ -10,7 +10,7 @@ use petgraph::{
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{comments::Comments, util::take::Take, Spanned, SyntaxContext, DUMMY_SP},
+    common::{comments::Comments, util::take::Take, BytePos, Spanned, SyntaxContext, DUMMY_SP},
     ecma::{
         ast::{
             op, ClassDecl, Decl, DefaultDecl, EsReserved, ExportAll, ExportDecl,
@@ -19,7 +19,7 @@ use swc_core::{
             Lit, Module, ModuleDecl, ModuleExportName, ModuleItem, NamedExport, ObjectLit, Prop,
             PropName, PropOrSpread, Stmt, Str, VarDecl, VarDeclKind, VarDeclarator,
         },
-        atoms::JsWord,
+        atoms::Atom,
         utils::{find_pat_ids, private_ident, quote_ident, ExprCtx, ExprExt},
     },
 };
@@ -44,9 +44,11 @@ pub(crate) enum ItemId {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
+    /// Used only for testing
+    #[cfg(test)]
     ModuleEvaluation,
     /// `(local, export_name)``
-    Export(Id, JsWord),
+    Export(Id, Atom),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -109,7 +111,7 @@ pub(crate) struct ItemData {
 
     pub content: ModuleItem,
 
-    pub export: Option<JsWord>,
+    pub export: Option<Atom>,
 
     /// This value denotes the module specifier of the [ImportDecl] that declares this
     /// [ItemId].
@@ -130,6 +132,8 @@ pub(crate) struct ItemData {
 
     /// Server actions breaks when we merge exports.
     pub disable_export_merging: bool,
+
+    pub is_module_evaluation: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -145,6 +149,8 @@ impl fmt::Debug for ItemData {
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
             .field("explicit_deps", &self.explicit_deps)
+            .field("disable_export_merging", &self.disable_export_merging)
+            .field("is_module_evaluation", &self.is_module_evaluation)
             .finish()
     }
 }
@@ -165,6 +171,7 @@ impl Default for ItemData {
             binding_source: Default::default(),
             explicit_deps: Default::default(),
             disable_export_merging: Default::default(),
+            is_module_evaluation: Default::default(),
         }
     }
 }
@@ -328,6 +335,8 @@ impl DepGraph {
                 .clone()
         };
 
+        let mut module_evaluation_ix = None;
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -389,10 +398,10 @@ impl DepGraph {
                 }
             }
 
-            for item in group {
-                match item {
+            for item_id in group {
+                match item_id {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
+                        if let Some(export) = &data[item_id].export {
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -418,11 +427,14 @@ impl DepGraph {
                             ));
                         }
                     }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        outputs.insert(Key::ModuleEvaluation, ix as u32);
-                    }
 
-                    _ => {}
+                    _ => {
+                        if data[item_id].is_module_evaluation {
+                            debug_assert_eq!(module_evaluation_ix, None);
+                            module_evaluation_ix = Some(ix as u32);
+                            outputs.insert(Key::ModuleEvaluation, ix as u32);
+                        }
+                    }
                 }
             }
 
@@ -685,6 +697,31 @@ impl DepGraph {
         }
 
         modules.push(exports_module);
+
+        // Currently we need to have `Key::ModuleEvaluation` in the outputs
+        // even if it is empty.
+        if module_evaluation_ix.is_none() {
+            outputs.insert(Key::ModuleEvaluation, modules.len() as u32);
+            module_evaluation_ix = Some(modules.len() as u32);
+            modules.push(Module {
+                span: DUMMY_SP,
+                body: vec![],
+                shebang: None,
+            });
+        }
+
+        // Push `export {}` to the module evaluation to make it module.
+        modules[module_evaluation_ix.unwrap() as usize]
+            .body
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                NamedExport {
+                    span: DUMMY_SP,
+                    specifiers: Default::default(),
+                    src: None,
+                    type_only: false,
+                    with: None,
+                },
+            )));
 
         SplitModuleResult {
             entrypoints: outputs,
@@ -1222,7 +1259,10 @@ impl DepGraph {
                         ids.push(id.clone());
 
                         let has_explicit_pure = match &decl.init {
-                            Some(e) => comments.has_flag(e.span().lo, "PURE"),
+                            Some(e) => {
+                                e.span().lo == BytePos::PURE
+                                    || comments.has_flag(e.span().lo, "PURE")
+                            }
                             _ => false,
                         };
 
@@ -1246,10 +1286,11 @@ impl DepGraph {
                         let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
                                 || decl.init.as_deref().is_some_and(|e| {
-                                    e.may_have_side_effects(&ExprCtx {
+                                    e.may_have_side_effects(ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
                                         in_strict: false,
+                                        remaining_depth: 4,
                                     })
                                 }));
 
@@ -1364,22 +1405,6 @@ impl DepGraph {
                     items.insert(id, data);
                 }
             }
-        }
-
-        {
-            // `module evaluation side effects` Node
-            let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
-            ids.push(id.clone());
-            items.insert(
-                id,
-                ItemData {
-                    content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: "module evaluation".into(),
-                    })),
-                    ..Default::default()
-                },
-            );
         }
 
         for (local, export_name, disable_export_merging) in exports {
@@ -1638,7 +1663,7 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
 }
 /// givin a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
-pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
+pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =
         b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$_";
 
@@ -1670,8 +1695,8 @@ pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> JsWord {
 
     let s = unsafe {
         // Safety: We are only using ascii characters
-        // Safety: The stack memory for ret is alive while creating JsWord
-        JsWord::from(std::str::from_utf8_unchecked(&ret))
+        // Safety: The stack memory for ret is alive while creating Atom
+        Atom::from(std::str::from_utf8_unchecked(&ret))
     };
 
     if skip_reserved

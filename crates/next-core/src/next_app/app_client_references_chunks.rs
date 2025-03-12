@@ -5,17 +5,19 @@ use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{
-        availability_info::AvailabilityInfo, ChunkableModules, ChunkingContext, ChunkingContextExt,
-    },
+    chunk::{availability_info::AvailabilityInfo, ChunkingContext},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
 };
 
 use crate::{
     next_client_reference::{
-        visit_client_reference::ClientReferenceGraphResult, ClientReferenceType,
+        ecmascript_client_reference::ecmascript_client_reference_module::{
+            ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT, ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR,
+        },
+        visit_client_reference::ClientReferenceGraphResult,
+        ClientReferenceType,
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
@@ -57,88 +59,92 @@ pub async fn get_app_client_references_chunks(
         let separate_chunk_group_per_client_reference = false;
         let app_client_references = app_client_references.await?;
         if separate_chunk_group_per_client_reference {
-            let app_client_references_chunks: Vec<(_, (_, Option<_>))> = app_client_references
-                .client_references
-                .iter()
-                .map(|client_reference| async move {
-                    let client_reference_ty = client_reference.ty();
-                    Ok((
-                        client_reference_ty,
-                        match client_reference_ty {
-                            ClientReferenceType::EcmascriptClientReference(
-                                ecmascript_client_reference,
-                            ) => {
-                                let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
+            todo!();
+            // let app_client_references_chunks: Vec<(_, (_, Option<_>))> = app_client_references
+            //     .client_references
+            //     .iter()
+            //     .map(|client_reference| async move {
+            //         let client_reference_ty = client_reference.ty();
+            //         Ok((
+            //             client_reference_ty,
+            //             match client_reference_ty {
+            //                 ClientReferenceType::EcmascriptClientReference(
+            //                     ecmascript_client_reference,
+            //                 ) => {
+            //                     let ecmascript_client_reference_ref =
+            //                         ecmascript_client_reference.await?;
 
-                                let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(
-                                        *ResolvedVc::upcast(
-                                            ecmascript_client_reference_ref.client_module,
-                                        ),
-                                        module_graph,
-                                    )
-                                    .await?;
+            //                     let client_chunk_group = client_chunking_context
+            //                         .root_chunk_group(
+            //                             module_graph,
+            //                             *ResolvedVc::upcast(
+            //                                 ecmascript_client_reference_ref.client_module,
+            //                             ),
+            //                         )
+            //                         .await?;
 
-                                (
-                                    (
-                                        client_chunk_group.assets,
-                                        client_chunk_group.availability_info,
-                                    ),
-                                    if let Some(ssr_chunking_context) = ssr_chunking_context {
-                                        let ssr_chunk_group = ssr_chunking_context
-                                            .root_chunk_group(
-                                                *ResolvedVc::upcast(
-                                                    ecmascript_client_reference_ref.ssr_module,
-                                                ),
-                                                module_graph,
-                                            )
-                                            .await?;
+            //                     (
+            //                         (
+            //                             client_chunk_group.assets,
+            //                             client_chunk_group.availability_info,
+            //                         ),
+            //                         if let Some(ssr_chunking_context) = ssr_chunking_context {
+            //                             let ssr_chunk_group = ssr_chunking_context
+            //                                 .root_chunk_group(
+            //                                     *ResolvedVc::upcast(
+            //                                         ecmascript_client_reference_ref.ssr_module,
+            //                                     ),
+            //                                     module_graph,
+            //                                 )
+            //                                 .await?;
 
-                                        Some((
-                                            ssr_chunk_group.assets,
-                                            ssr_chunk_group.availability_info,
-                                        ))
-                                    } else {
-                                        None
-                                    },
-                                )
-                            }
-                            ClientReferenceType::CssClientReference(css_module) => {
-                                let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(*ResolvedVc::upcast(css_module), module_graph)
-                                    .await?;
+            //                             Some((
+            //                                 ssr_chunk_group.assets,
+            //                                 ssr_chunk_group.availability_info,
+            //                             ))
+            //                         } else {
+            //                             None
+            //                         },
+            //                     )
+            //                 }
+            //                 ClientReferenceType::CssClientReference(css_client_reference) => {
+            //                     let client_chunk_group = client_chunking_context
+            //                         .root_chunk_group(
+            //                             *ResolvedVc::upcast(css_client_reference),
+            //                             module_graph,
+            //                         )
+            //                         .await?;
 
-                                (
-                                    (
-                                        client_chunk_group.assets,
-                                        client_chunk_group.availability_info,
-                                    ),
-                                    None,
-                                )
-                            }
-                        },
-                    ))
-                })
-                .try_join()
-                .await?;
+            //                     (
+            //                         (
+            //                             client_chunk_group.assets,
+            //                             client_chunk_group.availability_info,
+            //                         ),
+            //                         None,
+            //                     )
+            //                 }
+            //             },
+            //         ))
+            //     })
+            //     .try_join()
+            //     .await?;
 
-            Ok(ClientReferencesChunks {
-                client_component_client_chunks: app_client_references_chunks
-                    .iter()
-                    .map(|&(client_reference_ty, (client_chunks, _))| {
-                        (client_reference_ty, client_chunks)
-                    })
-                    .collect(),
-                client_component_ssr_chunks: app_client_references_chunks
-                    .iter()
-                    .flat_map(|&(client_reference_ty, (_, ssr_chunks))| {
-                        ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
-                    })
-                    .collect(),
-                layout_segment_client_chunks: FxIndexMap::default(),
-            }
-            .cell())
+            // Ok(ClientReferencesChunks {
+            //     client_component_client_chunks: app_client_references_chunks
+            //         .iter()
+            //         .map(|&(client_reference_ty, (client_chunks, _))| {
+            //             (client_reference_ty, client_chunks)
+            //         })
+            //         .collect(),
+            //     client_component_ssr_chunks: app_client_references_chunks
+            //         .iter()
+            //         .flat_map(|&(client_reference_ty, (_, ssr_chunks))| {
+            //             ssr_chunks.map(|ssr_chunks| (client_reference_ty, ssr_chunks))
+            //         })
+            //         .collect(),
+            //     layout_segment_client_chunks: FxIndexMap::default(),
+            // }
+            // .cell())
         } else {
             let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
                 FxIndexMap::default();
@@ -163,6 +169,8 @@ pub async fn get_app_client_references_chunks(
                 list.extend(framework_reference_types);
             }
 
+            let chunk_group_info = module_graph.chunk_group_info();
+
             let mut current_client_availability_info = client_availability_info.into_value();
             let mut current_client_chunks = OutputAssets::empty().to_resolved().await?;
             let mut current_ssr_availability_info = AvailabilityInfo::Root;
@@ -175,6 +183,12 @@ pub async fn get_app_client_references_chunks(
             for (server_component, client_reference_types) in
                 client_references_by_server_component.into_iter()
             {
+                let parent_chunk_group = *chunk_group_info
+                    .get_index_of(ChunkGroup::Shared(ResolvedVc::upcast(
+                        server_component.await?.module,
+                    )))
+                    .await?;
+
                 let base_ident = server_component.ident();
 
                 let server_path = server_component.server_path();
@@ -191,7 +205,7 @@ pub async fn get_app_client_references_chunks(
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
 
-                                Some(*ResolvedVc::upcast(
+                                Some(ResolvedVc::upcast(
                                     ecmascript_client_reference_ref.ssr_module,
                                 ))
                             }
@@ -209,9 +223,13 @@ pub async fn get_app_client_references_chunks(
                         )
                         .entered();
 
-                        ssr_chunking_context.chunk_group_multiple(
+                        ssr_chunking_context.chunk_group(
                             base_ident.with_modifier(ssr_modules_modifier()),
-                            ChunkableModules::interned(ssr_modules),
+                            ChunkGroup::IsolatedMerged {
+                                parent: parent_chunk_group,
+                                merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_SSR.clone(),
+                                entries: ssr_modules,
+                            },
                             module_graph,
                             Value::new(current_ssr_availability_info),
                         )
@@ -227,12 +245,10 @@ pub async fn get_app_client_references_chunks(
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
                             ) => {
-                                let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
-                                *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
+                                ResolvedVc::upcast(ecmascript_client_reference.await?.client_module)
                             }
-                            ClientReferenceType::CssClientReference(css_module) => {
-                                *ResolvedVc::upcast(*css_module)
+                            ClientReferenceType::CssClientReference(css_client_reference) => {
+                                ResolvedVc::upcast(*css_client_reference)
                             }
                         })
                     })
@@ -245,9 +261,13 @@ pub async fn get_app_client_references_chunks(
                     )
                     .entered();
 
-                    Some(client_chunking_context.chunk_group_multiple(
+                    Some(client_chunking_context.chunk_group(
                         base_ident.with_modifier(client_modules_modifier()),
-                        ChunkableModules::interned(client_modules),
+                        ChunkGroup::IsolatedMerged {
+                            parent: parent_chunk_group,
+                            merge_tag: ECMASCRIPT_CLIENT_REFERENCE_MERGE_TAG_CLIENT.clone(),
+                            entries: client_modules,
+                        },
                         module_graph,
                         Value::new(current_client_availability_info),
                     ))

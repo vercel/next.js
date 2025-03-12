@@ -5,6 +5,9 @@ import {
   CachedRouteKind,
   IncrementalCacheKind,
   type CachedFetchValue,
+  type IncrementalCacheValue,
+  type SetIncrementalFetchCacheContext,
+  type SetIncrementalResponseCacheContext,
 } from '../../response-cache'
 
 import { LRUCache } from '../lru-cache'
@@ -106,12 +109,16 @@ export default class FileSystemCache implements CacheHandler {
 
   public async get(...args: Parameters<CacheHandler['get']>) {
     const [key, ctx] = args
-    const { tags, softTags, kind, isRoutePPREnabled, isFallback } = ctx
+    const { kind } = ctx
 
     let data = memoryCache?.get(key)
 
     if (this.debug) {
-      console.log('get', key, tags, kind, !!data)
+      if (kind === IncrementalCacheKind.FETCH) {
+        console.log('get', key, ctx.tags, kind, !!data)
+      } else {
+        console.log('get', key, kind, !!data)
+      }
     }
 
     // let's check the disk for seed data
@@ -157,6 +164,8 @@ export default class FileSystemCache implements CacheHandler {
         const { mtime } = await this.fs.stat(filePath)
 
         if (kind === IncrementalCacheKind.FETCH) {
+          const { tags, fetchIdx, fetchUrl } = ctx
+
           if (!this.flushToDisk) return null
 
           const lastModified = mtime.getTime()
@@ -177,8 +186,10 @@ export default class FileSystemCache implements CacheHandler {
                 console.log('tags vs storedTags mismatch', tags, storedTags)
               }
               await this.set(key, data.value, {
+                fetchCache: true,
                 tags,
-                isRoutePPREnabled,
+                fetchIdx,
+                fetchUrl,
               })
             }
           }
@@ -208,9 +219,7 @@ export default class FileSystemCache implements CacheHandler {
             await Promise.all(
               meta.segmentPaths.map(async (segmentPath: string) => {
                 const segmentDataFilePath = this.getFilePath(
-                  segmentPath === '/'
-                    ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                    : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                  segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
                   IncrementalCacheKind.APP_PAGE
                 )
                 try {
@@ -228,10 +237,10 @@ export default class FileSystemCache implements CacheHandler {
           }
 
           let rscData: Buffer | undefined
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             rscData = await this.fs.readFile(
               this.getFilePath(
-                `${key}${isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
+                `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
                 IncrementalCacheKind.APP_PAGE
               )
             )
@@ -253,7 +262,7 @@ export default class FileSystemCache implements CacheHandler {
           let meta: RouteMetadata | undefined
           let pageData: string | object = {}
 
-          if (!isFallback) {
+          if (!ctx.isFallback) {
             pageData = JSON.parse(
               await this.fs.readFile(
                 this.getFilePath(
@@ -317,7 +326,10 @@ export default class FileSystemCache implements CacheHandler {
         }
       }
     } else if (data?.value?.kind === CachedRouteKind.FETCH) {
-      const combinedTags = [...(tags || []), ...(softTags || [])]
+      const combinedTags =
+        ctx.kind === IncrementalCacheKind.FETCH
+          ? [...(ctx.tags || []), ...(ctx.softTags || [])]
+          : []
 
       const wasRevalidated = combinedTags.some((tag) => {
         if (this.revalidatedTags.includes(tag)) {
@@ -340,9 +352,11 @@ export default class FileSystemCache implements CacheHandler {
     return data ?? null
   }
 
-  public async set(...args: Parameters<CacheHandler['set']>) {
-    const [key, data, ctx] = args
-    const { isFallback } = ctx
+  public async set(
+    key: string,
+    data: IncrementalCacheValue | null,
+    ctx: SetIncrementalFetchCacheContext | SetIncrementalResponseCacheContext
+  ) {
     memoryCache?.set(key, {
       value: data,
       lastModified: Date.now(),
@@ -390,7 +404,7 @@ export default class FileSystemCache implements CacheHandler {
       writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!isFallback) {
+      if (!ctx.fetchCache && !ctx.isFallback) {
         writer.append(
           this.getFilePath(
             `${key}${
@@ -420,10 +434,7 @@ export default class FileSystemCache implements CacheHandler {
           for (const [segmentPath, buffer] of data.segmentData) {
             segmentPaths.push(segmentPath)
             const segmentDataFilePath =
-              segmentPath === '/'
-                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-
+              segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
             writer.append(segmentDataFilePath, buffer)
           }
         }
@@ -446,7 +457,7 @@ export default class FileSystemCache implements CacheHandler {
         filePath,
         JSON.stringify({
           ...data,
-          tags: ctx.tags,
+          tags: ctx.fetchCache ? ctx.tags : [],
         })
       )
     }

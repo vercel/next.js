@@ -1,6 +1,6 @@
 # Items
 
-Count: 7
+Count: 6
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -55,11 +55,9 @@ graph TD
     Item3;
     Item4;
     Item5;
-    Item5["ModuleEvaluation"];
+    Item5["export GET"];
     Item6;
-    Item6["export GET"];
-    Item7;
-    Item7["export runtime"];
+    Item6["export runtime"];
 ```
 # Phase 2
 ```mermaid
@@ -69,14 +67,12 @@ graph TD
     Item3;
     Item4;
     Item5;
-    Item5["ModuleEvaluation"];
+    Item5["export GET"];
     Item6;
-    Item6["export GET"];
-    Item7;
-    Item7["export runtime"];
+    Item6["export runtime"];
     Item3 --> Item2;
-    Item6 --> Item3;
-    Item7 --> Item4;
+    Item5 --> Item3;
+    Item6 --> Item4;
 ```
 # Phase 3
 ```mermaid
@@ -86,14 +82,12 @@ graph TD
     Item3;
     Item4;
     Item5;
-    Item5["ModuleEvaluation"];
+    Item5["export GET"];
     Item6;
-    Item6["export GET"];
-    Item7;
-    Item7["export runtime"];
+    Item6["export runtime"];
     Item3 --> Item2;
-    Item6 --> Item3;
-    Item7 --> Item4;
+    Item5 --> Item3;
+    Item6 --> Item4;
 ```
 # Phase 4
 ```mermaid
@@ -103,15 +97,12 @@ graph TD
     Item3;
     Item4;
     Item5;
-    Item5["ModuleEvaluation"];
+    Item5["export GET"];
     Item6;
-    Item6["export GET"];
-    Item7;
-    Item7["export runtime"];
+    Item6["export runtime"];
     Item3 --> Item2;
-    Item6 --> Item3;
-    Item7 --> Item4;
-    Item5 --> Item1;
+    Item5 --> Item3;
+    Item6 --> Item4;
 ```
 # Final
 ```mermaid
@@ -120,23 +111,21 @@ graph TD
     N1["Items: [ItemId(0, ImportBinding(0))]"];
     N2["Items: [ItemId(1, VarDeclarator(0)), ItemId(Export((&quot;GET&quot;, #2), &quot;GET&quot;))]"];
     N3["Items: [ItemId(2, VarDeclarator(0)), ItemId(Export((&quot;runtime&quot;, #2), &quot;runtime&quot;))]"];
-    N4["Items: [ItemId(ModuleEvaluation)]"];
     N2 --> N1;
     N1 --> N0;
-    N4 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "runtime",
-    ): 3,
+    ModuleEvaluation: 0,
     Export(
         "GET",
     ): 2,
+    Export(
+        "runtime",
+    ): 3,
+    Exports: 4,
 }
 ```
 
@@ -145,6 +134,7 @@ graph TD
 ## Part 0
 ```js
 import "next/server";
+export { };
 
 ```
 ## Part 1
@@ -186,14 +176,6 @@ export { runtime as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
-
-```
-## Part 5
-```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
 };
@@ -204,24 +186,22 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
+import "next/server";
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "runtime",
-    ): 3,
+    ModuleEvaluation: 0,
     Export(
         "GET",
     ): 2,
+    Export(
+        "runtime",
+    ): 3,
+    Exports: 4,
 }
 ```
 
@@ -230,6 +210,7 @@ import "__TURBOPACK_PART__" assert {
 ## Part 0
 ```js
 import "next/server";
+export { };
 
 ```
 ## Part 1
@@ -271,14 +252,6 @@ export { runtime as c } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
-
-```
-## Part 5
-```js
 export { GET } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export GET"
 };
@@ -289,9 +262,7 @@ export { runtime } from "__TURBOPACK_PART__" assert {
 ```
 ## Merged (module eval)
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-"module evaluation";
+import "next/server";
+export { };
 
 ```

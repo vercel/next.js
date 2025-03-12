@@ -190,7 +190,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
             self.cwd,
             self.env,
             self.server_root.join(path.clone()).to_resolved().await?,
-            entry.module,
+            ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             self.fallback_page,
             entry.chunking_context,
@@ -234,7 +234,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                     result_op,
                     ProxyResult {
                         status,
-                        headers: headers.await?.clone_value(),
+                        headers: headers.owned().await?,
                         body: body.clone(),
                     }
                     .resolved_cell(),

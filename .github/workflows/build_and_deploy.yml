@@ -13,7 +13,7 @@ env:
   NODE_LTS_VERSION: 20
   CARGO_PROFILE_RELEASE_LTO: 'true'
   TURBO_TEAM: 'vercel'
-  TURBO_REMOTE_ONLY: 'true'
+  TURBO_CACHE: 'remote:rw'
 
 jobs:
   deploy-target:
@@ -29,7 +29,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
       - name: Determine deploy target
         # 'force-preview' performs a full preview build but only if acknowledged i.e. workflow_dispatch
         # 'automated-preview' for pushes on branches other than 'canary' for integration testing.
@@ -70,7 +73,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - uses: actions/checkout@v4
         with:
@@ -140,8 +146,8 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -153,8 +159,8 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host:
@@ -166,8 +172,8 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host:
@@ -180,8 +186,8 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               corepack enable
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -225,6 +231,7 @@ jobs:
               rustup show &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static' &&
               cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip native/next-swc.*.node
 
@@ -266,6 +273,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup show &&
               rustup target add aarch64-unknown-linux-musl &&
+              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Zunstable-options -Csymbol-mangling-version=v0 -Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker' &&
               cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x native/next-swc.*.node
 
@@ -296,7 +304,11 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # we always want to run this to set environment variables
       - name: Install Rust
@@ -326,7 +338,7 @@ jobs:
       # issues with turbo caching
       - name: pull build cache
         if: ${{ matrix.settings.docker }}
-        run: npm i -g turbo@${{ env.TURBO_VERSION }} && node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
+        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
         if: ${{ matrix.settings.docker }}
@@ -335,11 +347,11 @@ jobs:
 
       - name: Build in docker
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_REMOTE_ONLY -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
+        run: docker run -v "/var/run/docker.sock":"/var/run/docker.sock" -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry -v ${{ github.workspace }}:/build -w /build --entrypoint=bash ${{ matrix.settings.docker }} -c "${{ matrix.settings.build }}"
 
       - name: cache build
         if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm turbo run cache-build-native --force -- ${{ matrix.settings.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run cache-build-native --force -- ${{ matrix.settings.target }}
 
       - name: 'Build'
         run: ${{ matrix.settings.build }}
@@ -415,8 +427,6 @@ jobs:
         with:
           targets: wasm32-unknown-unknown
 
-      - run: npm i -g turbo@${{ env.TURBO_VERSION }}
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
@@ -426,7 +436,7 @@ jobs:
       - name: Build
         # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
         # TODO: we should add the relevant envs later to to switch to strict mode
-        run: turbo run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run build-wasm -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ matrix.target }}
 
       - name: Add target to folder name
         run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
@@ -458,7 +468,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -518,7 +531,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -576,7 +592,10 @@ jobs:
         with:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - uses: ./.github/actions/setup-rust
         with:

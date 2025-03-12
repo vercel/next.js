@@ -17,7 +17,7 @@ export default async function Blog({
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const slug = (await params).slug;
+  const { slug } = await params;
   const post = getPosts().find((post) => post.slug === slug);
 
   if (!post) {

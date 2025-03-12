@@ -41,6 +41,7 @@ import {
   VIEWPORT_BOUNDARY_NAME,
   OUTLET_BOUNDARY_NAME,
 } from '../../lib/metadata/metadata-constants'
+import { scheduleOnNextTick } from '../../lib/scheduler'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -518,6 +519,35 @@ export function createPostponedAbortSignal(reason: string): AbortSignal {
   return controller.signal
 }
 
+/**
+ * In a prerender, we may end up with hanging Promises as inputs due them
+ * stalling on connection() or because they're loading dynamic data. In that
+ * case we need to abort the encoding of arguments since they'll never complete.
+ */
+export function createHangingInputAbortSignal(
+  workUnitStore: PrerenderStoreModern
+): AbortSignal {
+  const controller = new AbortController()
+
+  if (workUnitStore.cacheSignal) {
+    // If we have a cacheSignal it means we're in a prospective render. If the input
+    // we're waiting on is coming from another cache, we do want to wait for it so that
+    // we can resolve this cache entry too.
+    workUnitStore.cacheSignal.inputReady().then(() => {
+      controller.abort()
+    })
+  } else {
+    // Otherwise we're in the final render and we should already have all our caches
+    // filled. We might still be waiting on some microtasks so we wait one tick before
+    // giving up. When we give up, we still want to render the content of this cache
+    // as deeply as we can so that we can suspend as deeply as possible in the tree
+    // or not at all if we don't end up waiting for the input.
+    scheduleOnNextTick(() => controller.abort())
+  }
+
+  return controller.signal
+}
+
 export function annotateDynamicAccess(
   expression: string,
   prerenderStore: PrerenderStoreModern
@@ -534,35 +564,33 @@ export function annotateDynamicAccess(
 }
 
 export function useDynamicRouteParams(expression: string) {
-  if (typeof window === 'undefined') {
-    const workStore = workAsyncStorage.getStore()
+  const workStore = workAsyncStorage.getStore()
 
-    if (
-      workStore &&
-      workStore.isStaticGeneration &&
-      workStore.fallbackRouteParams &&
-      workStore.fallbackRouteParams.size > 0
-    ) {
-      // There are fallback route params, we should track these as dynamic
-      // accesses.
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        // We're prerendering with dynamicIO or PPR or both
-        if (workUnitStore.type === 'prerender') {
-          // We are in a prerender with dynamicIO semantics
-          // We are going to hang here and never resolve. This will cause the currently
-          // rendering component to effectively be a dynamic hole
-          React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
-        } else if (workUnitStore.type === 'prerender-ppr') {
-          // We're prerendering with PPR
-          postponeWithTracking(
-            workStore.route,
-            expression,
-            workUnitStore.dynamicTracking
-          )
-        } else if (workUnitStore.type === 'prerender-legacy') {
-          throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
-        }
+  if (
+    workStore &&
+    workStore.isStaticGeneration &&
+    workStore.fallbackRouteParams &&
+    workStore.fallbackRouteParams.size > 0
+  ) {
+    // There are fallback route params, we should track these as dynamic
+    // accesses.
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      // We're prerendering with dynamicIO or PPR or both
+      if (workUnitStore.type === 'prerender') {
+        // We are in a prerender with dynamicIO semantics
+        // We are going to hang here and never resolve. This will cause the currently
+        // rendering component to effectively be a dynamic hole
+        React.use(makeHangingPromise(workUnitStore.renderSignal, expression))
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // We're prerendering with PPR
+        postponeWithTracking(
+          workStore.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
       }
     }
   }

@@ -29,6 +29,7 @@ fn main() {
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
+        .disable_lifo_slot()
         .build()
         .unwrap()
         .block_on(main_inner(args))

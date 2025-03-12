@@ -1,6 +1,7 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::borrow::Cow;
 
 use anyhow::Result;
+use either::Either;
 use next_core::{
     next_client_reference::{
         find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
@@ -9,9 +10,11 @@ use next_core::{
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     context::AssetContext,
@@ -58,8 +61,8 @@ impl NextDynamicGraph {
         // This would clone the graph and allow changing the node weights. We can probably get away
         // with keeping the sidecar information separate from the graph itself, though.
         //
-        // let mut reduced_modules: HashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
-        // HashMap::new(); let mut reduced_graph = DiGraph::new();
+        // let mut reduced_modules: FxHashMap<Vc<Box<dyn Module>>, NodeIndex<u32>> =
+        // FxHashMap::default(); let mut reduced_graph = DiGraph::new();
         // for idx in graph.node_indices() {
         //     let weight = *graph.node_weight(idx).unwrap();
         //     let new_idx = reduced_graph.add_node(weight);
@@ -99,20 +102,20 @@ impl NextDynamicGraph {
                 InClientReference(ClientReferenceType),
             }
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(vec![]));
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut result = vec![];
 
             // module -> the client reference entry (if any)
-            let mut state_map = HashMap::new();
+            let mut state_map = FxHashMap::default();
             graph.traverse_edges_from_entries(entries, |parent_info, node| {
                 let module = node.module;
                 let Some((parent_node, _)) = parent_info else {
@@ -205,12 +208,12 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
-                if !graph.entries.contains(&entry) {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(Vc::cell(Default::default()));
                 }
 
-                let mut result = HashMap::new();
+                let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
                         result.insert(node.module, *node_data);
@@ -290,14 +293,14 @@ impl ClientReferencesGraph {
             let data = &*self.data.await?;
             let graph = &*self.graph.await?;
 
-            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
-                if !graph.entries.contains(&entry) {
+            let entries = if !self.is_single_page {
+                if !graph.entry_modules().any(|m| m == entry) {
                     // the graph doesn't contain the entry, e.g. for the additional module graph
                     return Ok(ClientReferenceGraphResult::default().cell());
                 }
-                &[entry]
+                Either::Left(std::iter::once(entry))
             } else {
-                &graph.entries
+                Either::Right(graph.entry_modules())
             };
 
             let mut client_references = FxIndexSet::default();
@@ -309,9 +312,9 @@ impl ClientReferencesGraph {
             graph.traverse_edges_from_entries_topological(
                 entries,
                 // state_map is `module -> Option< the current so parent server component >`
-                &mut HashMap::new(),
+                &mut FxHashMap::default(),
                 |parent_info, node, state_map| {
-                    let module = node.module;
+                    let module = node.module();
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -344,7 +347,7 @@ impl ClientReferencesGraph {
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module) {
+                    match data.get(&node.module()) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,
@@ -501,10 +504,10 @@ impl ReducedGraphs {
                     .server_actions
                     .iter()
                     .map(|graph| async move {
-                        Ok(graph
+                        graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
-                            .await?
-                            .clone_value())
+                            .owned()
+                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -529,8 +532,8 @@ impl ReducedGraphs {
                 // Just a single graph, no need to merge results
                 graph
                     .get_client_references_for_endpoint(entry)
+                    .owned()
                     .await?
-                    .clone_value()
             } else {
                 let results = self
                     .client_references
@@ -543,8 +546,9 @@ impl ReducedGraphs {
                     .try_join()
                     .await?;
 
-                let mut result = results[0].clone_value();
-                for r in results.into_iter().skip(1) {
+                let mut iter = results.into_iter();
+                let mut result = ReadRef::into_owned(iter.next().unwrap());
+                for r in iter {
                     result.extend(&r);
                 }
                 result
@@ -587,10 +591,12 @@ pub async fn get_reduced_graphs_for_endpoint(
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
     let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
-    let result_vc = result_op.connect();
-    if !is_single_page {
-        result_vc.strongly_consistent().await?;
+    let result_vc = if !is_single_page {
+        let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
-    }
+        *result_vc
+    } else {
+        result_op.connect()
+    };
     Ok(result_vc)
 }

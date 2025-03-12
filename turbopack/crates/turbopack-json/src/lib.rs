@@ -14,7 +14,7 @@ use std::fmt::Write;
 use anyhow::{bail, Error, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, FileJsonContent};
+use turbo_tasks_fs::{glob::Glob, FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -23,9 +23,12 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     source::Source,
 };
-use turbopack_ecmascript::chunk::{
-    EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
-    EcmascriptExports,
+use turbopack_ecmascript::{
+    chunk::{
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
+        EcmascriptChunkType, EcmascriptExports,
+    },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
 };
 
 #[turbo_tasks::function]
@@ -83,6 +86,11 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports::Value.cell()
     }
+
+    #[turbo_tasks::function]
+    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value]
@@ -119,11 +127,6 @@ impl ChunkItem for JsonChunkItem {
 #[turbo_tasks::value_impl]
 impl EcmascriptChunkItem for JsonChunkItem {
     #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         // We parse to JSON and then stringify again to ensure that the
         // JSON is valid.
@@ -132,8 +135,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
         match &*data {
             FileJsonContent::Content(data) => {
                 let js_str_content = serde_json::to_string(&data.to_string())?;
-                let inner_code =
-                    format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
+                let inner_code = format!("{TURBOPACK_EXPORT_VALUE}(JSON.parse({js_str_content}));");
 
                 Ok(EcmascriptChunkItemContent {
                     inner_code: inner_code.into(),

@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     error::Error,
     fs,
     path::PathBuf,
@@ -13,6 +12,7 @@ use call_resolver::CallResolver;
 use clap::Parser;
 use identifier::{Identifier, IdentifierReference};
 use itertools::Itertools;
+use rustc_hash::{FxHashMap, FxHashSet};
 use syn::visit::Visit;
 use visitor::CallingStyleVisitor;
 
@@ -75,8 +75,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 /// search the given folders recursively and attempt to find all tasks inside
 #[tracing::instrument(skip_all)]
-fn get_all_tasks(folders: &[PathBuf]) -> HashMap<Identifier, Vec<String>> {
-    let mut out = HashMap::new();
+fn get_all_tasks(folders: &[PathBuf]) -> FxHashMap<Identifier, Vec<String>> {
+    let mut out = FxHashMap::default();
 
     for folder in folders {
         let walker = ignore::Walk::new(folder);
@@ -139,18 +139,18 @@ fn get_all_tasks(folders: &[PathBuf]) -> HashMap<Identifier, Vec<String>> {
 
 /// Given a list of tasks, get all the tasks that call that one
 fn resolve_tasks(
-    tasks: &mut HashMap<Identifier, Vec<String>>,
+    tasks: &mut FxHashMap<Identifier, Vec<String>>,
     client: &mut CallResolver,
     halt: Arc<AtomicBool>,
-) -> HashMap<Identifier, Vec<IdentifierReference>> {
+) -> FxHashMap<Identifier, Vec<IdentifierReference>> {
     tracing::info!(
         "found {} tasks, of which {} cached",
         tasks.len(),
         client.cached_count()
     );
 
-    let mut unresolved = tasks.keys().cloned().collect::<HashSet<_>>();
-    let mut resolved = HashMap::new();
+    let mut unresolved = tasks.keys().cloned().collect::<FxHashSet<_>>();
+    let mut resolved = FxHashMap::default();
 
     while let Some(top) = unresolved.iter().next().cloned() {
         unresolved.remove(&top);
@@ -183,8 +183,8 @@ fn resolve_tasks(
 /// returns a list of pairs with a task, the task that calls it, and the calling
 /// style
 fn resolve_concurrency(
-    task_list: &HashMap<Identifier, Vec<String>>,
-    dep_tree: &HashMap<Identifier, Vec<IdentifierReference>>, // pairs of tasks and call trees
+    task_list: &FxHashMap<Identifier, Vec<String>>,
+    dep_tree: &FxHashMap<Identifier, Vec<IdentifierReference>>, // pairs of tasks and call trees
     halt: Arc<AtomicBool>,
 ) -> Vec<(Identifier, Identifier, CallingStyle)> {
     // println!("{:?}", dep_tree);
@@ -240,13 +240,13 @@ fn resolve_concurrency(
 
 /// Write the dep tree into the given file using cypher syntax
 fn write_dep_tree(
-    task_list: &HashMap<Identifier, Vec<String>>,
+    task_list: &FxHashMap<Identifier, Vec<String>>,
     dep_tree: Vec<(Identifier, Identifier, CallingStyle)>,
     out: &std::path::Path,
 ) {
     use std::io::Write;
 
-    let mut node_ids = HashMap::new();
+    let mut node_ids = FxHashMap::default();
     let mut counter = 0;
 
     let mut file = std::fs::File::create(out).unwrap();
@@ -259,7 +259,7 @@ fn write_dep_tree(
         .iter()
         .flat_map(|(dest, src, _)| [(src, &empty), (dest, &empty)])
         .chain(task_list)
-        .collect::<HashMap<_, _>>();
+        .collect::<FxHashMap<_, _>>();
 
     for (ident, tags) in node_list {
         counter += 1;

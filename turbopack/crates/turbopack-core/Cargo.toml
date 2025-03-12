@@ -2,7 +2,7 @@
 name = "turbopack-core"
 version = "0.1.0"
 description = "TBD"
-license = "MPL-2.0"
+license = "MIT"
 edition = "2021"
 autobenches = false
 
@@ -17,6 +17,8 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 browserslist-rs = { workspace = true }
+const_format = { workspace = true }
+data-encoding = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
@@ -31,6 +33,7 @@ regex = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
+smallvec = { workspace = true }
 sourcemap = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
 tracing = { workspace = true }
@@ -40,6 +43,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+urlencoding = { workspace = true }
 
 [build-dependencies]
 turbo-tasks-build = { workspace = true }

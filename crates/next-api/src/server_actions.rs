@@ -1,7 +1,4 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    io::Write,
-};
+use std::{collections::BTreeMap, io::Write};
 
 use anyhow::{bail, Context, Result};
 use next_core::{
@@ -31,7 +28,10 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
+    module_graph::{
+        async_module_info::AsyncModulesInfo, ModuleGraph, SingleModuleGraph,
+        SingleModuleGraphModuleNode,
+    },
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -76,7 +76,15 @@ pub(crate) async fn create_server_actions_manifest(
         .await?;
 
     let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
-    let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
+    let manifest = build_manifest(
+        node_root,
+        page_name,
+        runtime,
+        actions,
+        chunk_item,
+        module_graph.async_module_info(),
+    )
+    .await?;
     Ok(ServerActionsManifest {
         loader: evaluable,
         manifest,
@@ -152,6 +160,7 @@ async fn build_manifest(
     runtime: NextRuntime,
     actions: Vc<AllActions>,
     chunk_item: Vc<Box<dyn ChunkItem>>,
+    async_module_info: Vc<AsyncModulesInfo>,
 ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
     let manifest_path = node_root
@@ -175,7 +184,7 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: ActionManifestModuleId::String(loader_id.as_str()),
-                is_async: *chunk_item.module().is_self_async().await?,
+                is_async: *async_module_info.is_async(chunk_item.module()).await?,
             },
         );
         entry.layer.insert(&key, *layer);
@@ -227,10 +236,7 @@ pub fn parse_server_actions(
         comments.iter().find_map(|c| {
             c.text
                 .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| match serde_json::from_str(actions) {
-                    Ok(v) => Some(v),
-                    Err(_) => None,
-                })
+                .and_then(|(_, actions)| serde_json::from_str(actions).ok())
         })
     })
 }
@@ -248,7 +254,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
     if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
     {
         if matches!(
-            &*module.await?.part.await?,
+            module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
         ) {
             return Ok(Vc::cell(None));
@@ -399,7 +405,7 @@ struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 type LayerAndActions = (ActionLayer, ResolvedVc<ActionMap>);
 /// A mapping of every module module containing Server Actions, mapping to its layer and actions.
 #[turbo_tasks::value(transparent)]
-pub struct AllModuleActions(HashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
+pub struct AllModuleActions(FxIndexMap<ResolvedVc<Box<dyn Module>>, LayerAndActions>);
 
 #[turbo_tasks::function]
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {

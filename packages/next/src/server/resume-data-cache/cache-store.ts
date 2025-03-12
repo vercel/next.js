@@ -8,7 +8,10 @@ import type { CachedFetchValue } from '../response-cache/types'
 /**
  * A generic cache store type that provides a subset of Map functionality
  */
-type CacheStore<T> = Pick<Map<string, T>, 'entries' | 'size' | 'get' | 'set'>
+type CacheStore<T> = Pick<
+  Map<string, T>,
+  'entries' | 'keys' | 'size' | 'get' | 'set'
+>
 
 /**
  * A cache store specifically for fetch cache values
@@ -19,6 +22,12 @@ export type FetchCacheStore = CacheStore<CachedFetchValue>
  * A cache store for encrypted bound args of inline server functions.
  */
 export type EncryptedBoundArgsCacheStore = CacheStore<string>
+
+/**
+ * An in-memory-only cache store for decrypted bound args of inline server
+ * functions.
+ */
+export type DecryptedBoundArgsCacheStore = CacheStore<string>
 
 /**
  * Serialized format for "use cache" entries

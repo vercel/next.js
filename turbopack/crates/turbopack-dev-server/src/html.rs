@@ -10,12 +10,11 @@ use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupType, ChunkableModule, ChunkingContext,
+        ChunkingContextExt, EvaluatableAssets,
     },
-    ident::AssetIdent,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -49,8 +48,8 @@ fn dev_html_chunk_reference_description() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for DevHtmlAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(*self.path)
+    fn path(&self) -> Vc<FileSystemPath> {
+        *self.path
     }
 
     #[turbo_tasks::function]
@@ -102,14 +101,14 @@ impl DevHtmlAsset {
 impl DevHtmlAsset {
     #[turbo_tasks::function]
     pub async fn with_path(self: Vc<Self>, path: ResolvedVc<FileSystemPath>) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.path = path;
         Ok(html.cell())
     }
 
     #[turbo_tasks::function]
     pub async fn with_body(self: Vc<Self>, body: RcStr) -> Result<Vc<Self>> {
-        let mut html: DevHtmlAsset = self.await?.clone_value();
+        let mut html: DevHtmlAsset = self.owned().await?;
         html.body = Some(body);
         Ok(html.cell())
     }
@@ -123,7 +122,7 @@ impl DevHtmlAsset {
         let context_path = this.path.parent().await?;
         let mut chunk_paths = vec![];
         for chunk in &*self.chunks().await? {
-            let chunk_path = &*chunk.ident().path().await?;
+            let chunk_path = &*chunk.path().await?;
             if let Some(relative_path) = context_path.get_path_to(chunk_path) {
                 chunk_paths.push(format!("/{relative_path}").into());
             }
@@ -146,16 +145,15 @@ impl DevHtmlAsset {
                 } = entry;
 
                 let assets = if let Some(runtime_entries) = runtime_entries {
-                    let runtime_entries = if let Some(evaluatable) =
-                        ResolvedVc::try_downcast(chunkable_module).await?
-                    {
-                        runtime_entries
-                            .with_entry(*evaluatable)
-                            .to_resolved()
-                            .await?
-                    } else {
-                        runtime_entries
-                    };
+                    let runtime_entries =
+                        if let Some(evaluatable) = ResolvedVc::try_downcast(chunkable_module) {
+                            runtime_entries
+                                .with_entry(*evaluatable)
+                                .to_resolved()
+                                .await?
+                        } else {
+                            runtime_entries
+                        };
                     chunking_context.evaluated_chunk_group_assets(
                         chunkable_module.ident(),
                         *runtime_entries,
@@ -164,7 +162,11 @@ impl DevHtmlAsset {
                     )
                 } else {
                     chunking_context.root_chunk_group_assets(
-                        *ResolvedVc::upcast(chunkable_module),
+                        chunkable_module.ident(),
+                        ChunkGroup::Entry {
+                            entries: vec![ResolvedVc::upcast(chunkable_module)],
+                            ty: ChunkGroupType::Evaluated,
+                        },
                         *module_graph,
                     )
                 };

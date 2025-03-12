@@ -1,21 +1,22 @@
 use std::{
     iter,
     mem::{replace, take},
+    sync::Arc,
 };
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
     ecma::{
         ast::*,
-        atoms::js_word,
+        atoms::atom,
         utils::contains_ident_ref,
         visit::{fields::*, *},
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
 use super::{
@@ -295,6 +296,7 @@ pub struct EvalContext {
     pub(crate) unresolved_mark: Mark,
     pub(crate) top_level_mark: Mark,
     pub(crate) imports: ImportMap,
+    pub(crate) force_free_values: Arc<FxHashSet<Id>>,
 }
 
 impl EvalContext {
@@ -305,13 +307,15 @@ impl EvalContext {
         module: &Program,
         unresolved_mark: Mark,
         top_level_mark: Mark,
+        force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
-        source: Option<Vc<Box<dyn Source>>>,
+        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
             imports: ImportMap::analyze(module, source, comments),
+            force_free_values,
         }
     }
 
@@ -378,7 +382,7 @@ impl EvalContext {
         if let Some(imported) = self.imports.get_import(&id) {
             return imported;
         }
-        if is_unresolved(i, self.unresolved_mark) {
+        if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
             JsValue::FreeVar(i.sym.clone())
         } else {
             JsValue::Variable(id)
@@ -658,7 +662,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = Box::new(JsValue::FreeVar(js_word!("import")));
+                let callee = Box::new(JsValue::FreeVar(atom!("import")));
 
                 JsValue::call(callee, args)
             }
@@ -673,7 +677,7 @@ impl EvalContext {
                     .iter()
                     .map(|e| match e {
                         Some(e) => self.eval(&e.expr),
-                        _ => JsValue::FreeVar(js_word!("undefined")),
+                        _ => JsValue::FreeVar(atom!("undefined")),
                     })
                     .collect();
                 JsValue::array(arr)
@@ -1127,7 +1131,7 @@ impl Analyzer<'_> {
         match callee {
             Callee::Import(_) => {
                 self.add_effect(Effect::Call {
-                    func: Box::new(JsValue::FreeVar(js_word!("import"))),
+                    func: Box::new(JsValue::FreeVar(atom!("import"))),
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
@@ -1141,9 +1145,10 @@ impl Analyzer<'_> {
                     let prop_value = match prop {
                         // TODO avoid clone
                         MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
-                        MemberProp::PrivateName(_) => {
-                            return;
-                        }
+                        MemberProp::PrivateName(_) => Box::new(JsValue::unknown_empty(
+                            false,
+                            "private names in member expressions are not supported",
+                        )),
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
                             Box::new(self.eval_context.eval(expr))
                         }
@@ -1213,7 +1218,7 @@ impl Analyzer<'_> {
         let values = self.cur_fn_return_values.take().unwrap();
 
         Box::new(match values.len() {
-            0 => JsValue::FreeVar(js_word!("undefined")),
+            0 => JsValue::FreeVar(atom!("undefined")),
             1 => values.into_iter().next().unwrap(),
             _ => JsValue::alternatives(values),
         })
@@ -1793,7 +1798,7 @@ impl VisitAstPath for Analyzer<'_> {
                 .arg
                 .as_deref()
                 .map(|e| self.eval_context.eval(e))
-                .unwrap_or(JsValue::FreeVar(js_word!("undefined")));
+                .unwrap_or(JsValue::FreeVar(atom!("undefined")));
 
             values.push(return_value);
         }
@@ -1874,7 +1879,9 @@ impl VisitAstPath for Analyzer<'_> {
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
             })
-        } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
+        } else if is_unresolved(ident, self.eval_context.unresolved_mark)
+            || self.eval_context.force_free_values.contains(&ident.to_id())
+        {
             self.add_effect(Effect::FreeVar {
                 var: Box::new(JsValue::FreeVar(ident.sym.clone())),
                 ast_path: as_parent_path(ast_path),

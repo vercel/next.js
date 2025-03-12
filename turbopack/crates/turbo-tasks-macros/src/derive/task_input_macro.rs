@@ -112,7 +112,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
+                            let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
                         )*
                         Ok(#ident { #(#fields),* })
                     }
@@ -126,7 +126,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
                 quote! {
                     {
                         #(
-                            let #fields = turbo_tasks::TaskInput::resolve(#fields).await?;
+                            let #fields = turbo_tasks::TaskInput::resolve_input(#fields).await?;
                         )*
                         Ok(#ident(#(#fields),*))
                     }
@@ -169,7 +169,7 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
             #[allow(non_snake_case)]
             #[allow(unreachable_code)] // This can occur for enums with no variants.
             #[allow(clippy::manual_async_fn)] // some impls need the manual return type to work :(
-            fn resolve(
+            fn resolve_input(
                 &self,
             ) -> impl
                 ::std::future::Future<Output = turbo_tasks::Result<Self>> +

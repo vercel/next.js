@@ -71,6 +71,7 @@ function getBaseSWCOptions({
   bundleLayer,
   isDynamicIo,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -89,6 +90,7 @@ function getBaseSWCOptions({
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -210,15 +212,19 @@ function getBaseSWCOptions({
         ? {
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
           }
         : undefined,
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            isDevelopment: development,
+            useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
+            cacheKinds: ['default', 'remote'].concat(
+              cacheHandlers ? Object.keys(cacheHandlers) : []
+            ),
           }
         : undefined,
     // For app router we prefer to bundle ESM,
@@ -364,6 +370,7 @@ export function getLoaderSWCOptions({
   bundleLayer,
   esm,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   development: boolean
@@ -389,6 +396,7 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -407,6 +415,7 @@ export function getLoaderSWCOptions({
     esm: !!esm,
     isDynamicIo,
     cacheHandlers,
+    useCacheEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -504,7 +513,10 @@ export function getLoaderSWCOptions({
     options.cjsRequireOptimizer = undefined
     // Disable optimizer for node_modules in app browser layer, to avoid unnecessary replacement.
     // e.g. typeof window could result differently in js worker or browser.
-    if (options.jsc.transform.optimizer.globals?.typeofs) {
+    if (
+      options.jsc.transform.optimizer.globals?.typeofs &&
+      !filename.includes(nextDirname)
+    ) {
       delete options.jsc.transform.optimizer.globals.typeofs.window
     }
   }

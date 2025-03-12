@@ -37,7 +37,7 @@ import {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../lib/metadata/metadata-boundary'
+} from '../../client/components/metadata/metadata-boundary'
 
 import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 import { Postpone } from './rsc/postpone'
