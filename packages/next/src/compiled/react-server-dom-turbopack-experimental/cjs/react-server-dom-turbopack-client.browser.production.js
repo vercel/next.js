@@ -427,7 +427,10 @@ function processReply(
       parentReference = knownServerReferences.get(value);
       if (void 0 !== parentReference)
         return (
-          (key = JSON.stringify(parentReference, resolveToJSON)),
+          (key = JSON.stringify(
+            { id: parentReference.id, bound: parentReference.bound },
+            resolveToJSON
+          )),
           null === formData && (formData = new FormData()),
           (parentReference = nextPartId++),
           formData.set(formFieldPrefix + parentReference, key),
@@ -493,7 +496,12 @@ function processReply(
   };
 }
 function registerBoundServerReference(reference, id, bound) {
-  knownServerReferences.set(reference, { id: id, bound: bound });
+  knownServerReferences.has(reference) ||
+    knownServerReferences.set(reference, {
+      id: id,
+      originalBind: reference.bind,
+      bound: bound
+    });
 }
 function createBoundServerReference(metaData, callServer) {
   function action() {

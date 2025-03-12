@@ -10028,33 +10028,34 @@ function commitReconciliationEffects(finishedWork) {
   var flags = finishedWork.flags;
   if (flags & 2) {
     try {
-      a: {
-        for (var parent = finishedWork.return; null !== parent; ) {
-          if (isHostParent(parent)) {
-            var JSCompiler_inline_result = parent;
-            break a;
-          }
-          parent = parent.return;
+      for (
+        var hostParentFiber, parentFiber = finishedWork.return;
+        null !== parentFiber;
+
+      ) {
+        if (isHostParent(parentFiber)) {
+          hostParentFiber = parentFiber;
+          break;
         }
-        throw Error(formatProdErrorMessage(160));
+        parentFiber = parentFiber.return;
       }
-      switch (JSCompiler_inline_result.tag) {
+      if (null == hostParentFiber) throw Error(formatProdErrorMessage(160));
+      switch (hostParentFiber.tag) {
         case 27:
-          var parent$jscomp$0 = JSCompiler_inline_result.stateNode,
+          var parent = hostParentFiber.stateNode,
             before = getHostSibling(finishedWork);
-          insertOrAppendPlacementNode(finishedWork, before, parent$jscomp$0);
+          insertOrAppendPlacementNode(finishedWork, before, parent);
           break;
         case 5:
-          var parent$125 = JSCompiler_inline_result.stateNode;
-          JSCompiler_inline_result.flags & 32 &&
-            (setTextContent(parent$125, ""),
-            (JSCompiler_inline_result.flags &= -33));
+          var parent$125 = hostParentFiber.stateNode;
+          hostParentFiber.flags & 32 &&
+            (setTextContent(parent$125, ""), (hostParentFiber.flags &= -33));
           var before$126 = getHostSibling(finishedWork);
           insertOrAppendPlacementNode(finishedWork, before$126, parent$125);
           break;
         case 3:
         case 4:
-          var parent$127 = JSCompiler_inline_result.stateNode.containerInfo,
+          var parent$127 = hostParentFiber.stateNode.containerInfo,
             before$128 = getHostSibling(finishedWork);
           insertOrAppendPlacementNodeIntoContainer(
             finishedWork,
@@ -10272,6 +10273,8 @@ function recursivelyTraverseDisappearLayoutEffects(parentFiber) {
         break;
       case 30:
         safelyDetachRef(finishedWork, finishedWork.return);
+        recursivelyTraverseDisappearLayoutEffects(finishedWork);
+        break;
       default:
         recursivelyTraverseDisappearLayoutEffects(finishedWork);
     }
@@ -13669,10 +13672,17 @@ function commitRoot(
           flushLayoutEffects,
           flushAfterMutationEffects,
           flushSpawnedWork,
-          flushPassiveEffects
+          flushPassiveEffects,
+          reportViewTransitionError
         )) ||
         (flushMutationEffects(), flushLayoutEffects(), flushSpawnedWork());
     }
+  }
+}
+function reportViewTransitionError(error) {
+  if (0 !== pendingEffectsStatus) {
+    var onRecoverableError = pendingEffectsRoot.onRecoverableError;
+    onRecoverableError(error, { componentStack: null });
   }
 }
 function flushAfterMutationEffects() {
@@ -14097,7 +14107,8 @@ function commitGestureOnRoot(root, finishedWork) {
         : finishedGesture.rangePrevious,
       pendingTransitionTypes,
       flushGestureMutations,
-      flushGestureAnimations
+      flushGestureAnimations,
+      reportViewTransitionError
     );
   }
 }
@@ -14725,20 +14736,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1796 = 0;
-  i$jscomp$inline_1796 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1796++
+  var i$jscomp$inline_1792 = 0;
+  i$jscomp$inline_1792 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1792++
 ) {
-  var eventName$jscomp$inline_1797 =
-      simpleEventPluginEvents[i$jscomp$inline_1796],
-    domEventName$jscomp$inline_1798 =
-      eventName$jscomp$inline_1797.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1799 =
-      eventName$jscomp$inline_1797[0].toUpperCase() +
-      eventName$jscomp$inline_1797.slice(1);
+  var eventName$jscomp$inline_1793 =
+      simpleEventPluginEvents[i$jscomp$inline_1792],
+    domEventName$jscomp$inline_1794 =
+      eventName$jscomp$inline_1793.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1795 =
+      eventName$jscomp$inline_1793[0].toUpperCase() +
+      eventName$jscomp$inline_1793.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1798,
-    "on" + capitalizedEvent$jscomp$inline_1799
+    domEventName$jscomp$inline_1794,
+    "on" + capitalizedEvent$jscomp$inline_1795
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -16742,6 +16753,22 @@ function cancelAllViewTransitionAnimations(scope) {
       anim.cancel();
   }
 }
+function customizeViewTransitionError(error) {
+  if ("object" === typeof error && null !== error)
+    switch (error.name) {
+      case "InvalidStateError":
+        if (
+          "View transition was skipped because document visibility state is hidden." ===
+            error.message ||
+          "Skipping view transition because document visibility state has become hidden." ===
+            error.message ||
+          "Skipping view transition because viewport size changed." ===
+            error.message
+        )
+          return null;
+    }
+  return error;
+}
 function startViewTransition(
   rootContainer,
   transitionTypes,
@@ -16749,7 +16776,8 @@ function startViewTransition(
   layoutCallback,
   afterMutationCallback,
   spawnedWorkCallback,
-  passiveCallback
+  passiveCallback,
+  errorCallback
 ) {
   var ownerDocument =
     9 === rootContainer.nodeType ? rootContainer : rootContainer.ownerDocument;
@@ -16792,8 +16820,15 @@ function startViewTransition(
       types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
-    transition.ready.then(spawnedWorkCallback, spawnedWorkCallback);
-    transition.finished.then(function () {
+    transition.ready.then(spawnedWorkCallback, function (error) {
+      try {
+        (error = customizeViewTransitionError(error)),
+          null !== error && errorCallback(error);
+      } finally {
+        spawnedWorkCallback();
+      }
+    });
+    transition.finished.finally(function () {
       cancelAllViewTransitionAnimations(ownerDocument.documentElement);
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
@@ -16878,7 +16913,8 @@ function startGestureTransition(
   rangeEnd,
   transitionTypes,
   mutationCallback,
-  animateCallback
+  animateCallback,
+  errorCallback
 ) {
   var ownerDocument =
     9 === rootContainer.nodeType ? rootContainer : rootContainer.ownerDocument;
@@ -16969,8 +17005,15 @@ function startGestureTransition(
               return requestAnimationFrame(readyCallback);
             }
           : readyCallback;
-    transition.ready.then(readyForAnimations, readyCallback);
-    transition.finished.then(function () {
+    transition.ready.then(readyForAnimations, function (error) {
+      try {
+        (error = customizeViewTransitionError(error)),
+          null !== error && errorCallback(error);
+      } finally {
+        readyCallback();
+      }
+    });
+    transition.finished.finally(function () {
       cancelAllViewTransitionAnimations(ownerDocument.documentElement);
       ownerDocument.__reactViewTransition === transition &&
         (ownerDocument.__reactViewTransition = null);
@@ -18750,16 +18793,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2057 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2053 = React.version;
 if (
-  "19.1.0-experimental-0ca3deeb-20250311" !==
-  isomorphicReactPackageVersion$jscomp$inline_2057
+  "19.1.0-experimental-6aa8254b-20250312" !==
+  isomorphicReactPackageVersion$jscomp$inline_2053
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2057,
-      "19.1.0-experimental-0ca3deeb-20250311"
+      isomorphicReactPackageVersion$jscomp$inline_2053,
+      "19.1.0-experimental-6aa8254b-20250312"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18779,24 +18822,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2642 = {
+var internals$jscomp$inline_2639 = {
   bundleType: 0,
-  version: "19.1.0-experimental-0ca3deeb-20250311",
+  version: "19.1.0-experimental-6aa8254b-20250312",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-0ca3deeb-20250311"
+  reconcilerVersion: "19.1.0-experimental-6aa8254b-20250312"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2643 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2640 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2643.isDisabled &&
-    hook$jscomp$inline_2643.supportsFiber
+    !hook$jscomp$inline_2640.isDisabled &&
+    hook$jscomp$inline_2640.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2643.inject(
-        internals$jscomp$inline_2642
+      (rendererID = hook$jscomp$inline_2640.inject(
+        internals$jscomp$inline_2639
       )),
-        (injectedHook = hook$jscomp$inline_2643);
+        (injectedHook = hook$jscomp$inline_2640);
     } catch (err) {}
 }
 function noop() {}
@@ -19049,7 +19092,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-experimental-0ca3deeb-20250311";
+exports.version = "19.1.0-experimental-6aa8254b-20250312";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
