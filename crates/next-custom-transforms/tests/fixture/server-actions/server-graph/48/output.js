@@ -30,9 +30,9 @@ export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$ca
       {b}
     </div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "cache",
-    "writable": false
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+    value: "cache",
+    writable: false
 });
 // Should be 1 110000 0, which is "e0" in hex.
 export var cache = registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);

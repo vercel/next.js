@@ -40,7 +40,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadata: React.ComponentType | null
   StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
@@ -92,8 +92,8 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadata: React.ComponentType | null
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -178,7 +178,7 @@ async function createComponentTreeInternal({
 
   const isLayout = typeof layout !== 'undefined'
   const isPage = typeof page !== 'undefined'
-  const { mod: layoutOrPageMod } = await getTracer().trace(
+  const { mod: layoutOrPageMod, modType } = await getTracer().trace(
     NextNodeServerSpan.getLayoutOrPageModule,
     {
       hideSpan: !(isLayout || isPage),
@@ -347,10 +347,10 @@ async function createComponentTreeInternal({
   if (process.env.NODE_ENV === 'development') {
     const { isValidElementType } = require('next/dist/compiled/react-is')
     if (
-      (isPage || typeof MaybeComponent !== 'undefined') &&
+      typeof MaybeComponent !== 'undefined' &&
       !isValidElementType(MaybeComponent)
     ) {
-      errorMissingDefaultExport(pagePath, 'page')
+      errorMissingDefaultExport(pagePath, modType ?? 'page')
     }
 
     if (
@@ -397,15 +397,20 @@ async function createComponentTreeInternal({
 
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
+  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
+
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY && StreamingMetadata ? (
-      <StreamingMetadata />
+    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+
+  // Use the same condition to render metadataOutlet as metadata
+  const metadataOutlet =
+    isNotDefaultSegment && StreamingMetadataOutlet ? (
+      <StreamingMetadataOutlet />
     ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
       <NotFound />
-      {metadata}
       {notFoundStyles}
     </>
   ) : undefined
@@ -413,7 +418,6 @@ async function createComponentTreeInternal({
   const forbiddenElement = Forbidden ? (
     <>
       <Forbidden />
-      {metadata}
       {forbiddenStyles}
     </>
   ) : undefined
@@ -421,7 +425,6 @@ async function createComponentTreeInternal({
   const unauthorizedElement = Unauthorized ? (
     <>
       <Unauthorized />
-      {metadata}
       {unauthorizedStyles}
     </>
   ) : undefined
@@ -521,8 +524,12 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata,
-            StreamingMetadataOutlet,
+            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
+            // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // but we only want to throw on the first one.
+            StreamingMetadataOutlet: isChildrenRouteKey
+              ? StreamingMetadataOutlet
+              : null,
           })
 
           childCacheNodeSeedData = seedData
@@ -709,8 +716,10 @@ async function createComponentTreeInternal({
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
+          {/* Blocking metadata outlet */}
           <MetadataOutlet ready={getMetadataReady} />
-          <StreamingMetadataOutlet />
+          {/* Streaming metadata outlet */}
+          {metadataOutlet}
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
@@ -846,7 +855,6 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
-                  {metadata}
                 </>
               ) : undefined
             }

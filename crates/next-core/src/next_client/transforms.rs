@@ -73,13 +73,17 @@ pub async fn get_next_client_transforms_rules(
         }
         ClientContextType::App { .. } => {
             is_app_dir = true;
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                encryption_key,
-                enable_mdx_rs,
-                use_cache_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    mode,
+                    ActionsTransform::Client,
+                    encryption_key,
+                    enable_mdx_rs,
+                    use_cache_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };

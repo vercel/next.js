@@ -564,7 +564,7 @@ describe('Required Server Files', () => {
         const res = await fetchViaHTTP(
           appPort,
           '/optional-ssp',
-          { rest: '', another: 'value' },
+          { nxtPrest: '', another: 'value' },
           {
             headers: {
               'x-matched-path': '/optional-ssp/[[...rest]]',
@@ -601,7 +601,7 @@ describe('Required Server Files', () => {
         const res = await fetchViaHTTP(
           appPort,
           '/api/optional',
-          { rest: '', another: 'value' },
+          { nxtPrest: '', another: 'value' },
           {
             headers: {
               'x-matched-path': '/api/optional/[[...rest]]',

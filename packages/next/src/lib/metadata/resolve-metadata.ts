@@ -215,7 +215,6 @@ function mergeMetadata({
       case 'facebook':
         target.facebook = resolveFacebook(source.facebook)
         break
-
       case 'verification':
         target.verification = resolveVerification(source.verification)
         break
@@ -272,6 +271,7 @@ function mergeMetadata({
       case 'referrer':
       case 'formatDetection':
       case 'manifest':
+      case 'pinterest':
         // @ts-ignore TODO: support inferring
         target[key] = source[key] || null
         break
@@ -327,10 +327,9 @@ function mergeViewport({
         target.colorScheme = source.colorScheme || null
         break
       default:
-        if (typeof source[key] !== 'undefined') {
-          // @ts-ignore viewport properties
-          target[key] = source[key]
-        }
+        // always override the target with the source
+        // @ts-ignore viewport properties
+        target[key] = source[key]
         break
     }
   }

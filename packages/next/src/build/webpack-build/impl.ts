@@ -1,7 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/utils/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -107,6 +107,7 @@ export async function webpackBuildImpl(
 
   const commonWebpackOptions = {
     isServer: false,
+    isCompileMode: NextBuildContext.isCompileMode,
     buildId: NextBuildContext.buildId!,
     encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
@@ -333,7 +334,9 @@ export async function webpackBuildImpl(
       err.code = 'INVALID_RESOLVE_ALIAS'
       throw err
     }
-    const err = new Error('Build failed because of webpack errors') as NextError
+    const err = new Error(
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+    ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {

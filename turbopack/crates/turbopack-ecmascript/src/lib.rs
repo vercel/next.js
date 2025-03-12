@@ -12,7 +12,6 @@ pub mod analyzer;
 pub mod annotations;
 pub mod async_chunk;
 pub mod chunk;
-pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
 pub mod magic_identifier;
@@ -68,7 +67,7 @@ use turbo_tasks::{
     trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
     Value, ValueToString, Vc,
 };
-use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
+use turbo_tasks_fs::{glob::Glob, rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -93,7 +92,7 @@ pub use turbopack_resolve::ecmascript as resolve;
 
 use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
-    chunk::EcmascriptChunkPlaceable,
+    chunk::{placeable::is_marked_as_side_effect_free, EcmascriptChunkPlaceable},
     code_gen::CodeGens,
     parse::generate_js_source_map,
     references::{
@@ -293,7 +292,7 @@ pub trait EcmascriptAnalyzable {
     /// transforming code that is not a module, e.g. runtime code.
     async fn module_content_without_analysis(
         self: Vc<Self>,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Result<Vc<EcmascriptModuleContent>>;
 
     async fn module_content(
@@ -397,7 +396,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
@@ -424,7 +423,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let analyze_ref = analyze.await?;
 
         let module_type_result = *self.determine_module_type().await?;
-        let generate_source_map = chunking_context.reference_module_source_maps(Vc::upcast(self));
+        let generate_source_map = *chunking_context
+            .reference_module_source_maps(Vc::upcast(self))
+            .await?;
 
         Ok(EcmascriptModuleContent::new(
             EcmascriptModuleContentOptions {
@@ -645,6 +646,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
     }
+
+    #[turbo_tasks::function]
+    async fn is_marked_as_side_effect_free(
+        self: Vc<Self>,
+        side_effect_free_packages: Vc<Glob>,
+    ) -> Result<Vc<bool>> {
+        // Check package.json first, so that we can skip parsing the module if it's marked that way.
+        let pkg_side_effect_free =
+            is_marked_as_side_effect_free(self.ident().path(), side_effect_free_packages);
+        Ok(if *pkg_side_effect_free.await? {
+            pkg_side_effect_free
+        } else {
+            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
+        })
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -767,7 +783,7 @@ pub struct EcmascriptModuleContentOptions {
     esm_references: Vc<EsmAssetReferences>,
     code_generation: Vc<CodeGens>,
     async_module: Vc<OptionAsyncModule>,
-    generate_source_map: Vc<bool>,
+    generate_source_map: bool,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
     exports: Vc<EcmascriptExports>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
@@ -808,7 +824,7 @@ impl EcmascriptModuleContent {
                 if let EcmascriptExports::EsmExports(exports) = *exports.await? {
                     Some(
                         exports
-                            .code_generation(module_graph, chunking_context)
+                            .code_generation(module_graph, chunking_context, *parsed)
                             .await?,
                     )
                 } else {
@@ -857,7 +873,7 @@ impl EcmascriptModuleContent {
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
-        generate_source_map: Vc<bool>,
+        generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
@@ -876,7 +892,7 @@ async fn gen_content_with_code_gens(
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: impl IntoIterator<Item = &CodeGeneration>,
-    generate_source_map: Vc<bool>,
+    generate_source_map: bool,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.final_read_hint().await?;
@@ -938,8 +954,6 @@ async fn gen_content_with_code_gens(
 
             let mut mappings = vec![];
 
-            let generate_source_map = *generate_source_map.await?;
-
             {
                 let comments = match comments {
                     Either::Left(comments) => Either::Left(comments.into_consumable()),
@@ -966,10 +980,11 @@ async fn gen_content_with_code_gens(
             }
 
             let source_map = if generate_source_map {
-                Some(
-                    generate_js_source_map(source_map.clone(), mappings, original_source_map)
-                        .await?,
-                )
+                Some(generate_js_source_map(
+                    source_map.clone(),
+                    mappings,
+                    original_source_map.await?.as_ref(),
+                )?)
             } else {
                 None
             };

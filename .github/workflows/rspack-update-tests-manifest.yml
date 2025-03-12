@@ -3,7 +3,7 @@ name: Update Rspack test manifest
 
 on:
   schedule:
-    # Every day at 9AM https://crontab.guru/#0_9_*_*_*
+    # Every day at 7AM https://crontab.guru/#0_7_*_*_*
     - cron: '0 7 * * *'
   workflow_dispatch:
 
@@ -41,7 +41,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
-          SCRIPT: test/build-rspack-dev-tests-manifest.js
+          # We need to use `--override` for rspack (but not for turbopack).
+          # We don't currently have any CI running on every PR, so it's quite
+          # possible for us to regress on tests. We need to skip the
+          # only-promote-to-passing merge logic.
+          SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite dev --override
           PR_TITLE: Update bundler development test manifest
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing alternative bundlers.
   update_build_manifest:
@@ -77,6 +81,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
-          SCRIPT: test/build-rspack-build-tests-manifest.js
+          SCRIPT: test/update-bundler-manifest.js --bundler rspack --test-suite build --override
           PR_TITLE: Update bundler production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing alternative bundlers.

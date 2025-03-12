@@ -49,6 +49,7 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
+import { blockCrossSite } from './router-utils/block-cross-site'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -164,6 +165,11 @@ export async function initialize(opts: {
 
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
+
+  const allowedOrigins = ['localhost', ...(config.allowedDevOrigins || [])]
+  if (opts.hostname) {
+    allowedOrigins.push(opts.hostname)
+  }
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
@@ -316,6 +322,9 @@ export async function initialize(opts: {
 
       // handle hot-reloader first
       if (developmentBundler) {
+        if (blockCrossSite(req, res, allowedOrigins, `${opts.port}`)) {
+          return
+        }
         const origUrl = req.url || '/'
 
         if (config.basePath && pathHasPrefix(origUrl, config.basePath)) {
@@ -625,8 +634,7 @@ export async function initialize(opts: {
     server: opts.server,
     serverFields: {
       ...(developmentBundler?.serverFields || {}),
-      setAppIsrStatus:
-        devBundlerService?.setAppIsrStatus.bind(devBundlerService),
+      setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
     } satisfies ServerFields,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
@@ -680,6 +688,9 @@ export async function initialize(opts: {
       })
 
       if (opts.dev && developmentBundler && req.url) {
+        if (blockCrossSite(req, socket, allowedOrigins, `${opts.port}`)) {
+          return
+        }
         const { basePath, assetPrefix } = config
 
         let hmrPrefix = basePath
@@ -710,7 +721,7 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.APP_ISR_MANIFEST,
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
                 } satisfies AppIsrManifestAction)
               )

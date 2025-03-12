@@ -16,6 +16,7 @@ use swc_core::{
     common::{
         comments::{Comment, CommentKind, Comments},
         errors::HANDLER,
+        source_map::PURE_SP,
         util::take::Take,
         BytePos, FileName, Mark, Span, SyntaxContext, DUMMY_SP,
     },
@@ -24,6 +25,7 @@ use swc_core::{
         utils::{private_ident, quote_ident, ExprFactory},
         visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
     },
+    quote,
 };
 use turbo_rcstr::RcStr;
 
@@ -31,6 +33,7 @@ use turbo_rcstr::RcStr;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
+    pub is_development: bool,
     pub use_cache_enabled: bool,
     pub hash_salt: String,
     pub cache_kinds: FxHashSet<RcStr>,
@@ -435,12 +438,7 @@ impl<C: Comments> ServerActions<C> {
             .push((action_name.clone(), action_id.clone()));
 
         let register_action_expr = bind_args_to_ref_expr(
-            annotate_ident_as_server_reference(
-                action_ident.clone(),
-                action_id.clone(),
-                arrow.span,
-                &self.comments,
-            ),
+            annotate_ident_as_server_reference(action_ident.clone(), action_id.clone(), arrow.span),
             ids_from_closure
                 .iter()
                 .cloned()
@@ -448,6 +446,7 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
+        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -570,7 +569,11 @@ impl<C: Comments> ServerActions<C> {
         new_params.append(&mut function.params);
 
         let action_name: Atom = self.gen_action_ident();
-        let action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
+        let mut action_ident = Ident::new(action_name.clone(), function.span, self.private_ctxt);
+        if action_ident.span.lo == self.start_pos {
+            action_ident.span = Span::dummy_with_cmt();
+        }
+
         let action_id = self.generate_server_reference_id(&action_name, false, Some(&new_params));
 
         self.has_action = true;
@@ -582,7 +585,6 @@ impl<C: Comments> ServerActions<C> {
                 action_ident.clone(),
                 action_id.clone(),
                 function.span,
-                &self.comments,
             ),
             ids_from_closure
                 .iter()
@@ -591,6 +593,7 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
+        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -691,7 +694,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
+        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
         let export_name: Atom = cache_name;
 
         let reference_id = self.generate_server_reference_id(&export_name, true, Some(&new_params));
@@ -766,8 +769,8 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             arrow.span,
-            &self.comments,
         );
+        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -826,7 +829,7 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let cache_name: Atom = self.gen_cache_ident();
-        let cache_ident = private_ident!(cache_name.clone());
+        let cache_ident = private_ident!(Span::dummy_with_cmt(), cache_name.clone());
 
         let reference_id = self.generate_server_reference_id(&cache_name, true, Some(&new_params));
 
@@ -838,8 +841,8 @@ impl<C: Comments> ServerActions<C> {
             cache_ident.clone(),
             reference_id.clone(),
             function.span,
-            &self.comments,
         );
+        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -1852,13 +1855,22 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             for (ident, export_name, ref_id) in self.exported_idents.iter() {
                 if !self.config.is_react_server_layer {
                     if export_name == "default" {
-                        self.comments.add_pure_comment(ident.span.lo);
-
                         let export_expr = ModuleItem::ModuleDecl(ModuleDecl::ExportDefaultExpr(
                             ExportDefaultExpr {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Call(CallExpr {
-                                    span: ident.span,
+                                    // In development we generate these spans for sourcemapping with
+                                    // better logs/errors
+                                    // For production this is not generated because it would leak
+                                    // server code when available from the browser.
+                                    span: if self.config.is_react_server_layer
+                                        || self.config.is_development
+                                    {
+                                        self.comments.add_pure_comment(ident.span.lo);
+                                        ident.span
+                                    } else {
+                                        PURE_SP
+                                    },
                                     callee: Callee::Expr(Box::new(Expr::Ident(
                                         create_ref_ident.clone(),
                                     ))),
@@ -1875,9 +1887,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         ));
                         new.push(export_expr);
                     } else {
-                        let call_expr_span = Span::dummy_with_cmt();
-                        self.comments.add_pure_comment(call_expr_span.lo);
-
                         let export_expr =
                             ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
                                 span: DUMMY_SP,
@@ -1887,10 +1896,25 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     decls: vec![VarDeclarator {
                                         span: DUMMY_SP,
                                         name: Pat::Ident(
-                                            IdentName::new(export_name.clone(), ident.span).into(),
+                                            IdentName::new(
+                                                export_name.clone(),
+                                                // In development we generate these spans for
+                                                // sourcemapping with better logs/errors
+                                                // For production this is not generated because it
+                                                // would leak server code when available from the
+                                                // browser.
+                                                if self.config.is_react_server_layer
+                                                    || self.config.is_development
+                                                {
+                                                    ident.span
+                                                } else {
+                                                    DUMMY_SP
+                                                },
+                                            )
+                                            .into(),
                                         ),
                                         init: Some(Box::new(Expr::Call(CallExpr {
-                                            span: call_expr_span,
+                                            span: PURE_SP,
                                             callee: Callee::Expr(Box::new(Expr::Ident(
                                                 create_ref_ident.clone(),
                                             ))),
@@ -1917,9 +1941,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.clone(),
                             ref_id.clone(),
                             ident.span,
-                            &self.comments,
                         )),
                     }));
+                    add_turbopack_disable_export_merging_comment(ident.span, &self.comments);
                 }
             }
 
@@ -2272,48 +2296,19 @@ fn create_var_declarator(ident: &Ident, extra_items: &mut Vec<ModuleItem>) {
 
 fn assign_name_to_ident(ident: &Ident, name: &str, extra_items: &mut Vec<ModuleItem>) {
     // Assign a name with `Object.defineProperty($$ACTION_0, 'name', {value: 'default'})`
-    extra_items.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-        span: DUMMY_SP,
-        expr: Box::new(Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                span: DUMMY_SP,
-                obj: Box::new(Expr::Ident(Ident::new(
-                    "Object".into(),
-                    DUMMY_SP,
-                    ident.ctxt,
-                ))),
-                prop: MemberProp::Ident(IdentName::new("defineProperty".into(), DUMMY_SP)),
-            }))),
-            args: vec![
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Ident(ident.clone())),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new("name".into()),
-                },
-                ExprOrSpread {
-                    spread: None,
-                    expr: Box::new(Expr::Object(ObjectLit {
-                        span: DUMMY_SP,
-                        props: vec![
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str("value".into()),
-                                value: Box::new(name.into()),
-                            }))),
-                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                key: PropName::Str("writable".into()),
-                                value: Box::new(false.into()),
-                            }))),
-                        ],
-                    })),
-                },
-            ],
-            ..Default::default()
-        })),
-    })));
+    extra_items.push(quote!(
+        // WORKAROUND for https://github.com/microsoft/TypeScript/issues/61165
+        // This should just be
+        //
+        //   "Object.defineProperty($action, \"name\", { value: $name, writable: false });"
+        //
+        // but due to the above typescript bug, `Object.defineProperty` calls are typechecked incorrectly
+        // in js files, and it can cause false positives when typechecking our fixture files.
+        "Object[\"defineProperty\"]($action, \"name\", { value: $name, writable: false });"
+            as ModuleItem,
+        action: Ident = ident.clone(),
+        name: Expr = name.into(),
+    ));
 }
 
 fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
@@ -2333,23 +2328,7 @@ fn assign_arrow_expr(ident: &Ident, expr: Expr) -> Expr {
     }
 }
 
-fn annotate_ident_as_server_reference(
-    ident: Ident,
-    action_id: Atom,
-    original_span: Span,
-    comments: &dyn Comments,
-) -> Expr {
-    if !original_span.lo.is_dummy() {
-        comments.add_leading(
-            original_span.lo,
-            Comment {
-                kind: CommentKind::Block,
-                span: original_span,
-                text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
-            },
-        );
-    }
-
+fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_span: Span) -> Expr {
     // registerServerReference(reference, id, null)
     Expr::Call(CallExpr {
         span: original_span,
@@ -2370,6 +2349,17 @@ fn annotate_ident_as_server_reference(
         ],
         ..Default::default()
     })
+}
+
+fn add_turbopack_disable_export_merging_comment(span: Span, comments: &dyn Comments) {
+    comments.add_leading(
+        span.lo,
+        Comment {
+            kind: CommentKind::Block,
+            span: DUMMY_SP,
+            text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
+        },
+    );
 }
 
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {

@@ -3,6 +3,7 @@ import { toMatchInlineSnapshot } from 'jest-snapshot'
 import {
   assertHasRedbox,
   getRedboxCallStack,
+  getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
   getRedboxSource,
@@ -11,6 +12,7 @@ import {
   openRedbox,
 } from './next-test-utils'
 import type { BrowserInterface } from './browsers/base'
+import { NextInstance } from 'e2e-utils'
 
 declare global {
   namespace jest {
@@ -21,8 +23,15 @@ declare global {
        * When a Redbox is hidden at first and requires manual display by clicking the toast,
        * use {@link toDisplayCollapsedRedbox} instead.
        *
+       *
+       * If the project root appears in the snapshot, pass in the `NextInstance`
+       * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayRedbox()`.
+       *
        * Unintented content in the snapshot should be reported to the Next.js DX team.
-       * <FIXME-internal-frame> in the snapshot would be unintended.
+       * `<FIXME-internal-frame>` in the snapshot would be unintended.
+       * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -35,8 +44,14 @@ declare global {
        * When a Redbox is immediately displayed,
        * use {@link toDisplayRedbox} instead.
        *
+       * If the project root appears in the snapshot, pass in the `NextInstance`
+       * as well to normalize the snapshot e.g. `await expect({ browser, next }).toDisplayCollapsedRedbox()`.
+       *
        * Unintented content in the snapshot should be reported to the Next.js DX team.
-       * <FIXME-internal-frame> in the snapshot would be unintended.
+       * `<FIXME-internal-frame>` in the snapshot would be unintended.
+       * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -51,23 +66,33 @@ interface RedboxSnapshot {
   environmentLabel: string
   label: string
   description: string
+  componentStack?: string
   source: string
   stack: string[]
   count: number
 }
 
 async function createRedboxSnapshot(
-  browser: BrowserInterface
+  browser: BrowserInterface,
+  next: NextInstance | null
 ): Promise<RedboxSnapshot> {
-  const [label, environmentLabel, description, source, stack, count] =
-    await Promise.all([
-      getRedboxLabel(browser),
-      getRedboxEnvironmentLabel(browser),
-      getRedboxDescription(browser),
-      getRedboxSource(browser),
-      getRedboxCallStack(browser),
-      getRedboxTotalErrorCount(browser),
-    ])
+  const [
+    label,
+    environmentLabel,
+    description,
+    source,
+    stack,
+    componentStack,
+    count,
+  ] = await Promise.all([
+    getRedboxLabel(browser),
+    getRedboxEnvironmentLabel(browser),
+    getRedboxDescription(browser),
+    getRedboxSource(browser),
+    getRedboxCallStack(browser),
+    getRedboxComponentStack(browser),
+    getRedboxTotalErrorCount(browser),
+  ])
 
   // We don't need to test the codeframe logic everywhere.
   // Here we focus on the cursor position of the top most frame
@@ -92,7 +117,7 @@ async function createRedboxSnapshot(
     focusedSource = ''
     const sourceFrameLines = source.split('\n')
     for (let i = 0; i < sourceFrameLines.length; i++) {
-      const sourceFrameLine = sourceFrameLines[i]
+      const sourceFrameLine = sourceFrameLines[i].trimEnd()
       if (sourceFrameLine === '') {
         continue
       }
@@ -109,25 +134,62 @@ async function createRedboxSnapshot(
         focusedSource += '\n' + sourceFrameLine
       }
     }
+
+    focusedSource = focusedSource.trim()
+
+    if (next !== null) {
+      focusedSource = focusedSource.replaceAll(
+        next.testDir,
+        '<FIXME-project-root>'
+      )
+    }
   }
 
-  return {
+  const snapshot: RedboxSnapshot = {
     environmentLabel,
     label,
-    description,
-    source: focusedSource?.trim(),
-    stack,
+    description:
+      description !== null && next !== null
+        ? description.replace(next.testDir, '<FIXME-project-root>')
+        : description,
+    source: focusedSource,
+    stack:
+      next !== null
+        ? stack.map((stackframe) => {
+            return stackframe.replace(next.testDir, '<FIXME-project-root>')
+          })
+        : stack,
     // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
     count: label === 'Build Error' && count === -1 ? 1 : count,
   }
+
+  // Hydration diffs are only relevant to some specific errors
+  // so we hide them from the snapshots unless they are present.
+  if (componentStack !== null) {
+    snapshot.componentStack = componentStack
+  }
+
+  return snapshot
 }
 
 expect.extend({
   async toDisplayRedbox(
     this: MatcherContext,
-    browser: BrowserInterface,
+    browserOrContext:
+      | BrowserInterface
+      | { browser: BrowserInterface; next: NextInstance },
     expectedRedboxSnapshot?: string
   ) {
+    let browser: BrowserInterface
+    let next: NextInstance
+    if ('browser' in browserOrContext && 'next' in browserOrContext) {
+      browser = browserOrContext.browser
+      next = browserOrContext.next
+    } else {
+      browser = browserOrContext
+      next = null
+    }
+
     // Otherwise jest uses the async stack trace which makes it impossible to know the actual callsite of `toMatchSpeechInlineSnapshot`.
     // @ts-expect-error -- Not readonly
     this.error = new Error()
@@ -152,7 +214,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser)
+    const redbox = await createRedboxSnapshot(browser, next)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.
@@ -164,9 +226,21 @@ expect.extend({
   },
   async toDisplayCollapsedRedbox(
     this: MatcherContext,
-    browser: BrowserInterface,
+    browserOrContext:
+      | BrowserInterface
+      | { browser: BrowserInterface; next: NextInstance },
     expectedRedboxSnapshot?: string
   ) {
+    let browser: BrowserInterface
+    let next: NextInstance | null
+    if ('browser' in browserOrContext && 'next' in browserOrContext) {
+      browser = browserOrContext.browser
+      next = browserOrContext.next
+    } else {
+      browser = browserOrContext
+      next = null
+    }
+
     // Otherwise jest uses the async stack trace which makes it impossible to know the actual callsite of `toMatchSpeechInlineSnapshot`.
     // @ts-expect-error -- Not readonly
     this.error = new Error()
@@ -198,7 +272,7 @@ expect.extend({
       }
     }
 
-    const redbox = await createRedboxSnapshot(browser)
+    const redbox = await createRedboxSnapshot(browser, next)
 
     // argument length is relevant.
     // Jest will update absent snapshots but fail if you specify a snapshot even if undefined.

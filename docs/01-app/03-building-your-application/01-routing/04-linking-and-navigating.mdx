@@ -98,7 +98,7 @@ export default async function Profile({
 }: {
   params: Promise<{ id: string }>
 }) {
-  const id = (await params).id
+  const { id } = await params
   if (!id) {
     redirect('/login')
   }
@@ -122,7 +122,7 @@ async function fetchTeam(id) {
 }
 
 export default async function Profile({ params }) {
-  const id = (await params).id
+  const { id } = await params
   if (!id) {
     redirect('/login')
   }

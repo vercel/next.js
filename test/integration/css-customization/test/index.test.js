@@ -6,6 +6,7 @@ import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
+const BUILD_FAILURE_RE = /Build failed because of (webpack|rspack) errors/
 
 // Test checks webpack loaders and plugins.
 ;(process.env.TURBOPACK ? describe.skip : describe)('CSS Customization', () => {
@@ -266,7 +267,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -286,7 +287,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /To disable 'postcss-trolling', pass false, otherwise, pass true or a configuration object./
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -303,7 +304,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /A PostCSS Plugin must be provided as a string. Instead, we got: '5'/
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -318,7 +319,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           const { stderr } = await nextBuild(appDir, [], { stderr: true })
 
           expect(stderr).toMatch(/An unknown PostCSS plugin was provided \(5\)/)
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -335,7 +336,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /Your custom PostCSS configuration must export a `plugins` key./
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -352,7 +353,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /Your custom PostCSS configuration must export a `plugins` key./
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -369,7 +370,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -386,7 +387,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /A PostCSS Plugin was passed as a function using require\(\), but it must be provided as a string/
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
 
@@ -403,7 +404,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /Your custom PostCSS configuration may not export a function/
           )
-          expect(stderr).toMatch(/Build failed because of webpack errors/)
+          expect(stderr).toMatch(BUILD_FAILURE_RE)
         })
       })
     }

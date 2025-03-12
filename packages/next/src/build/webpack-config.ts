@@ -47,7 +47,8 @@ import { WellKnownErrorsPlugin } from './webpack/plugins/wellknown-errors-plugin
 import { regexLikeCss } from './webpack/config/blocks/css'
 import { CopyFilePlugin } from './webpack/plugins/copy-file-plugin'
 import { ClientReferenceManifestPlugin } from './webpack/plugins/flight-manifest-plugin'
-import { FlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { FlightClientEntryPlugin as NextFlightClientEntryPlugin } from './webpack/plugins/flight-client-entry-plugin'
+import { RspackFlightClientEntryPlugin } from './webpack/plugins/rspack-flight-client-entry-plugin'
 import { NextTypesPlugin } from './webpack/plugins/next-types-plugin'
 import type {
   Feature,
@@ -305,7 +306,9 @@ export default async function getBaseWebpackConfig(
     clientRouterFilters,
     fetchCacheKeyPrefix,
     edgePreviewProps,
+    isCompileMode,
   }: {
+    isCompileMode?: boolean
     buildId: string
     encryptionKey: string
     config: NextConfigComplete
@@ -343,6 +346,11 @@ export default async function getBaseWebpackConfig(
   const isNodeServer = compilerType === COMPILER_NAMES.server
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
+
+  const FlightClientEntryPlugin =
+    isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
+      ? RspackFlightClientEntryPlugin
+      : NextFlightClientEntryPlugin
 
   // If the current compilation is aimed at server-side code instead of client-side code.
   const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
@@ -474,6 +482,45 @@ export default async function getBaseWebpackConfig(
       )
     }
 
+    const useBuiltinSwcLoader = process.env.BUILTIN_SWC_LOADER
+    if (isRspack && useBuiltinSwcLoader) {
+      return {
+        loader: 'builtin:next-swc-loader',
+        options: {
+          isServer: isNodeOrEdgeCompilation,
+          rootDir: dir,
+          pagesDir,
+          appDir,
+          hasReactRefresh: dev && isClient,
+          transpilePackages: finalTranspilePackages,
+          supportedBrowsers,
+          swcCacheDir: path.join(
+            dir,
+            config?.distDir ?? '.next',
+            'cache',
+            'swc'
+          ),
+          serverReferenceHashSalt: encryptionKey,
+
+          // rspack specific options
+          pnp: Boolean(process.versions.pnp),
+          optimizeServerReact: Boolean(config.experimental.optimizeServerReact),
+          modularizeImports: config.modularizeImports,
+          decorators: Boolean(
+            jsConfig?.compilerOptions?.experimentalDecorators
+          ),
+          emitDecoratorMetadata: Boolean(
+            jsConfig?.compilerOptions?.emitDecoratorMetadata
+          ),
+          regeneratorRuntimePath: require.resolve(
+            'next/dist/compiled/regenerator-runtime'
+          ),
+
+          ...extraOptions,
+        },
+      }
+    }
+
     return {
       loader: 'next-swc-loader',
       options: {
@@ -600,7 +647,7 @@ export default async function getBaseWebpackConfig(
   const apiRoutesLayerLoaders = useSWCLoader
     ? getSwcLoader({
         serverComponents: false,
-        bundleLayer: WEBPACK_LAYERS.api,
+        bundleLayer: WEBPACK_LAYERS.apiNode,
       })
     : defaultLoaders.babel
 
@@ -818,7 +865,6 @@ export default async function getBaseWebpackConfig(
 
   const handleExternals = makeExternalHandler({
     config,
-    optOutBundlingPackages,
     optOutBundlingPackageRegex,
     transpiledPackages: finalTranspilePackages,
     dir,
@@ -845,6 +891,40 @@ export default async function getBaseWebpackConfig(
     }
     return override || undefined
   }
+
+  const telemetryPlugin =
+    !isRspack &&
+    !dev &&
+    isClient &&
+    new (
+      require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
+    ).TelemetryPlugin(
+      new Map(
+        [
+          ['swcLoader', useSWCLoader],
+          ['swcRelay', !!config.compiler?.relay],
+          ['swcStyledComponents', !!config.compiler?.styledComponents],
+          [
+            'swcReactRemoveProperties',
+            !!config.compiler?.reactRemoveProperties,
+          ],
+          [
+            'swcExperimentalDecorators',
+            !!jsConfig?.compilerOptions?.experimentalDecorators,
+          ],
+          ['swcRemoveConsole', !!config.compiler?.removeConsole],
+          ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
+          ['swcEmotion', !!config.compiler?.emotion],
+          ['transpilePackages', !!config.transpilePackages],
+          ['skipMiddlewareUrlNormalize', !!config.skipMiddlewareUrlNormalize],
+          ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
+          ['modularizeImports', !!config.modularizeImports],
+          // If esmExternals is not same as default value, it represents customized usage
+          ['esmExternals', config.experimental.esmExternals !== true],
+          SWCBinaryTarget,
+        ].filter<[Feature, boolean]>(Boolean as any)
+      )
+    )
 
   let webpackConfig: webpack.Configuration = {
     parallelism: getParallelism(),
@@ -1497,15 +1577,20 @@ export default async function getBaseWebpackConfig(
           oneOf: [
             {
               ...codeCondition,
-              issuerLayer: WEBPACK_LAYERS.api,
-              parser: {
-                // In Node.js, switch back to normal URL handling.
-                // In Edge runtime, we should disable parser.url handling in webpack so URLDependency is not added.
-                // Then there's browser code won't be injected into the edge runtime chunk.
-                // x-ref: https://github.com/webpack/webpack/blob/d9ce3b1f87e63c809d8a19bbd92257d65922e81f/lib/web/JsonpChunkLoadingRuntimeModule.js#L69
-                url: !isEdgeServer,
-              },
+              issuerLayer: WEBPACK_LAYERS.apiNode,
               use: apiRoutesLayerLoaders,
+              // In Node.js, switch back to normal URL handling.
+              // We won't bundle `new URL()` cases in Node.js bundler layer.
+              parser: {
+                url: true,
+              },
+            },
+            {
+              ...codeCondition,
+              issuerLayer: WEBPACK_LAYERS.apiEdge,
+              use: apiRoutesLayerLoaders,
+              // In Edge runtime, we leave the url handling by default.
+              // The new URL assets will be converted into edge assets through assets loader.
             },
             {
               test: codeCondition.test,
@@ -1826,6 +1911,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        omitNonDeterministic: isCompileMode,
       }),
       isClient &&
         new ReactLoadablePlugin({
@@ -1848,7 +1934,6 @@ export default async function getBaseWebpackConfig(
             esmExternals: config.experimental.esmExternals,
             outputFileTracingRoot: config.outputFileTracingRoot,
             appDirEnabled: hasAppDir,
-            optOutBundlingPackages,
             traceIgnores: [],
             compilerType,
           }
@@ -1972,41 +2057,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
-      !isRspack &&
-        !dev &&
-        isClient &&
-        new (
-          require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
-        ).TelemetryPlugin(
-          new Map(
-            [
-              ['swcLoader', useSWCLoader],
-              ['swcRelay', !!config.compiler?.relay],
-              ['swcStyledComponents', !!config.compiler?.styledComponents],
-              [
-                'swcReactRemoveProperties',
-                !!config.compiler?.reactRemoveProperties,
-              ],
-              [
-                'swcExperimentalDecorators',
-                !!jsConfig?.compilerOptions?.experimentalDecorators,
-              ],
-              ['swcRemoveConsole', !!config.compiler?.removeConsole],
-              ['swcImportSource', !!jsConfig?.compilerOptions?.jsxImportSource],
-              ['swcEmotion', !!config.compiler?.emotion],
-              ['transpilePackages', !!config.transpilePackages],
-              [
-                'skipMiddlewareUrlNormalize',
-                !!config.skipMiddlewareUrlNormalize,
-              ],
-              ['skipTrailingSlashRedirect', !!config.skipTrailingSlashRedirect],
-              ['modularizeImports', !!config.modularizeImports],
-              // If esmExternals is not same as default value, it represents customized usage
-              ['esmExternals', config.experimental.esmExternals !== true],
-              SWCBinaryTarget,
-            ].filter<[Feature, boolean]>(Boolean as any)
-          )
-        ),
+      telemetryPlugin,
       !isRspack &&
         !dev &&
         isNodeServer &&
@@ -2134,10 +2185,6 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivity:
-      config.devIndicators === false
-        ? false
-        : config.devIndicators.buildActivity,
     buildActivityPosition:
       config.devIndicators === false
         ? undefined
@@ -2316,6 +2363,8 @@ export default async function getBaseWebpackConfig(
 
   let originalDevtool = webpackConfig.devtool
   if (typeof config.webpack === 'function') {
+    const pluginCountBefore = webpackConfig.plugins?.length
+
     webpackConfig = config.webpack(webpackConfig, {
       dir,
       dev,
@@ -2331,6 +2380,14 @@ export default async function getBaseWebpackConfig(
           }
         : {}),
     })
+
+    if (telemetryPlugin && pluginCountBefore) {
+      const pluginCountAfter = webpackConfig.plugins?.length
+      if (pluginCountAfter) {
+        const pluginsChanged = pluginCountAfter !== pluginCountBefore
+        telemetryPlugin.addUsage('webpackPlugins', pluginsChanged ? 1 : 0)
+      }
+    }
 
     if (!webpackConfig) {
       throw new Error(

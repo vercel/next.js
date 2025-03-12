@@ -2,6 +2,7 @@ import '../../server/web/globals'
 import { adapter } from '../../server/web/adapter'
 import { getRender } from '../webpack/loaders/next-edge-ssr-loader/render'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
+import { initializeCacheHandlers } from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -23,10 +24,6 @@ import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { PAGE_TYPES } from '../../lib/page-types'
-import {
-  cacheHandlerGlobal,
-  cacheHandlersSymbol,
-} from '../../server/use-cache/constants'
 
 // injected by the loader afterwards.
 declare const pagesType: PAGE_TYPES
@@ -44,17 +41,8 @@ declare const user500RouteModuleOptions: any
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
 
-const cacheHandlers = {}
-
-if (!cacheHandlerGlobal.__nextCacheHandlers) {
-  cacheHandlerGlobal.__nextCacheHandlers = cacheHandlers
-
-  if (!cacheHandlerGlobal.__nextCacheHandlers.default) {
-    cacheHandlerGlobal.__nextCacheHandlers.default =
-      cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
-      cacheHandlerGlobal.__nextCacheHandlers.__nextDefault
-  }
-}
+// Initialize the cache handlers interface.
+initializeCacheHandlers()
 
 const pageMod = {
   ...userlandPage,
