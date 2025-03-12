@@ -878,7 +878,7 @@ export async function handleAction({
           }
 
           const chunks: Buffer[] = []
-          for await (const chunk of req.body) {
+          for await (const chunk of sizeLimitedBody) {
             chunks.push(Buffer.from(chunk))
           }
 
