@@ -2,6 +2,7 @@ import type { Duplex } from 'stream'
 import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
 import { parseUrl } from '../../../lib/url'
 import net from 'net'
+import { warnOnce } from '../../../build/output/log'
 
 export const blockCrossSite = (
   req: IncomingMessage,
@@ -23,6 +24,9 @@ export const blockCrossSite = (
       res.statusCode = 403
     }
     res.end('Unauthorized')
+    warnOnce(
+      `blocked cross-origin request, if you want to allow this configure "experimental.allowedDevOrigins in next.config`
+    )
     return true
   }
 
@@ -50,6 +54,9 @@ export const blockCrossSite = (
           res.statusCode = 403
         }
         res.end('Unauthorized')
+        warnOnce(
+          `blocked cross-origin request from ${originLowerCase}, if you want to allow this configure "experimental.allowedDevOrigins in next.config`
+        )
         return true
       }
     }
