@@ -833,7 +833,7 @@ impl AppProject {
                         server_component_entries,
                     } = &*find_server_entries(*rsc_entry).await?;
 
-                    let graph = SingleModuleGraph::new_with_entries_visited(
+                    let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![
                             (
                                 server_utils
@@ -851,7 +851,7 @@ impl AppProject {
                     let mut visited_modules = VisitedModules::from_graph(graph);
 
                     for module in server_component_entries.iter() {
-                        let graph = SingleModuleGraph::new_with_entries_visited(
+                        let graph = SingleModuleGraph::new_with_entries_visited_intern(
                             vec![(vec![ResolvedVc::upcast(*module)], ChunkGroupType::Entry)],
                             visited_modules,
                         );
@@ -872,7 +872,7 @@ impl AppProject {
                     }
                     visited_modules
                 } else {
-                    let graph = SingleModuleGraph::new_with_entries_visited(
+                    let graph = SingleModuleGraph::new_with_entries_visited_intern(
                         vec![(client_shared_entries, ChunkGroupType::Evaluated)],
                         VisitedModules::empty(),
                     );
@@ -880,7 +880,7 @@ impl AppProject {
                     VisitedModules::from_graph(graph)
                 };
 
-                let graph = SingleModuleGraph::new_with_entries_visited(
+                let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     vec![(vec![ResolvedVc::upcast(rsc_entry)], ChunkGroupType::Entry)],
                     visited_modules,
                 );
@@ -889,7 +889,7 @@ impl AppProject {
 
                 let base = ModuleGraph::from_graphs(graphs.clone());
                 let additional_entries = endpoint.additional_entries(base);
-                let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+                let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
                 );

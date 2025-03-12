@@ -1735,10 +1735,8 @@ async fn whole_app_module_graph_operation(
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries.owned().await?,
-        base_visited_modules,
-    );
+    let additional_module_graph =
+        SingleModuleGraph::new_with_entries_visited(additional_entries, base_visited_modules);
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
     Ok(ModuleGraphs {
