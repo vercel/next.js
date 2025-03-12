@@ -120,7 +120,7 @@ export interface ExperimentalTurboOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbo#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
