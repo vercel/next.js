@@ -1549,30 +1549,38 @@ async function renderToHTMLOrFlightImpl(
         ctx,
       })
 
-      if (actionRequestResult) {
-        if (actionRequestResult.type === 'not-found') {
-          const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
-          res.statusCode = 404
-          const stream = await renderToStreamWithTracing(
-            requestStore,
-            req,
-            res,
-            ctx,
-            workStore,
-            notFoundLoaderTree,
-            formState,
-            postponedState
-          )
+      if (actionRequestResult.type === 'not-found') {
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        res.statusCode = 404
+        const stream = await renderToStreamWithTracing(
+          requestStore,
+          req,
+          res,
+          ctx,
+          workStore,
+          notFoundLoaderTree,
+          formState,
+          postponedState
+        )
 
-          return new RenderResult(stream, { metadata })
-        } else if (actionRequestResult.type === 'done') {
-          if (actionRequestResult.result) {
-            actionRequestResult.result.assignMetadata(metadata)
-            return actionRequestResult.result
-          } else if (actionRequestResult.formState) {
-            formState = actionRequestResult.formState
-          }
-        }
+        return new RenderResult(stream, { metadata })
+      } else if (actionRequestResult.type === 'done') {
+        // We ran the action, and have a flight result. Nothing more to do here.
+        actionRequestResult.result.assignMetadata(metadata)
+        return actionRequestResult.result
+      } else if (actionRequestResult.type === 'form-state') {
+        // an MPA action. We ran the action, but haven't rendered anything yet, only decoded a form state.
+        // We need to produce an HTML response, so continue rendering below.
+        formState = actionRequestResult.formState
+      } else if (actionRequestResult.type === 'not-an-action') {
+        // This is likely a form submission request targetting a page. Generally, this can happen if:
+        // - the user did `<form action="/this-page">` using a vanilla HTML form
+        // - the user did `<form action="/router-handler">` using a vanilla HTML form,
+        //   and the route handler responded with a 307/308 to a page, so the browser retried the POST request at the new URL
+        // In both of these cases we should render the page to HTML as a response.
+        //
+        // TODO: we should consider disallowing these requests altogether, because they only work for dynamic pages,
+        // and would stop working if the page became static. (a POST to a static page will result in a 405).
       }
     }
 
