@@ -677,7 +677,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let in_progress = get!(task, InProgress);
-        if matches!(in_progress, Some(InProgressState::InProgress(..))) {
+        if matches!(
+            in_progress,
+            Some(InProgressState::InProgress(..) | InProgressState::Scheduled { .. })
+        ) {
             return Ok(Err(self.listen_to_cell(&mut task, task_id, reader, cell).0));
         }
         let is_cancelled = matches!(in_progress, Some(InProgressState::Canceled));
