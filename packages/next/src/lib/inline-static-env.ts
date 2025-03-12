@@ -3,37 +3,12 @@ import path from 'path'
 import crypto from 'crypto'
 import { promisify } from 'util'
 import globOriginal from 'next/dist/compiled/glob'
-import {
-  getNextConfigEnv,
-  getNextPublicEnvironmentVariables,
-} from '../build/webpack/plugins/define-env-plugin'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
 import { BUILD_MANIFEST } from '../shared/lib/constants'
+import { getNextConfigEnv, getStaticEnv } from './static-env'
 
 const glob = promisify(globOriginal)
-
-const getStaticEnv = (config: NextConfigComplete) => {
-  const staticEnv: Record<string, string | undefined> = {
-    ...getNextPublicEnvironmentVariables(),
-    ...getNextConfigEnv(config),
-    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || '',
-  }
-  return staticEnv
-}
-
-export function populateStaticEnv(config: NextConfigComplete) {
-  // since inlining comes after static generation we need
-  // to ensure this value is assigned to process env so it
-  // can still be accessed
-  const staticEnv = getStaticEnv(config)
-  for (const key in staticEnv) {
-    const innerKey = key.split('.').pop() || ''
-    if (!process.env[innerKey]) {
-      process.env[innerKey] = staticEnv[key] || ''
-    }
-  }
-}
 
 export async function inlineStaticEnv({
   distDir,

@@ -40,6 +40,7 @@ export const ACTION_DEV_INDICATOR = 'dev-indicator'
 
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
+export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
 
 interface StaticIndicatorAction {
   type: typeof ACTION_STATIC_INDICATOR

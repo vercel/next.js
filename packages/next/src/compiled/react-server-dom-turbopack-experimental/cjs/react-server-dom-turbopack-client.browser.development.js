@@ -672,7 +672,10 @@
           parentReference = knownServerReferences.get(value);
           if (void 0 !== parentReference)
             return (
-              (key = JSON.stringify(parentReference, resolveToJSON)),
+              (key = JSON.stringify(
+                { id: parentReference.id, bound: parentReference.bound },
+                resolveToJSON
+              )),
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
@@ -782,7 +785,12 @@
       }
     }
     function registerBoundServerReference(reference, id, bound) {
-      knownServerReferences.set(reference, { id: id, bound: bound });
+      knownServerReferences.has(reference) ||
+        knownServerReferences.set(reference, {
+          id: id,
+          originalBind: reference.bind,
+          bound: bound
+        });
     }
     function createBoundServerReference(
       metaData,
@@ -2906,10 +2914,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.1.0-experimental-0ca3deeb-20250311",
+      version: "19.1.0-experimental-6aa8254b-20250312",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.1.0-experimental-0ca3deeb-20250311",
+      reconcilerVersion: "19.1.0-experimental-6aa8254b-20250312",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

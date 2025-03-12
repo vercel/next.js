@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
+import type { DevToolsScale } from './dev-tools-info/preferences'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -10,9 +11,9 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
+  scale: DevToolsScale
 }
 
-const SIZE = 36
 const SHORT_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
@@ -24,10 +25,13 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
+    scale,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
+  const SIZE = 36 / scale
+
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
@@ -50,7 +54,7 @@ export const NextLogo = forwardRef(function NextLogo(
     if (pristine && hasError) width = 'auto'
     // Default state, collapsed
     return { width }
-  }, [measuredWidth, pristine, hasError])
+  }, [measuredWidth, pristine, hasError, SIZE])
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
