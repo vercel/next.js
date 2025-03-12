@@ -1143,26 +1143,31 @@ function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
 ): string {
-  try {
-    // if we're missing the action ID header, we can't do any further processing
-    if (!actionId) {
-      throw new Error("Invariant: Missing 'next-action' header.")
-    }
-
-    const actionModId = serverModuleMap?.[actionId]?.id
-
-    if (!actionModId) {
-      throw new Error(
-        "Invariant: Couldn't find action module ID from module map."
-      )
-    }
-
-    return actionModId
-  } catch (err) {
-    throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
-        err instanceof Error ? `Original error: ${err.message}` : ''
-      }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-    )
+  // if we're missing the action ID header, we can't do any further processing
+  if (!actionId) {
+    throw new Error("Invariant: Missing 'next-action' header.")
   }
+
+  let actionModId: string | undefined
+  try {
+    // `serverModuleMap` is a proxy (see: `createServerModuleMap`) which runs some lookup code,
+    // so this can throw despite guarding the accesses with `?.`
+    actionModId = serverModuleMap?.[actionId]?.id
+  } catch (err) {
+    throw createActionNotFoundError(actionId, err)
+  }
+
+  if (actionModId === undefined) {
+    throw createActionNotFoundError(actionId)
+  }
+
+  return actionModId
+}
+
+function createActionNotFoundError(actionId: string, cause?: unknown) {
+  return new Error(
+    `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.${
+      cause instanceof Error ? ` Original error: ${cause.message}` : ''
+    }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
 }
