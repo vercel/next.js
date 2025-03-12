@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from 'webpack-dev-server'
 import { parseUrl } from '../../../lib/url'
 import net from 'net'
 import { warnOnce } from '../../../build/output/log'
+import { isCsrfOriginAllowed } from '../../app-render/csrf-protection'
 
 export const blockCrossSite = (
   req: IncomingMessage,
@@ -25,7 +26,7 @@ export const blockCrossSite = (
     }
     res.end('Unauthorized')
     warnOnce(
-      `Blocked cross-origin request to /_next/*. To allow this, configure "allowedDevOrigins" in next.config\nRead more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins`
+      `Blocked cross-origin request to /_next/*. Cross-site requests are blocked in "no-cors" mode.`
     )
     return true
   }
@@ -46,9 +47,7 @@ export const blockCrossSite = (
         // allow requests if direct IP and matching port and
         // allow if any of the allowed origins match
         !(isIpRequest && isMatchingPort) &&
-        !allowedOrigins.some(
-          (allowedOrigin) => allowedOrigin === originLowerCase
-        )
+        !isCsrfOriginAllowed(originLowerCase, allowedOrigins)
       ) {
         if ('statusCode' in res) {
           res.statusCode = 403
