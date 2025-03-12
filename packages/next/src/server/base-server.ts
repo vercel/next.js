@@ -614,6 +614,17 @@ export default abstract class Server<
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
     }
 
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      const { populateStaticEnv } =
+        require('../lib/inline-static-env') as typeof import('../lib/inline-static-env')
+
+      // when using compile mode static env isn't inlined so we
+      // need to populate in normal runtime env
+      if (this.renderOpts.isExperimentalCompile) {
+        populateStaticEnv(this.nextConfig)
+      }
+    }
+
     // Initialize next/config with the environment configuration
     setConfig({
       serverRuntimeConfig,

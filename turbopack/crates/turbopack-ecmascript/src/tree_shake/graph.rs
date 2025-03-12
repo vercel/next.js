@@ -44,6 +44,8 @@ pub(crate) enum ItemId {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
+    /// Used only for testing
+    #[cfg(test)]
     ModuleEvaluation,
     /// `(local, export_name)``
     Export(Id, Atom),
@@ -130,6 +132,8 @@ pub(crate) struct ItemData {
 
     /// Server actions breaks when we merge exports.
     pub disable_export_merging: bool,
+
+    pub is_module_evaluation: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -145,6 +149,8 @@ impl fmt::Debug for ItemData {
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
             .field("explicit_deps", &self.explicit_deps)
+            .field("disable_export_merging", &self.disable_export_merging)
+            .field("is_module_evaluation", &self.is_module_evaluation)
             .finish()
     }
 }
@@ -165,6 +171,7 @@ impl Default for ItemData {
             binding_source: Default::default(),
             explicit_deps: Default::default(),
             disable_export_merging: Default::default(),
+            is_module_evaluation: Default::default(),
         }
     }
 }
@@ -328,6 +335,8 @@ impl DepGraph {
                 .clone()
         };
 
+        let mut module_evaluation_ix = None;
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -389,10 +398,10 @@ impl DepGraph {
                 }
             }
 
-            for item in group {
-                match item {
+            for item_id in group {
+                match item_id {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
+                        if let Some(export) = &data[item_id].export {
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -418,11 +427,14 @@ impl DepGraph {
                             ));
                         }
                     }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        outputs.insert(Key::ModuleEvaluation, ix as u32);
-                    }
 
-                    _ => {}
+                    _ => {
+                        if data[item_id].is_module_evaluation {
+                            debug_assert_eq!(module_evaluation_ix, None);
+                            module_evaluation_ix = Some(ix as u32);
+                            outputs.insert(Key::ModuleEvaluation, ix as u32);
+                        }
+                    }
                 }
             }
 
@@ -685,6 +697,31 @@ impl DepGraph {
         }
 
         modules.push(exports_module);
+
+        // Currently we need to have `Key::ModuleEvaluation` in the outputs
+        // even if it is empty.
+        if module_evaluation_ix.is_none() {
+            outputs.insert(Key::ModuleEvaluation, modules.len() as u32);
+            module_evaluation_ix = Some(modules.len() as u32);
+            modules.push(Module {
+                span: DUMMY_SP,
+                body: vec![],
+                shebang: None,
+            });
+        }
+
+        // Push `export {}` to the module evaluation to make it module.
+        modules[module_evaluation_ix.unwrap() as usize]
+            .body
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                NamedExport {
+                    span: DUMMY_SP,
+                    specifiers: Default::default(),
+                    src: None,
+                    type_only: false,
+                    with: None,
+                },
+            )));
 
         SplitModuleResult {
             entrypoints: outputs,
@@ -1368,22 +1405,6 @@ impl DepGraph {
                     items.insert(id, data);
                 }
             }
-        }
-
-        {
-            // `module evaluation side effects` Node
-            let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
-            ids.push(id.clone());
-            items.insert(
-                id,
-                ItemData {
-                    content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: "module evaluation".into(),
-                    })),
-                    ..Default::default()
-                },
-            );
         }
 
         for (local, export_name, disable_export_merging) in exports {

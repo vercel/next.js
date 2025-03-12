@@ -659,5 +659,7 @@
   "658": "Pass `Infinity` instead of `false` if you want to cache on the server forever without checking with the origin.",
   "659": "SSG should not return an image cache value",
   "660": "Rspack support is only available in Next.js canary.",
-  "661": "Build failed because of %s errors"
+  "661": "Build failed because of %s errors",
+  "662": "Invariant failed to find webpack runtime chunk",
+  "663": "Invariant: client chunk changed but failed to detect hash %s"
 }

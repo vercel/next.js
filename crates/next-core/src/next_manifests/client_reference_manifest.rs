@@ -1,6 +1,7 @@
 use anyhow::Result;
 use either::Either;
 use indoc::formatdoc;
+use itertools::Itertools;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -25,6 +26,7 @@ use crate::{
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
+    next_manifests::encode_uri_component::encode_uri_component,
     util::NextRuntime,
 };
 
@@ -83,7 +85,8 @@ impl ClientReferenceManifest {
                 .map(|p| p.to_string())
                 .unwrap_or("".into());
 
-            entry_manifest.module_loading.prefix = prefix_path;
+            // TODO: Add `suffix` to the manifest for React to use.
+            // entry_manifest.module_loading.prefix = prefix_path;
 
             entry_manifest.module_loading.cross_origin = next_config
                 .await?
@@ -200,9 +203,16 @@ impl ClientReferenceManifest {
                                     .map(ToString::to_string)
                             })
                             // It's possible that a chunk also emits CSS files, that will
-                            // be handled separatedly.
+                            // be handled separately.
                             .filter(|path| path.ends_with(".js"))
-                            .map(|path| format!("{}{}", path, suffix_path))
+                            .map(|path| {
+                                format!(
+                                    "{}{}{}",
+                                    prefix_path,
+                                    path.split('/').map(encode_uri_component).format("/"),
+                                    suffix_path
+                                )
+                            })
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
