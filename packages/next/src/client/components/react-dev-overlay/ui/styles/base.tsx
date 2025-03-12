@@ -74,6 +74,13 @@ export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
             This value gets set from the Dev Tools preferences,
             and we use the following --size-* variables to 
             scale the relevant elements.
+
+            The reason why we don't rely on rem values is because
+            if an app sets their root font size to something tiny, 
+            it feels unexpected to have the app root size leak 
+            into a Next.js surface.
+
+            https://github.com/vercel/next.js/discussions/76812
           */
           --nextjs-dev-tools-scale: ${String(scale)};
           --size-1: calc(1px / var(--nextjs-dev-tools-scale));
