@@ -388,6 +388,7 @@ rand = "0.8.5"
 rayon = "1.10.0"
 regex = "1.10.6"
 reqwest = { version = "=0.11.17", default-features = false }
+roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.0"
 semver = "1.0.16"

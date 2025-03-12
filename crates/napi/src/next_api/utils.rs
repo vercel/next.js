@@ -129,7 +129,7 @@ impl NextTurboTasks {
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,
-    _memory_limit: usize,
+    memory_limit: usize,
     dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
@@ -147,6 +147,7 @@ pub fn create_turbo_tasks(
                         turbo_tasks_backend::StorageMode::ReadWrite
                     }),
                     dependency_tracking,
+                    hard_memory_limit: memory_limit,
                     ..Default::default()
                 },
                 default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
@@ -158,6 +159,7 @@ pub fn create_turbo_tasks(
                 turbo_tasks_backend::BackendOptions {
                     storage_mode: None,
                     dependency_tracking,
+                    hard_memory_limit: memory_limit,
                     ..Default::default()
                 },
                 noop_backing_storage(),

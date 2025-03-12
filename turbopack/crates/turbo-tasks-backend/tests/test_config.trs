@@ -9,7 +9,10 @@
   std::fs::create_dir_all(&path).unwrap();
   turbo_tasks::TurboTasks::new(
     turbo_tasks_backend::TurboTasksBackend::new(
-      turbo_tasks_backend::BackendOptions::default(),
+      turbo_tasks_backend::BackendOptions {
+        hard_memory_limit: 128_000_000,
+        ..Default::default()
+      },
       turbo_tasks_backend::default_backing_storage(
         path.as_path(),
         &turbo_tasks_backend::GitVersionInfo {

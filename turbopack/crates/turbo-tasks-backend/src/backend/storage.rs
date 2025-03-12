@@ -4,6 +4,7 @@ use std::{
     thread::available_parallelism,
 };
 
+use rand::Rng;
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -13,7 +14,10 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{get_multiple_mut, RefMut},
+    utils::{
+        buffered_age_queue::BufferedAgeQueue,
+        dash_map_multi::{get_multiple_mut, RefMut},
+    },
 };
 
 const META_UNRESTORED: u32 = 1 << 31;
@@ -501,6 +505,7 @@ impl InnerStorage {
 
 pub struct Storage {
     map: FxDashMap<TaskId, Box<InnerStorage>>,
+    age_queue: BufferedAgeQueue,
 }
 
 impl Storage {
@@ -513,10 +518,12 @@ impl Storage {
                 Default::default(),
                 shard_amount,
             ),
+            age_queue: BufferedAgeQueue::new(),
         }
     }
 
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
+        self.age_queue.push(*key);
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
             dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
@@ -531,11 +538,30 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
+        self.age_queue.push(*key1);
+        self.age_queue.push(*key2);
         let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
         (
             StorageWriteGuard { inner: a },
             StorageWriteGuard { inner: b },
         )
+    }
+
+    pub fn pop_some_old_tasks(&self, n: usize) -> Vec<TaskId> {
+        let mut queue = self.age_queue.queue().lock();
+        let old_tasks = queue.old_items_mut();
+        let mut result = Vec::with_capacity(n);
+        let mut r = rand::thread_rng();
+        while result.len() < n && !old_tasks.is_empty() {
+            let i = r.gen_range(0..old_tasks.len());
+            if let Some(task) = old_tasks.select(i as u32) {
+                result.push(TaskId::from(task));
+                old_tasks.remove(task);
+            } else {
+                break;
+            }
+        }
+        result
     }
 }
 

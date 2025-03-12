@@ -5,6 +5,7 @@ mod storage;
 
 use std::{
     borrow::Cow,
+    cmp::min,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -34,6 +35,7 @@ use turbo_tasks::{
     CellId, FunctionId, FxDashMap, RawVc, ReadCellOptions, ReadConsistency, SessionId, TaskId,
     TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
+use turbo_tasks_malloc::TurboMalloc;
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
 #[cfg(feature = "trace_task_dirty")]
@@ -130,6 +132,18 @@ pub struct BackendOptions {
 
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
+
+    /// Memory limit when GC should start operating. Defaults to hard_memory_limit - 5%.
+    pub soft_memory_limit: usize,
+
+    /// Memory limit when GC should operate with the maximum batch size.
+    pub hard_memory_limit: usize,
+
+    /// How often GC is triggered in "completed tasks"
+    pub gc_interval: u32,
+
+    /// How many tasks are collected in one GC batch.
+    pub gc_batch_size: usize,
 }
 
 impl Default for BackendOptions {
@@ -139,6 +153,10 @@ impl Default for BackendOptions {
             children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            soft_memory_limit: 0,
+            hard_memory_limit: 9_000_000_000,
+            gc_interval: 128,
+            gc_batch_size: 128 * 1024,
         }
     }
 }
@@ -699,6 +717,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
+
+        // println!(
+        //     "Need to recompute {task_id} {} {cell:?}",
+        //     ctx.get_task_description(task_id)
+        // );
 
         let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
@@ -1616,7 +1639,68 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
         drop(task);
 
+        drop(ctx);
+
+        if (*task_id % self.options.gc_interval) == 0 {
+            self.check_gc(turbo_tasks);
+        }
+
         false
+    }
+
+    fn check_gc(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        if self.options.gc_batch_size == 0 || self.options.hard_memory_limit == 0 {
+            return;
+        }
+        let soft_limit = if self.options.soft_memory_limit == 0 {
+            self.options.hard_memory_limit * 19 / 20 // - 5%
+        } else {
+            self.options.soft_memory_limit
+        };
+        let mem_usage = TurboMalloc::memory_usage();
+        if mem_usage < soft_limit {
+            return;
+        }
+        let over_limit = min(mem_usage, self.options.hard_memory_limit) - soft_limit;
+        let batch_size = (self.options.gc_batch_size - 1) * over_limit
+            / (self.options.hard_memory_limit - soft_limit)
+            + 1;
+        let batch = self.storage.pop_some_old_tasks(batch_size);
+        if batch.is_empty() {
+            return;
+        }
+        let span = tracing::trace_span!(
+            "garbagge collection",
+            mem_usage,
+            batch_size = batch.len(),
+            tasks_cleared = tracing::field::Empty,
+            cells_dropped = tracing::field::Empty
+        )
+        .entered();
+        let mut cells_dropped = 0;
+        let mut tasks_cleared = 0;
+        let mut cells_to_drop = Vec::new();
+        let mut ctx = self.execute_context(turbo_tasks);
+        for task_id in batch {
+            {
+                let mut task = ctx.task(task_id, TaskDataCategory::All);
+                if task.has_key(&CachedDataItemKey::Stateful {}) {
+                    // Stateful tasks should never be collected
+                    continue;
+                }
+                if task.has_key(&CachedDataItemKey::InProgress {}) {
+                    // This is currently in progress, but we might want to collect it at some later
+                    // time. It will be reenqueued when it's done.
+                    continue;
+                }
+                cells_to_drop.extend(task.extract_if(CachedDataItemType::CellData, |_, _| true));
+            }
+            cells_dropped += cells_to_drop.len();
+            tasks_cleared += 1;
+            cells_to_drop.clear();
+        }
+        span.record("cells_dropped", &cells_dropped);
+        span.record("tasks_cleared", &tasks_cleared);
     }
 
     fn run_backend_job<'a>(

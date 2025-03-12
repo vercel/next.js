@@ -156,6 +156,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
+            hard_memory_limit: 128_000_000,
             ..Default::default()
         },
         noop_backing_storage(),
