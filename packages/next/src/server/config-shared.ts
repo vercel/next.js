@@ -257,7 +257,7 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
-  allowedDevOrigins?: string[]
+  generateOnlyEnv?: boolean
   nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
@@ -673,6 +673,8 @@ export type ExportPathMap = {
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
+  allowedDevOrigins?: string[]
+
   exportPathMap?: (
     defaultMap: ExportPathMap,
     ctx: {
@@ -1134,8 +1136,9 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  allowedDevOrigins: [],
   experimental: {
-    allowedDevOrigins: [],
+    generateOnlyEnv: false,
     nodeMiddleware: false,
     cacheLife: {
       default: {

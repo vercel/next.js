@@ -3,65 +3,33 @@ import path from 'path'
 import crypto from 'crypto'
 import { promisify } from 'util'
 import globOriginal from 'next/dist/compiled/glob'
-import {
-  getNextConfigEnv,
-  getNextPublicEnvironmentVariables,
-} from '../build/webpack/plugins/define-env-plugin'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
-import { BUILD_MANIFEST } from '../shared/lib/constants'
+import { getNextConfigEnv, getStaticEnv } from './static-env'
 
 const glob = promisify(globOriginal)
-
-const getStaticEnv = (config: NextConfigComplete) => {
-  const staticEnv: Record<string, string | undefined> = {
-    ...getNextPublicEnvironmentVariables(),
-    ...getNextConfigEnv(config),
-    'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || '',
-  }
-  return staticEnv
-}
-
-export function populateStaticEnv(config: NextConfigComplete) {
-  // since inlining comes after static generation we need
-  // to ensure this value is assigned to process env so it
-  // can still be accessed
-  const staticEnv = getStaticEnv(config)
-  for (const key in staticEnv) {
-    const innerKey = key.split('.').pop() || ''
-    if (!process.env[innerKey]) {
-      process.env[innerKey] = staticEnv[key] || ''
-    }
-  }
-}
 
 export async function inlineStaticEnv({
   distDir,
   config,
-  buildId,
 }: {
   distDir: string
-  buildId: string
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
   const staticEnv = getStaticEnv(config)
 
   const serverDir = path.join(distDir, 'server')
-  const serverChunks = await glob('**/*.js', {
+  const serverChunks = await glob('**/*.{js,json,js.map}', {
     cwd: serverDir,
   })
   const clientDir = path.join(distDir, 'static')
-  const clientChunks = await glob('**/*.js', {
+  const clientChunks = await glob('**/*.{js,json,js.map}', {
     cwd: clientDir,
   })
-  const webpackRuntimeFile = clientChunks.find((item) =>
-    item.match(/webpack-[a-z0-9]{16}/)
-  )
-
-  if (!webpackRuntimeFile) {
-    throw new Error(`Invariant failed to find webpack runtime chunk`)
-  }
+  const manifestChunks = await glob('*.{js,json,js.map}', {
+    cwd: distDir,
+  })
 
   const inlineSema = new Sema(8)
   const nextConfigEnvKeys = Object.keys(nextConfigEnv).map((item) =>
@@ -73,6 +41,9 @@ export async function inlineStaticEnv({
     'g'
   )
   const changedClientFiles: Array<{ file: string; content: string }> = []
+  const filesToCheck = new Set<string>(
+    manifestChunks.map((f) => path.join(distDir, f))
+  )
 
   for (const [parentDir, files] of [
     [serverDir, serverChunks],
@@ -97,6 +68,7 @@ export async function inlineStaticEnv({
         if (content !== newContent && parentDir === clientDir) {
           changedClientFiles.push({ file, content: newContent })
         }
+        filesToCheck.add(filepath)
         inlineSema.release()
       })
     )
@@ -123,16 +95,18 @@ export async function inlineStaticEnv({
       .substring(0, 16)
 
     hashChanges.push({ originalHash, newHash })
+
     const filepath = path.join(clientDir, file)
-    await fs.promises.rename(filepath, filepath.replace(originalHash, newHash))
+    const newFilepath = filepath.replace(originalHash, newHash)
+
+    filesToCheck.delete(filepath)
+    filesToCheck.add(newFilepath)
+
+    await fs.promises.rename(filepath, newFilepath)
   }
 
   // update build-manifest and webpack-runtime with new hashes
-  for (const file of [
-    path.join(distDir, BUILD_MANIFEST),
-    path.join(distDir, 'static', webpackRuntimeFile),
-    path.join(distDir, 'static', buildId, '_buildManifest.js'),
-  ]) {
+  for (let file of filesToCheck) {
     const content = await fs.promises.readFile(file, 'utf-8')
     let newContent = content
 

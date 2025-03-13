@@ -166,10 +166,7 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const allowedOrigins = [
-    'localhost',
-    ...(config.experimental.allowedDevOrigins || []),
-  ]
+  const allowedOrigins = ['localhost', ...(config.allowedDevOrigins || [])]
   if (opts.hostname) {
     allowedOrigins.push(opts.hostname)
   }
