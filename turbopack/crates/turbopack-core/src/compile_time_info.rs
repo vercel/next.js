@@ -98,8 +98,6 @@ macro_rules! free_var_references {
     };
 }
 
-// TODO: replace with just a `serde_json::Value`
-// https://linear.app/vercel/issue/WEB-1641/compiletimedefinevalue-should-just-use-serde-jsonvalue
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CompileTimeDefineValue {
@@ -163,6 +161,8 @@ impl From<String> for DefineableNameSegment {
     }
 }
 
+/// These replacements are used during constant evaluation in the module analysis (such as when
+/// determining dead if branches), but are not actually replaced in the generated code.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct CompileTimeDefines(pub FxIndexMap<Vec<DefineableNameSegment>, CompileTimeDefineValue>);
@@ -238,6 +238,8 @@ impl From<CompileTimeDefineValue> for FreeVarReference {
     }
 }
 
+/// Like [CompileTimeDefines], these are used for constant evaluation. But additionally, any such
+/// references are also replaced in the code (e.g. `process.env.NODE_ENV` inlining)
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct FreeVarReferences(pub FxIndexMap<Vec<DefineableNameSegment>, FreeVarReference>);
