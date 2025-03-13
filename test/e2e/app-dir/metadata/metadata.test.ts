@@ -585,6 +585,29 @@ describe('app dir - metadata', () => {
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
     })
+
+    it('should support multiple icon formats including SVG and PNG', async () => {
+      const $ = await next.render$('/icons/static/multiple-formats')
+
+      // Get all icon links (excluding favicon)
+      const $icons = $('head > link[rel="icon"][type!="image/x-icon"]')
+
+      // Should have two icons
+      expect($icons.length).toBe(2)
+
+      // Check SVG icon
+      const $svgIcon = $icons.filter('[type="image/svg+xml"]')
+      expect($svgIcon.attr('href')).toMatch(
+        /\/icons\/static\/multiple-formats\/icon\.svg/
+      )
+
+      // Check PNG icon
+      const $pngIcon = $icons.filter('[type="image/png"]')
+      expect($pngIcon.attr('href')).toMatch(
+        /\/icons\/static\/multiple-formats\/icon\.png/
+      )
+      expect($pngIcon.attr('sizes')).toBe('48x48')
+    })
   })
 
   describe('twitter', () => {
