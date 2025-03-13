@@ -65,6 +65,7 @@ function getBaseSWCOptions({
   compilerOptions,
   resolvedBaseUrl,
   jsConfig,
+  supportedBrowsers,
   swcCacheDir,
   serverComponents,
   serverReferenceHashSalt,
@@ -84,6 +85,7 @@ function getBaseSWCOptions({
   swcPlugins: ExperimentalConfig['swcPlugins']
   resolvedBaseUrl?: ResolvedBaseUrl
   jsConfig: any
+  supportedBrowsers: string[] | undefined
   swcCacheDir?: string
   serverComponents?: boolean
   serverReferenceHashSalt: string
@@ -198,6 +200,7 @@ function getBaseSWCOptions({
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: compilerOptions?.styledJsx ?? {
       useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
+      browsers: supportedBrowsers,
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
@@ -321,6 +324,7 @@ export function getJestSWCOptions({
     compilerOptions,
     jsConfig,
     resolvedBaseUrl,
+    supportedBrowsers: undefined,
     esm,
     // Don't apply server layer transformations for Jest
     // Disable server / client graph assertions for Jest
@@ -410,6 +414,7 @@ export function getLoaderSWCOptions({
     compilerOptions,
     jsConfig,
     // resolvedBaseUrl,
+    supportedBrowsers,
     swcCacheDir,
     bundleLayer,
     serverComponents,

@@ -170,7 +170,11 @@ where
                     &file.name,
                     &styled_jsx::visitor::Config {
                         use_lightningcss: config.use_lightningcss,
-                        browsers: *target_browsers,
+                        browsers: if !config.browsers.is_any_target() {
+                            config.browsers
+                        } else {
+                            *target_browsers
+                        },
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
                 ))
