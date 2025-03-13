@@ -1,7 +1,6 @@
 import React from 'react'
 import { unstable_cacheTag as cacheTag } from 'next/cache'
 import { RevalidateButtons } from './buttons'
-import Link from 'next/link'
 
 async function getCachedWithTag({
   tag,
@@ -54,11 +53,6 @@ export default async function Page() {
       <p id="r1">[r, c] {r1}</p>
       <p id="r2">[-] {r2}</p>
       <RevalidateButtons />
-      <p>
-        <Link href="/revalidate-and-redirect">
-          Go to /revalidate-and-redirect
-        </Link>
-      </p>
     </div>
   )
 }

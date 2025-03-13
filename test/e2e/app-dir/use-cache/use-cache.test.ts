@@ -306,34 +306,36 @@ describe('use-cache', () => {
     })
 
     it('should revalidate caches after redirect', async () => {
-      const browser = await next.browser('/cache-tag')
-      const initial = await browser.elementById('a').text()
+      const browser = await next.browser('/revalidate-and-redirect')
+      const valueA = await browser.elementById('a').text()
+      const valueB = await browser.elementById('b').text()
 
-      if (!isNextDev) {
-        // Bust the ISR cache first to populate the "use cache" in-memory cache
-        // for the subsequent revalidations.
-        await browser.elementById('revalidate-path').click()
+      expect(valueA).toBe(valueB)
 
-        await retry(async () => {
-          expect(await browser.elementById('a').text()).not.toBe(initial)
-        })
-      }
+      await browser
+        .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+        .click()
 
-      const valueA1 = await browser.elementById('a').text()
-      const valueB1 = await browser.elementById('b').text()
-      await browser.elementByCss('a[href="/revalidate-and-redirect"]').click()
       await browser.elementById('revalidate-tag-redirect').click()
 
-      expect(await browser.elementById('a').text()).not.toBe(valueA1)
-      expect(await browser.elementById('b').text()).toBe(valueB1)
-      const valueA2 = await browser.elementById('a').text()
+      const newValueA = await browser.elementById('a').text()
+      const newValueB = await browser.elementById('b').text()
 
-      await browser.elementByCss('a[href="/revalidate-and-redirect"]').click()
+      expect(newValueA).toBe(newValueB)
+      expect(newValueA).not.toBe(valueA)
+      expect(newValueB).toBe(newValueB)
+
+      await browser
+        .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+        .click()
       await browser.elementById('revalidate-path-redirect').click()
 
-      expect(await browser.elementById('a').text()).not.toBe(valueA1)
-      expect(await browser.elementById('a').text()).not.toBe(valueA2)
-      expect(await browser.elementById('b').text()).not.toBe(valueB1)
+      const finalValueA = await browser.elementById('a').text()
+      const finalValueB = await browser.elementById('b').text()
+
+      expect(finalValueA).not.toBe(newValueA)
+      expect(finalValueB).not.toBe(newValueB)
+      expect(finalValueB).toBe(finalValueB)
     })
 
     it('should revalidate caches nested in unstable_cache', async () => {
@@ -469,7 +471,7 @@ describe('use-cache', () => {
         '/passed-to-client',
         '/react-cache',
         '/referential-equality',
-        '/revalidate-and-redirect',
+        '/revalidate-and-redirect/redirect',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',
