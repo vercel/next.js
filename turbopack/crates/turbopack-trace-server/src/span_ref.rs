@@ -282,7 +282,7 @@ impl<'a> SpanRef<'a> {
                             store.set_max_self_time_lookup(*end);
                             let corrected_time =
                                 store.self_time_tree.as_ref().map_or(duration, |tree| {
-                                    tree.lookup_range_corrected_count(*start, *end)
+                                    tree.lookup_range_corrected_time(*start, *end)
                                 });
                             return Some(corrected_time);
                         }

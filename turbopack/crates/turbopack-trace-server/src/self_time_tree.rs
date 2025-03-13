@@ -208,7 +208,7 @@ impl<T> SelfTimeTree<T> {
         total_count
     }
 
-    pub fn lookup_range_corrected_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
+    pub fn lookup_range_corrected_time(&self, start: Timestamp, end: Timestamp) -> Timestamp {
         let mut factor_times_1000 = 0u64;
         #[derive(PartialEq, Eq, PartialOrd, Ord)]
         enum Change {
