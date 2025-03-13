@@ -4,11 +4,10 @@ use petgraph::{visit::EdgeRef, Direction, Graph};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
-use crate::tree_shake::graph::{Dependency, ItemData, ItemId, ItemIdItemKind};
+use crate::tree_shake::graph::{Dependency, ItemId, ItemIdItemKind};
 
 pub(super) struct GraphOptimizer<'a> {
     pub graph_ix: &'a FxIndexSet<ItemId>,
-    pub data: &'a FxHashMap<ItemId, ItemData>,
 }
 
 impl Index<u32> for GraphOptimizer<'_> {
