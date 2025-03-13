@@ -390,7 +390,13 @@ describe('use-cache', () => {
 
   it('should not use stale caches in server actions that have revalidated', async () => {
     const browser = await next.browser('/revalidate-and-use')
-    const initial = await browser.elementByCss('p').text()
+
+    const initialUseCacheValue = await browser
+      .elementById('use-cache-value')
+      .text()
+    const initialFetchedValue = await browser
+      .elementById('fetched-value')
+      .text()
 
     if (!isNextDev) {
       // Bust the ISR cache first to populate the "use cache" in-memory cache
@@ -398,20 +404,35 @@ describe('use-cache', () => {
       await browser.elementById('revalidate-path').click()
       await browser.waitForElementByCss('#revalidate-path:enabled')
 
-      expect(await browser.elementByCss('p').text()).not.toBe(initial)
+      expect(await browser.elementById('use-cache-value').text()).not.toBe(
+        initialUseCacheValue
+      )
+      expect(await browser.elementById('fetched-value').text()).not.toBe(
+        initialFetchedValue
+      )
     }
 
-    const value = await browser.elementByCss('p').text()
+    const useCacheValue = await browser.elementById('use-cache-value').text()
+    const fetchedValue = await browser.elementById('fetched-value').text()
+
     await browser.elementById('revalidate-tag').click()
     await browser.waitForElementByCss('#revalidate-tag:enabled')
 
-    const newValue = await browser.elementByCss('p').text()
-    expect(newValue).not.toBe(value)
+    const newUseCacheValue = await browser.elementById('use-cache-value').text()
+    const newFetchedValue = await browser.elementById('fetched-value').text()
+
+    expect(newUseCacheValue).not.toBe(useCacheValue)
+    expect(newFetchedValue).not.toBe(fetchedValue)
 
     await browser.elementById('revalidate-path').click()
     await browser.waitForElementByCss('#revalidate-path:enabled')
 
-    expect(await browser.elementByCss('p').text()).not.toBe(newValue)
+    expect(await browser.elementById('use-cache-value').text()).not.toBe(
+      newUseCacheValue
+    )
+    expect(await browser.elementById('fetched-value').text()).not.toBe(
+      newFetchedValue
+    )
   })
 
   if (isNextStart) {

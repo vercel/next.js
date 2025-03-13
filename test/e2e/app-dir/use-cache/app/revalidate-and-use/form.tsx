@@ -4,19 +4,21 @@ import { useActionState } from 'react'
 
 export function Form({
   revalidateAction,
-  initialValue,
+  initialValues,
 }: {
-  revalidateAction: (type: 'tag' | 'path') => Promise<number>
-  initialValue: number
+  revalidateAction: (type: 'tag' | 'path') => Promise<[number, string]>
+  initialValues: [number, string]
 }) {
-  const [result, revalidate, isPending] = useActionState(
-    async (_state: number, type: 'tag' | 'path') => revalidateAction(type),
-    initialValue
+  const [[useCacheValue, fetchedValue], revalidate, isPending] = useActionState(
+    async (_state: [number, string], type: 'tag' | 'path') =>
+      revalidateAction(type),
+    initialValues
   )
 
   return (
     <form>
-      <p>{result}</p>
+      <p id="use-cache-value">{useCacheValue}</p>
+      <p id="fetched-value">{fetchedValue}</p>
       <button
         id="revalidate-tag"
         formAction={() => revalidate('tag')}

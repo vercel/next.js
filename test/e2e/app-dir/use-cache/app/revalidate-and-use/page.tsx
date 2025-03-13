@@ -1,6 +1,12 @@
 import { revalidatePath, revalidateTag, unstable_cacheTag } from 'next/cache'
 import { Form } from './form'
 
+async function fetchCachedValue() {
+  return fetch('https://next-data-api-endpoint.vercel.app/api/random', {
+    next: { tags: ['revalidate-and-use'], revalidate: false },
+  }).then((res) => res.text())
+}
+
 async function getCachedValue() {
   'use cache'
   unstable_cacheTag('revalidate-and-use')
@@ -19,9 +25,9 @@ export default async function Page() {
           revalidatePath('/revalidate-and-use')
         }
 
-        return getCachedValue()
+        return Promise.all([getCachedValue(), fetchCachedValue()])
       }}
-      initialValue={await getCachedValue()}
+      initialValues={await Promise.all([getCachedValue(), fetchCachedValue()])}
     />
   )
 }
