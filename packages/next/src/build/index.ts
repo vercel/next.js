@@ -207,7 +207,8 @@ import {
 
 import { turbopackBuild } from './turbopack-build'
 import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
-import { inlineStaticEnv, populateStaticEnv } from '../lib/inline-static-env'
+import { inlineStaticEnv } from '../lib/inline-static-env'
+import { populateStaticEnv } from '../lib/static-env'
 
 type Fallback = null | boolean | string
 
@@ -2254,7 +2255,9 @@ export default async function build(
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
-                isExperimentalCompile: isCompileMode,
+                isExperimentalCompile:
+                  isCompileMode ||
+                  (isGenerateMode && config.experimental.generateOnlyEnv),
               },
             },
             appDir: dir,
@@ -2505,9 +2508,19 @@ export default async function build(
             await inlineStaticEnv({
               distDir,
               config,
-              buildId,
             })
           })
+
+        // users might only want to inline env during experimental generate
+        // instead of also prerendering e.g. for test mode so exit after
+        if (config.experimental.generateOnlyEnv) {
+          Log.info(
+            'Inlined static env, exiting due to experimental.generateOnlyEnv'
+          )
+          await flushAllTraces()
+          teardownTraceSubscriber()
+          process.exit(0)
+        }
       }
 
       const middlewareManifest: MiddlewareManifest = await readManifest(

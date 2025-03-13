@@ -7,30 +7,30 @@ import DarkIcon from '../../../../icons/dark-icon'
 import SystemIcon from '../../../../icons/system-icon'
 import type { DevToolsInfoPropsCore } from './dev-tools-info'
 import { DevToolsInfo } from './dev-tools-info'
-import type { DevToolsIndicatorPosition } from '../dev-tools-indicator'
-
-function getInitialPreference() {
-  if (typeof localStorage === 'undefined') {
-    return 'system'
-  }
-
-  const theme = localStorage.getItem(STORAGE_KEY_THEME)
-  return theme === 'dark' || theme === 'light' ? theme : 'system'
-}
+import {
+  getInitialTheme,
+  NEXT_DEV_TOOLS_SCALE,
+  type DevToolsIndicatorPosition,
+  type DevToolsScale,
+} from './preferences'
 
 export function UserPreferences({
   setPosition,
   position,
   hide,
+  scale,
+  setScale,
   ...props
 }: {
   setPosition: (position: DevToolsIndicatorPosition) => void
   position: DevToolsIndicatorPosition
+  scale: DevToolsScale
+  setScale: (value: DevToolsScale) => void
   hide: () => void
 } & DevToolsInfoPropsCore &
-  HTMLProps<HTMLDivElement>) {
+  Omit<HTMLProps<HTMLDivElement>, 'size'>) {
   // derive initial theme from system preference
-  const [theme, setTheme] = useState(getInitialPreference())
+  const [theme, setTheme] = useState(getInitialTheme())
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const portal = document.querySelector('nextjs-portal')
@@ -59,6 +59,11 @@ export function UserPreferences({
   function handlePositionChange(e: React.ChangeEvent<HTMLSelectElement>) {
     setPosition(e.target.value as DevToolsIndicatorPosition)
     localStorage.setItem(STORAGE_KEY_POSITION, e.target.value)
+  }
+
+  function handleSizeChange({ target }: React.ChangeEvent<HTMLSelectElement>) {
+    const value = Number(target.value) as DevToolsScale
+    setScale(value)
   }
 
   return (
@@ -101,6 +106,29 @@ export function UserPreferences({
             <option value="bottom-right">Bottom Right</option>
             <option value="top-left">Top Left</option>
             <option value="top-right">Top Right</option>
+          </Select>
+        </div>
+
+        <div className="preference-section">
+          <div className="preference-header">
+            <label htmlFor="size">Size</label>
+            <p className="preference-description">
+              Adjust the size of your dev tools.
+            </p>
+          </div>
+          <Select
+            id="size"
+            name="size"
+            value={scale}
+            onChange={handleSizeChange}
+          >
+            {Object.entries(NEXT_DEV_TOOLS_SCALE).map(([key, value]) => {
+              return (
+                <option value={value} key={key}>
+                  {key}
+                </option>
+              )
+            })}
           </Select>
         </div>
 
