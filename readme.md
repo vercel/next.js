@@ -4,6 +4,21 @@ Minimialist version of Next.js. Not intended for external consumption.
 
 [Base Documentation](https://github.com/healthline/next.js/tree/fork-base#how-to-use)
 
+## How to Test Locally
+
+1. Build the package: `yarn build`
+
+2. In the frontend folder: `yarn add ../next.js`
+
+3. Repeat the process if you make any changes to next.js
+
+**Having issues with the frontend reporting multiple versions of react?**
+
+1. Rename `node_modules` (e.g. `node_modules2`)
+2. Re-run `yarn add ../next.js`
+
+Note: you'll have to change it back to `node_modules` if you want to rebuild it
+
 ## Publishing to [@healthline/next.js](https://www.npmjs.com/package/@healthline/next)
 
 ### Steps to Publish
