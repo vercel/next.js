@@ -3,13 +3,13 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 import { Button } from 'components';
 import deleteFromDb from 'db';
 const v1 = 'v1';
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_0 = async function action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
     await deleteFromDb($$ACTION_ARG_1);
 };
-export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUND) {
+export const $$RSC_SERVER_ACTION_1 = async function action($$ACTION_CLOSURE_BOUND) {
     var [$$ACTION_ARG_0, $$ACTION_ARG_1] = await decryptActionBoundArgs("4090b5db271335765a4b0eab01f044b381b5ebd5cd", $$ACTION_CLOSURE_BOUND);
     await deleteFromDb($$ACTION_ARG_0);
     await deleteFromDb(v1);
