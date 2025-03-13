@@ -102,6 +102,8 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
+    --code-frame-padding: 12px;
+    --code-frame-line-height: var(--size-16);
     background-color: var(--color-background-200);
     overflow: hidden;
     color: var(--color-gray-1000);
@@ -110,7 +112,7 @@ export const CODE_FRAME_STYLES = `
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
-    line-height: var(--size-16);
+    line-height: var(--code-frame-line-height);
     margin: 8px 0;
 
     svg {
@@ -121,7 +123,7 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link,
   .code-frame-pre {
-    padding: 12px;
+    padding: var(--code-frame-padding);
   }
 
   .code-frame-link svg {
@@ -171,6 +173,26 @@ export const CODE_FRAME_STYLES = `
     background-color: transparent;
     font-family: var(--font-stack-monospace);
   }
+
+  [data-nextjs-codeframe-line][data-nextjs-codeframe-line--errored="true"] {
+    position: relative;
+
+    > span { 
+      position: relative;
+      z-index: 1;
+    }
+
+    &::after {
+      content: "";
+      width: calc(100% + var(--code-frame-padding) * 2);
+      height: var(--code-frame-line-height);
+      left: calc(-1 * var(--code-frame-padding));
+      background: var(--color-red-200);
+      box-shadow: 2px 0 0 0 var(--color-red-900) inset;
+      position: absolute;
+    }
+  }
+
 
   [data-nextjs-codeframe] > * {
     margin: 0;
