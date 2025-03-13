@@ -725,12 +725,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Schedule the task, if not already scheduled
         if is_cancelled {
             bail!("{} was canceled", ctx.get_task_description(task_id));
-        } else if !is_scheduled {
-            if task.add(CachedDataItem::new_scheduled(
+        } else if !is_scheduled
+            && task.add(CachedDataItem::new_scheduled(
                 self.get_task_desc_fn(task_id),
-            )) {
-                turbo_tasks.schedule(task_id);
-            }
+            ))
+        {
+            turbo_tasks.schedule(task_id);
         }
 
         Ok(Err(listener))
