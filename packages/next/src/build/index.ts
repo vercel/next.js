@@ -2255,7 +2255,9 @@ export default async function build(
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
-                isExperimentalCompile: isCompileMode,
+                isExperimentalCompile:
+                  isCompileMode ||
+                  (isGenerateMode && config.experimental.generateOnlyEnv),
               },
             },
             appDir: dir,
@@ -2506,20 +2508,19 @@ export default async function build(
             await inlineStaticEnv({
               distDir,
               config,
-              buildId,
             })
           })
 
         // users might only want to inline env during experimental generate
-        // instead of also prerendering e.g. for testmode so exit after
+        // instead of also prerendering e.g. for test mode so exit after
         if (config.experimental.generateOnlyEnv) {
           Log.info(
-            'Only inlining static env due to experimental.generateOnlyEnv'
+            'Inlined static env, exiting due to experimental.generateOnlyEnv'
           )
+          await flushAllTraces()
+          teardownTraceSubscriber()
+          process.exit(0)
         }
-        await flushAllTraces()
-        teardownTraceSubscriber()
-        process.exit(0)
       }
 
       const middlewareManifest: MiddlewareManifest = await readManifest(
