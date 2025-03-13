@@ -113,6 +113,7 @@ impl StyleSheetLike<'_, '_> {
 pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference>)>);
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum ParseCssResult {
     Ok {
         code: ResolvedVc<FileContent>,

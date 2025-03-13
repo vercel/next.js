@@ -1,5 +1,4 @@
 #![feature(hash_raw_entry)]
-#![feature(hash_extract_if)]
 
 pub mod map;
 pub mod set;
