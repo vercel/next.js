@@ -1861,11 +1861,10 @@
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope",
       "dynamic-data should render the dynamic apis dynamically when used in a top-level scope with force dynamic",
       "dynamic-data should track dynamic apis when rendering app routes",
-      "dynamic-data should track searchParams access as dynamic when the Page is a client component"
-    ],
-    "failed": [
+      "dynamic-data should track searchParams access as dynamic when the Page is a client component",
       "dynamic-data with dynamic = \"error\" error when the build when `dynamic = \"error\"` and dynamic data is read"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2090,6 +2089,7 @@
       "dynamic-io should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
       "dynamic-io should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
       "dynamic-io should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
+      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
       "dynamic-io should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
       "dynamic-io should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
       "dynamic-io should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
@@ -2102,9 +2102,7 @@
       "dynamic-io should prerender pages with cached `require('node:crypto').randomInt(min, max)` calls",
       "dynamic-io should prerender pages with cached `require('node:crypto').randomUUID()` calls"
     ],
-    "failed": [
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2851,6 +2849,8 @@
     "passed": [
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
+      "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
+      "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -5194,11 +5194,12 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
-      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
-    "failed": [],
+    "failed": [
+      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8180,12 +8181,13 @@
     "passed": [
       "Default 404 Page with custom _error production mode should build successfully",
       "Default 404 Page with custom _error production mode should have output 404.html",
-      "Default 404 Page with custom _error production mode should render error correctly",
-      "Default 404 Page with custom _error production mode should render index page normal",
       "Default 404 Page with custom _error production mode should respond to 404 correctly",
       "Default 404 Page with custom _error production mode should set pages404 in routes-manifest correctly"
     ],
-    "failed": [],
+    "failed": [
+      "Default 404 Page with custom _error production mode should render error correctly",
+      "Default 404 Page with custom _error production mode should render index page normal"
+    ],
     "pending": [
       "Default 404 Page with custom _error development mode should render error correctly",
       "Default 404 Page with custom _error development mode should render index page normal",
@@ -8300,10 +8302,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
+    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -12992,6 +12994,7 @@
       "i18n Support basePath production mode should not redirect to accept-lang preferred locale with locale cookie",
       "i18n Support basePath production mode should not remove locale prefix for default locale",
       "i18n Support basePath production mode should not strip locale prefix for default locale with locale domains",
+      "i18n Support basePath production mode should output correct prerender-manifest",
       "i18n Support basePath production mode should preload all locales data correctly",
       "i18n Support basePath production mode should prerender with the correct href for locale domain",
       "i18n Support basePath production mode should provide defaultLocale correctly for locale domain",
@@ -13029,9 +13032,7 @@
       "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
     ],
-    "failed": [
-      "i18n Support basePath production mode should output correct prerender-manifest"
-    ],
+    "failed": [],
     "pending": [
       "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
       "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
@@ -13647,10 +13648,11 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
-      "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for svg"
     ],
-    "failed": [],
+    "failed": [
+      "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif"
+    ],
     "pending": [
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
@@ -14593,11 +14595,10 @@
   },
   "test/integration/middleware-prefetch/tests/index.test.js": {
     "passed": [
+      "Middleware Production Prefetch production mode does not prefetch provided path if it will be rewritten",
       "Middleware Production Prefetch production mode prefetch correctly for unexistent routes"
     ],
-    "failed": [
-      "Middleware Production Prefetch production mode does not prefetch provided path if it will be rewritten"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
