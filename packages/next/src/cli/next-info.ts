@@ -133,6 +133,17 @@ async function printInfo() {
   }
 
   const cpuCores = os.cpus().length
+  let relevantPackages = `  next: ${installedRelease}${stalenessWithTitle}
+  eslint-config-next: ${getPackageVersion('eslint-config-next')}
+  react: ${getPackageVersion('react')}
+  react-dom: ${getPackageVersion('react-dom')}
+  typescript: ${getPackageVersion('typescript')}`
+
+  if (process.env.NEXT_RSPACK) {
+    relevantPackages += `
+  @next/plugin-rspack: ${getPackageVersion('@next/plugin-rspack')}`
+  }
+
   console.log(`
 Operating System:
   Platform: ${os.platform()}
@@ -146,11 +157,7 @@ Binaries:
   Yarn: ${getBinaryVersion('yarn')}
   pnpm: ${getBinaryVersion('pnpm')}
 Relevant Packages:
-  next: ${installedRelease}${stalenessWithTitle}
-  eslint-config-next: ${getPackageVersion('eslint-config-next')}
-  react: ${getPackageVersion('react')}
-  react-dom: ${getPackageVersion('react-dom')}
-  typescript: ${getPackageVersion('typescript')}
+${relevantPackages}
 Next.js Config:
   output: ${nextConfig.output}`)
 
