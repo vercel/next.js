@@ -885,6 +885,10 @@ export default async function build(
       NextBuildContext.buildId = buildId
 
       if (experimentalBuildMode === 'generate-env') {
+        if (turboNextBuild) {
+          Log.warn('generate-env is not needed with turbopack')
+          process.exit(0)
+        }
         Log.info('Inlining static env ...')
         await nextBuildSpan
           .traceChild('inline-static-env')
@@ -2517,6 +2521,8 @@ export default async function build(
       // we don't need to inline for turbopack build as
       // it will handle it's own caching separate of compile
       if (isGenerateMode && !turboNextBuild) {
+        Log.info('Inlining static env ...')
+
         await nextBuildSpan
           .traceChild('inline-static-env')
           .traceAsyncFn(async () => {
