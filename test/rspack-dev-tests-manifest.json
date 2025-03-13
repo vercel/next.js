@@ -1873,9 +1873,7 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [
-      "Error recovery app server component can recover from a component error"
-    ],
+    "passed": [],
     "failed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app can recover from a syntax error without losing state",
@@ -1883,6 +1881,7 @@
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
+      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
       "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
@@ -1942,6 +1941,7 @@
       "Error overlay - RSC build errors should error when Component from react is used in server component",
       "Error overlay - RSC build errors should error when PureComponent from react is used in server component",
       "Error overlay - RSC build errors should error when createContext from react is used in server component",
+      "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
@@ -1967,9 +1967,7 @@
       "Error overlay - RSC build errors should throw an error when metadata export is used in client components",
       "Error overlay - RSC build errors should throw an error when metadata exports are used together in server components"
     ],
-    "failed": [
-      "Error overlay - RSC build errors should error when createFactory from react is used in server component"
-    ],
+    "failed": [],
     "pending": [
       "Error overlay - RSC build errors should throw an error when getStaticProps is used"
     ],
@@ -2002,12 +2000,13 @@
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called in external package",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is called",
-      "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is renamed in destructuring",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called in external package",
       "Error Overlay for server components createContext called in Server Component should show error when createContext is called in external package"
     ],
-    "failed": [],
+    "failed": [
+      "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is renamed in destructuring"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3283,10 +3282,10 @@
     "runtimeError": false
   },
   "test/development/internal-traces/internal-traces.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "internal traces should not write long internal traces to stdio"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4340,8 +4339,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
-    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
-    "failed": [],
+    "passed": [],
+    "failed": ["app-routes-subrequests shortcuts after 5 subrequests"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4996,7 +4995,7 @@
     "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
     "passed": [
@@ -5822,17 +5821,16 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [
-      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
-    ],
+    "passed": [],
     "failed": [
+      "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -6337,6 +6335,8 @@
     "passed": [
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
+      "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
+      "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -7871,10 +7871,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/root-layout-render-once/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir root layout render once should only render root layout once"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7951,6 +7951,7 @@
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling ppr",
       "app dir - rsc basics react@experimental should opt into the react@experimental when enabling taint",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
+      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
       "app dir - rsc basics should correctly render layout returning null",
@@ -7982,7 +7983,6 @@
       "app dir - rsc basics should use canary react for app"
     ],
     "failed": [
-      "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should track client components in dynamic imports"
     ],
     "pending": [
@@ -10417,7 +10417,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/multi-zone/multi-zone.test.ts": {
     "passed": [
@@ -11563,6 +11563,10 @@
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP development mode should not contain missing files warning",
+      "AMP Usage production mode should not contain missing files warning",
+      "AMP Usage production mode should not have deprecation warning"
+    ],
+    "failed": [
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -11570,6 +11574,8 @@
       "AMP Usage production mode With basic AMP usage should auto import extensions",
       "AMP Usage production mode With basic AMP usage should drop custom scripts",
       "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
       "AMP Usage production mode With basic AMP usage should optimize clean",
       "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
       "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -11585,13 +11591,7 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "failed": [
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
+      "AMP Usage production mode should have amp optimizer in trace"
     ],
     "pending": [
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
@@ -19870,13 +19870,14 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
