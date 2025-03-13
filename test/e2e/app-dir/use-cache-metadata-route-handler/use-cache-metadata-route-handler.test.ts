@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-metadata-route-handler', () => {
-  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -132,7 +132,7 @@ describe('use-cache-metadata-route-handler', () => {
     }
   })
 
-  if (isNextStart && !isTurbopack) {
+  if (isNextStart) {
     it('should include the client reference manifest in the route.js.nft.json files of dynamic metadata routes', async () => {
       for (const filename of [
         'icon',
@@ -146,7 +146,9 @@ describe('use-cache-metadata-route-handler', () => {
           `/.next/server/app/${filename}/route.js.nft.json`
         )
 
-        expect(files).toInclude('route_client-reference-manifest.js')
+        expect(
+          files.find((e) => e.endsWith('route_client-reference-manifest.js'))
+        ).toBeString()
       }
     })
 
@@ -155,7 +157,9 @@ describe('use-cache-metadata-route-handler', () => {
         '/.next/server/app/favicon.ico/route.js.nft.json'
       )
 
-      expect(files).not.toInclude('route_client-reference-manifest.js')
+      expect(
+        files.find((e) => e.endsWith('route_client-reference-manifest.js'))
+      ).toBeUndefined()
     })
   }
 })

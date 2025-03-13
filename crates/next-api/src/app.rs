@@ -1106,14 +1106,32 @@ impl AppEndpoint {
 
         let app_entry = self.app_endpoint_entry().await?;
 
+        #[derive(Debug, PartialEq, Eq)]
+        enum EmitManifests {
+            None,
+            Minimal,
+            Full,
+        }
         let (process_client_assets, process_ssr, emit_manifests) = match this.ty {
             AppEndpointType::Page { ty, .. } => (
                 true,
                 matches!(ty, AppPageEndpointType::Html),
-                matches!(ty, AppPageEndpointType::Html),
+                if matches!(ty, AppPageEndpointType::Html) {
+                    EmitManifests::Full
+                } else {
+                    EmitManifests::None
+                },
             ),
-            AppEndpointType::Route { .. } => (false, false, true),
-            AppEndpointType::Metadata { .. } => (false, false, true),
+            AppEndpointType::Route { .. } => (false, false, EmitManifests::Full),
+            AppEndpointType::Metadata { metadata } => (
+                false,
+                false,
+                if matches!(metadata, MetadataItem::Dynamic { .. }) {
+                    EmitManifests::Full
+                } else {
+                    EmitManifests::Minimal
+                },
+            ),
         };
 
         let node_root = project.node_root();
@@ -1223,7 +1241,7 @@ impl AppEndpoint {
 
         let manifest_path_prefix = &app_entry.original_name;
 
-        if emit_manifests {
+        if emit_manifests != EmitManifests::None {
             let app_build_manifest = AppBuildManifest {
                 pages: fxindexmap!(
                     app_entry.original_name.clone() => Vc::cell(entry_client_chunks
@@ -1261,7 +1279,7 @@ impl AppEndpoint {
         );
         client_assets.insert(polyfill_output_asset);
 
-        if emit_manifests {
+        if emit_manifests != EmitManifests::None {
             if *this
                 .app_project
                 .project()
@@ -1342,7 +1360,9 @@ impl AppEndpoint {
                 .runtime_chunking_context(process_client_assets, runtime),
         )
         .await?;
-        server_assets.insert(server_action_manifest.manifest);
+        if emit_manifests == EmitManifests::Full {
+            server_assets.insert(server_action_manifest.manifest);
+        }
 
         let server_action_manifest_loader = server_action_manifest.loader;
 
@@ -1366,7 +1386,7 @@ impl AppEndpoint {
         // these references are important for turbotrace
         let mut client_reference_manifest = None;
 
-        if emit_manifests {
+        if emit_manifests == EmitManifests::Full {
             let entry_manifest =
                 ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
                     node_root,
@@ -1437,7 +1457,7 @@ impl AppEndpoint {
 
                 let entry_file = "app-edge-has-no-entrypoint".into();
 
-                if emit_manifests {
+                if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
                         Vc::upcast(client_chunking_context),
@@ -1516,7 +1536,8 @@ impl AppEndpoint {
                         .await?,
                     );
                     server_assets.insert(middleware_manifest_v2);
-
+                }
+                if emit_manifests != EmitManifests::None {
                     // create app paths manifest
                     let app_paths_manifest_output =
                         create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)
@@ -1536,7 +1557,7 @@ impl AppEndpoint {
                 // For node, there will be exactly one asset in this
                 let rsc_chunk = *app_entry_chunks_ref.first().unwrap();
 
-                let loadable_manifest_output = if emit_manifests {
+                if emit_manifests != EmitManifests::None {
                     // create app paths manifest
                     let app_paths_manifest_output = create_app_paths_manifest(
                         node_root,
@@ -1551,7 +1572,9 @@ impl AppEndpoint {
                     )
                     .await?;
                     server_assets.insert(app_paths_manifest_output);
+                }
 
+                let loadable_manifest_output = if emit_manifests == EmitManifests::Full {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
