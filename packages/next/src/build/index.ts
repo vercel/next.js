@@ -2506,7 +2506,6 @@ export default async function build(
             await inlineStaticEnv({
               distDir,
               config,
-              buildId,
             })
           })
 

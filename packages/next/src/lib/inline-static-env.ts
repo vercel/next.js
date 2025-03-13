@@ -5,7 +5,6 @@ import { promisify } from 'util'
 import globOriginal from 'next/dist/compiled/glob'
 import { Sema } from 'next/dist/compiled/async-sema'
 import type { NextConfigComplete } from '../server/config-shared'
-import { BUILD_MANIFEST } from '../shared/lib/constants'
 import { getNextConfigEnv, getStaticEnv } from './static-env'
 
 const glob = promisify(globOriginal)
@@ -13,30 +12,24 @@ const glob = promisify(globOriginal)
 export async function inlineStaticEnv({
   distDir,
   config,
-  buildId,
 }: {
   distDir: string
-  buildId: string
   config: NextConfigComplete
 }) {
   const nextConfigEnv = getNextConfigEnv(config)
   const staticEnv = getStaticEnv(config)
 
   const serverDir = path.join(distDir, 'server')
-  const serverChunks = await glob('**/*.js', {
+  const serverChunks = await glob('**/*.(js|json)', {
     cwd: serverDir,
   })
   const clientDir = path.join(distDir, 'static')
-  const clientChunks = await glob('**/*.js', {
+  const clientChunks = await glob('**/*.(js|json)', {
     cwd: clientDir,
   })
-  const webpackRuntimeFile = clientChunks.find((item) =>
-    item.match(/webpack-[a-z0-9]{16}/)
-  )
-
-  if (!webpackRuntimeFile) {
-    throw new Error(`Invariant failed to find webpack runtime chunk`)
-  }
+  const manifestChunks = await glob('*.(js|json)', {
+    cwd: distDir,
+  })
 
   const inlineSema = new Sema(8)
   const nextConfigEnvKeys = Object.keys(nextConfigEnv).map((item) =>
@@ -104,9 +97,9 @@ export async function inlineStaticEnv({
 
   // update build-manifest and webpack-runtime with new hashes
   for (const file of [
-    path.join(distDir, BUILD_MANIFEST),
-    path.join(distDir, 'static', webpackRuntimeFile),
-    path.join(distDir, 'static', buildId, '_buildManifest.js'),
+    ...serverChunks.map((f) => path.join(serverDir, f)),
+    ...manifestChunks.map((f) => path.join(distDir, f)),
+    ...clientChunks.map((f) => path.join(clientDir, f)),
   ]) {
     const content = await fs.promises.readFile(file, 'utf-8')
     let newContent = content
