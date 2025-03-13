@@ -88,24 +88,29 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         </p>
       </div>
       <pre className="code-frame-pre">
-        {decoded.map((entry, index) => (
-          <span
-            key={`frame-${index}`}
-            style={{
-              color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
-                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                  // having longer width than expected on Geist Mono font-weight
-                  // above 600, hence a temporary fix is to use 500 for bold.
-                  { fontWeight: 500 }
-                : entry.decoration === 'italic'
-                  ? { fontStyle: 'italic' }
-                  : undefined),
-            }}
-          >
-            {entry.content}
-          </span>
-        ))}
+        {decoded.map((entry, index) => {
+          const isHighlighted = entry.content === '>' && entry.fg === 'ansi-red'
+          return (
+            <span
+              key={`frame-${index}`}
+              className="code-frame-pre-token"
+              data-highlight={isHighlighted}
+              style={{
+                color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                ...(entry.decoration === 'bold'
+                  ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                    // having longer width than expected on Geist Mono font-weight
+                    // above 600, hence a temporary fix is to use 500 for bold.
+                    { fontWeight: 500 }
+                  : entry.decoration === 'italic'
+                    ? { fontStyle: 'italic' }
+                    : undefined),
+              }}
+            >
+              {entry.content}
+            </span>
+          )
+        })}
       </pre>
     </div>
   )
@@ -137,6 +142,21 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link svg {
     flex-shrink: 0;
+  }
+
+
+  .code-frame-pre-token[data-highlight="true"] {
+    position: static;
+    
+    &:after {
+      content: "";
+      position: absolute;
+      width: 100%;
+      background: var(--color-red-200);
+      height: var(--size-16);
+      border-left: 2px solid var(--color-red-900);
+      left: 0;
+    }
   }
 
   .code-frame-link [data-text] {
@@ -181,6 +201,7 @@ export const CODE_FRAME_STYLES = `
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);
+    position: relative;
   }
 
   [data-nextjs-codeframe] > * {
