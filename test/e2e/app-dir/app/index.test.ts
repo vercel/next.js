@@ -13,8 +13,15 @@ describe('app dir - basic', () => {
     nextTestSetup({
       files: __dirname,
       buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-        ? `pnpm next build --experimental-build-mode=compile`
+        ? 'pnpm compile-mode'
         : undefined,
+      packageJson: {
+        scripts: {
+          'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
+            ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
+            : undefined,
+        },
+      },
       dependencies: {
         nanoid: '4.0.1',
       },
