@@ -200,7 +200,6 @@ function getBaseSWCOptions({
     // Always transform styled-jsx and error when `client-only` condition is triggered
     styledJsx: compilerOptions?.styledJsx ?? {
       useLightningcss: jsConfig?.experimental?.useLightningcss ?? false,
-      browsers: supportedBrowsers,
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
@@ -237,6 +236,14 @@ function getBaseSWCOptions({
     preferEsm: esm,
     lintCodemodComments: true,
     debugFunctionName: development,
+
+    ...(supportedBrowsers && supportedBrowsers.length > 0
+      ? {
+          cssEnv: {
+            targets: supportedBrowsers,
+          },
+        }
+      : {}),
   }
 }
 
