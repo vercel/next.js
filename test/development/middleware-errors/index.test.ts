@@ -496,7 +496,10 @@ describe('middleware - development errors', () => {
            "description": "Parsing ecmascript source code failed",
            "environmentLabel": null,
            "label": "Build Error",
-           "source": "./middleware.js (1:28) Parsing ecmascript source code failed > 1 | export default function () }     |                            ^ Expected '{', got '}'",
+           "source": "./middleware.js (1:28)
+         Parsing ecmascript source code failed
+         > 1 | export default function () }
+             |                            ^",
            "stack": [],
          }
         `)
