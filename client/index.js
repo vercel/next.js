@@ -1,10 +1,10 @@
 /* global __NEXT_DATA__ */
 import { createElement } from 'react'
-import ReactDOM from 'react-dom'
 import mitt from 'mitt'
 import { waitForPage } from '../lib/page-loader'
 import router, { createRouter } from './router'
 import { getURL } from '../lib/url'
+import { createRoot, hydrateRoot } from 'react-dom/client'
 
 const {
   props,
@@ -17,7 +17,9 @@ __webpack_public_path__ = __NEXT_DATA__.publicPath    // eslint-disable-line
 
 const asPath = getURL()
 
-const appContainer = document.getElementById('__next')
+const appContainer = document.getElementById('__next');
+
+
 
 let lastAppProps
 let ErrorComponent
@@ -94,7 +96,7 @@ export function renderError (error) {
   // in the inconsistant state.
   // Otherwise, we need to face issues when the issue is fixed and
   // it's get notified via HMR
-  ReactDOM.unmountComponentAtNode(appContainer)
+  root.unmount()
 
   console.error(error)
 
@@ -113,11 +115,14 @@ function renderReactElement (reactEl, domEl) {
   // Wrap page in app-level enhancer, if defined
   reactEl = Enhancer ? createElement(Enhancer, null, reactEl) : reactEl
 
+  
   if (isInitialRender && domEl.firstChild) {
-    ReactDOM.hydrate(reactEl, domEl)
+    // todo: do we need to save the root?
+    const root = hydrateRoot(appContainer, reactEl);
     isInitialRender = false
   } else {
-    ReactDOM.render(reactEl, domEl)
+    const root = createRoot(appContainer);
+    root.render(reactEl);
     isInitialRender = false
   }
 }

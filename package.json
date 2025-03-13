@@ -60,8 +60,8 @@
     "lint-staged": ">=10",
     "node-notifier": "6.0.0",
     "pinst": ">=2",
-    "react": "16.12.0",
-    "react-dom": "16.12.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "standard": "12.0.1"
   },
   "jest": {
