@@ -1140,6 +1140,14 @@ impl SingleModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
+        entries: Vc<GraphEntries>,
+        visited_modules: Vc<VisitedModules>,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &visited_modules.await?.modules).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,
