@@ -390,45 +390,41 @@ describe('use-cache', () => {
 
   it('should not use stale caches in server actions that have revalidated', async () => {
     const browser = await next.browser('/revalidate-and-use')
-
-    const initialUseCacheValue = await browser
-      .elementById('use-cache-value')
-      .text()
-    const initialFetchedValue = await browser
-      .elementById('fetched-value')
-      .text()
-
-    if (!isNextDev) {
-      // Bust the ISR cache first to populate the "use cache" in-memory cache
-      // for the subsequent revalidations.
-      await browser.elementById('revalidate-path').click()
-      await browser.waitForElementByCss('#revalidate-path:enabled')
-
-      expect(await browser.elementById('use-cache-value').text()).not.toBe(
-        initialUseCacheValue
-      )
-      expect(await browser.elementById('fetched-value').text()).not.toBe(
-        initialFetchedValue
-      )
-    }
-
-    const useCacheValue = await browser.elementById('use-cache-value').text()
+    const useCacheValue1 = await browser.elementById('use-cache-value-1').text()
+    const useCacheValue2 = await browser.elementById('use-cache-value-2').text()
     const fetchedValue = await browser.elementById('fetched-value').text()
+
+    expect(useCacheValue1).toEqual(useCacheValue2)
 
     await browser.elementById('revalidate-tag').click()
     await browser.waitForElementByCss('#revalidate-tag:enabled')
 
-    const newUseCacheValue = await browser.elementById('use-cache-value').text()
+    const useCacheValueBeforeRevalidation = await browser
+      .elementById('use-cache-value-1')
+      .text()
+    const useCacheValueAfterRevalidation = await browser
+      .elementById('use-cache-value-2')
+      .text()
     const newFetchedValue = await browser.elementById('fetched-value').text()
 
-    expect(newUseCacheValue).not.toBe(useCacheValue)
+    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
+    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
+    expect(useCacheValueBeforeRevalidation).not.toBe(
+      useCacheValueAfterRevalidation
+    )
     expect(newFetchedValue).not.toBe(fetchedValue)
 
     await browser.elementById('revalidate-path').click()
     await browser.waitForElementByCss('#revalidate-path:enabled')
 
-    expect(await browser.elementById('use-cache-value').text()).not.toBe(
-      newUseCacheValue
+    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+      useCacheValueBeforeRevalidation
+    )
+    expect(await browser.elementById('use-cache-value-2').text()).not.toBe(
+      useCacheValueAfterRevalidation
+    )
+    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+      await browser.elementById('use-cache-value-2').text()
     )
     expect(await browser.elementById('fetched-value').text()).not.toBe(
       newFetchedValue
@@ -474,7 +470,6 @@ describe('use-cache', () => {
         '/react-cache',
         '/referential-equality',
         '/revalidate-and-redirect',
-        '/revalidate-and-use',
         '/rsc-payload',
         '/static-class-method',
         '/use-action-state',

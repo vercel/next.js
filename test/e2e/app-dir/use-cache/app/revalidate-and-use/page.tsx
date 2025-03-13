@@ -1,5 +1,6 @@
 import { revalidatePath, revalidateTag, unstable_cacheTag } from 'next/cache'
 import { Form } from './form'
+import { connection } from 'next/server'
 
 async function fetchCachedValue() {
   return fetch('https://next-data-api-endpoint.vercel.app/api/random', {
@@ -14,10 +15,15 @@ async function getCachedValue() {
 }
 
 export default async function Page() {
+  // Make the page dynamic, as we don't want to deal with ISR in this scenario.
+  await connection()
+
   return (
     <Form
       revalidateAction={async (type: 'tag' | 'path') => {
         'use server'
+
+        const initialCachedValue = await getCachedValue()
 
         if (type === 'tag') {
           revalidateTag('revalidate-and-use')
@@ -25,9 +31,17 @@ export default async function Page() {
           revalidatePath('/revalidate-and-use')
         }
 
-        return Promise.all([getCachedValue(), fetchCachedValue()])
+        return Promise.all([
+          initialCachedValue,
+          getCachedValue(),
+          fetchCachedValue(),
+        ])
       }}
-      initialValues={await Promise.all([getCachedValue(), fetchCachedValue()])}
+      initialValues={await Promise.all([
+        getCachedValue(),
+        getCachedValue(),
+        fetchCachedValue(),
+      ])}
     />
   )
 }
