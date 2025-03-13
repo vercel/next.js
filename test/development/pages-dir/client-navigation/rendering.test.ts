@@ -290,7 +290,7 @@ describe('Client Navigation rendering', () => {
            "description": "ReferenceError: aa is not defined",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+           "source": "pages/error-in-the-global-scope.js (1:1)
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [

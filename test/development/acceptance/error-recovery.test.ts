@@ -772,7 +772,7 @@ describe('pages/ error recovery', () => {
          "description": "Error: no 1",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (5:9) @ eval
+         "source": "index.js (5:9)
        > 5 |   throw Error('no ' + i)
            |         ^",
          "stack": [

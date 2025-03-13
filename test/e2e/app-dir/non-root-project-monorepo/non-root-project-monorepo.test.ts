@@ -117,7 +117,7 @@ describe('non-root-project-monorepo', () => {
         } else {
           // TODO the function name is incorrect
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-           "app/separate-file.ts (1:11) @ eval
+           "app/separate-file.ts (1:11)
 
            > 1 | throw new Error('Expected error')
                |           ^

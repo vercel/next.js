@@ -221,7 +221,7 @@ describe('middleware - development errors', () => {
            "description": "ReferenceError: test is not defined",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (4:9) @ eval
+           "source": "middleware.js (4:9)
          > 4 |         eval('test')
              |         ^",
            "stack": [
@@ -302,7 +302,7 @@ describe('middleware - development errors', () => {
            "description": "Error: booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:13) @ eval
+           "source": "middleware.js (3:13)
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [
