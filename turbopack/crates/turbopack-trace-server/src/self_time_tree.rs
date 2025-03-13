@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    mem::take,
-};
+use std::mem::take;
 
 use crate::timestamp::Timestamp;
 
@@ -194,8 +191,8 @@ impl<T> SelfTimeTree<T> {
         let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
             if entry.start < end && entry.end > start {
-                let start = max(entry.start, start);
-                let end = min(entry.end, end);
+                let start = std::cmp::max(entry.start, start);
+                let end = std::cmp::min(entry.end, end);
                 let span = end - start;
                 total_count += span;
             }
