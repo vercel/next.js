@@ -819,7 +819,7 @@ export default async function build(
   noMangling = false,
   appDirOnly = false,
   turboNextBuild = false,
-  experimentalBuildMode: 'default' | 'compile' | 'generate',
+  experimentalBuildMode: 'default' | 'compile' | 'generate' | 'generate-env',
   traceUploadUrl: string | undefined
 ): Promise<void> {
   const isCompileMode = experimentalBuildMode === 'compile'
@@ -883,6 +883,23 @@ export default async function build(
         config
       )
       NextBuildContext.buildId = buildId
+
+      if (experimentalBuildMode === 'generate-env') {
+        Log.info('Inlining static env ...')
+        await nextBuildSpan
+          .traceChild('inline-static-env')
+          .traceAsyncFn(async () => {
+            await inlineStaticEnv({
+              distDir,
+              config,
+            })
+          })
+
+        Log.info('Complete')
+        await flushAllTraces()
+        teardownTraceSubscriber()
+        process.exit(0)
+      }
 
       // when using compile mode static env isn't inlined so we
       // need to populate in normal runtime env
@@ -2255,9 +2272,7 @@ export default async function build(
                 trustHostHeader: ciEnvironment.hasNextSupport,
 
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
-                isExperimentalCompile:
-                  isCompileMode ||
-                  (isGenerateMode && config.experimental.generateOnlyEnv),
+                isExperimentalCompile: isCompileMode,
               },
             },
             appDir: dir,
@@ -2510,17 +2525,6 @@ export default async function build(
               config,
             })
           })
-
-        // users might only want to inline env during experimental generate
-        // instead of also prerendering e.g. for test mode so exit after
-        if (config.experimental.generateOnlyEnv) {
-          Log.info(
-            'Inlined static env, exiting due to experimental.generateOnlyEnv'
-          )
-          await flushAllTraces()
-          teardownTraceSubscriber()
-          process.exit(0)
-        }
       }
 
       const middlewareManifest: MiddlewareManifest = await readManifest(
@@ -3633,6 +3637,12 @@ export default async function build(
       if (buildTracesSpinner) {
         buildTracesSpinner.stopAndPersist()
         buildTracesSpinner = undefined
+      }
+
+      if (isCompileMode) {
+        Log.info(
+          `Build ran with "compile" mode, to finalize the build run either "generate" or "generate-env" mode as well`
+        )
       }
 
       if (config.output === 'export') {
