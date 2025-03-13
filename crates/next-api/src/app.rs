@@ -1108,8 +1108,11 @@ impl AppEndpoint {
 
         #[derive(Debug, PartialEq, Eq)]
         enum EmitManifests {
+            /// Don't emit any manifests (needed for the RSC endpoints)
             None,
+            /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
             Minimal,
+            /// All manifests: `Minimal` plus client-references, next-dynamic, ...
             Full,
         }
         let (process_client_assets, process_ssr, emit_manifests) = match this.ty {
