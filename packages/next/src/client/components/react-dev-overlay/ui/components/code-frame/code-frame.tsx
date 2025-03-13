@@ -1,55 +1,27 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-
-import Anser from 'next/dist/compiled/anser'
-import stripAnsi from 'next/dist/compiled/strip-ansi'
-
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../../utils/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { ExternalIcon } from '../../icons/external'
 import { FileIcon } from '../../icons/file'
+import {
+  formatCodeFrame,
+  groupCodeFrameLines,
+  parseLineNumberFromCodeFrameLine,
+} from './parse-code-frame'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
-  // Strip leading spaces out of the code frame:
-  const formattedFrame = useMemo<string>(() => {
-    const lines = codeFrame.split(/\r?\n/g)
-
-    // Find the minimum length of leading spaces after `|` in the code frame
-    const miniLeadingSpacesLength = lines
-      .map((line) =>
-        /^>? +\d+ +\| [ ]+/.exec(stripAnsi(line)) === null
-          ? null
-          : /^>? +\d+ +\| ( *)/.exec(stripAnsi(line))
-      )
-      .filter(Boolean)
-      .map((v) => v!.pop()!)
-      .reduce((c, n) => (isNaN(c) ? n.length : Math.min(c, n.length)), NaN)
-
-    // When the minimum length of leading spaces is greater than 1, remove them
-    // from the code frame to help the indentation looks better when there's a lot leading spaces.
-    if (miniLeadingSpacesLength > 1) {
-      return lines
-        .map((line, a) =>
-          ~(a = line.indexOf('|'))
-            ? line.substring(0, a) +
-              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
-            : line
-        )
-        .join('\n')
-    }
-    return lines.join('\n')
-  }, [codeFrame])
-
-  const decoded = useMemo(() => {
-    return Anser.ansiToJson(formattedFrame, {
-      json: true,
-      use_classes: true,
-      remove_empty: true,
-    })
-  }, [formattedFrame])
+  const formattedFrame = useMemo<string>(
+    () => formatCodeFrame(codeFrame),
+    [codeFrame]
+  )
+  const decodedLines = useMemo(
+    () => groupCodeFrameLines(formattedFrame),
+    [formattedFrame]
+  )
 
   const open = useOpenInEditor({
     file: stackFrame.file,
@@ -88,24 +60,41 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         </p>
       </div>
       <pre className="code-frame-pre">
-        {decoded.map((entry, index) => (
-          <span
-            key={`frame-${index}`}
-            style={{
-              color: entry.fg ? `var(--color-${entry.fg})` : undefined,
-              ...(entry.decoration === 'bold'
-                ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
-                  // having longer width than expected on Geist Mono font-weight
-                  // above 600, hence a temporary fix is to use 500 for bold.
-                  { fontWeight: 500 }
-                : entry.decoration === 'italic'
-                  ? { fontStyle: 'italic' }
-                  : undefined),
-            }}
-          >
-            {entry.content}
-          </span>
-        ))}
+        {decodedLines.map((line, lineIndex) => {
+          const { lineNumber, isErroredLine } =
+            parseLineNumberFromCodeFrameLine(line, stackFrame)
+
+          const lineNumberProps: Record<string, string | boolean> = {}
+          if (lineNumber) {
+            lineNumberProps['data-nextjs-codeframe-line'] = lineNumber
+          }
+          if (isErroredLine) {
+            lineNumberProps['data-nextjs-codeframe-line--errored'] = true
+          }
+
+          return (
+            <div key={`line-${lineIndex}`} {...lineNumberProps}>
+              {line.map((entry, entryIndex) => (
+                <span
+                  key={`frame-${entryIndex}`}
+                  style={{
+                    color: entry.fg ? `var(--color-${entry.fg})` : undefined,
+                    ...(entry.decoration === 'bold'
+                      ? // TODO(jiwon): This used to be 800, but the symbols like `─┬─` are
+                        // having longer width than expected on Geist Mono font-weight
+                        // above 600, hence a temporary fix is to use 500 for bold.
+                        { fontWeight: 500 }
+                      : entry.decoration === 'italic'
+                        ? { fontStyle: 'italic' }
+                        : undefined),
+                  }}
+                >
+                  {entry.content}
+                </span>
+              ))}
+            </div>
+          )
+        })}
       </pre>
     </div>
   )
