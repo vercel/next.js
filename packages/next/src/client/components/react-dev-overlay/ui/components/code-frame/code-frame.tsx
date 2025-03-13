@@ -118,6 +118,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
 export const CODE_FRAME_STYLES = `
   [data-nextjs-codeframe] {
+    --code-frame-row-height: var(--size-16);
     background-color: var(--color-background-200);
     overflow: hidden;
     color: var(--color-gray-1000);
@@ -126,7 +127,7 @@ export const CODE_FRAME_STYLES = `
     border-radius: 8px;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-12);
-    line-height: var(--size-16);
+    line-height: var(--code-frame-row-height);
     margin: 8px 0;
 
     svg {
@@ -153,7 +154,7 @@ export const CODE_FRAME_STYLES = `
       position: absolute;
       width: 100%;
       background: var(--color-red-200);
-      height: var(--size-16);
+      height: var(--code-frame-row-height);
       border-left: 2px solid var(--color-red-900);
       left: 0;
     }
