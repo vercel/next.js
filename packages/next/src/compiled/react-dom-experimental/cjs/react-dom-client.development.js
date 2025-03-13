@@ -22045,7 +22045,7 @@
           anim.cancel();
       }
     }
-    function customizeViewTransitionError(error) {
+    function customizeViewTransitionError(error, ignoreAbort) {
       if ("object" === typeof error && null !== error)
         switch (error.name) {
           case "TimeoutError":
@@ -22054,10 +22054,12 @@
               { cause: error }
             );
           case "AbortError":
-            return Error(
-              "A ViewTransition was aborted early. This might be because you have other View Transition libraries on the page and only one can run at a time. To avoid this, use only React's built-in <ViewTransition> to coordinate.",
-              { cause: error }
-            );
+            return ignoreAbort
+              ? null
+              : Error(
+                  "A ViewTransition was aborted early. This might be because you have other View Transition libraries on the page and only one can run at a time. To avoid this, use only React's built-in <ViewTransition> to coordinate.",
+                  { cause: error }
+                );
           case "InvalidStateError":
             if (
               "View transition was skipped because document visibility state is hidden." ===
@@ -22134,7 +22136,7 @@
         ownerDocument.__reactViewTransition = transition;
         transition.ready.then(spawnedWorkCallback, function (error) {
           try {
-            (error = customizeViewTransitionError(error)),
+            (error = customizeViewTransitionError(error, !1)),
               null !== error && errorCallback(error);
           } finally {
             spawnedWorkCallback();
@@ -22321,7 +22323,7 @@
               : readyCallback;
         transition.ready.then(readyForAnimations, function (error) {
           try {
-            (error = customizeViewTransitionError(error)),
+            (error = customizeViewTransitionError(error, !0)),
               null !== error && errorCallback(error);
           } finally {
             readyCallback();
@@ -27960,11 +27962,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-6aa8254b-20250312" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-f457d0b4-20250313" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-6aa8254b-20250312\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-f457d0b4-20250313\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -28001,10 +28003,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.1.0-experimental-6aa8254b-20250312",
+          version: "19.1.0-experimental-f457d0b4-20250313",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.1.0-experimental-6aa8254b-20250312"
+          reconcilerVersion: "19.1.0-experimental-f457d0b4-20250313"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -28146,7 +28148,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.1.0-experimental-6aa8254b-20250312";
+    exports.version = "19.1.0-experimental-f457d0b4-20250313";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -15343,9 +15343,12 @@ function cancelAllViewTransitionAnimations(scope) {
       anim.cancel();
   }
 }
-function customizeViewTransitionError(error) {
+function customizeViewTransitionError(error, ignoreAbort) {
   if ("object" === typeof error && null !== error)
     switch (error.name) {
+      case "AbortError":
+        if (ignoreAbort) return null;
+        break;
       case "InvalidStateError":
         if (
           "View transition was skipped because document visibility state is hidden." ===
@@ -15412,7 +15415,7 @@ function startViewTransition(
     ownerDocument.__reactViewTransition = transition;
     transition.ready.then(spawnedWorkCallback, function (error) {
       try {
-        (error = customizeViewTransitionError(error)),
+        (error = customizeViewTransitionError(error, !1)),
           null !== error && errorCallback(error);
       } finally {
         spawnedWorkCallback();
@@ -15597,7 +15600,7 @@ function startGestureTransition(
           : readyCallback;
     transition.ready.then(readyForAnimations, function (error) {
       try {
-        (error = customizeViewTransitionError(error)),
+        (error = customizeViewTransitionError(error, !0)),
           null !== error && errorCallback(error);
       } finally {
         readyCallback();
@@ -17368,14 +17371,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1905 = React.version;
 if (
-  "19.1.0-experimental-6aa8254b-20250312" !==
+  "19.1.0-experimental-f457d0b4-20250313" !==
   isomorphicReactPackageVersion$jscomp$inline_1905
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1905,
-      "19.1.0-experimental-6aa8254b-20250312"
+      "19.1.0-experimental-f457d0b4-20250313"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -17397,10 +17400,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2498 = {
   bundleType: 0,
-  version: "19.1.0-experimental-6aa8254b-20250312",
+  version: "19.1.0-experimental-f457d0b4-20250313",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-6aa8254b-20250312"
+  reconcilerVersion: "19.1.0-experimental-f457d0b4-20250313"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2499 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -17504,4 +17507,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.1.0-experimental-6aa8254b-20250312";
+exports.version = "19.1.0-experimental-f457d0b4-20250313";
