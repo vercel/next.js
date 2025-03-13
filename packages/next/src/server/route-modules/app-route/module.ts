@@ -322,6 +322,23 @@ export class AppRouteRouteModule extends RouteModule<
         : undefined,
     }
 
+    const resolvePendingRevalidations = () => {
+      context.renderOpts.pendingWaitUntil = Promise.all([
+        workStore.incrementalCache?.revalidateTag(
+          workStore.pendingRevalidatedTags || []
+        ),
+        ...Object.values(workStore.pendingRevalidates || {}),
+        ...(workStore.pendingRevalidateWrites || []),
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log(
+            'pending revalidates promise finished for:',
+            requestStore.url
+          )
+        }
+      })
+    }
+
     let prerenderStore: null | PrerenderStore = null
 
     let res: unknown
@@ -575,6 +592,8 @@ export class AppRouteRouteModule extends RouteModule<
           appendMutableCookies(headers, requestStore.mutableCookies)
         }
 
+        resolvePendingRevalidations()
+
         // Return the redirect response.
         return new Response(null, {
           // If we're in an action, we want to use a 303 redirect as we don't
@@ -602,19 +621,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     context.renderOpts.fetchMetrics = workStore.fetchMetrics
 
-    context.renderOpts.pendingWaitUntil = Promise.all([
-      workStore.incrementalCache?.revalidateTag(
-        workStore.pendingRevalidatedTags || []
-      ),
-      ...Object.values(workStore.pendingRevalidates || {}),
-    ]).finally(() => {
-      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-        console.log(
-          'pending revalidates promise finished for:',
-          requestStore.url
-        )
-      }
-    })
+    resolvePendingRevalidations()
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
