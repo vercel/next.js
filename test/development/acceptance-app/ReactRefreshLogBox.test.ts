@@ -966,7 +966,7 @@ describe('ReactRefreshLogBox app', () => {
            "Set.forEach <anonymous> (0:0)",
            "<FIXME-file-protocol>",
            "<FIXME-file-protocol>",
-           "Page app/page.js (2:1)",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1320,17 +1320,63 @@ describe('ReactRefreshLogBox app', () => {
     )
 
     await expect(browser).toDisplayRedbox(`
-     {
-       "description": "Error: Server component error!",
-       "environmentLabel": "Server",
-       "label": "Runtime Error",
-       "source": "app/page.js (2:9) @ Page
+     [
+       {
+         "description": "Error: Server component error!",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/page.js (2:9) @ Page
      > 2 |   throw new Error('Server component error!')
          |         ^",
-       "stack": [
-         "Page app/page.js (2:9)",
-       ],
-     }
+         "stack": [
+           "Page app/page.js (2:9)",
+         ],
+       },
+       {
+         "description": "Error: Server component error!",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/page.js (2:9) @ Page
+     > 2 |   throw new Error('Server component error!')
+         |         ^",
+         "stack": [
+           "Page app/page.js (2:9)",
+         ],
+       },
+       {
+         "description": "Error: Server component error!",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/page.js (2:9) @ Page
+     > 2 |   throw new Error('Server component error!')
+         |         ^",
+         "stack": [
+           "Page app/page.js (2:9)",
+         ],
+       },
+       {
+         "description": "Error: Server component error!",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/page.js (2:9) @ Page
+     > 2 |   throw new Error('Server component error!')
+         |         ^",
+         "stack": [
+           "Page app/page.js (2:9)",
+         ],
+       },
+       {
+         "description": "Error: Server component error!",
+         "environmentLabel": "Server",
+         "label": "Runtime Error",
+         "source": "app/page.js (2:9) @ Page
+     > 2 |   throw new Error('Server component error!')
+         |         ^",
+         "stack": [
+           "Page app/page.js (2:9)",
+         ],
+       },
+     ]
     `)
   })
 
