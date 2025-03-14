@@ -1,0 +1,36 @@
+---
+title: clientInstrumentationHook
+description: Enable client-side instrumentation.
+version: experimental
+---
+
+## Usage
+
+When enabled, Next.js searches for an `instrumentation-client.ts` file at the project root and executes it synchronously before hydration. This file is bundled into the initial JavaScript chunk, allowing you to run analytics or monitoring before any other code executes. The code in this file runs exclusively on the client side and is not executed during server-side rendering (SSR).
+
+> **Good to know:**
+>
+> - Client instrumentation increases bundle size and execution time, so keep it minimal to avoid delaying interactivity.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    clientInstrumentationHook: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    clientInstrumentationHook: true,
+  },
+}
+
+module.exports = nextConfig
+```
