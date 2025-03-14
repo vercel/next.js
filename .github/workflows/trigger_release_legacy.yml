@@ -31,7 +31,7 @@ on:
       RELEASE_BOT_GITHUB_TOKEN:
         required: true
 
-name: Trigger Release
+name: Trigger Release (Legacy)
 
 env:
   NAPI_CLI_VERSION: 2.14.7

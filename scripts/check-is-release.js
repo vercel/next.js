@@ -2,23 +2,29 @@ const { execSync } = require('child_process')
 
 const checkIsRelease = async () => {
   let commitId = process.argv[2] || ''
+  const commitIdArg = commitId ? ` ${commitId}` : ''
 
   // parse only the last string which should be version if
   // it's a publish commit
-  const commitMsg = execSync(
-    `git log -n 1 --pretty='format:%B'${commitId ? ` ${commitId}` : ''}`
+  const commitMsg = execSync(`git log -n 1 --pretty='format:%B'${commitIdArg}`)
+    .toString()
+    .trim()
+
+  const commitAuthor = execSync(
+    `git log -n 1 --pretty='format:%ae'${commitIdArg}`
   )
     .toString()
     .trim()
 
-  const versionString = commitMsg.split(' ').pop().trim()
-  const publishMsgRegex = /^v\d{1,}\.\d{1,}\.\d{1,}(-\w{1,}\.\d{1,})?$/
+  const isGithubBot =
+    // TODO: vercel-release-bot
+    commitAuthor === '41898282+github-actions[bot]@users.noreply.github.com'
 
-  if (publishMsgRegex.test(versionString)) {
-    console.log(versionString)
+  if (commitMsg.startsWith('[repo] version packages to') && isGithubBot) {
+    console.log(commitMsg)
     process.exit(0)
   } else {
-    console.log('not publish commit', { commitId, commitMsg, versionString })
+    console.log('not publish commit', { commitId, commitMsg, commitAuthor })
     process.exit(1)
   }
 }

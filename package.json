@@ -77,7 +77,10 @@
     "storybook": "turbo run storybook",
     "build-storybook": "turbo run build-storybook",
     "test-storybook": "turbo run test-storybook",
-    "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1"
+    "with-rspack": "cross-env NEXT_RSPACK=1 NEXT_TEST_USE_RSPACK=1",
+    "ci:version-canary": "changeset version && pnpm install --no-frozen-lockfile",
+    "ci:version-stable": "node ./scripts/version-stable.js",
+    "ci:publish": "turbo run build && changeset publish"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -90,6 +93,7 @@
     "@babel/plugin-syntax-explicit-resource-management": "7.25.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
+    "@changesets/cli": "2.28.1",
     "@edge-runtime/jest-environment": "4.0.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",

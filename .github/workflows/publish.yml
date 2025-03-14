@@ -1,0 +1,60 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - canary
+  workflow_dispatch:
+
+jobs:
+  checkIsRelease:
+    name: Check if it's a publish commit
+    runs-on: ubuntu-latest
+    outputs:
+      value: ${{ steps.check-is-release.outputs.value }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Check if it's a publish commit
+        id: check-is-release
+        run: |
+          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) = "Version Packages"* ]]; then
+            echo "value=true" >> $GITHUB_OUTPUT
+          else
+            echo "value=false" >> $GITHUB_OUTPUT
+          fi
+
+  publishRelease:
+    if: needs.checkIsRelease.outputs.value == 'true'
+    needs:
+      - checkIsRelease
+    name: Potentially publish release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          publish: pnpm ci:publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
