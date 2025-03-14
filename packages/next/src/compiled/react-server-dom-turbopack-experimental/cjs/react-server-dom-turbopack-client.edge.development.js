@@ -12,6 +12,16 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
