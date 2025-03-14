@@ -1651,6 +1651,9 @@ importers:
       '@rspack/plugin-react-refresh':
         specifier: 1.0.1
         version: 1.0.1(react-refresh@0.12.0)
+      react-refresh:
+        specifier: 0.12.0
+        version: 0.12.0
 
   packages/next-plugin-storybook: {}
 
