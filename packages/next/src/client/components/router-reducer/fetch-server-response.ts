@@ -215,8 +215,15 @@ export async function fetchServerResponse(
     // In prod, every page will have the same Webpack runtime.
     // In dev, the Webpack runtime is minimal for each page.
     // We need to ensure the Webpack runtime is updated before executing client-side JS of the new page.
+    let hotReloaderClient: { waitForWebpackRuntimeHotUpdate: () => Promise<void> } | undefined;
     if (process.env.NODE_ENV !== 'production' && !process.env.TURBOPACK) {
-      await require('../react-dev-overlay/app/hot-reloader-client').waitForWebpackRuntimeHotUpdate()
+      hotReloaderClient = require('../react-dev-overlay/app/hot-reloader-client');
+    }
+    // Webpack dead code elimination isn't clever enough to remove the require() from production builds
+    // if it is wrapped inside an async closure transformation. We need to make sure the `await` is not
+    // inside the `if (process.env.NODE_ENV !== 'production' ...)` in order for webpack remove it.
+    if (hotReloaderClient) {
+      await hotReloaderClient.waitForWebpackRuntimeHotUpdate()
     }
 
     // Handle the `fetch` readable stream that can be unwrapped by `React.use`.
