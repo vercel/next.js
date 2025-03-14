@@ -192,7 +192,7 @@ describe('app dir - css', () => {
         const $ = await next.render$('/loading-bug/hi')
         // The link tag should be hoist into head with precedence properties
         const styles = $('head link[data-precedence]').length
-        if (process.env.TURBOPACK) {
+        if (process.env.TURBOPACK && !isNextDev) {
           expect(styles).toBe(3)
         } else {
           expect(styles).toBe(2)
@@ -313,7 +313,7 @@ describe('app dir - css', () => {
             /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
           ),
         ].length
-        if (process.env.TURBOPACK) {
+        if (process.env.TURBOPACK && !isNextDev) {
           expect(stylesheets).toBe(5)
         } else {
           expect(stylesheets).toBe(3)
