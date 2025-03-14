@@ -11,7 +11,10 @@ import {
 import type { __ApiPreviewProps } from '../api-utils'
 
 export class DraftModeProvider {
-  #isEnabled: boolean
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private _isEnabled: boolean
 
   /**
    * @internal - this declaration is stripped via `tsc --stripInternal`
@@ -37,7 +40,7 @@ export class DraftModeProvider {
 
     const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
 
-    this.#isEnabled = Boolean(
+    this._isEnabled = Boolean(
       !isOnDemandRevalidate &&
         cookieValue &&
         previewProps &&
@@ -52,7 +55,7 @@ export class DraftModeProvider {
   }
 
   get isEnabled() {
-    return this.#isEnabled
+    return this._isEnabled
   }
 
   enable() {
@@ -71,7 +74,7 @@ export class DraftModeProvider {
       path: '/',
     })
 
-    this.#isEnabled = true
+    this._isEnabled = true
   }
 
   disable() {
@@ -88,6 +91,6 @@ export class DraftModeProvider {
       expires: new Date(0),
     })
 
-    this.#isEnabled = false
+    this._isEnabled = false
   }
 }
