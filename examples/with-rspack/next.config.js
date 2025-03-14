@@ -1,5 +1,9 @@
 const withRspack = require("@next/plugin-rspack");
 
-module.exports = function (config) {
-  return withRspack(config);
-};
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  /* config options here */
+}
+
+module.exports = withRspack(nextConfig);
