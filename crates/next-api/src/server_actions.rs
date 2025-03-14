@@ -140,6 +140,7 @@ pub(crate) async fn build_server_actions_loader(
     let source = VirtualSource::new_with_ident(
         rsc_entry
             .ident()
+            .with_path(rsc_entry.ident().path().with_extension("js".into()))
             .with_modifier(server_actions_loader_modifier()),
         AssetContent::file(file.into()),
     );
