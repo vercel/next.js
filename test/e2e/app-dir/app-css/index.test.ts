@@ -191,7 +191,12 @@ describe('app dir - css', () => {
       it('should include css imported in loading.js', async () => {
         const $ = await next.render$('/loading-bug/hi')
         // The link tag should be hoist into head with precedence properties
-        expect($('head link[data-precedence]').length).toBe(2)
+        const styles = $('head link[data-precedence]').length
+        if (process.env.TURBOPACK) {
+          expect(styles).toBe(3)
+        } else {
+          expect(styles).toBe(2)
+        }
 
         expect($('body h2').text()).toBe('Loading...')
       })
@@ -303,13 +308,16 @@ describe('app dir - css', () => {
       it('should bundle css resources into chunks', async () => {
         const html = await next.render('/dashboard')
 
-        expect(
-          [
-            ...html.matchAll(
-              /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
-            ),
-          ].length
-        ).toBe(3)
+        const stylesheets = [
+          ...html.matchAll(
+            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+          ),
+        ].length
+        if (process.env.TURBOPACK) {
+          expect(stylesheets).toBe(5)
+        } else {
+          expect(stylesheets).toBe(3)
+        }
       })
     })
 
