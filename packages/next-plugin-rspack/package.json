@@ -5,6 +5,7 @@
     "url": "vercel/next.js",
     "directory": "packages/next-plugin-rspack"
   },
+  "types": "index.d.ts",
   "dependencies": {
     "@rspack/core": "npm:@rspack-canary/core@1.2.9-canary-c009cfc1-20250313053424",
     "@rspack/plugin-react-refresh": "1.0.1"
