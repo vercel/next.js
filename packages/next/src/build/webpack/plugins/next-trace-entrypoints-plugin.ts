@@ -186,9 +186,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
 
-        for (const chunk of process.env.NEXT_RSPACK
-          ? entrypoint.chunks
-          : entrypoint.getEntrypointChunk().getAllReferencedChunks()) {
+        for (const chunk of entrypoint
+          .getEntrypointChunk()
+          .getAllReferencedChunks()) {
           for (const file of chunk.files) {
             if (isTraceable(file)) {
               const filePath = nodePath.join(outputPath, file)
