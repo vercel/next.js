@@ -31,4 +31,4 @@ jobs:
       - name: Push Versioned Packages to Canary Branch
         run: node ./scripts/version-canary.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

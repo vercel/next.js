@@ -24,7 +24,7 @@ async function main() {
 
     log('Configuring the release bot...')
     await execa(
-      `git remote set-url origin https://devjiwonchoi:${process.env.GITHUB_TOKEN}@github.com/devjiwonchoi/next.js.git`,
+      `git remote set-url origin https://devjiwonchoi:${process.env.RELEASE_BOT_GITHUB_TOKEN}@github.com/devjiwonchoi/next.js.git`,
       { stdio: 'inherit', shell: true }
     )
     await execa(`git config user.name "devjiwonchoi"`, {
