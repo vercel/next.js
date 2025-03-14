@@ -772,7 +772,29 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets))
+        Ok(project.module_graph_for_modules(evaluatable_assets))
+    }
+
+    #[turbo_tasks::function]
+    async fn ssr_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+
+        let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
+        let shared_entries = [
+            ssr_chunk_module.document_module,
+            ssr_chunk_module.app_module,
+        ];
+        let entries = shared_entries
+            .into_iter()
+            .flatten()
+            .map(ChunkGroupEntry::Shared)
+            .chain(std::iter::once(ChunkGroupEntry::Entry(vec![
+                ssr_chunk_module.ssr_module,
+            ])))
+            .collect::<Vec<_>>();
+
+        Ok(project.module_graph_for_entries(Vc::cell(entries)))
     }
 
     #[turbo_tasks::function]
@@ -932,7 +954,7 @@ impl PageEndpoint {
             // The SSR and Client Graphs are not connected in Pages Router.
             // We are only interested in get_next_dynamic_imports_for_endpoint at the
             // moment, which only needs the client graph anyway.
-            let module_graph = project.module_graph(*ssr_module);
+            let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 let client_availability_info = self.client_chunks().await?.availability_info;
@@ -984,7 +1006,7 @@ impl PageEndpoint {
                         .chunk_group(
                             layout.ident(),
                             ChunkGroup::Shared(layout),
-                            module_graph,
+                            ssr_module_graph,
                             Value::new(current_availability_info),
                         )
                         .await?;
@@ -1014,7 +1036,7 @@ impl PageEndpoint {
                 let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
                     ChunkGroup::Entry(evaluatable_assets.collect()),
-                    module_graph,
+                    ssr_module_graph,
                     Value::new(current_availability_info),
                 );
 
@@ -1034,7 +1056,7 @@ impl PageEndpoint {
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
                         runtime_entries.with_entry(*ssr_module_evaluatable),
-                        module_graph,
+                        ssr_module_graph,
                         current_chunks,
                         Value::new(current_availability_info),
                     )
@@ -1513,17 +1535,32 @@ impl Endpoint for PageEndpoint {
         let this = self.await?;
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        let mut modules = vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])];
 
-        if let PageEndpointType::Html = this.ty {
-            modules.push(ChunkGroupEntry::Entry(
-                self.client_evaluatable_assets()
-                    .await?
-                    .iter()
-                    .map(|m| ResolvedVc::upcast(*m))
-                    .collect(),
-            ));
-        }
+        let shared_entries = [
+            ssr_chunk_module.document_module,
+            ssr_chunk_module.app_module,
+        ];
+
+        let modules = shared_entries
+            .into_iter()
+            .flatten()
+            .map(ChunkGroupEntry::Shared)
+            .chain(std::iter::once(ChunkGroupEntry::Entry(vec![
+                ssr_chunk_module.ssr_module,
+            ])))
+            .chain(if this.ty == PageEndpointType::Html {
+                Some(ChunkGroupEntry::Entry(
+                    self.client_evaluatable_assets()
+                        .await?
+                        .iter()
+                        .map(|m| ResolvedVc::upcast(*m))
+                        .collect(),
+                ))
+                .into_iter()
+            } else {
+                None.into_iter()
+            })
+            .collect::<Vec<_>>();
 
         Ok(Vc::cell(modules))
     }
