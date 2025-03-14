@@ -3,7 +3,7 @@
 > [!WARNING]
 > This example uses a package is currently experimental and actively developed and supported in Next.js’ `canary` branch. To use this, you must be using a published canary build of Next.js.
 
-This example demonstrates using Rpsack in place of webpack in Next.js using `@next/plugin-rspack`.
+This example demonstrates using Rspack in place of webpack in Next.js using `@next/plugin-rspack`.
 
 ## Deploy your own
 
