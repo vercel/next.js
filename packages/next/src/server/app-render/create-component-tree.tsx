@@ -398,15 +398,13 @@ async function createComponentTreeInternal({
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
   const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
-
   const metadata =
     isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
 
   // Use the same condition to render metadataOutlet as metadata
-  const metadataOutlet =
-    isNotDefaultSegment && StreamingMetadataOutlet ? (
-      <StreamingMetadataOutlet />
-    ) : undefined
+  const metadataOutlet = StreamingMetadataOutlet ? (
+    <StreamingMetadataOutlet />
+  ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
