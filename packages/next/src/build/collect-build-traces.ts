@@ -20,6 +20,7 @@ import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import isError from '../lib/is-error'
 import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
+import { findCacheHandlerByAlias } from '../server/lib/cache-handlers/utils'
 
 const debug = debugOriginal('next:build:build-traces')
 
@@ -142,8 +143,13 @@ export async function collectBuildTraces({
       }
 
       if (cacheHandlers) {
-        for (const handlerPath of Object.values(cacheHandlers)) {
-          if (handlerPath) {
+        for (let handlerPath of Object.values(cacheHandlers)) {
+          handlerPath = findCacheHandlerByAlias(handlerPath, cacheHandlers)
+          if (
+            handlerPath &&
+            handlerPath !== 'default' &&
+            handlerPath !== 'remote'
+          ) {
             sharedEntriesSet.push(
               require.resolve(
                 path.isAbsolute(handlerPath)
