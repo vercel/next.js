@@ -54,7 +54,7 @@ use turbopack_core::{
     module::Module,
     module_graph::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
-        GraphEntries, ModuleGraph,
+        GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
     },
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
@@ -780,21 +780,37 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
-        let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        let shared_entries = [
-            ssr_chunk_module.document_module,
-            ssr_chunk_module.app_module,
-        ];
-        let entries = shared_entries
+        if *project.per_page_module_graph().await? {
+            let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
+            // Implements layout segment optimization to compute a graph "chain" for document, app,
+            // page
+            let mut graphs = vec![];
+            let mut visited_modules = VisitedModules::empty();
+            for module in [
+                ssr_chunk_module.document_module,
+                ssr_chunk_module.app_module,
+            ]
             .into_iter()
             .flatten()
-            .map(ChunkGroupEntry::Shared)
-            .chain(std::iter::once(ChunkGroupEntry::Entry(vec![
-                ssr_chunk_module.ssr_module,
-            ])))
-            .collect::<Vec<_>>();
+            {
+                let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                    vec![ChunkGroupEntry::Shared(module)],
+                    visited_modules,
+                );
+                graphs.push(graph);
+                visited_modules = visited_modules.concatenate(graph);
+            }
 
-        Ok(project.module_graph_for_entries(Vc::cell(entries)))
+            let graph = SingleModuleGraph::new_with_entries_visited_intern(
+                vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])],
+                visited_modules,
+            );
+            graphs.push(graph);
+
+            Ok(ModuleGraph::from_graphs(graphs))
+        } else {
+            Ok(*project.whole_app_module_graphs().await?.full)
+        }
     }
 
     #[turbo_tasks::function]
