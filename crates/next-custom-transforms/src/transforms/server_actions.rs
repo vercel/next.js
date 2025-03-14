@@ -3,6 +3,7 @@ use std::{
     collections::{hash_map, BTreeMap},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
+    path::{Path, PathBuf},
     rc::Rc,
     sync::Arc,
 };
@@ -10,6 +11,7 @@ use std::{
 use base64::{display::Base64Display, prelude::BASE64_STANDARD};
 use hex::encode as hex_encode;
 use indoc::formatdoc;
+use pathdiff::diff_paths;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
@@ -2168,6 +2170,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                     )],
                                     src: Some(Box::new(
                                         program_to_data_url(
+                                            &self.file_name,
                                             &self.cm,
                                             vec![
                                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
@@ -3195,6 +3198,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
 }
 
 fn program_to_data_url(
+    file_name: &str,
     cm: &Arc<SourceMap>,
     body: Vec<ModuleItem>,
     prepend_comment: Comment,
@@ -3211,12 +3215,11 @@ fn program_to_data_url(
 
     let mut output = vec![];
     let mut mappings = vec![];
-    let sourcemap = Arc::new(SourceMap::default());
     let mut emitter = Emitter {
         cfg: codegen::Config::default().with_minify(true),
-        cm: sourcemap.clone(),
+        cm: cm.clone(),
         wr: Box::new(JsWriter::new(
-            sourcemap.clone(),
+            cm.clone(),
             " ",
             &mut output,
             Some(&mut mappings),
@@ -3227,10 +3230,26 @@ fn program_to_data_url(
     emitter.emit_program(program).unwrap();
     drop(emitter);
 
-    pub struct InlineSourcesContentConfig {}
-    impl SourceMapGenConfig for InlineSourcesContentConfig {
-        fn file_name_to_source(&self, f: &FileName) -> String {
-            f.to_string()
+    pub struct InlineSourcesContentConfig<'a> {
+        folder_path: Option<&'a Path>,
+    }
+    // This module will be placed at `some/path/to/data:28a9d2` where the original input file lives
+    // at `some/path/to/actions.js`. So we need to generate a relative path, usually `./actions.js`
+    impl SourceMapGenConfig for InlineSourcesContentConfig<'_> {
+        fn file_name_to_source(&self, file: &FileName) -> String {
+            let FileName::Custom(file) = file else {
+                // Turbopack uses FileName::Custom for the `[project]/...` paths
+                return file.to_string();
+            };
+            let Some(folder_path) = &self.folder_path else {
+                return file.to_string();
+            };
+
+            if let Some(rel_path) = diff_paths(file, folder_path) {
+                format!("./{}", rel_path.display())
+            } else {
+                file.to_string()
+            }
         }
 
         fn inline_sources_content(&self, _f: &FileName) -> bool {
@@ -3238,7 +3257,13 @@ fn program_to_data_url(
         }
     }
 
-    let map = cm.build_source_map_with_config(&mappings, None, InlineSourcesContentConfig {});
+    let map = cm.build_source_map_with_config(
+        &mappings,
+        None,
+        InlineSourcesContentConfig {
+            folder_path: PathBuf::from(format!("[project]/{file_name}")).parent(),
+        },
+    );
     let map = {
         if map.get_token_count() > 0 {
             let mut buf = vec![];
@@ -3254,7 +3279,7 @@ fn program_to_data_url(
     if let Some(map) = map {
         output.extend(
             format!(
-                "\n//# sourceMappingURL=data:application/json;charset=utf-8;base64,{}",
+                "\n//# sourceMappingURL=data:application/json;base64,{}",
                 Base64Display::new(&map, &BASE64_STANDARD)
             )
             .chars(),
