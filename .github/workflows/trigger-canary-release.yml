@@ -1,0 +1,32 @@
+name: Trigger Canary Release
+
+on:
+  schedule:
+    # run every day at 23:15
+    - cron: '15 23 * * *'
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Trigger Canary Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Push Versioned Packages to Canary Branch
+        run: node ./scripts/version-canary.js
