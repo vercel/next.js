@@ -1509,9 +1509,10 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = self
-            .cur_fn_return_values
-            .replace(get_fn_init_return_vals(decl.function.body.as_ref()));
+        let old = replace(
+            &mut self.cur_fn_return_values,
+            Some(get_fn_init_return_vals(decl.function.body.as_ref())),
+        );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = decl.function.span.lo.0;
         decl.visit_children_with_ast_path(self, ast_path);
@@ -1532,9 +1533,10 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast FnExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let old = self
-            .cur_fn_return_values
-            .replace(get_fn_init_return_vals(expr.function.body.as_ref()));
+        let old = replace(
+            &mut self.cur_fn_return_values,
+            Some(get_fn_init_return_vals(expr.function.body.as_ref())),
+        );
         let old_ident = self.cur_fn_ident;
         self.cur_fn_ident = expr.function.span.lo.0;
         expr.visit_children_with_ast_path(self, ast_path);

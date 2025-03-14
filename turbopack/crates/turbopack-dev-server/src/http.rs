@@ -1,4 +1,4 @@
-use std::io::Error;
+use std::io::{Error, ErrorKind};
 
 use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
@@ -177,7 +177,10 @@ pub async fn process_request_with_content_source(
                     header_map.insert(CONTENT_ENCODING, HeaderValue::from_static("gzip"));
 
                     // Grab ropereader stream, coerce anyhow::Error to std::io::Error
-                    let stream_ext = content.read().into_stream().map_err(Error::other);
+                    let stream_ext = content
+                        .read()
+                        .into_stream()
+                        .map_err(|err| Error::new(ErrorKind::Other, err));
 
                     let gzipped_stream =
                         ReaderStream::new(async_compression::tokio::bufread::GzipEncoder::new(
