@@ -257,7 +257,7 @@ const PAGES: Record<
     selector: '#vendor1',
     color: 'rgb(0, 255, 0)',
     requests: 1,
-    requestsTurbo: 2,
+    requestsTurbo: 3,
   },
 }
 
