@@ -58,6 +58,7 @@ pub(crate) struct ServerActionsManifest {
 /// loader.
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
+    rsc_entry: Vc<Box<dyn Module>>,
     actions: Vc<AllActions>,
     project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
@@ -67,8 +68,13 @@ pub(crate) async fn create_server_actions_manifest(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
-    let loader =
-        build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
+    let loader = build_server_actions_loader(
+        rsc_entry,
+        project_path,
+        page_name.clone(),
+        actions,
+        rsc_asset_context,
+    );
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?
@@ -105,6 +111,7 @@ fn server_actions_loader_modifier() -> Vc<RcStr> {
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
+    rsc_entry: Vc<Box<dyn Module>>,
     project_path: Vc<FileSystemPath>,
     page_name: RcStr,
     actions: Vc<AllActions>,
@@ -129,10 +136,11 @@ pub(crate) async fn build_server_actions_loader(
         )?;
     }
 
-    let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
-        AssetIdent::from_path(path).with_modifier(server_actions_loader_modifier()),
+        rsc_entry
+            .ident()
+            .with_modifier(server_actions_loader_modifier()),
         AssetContent::file(file.into()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
