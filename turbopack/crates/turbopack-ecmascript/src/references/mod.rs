@@ -693,6 +693,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
             let mut source_map_from_comment = false;
             if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
+                lazy_static! {
+                    static ref JSON_DATA_URL_BASE64: Regex =
+                        Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap();
+                }
                 let origin_path = origin.origin_path();
                 if path.ends_with(".map") {
                     let source_map_origin = origin_path.parent().join(path.into());
@@ -703,7 +707,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     let source_map = reference.generate_source_map();
                     analysis.set_source_map(source_map.to_resolved().await?);
                     source_map_from_comment = true;
-                } else if path.starts_with("data:application/json;base64,") {
+                } else if JSON_DATA_URL_BASE64.is_match(path) {
                     let source_map = maybe_decode_data_url(path.into());
                     let source_map =
                         resolve_source_map_sources(source_map.as_ref(), origin_path).await?;
