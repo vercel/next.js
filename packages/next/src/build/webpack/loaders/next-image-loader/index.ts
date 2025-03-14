@@ -10,13 +10,15 @@ interface Options {
   isDev: boolean
   assetPrefix: string
   basePath: string
+  nextUrlServerPrefix: string
 }
 
 function nextImageLoader(this: any, content: Buffer) {
   const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
     const options: Options = this.getOptions()
-    const { compilerType, isDev, assetPrefix, basePath } = options
+    const { compilerType, isDev, assetPrefix, basePath, nextUrlServerPrefix } =
+      options
     const context = this.rootContext
 
     const opts = { context, content }
@@ -48,6 +50,7 @@ function nextImageLoader(this: any, content: Buffer) {
       height: blurHeight,
     } = await getBlurImage(content, extension, imageSize, {
       basePath,
+      nextUrlServerPrefix,
       outputPath,
       isDev,
       tracing: imageLoaderSpan.traceChild.bind(imageLoaderSpan),

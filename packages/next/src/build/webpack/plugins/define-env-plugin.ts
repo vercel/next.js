@@ -235,6 +235,12 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
+    ...(config.experimental.nextUrlServerPrefix
+      ? {
+          'process.env.__NEXT_NEXT_EXPERIMENTAL_NEXT_URL_SERVER_PREFIX':
+            config.experimental.nextUrlServerPrefix,
+        }
+      : undefined),
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(

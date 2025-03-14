@@ -601,6 +601,13 @@ export interface ExperimentalConfig {
      */
     buildTimeThresholdMs: number
   }
+
+  /**
+   * Similar to the assetPrefix option, but for requests to the server.
+   * Prefixes /_next/image (and soon /_next/data) requests with <nextUrlServerPrefix>.
+   * /_next/image -> /<nextUrlServerPrefix>/_next/image
+   */
+  nextUrlServerPrefix?: string
 }
 
 export type ExportPathMap = {
@@ -1261,6 +1268,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     useCache: undefined,
     slowModuleDetection: undefined,
+    nextUrlServerPrefix: '',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

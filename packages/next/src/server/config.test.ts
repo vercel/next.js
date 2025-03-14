@@ -60,6 +60,44 @@ describe('loadConfig', () => {
 
       expect(result.images.remotePatterns.length).toBe(1)
     })
+
+    it.each([
+      { description: 'default', customConfig: {}, expected: '/_next/image' },
+      {
+        description: 'basePath',
+        customConfig: { basePath: '/base-path' },
+        expected: '/base-path/_next/image',
+      },
+      {
+        description: 'nextUrlServerPrefix',
+        customConfig: {
+          experimental: { nextUrlServerPrefix: '/next-url-server-prefix' },
+        },
+        expected: '/next-url-server-prefix/_next/image',
+      },
+      {
+        description: 'basePath and nextUrlServerPrefix',
+        customConfig: {
+          basePath: '/base-path',
+          experimental: { nextUrlServerPrefix: '/next-url-server-prefix' },
+        },
+        expected: '/base-path/next-url-server-prefix/_next/image',
+      },
+    ])(
+      'should assign `images.path`: $description',
+      async ({ customConfig, expected }) => {
+        const result = await loadConfig('', __dirname, {
+          customConfig: {
+            images: {
+              path: '/_next/image',
+            },
+            ...customConfig,
+          },
+        })
+
+        expect(result.images.path).toBe(expected)
+      }
+    )
   })
 
   describe('canary-only features', () => {

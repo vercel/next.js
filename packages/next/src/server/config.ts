@@ -412,12 +412,11 @@ function assignDefaults(
       )
     }
 
-    if (
-      images.path === imageConfigDefault.path &&
-      result.basePath &&
-      !pathHasPrefix(images.path, result.basePath)
-    ) {
-      images.path = `${result.basePath}${images.path}`
+    if (images.path === imageConfigDefault.path) {
+      const prefix = `${result.basePath || ''}${result.experimental?.nextUrlServerPrefix || ''}`
+      if (prefix && !pathHasPrefix(images.path, prefix)) {
+        images.path = `${prefix}${images.path}`
+      }
     }
 
     // Append trailing slash for non-default loaders and when trailingSlash is set
