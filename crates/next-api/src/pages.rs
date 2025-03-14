@@ -45,14 +45,14 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkGroupType, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph},
+    module_graph::{chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph},
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -769,7 +769,7 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
         let evaluatable_assets = self.client_evaluatable_assets();
-        Ok(project.module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated))
+        Ok(project.module_graph_for_entries(evaluatable_assets))
     }
 
     #[turbo_tasks::function]
@@ -909,7 +909,7 @@ impl PageEndpoint {
             // The SSR and Client Graphs are not connected in Pages Router.
             // We are only interested in get_next_dynamic_imports_for_endpoint at the
             // moment, which only needs the client graph anyway.
-            let module_graph = project.module_graph(*ssr_module, ChunkGroupType::Entry);
+            let module_graph = project.module_graph(*ssr_module);
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 let client_availability_info = self.client_chunks().await?.availability_info;
@@ -1454,19 +1454,17 @@ impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let this = self.await?;
-        let mut modules = vec![];
 
         let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
-        modules.push((vec![ssr_chunk_module.ssr_module], ChunkGroupType::Entry));
+        let mut modules = vec![ChunkGroupEntry::Entry(vec![ssr_chunk_module.ssr_module])];
 
         if let PageEndpointType::Html = this.ty {
-            modules.push((
+            modules.push(ChunkGroupEntry::Entry(
                 self.client_evaluatable_assets()
                     .await?
                     .iter()
                     .map(|m| ResolvedVc::upcast(*m))
                     .collect(),
-                ChunkGroupType::Evaluated,
             ));
         }
 

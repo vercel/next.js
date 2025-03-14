@@ -33,8 +33,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
+        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -45,7 +45,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -397,13 +397,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .copied()
             .map(ResolvedVc::upcast)
             .collect();
-        let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
-            all_modules,
-            match options.runtime {
-                Runtime::Browser => ChunkGroupType::Evaluated,
-                Runtime::NodeJs => ChunkGroupType::Entry,
-            },
-        )]));
+        let module_graph =
+            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]));
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
