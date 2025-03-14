@@ -28,6 +28,9 @@ const PAGES: Record<
     brokenLoading?: boolean
     brokenLoadingDev?: boolean
     brokenLoadingTurbo?: boolean
+    requests?: number
+    requestsLoose?: number
+    requestsTurbo?: number
   }
 > = {
   first: {
@@ -35,30 +38,40 @@ const PAGES: Record<
     url: '/first',
     selector: '#hello1',
     color: 'rgb(0, 0, 255)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   second: {
     group: 'basic',
     url: '/second',
     selector: '#hello2',
     color: 'rgb(0, 128, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   third: {
     group: 'basic',
     url: '/third',
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'first-client': {
     group: 'basic',
     url: '/first-client',
     selector: '#hello1c',
     color: 'rgb(255, 0, 255)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'second-client': {
     group: 'basic',
     url: '/second-client',
     selector: '#hello2c',
     color: 'rgb(255, 128, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'interleaved-a': {
     group: 'interleaved',
@@ -67,6 +80,8 @@ const PAGES: Record<
     url: '/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'interleaved-b': {
     group: 'interleaved',
@@ -75,6 +90,8 @@ const PAGES: Record<
     url: '/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'big-interleaved-a': {
     group: 'big-interleaved',
@@ -83,6 +100,9 @@ const PAGES: Record<
     url: '/big-interleaved/a',
     selector: '#hellobia',
     color: 'rgb(166, 255, 0)',
+    requests: 3,
+    requestsLoose: 2,
+    requestsTurbo: 4,
   },
   'big-interleaved-b': {
     group: 'big-interleaved',
@@ -91,6 +111,8 @@ const PAGES: Record<
     url: '/big-interleaved/b',
     selector: '#hellobib',
     color: 'rgb(166, 0, 255)',
+    requests: 3,
+    requestsTurbo: 4,
   },
   'reversed-a': {
     group: 'reversed',
@@ -98,6 +120,8 @@ const PAGES: Record<
     url: '/reversed/a',
     selector: '#hellora',
     color: 'rgb(0, 166, 255)',
+    requests: 3,
+    requestsTurbo: 3,
   },
   'reversed-b': {
     group: 'reversed',
@@ -105,6 +129,8 @@ const PAGES: Record<
     url: '/reversed/b',
     selector: '#hellorb',
     color: 'rgb(0, 89, 255)',
+    requests: 3,
+    requestsTurbo: 3,
   },
   'partial-reversed-a': {
     group: 'partial-reversed',
@@ -113,6 +139,8 @@ const PAGES: Record<
     selector: '#hellopra',
     color: 'rgb(255, 166, 255)',
     background: 'rgba(0, 0, 0, 0)',
+    requests: 4,
+    requestsTurbo: 4,
   },
   'partial-reversed-b': {
     group: 'partial-reversed',
@@ -121,24 +149,32 @@ const PAGES: Record<
     selector: '#helloprb',
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
+    requests: 4,
+    requestsTurbo: 4,
   },
   'pages-first': {
     group: 'pages-basic',
     url: '/pages/first',
     selector: '#hello1',
     color: 'rgb(0, 0, 255)',
+    requests: 1,
+    requestsTurbo: 3,
   },
   'pages-second': {
     group: 'pages-basic',
     url: '/pages/second',
     selector: '#hello2',
     color: 'rgb(0, 128, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'pages-third': {
     group: 'pages-basic',
     url: '/pages/third',
     selector: '#hello3',
     color: 'rgb(0, 128, 128)',
+    requests: 1,
+    requestsTurbo: 4,
   },
 
   'pages-interleaved-a': {
@@ -147,6 +183,8 @@ const PAGES: Record<
     url: '/pages/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'pages-interleaved-b': {
     group: 'pages-interleaved',
@@ -154,6 +192,8 @@ const PAGES: Record<
     url: '/pages/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'pages-reversed-a': {
     group: 'pages-reversed',
@@ -161,6 +201,8 @@ const PAGES: Record<
     url: '/pages/reversed/a',
     selector: '#hellora',
     color: 'rgb(0, 166, 255)',
+    requests: 1,
+    requestsTurbo: 3,
   },
   'pages-reversed-b': {
     group: 'pages-reversed',
@@ -168,6 +210,8 @@ const PAGES: Record<
     url: '/pages/reversed/b',
     selector: '#hellorb',
     color: 'rgb(0, 89, 255)',
+    requests: 1,
+    requestsTurbo: 3,
   },
   'pages-partial-reversed-a': {
     group: 'pages-partial-reversed',
@@ -176,6 +220,8 @@ const PAGES: Record<
     selector: '#hellopra',
     color: 'rgb(255, 166, 255)',
     background: 'rgba(0, 0, 0, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'pages-partial-reversed-b': {
     group: 'pages-partial-reversed',
@@ -184,6 +230,8 @@ const PAGES: Record<
     selector: '#helloprb',
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
+    requests: 1,
+    requestsTurbo: 4,
   },
   'global-first': {
     group: 'global',
@@ -191,6 +239,8 @@ const PAGES: Record<
     url: '/global-first',
     selector: '#hello1',
     color: 'rgb(0, 255, 0)',
+    requests: 2,
+    requestsTurbo: 2,
   },
   'global-second': {
     group: 'global',
@@ -198,12 +248,16 @@ const PAGES: Record<
     url: '/global-second',
     selector: '#hello2',
     color: 'rgb(0, 0, 255)',
+    requests: 2,
+    requestsTurbo: 2,
   },
   vendor: {
     group: 'vendor',
     url: '/vendor',
     selector: '#vendor1',
     color: 'rgb(0, 255, 0)',
+    requests: 1,
+    requestsTurbo: 2,
   },
 }
 
@@ -338,7 +392,7 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
 describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
   'css-order %s',
   (mode: string) => {
-    const { next } = nextTestSetup(options(mode))
+    const { next, isNextDev } = nextTestSetup(options(mode))
     for (const [page, pageInfo] of Object.entries(PAGES)) {
       const name = `should load correct styles on ${page}`
       if (mode === 'loose' && pageInfo.conflict) {
@@ -352,6 +406,22 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
             .waitForElementByCss(pageInfo.selector)
             .getComputedCss('color')
         ).toBe(pageInfo.color)
+        if (!isNextDev) {
+          const stylesheets = await browser.elementsByCss(
+            "link[rel='stylesheet']"
+          )
+          const files = await Promise.all(
+            Array.from(stylesheets).map((e) => e.getAttribute('href'))
+          )
+          // TODO make sure requestsTurbo <= requests
+          expect(files).toHaveLength(
+            mode === 'turbo'
+              ? pageInfo.requestsTurbo
+              : mode === 'loose'
+                ? pageInfo.requestsLoose || pageInfo.requests
+                : pageInfo.requests
+          )
+        }
         await browser.close()
       })
     }
