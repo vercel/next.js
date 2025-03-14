@@ -1,0 +1,52 @@
+name: Trigger Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      releaseType:
+        description: stable, canary, or release candidate?
+        required: true
+        type: choice
+        options:
+          - canary
+          - stable
+          - release-candidate
+
+      semverType:
+        description: semver type?
+        type: choice
+        options:
+          - patch/minor
+          - major
+
+jobs:
+  release:
+    name: Trigger Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Create Release Pull Request or Publish to NPM
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: pnpm ci:version-stable
+          publish: pnpm ci:publish
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
