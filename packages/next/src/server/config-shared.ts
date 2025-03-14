@@ -601,6 +601,15 @@ export interface ExperimentalConfig {
      */
     buildTimeThresholdMs: number
   }
+
+  /**
+   * Enables the client instrumentation hook.
+   * Loads the instrumentation-client.ts file from the project root
+   * and executes it on the client side before hydration.
+   *
+   * Note: Use with caution as this can negatively impact page loading performance.
+   */
+  clientInstrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
