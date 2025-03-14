@@ -114,7 +114,7 @@ Tailwind CSS version 3.4.8 or newer will warn you about settings that might slow
 
 If you've added custom webpack settings, they might be slowing down compilation.
 
-Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore moving to Turbopack and using [loaders](/docs/app/api-reference/next-config-js/turbo#webpack-loaders).
+Consider if you really need them for local development. You can optionally only include certain tools for production builds, or explore moving to Turbopack and using [loaders](/docs/app/api-reference/config/next-config-js/turbo#supported-loaders).
 
 ### 6. Optimize memory usage
 
@@ -128,7 +128,7 @@ Changes to Server Components cause the entire page to re-render locally in order
 
 The experimental `serverComponentsHmrCache` option allows you to cache `fetch` responses in Server Components across Hot Module Replacement (HMR) refreshes in local development. This results in faster responses and reduced costs for billed API calls.
 
-[Learn more about the experimental option](/docs/app/api-reference/next-config-js/serverComponentsHmrCache).
+[Learn more about the experimental option](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache).
 
 ## Tools for finding problems
 
