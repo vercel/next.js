@@ -1013,6 +1013,7 @@ function assignDefaults(
       '@effect/opentelemetry',
       '@material-ui/core',
       '@material-ui/icons',
+      '@phosphor-icons/react',
       '@tabler/icons-react',
       'mui-core',
       // We don't support wildcard imports for these configs, e.g. `react-icons/*`
