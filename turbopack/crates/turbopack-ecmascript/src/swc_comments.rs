@@ -191,8 +191,8 @@ impl Comments for ImmutableComments {
 }
 
 pub struct CowComments<'a> {
-    leading: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
-    trailing: RefCell<FxHashMap<BytePos, Cow<'a, [Comment]>>>,
+    leading: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
+    trailing: RefCell<FxHashMap<BytePos, Cow<'a, Vec<Comment>>>>,
 }
 
 impl<'a> CowComments<'a> {
@@ -202,14 +202,14 @@ impl<'a> CowComments<'a> {
                 comments
                     .leading
                     .iter()
-                    .map(|(&key, value)| (key, Cow::Borrowed(&value[..])))
+                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
                     .collect(),
             ),
             trailing: RefCell::new(
                 comments
                     .trailing
                     .iter()
-                    .map(|(&key, value)| (key, Cow::Borrowed(&value[..])))
+                    .map(|(&key, value)| (key, Cow::Borrowed(value)))
                     .collect(),
             ),
         }
@@ -274,7 +274,7 @@ impl Comments for CowComments<'_> {
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.leading.borrow().get(&pos).map(|v| (**v).to_vec())
+        self.leading.borrow().get(&pos).map(|v| (**v).clone())
     }
 
     fn add_trailing(
@@ -315,7 +315,7 @@ impl Comments for CowComments<'_> {
         &self,
         pos: swc_core::common::BytePos,
     ) -> Option<Vec<swc_core::common::comments::Comment>> {
-        self.trailing.borrow().get(&pos).map(|v| (**v).to_vec())
+        self.trailing.borrow().get(&pos).map(|v| (**v).clone())
     }
 
     fn add_pure_comment(&self, _pos: swc_core::common::BytePos) {

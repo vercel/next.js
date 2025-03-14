@@ -1,6 +1,7 @@
 use std::{
     cmp::{max, min},
     env,
+    mem::replace,
     num::NonZeroUsize,
     sync::{atomic::AtomicU64, OnceLock},
 };
@@ -265,9 +266,9 @@ impl Store {
         outdated_spans.insert(span_index);
         let span = &mut self.spans[span_index.get()];
 
-        let old_parent = &mut span.parent.replace(parent);
+        let old_parent = replace(&mut span.parent, Some(parent));
         let old_parent = if let Some(parent) = old_parent {
-            outdated_spans.insert(*parent);
+            outdated_spans.insert(parent);
             &mut self.spans[parent.get()]
         } else {
             &mut self.spans[0]
