@@ -20,7 +20,7 @@ describe('Instrumentation Client Hook', () => {
 
   testCases.forEach(({ name, appDir }) => {
     describe(name, () => {
-      const { next } = nextTestSetup({
+      const { next, isNextDev } = nextTestSetup({
         files: path.join(__dirname, appDir),
       })
 
@@ -35,6 +35,11 @@ describe('Instrumentation Client Hook', () => {
         expect(instrumentationTime).toBeDefined()
         expect(hydrationTime).toBeDefined()
         expect(instrumentationTime).toBeLessThan(hydrationTime)
+        expect(
+          (await browser.log()).some((log) =>
+            log.message.startsWith('[Client Instrumentation Hook]')
+          )
+        ).toBe(isNextDev)
       })
     })
   })
