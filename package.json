@@ -90,6 +90,7 @@
     "@babel/plugin-syntax-explicit-resource-management": "7.25.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
+    "@changesets/cli": "2.28.1",
     "@edge-runtime/jest-environment": "4.0.0",
     "@emotion/cache": "11.11.0",
     "@emotion/react": "11.11.1",
