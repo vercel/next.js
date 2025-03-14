@@ -29,7 +29,10 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        ModuleGraph,
+    },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -396,7 +399,9 @@ async fn build_internal(
                                             )
                                             .with_extension("entry.js".into()),
                                     ),
-                                    EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                    ChunkGroup::Entry(
+                                        [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                                    ),
                                     module_graph,
                                     Value::new(AvailabilityInfo::Root),
                                 )

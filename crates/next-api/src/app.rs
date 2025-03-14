@@ -1677,23 +1677,27 @@ impl AppEndpoint {
                 } = *chunking_context
                     .evaluated_chunk_group(
                         server_action_manifest_loader.ident(),
-                        Vc::cell(vec![server_action_manifest_loader]),
+                        ChunkGroup::Entry(
+                            [ResolvedVc::upcast(server_action_manifest_loader)]
+                                .into_iter()
+                                .collect(),
+                        ),
                         module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                     .await?;
 
-                let mut evaluatable_assets =
-                    this.app_project.edge_rsc_runtime_entries().owned().await?;
-                let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
-                    .context("Entry module must be evaluatable")?;
-                evaluatable_assets.push(evaluatable);
+                let edge_rsc_runtime_entries = this.app_project.edge_rsc_runtime_entries().await?;
+                let evaluatable_assets = edge_rsc_runtime_entries
+                    .iter()
+                    .map(|m| ResolvedVc::upcast(*m))
+                    .chain(std::iter::once(app_entry.rsc_entry));
 
                 assets.concatenate(
                     chunking_context
                         .evaluated_chunk_group_assets(
                             app_entry.rsc_entry.ident(),
-                            Vc::cell(evaluatable_assets.clone()),
+                            ChunkGroup::Entry(evaluatable_assets.collect()),
                             module_graph,
                             Value::new(availability_info),
                         )

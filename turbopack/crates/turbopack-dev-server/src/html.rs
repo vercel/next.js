@@ -156,7 +156,13 @@ impl DevHtmlAsset {
                         };
                     chunking_context.evaluated_chunk_group_assets(
                         chunkable_module.ident(),
-                        *runtime_entries,
+                        ChunkGroup::Entry(
+                            runtime_entries
+                                .await?
+                                .iter()
+                                .map(|v| ResolvedVc::upcast(*v))
+                                .collect(),
+                        ),
                         *module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
