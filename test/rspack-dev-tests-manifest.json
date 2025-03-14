@@ -512,6 +512,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/ui/components/code-frame/parse-code-frame.test.ts": {
+    "passed": ["parse line numbers parse line numbers from code frame"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/ui/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
     "passed": [
       "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
@@ -1873,7 +1880,9 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/error-recovery.test.ts": {
-    "passed": [],
+    "passed": [
+      "Error recovery app server component can recover from a component error"
+    ],
     "failed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app can recover from a syntax error without losing state",
@@ -1881,7 +1890,6 @@
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
-      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
       "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
@@ -2000,13 +2008,12 @@
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.<client-hook> is called in external package",
       "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is called",
+      "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is renamed in destructuring",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called",
       "Error Overlay for server components createContext called in Server Component should show error when React.createContext is called in external package",
       "Error Overlay for server components createContext called in Server Component should show error when createContext is called in external package"
     ],
-    "failed": [
-      "Error Overlay for server components React component hooks called in Server Component should show error when React.experiment_useOptimistic is renamed in destructuring"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2273,8 +2280,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-fetch-hmr/dev-fetch-hmr.test.ts": {
-    "passed": [],
-    "failed": ["dev-fetch-hmr should retain module level fetch patching"],
+    "passed": ["dev-fetch-hmr should retain module level fetch patching"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3738,10 +3745,11 @@
   },
   "test/e2e/app-dir/actions-navigation/index.test.ts": {
     "passed": [
-      "app-dir action handling should handle actions correctly after following a relative link",
+      "app-dir action handling should handle actions correctly after following a relative link"
+    ],
+    "failed": [
       "app-dir action handling should handle actions correctly after navigation / redirection events"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4339,8 +4347,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-routes-subrequests/app-routes-subrequests.test.ts": {
-    "passed": [],
-    "failed": ["app-routes-subrequests shortcuts after 5 subrequests"],
+    "passed": ["app-routes-subrequests shortcuts after 5 subrequests"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4995,7 +5003,7 @@
     "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/css-client-side-nav-parallel-routes/css-client-side-nav-parallel-routes.test.ts": {
     "passed": [
@@ -5390,10 +5398,10 @@
   },
   "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-errors.test.ts": {
     "passed": [
-      "Dynamic IO Prospective Render Errors - Standard Build should error on the first visit to each page"
+      "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page"
     ],
     "failed": [
-      "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page"
+      "Dynamic IO Prospective Render Errors - Standard Build should error on the first visit to each page"
     ],
     "pending": [],
     "flakey": [],
@@ -5746,10 +5754,11 @@
   },
   "test/e2e/app-dir/edge-route-catchall/edge-route-catchall.test.ts": {
     "passed": [
-      "edge-route-catchall should correctly normalize edge route catch-all with a single param",
+      "edge-route-catchall should correctly normalize edge route catch-all with a single param"
+    ],
+    "failed": [
       "edge-route-catchall should correctly normalize edge route catch-all with multiple params"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5821,16 +5830,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
+    ],
+    "failed": [
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/errors/index.test.ts": {
     "passed": [
@@ -7871,10 +7881,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/root-layout-render-once/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir root layout render once should only render root layout once"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8619,6 +8629,7 @@
       "shallow-routing pushState should support setting a different pathname reflected on usePathname",
       "shallow-routing pushState should support setting a different searchParam reflected on useSearchParams",
       "shallow-routing pushState should support setting a different url using a string",
+      "shallow-routing pushState should support setting data",
       "shallow-routing pushState should work when given a null state value",
       "shallow-routing replaceState should support setting a different pathname reflected on usePathname",
       "shallow-routing replaceState should support setting a different searchParam reflected on useSearchParams",
@@ -8628,7 +8639,7 @@
       "shallow-routing replaceState should work when given an undefined state value",
       "shallow-routing should work when given an undefined state value"
     ],
-    "failed": ["shallow-routing pushState should support setting data"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10417,7 +10428,7 @@
     ],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/multi-zone/multi-zone.test.ts": {
     "passed": [
@@ -11563,10 +11574,6 @@
       "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
       "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "failed": [
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -11574,8 +11581,6 @@
       "AMP Usage production mode With basic AMP usage should auto import extensions",
       "AMP Usage production mode With basic AMP usage should drop custom scripts",
       "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
       "AMP Usage production mode With basic AMP usage should optimize clean",
       "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
       "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -11591,7 +11596,13 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace"
+      "AMP Usage production mode should have amp optimizer in trace",
+      "AMP Usage production mode should not contain missing files warning",
+      "AMP Usage production mode should not have deprecation warning"
+    ],
+    "failed": [
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
     ],
     "pending": [
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
@@ -19870,14 +19881,13 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [
-      "server-side dev errors should show server-side error for gssp page correctly"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
