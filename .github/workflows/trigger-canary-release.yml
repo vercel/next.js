@@ -1,11 +1,14 @@
-name: Trigger Stable Release
+name: Trigger Canary Release
 
 on:
+  schedule:
+    # run every day at 23:15
+    - cron: '15 23 * * *'
   workflow_dispatch:
 
 jobs:
   release:
-    name: Trigger Stable Release
+    name: Trigger Canary Release
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,12 +28,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install
 
-      - name: Create Release Pull Request
-        id: changesets
-        uses: changesets/action@v1
-        with:
-          title: '[repo] bump package versions to stable'
-          commit: '[repo] bump package versions to stable'
-          version: pnpm ci:version-stable
+      - name: Push Versioned Packages to Canary Branch
+        run: node ./scripts/version-canary.js
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

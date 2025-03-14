@@ -18,7 +18,8 @@ const checkIsRelease = async () => {
 
   const isGithubBot =
     // TODO: vercel-release-bot
-    commitAuthor === '41898282+github-actions[bot]@users.noreply.github.com'
+    commitAuthor === '41898282+github-actions[bot]@users.noreply.github.com' ||
+    commitAuthor === 'devjiwonchoi@gmail.com'
 
   if (commitMsg.startsWith('[repo] version packages to') && isGithubBot) {
     console.log(commitMsg)
