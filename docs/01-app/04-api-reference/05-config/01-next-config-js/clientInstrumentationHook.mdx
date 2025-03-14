@@ -34,3 +34,33 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
+
+## Example
+
+Unlike server-side [instrumentation](/docs/app/building-your-application/optimizing/instrumentation), `instrumentation-client.ts` does not need to export a `register` function. You can write your synchronous code directly in the file:
+
+```ts filename="instrumentation-client.ts" switcher
+// No need to export a register function
+// This code runs synchronously before hydration
+console.log('Client instrumentation initialized')
+// Set up performance monitoring
+performance.mark('app-init')
+// Set up error tracking
+window.addEventListener('error', (event) => {
+  console.error('Captured in instrumentation:', event.error)
+  // Send to your error tracking service
+})
+```
+
+```js filename="instrumentation-client.js" switcher
+// No need to export a register function
+// This code runs synchronously before hydration
+console.log('Client instrumentation initialized')
+// Set up performance monitoring
+performance.mark('app-init')
+// Set up error tracking
+window.addEventListener('error', (event) => {
+  console.error('Captured in instrumentation:', event.error)
+  // Send to your error tracking service
+})
+```
