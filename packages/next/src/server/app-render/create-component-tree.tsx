@@ -21,7 +21,6 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -394,12 +393,7 @@ async function createComponentTreeInternal({
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-
-  // Only render metadata on the actual SSR'd segment not the `default` segment,
-  // as it's used as a placeholder for navigation.
-  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
-  const metadata =
-    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+  const metadata = StreamingMetadata ? <StreamingMetadata /> : undefined
 
   // Use the same condition to render metadataOutlet as metadata
   const metadataOutlet = StreamingMetadataOutlet ? (
