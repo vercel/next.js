@@ -23,16 +23,26 @@ async function main() {
     })
 
     log('Configuring the release bot...')
-    await execa('git', ['config', 'user.name', 'github-actions[bot]'])
-    await execa('git', [
-      'config',
-      'user.email',
-      '41898282+github-actions[bot]@users.noreply.github.com',
-    ])
+    await execa(
+      `git remote set-url origin https://devjiwonchoi:${process.env.GITHUB_TOKEN}@github.com/devjiwonchoi/next.js.git`,
+      { stdio: 'inherit', shell: true }
+    )
+    await execa(`git config user.name "devjiwonchoi"`, {
+      stdio: 'inherit',
+      shell: true,
+    })
+    await execa(`git config user.email "devjiwonchoi@gmail.com"`, {
+      stdio: 'inherit',
+      shell: true,
+    })
 
     log('Pushing changes to canary branch...')
     await execa('git', ['add', '.'])
-    await execa('git', ['commit', '-m', '"[repo] version packages to canary"'])
+    await execa('git', [
+      'commit',
+      '-m',
+      '[repo] bump package versions to canary',
+    ])
     await execa('git', ['push', 'origin', 'HEAD:canary'])
 
     log('Canary release process completed successfully!')

@@ -29,8 +29,8 @@ jobs:
         id: changesets
         uses: changesets/action@v1
         with:
-          title: '[repo] version packages to stable'
-          commit: '[repo] version packages to stable'
+          title: '[repo] bump package versions to stable'
+          commit: '[repo] bump package versions to stable'
           version: pnpm ci:version-stable
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
