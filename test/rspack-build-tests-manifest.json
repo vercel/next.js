@@ -5194,12 +5194,11 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
+      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
     ],
-    "failed": [
-      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8181,13 +8180,12 @@
     "passed": [
       "Default 404 Page with custom _error production mode should build successfully",
       "Default 404 Page with custom _error production mode should have output 404.html",
+      "Default 404 Page with custom _error production mode should render error correctly",
+      "Default 404 Page with custom _error production mode should render index page normal",
       "Default 404 Page with custom _error production mode should respond to 404 correctly",
       "Default 404 Page with custom _error production mode should set pages404 in routes-manifest correctly"
     ],
-    "failed": [
-      "Default 404 Page with custom _error production mode should render error correctly",
-      "Default 404 Page with custom _error production mode should render index page normal"
-    ],
+    "failed": [],
     "pending": [
       "Default 404 Page with custom _error development mode should render error correctly",
       "Default 404 Page with custom _error development mode should render index page normal",
@@ -8302,10 +8300,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
-    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -13218,6 +13216,22 @@
   },
   "test/integration/i18n-support/test/index.test.js": {
     "passed": [
+      "i18n Support production mode should show proper error for duplicate defaultLocales",
+      "i18n Support production mode should show proper error for duplicate locales",
+      "i18n Support production mode should show proper error for invalid locale domain",
+      "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
+      "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
+      "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
+      "i18n Support with localeDetection disabled production mode should set locale from detected path",
+      "i18n Support with trailingSlash: false production mode should redirect correctly",
+      "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
+      "i18n Support with trailingSlash: true production mode should navigate between pages correctly",
+      "i18n Support with trailingSlash: true production mode should preload all locales data correctly",
+      "i18n Support with trailingSlash: true production mode should redirect correctly",
+      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
+      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
+    ],
+    "failed": [
       "i18n Support production mode should 404 for GSP pages that returned notFound",
       "i18n Support production mode should 404 for GSP that returned notFound on client-transition",
       "i18n Support production mode should 404 for locale prefixed public folder files",
@@ -13299,9 +13313,6 @@
       "i18n Support production mode should rewrite to API route correctly for nl-BE locale",
       "i18n Support production mode should rewrite to API route correctly for nl-NL locale",
       "i18n Support production mode should serve public file on locale domain",
-      "i18n Support production mode should show proper error for duplicate defaultLocales",
-      "i18n Support production mode should show proper error for duplicate locales",
-      "i18n Support production mode should show proper error for invalid locale domain",
       "i18n Support production mode should transition on client properly for page that starts with locale",
       "i18n Support production mode should update asPath on the client correctly",
       "i18n Support production mode should use correct default locale for locale domains",
@@ -13309,20 +13320,8 @@
       "i18n Support production mode should use default locale when no locale is in href with locale false",
       "i18n Support production mode should visit API route directly correctly",
       "i18n Support production mode should visit dynamic API route directly correctly",
-      "i18n Support production mode should work with AMP first page with all locales",
-      "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
-      "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
-      "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
-      "i18n Support with localeDetection disabled production mode should set locale from detected path",
-      "i18n Support with trailingSlash: false production mode should redirect correctly",
-      "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
-      "i18n Support with trailingSlash: true production mode should navigate between pages correctly",
-      "i18n Support with trailingSlash: true production mode should preload all locales data correctly",
-      "i18n Support with trailingSlash: true production mode should redirect correctly",
-      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
-      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
+      "i18n Support production mode should work with AMP first page with all locales"
     ],
-    "failed": [],
     "pending": [
       "i18n Support development mode should 404 for GSP pages that returned notFound",
       "i18n Support development mode should 404 for GSP that returned notFound on client-transition",
@@ -13648,11 +13647,10 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should timeout for upstream image exceeding 7 seconds",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for external image",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cache and stale-while-revalidate when query is the same for internal image",
+      "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif",
       "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for svg"
     ],
-    "failed": [
-      "with dangerouslyAllowSVG config dev support with next.config.js should use cached image file when parameters are the same for animated gif"
-    ],
+    "failed": [],
     "pending": [
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with encoded relative image url",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js recursive url is not allowed should fail with relative image url with assetPrefix",
