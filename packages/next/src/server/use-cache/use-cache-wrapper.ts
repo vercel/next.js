@@ -600,6 +600,11 @@ export function cache(
         args.unshift(boundArgs)
       }
 
+      // When draft mode is enabled, we must bypass caching altogether.
+      if (workStore.isDraftMode) {
+        return fn.apply(null, args)
+      }
+
       const temporaryReferences = createClientTemporaryReferenceSet()
       const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
       const encodedCacheKeyParts: FormData | string = await encodeReply(

@@ -503,6 +503,7 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
+        '/draft-mode',
         '/form',
         '/imported-from-client',
         '/logs',
@@ -735,6 +736,71 @@ describe('use-cache', () => {
     const browser = await next.browser('/not-found')
     const text = await browser.elementByCss('h2').text()
     expect(text).toBe('This page could not be found.')
+  })
+
+  it('should not read nor write cached data when draft mode is enabled', async () => {
+    const browser = await next.browser('/draft-mode')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Enable Draft Mode'
+    )
+
+    // Draft mode is disabled, cached data should be returned on refresh.
+
+    const initialTopLevelValue = await browser.elementById('top-level').text()
+    const initialClosureValue = await browser.elementById('closure').text()
+
+    await browser.refresh()
+
+    expect(await browser.elementById('top-level').text()).toBe(
+      initialTopLevelValue
+    )
+    expect(await browser.elementById('closure').text()).toBe(
+      initialClosureValue
+    )
+
+    await browser.elementByCss('button#toggle').click()
+    await browser.waitForElementByCss('button#toggle:enabled')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Disable Draft Mode'
+    )
+
+    // Draft mode is now enabled, no cached data should be returned on refresh.
+
+    const newTopLevelValue = await browser.elementById('top-level').text()
+    const newClosureValue = await browser.elementById('closure').text()
+
+    expect(newTopLevelValue).not.toBe(initialTopLevelValue)
+    expect(newClosureValue).not.toBe(initialClosureValue)
+
+    await browser.refresh()
+
+    expect(await browser.elementById('top-level').text()).not.toBe(
+      newTopLevelValue
+    )
+    expect(await browser.elementById('closure').text()).not.toBe(
+      newClosureValue
+    )
+
+    await browser.elementByCss('button#toggle').click()
+    await browser.waitForElementByCss('button#toggle:enabled')
+
+    expect(await browser.elementByCss('button#toggle').text()).toBe(
+      'Enable Draft Mode'
+    )
+
+    // Draft mode is disabled again, the initially cached data should be
+    // returned again on refresh.
+
+    await browser.refresh()
+
+    expect(await browser.elementById('top-level').text()).toBe(
+      initialTopLevelValue
+    )
+    expect(await browser.elementById('closure').text()).toBe(
+      initialClosureValue
+    )
   })
 
   if (isNextDev) {
