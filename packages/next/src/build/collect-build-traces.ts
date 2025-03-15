@@ -201,7 +201,7 @@ export async function collectBuildTraces({
       const sharedIgnores = [
         '**/next/dist/compiled/next-server/**/*.dev.js',
         ...(isStandalone ? [] : ['**/next/dist/compiled/jest-worker/**/*']),
-        '**/next/dist/compiled/webpack/(bundle4|bundle5).js',
+        '**/next/dist/compiled/webpack/*',
         '**/node_modules/webpack5/**/*',
         '**/next/dist/server/lib/route-resolver*',
         'next/dist/compiled/semver/semver/**/*.js',

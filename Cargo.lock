@@ -4482,12 +4482,14 @@ dependencies = [
  "futures",
  "indexmap 2.7.1",
  "indoc",
+ "itertools 0.10.5",
  "lazy-regex",
  "lazy_static",
  "mime_guess",
  "modularize_imports",
  "next-custom-transforms",
  "once_cell",
+ "percent-encoding",
  "qstring",
  "react_remove_properties",
  "regex",
@@ -4586,7 +4588,9 @@ dependencies = [
  "rustc-hash 2.1.0",
  "serde",
  "serde_json",
+ "supports-hyperlinks",
  "swc_core",
+ "terminal_hyperlink",
  "tokio",
  "tracing",
  "tracing-chrome",
@@ -5554,9 +5558,9 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.2.1"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b36883275f761fe4c69f0ba982d18b36208b72d647ad9d468afcad70fb08a4e"
+checksum = "67e8a816b53348c3700648b8b66c5d4b0e3913e85ba6e518e9e933510f32c42f"
 dependencies = [
  "serde",
  "serde_bytes",
@@ -6958,6 +6962,12 @@ name = "subtle"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
+
+[[package]]
+name = "supports-hyperlinks"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "804f44ed3c63152de6a9f90acbea1a110441de43006ea51bcce8f436196a288b"
 
 [[package]]
 name = "swc"
@@ -8485,6 +8495,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "terminal_hyperlink"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db7bfa7333cbbfca467f40042a640d3c86063d6e4085cef4a6effdbad7005d50"
+
+[[package]]
 name = "terminal_size"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9597,6 +9613,7 @@ dependencies = [
  "auto-hash-map",
  "browserslist-rs",
  "const_format",
+ "data-encoding",
  "either",
  "futures",
  "indexmap 2.7.1",
@@ -9624,6 +9641,7 @@ dependencies = [
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "urlencoding",
 ]
 
 [[package]]

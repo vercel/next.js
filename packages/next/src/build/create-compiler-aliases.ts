@@ -139,6 +139,19 @@ export function createWebpackAliases({
     ...(pagesDir ? { [PAGES_DIR_ALIAS]: pagesDir } : {}),
     ...(appDir ? { [APP_DIR_ALIAS]: appDir } : {}),
     [ROOT_DIR_ALIAS]: dir,
+    ...(isClient
+      ? {
+          'private-next-instrumentation-client': [
+            path.join(dir, 'src', 'instrumentation-client'),
+            path.join(dir, 'instrumentation-client'),
+            'private-next-empty-module',
+          ],
+
+          // disable typechecker, webpack5 allows aliases to be set to false to create a no-op module
+          'private-next-empty-module': false as any,
+        }
+      : {}),
+
     [DOT_NEXT_ALIAS]: distDir,
     ...(isClient || isEdgeServer ? getOptimizedModuleAliases() : {}),
     ...(reactProductionProfiling ? getReactProfilingInProduction() : {}),

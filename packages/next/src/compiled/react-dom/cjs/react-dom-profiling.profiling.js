@@ -7633,6 +7633,9 @@ function safelyAttachRef(current, nearestMountedAncestor) {
         case 5:
           var instanceToUse = current.stateNode;
           break;
+        case 30:
+          instanceToUse = current.stateNode;
+          break;
         default:
           instanceToUse = current.stateNode;
       }
@@ -8166,6 +8169,8 @@ function commitLayoutEffectOnFiber(finishedRoot, current, finishedWork) {
         ("manual" === finishedWork.memoizedProps.mode
           ? safelyAttachRef(finishedWork, finishedWork.return)
           : safelyDetachRef(finishedWork, finishedWork.return));
+      break;
+    case 30:
       break;
     default:
       recursivelyTraverseLayoutEffects(finishedRoot, finishedWork);
@@ -8858,6 +8863,7 @@ function commitMutationEffectsOnFiber(finishedWork, root) {
           attachSuspenseRetryListeners(finishedWork, flags)));
       break;
     case 30:
+      break;
     case 21:
       break;
     default:
@@ -8869,33 +8875,34 @@ function commitReconciliationEffects(finishedWork) {
   var flags = finishedWork.flags;
   if (flags & 2) {
     try {
-      a: {
-        for (var parent = finishedWork.return; null !== parent; ) {
-          if (isHostParent(parent)) {
-            var JSCompiler_inline_result = parent;
-            break a;
-          }
-          parent = parent.return;
+      for (
+        var hostParentFiber, parentFiber = finishedWork.return;
+        null !== parentFiber;
+
+      ) {
+        if (isHostParent(parentFiber)) {
+          hostParentFiber = parentFiber;
+          break;
         }
-        throw Error(formatProdErrorMessage(160));
+        parentFiber = parentFiber.return;
       }
-      switch (JSCompiler_inline_result.tag) {
+      if (null == hostParentFiber) throw Error(formatProdErrorMessage(160));
+      switch (hostParentFiber.tag) {
         case 27:
-          var parent$jscomp$0 = JSCompiler_inline_result.stateNode,
+          var parent = hostParentFiber.stateNode,
             before = getHostSibling(finishedWork);
-          insertOrAppendPlacementNode(finishedWork, before, parent$jscomp$0);
+          insertOrAppendPlacementNode(finishedWork, before, parent);
           break;
         case 5:
-          var parent$119 = JSCompiler_inline_result.stateNode;
-          JSCompiler_inline_result.flags & 32 &&
-            (setTextContent(parent$119, ""),
-            (JSCompiler_inline_result.flags &= -33));
+          var parent$119 = hostParentFiber.stateNode;
+          hostParentFiber.flags & 32 &&
+            (setTextContent(parent$119, ""), (hostParentFiber.flags &= -33));
           var before$120 = getHostSibling(finishedWork);
           insertOrAppendPlacementNode(finishedWork, before$120, parent$119);
           break;
         case 3:
         case 4:
-          var parent$121 = JSCompiler_inline_result.stateNode.containerInfo,
+          var parent$121 = hostParentFiber.stateNode.containerInfo,
             before$122 = getHostSibling(finishedWork);
           insertOrAppendPlacementNodeIntoContainer(
             finishedWork,
@@ -8961,6 +8968,9 @@ function recursivelyTraverseDisappearLayoutEffects(parentFiber) {
         safelyDetachRef(finishedWork, finishedWork.return);
         null === finishedWork.memoizedState &&
           recursivelyTraverseDisappearLayoutEffects(finishedWork);
+        break;
+      case 30:
+        recursivelyTraverseDisappearLayoutEffects(finishedWork);
         break;
       default:
         recursivelyTraverseDisappearLayoutEffects(finishedWork);
@@ -9082,6 +9092,8 @@ function recursivelyTraverseReappearLayoutEffects(
             includeWorkInProgressEffects
           );
         safelyAttachRef(finishedWork, finishedWork.return);
+        break;
+      case 30:
         break;
       default:
         recursivelyTraverseReappearLayoutEffects(
@@ -15972,14 +15984,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1885 = React.version;
 if (
-  "19.1.0-canary-029e8bd6-20250306" !==
+  "19.1.0-canary-6aa8254b-20250312" !==
   isomorphicReactPackageVersion$jscomp$inline_1885
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1885,
-      "19.1.0-canary-029e8bd6-20250306"
+      "19.1.0-canary-6aa8254b-20250312"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -16001,10 +16013,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_1892 = {
   bundleType: 0,
-  version: "19.1.0-canary-029e8bd6-20250306",
+  version: "19.1.0-canary-6aa8254b-20250312",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-029e8bd6-20250306",
+  reconcilerVersion: "19.1.0-canary-6aa8254b-20250312",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$281 = 0;
@@ -16022,16 +16034,16 @@ var internals$jscomp$inline_1892 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2347 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2348 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2347.isDisabled &&
-    hook$jscomp$inline_2347.supportsFiber
+    !hook$jscomp$inline_2348.isDisabled &&
+    hook$jscomp$inline_2348.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2347.inject(
+      (rendererID = hook$jscomp$inline_2348.inject(
         internals$jscomp$inline_1892
       )),
-        (injectedHook = hook$jscomp$inline_2347);
+        (injectedHook = hook$jscomp$inline_2348);
     } catch (err) {}
 }
 function noop() {}
@@ -16284,7 +16296,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-029e8bd6-20250306";
+exports.version = "19.1.0-canary-6aa8254b-20250312";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

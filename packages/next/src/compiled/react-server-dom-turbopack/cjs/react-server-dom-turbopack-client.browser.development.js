@@ -87,7 +87,7 @@
         var chunkFilename = chunks[i],
           entry = chunkCache.get(chunkFilename);
         if (void 0 === entry) {
-          entry = __turbopack_load__(chunkFilename);
+          entry = __turbopack_load_by_url__(chunkFilename);
           promises.push(entry);
           var resolve = chunkCache.set.bind(chunkCache, chunkFilename, null);
           entry.then(resolve, ignoreReject);
@@ -670,7 +670,10 @@
           parentReference = knownServerReferences.get(value);
           if (void 0 !== parentReference)
             return (
-              (key = JSON.stringify(parentReference, resolveToJSON)),
+              (key = JSON.stringify(
+                { id: parentReference.id, bound: parentReference.bound },
+                resolveToJSON
+              )),
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
@@ -780,7 +783,12 @@
       }
     }
     function registerBoundServerReference(reference, id, bound) {
-      knownServerReferences.set(reference, { id: id, bound: bound });
+      knownServerReferences.has(reference) ||
+        knownServerReferences.set(reference, {
+          id: id,
+          originalBind: reference.bind,
+          bound: bound
+        });
     }
     function createBoundServerReference(
       metaData,
@@ -2657,10 +2665,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.1.0-canary-029e8bd6-20250306",
+      version: "19.1.0-canary-6aa8254b-20250312",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.1.0-canary-029e8bd6-20250306",
+      reconcilerVersion: "19.1.0-canary-6aa8254b-20250312",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
