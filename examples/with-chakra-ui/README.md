@@ -1,10 +1,10 @@
-# Example app with [chakra-ui](https://github.com/chakra-ui/chakra-ui) and TypeScript
+# Example app with [chakra-ui](https://github.com/chakra-ui/chakra-ui)
 
-This example features how to use [chakra-ui](https://github.com/chakra-ui/chakra-ui) as the component library within a Next.js app with TypeScript.
+This example features how to use [chakra-ui](https://github.com/chakra-ui/chakra-ui) as the component library within a Next.js App Router with TypeScript.
 
 Next.js and chakra-ui have built-in TypeScript declarations, so we'll get autocompletion for their modules straight away.
 
-We are connecting the Next.js `_app.js` with `chakra-ui`'s Provider and theme so the pages can have app-wide dark/light mode. We are also creating some components which shows the usage of `chakra-ui`'s style props.
+We are connecting the Next.js `next-themes` with `chakra-ui`'s Provider and theme so the pages can have app-wide dark/light mode. We are also creating some components which shows the usage of `chakra-ui`'s style props.
 
 ## Deploy your own
 
@@ -14,9 +14,7 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
 ## How to use
 
-### Using `create-next-app`
-
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-chakra-ui with-chakra-ui-app
@@ -30,10 +28,8 @@ yarn create next-app --example with-chakra-ui with-chakra-ui-app
 pnpm create next-app --example with-chakra-ui with-chakra-ui-app
 ```
 
-Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
+```bash
+bunx create-next-app --example DIRECTORY_NAME DIRECTORY_NAME-app
+```
 
-## Notes
-
-Chakra has supported Gradients and RTL in `v1.1`. To utilize RTL, [add RTL direction and swap](https://chakra-ui.com/docs/features/rtl-support).
-
-If you don't have multi-direction app, you should make `<Html lang="ar" dir="rtl">` inside `_document.ts`.
+Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/app/building-your-application/deploying)).
