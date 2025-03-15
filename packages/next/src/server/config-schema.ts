@@ -128,6 +128,7 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurboRuleConfigItemOrShortcut>
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
+    allowedDevOrigins: z.array(z.string()).optional(),
     amp: z
       .object({
         canonicalBase: z.string().optional(),
@@ -448,14 +449,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
         authInterrupts: z.boolean().optional(),
-        streamingMetadata: z.boolean().optional(),
-        htmlLimitedBots: z.instanceof(RegExp).optional(),
         useCache: z.boolean().optional(),
         slowModuleDetection: z
           .object({
             buildTimeThresholdMs: z.number().int(),
           })
           .optional(),
+        clientInstrumentationHook: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
@@ -489,6 +489,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .args()
       .returns(z.promise(z.array(zHeader)))
       .optional(),
+    htmlLimitedBots: z.instanceof(RegExp).optional(),
     httpAgentOptions: z
       .strictObject({ keepAlive: z.boolean().optional() })
       .optional(),

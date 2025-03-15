@@ -1,9 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  getRedboxSource,
-  getStackFramesContent,
-} from 'next-test-utils'
 
 describe('app-dir - owner-stack-invalid-element-type', () => {
   const { next } = nextTestSetup({
@@ -13,73 +8,67 @@ describe('app-dir - owner-stack-invalid-element-type', () => {
   it('should catch invalid element from a browser only component', async () => {
     const browser = await next.browser('/browser')
 
-    await assertHasRedbox(browser)
-    const source = await getRedboxSource(browser)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: object. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
 
-    const stackFramesContent = await getStackFramesContent(browser)
-    expect(stackFramesContent).toMatchInlineSnapshot(`
-     "at BrowserOnly (app/browser/browser-only.js (8:7))
-     at Inner (app/browser/page.js (11:10))
-     at Page (app/browser/page.js (15:10))"
-    `)
-    expect(source).toMatchInlineSnapshot(`
-     "app/browser/browser-only.js (8:7) @ BrowserOnly
-
-        6 |   return (
-        7 |     <div>
+     Check the render method of \`BrowserOnly\`.",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/browser/browser-only.js (8:7) @ BrowserOnly
      >  8 |       <Foo />
-          |       ^
-        9 |     </div>
-       10 |   )
-       11 | }"
+          |       ^",
+       "stack": [
+         "BrowserOnly app/browser/browser-only.js (8:7)",
+         "Inner app/browser/page.js (11:10)",
+         "Page app/browser/page.js (15:10)",
+       ],
+     }
     `)
   })
 
   it('should catch invalid element from a rsc component', async () => {
     const browser = await next.browser('/rsc')
 
-    await assertHasRedbox(browser)
-    const stackFramesContent = await getStackFramesContent(browser)
-    const source = await getRedboxSource(browser)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: object. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
 
-    expect(stackFramesContent).toMatchInlineSnapshot(`
-     "at Inner (app/rsc/page.js (5:10))
-     at Page (app/rsc/page.js (11:7))"
-    `)
-    expect(source).toMatchInlineSnapshot(`
-     "app/rsc/page.js (5:10) @ Inner
-
-       3 | // Intermediate component for testing owner stack
-       4 | function Inner() {
+     Check the render method of \`Inner\`.",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/rsc/page.js (5:10) @ Inner
      > 5 |   return <Foo />
-         |          ^
-       6 | }
-       7 |
-       8 | export default function Page() {"
+         |          ^",
+       "stack": [
+         "Inner app/rsc/page.js (5:10)",
+         "Page app/rsc/page.js (11:7)",
+       ],
+     }
     `)
   })
 
   it('should catch invalid element from on ssr client component', async () => {
     const browser = await next.browser('/ssr')
 
-    await assertHasRedbox(browser)
+    await expect(browser).toDisplayRedbox(`
+     {
+       "count": 1,
+       "description": "Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: object. You likely forgot to export your component from the file it's defined in, or you might have mixed up default and named imports.
 
-    const stackFramesContent = await getStackFramesContent(browser)
-    const source = await getRedboxSource(browser)
-    expect(stackFramesContent).toMatchInlineSnapshot(`
-     "at Inner (app/ssr/page.js (7:10))
-     at Page (app/ssr/page.js (13:7))"
-    `)
-    expect(source).toMatchInlineSnapshot(`
-     "app/ssr/page.js (7:10) @ Inner
-
-        5 | // Intermediate component for testing owner stack
-        6 | function Inner() {
+     Check the render method of \`Inner\`.",
+       "environmentLabel": null,
+       "label": "Unhandled Runtime Error",
+       "source": "app/ssr/page.js (7:10) @ Inner
      >  7 |   return <Foo />
-          |          ^
-        8 | }
-        9 |
-       10 | export default function Page() {"
+          |          ^",
+       "stack": [
+         "Inner app/ssr/page.js (7:10)",
+         "Page app/ssr/page.js (13:7)",
+       ],
+     }
     `)
   })
 })

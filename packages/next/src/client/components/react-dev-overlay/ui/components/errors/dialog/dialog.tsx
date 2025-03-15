@@ -32,13 +32,9 @@ export const DIALOG_STYLES = `
     background: var(--color-background-100);
     background-clip: padding-box;
     border: 1px solid var(--color-gray-400);
-    border-radius: var(--next-dialog-radius);
+    border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-menu);
     position: relative;
-
-    @media (prefers-color-scheme: dark) {
-      border-color: var(--color-gray-400);
-    }
 
     &:has(
         ~ [data-nextjs-error-overlay-nav] .error-overlay-notch[data-side='left']

@@ -10,7 +10,6 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
@@ -23,9 +22,8 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
-  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
-    htmlLimitedBots: string | undefined
-  }
+  htmlLimitedBots: string | undefined
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -317,7 +315,7 @@ export interface ExperimentalConfig {
   /**
    * @deprecated use config.expireTime instead
    */
-  expireTime?: ExpireTime
+  expireTime?: number
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
@@ -588,17 +586,6 @@ export interface ExperimentalConfig {
   authInterrupts?: boolean
 
   /**
-   * When enabled will cause async metadata calls to stream rather than block the render.
-   */
-  streamingMetadata?: boolean
-
-  /**
-   * User Agent of bots that can handle streaming metadata.
-   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
-   */
-  htmlLimitedBots?: RegExp
-
-  /**
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
@@ -614,6 +601,15 @@ export interface ExperimentalConfig {
      */
     buildTimeThresholdMs: number
   }
+
+  /**
+   * Enables the client instrumentation hook.
+   * Loads the instrumentation-client.ts file from the project root
+   * and executes it on the client side before hydration.
+   *
+   * Note: Use with caution as this can negatively impact page loading performance.
+   */
+  clientInstrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
@@ -685,6 +681,8 @@ export type ExportPathMap = {
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
+  allowedDevOrigins?: string[]
+
   exportPathMap?: (
     defaultMap: ExportPathMap,
     ctx: {
@@ -835,13 +833,13 @@ export interface NextConfig extends Record<string, any> {
     | false
     | {
         /**
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          * */
         appIsrStatus?: boolean
 
         /**
          * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default.
+         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
          */
         buildActivity?: boolean
 
@@ -1039,7 +1037,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  expireTime?: ExpireTime
+  expireTime?: number
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1079,6 +1077,15 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   *
+   * @default
+   * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export const defaultConfig: NextConfig = {
@@ -1130,11 +1137,14 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  expireTime: process.env.NEXT_PRIVATE_CDN_CONSUMED_SWR_CACHE_CONTROL
+    ? undefined
+    : 31536000, // one year
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  allowedDevOrigins: [],
   experimental: {
     nodeMiddleware: false,
     cacheLife: {
@@ -1258,11 +1268,10 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    streamingMetadata: true,
-    htmlLimitedBots: undefined,
     useCache: undefined,
     slowModuleDetection: undefined,
   },
+  htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 }
 

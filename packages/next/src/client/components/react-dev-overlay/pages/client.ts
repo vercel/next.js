@@ -9,13 +9,16 @@ import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
   ACTION_BUILD_OK,
+  ACTION_DEV_INDICATOR,
   ACTION_REFRESH,
+  ACTION_STATIC_INDICATOR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
   ACTION_VERSION_INFO,
 } from '../shared'
 import type { VersionInfo } from '../../../../server/dev/parse-version-info'
 import { attachHydrationErrorState } from '../../errors/attach-hydration-error-state'
+import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
 
 let isRegistered = false
 let stackTraceLimit: number | undefined = undefined
@@ -136,6 +139,14 @@ export function onBeforeRefresh() {
 
 export function onVersionInfo(versionInfo: VersionInfo) {
   Bus.emit({ type: ACTION_VERSION_INFO, versionInfo })
+}
+
+export function onStaticIndicator(isStatic: boolean) {
+  Bus.emit({ type: ACTION_STATIC_INDICATOR, staticIndicator: isStatic })
+}
+
+export function onDevIndicator(devIndicatorsState: DevIndicatorServerState) {
+  Bus.emit({ type: ACTION_DEV_INDICATOR, devIndicator: devIndicatorsState })
 }
 
 export { getErrorByType } from '../utils/get-error-by-type'

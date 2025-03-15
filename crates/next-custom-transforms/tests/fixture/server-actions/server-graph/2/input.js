@@ -1,3 +1,6 @@
+import { validator } from 'auth'
+import { Button } from 'components'
+
 async function myAction(a, b, c) {
   'use server'
   console.log('a')
@@ -8,6 +11,6 @@ export default function Page() {
 }
 
 // TODO: should use `action` as function name?
-export const action = withValidate(async () => {
+export const action = validator(async () => {
   'use server'
 })

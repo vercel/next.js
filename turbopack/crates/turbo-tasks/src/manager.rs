@@ -647,6 +647,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 )));
                 let single_execution_future = async {
                     if this.stopped.load(Ordering::Acquire) {
+                        this.backend.task_execution_canceled(task_id, &*this);
                         return false;
                     }
 

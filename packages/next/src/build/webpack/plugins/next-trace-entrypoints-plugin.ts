@@ -1,6 +1,5 @@
 import nodePath from 'path'
 import type { Span } from '../../../trace'
-import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
@@ -20,6 +19,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
 import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { getCompilationSpan } from '../utils'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -131,7 +131,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private rootDir: string
   private appDir: string | undefined
   private pagesDir: string | undefined
-  private optOutBundlingPackages: string[]
   private appDirEnabled?: boolean
   private tracingRoot: string
   private entryTraces: Map<string, Map<string, { bundled: boolean }>>
@@ -144,7 +143,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     appDir,
     pagesDir,
     compilerType,
-    optOutBundlingPackages,
     appDirEnabled,
     traceIgnores,
     esmExternals,
@@ -154,7 +152,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     compilerType: CompilerNameValues
     appDir: string | undefined
     pagesDir: string | undefined
-    optOutBundlingPackages: string[]
     appDirEnabled?: boolean
     traceIgnores?: string[]
     outputFileTracingRoot?: string
@@ -168,7 +165,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.appDirEnabled = appDirEnabled
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
-    this.optOutBundlingPackages = optOutBundlingPackages
     this.compilerType = compilerType
   }
 
@@ -190,9 +186,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
 
-        for (const chunk of process.env.NEXT_RSPACK
-          ? entrypoint.chunks
-          : entrypoint.getEntrypointChunk().getAllReferencedChunks()) {
+        for (const chunk of entrypoint
+          .getEntrypointChunk()
+          .getAllReferencedChunks()) {
           for (const file of chunk.files) {
             if (isTraceable(file)) {
               const filePath = nodePath.join(outputPath, file)
@@ -580,22 +576,11 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
-      compilation.hooks.processAssets.tapAsync(
-        {
-          name: PLUGIN_NAME,
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-        },
-        (_assets: any, callback: any) => {
-          this.createTraceAssets(compilation, traceEntrypointsPluginSpan)
-            .then(() => callback())
-            .catch((err) => callback(err))
-        }
+      const compilationSpan =
+        getCompilationSpan(compilation) || getCompilationSpan(compiler)!
+      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
+        'next-trace-entrypoint-plugin'
       )
-
-      // rspack doesn't support all API below so only create trace assets
-      if (process.env.NEXT_RSPACK) {
-        return
-      }
 
       const readlink = async (path: string): Promise<string | null> => {
         try {
@@ -637,10 +622,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         }
       }
 
-      const compilationSpan = spans.get(compilation) || spans.get(compiler)!
-      const traceEntrypointsPluginSpan = compilationSpan.traceChild(
-        'next-trace-entrypoint-plugin'
-      )
       traceEntrypointsPluginSpan.traceFn(() => {
         compilation.hooks.processAssets.tapAsync(
           {
@@ -786,7 +767,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             context,
             request,
             isEsmRequested,
-            this.optOutBundlingPackages,
             (options) => (_: string, resRequest: string) => {
               return getResolve(options)(parent, resRequest, job)
             },

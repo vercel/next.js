@@ -2,7 +2,7 @@
 import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc-action-encryption";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
 // Should be 0 111000 0, which is "70" in hex.
-export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action(a, b, c) {
+export async function action(a, b, c) {
     return <div>
       {a}
       {b}
@@ -10,7 +10,7 @@ export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action(a, b, c) 
     </div>;
 }
 // Should be 0 111111 1, which is "7f" in hex.
-export default async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action2(a, b, ...c) {
+export default async function action2(a, b, ...c) {
     return <div>
       {a}
       {b}
@@ -18,21 +18,21 @@ export default async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action2(
     </div>;
 }
 // Should be 0 111111 1, which is "60" in hex.
-export async function /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ action3(a, b) {
+export async function action3(a, b) {
     return <div>
       {a}
       {b}
     </div>;
 }
-export var /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, async function cache(a, b) {
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, async function cache(a, b) {
     return <div>
       {a}
       {b}
     </div>;
 });
-Object.defineProperty($$RSC_SERVER_CACHE_0, "name", {
-    "value": "cache",
-    "writable": false
+Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
+    value: "cache",
+    writable: false
 });
 // Should be 1 110000 0, which is "e0" in hex.
 export var cache = registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);

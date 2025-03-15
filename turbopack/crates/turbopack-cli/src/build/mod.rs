@@ -22,14 +22,17 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingConfig, ChunkingContext,
-        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapsType,
+        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
+        EvaluatableAssets, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        ModuleGraph,
+    },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -288,13 +291,8 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
-        entries.clone(),
-        match target {
-            Target::Browser => ChunkGroupType::Evaluated,
-            Target::Node => ChunkGroupType::Entry,
-        },
-    )]));
+    let module_graph =
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries.clone())]));
     let module_id_strategy = ResolvedVc::upcast(
         get_global_module_id_strategy(module_graph)
             .to_resolved()
@@ -401,7 +399,9 @@ async fn build_internal(
                                             )
                                             .with_extension("entry.js".into()),
                                     ),
-                                    EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                    ChunkGroup::Entry(
+                                        [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
+                                    ),
                                     module_graph,
                                     Value::new(AvailabilityInfo::Root),
                                 )
@@ -423,7 +423,6 @@ async fn build_internal(
                                                 .into(),
                                         )
                                         .with_extension("entry.js".into()),
-                                    *ResolvedVc::upcast(ecmascript),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                     module_graph,
                                     OutputAssets::empty(),

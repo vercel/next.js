@@ -30,6 +30,8 @@ declare global {
        * Unintented content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -48,6 +50,8 @@ declare global {
        * Unintented content in the snapshot should be reported to the Next.js DX team.
        * `<FIXME-internal-frame>` in the snapshot would be unintended.
        * `<FIXME-project-root>` in the snapshot would be unintended.
+       * `<FIXME-file-protocol>` in the snapshot would be unintended.
+       * `<FIXME-next-dist-dir>` in the snapshot would be unintended.
        * Any node_modules in the snapshot would be unintended.
        * Differences in the snapshot between Turbopack and Webpack would be unintended.
        *
@@ -134,7 +138,7 @@ async function createRedboxSnapshot(
     focusedSource = focusedSource.trim()
 
     if (next !== null) {
-      focusedSource = focusedSource.replace(
+      focusedSource = focusedSource.replaceAll(
         next.testDir,
         '<FIXME-project-root>'
       )
@@ -149,7 +153,12 @@ async function createRedboxSnapshot(
         ? description.replace(next.testDir, '<FIXME-project-root>')
         : description,
     source: focusedSource,
-    stack,
+    stack:
+      next !== null
+        ? stack.map((stackframe) => {
+            return stackframe.replace(next.testDir, '<FIXME-project-root>')
+          })
+        : stack,
     // TODO(newDevOverlay): Always return `count`. Normalizing currently to avoid assertion forks.
     count: label === 'Build Error' && count === -1 ? 1 : count,
   }

@@ -33,8 +33,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt, EvaluatableAsset,
+        EvaluatableAssetExt, EvaluatableAssets, MinifyType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -45,7 +45,10 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        ModuleGraph,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -396,19 +399,14 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .iter()
             .copied()
             .map(ResolvedVc::upcast)
-            .collect();
-        let module_graph = ModuleGraph::from_modules(Vc::cell(vec![(
-            all_modules,
-            match options.runtime {
-                Runtime::Browser => ChunkGroupType::Evaluated,
-                Runtime::NodeJs => ChunkGroupType::Entry,
-            },
-        )]));
+            .collect::<Vec<_>>();
+        let module_graph =
+            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules.clone())]));
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
                 entry_module.ident(),
-                evaluatable_assets,
+                ChunkGroup::Entry(all_modules.into_iter().collect()),
                 module_graph,
                 Value::new(AvailabilityInfo::Root),
             ),
@@ -431,7 +429,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                         .into(),
                                 )
                                 .with_extension("entry.js".into()),
-                            entry_module,
                             evaluatable_assets,
                             module_graph,
                             OutputAssets::empty(),

@@ -6,8 +6,8 @@ use turbopack_core::{
 };
 
 use super::{
-    super::content::EcmascriptDevChunkContent, update::update_ecmascript_merged_chunk,
-    version::EcmascriptDevMergedChunkVersion,
+    super::content::EcmascriptBrowserChunkContent, update::update_ecmascript_merged_chunk,
+    version::EcmascriptBrowserMergedChunkVersion,
 };
 
 /// Composite [`EcmascriptChunkContent`] that is the result of merging multiple
@@ -16,15 +16,15 @@ use super::{
 ///
 /// [`EcmascriptChunkContentMerger`]: super::merger::EcmascriptChunkContentMerger
 #[turbo_tasks::value(serialization = "none", shared)]
-pub(super) struct EcmascriptDevMergedChunkContent {
-    pub contents: Vec<ResolvedVc<EcmascriptDevChunkContent>>,
+pub(super) struct EcmascriptBrowserMergedChunkContent {
+    pub contents: Vec<ResolvedVc<EcmascriptBrowserChunkContent>>,
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptDevMergedChunkContent {
+impl EcmascriptBrowserMergedChunkContent {
     #[turbo_tasks::function]
-    pub async fn version(&self) -> Result<Vc<EcmascriptDevMergedChunkVersion>> {
-        Ok(EcmascriptDevMergedChunkVersion {
+    pub async fn version(&self) -> Result<Vc<EcmascriptBrowserMergedChunkVersion>> {
+        Ok(EcmascriptBrowserMergedChunkVersion {
             versions: self
                 .contents
                 .iter()
@@ -37,7 +37,7 @@ impl EcmascriptDevMergedChunkContent {
 }
 
 #[turbo_tasks::value_impl]
-impl VersionedContent for EcmascriptDevMergedChunkContent {
+impl VersionedContent for EcmascriptBrowserMergedChunkContent {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         bail!("EcmascriptDevMergedChunkContent does not have content")

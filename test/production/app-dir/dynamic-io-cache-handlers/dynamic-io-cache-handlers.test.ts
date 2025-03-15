@@ -103,6 +103,15 @@ describe('dynamic-io-cache-handlers', () => {
     })
   })
 
+  it('should call receiveExpiredTags on global default cache handler without tags if none are provided', async () => {
+    const res = await fetchViaHTTP(appPort, '/', {})
+    expect(res.status).toBe(200)
+
+    await retry(async () => {
+      expect(output).toContain('symbol receiveExpiredTags []')
+    })
+  })
+
   it('should call receiveExpiredTags on global default cache handler', async () => {
     const res = await fetchViaHTTP(
       appPort,

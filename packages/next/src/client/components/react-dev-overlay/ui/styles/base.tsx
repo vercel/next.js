@@ -1,32 +1,19 @@
-import * as React from 'react'
 import { css } from '../../utils/css'
+import type { DevToolsScale } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
 
-export function Base() {
+export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
   return (
     <style>
       {css`
         :host {
-          ${
-            // Although the style applied to the shadow host is isolated,
-            // the element that attached the shadow host (i.e. `nextjs-portal`)
-            // is still affected by the parent's style (e.g. `body`). This may
-            // occur style conflicts like `display: flex`, with other children
-            // elements therefore give the shadow host an absolute position.
-            'position: absolute;'
-          }
-
-          --size-gap-half: 4px;
-          --size-gap: 8px;
-          --size-gap-double: 16px;
-          --size-gap-triple: 24px;
-          --size-gap-quad: 32px;
-
-          --size-font-11: 11px;
-          --size-font-smaller: 12px;
-          --size-font-small: 14px;
-          --size-font: 16px;
-          --size-font-big: 20px;
-          --size-font-bigger: 24px;
+          /* 
+           * Although the style applied to the shadow host is isolated,
+           * the element that attached the shadow host (i.e. "nextjs-portal")
+           * is still affected by the parent's style (e.g. "body"). This may
+           * occur style conflicts like "display: flex", with other children
+           * elements therefore give the shadow host an absolute position.
+           */
+          position: absolute;
 
           --color-font: #757575;
           --color-backdrop: rgba(250, 250, 250, 0.8);
@@ -73,55 +60,65 @@ export function Base() {
           --timing-overlay: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 
           --rounded-none: 0px;
-          --rounded-sm: 0.125rem; /* 2px */
-          --rounded-md: 0.25rem; /* 4px */
-          --rounded-md-2: 0.375rem; /* 6px */
-          --rounded-lg: 0.5rem; /* 8px */
-          --rounded-xl: 0.75rem; /* 12px */
-          --rounded-2xl: 1rem; /* 16px */
-          --rounded-3xl: 1.5rem; /* 24px */
+          --rounded-sm: 2px;
+          --rounded-md: 4px;
+          --rounded-md-2: 6px;
+          --rounded-lg: 8px;
+          --rounded-xl: 12px;
+          --rounded-2xl: 16px;
+          --rounded-3xl: 24px;
+          --rounded-4xl: 32px;
           --rounded-full: 9999px;
 
-          --size-0: 0px;
-          --size-px: 1px;
-          --size-0_5: 0.125rem; /* 2px */
-          --size-1: 0.25rem; /* 4px */
-          --size-1_5: 0.375rem; /* 6px */
-          --size-2: 0.5rem; /* 8px */
-          --size-2_5: 0.625rem; /* 10px */
-          --size-3: 0.75rem; /* 12px */
-          --size-3_5: 0.875rem; /* 14px */
-          --size-4: 1rem; /* 16px */
-          --size-4_5: 1.125rem; /* 18px */
-          --size-5: 1.25rem; /* 20px */
-          --size-5_5: 1.375rem; /* 22px */
-          --size-6: 1.5rem; /* 24px */
-          --size-6_5: 1.625rem; /* 26px */
-          --size-7: 1.75rem; /* 28px */
-          --size-7_5: 1.875rem; /* 30px */
-          --size-8: 2rem; /* 32px */
-          --size-8_5: 2.125rem; /* 34px */
-          --size-9: 2.25rem; /* 36px */
-          --size-9_5: 2.375rem; /* 38px */
-          --size-10: 2.5rem; /* 40px */
-          --size-10_5: 2.625rem; /* 42px */
-          --size-11: 2.75rem; /* 44px */
-          --size-11_5: 2.875rem; /* 46px */
-          --size-12: 3rem; /* 48px */
+          /* 
+            This value gets set from the Dev Tools preferences,
+            and we use the following --size-* variables to 
+            scale the relevant elements.
+
+            The reason why we don't rely on rem values is because
+            if an app sets their root font size to something tiny, 
+            it feels unexpected to have the app root size leak 
+            into a Next.js surface.
+
+            https://github.com/vercel/next.js/discussions/76812
+          */
+          --nextjs-dev-tools-scale: ${String(scale)};
+          --size-1: calc(1px / var(--nextjs-dev-tools-scale));
+          --size-2: calc(2px / var(--nextjs-dev-tools-scale));
+          --size-3: calc(3px / var(--nextjs-dev-tools-scale));
+          --size-4: calc(4px / var(--nextjs-dev-tools-scale));
+          --size-5: calc(5px / var(--nextjs-dev-tools-scale));
+          --size-6: calc(6px / var(--nextjs-dev-tools-scale));
+          --size-7: calc(7px / var(--nextjs-dev-tools-scale));
+          --size-8: calc(8px / var(--nextjs-dev-tools-scale));
+          --size-9: calc(9px / var(--nextjs-dev-tools-scale));
+          --size-10: calc(10px / var(--nextjs-dev-tools-scale));
+          --size-11: calc(11px / var(--nextjs-dev-tools-scale));
+          --size-12: calc(12px / var(--nextjs-dev-tools-scale));
+          --size-13: calc(13px / var(--nextjs-dev-tools-scale));
+          --size-14: calc(14px / var(--nextjs-dev-tools-scale));
+          --size-15: calc(15px / var(--nextjs-dev-tools-scale));
+          --size-16: calc(16px / var(--nextjs-dev-tools-scale));
+          --size-17: calc(17px / var(--nextjs-dev-tools-scale));
+          --size-18: calc(18px / var(--nextjs-dev-tools-scale));
+          --size-20: calc(20px / var(--nextjs-dev-tools-scale));
+          --size-22: calc(22px / var(--nextjs-dev-tools-scale));
+          --size-24: calc(24px / var(--nextjs-dev-tools-scale));
+          --size-26: calc(26px / var(--nextjs-dev-tools-scale));
+          --size-28: calc(28px / var(--nextjs-dev-tools-scale));
+          --size-30: calc(30px / var(--nextjs-dev-tools-scale));
+          --size-32: calc(32px / var(--nextjs-dev-tools-scale));
+          --size-34: calc(34px / var(--nextjs-dev-tools-scale));
+          --size-36: calc(36px / var(--nextjs-dev-tools-scale));
+          --size-38: calc(38px / var(--nextjs-dev-tools-scale));
+          --size-40: calc(40px / var(--nextjs-dev-tools-scale));
+          --size-42: calc(42px / var(--nextjs-dev-tools-scale));
+          --size-44: calc(44px / var(--nextjs-dev-tools-scale));
+          --size-46: calc(46px / var(--nextjs-dev-tools-scale));
+          --size-48: calc(48px / var(--nextjs-dev-tools-scale));
 
           @media print {
             display: none;
-          }
-        }
-
-        @media (prefers-color-scheme: dark) {
-          :host {
-            --color-font: white;
-            --color-backdrop: rgb(0, 0, 0, 0.8);
-            --color-border-shadow: rgba(255, 255, 255, 0.145);
-
-            --color-title-color: #fafafa;
-            --color-stack-notes: #a9a9a9;
           }
         }
 
@@ -131,12 +128,16 @@ export function Base() {
         h4,
         h5,
         h6 {
-          margin-bottom: var(--size-gap);
+          margin-bottom: 8px;
           font-weight: 500;
           line-height: 1.5;
         }
 
         a {
+          color: var(--color-blue-900);
+          &:hover {
+            color: var(--color-blue-900);
+          }
           &:focus {
             outline: var(--focus-ring);
           }

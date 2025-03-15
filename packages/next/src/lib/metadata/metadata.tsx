@@ -3,7 +3,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
-import type { StreamingMetadataResolvedState } from './async-metadata'
+import type { StreamingMetadataResolvedState } from '../../client/components/metadata/types'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -12,6 +12,7 @@ import {
   ViewportMeta,
   VerificationMeta,
   FacebookMeta,
+  PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -37,7 +38,10 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
-import { AsyncMetadata, AsyncMetadataOutlet } from './async-metadata'
+import {
+  AsyncMetadata,
+  AsyncMetadataOutlet,
+} from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 
 // Use a promise to share the status of the metadata resolving,
@@ -389,6 +393,7 @@ function createMetadataElements(metadata: ResolvedMetadata) {
     AlternatesMetadata({ alternates: metadata.alternates }),
     ItunesMeta({ itunes: metadata.itunes }),
     FacebookMeta({ facebook: metadata.facebook }),
+    PinterestMeta({ pinterest: metadata.pinterest }),
     FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
     VerificationMeta({ verification: metadata.verification }),
     AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),

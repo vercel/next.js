@@ -1,7 +1,8 @@
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
+import type { DevToolsScale } from './dev-tools-info/preferences'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -10,52 +11,10 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
+  scale: DevToolsScale
 }
 
-const SIZE = 36
 const SHORT_DURATION_MS = 150
-
-/**
- * A hook that creates an animated state based on changes to a dependency.
- * When the dependency changes and passes the shouldSkip check, it triggers
- * an animation state that lasts for the specified duration.
- *
- * @param dep The dependency to watch for changes
- * @param config Configuration object containing:
- *               - shouldSkip: Function to determine if animation should be skipped
- *               - animationDuration: Duration of the animation in milliseconds
- * @returns Boolean indicating if animation is currently active
- */
-const useAnimated = <T,>(
-  dep: T,
-  config: { shouldSkip: (dep: T) => boolean; animationDuration: number }
-) => {
-  const { shouldSkip: _shouldSkip, animationDuration } = config
-  const shouldSkipRef = useRef(_shouldSkip) // ensure stable reference in case it's not
-
-  const [animatedDep, setAnimatedDep] = useState(false)
-  const isInitialRef = useRef(true)
-
-  useEffect(() => {
-    if (isInitialRef.current) {
-      isInitialRef.current = false
-      return
-    }
-
-    if (shouldSkipRef.current(dep)) {
-      return
-    }
-
-    setAnimatedDep(true)
-    const timeoutId = setTimeout(() => {
-      setAnimatedDep(false)
-    }, animationDuration)
-
-    return () => clearTimeout(timeoutId)
-  }, [dep, animationDuration])
-
-  return animatedDep
-}
 
 export const NextLogo = forwardRef(function NextLogo(
   {
@@ -66,24 +25,36 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
+    scale,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
+  const SIZE = 36 / scale
+
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const newErrorDetected = useAnimated(issueCount, {
-    shouldSkip: (count) => count === 0,
-    animationDuration: SHORT_DURATION_MS,
-  })
+  const [dismissed, setDismissed] = useState(false)
+  const newErrorDetected = useUpdateAnimation(issueCount, SHORT_DURATION_MS)
 
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
-  const width = useMeasureWidth(ref)
+  const [measuredWidth, pristine] = useMeasureWidth(ref)
 
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
+  const isExpanded = isErrorExpanded || disabled
+
+  const style = useMemo(() => {
+    let width: number | string = SIZE
+    // Animates the badge, if expanded
+    if (measuredWidth > SIZE) width = measuredWidth
+    // No animations on page load, assume the intrinsic width immediately
+    if (pristine && hasError) width = 'auto'
+    // Default state, collapsed
+    return { width }
+  }, [measuredWidth, pristine, hasError, SIZE])
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
@@ -96,8 +67,9 @@ export const NextLogo = forwardRef(function NextLogo(
         {
           '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
-          // if the indicator is disabled and there are no errors, hide the badge
-          display: disabled && !hasError ? 'none' : 'block',
+          // if the indicator is disabled, hide the badge
+          // also allow the "disabled" state be dismissed, as long as there are no build errors
+          display: disabled && (!hasError || dismissed) ? 'none' : 'block',
         } as React.CSSProperties
       }
     >
@@ -112,8 +84,7 @@ export const NextLogo = forwardRef(function NextLogo(
             --color-hover-alpha-subtle: hsla(0, 0%, 100%, 0.13);
             --color-hover-alpha-error: hsla(0, 0%, 100%, 0.2);
             --color-hover-alpha-error-2: hsla(0, 0%, 100%, 0.25);
-            --padding: 2px;
-            --mark-size: calc(var(--size) - var(--padding) * 2);
+            --mark-size: calc(var(--size) - var(--size-2) * 2);
 
             --focus-color: var(--color-blue-800);
             --focus-ring: 2px solid var(--focus-color);
@@ -143,7 +114,7 @@ export const NextLogo = forwardRef(function NextLogo(
               inset 0 0 0 1px var(--color-inner-border),
               0px 16px 32px -8px rgba(0, 0, 0, 0.24);
             backdrop-filter: blur(48px);
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             user-select: none;
             cursor: pointer;
             scale: 1;
@@ -207,8 +178,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-dot] {
             content: '';
-            width: 8px;
-            height: 8px;
+            width: var(--size-8);
+            height: var(--size-8);
             background: #fff;
             box-shadow: 0 0 0 1px var(--color-outer-border);
             border-radius: 50%;
@@ -222,20 +193,23 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues] {
+            --padding-left: 8px;
             display: flex;
-            gap: var(--padding);
+            gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${disabled || isBuildError
-              ? '8px'
-              : 'calc(var(--padding) * 2)'};
-            height: 32px;
-            margin: 0 var(--padding);
-            border-radius: 9999px;
+            padding-right: 8px;
+            height: var(--size-32);
+            margin: 0 2px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
+            }
+
+            &:has([data-issues-collapse]) {
+              padding-right: calc(var(--padding-left) / 2);
             }
 
             [data-cross] {
@@ -244,7 +218,7 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-open] {
-            font-size: 13px;
+            font-size: var(--size-13);
             color: white;
             width: fit-content;
             height: 100%;
@@ -252,7 +226,7 @@ export const NextLogo = forwardRef(function NextLogo(
             gap: 2px;
             align-items: center;
             margin: 0;
-            line-height: 36px;
+            line-height: var(--size-36);
             font-weight: 500;
             z-index: 2;
             white-space: nowrap;
@@ -263,9 +237,9 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues-collapse] {
-            width: 24px;
-            height: 24px;
-            border-radius: 9999px;
+            width: var(--size-24);
+            height: var(--size-24);
+            border-radius: var(--rounded-full);
             transition: background var(--duration-short) ease;
 
             &:hover {
@@ -275,15 +249,17 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-cross] {
             color: #fff;
+            width: var(--size-12);
+            height: var(--size-12);
           }
 
           [data-next-mark] {
             width: var(--mark-size);
             height: var(--mark-size);
-            margin-left: var(--padding);
+            margin-left: 2px;
             display: flex;
             align-items: center;
-            border-radius: 9999px;
+            border-radius: var(--rounded-full);
             transition: background var(--duration-long) var(--timing);
 
             &:focus-visible {
@@ -296,6 +272,8 @@ export const NextLogo = forwardRef(function NextLogo(
 
             svg {
               flex-shrink: 0;
+              width: var(--size-40);
+              height: var(--size-40);
             }
           }
 
@@ -326,7 +304,9 @@ export const NextLogo = forwardRef(function NextLogo(
 
           [data-issues-count-plural] {
             display: inline-block;
-            animation: fadeIn 300ms var(--timing) forwards;
+            &[data-animate='true'] {
+              animation: fadeIn 300ms var(--timing) forwards;
+            }
           }
 
           .path0 {
@@ -418,11 +398,9 @@ export const NextLogo = forwardRef(function NextLogo(
       <div
         data-next-badge
         data-error={hasError}
-        data-error-expanded={isErrorExpanded}
+        data-error-expanded={isExpanded}
         data-animate={newErrorDetected}
-        style={{
-          width: hasError && width > SIZE ? width : SIZE,
-        }}
+        style={style}
       >
         <div ref={ref}>
           {/* Children */}
@@ -437,7 +415,7 @@ export const NextLogo = forwardRef(function NextLogo(
               <NextMark isLoading={isLoading} isDevBuilding={isDevBuilding} />
             </button>
           )}
-          {isErrorExpanded && (
+          {isExpanded && (
             <div data-issues>
               <button
                 data-issues-open
@@ -460,18 +438,28 @@ export const NextLogo = forwardRef(function NextLogo(
                 <div>
                   Issue
                   {issueCount > 1 && (
-                    <span aria-hidden data-issues-count-plural>
+                    <span
+                      aria-hidden
+                      data-issues-count-plural
+                      // This only needs to animate once the count changes from 1 -> 2,
+                      // otherwise it should stay static between re-renders.
+                      data-animate={newErrorDetected && issueCount === 2}
+                    >
                       s
                     </span>
                   )}
                 </div>
               </button>
-              {!disabled && !isBuildError && (
+              {!isBuildError && (
                 <button
                   data-issues-collapse
                   aria-label="Collapse issues badge"
                   onClick={() => {
-                    setIsErrorExpanded(false)
+                    if (disabled) {
+                      setDismissed(true)
+                    } else {
+                      setIsErrorExpanded(false)
+                    }
                     // Move focus to the trigger to prevent having it stuck on this element
                     triggerRef.current?.focus()
                   }}
@@ -508,8 +496,11 @@ function AnimateCount({
   )
 }
 
-function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
+function useMeasureWidth(
+  ref: React.RefObject<HTMLDivElement | null>
+): [number, boolean] {
   const [width, setWidth] = useState<number>(0)
+  const [pristine, setPristine] = useState(true)
 
   useEffect(() => {
     const el = ref.current
@@ -520,14 +511,52 @@ function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
 
     const observer = new ResizeObserver(() => {
       const { width: w } = el.getBoundingClientRect()
-      setWidth(w)
+      setWidth((prevWidth) => {
+        if (prevWidth !== 0) {
+          setPristine(false)
+        }
+        return w
+      })
     })
 
     observer.observe(el)
     return () => observer.disconnect()
   }, [ref])
 
-  return width
+  return [width, pristine]
+}
+
+function useUpdateAnimation(issueCount: number, animationDurationMs = 0) {
+  const lastUpdatedTimeStamp = useRef<number | null>(null)
+  const [animate, setAnimate] = useState(false)
+
+  useEffect(() => {
+    if (issueCount > 0) {
+      const deltaMs = lastUpdatedTimeStamp.current
+        ? Date.now() - lastUpdatedTimeStamp.current
+        : -1
+      lastUpdatedTimeStamp.current = Date.now()
+
+      // We don't animate if `issueCount` changes too quickly
+      if (deltaMs <= animationDurationMs) {
+        return
+      }
+
+      setAnimate(true)
+      // It is important to use a CSS transitioned state, not a CSS keyframed animation
+      // because if the issue count increases faster than the animation duration, it
+      // will abruptly stop and not transition smoothly back to its original state.
+      const timeoutId = window.setTimeout(() => {
+        setAnimate(false)
+      }, animationDurationMs)
+
+      return () => {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [issueCount, animationDurationMs])
+
+  return animate
 }
 
 function NextMark({
@@ -551,9 +580,9 @@ function NextMark({
           className={isLoading ? 'path0' : 'paused'}
           d="M13.3 15.2 L2.34 1 V12.6"
           fill="none"
-          stroke="url(#paint0_linear_1357_10853)"
+          stroke="url(#next_logo_paint0_linear_1357_10853)"
           strokeWidth="1.86"
-          mask="url(#mask0)"
+          mask="url(#next_logo_mask0)"
           strokeDasharray="29.6"
           strokeDashoffset="29.6"
         />
@@ -561,14 +590,14 @@ function NextMark({
           className={isLoading ? 'path1' : 'paused'}
           d="M11.825 1.5 V13.1"
           strokeWidth="1.86"
-          stroke="url(#paint1_linear_1357_10853)"
+          stroke="url(#next_logo_paint1_linear_1357_10853)"
           strokeDasharray="11.6"
           strokeDashoffset="11.6"
         />
       </g>
       <defs>
         <linearGradient
-          id="paint0_linear_1357_10853"
+          id="next_logo_paint0_linear_1357_10853"
           x1="9.95555"
           y1="11.1226"
           x2="15.4778"
@@ -580,7 +609,7 @@ function NextMark({
           <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
         <linearGradient
-          id="paint1_linear_1357_10853"
+          id="next_logo_paint1_linear_1357_10853"
           x1="11.8222"
           y1="1.40039"
           x2="11.791"
@@ -590,7 +619,7 @@ function NextMark({
           <stop stopColor={strokeColor} />
           <stop offset="1" stopColor={strokeColor} stopOpacity="0" />
         </linearGradient>
-        <mask id="mask0">
+        <mask id="next_logo_mask0">
           <rect width="100%" height="100%" fill="white" />
           <rect width="5" height="1.5" fill="black" />
         </mask>

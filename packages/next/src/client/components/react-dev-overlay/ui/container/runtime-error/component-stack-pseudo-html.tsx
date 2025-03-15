@@ -2,29 +2,30 @@ export { PseudoHtmlDiff } from '../../components/hydration-diff/diff-view'
 
 export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html] {
-    padding: var(--size-2) 0;
-    margin: var(--size-2) 0;
+    padding: 8px 0;
+    margin: 8px 0;
     border: 1px solid var(--color-gray-400);
     background: var(--color-background-200);
     color: var(--color-syntax-constant);
     font-family: var(--font-stack-monospace);
-    font-size: var(--size-font-smaller);
-    line-height: var(--size-4);
-    border-radius: var(--size-2);
+    font-size: var(--size-12);
+    line-height: 1.33em; /* 16px in 12px font size */
+    border-radius: var(--rounded-md-2);
   }
   [data-nextjs-container-errors-pseudo-html-line] {
     display: inline-block;
     width: 100%;
-    padding-left: var(--size-10);
+    padding-left: 40px;
     line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html--diff='error'] {
     background: var(--color-amber-100);
+    box-shadow: 2px 0 0 0 var(--color-amber-900) inset;
     font-weight: bold;
   }
   [data-nextjs-container-errors-pseudo-html-collapse-button] {
     all: unset;
-    margin-left: var(--size-3);
+    margin-left: 12px;
     &:focus {
       outline: none;
     }
@@ -33,8 +34,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     background: var(--color-green-300);
   }
   [data-nextjs-container-errors-pseudo-html-line-sign] {
-    margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-6);
+    margin-left: calc(24px * -1);
+    margin-right: 24px;
   }
   [data-nextjs-container-errors-pseudo-html--diff='add']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
@@ -46,8 +47,8 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html--diff='remove']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
     color: var(--color-red-900);
-    margin-left: calc(var(--size-6) * -1);
-    margin-right: var(--size-6);
+    margin-left: calc(24px * -1);
+    margin-right: 24px;
   }
   [data-nextjs-container-errors-pseudo-html--diff='error']
     [data-nextjs-container-errors-pseudo-html-line-sign] {
@@ -68,8 +69,9 @@ export const PSEUDO_HTML_DIFF_STYLES = `
   [data-nextjs-container-errors-pseudo-html-collapse='true']
     .nextjs__container_errors__component-stack
     code {
-    max-height: 100px;
-    mask-image: linear-gradient(to top, rgba(0, 0, 0, 0) 0%, black 50%);
+    max-height: 120px;
+    mask-image: linear-gradient(to bottom,rgba(0,0,0,0) 0%,black 10%);
+    padding-bottom: 40px;
   }
   .nextjs__container_errors__component-stack code {
     display: block;
@@ -78,8 +80,7 @@ export const PSEUDO_HTML_DIFF_STYLES = `
     scroll-snap-type: y mandatory;
     overflow-y: hidden;
   }
-  [data-nextjs-container-errors-pseudo-html--diff],
-  [data-nextjs-container-errors-pseudo-html--diff='error'] {
+  [data-nextjs-container-errors-pseudo-html--diff] {
     scroll-snap-align: center;
   }
   .error-overlay-hydration-error-diff-plus-icon {

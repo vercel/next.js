@@ -1,6 +1,6 @@
 # Items
 
-Count: 14
+Count: 13
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -171,9 +171,7 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
-    Item14;
-    Item14["export default"];
+    Item13["export default"];
     Item2 --> Item1;
 ```
 # Phase 2
@@ -192,9 +190,7 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
-    Item14;
-    Item14["export default"];
+    Item13["export default"];
     Item2 --> Item1;
     Item11 --> Item6;
     Item11 --> Item4;
@@ -206,7 +202,7 @@ graph TD
     Item11 --> Item10;
     Item12 --> Item11;
     Item12 --> Item2;
-    Item14 --> Item12;
+    Item13 --> Item12;
 ```
 # Phase 3
 ```mermaid
@@ -224,9 +220,7 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
-    Item14;
-    Item14["export default"];
+    Item13["export default"];
     Item2 --> Item1;
     Item11 --> Item6;
     Item11 --> Item4;
@@ -238,7 +232,7 @@ graph TD
     Item11 --> Item10;
     Item12 --> Item11;
     Item12 --> Item2;
-    Item14 --> Item12;
+    Item13 --> Item12;
 ```
 # Phase 4
 ```mermaid
@@ -256,9 +250,7 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
-    Item14;
-    Item14["export default"];
+    Item13["export default"];
     Item2 --> Item1;
     Item11 --> Item6;
     Item11 --> Item4;
@@ -270,7 +262,6 @@ graph TD
     Item11 --> Item10;
     Item12 --> Item11;
     Item12 --> Item2;
-    Item14 --> Item12;
     Item13 --> Item12;
 ```
 # Final
@@ -286,22 +277,9 @@ graph TD
     N7["Items: [ItemId(1, ImportBinding(2))]"];
     N8["Items: [ItemId(1, ImportBinding(3))]"];
     N9["Items: [ItemId(1, ImportBinding(4))]"];
-    N10["Items: [ItemId(2, Normal), ItemId(3, Normal)]"];
-    N11["Items: [ItemId(ModuleEvaluation)]"];
-    N12["Items: [ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #5), &quot;default&quot;))]"];
+    N10["Items: [ItemId(2, Normal), ItemId(3, Normal), ItemId(Export((&quot;__TURBOPACK__default__export__&quot;, #5), &quot;default&quot;))]"];
     N4 --> N0;
-    N10 --> N9;
-    N10 --> N8;
-    N10 --> N7;
-    N10 --> N6;
-    N10 --> N1;
-    N10 --> N3;
-    N10 --> N2;
-    N10 --> N5;
     N9 --> N4;
-    N10 --> N4;
-    N12 --> N10;
-    N11 --> N10;
     N1 --> N0;
     N2 --> N0;
     N3 --> N0;
@@ -309,16 +287,17 @@ graph TD
     N6 --> N4;
     N7 --> N4;
     N8 --> N4;
+    N10 --> N4;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 10,
     Export(
         "default",
-    ): 12,
-    Exports: 13,
+    ): 10,
+    Exports: 11,
 }
 ```
 
@@ -494,31 +473,17 @@ class MyDocument extends Document {
     }
 }
 const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
 export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 11
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
-"module evaluation";
-
-```
-## Part 12
-```js
-import { j as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
-};
-export { __TURBOPACK__default__export__ as default };
-
-```
-## Part 13
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -528,20 +493,70 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: 4
 };
-"module evaluation";
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { Html } from 'next/document';
+import { Head } from 'next/document';
+import { Main } from 'next/document';
+import { NextScript } from 'next/document';
+class MyDocument extends Document {
+    static async getInitialProps(ctx) {
+        const initialProps = await Document.getInitialProps(ctx);
+        return {
+            ...initialProps,
+            styles: _jsxs(_Fragment, {
+                children: [
+                    initialProps.styles,
+                    _jsx("style", {
+                        dangerouslySetInnerHTML: {
+                            __html: `html { background: hotpink; }`
+                        }
+                    })
+                ]
+            })
+        };
+    }
+    render() {
+        return _jsxs(Html, {
+            children: [
+                _jsx(Head, {}),
+                _jsxs("body", {
+                    children: [
+                        _jsx(Main, {}),
+                        _jsx(NextScript, {})
+                    ]
+                })
+            ]
+        });
+    }
+}
+const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 10,
     Export(
         "default",
-    ): 12,
-    Exports: 13,
+    ): 10,
+    Exports: 11,
 }
 ```
 
@@ -717,31 +732,17 @@ class MyDocument extends Document {
     }
 }
 const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
 export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 11
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
-};
-"module evaluation";
-
-```
-## Part 12
-```js
-import { j as __TURBOPACK__default__export__ } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -10
-};
-export { __TURBOPACK__default__export__ as default };
-
-```
-## Part 13
 ```js
 export { default } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export default"
@@ -751,8 +752,58 @@ export { default } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 10
+    __turbopack_part__: 4
 };
-"module evaluation";
+import Document from 'next/document';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { jsxs as _jsxs } from "react/jsx-runtime";
+import { Fragment as _Fragment } from "react/jsx-runtime";
+import { jsx as _jsx } from "react/jsx-runtime";
+import { Html } from 'next/document';
+import { Head } from 'next/document';
+import { Main } from 'next/document';
+import { NextScript } from 'next/document';
+class MyDocument extends Document {
+    static async getInitialProps(ctx) {
+        const initialProps = await Document.getInitialProps(ctx);
+        return {
+            ...initialProps,
+            styles: _jsxs(_Fragment, {
+                children: [
+                    initialProps.styles,
+                    _jsx("style", {
+                        dangerouslySetInnerHTML: {
+                            __html: `html { background: hotpink; }`
+                        }
+                    })
+                ]
+            })
+        };
+    }
+    render() {
+        return _jsxs(Html, {
+            children: [
+                _jsx(Head, {}),
+                _jsxs("body", {
+                    children: [
+                        _jsx(Main, {}),
+                        _jsx(NextScript, {})
+                    ]
+                })
+            ]
+        });
+    }
+}
+const __TURBOPACK__default__export__ = MyDocument;
+export { __TURBOPACK__default__export__ as default };
+export { MyDocument as i } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { __TURBOPACK__default__export__ as j } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

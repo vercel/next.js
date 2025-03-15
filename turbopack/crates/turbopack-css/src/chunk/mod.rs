@@ -13,8 +13,9 @@ use turbo_tasks_fs::{rope::Rope, File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemWithAsyncModuleInfo,
-        ChunkType, ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
+        round_chunk_item_size, AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup,
+        ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
+        ChunkableModule, ChunkingContext, ModuleId, OutputChunk, OutputChunkRuntimeInfo,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -296,6 +297,7 @@ impl OutputAsset for CssChunk {
             modifiers: Vec::new(),
             parts: Vec::new(),
             layer: None,
+            content_type: None,
         };
 
         Ok(self
@@ -496,9 +498,23 @@ impl ChunkType for CssChunkType {
     async fn chunk(
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-        chunk_items: Vec<ChunkItemWithAsyncModuleInfo>,
+        chunk_items_or_batches: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
+        _batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
         referenced_output_assets: ResolvedVc<OutputAssets>,
     ) -> Result<Vc<Box<dyn Chunk>>> {
+        let mut chunk_items = Vec::new();
+        // TODO operate with batches
+        for item in chunk_items_or_batches {
+            match item {
+                ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(chunk_item) => {
+                    chunk_items.push(chunk_item);
+                }
+                ChunkItemOrBatchWithAsyncModuleInfo::Batch(batch) => {
+                    let batch = batch.await?;
+                    chunk_items.extend(batch.chunk_items.iter().cloned());
+                }
+            }
+        }
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()

@@ -6,14 +6,6 @@ import { render, screen, fireEvent, act } from '@testing-library/react'
 import { ErrorOverlayLayout } from './error-overlay-layout'
 import '@testing-library/jest-dom'
 
-// Mock maintain--tab-focus module
-jest.mock('../../../components/overlay/maintain--tab-focus', () => ({
-  __esModule: true,
-  default: jest.fn(() => ({
-    disengage: jest.fn(),
-  })),
-}))
-
 global.ResizeObserver = jest.fn().mockImplementation(() => ({
   observe: jest.fn(),
   unobserve: jest.fn(),
