@@ -47,7 +47,6 @@ import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
-import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -558,7 +557,7 @@ export default function HotReload({
   //  keep rendering these hooks to ensure HMR works when the error is addressed.
   const shouldRenderErrorOverlay = useSyncExternalStore(
     () => () => {},
-    () => !shouldRenderRootLevelErrorOverlay(),
+    () => true,
     () => true
   )
 

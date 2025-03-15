@@ -1,7 +1,7 @@
 import type { OverlayState } from '../shared'
 import type { GlobalErrorComponent } from '../../error-boundary'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
@@ -40,7 +40,7 @@ function readSsrError(): Error | null {
 // Needs to be in the same error boundary as the shell.
 // If it commits, we know we recovered from an SSR error.
 // If it doesn't commit, we errored again and React will take care of error reporting.
-function ReplaySsrOnlyErrors() {
+function ReplaySsrOnlyErrors({ onError }: { onError: () => void }) {
   if (process.env.NODE_ENV !== 'production') {
     // Need to read during render. The attributes will be gone after commit.
     const ssrError = readSsrError()
@@ -51,8 +51,9 @@ function ReplaySsrOnlyErrors() {
         // TODO(veil): Mark as recoverable error
         // TODO(veil): console.error
         handleClientError(ssrError, [])
+        onError()
       }
-    }, [ssrError])
+    }, [ssrError, onError])
   }
 
   return null
@@ -68,6 +69,7 @@ export function AppDevOverlay({
   children: React.ReactNode
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
+  const openOverlay = useCallback(() => setIsErrorOverlayOpen(true), [])
 
   return (
     <>
@@ -75,7 +77,7 @@ export function AppDevOverlay({
         globalError={globalError}
         onError={setIsErrorOverlayOpen}
       >
-        <ReplaySsrOnlyErrors />
+        <ReplaySsrOnlyErrors onError={openOverlay} />
         {children}
       </AppDevOverlayErrorBoundary>
 

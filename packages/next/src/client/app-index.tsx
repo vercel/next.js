@@ -25,7 +25,6 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -250,16 +249,10 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  if (
-    document.documentElement.id === '__next_error__' ||
-    !!window.__next_root_layout_missing_tags?.length
-  ) {
+  if (document.documentElement.id === '__next_error__') {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      shouldRenderRootLevelErrorOverlay()
-    ) {
+    if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
         require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
 

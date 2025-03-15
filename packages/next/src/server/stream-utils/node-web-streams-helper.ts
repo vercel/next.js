@@ -489,7 +489,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
       controller.enqueue(chunk)
     },
     flush(controller) {
-      const missingTags: typeof window.__next_root_layout_missing_tags = []
+      const missingTags: ('html' | 'body')[] = []
       if (!foundHtml) missingTags.push('html')
       if (!foundBody) missingTags.push('body')
 
@@ -497,9 +497,18 @@ export function createRootLayoutValidatorStream(): TransformStream<
 
       controller.enqueue(
         encoder.encode(
-          `<script>self.__next_root_layout_missing_tags=${JSON.stringify(
-            missingTags
-          )}</script>`
+          `<html id="__next_error__">
+            <template
+              data-next-error-message="Missing ${missingTags
+                .map((c) => `<${c}>`)
+                .join(
+                  missingTags.length > 1 ? ' and ' : ''
+                )} tags in the root layout"
+              data-next-error-digest="MISSING_ROOT_TAGS"
+              data-next-error-stack=""
+            ></template>
+          </html>
+          `
         )
       )
     },
