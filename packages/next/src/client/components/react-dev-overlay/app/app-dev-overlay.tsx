@@ -63,13 +63,17 @@ export function AppDevOverlay({
   state,
   globalError,
   children,
+  devOverlay = true,
 }: {
   state: OverlayState
   globalError: [GlobalErrorComponent, React.ReactNode]
   children: React.ReactNode
+  devOverlay?: boolean
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
-  const openOverlay = useCallback(() => setIsErrorOverlayOpen(true), [])
+  const openOverlay = useCallback(() => {
+    setIsErrorOverlayOpen(true)
+  }, [])
 
   return (
     <>
@@ -77,17 +81,21 @@ export function AppDevOverlay({
         globalError={globalError}
         onError={setIsErrorOverlayOpen}
       >
-        <ReplaySsrOnlyErrors onError={openOverlay} />
         {children}
+        {/* globally only render once to collect the ssr only errors */}
+        {devOverlay ? <ReplaySsrOnlyErrors onError={openOverlay} /> : null}
       </AppDevOverlayErrorBoundary>
-
-      {/* Fonts can only be loaded outside the Shadow DOM. */}
-      <FontStyles />
-      <DevOverlay
-        state={state}
-        isErrorOverlayOpen={isErrorOverlayOpen}
-        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-      />
+      {devOverlay ? (
+        <>
+          {/* Fonts can only be loaded outside the Shadow DOM. */}
+          <FontStyles />
+          <DevOverlay
+            state={state}
+            isErrorOverlayOpen={isErrorOverlayOpen}
+            setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+          />
+        </>
+      ) : null}
     </>
   )
 }

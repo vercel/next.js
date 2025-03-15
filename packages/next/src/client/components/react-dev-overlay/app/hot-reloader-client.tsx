@@ -1,12 +1,5 @@
 import type { ReactNode } from 'react'
-import {
-  useCallback,
-  useEffect,
-  startTransition,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -552,15 +545,6 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
-  //  we should not render an additional error overlay in the descendent. However, we need to
-  //  keep rendering these hooks to ensure HMR works when the error is addressed.
-  const shouldRenderErrorOverlay = useSyncExternalStore(
-    () => () => {},
-    () => true,
-    () => true
-  )
-
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       const errorDetails = (error as any).details as
@@ -680,13 +664,9 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
-  if (shouldRenderErrorOverlay) {
-    return (
-      <AppDevOverlay state={state} globalError={globalError}>
-        {children}
-      </AppDevOverlay>
-    )
-  }
-
-  return children
+  return (
+    <AppDevOverlay state={state} globalError={globalError}>
+      {children}
+    </AppDevOverlay>
+  )
 }

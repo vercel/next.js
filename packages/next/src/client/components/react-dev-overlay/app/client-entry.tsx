@@ -5,6 +5,11 @@ import { INITIAL_OVERLAY_STATE } from '../shared'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import GlobalError from '../../error-boundary'
 
+const appState = {
+  ...INITIAL_OVERLAY_STATE,
+  routerType: 'app',
+} as const
+
 // if an error is thrown while rendering an RSC stream, this will catch it in dev
 // and show the error overlay
 export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
@@ -31,11 +36,9 @@ export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
 
   return (
     <AppDevOverlay
-      state={{
-        ...INITIAL_OVERLAY_STATE,
-        routerType: 'app',
-      }}
+      state={appState}
       globalError={[GlobalError, null]}
+      devOverlay={false}
     >
       {reactEl}
     </AppDevOverlay>

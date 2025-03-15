@@ -503,11 +503,10 @@ export function createRootLayoutValidatorStream(): TransformStream<
                 .map((c) => `<${c}>`)
                 .join(
                   missingTags.length > 1 ? ' and ' : ''
-                )} tags in the root layout"
-              data-next-error-digest="MISSING_ROOT_TAGS"
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags""
+              data-next-error-digest="NEXT_MISSING_ROOT_TAGS"
               data-next-error-stack=""
             ></template>
-          </html>
           `
         )
       )

@@ -16,23 +16,18 @@ describe('app-dir - missing required html tags', () => {
     retry(async () => {
       expect(await hasErrorToast(browser)).toBe(true)
     })
-    // TODO: the better case is to dedupe these errors to 1
-    // Dev indicator should show 2 errors
-    expect(await getToastErrorCount(browser)).toBe(2)
+    expect(await getToastErrorCount(browser)).toBe(1)
   })
 
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
     await assertHasRedbox(browser)
-    // expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
-    //   "The following tags are missing in the Root Layout: <html>, <body>.
-    //   Read more at https://nextjs.org/docs/messages/missing-root-layout-tags"
-    // `)
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 2,
-       "description": "Error: Missing <html> and <body> tags in the root layout",
+       "count": 1,
+       "description": "Error: Missing <html> and <body> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",
        "source": null,
@@ -52,8 +47,9 @@ describe('app-dir - missing required html tags', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "count": 2,
-       "description": "Error: Missing <html> tags in the root layout",
+       "count": 1,
+       "description": "Error: Missing <html> tags in the root layout.
+     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
        "label": "Unhandled Runtime Error",
        "source": null,
@@ -84,7 +80,8 @@ describe('app-dir - missing required html tags', () => {
       await expect(browser).toDisplayRedbox(`
        {
          "count": 2,
-         "description": "Error: Missing <html> and <body> tags in the root layout",
+         "description": "Error: Missing <html> and <body> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
          "environmentLabel": null,
          "label": "Unhandled Runtime Error",
          "source": null,
