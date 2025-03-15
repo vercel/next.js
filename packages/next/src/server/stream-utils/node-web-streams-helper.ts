@@ -8,6 +8,7 @@ import {
   isEquivalentUint8Arrays,
   removeFromUint8Array,
 } from './uint8array-helpers'
+import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -504,7 +505,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
                 .join(
                   missingTags.length > 1 ? ' and ' : ''
                 )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags""
-              data-next-error-digest="NEXT_MISSING_ROOT_TAGS"
+              data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
               data-next-error-stack=""
             ></template>
           `

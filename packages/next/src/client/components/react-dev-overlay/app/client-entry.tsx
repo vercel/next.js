@@ -1,14 +1,10 @@
 import React from 'react'
-import { AppDevOverlay } from './app-dev-overlay'
 import { getSocketUrl } from '../utils/get-socket-url'
-import { INITIAL_OVERLAY_STATE } from '../shared'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import GlobalError from '../../error-boundary'
+import { AppDevOverlayErrorBoundary } from './app-dev-overlay-error-boundary'
 
-const appState = {
-  ...INITIAL_OVERLAY_STATE,
-  routerType: 'app',
-} as const
+const noop = () => {}
 
 // if an error is thrown while rendering an RSC stream, this will catch it in dev
 // and show the error overlay
@@ -35,12 +31,11 @@ export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
   socket.addEventListener('message', handler)
 
   return (
-    <AppDevOverlay
-      state={appState}
+    <AppDevOverlayErrorBoundary
       globalError={[GlobalError, null]}
-      devOverlay={false}
+      onError={noop}
     >
       {reactEl}
-    </AppDevOverlay>
+    </AppDevOverlayErrorBoundary>
   )
 }

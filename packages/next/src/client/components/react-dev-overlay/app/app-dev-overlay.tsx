@@ -7,8 +7,9 @@ import { FontStyles } from '../font/font-styles'
 import { DevOverlay } from '../ui/dev-overlay'
 import { handleClientError } from '../../errors/use-error-handler'
 import { isNextRouterError } from '../../is-next-router-error'
+import { MISSING_ROOT_TAGS_ERROR } from '../../../../shared/lib/errors/constants'
 
-function readSsrError(): Error | null {
+function readSsrError(): (Error & { digest?: string }) | null {
   if (typeof document === 'undefined') {
     return null
   }
@@ -40,7 +41,11 @@ function readSsrError(): Error | null {
 // Needs to be in the same error boundary as the shell.
 // If it commits, we know we recovered from an SSR error.
 // If it doesn't commit, we errored again and React will take care of error reporting.
-function ReplaySsrOnlyErrors({ onError }: { onError: () => void }) {
+function ReplaySsrOnlyErrors({
+  onBlockingError,
+}: {
+  onBlockingError: () => void
+}) {
   if (process.env.NODE_ENV !== 'production') {
     // Need to read during render. The attributes will be gone after commit.
     const ssrError = readSsrError()
@@ -51,9 +56,13 @@ function ReplaySsrOnlyErrors({ onError }: { onError: () => void }) {
         // TODO(veil): Mark as recoverable error
         // TODO(veil): console.error
         handleClientError(ssrError, [])
-        onError()
+
+        // If it's missing root tags, we can't recover, make it blocking.
+        if (ssrError.digest === MISSING_ROOT_TAGS_ERROR) {
+          onBlockingError()
+        }
       }
-    }, [ssrError, onError])
+    }, [ssrError, onBlockingError])
   }
 
   return null
@@ -63,12 +72,10 @@ export function AppDevOverlay({
   state,
   globalError,
   children,
-  devOverlay = true,
 }: {
   state: OverlayState
   globalError: [GlobalErrorComponent, React.ReactNode]
   children: React.ReactNode
-  devOverlay?: boolean
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
   const openOverlay = useCallback(() => {
@@ -81,21 +88,18 @@ export function AppDevOverlay({
         globalError={globalError}
         onError={setIsErrorOverlayOpen}
       >
+        <ReplaySsrOnlyErrors onBlockingError={openOverlay} />
         {children}
-        {/* globally only render once to collect the ssr only errors */}
-        {devOverlay ? <ReplaySsrOnlyErrors onError={openOverlay} /> : null}
       </AppDevOverlayErrorBoundary>
-      {devOverlay ? (
-        <>
-          {/* Fonts can only be loaded outside the Shadow DOM. */}
-          <FontStyles />
-          <DevOverlay
-            state={state}
-            isErrorOverlayOpen={isErrorOverlayOpen}
-            setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-          />
-        </>
-      ) : null}
+      <>
+        {/* Fonts can only be loaded outside the Shadow DOM. */}
+        <FontStyles />
+        <DevOverlay
+          state={state}
+          isErrorOverlayOpen={isErrorOverlayOpen}
+          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+        />
+      </>
     </>
   )
 }
