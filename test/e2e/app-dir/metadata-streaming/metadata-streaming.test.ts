@@ -128,18 +128,16 @@ describe('app-dir - metadata-streaming', () => {
   })
 
   it('should still render metadata if children is not rendered in parallel routes layout', async () => {
-    const browser = await next.browser('/parallel-routes-no-children')
+    const browser = await next.browser('/parallel-routes-default')
 
     expect((await browser.elementsByCss('title')).length).toBe(1)
     expect(await browser.elementByCss('body title').text()).toBe(
-      'parallel-routes-no-children layout title'
+      'parallel-routes-default layout title'
     )
 
-    const $ = await next.render$('/parallel-routes-no-children')
+    const $ = await next.render$('/parallel-routes-default')
     expect($('title').length).toBe(1)
-    expect($('body title').text()).toBe(
-      'parallel-routes-no-children layout title'
-    )
+    expect($('body title').text()).toBe('parallel-routes-default layout title')
   })
 
   describe('dynamic api', () => {
