@@ -741,6 +741,13 @@ describe('use-cache', () => {
   it('should not read nor write cached data when draft mode is enabled', async () => {
     const browser = await next.browser('/draft-mode')
 
+    if (isNextDeploy) {
+      // Sometimes the first request triggers a background revalidation, so we
+      // refresh once to make sure we capture the correct initial values for
+      // later comparison.
+      await browser.refresh()
+    }
+
     expect(await browser.elementByCss('button#toggle').text()).toBe(
       'Enable Draft Mode'
     )
