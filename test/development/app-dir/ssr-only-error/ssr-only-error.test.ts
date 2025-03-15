@@ -10,7 +10,7 @@ describe('ssr-only-error', () => {
     const browser = await next.browser('/')
 
     // TODO(veil): Missing Owner Stack
-    await expect(browser).toDisplayCollapsedRedbox(`
+    await expect(browser).toDisplayRedbox(`
      {
        "count": 1,
        "description": "Error: SSR only error",
