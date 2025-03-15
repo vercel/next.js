@@ -1,5 +1,6 @@
 import { draftMode } from 'next/headers'
 import { Button } from './button'
+import { connection } from 'next/server'
 
 async function getCachedValue(
   iterable: Iterable<number>,
@@ -23,6 +24,7 @@ async function getCachedValue(
 }
 
 export default async function Page() {
+  await connection()
   const offset = 1000
 
   const cachedClosure = async () => {
