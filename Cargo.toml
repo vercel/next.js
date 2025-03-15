@@ -296,7 +296,7 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "16.4.0", features = [
+swc_core = { version = "16.5.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
@@ -307,8 +307,8 @@ browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.3"
 modularize_imports = { version = "0.79.0" }
-styled_components = { version = "0.107.0" }
-styled_jsx = { version = "0.83.0" }
+styled_components = { version = "0.107.1" }
+styled_jsx = { version = "0.83.1" }
 swc_emotion = { version = "0.83.0" }
 swc_relay = { version = "0.53.0" }
 
