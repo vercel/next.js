@@ -225,6 +225,7 @@ function Root({ children }: React.PropsWithChildren<{}>) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
       window.__NEXT_HYDRATED = true
+      window.__NEXT_HYDRATED_AT = performance.now()
       window.__NEXT_HYDRATED_CB?.()
     }, [])
   }

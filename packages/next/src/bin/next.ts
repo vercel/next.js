@@ -135,7 +135,7 @@ program
       '--experimental-build-mode [mode]',
       'Uses an experimental build mode.'
     )
-      .choices(['compile', 'generate'])
+      .choices(['compile', 'generate', 'generate-env'])
       .default('default')
   )
   .option(

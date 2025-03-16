@@ -211,6 +211,8 @@
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
@@ -260,12 +262,14 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-basepath/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
-      "app dir - basepath should prefix metadata og image with basePath",
+      "app dir - basepath should prefix manifest with basePath",
       "app dir - basepath should prefix redirect() with basePath",
+      "app dir - basepath should prefix segment metadata og image with basePath and pathname",
       "app dir - basepath should properly stream an internal server action redirect() with a absolute URL",
       "app dir - basepath should properly stream an internal server action redirect() with a relative URL",
       "app dir - basepath should redirect externally when encountering absolute URLs on the same host outside the basePath",
@@ -274,7 +278,6 @@
       "app dir - basepath should support Link with basePath prefixed",
       "app dir - basepath should support `basePath`"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -691,6 +694,7 @@
     "passed": [
       "app-root-params - simple should correctly generate types",
       "app-root-params - simple should only return rootParams and not other params",
+      "app-root-params - simple should render the not found page without errors",
       "app-root-params - simple should return rootParams"
     ],
     "failed": [],
@@ -1052,6 +1056,7 @@
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
       "app-dir static/dynamic handling should not error with generateStaticParams and authed data on revalidate",
       "app-dir static/dynamic handling should not error with generateStaticParams and dynamic data",
+      "app-dir static/dynamic handling should not filter out catch-all params with repeated segments in generateStaticParams",
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not revalidate / when revalidate is not used",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
@@ -1117,7 +1122,8 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app/experimental-compile.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - basic <Link /> should allow linking from app page to pages page",
       "app dir - basic <Link /> should be soft for back navigation",
       "app dir - basic <Link /> should be soft for forward navigation",
@@ -1187,6 +1193,7 @@
       "app dir - basic should contain framework.json",
       "app dir - basic should encode chunk path correctly",
       "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
+      "app dir - basic should generate build traces correctly",
       "app dir - basic should handle hash in initial url",
       "app dir - basic should have correct cache-control for SSR routes",
       "app dir - basic should have correct searchParams and params (client)",
@@ -1206,6 +1213,7 @@
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
       "app dir - basic should return the `vary` header from edge runtime",
       "app dir - basic should return the `vary` header from pages for flight requests",
+      "app dir - basic should run generate command correctly",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
@@ -1214,6 +1222,7 @@
       "app dir - basic should serve from public",
       "app dir - basic should serve nested parent",
       "app dir - basic should serve page as a segment name correctly",
+      "app dir - basic should serve polyfills for browsers that do not support modules",
       "app dir - basic should successfully detect app route during prefetch",
       "app dir - basic should use new root layout when provided",
       "app dir - basic should use text/x-component for flight",
@@ -1221,10 +1230,6 @@
       "app dir - basic should work for catch-all edge page",
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation",
       "app dir - basic template component should render the template that is a server component and rerender on navigation"
-    ],
-    "failed": [
-      "app dir - basic should generate build traces correctly",
-      "app dir - basic should serve polyfills for browsers that do not support modules"
     ],
     "pending": [
       "app dir - basic known bugs should support React fetch instrumentation client component",
@@ -2844,6 +2849,8 @@
     "passed": [
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
+      "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
+      "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -2868,7 +2875,8 @@
       "app dir - metadata navigation navigation should show target page metadata after navigation with back",
       "app dir - metadata navigation navigation should show the index title",
       "app dir - metadata navigation navigation should support notFound in generateMetadata",
-      "app dir - metadata navigation navigation should support redirect in generateMetadata"
+      "app dir - metadata navigation navigation should support redirect in generateMetadata",
+      "app dir - metadata navigation server action should not render fallback noindex metadata if request is initiated from server action"
     ],
     "failed": [],
     "pending": [],
@@ -2934,6 +2942,8 @@
       "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
       "app-dir - metadata-streaming should delay the metadata render to body",
       "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should only insert metadata once into head or body",
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
@@ -2996,11 +3006,11 @@
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
-      "app dir - metadata basic should support facebook related tags",
       "app dir - metadata basic should support generateMetadata dynamic props",
       "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
       "app dir - metadata basic should support robots tags",
+      "app dir - metadata basic should support socials related tags like facebook and pinterest",
       "app dir - metadata basic should support stashed title in one layer of page and layout",
       "app dir - metadata basic should support stashed title in two layers of page and layout",
       "app dir - metadata basic should support title and description",
@@ -3108,6 +3118,13 @@
   },
   "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
     "passed": ["navigation-redirect-import should work using fetch"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/navigation-with-queued-actions/index.test.ts": {
+    "passed": ["actions works"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3674,19 +3691,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/options-request/options-request.test.ts": {
-    "passed": [
-      "options-request should 404 for an OPTIONS request to a non-existent route",
-      "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
-      "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
-      "options-request should return a 400 status code when invoking /app-page with an OPTIONS request",
-      "options-request should return a 400 status code when invoking /pages-page with an OPTIONS request"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": ["pages-to-app-routing should work using browser"],
     "failed": [],
@@ -3890,7 +3894,8 @@
   },
   "test/e2e/app-dir/parallel-routes-not-found/parallel-routes-not-found.test.ts": {
     "passed": [
-      "parallel-routes-and-interception should not render the @children slot when the @slot is not found"
+      "parallel-routes-and-interception should not render the @children slot when the @slot is not found",
+      "parallel-routes-and-interception should render the title once for the non-existed route"
     ],
     "failed": [],
     "pending": [],
@@ -5160,7 +5165,10 @@
       "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-less URL when navigating to param-full route",
       "searchparams-reuse-loading should re-use the prefetched loading state when navigating to a new searchParam value",
       "searchparams-reuse-loading should reflect the correct searchParams when re-using the same page segment",
-      "searchparams-reuse-loading should reflect the correct searchParams when the root page is prefetched first"
+      "searchparams-reuse-loading should reflect the correct searchParams when the root page is prefetched first",
+      "searchparams-reuse-loading when aliasing is skipped should work for navigating to pages dir",
+      "searchparams-reuse-loading when aliasing is skipped should work for not found pages",
+      "searchparams-reuse-loading when aliasing is skipped should work for route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -5186,8 +5194,20 @@
       "segment cache (basic tests) navigate to page with lazily-generated (not at build time) static param",
       "segment cache (basic tests) navigate with prefetched data",
       "segment cache (basic tests) prefetch interception route",
+      "segment cache (basic tests) refreshes page segments when navigating to the exact same URL as the current location",
       "segment cache (basic tests) skips dynamic request if prefetched data is fully static",
       "segment cache (basic tests) skips static layouts during partially static navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
+    "passed": [
+      "segment cache (output: \"export\") basic prefetch in output: \"export\" mode",
+      "segment cache (output: \"export\") prefetch a link to a page that is redirected server side",
+      "segment cache (output: \"export\") prefetch a link to a page that is rewritten server side"
     ],
     "failed": [],
     "pending": [],
@@ -5248,6 +5268,16 @@
       "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
       "segment cache (revalidation) refetch visible Form components after cache is revalidated"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
+    "passed": [
+      "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
+      "segment cache (search params) when fetching without PPR (e.g. prefetch={true}), includes the search params in the cache key"
     ],
     "failed": [],
     "pending": [],
@@ -5631,11 +5661,10 @@
   },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
     "passed": [
+      "use-cache-unknown-cache-kind should fail the build with an error",
       "use-cache-unknown-cache-kind should not fail the build for default cache kinds"
     ],
-    "failed": [
-      "use-cache-unknown-cache-kind should fail the build with an error"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5664,7 +5693,7 @@
       "use-cache should dedupe cached data in the RSC payload",
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
-      "use-cache should match the expected revalidate config on the prerender manifest",
+      "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
@@ -5672,6 +5701,7 @@
       "use-cache should propagate unstable_cache tags correctly",
       "use-cache should return the same object reference for multiple invocations",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache works with \"use cache\" in method props",
@@ -6076,9 +6106,7 @@
     "runtimeError": false
   },
   "test/e2e/edge-compiler-can-import-blob-assets/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "Edge Compiler can import asset assets allows to assets from node_modules",
       "Edge Compiler can import asset assets allows to fetch a remote URL",
       "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
@@ -6086,6 +6114,8 @@
       "Edge Compiler can import asset assets allows to fetch text assets",
       "Edge Compiler can import asset assets extracts all the assets from the bundle"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8270,10 +8300,10 @@
     "runtimeError": false
   },
   "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "AMP Validation on Export production mode should have shown errors during build"
     ],
-    "failed": [],
     "pending": [
       "AMP Validation on Export production mode shows AMP warning without throwing error",
       "AMP Validation on Export production mode shows warning and error when throwing error",
@@ -13189,7 +13219,17 @@
       "i18n Support production mode should show proper error for duplicate defaultLocales",
       "i18n Support production mode should show proper error for duplicate locales",
       "i18n Support production mode should show proper error for invalid locale domain",
-      "i18n Support with trailingSlash: false production mode should redirect correctly"
+      "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
+      "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
+      "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
+      "i18n Support with localeDetection disabled production mode should set locale from detected path",
+      "i18n Support with trailingSlash: false production mode should redirect correctly",
+      "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
+      "i18n Support with trailingSlash: true production mode should navigate between pages correctly",
+      "i18n Support with trailingSlash: true production mode should preload all locales data correctly",
+      "i18n Support with trailingSlash: true production mode should redirect correctly",
+      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
+      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
     ],
     "failed": [
       "i18n Support production mode should 404 for GSP pages that returned notFound",
@@ -13280,17 +13320,7 @@
       "i18n Support production mode should use default locale when no locale is in href with locale false",
       "i18n Support production mode should visit API route directly correctly",
       "i18n Support production mode should visit dynamic API route directly correctly",
-      "i18n Support production mode should work with AMP first page with all locales",
-      "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
-      "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
-      "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
-      "i18n Support with localeDetection disabled production mode should set locale from detected path",
-      "i18n Support with trailingSlash: true production mode should have correct locale domain hrefs",
-      "i18n Support with trailingSlash: true production mode should navigate between pages correctly",
-      "i18n Support with trailingSlash: true production mode should preload all locales data correctly",
-      "i18n Support with trailingSlash: true production mode should redirect correctly",
-      "i18n Support with trailingSlash: true production mode should return 404 error for repeating locales",
-      "i18n Support with trailingSlash: true production mode should serve pages correctly with locale prefix"
+      "i18n Support production mode should work with AMP first page with all locales"
     ],
     "pending": [
       "i18n Support development mode should 404 for GSP pages that returned notFound",
@@ -16650,14 +16680,13 @@
       "server-side dev errors should show server-side error for dynamic api route correctly",
       "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly"
-    ],
-    "failed": [
+      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16775,6 +16804,8 @@
       "config telemetry production mode emits telemetry for lint during build",
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
+      "config telemetry production mode emits telemetry for persistent cache in build mode",
+      "config telemetry production mode emits telemetry for persistent cache in dev mode",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
@@ -17568,6 +17599,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
+    "passed": [
+      "browser-chunks must not bundle any dev overlay into browser chunks",
+      "browser-chunks must not bundle any server modules into browser chunks"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/build-output-debug/index.test.ts": {
     "passed": ["next build --debug should log Redirects above Route(app)"],
     "failed": [],
@@ -17805,8 +17846,8 @@
   },
   "test/production/app-dir/server-action-period-hash/server-action-period-hash-custom-key.test.ts": {
     "passed": [
-      "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is changed",
-      "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is same"
+      "app-dir - server-action-period-hash-custom-key should have a different manifest if the encryption key from process env is changed",
+      "app-dir - server-action-period-hash-custom-key should have the same manifest if the encryption key from process env is same"
     ],
     "failed": [],
     "pending": [],
@@ -18354,6 +18395,21 @@
     "failed": [
       "optimize-server-react should optimize useEffect call on server side"
     ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/options-request/options-request.test.ts": {
+    "passed": [
+      "options-request should 404 for an OPTIONS request to a non-existent route",
+      "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
+      "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
+      "options-request should return a 400 status code when invoking /app-page/dynamic with an OPTIONS request (dynamic rendering)",
+      "options-request should return a 400 status code when invoking /pages-page/dynamic with an OPTIONS request (dynamic rendering)",
+      "options-request should return a 405 status code when invoking /app-page/static with an OPTIONS request (static rendering)",
+      "options-request should return a 405 status code when invoking /pages-page/static with an OPTIONS request (static rendering)"
+    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

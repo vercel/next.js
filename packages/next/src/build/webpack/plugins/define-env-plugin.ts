@@ -6,17 +6,10 @@ import type { MiddlewareMatcher } from '../../analysis/get-page-static-info'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import { needsExperimentalReact } from '../../../lib/needs-experimental-react'
 import { checkIsAppPPREnabled } from '../../../server/lib/experimental/ppr'
-
-function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
-  const isPrivateKey = /^(?:NODE_.+)|^(?:__.+)$/i.test(key)
-  const hasNextRuntimeKey = key === 'NEXT_RUNTIME'
-
-  if (isPrivateKey || hasNextRuntimeKey) {
-    throw new Error(
-      `The key "${key}" under "env" in ${config.configFileName} is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed`
-    )
-  }
-}
+import {
+  getNextConfigEnv,
+  getNextPublicEnvironmentVariables,
+} from '../../../lib/static-env'
 
 type BloomFilter = ReturnType<
   import('../../../shared/lib/bloom-filter').BloomFilter['export']
@@ -54,39 +47,6 @@ interface DefineEnv {
 
 interface SerializedDefineEnv {
   [key: string]: string
-}
-
-/**
- * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
- */
-export function getNextPublicEnvironmentVariables(): DefineEnv {
-  const defineEnv: DefineEnv = {}
-  for (const key in process.env) {
-    if (key.startsWith('NEXT_PUBLIC_')) {
-      const value = process.env[key]
-      if (value != null) {
-        defineEnv[`process.env.${key}`] = value
-      }
-    }
-  }
-  return defineEnv
-}
-
-/**
- * Collects the `env` config value from the Next.js config.
- */
-export function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
-  // Refactored code below to use for-of
-  const defineEnv: DefineEnv = {}
-  const env = config.env
-  for (const key in env) {
-    const value = env[key]
-    if (value != null) {
-      errorIfEnvConflicted(config, key)
-      defineEnv[`process.env.${key}`] = value
-    }
-  }
-  return defineEnv
 }
 
 /**
@@ -279,6 +239,9 @@ export function getDefineEnv({
       !!config.experimental.authInterrupts,
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
       process.env.NEXT_TELEMETRY_DISABLED
+    ),
+    'process.env.__NEXT_EXPERIMENTAL_CLIENT_INSTRUMENTATION_HOOK': Boolean(
+      config.experimental.clientInstrumentationHook
     ),
     ...(isNodeOrEdgeCompilation
       ? {

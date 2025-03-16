@@ -446,7 +446,6 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
-        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
@@ -593,7 +592,6 @@ impl<C: Comments> ServerActions<C> {
                 .collect(),
             action_id.clone(),
         );
-        add_turbopack_disable_export_merging_comment(action_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -770,7 +768,6 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
             arrow.span,
         );
-        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         // If there're any bound args from the closure, we need to hoist the
         // register action expression to the top-level, and return the bind
@@ -842,7 +839,6 @@ impl<C: Comments> ServerActions<C> {
             reference_id.clone(),
             function.span,
         );
-        add_turbopack_disable_export_merging_comment(cache_ident.span, &self.comments);
 
         function.body.visit_mut_with(&mut ClosureReplacer {
             used_ids: &ids_from_closure,
@@ -1943,7 +1939,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             ident.span,
                         )),
                     }));
-                    add_turbopack_disable_export_merging_comment(ident.span, &self.comments);
                 }
             }
 
@@ -2349,17 +2344,6 @@ fn annotate_ident_as_server_reference(ident: Ident, action_id: Atom, original_sp
         ],
         ..Default::default()
     })
-}
-
-fn add_turbopack_disable_export_merging_comment(span: Span, comments: &dyn Comments) {
-    comments.add_leading(
-        span.lo,
-        Comment {
-            kind: CommentKind::Block,
-            span: DUMMY_SP,
-            text: "#__TURBOPACK_DISABLE_EXPORT_MERGING__".into(),
-        },
-    );
 }
 
 fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id: Atom) -> Expr {
