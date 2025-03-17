@@ -2856,7 +2856,8 @@
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
       "app-dir - metadata-streaming should send the blocking response for html limited bots",
-      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed"
+      "app-dir - metadata-streaming should still load viewport meta tags even if metadata is delayed",
+      "app-dir - metadata-streaming should still render metadata if children is not rendered in parallel routes layout"
     ],
     "failed": [],
     "pending": [],
@@ -6511,6 +6512,18 @@
     "passed": [
       "import-meta import.meta.url should work in browser",
       "import-meta import.meta.url should work on the server"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/instrumentation-client-hook/instrumentation-client-hook.test.ts": {
+    "passed": [
+      "Instrumentation Client Hook App Router should execute instrumentation-client from app router before hydration",
+      "Instrumentation Client Hook HMR in development mode skips tests in non-dev mode",
+      "Instrumentation Client Hook Pages Router should execute instrumentation-client from pages router before hydration",
+      "Instrumentation Client Hook With src folder should execute instrumentation-client from with src folder before hydration"
     ],
     "failed": [],
     "pending": [],
@@ -17842,14 +17855,14 @@
     "runtimeError": false
   },
   "test/production/build-spinners/index.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "build-spinners should handle build spinners correctly app and pages",
       "build-spinners should handle build spinners correctly app dir - (compile workers)",
       "build-spinners should handle build spinners correctly app dir - basic",
       "build-spinners should handle build spinners correctly page dir",
       "build-spinners should handle build spinners correctly page dir (compile workers)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
