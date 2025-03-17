@@ -365,6 +365,10 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
             store.headers.get('x-middleware-subrequest') ?? ''
           )
         }
+        init.headers.set(
+          'x-middleware-subrequest-id',
+          (globalThis as any)[Symbol.for('@next/middleware-subrequest-id')]
+        )
 
         const prevs =
           init.headers.get(`x-middleware-subrequest`)?.split(':') || []
