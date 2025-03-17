@@ -1,12 +1,5 @@
 import type { ReactNode } from 'react'
-import {
-  useCallback,
-  useEffect,
-  startTransition,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -47,7 +40,6 @@ import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
-import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -553,15 +545,6 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
-  //  we should not render an additional error overlay in the descendent. However, we need to
-  //  keep rendering these hooks to ensure HMR works when the error is addressed.
-  const shouldRenderErrorOverlay = useSyncExternalStore(
-    () => () => {},
-    () => !shouldRenderRootLevelErrorOverlay(),
-    () => true
-  )
-
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       const errorDetails = (error as any).details as
@@ -681,13 +664,9 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
-  if (shouldRenderErrorOverlay) {
-    return (
-      <AppDevOverlay state={state} globalError={globalError}>
-        {children}
-      </AppDevOverlay>
-    )
-  }
-
-  return children
+  return (
+    <AppDevOverlay state={state} globalError={globalError}>
+      {children}
+    </AppDevOverlay>
+  )
 }
