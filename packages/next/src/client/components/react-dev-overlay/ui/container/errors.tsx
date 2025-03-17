@@ -165,43 +165,41 @@ export function Errors({
       dialogResizerRef={dialogResizerRef}
       {...props}
     >
-      <Suspense>
-        <div className="error-overlay-notes-container">
-          {notes ? (
-            <>
-              <p
-                id="nextjs__container_errors__notes"
-                className="nextjs__container_errors__notes"
-              >
-                {notes}
-              </p>
-            </>
-          ) : null}
-          {hydrationWarning ? (
+      <div className="error-overlay-notes-container">
+        {notes ? (
+          <>
             <p
-              id="nextjs__container_errors__link"
-              className="nextjs__container_errors__link"
+              id="nextjs__container_errors__notes"
+              className="nextjs__container_errors__notes"
             >
-              <HotlinkedText
-                text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
-              />
+              {notes}
             </p>
-          ) : null}
-        </div>
-
-        {hydrationWarning &&
-        (activeError.componentStackFrames?.length ||
-          !!errorDetails.reactOutputComponentDiff) ? (
-          <PseudoHtmlDiff
-            className="nextjs__container_errors__component-stack"
-            hydrationMismatchType={hydrationErrorType}
-            firstContent={serverContent}
-            secondContent={clientContent}
-            reactOutputComponentDiff={
-              errorDetails.reactOutputComponentDiff || ''
-            }
-          />
+          </>
         ) : null}
+        {hydrationWarning ? (
+          <p
+            id="nextjs__container_errors__link"
+            className="nextjs__container_errors__link"
+          >
+            <HotlinkedText
+              text={`See more info here: ${NEXTJS_HYDRATION_ERROR_LINK}`}
+            />
+          </p>
+        ) : null}
+      </div>
+
+      {hydrationWarning &&
+      (activeError.componentStackFrames?.length ||
+        !!errorDetails.reactOutputComponentDiff) ? (
+        <PseudoHtmlDiff
+          className="nextjs__container_errors__component-stack"
+          hydrationMismatchType={hydrationErrorType}
+          firstContent={serverContent}
+          secondContent={clientContent}
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff || ''}
+        />
+      ) : null}
+      <Suspense fallback={<div data-nextjs-error-suspended />}>
         <RuntimeError
           key={activeError.id.toString()}
           error={activeError}
