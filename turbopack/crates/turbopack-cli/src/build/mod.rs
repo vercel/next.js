@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashSet;
+use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
