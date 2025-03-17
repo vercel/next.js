@@ -26,7 +26,6 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
-    ident::AssetIdent,
     module::Module,
     module_graph::{
         async_module_info::AsyncModulesInfo, ModuleGraph, SingleModuleGraph,
@@ -60,7 +59,6 @@ pub(crate) struct ServerActionsManifest {
 pub(crate) async fn create_server_actions_manifest(
     rsc_entry: Vc<Box<dyn Module>>,
     actions: Vc<AllActions>,
-    project_path: Vc<FileSystemPath>,
     node_root: Vc<FileSystemPath>,
     page_name: RcStr,
     runtime: NextRuntime,
@@ -68,13 +66,7 @@ pub(crate) async fn create_server_actions_manifest(
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
-    let loader = build_server_actions_loader(
-        rsc_entry,
-        project_path,
-        page_name.clone(),
-        actions,
-        rsc_asset_context,
-    );
+    let loader = build_server_actions_loader(rsc_entry, actions, rsc_asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
         .context("loader module must be evaluatable")?
@@ -112,8 +104,6 @@ fn server_actions_loader_modifier() -> Vc<RcStr> {
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
     rsc_entry: Vc<Box<dyn Module>>,
-    project_path: Vc<FileSystemPath>,
-    page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
