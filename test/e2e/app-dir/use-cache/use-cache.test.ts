@@ -503,6 +503,7 @@ describe('use-cache', () => {
         '/cache-fetch-no-store',
         '/cache-life',
         '/cache-tag',
+        '/draft-mode',
         '/form',
         '/imported-from-client',
         '/logs',
@@ -793,6 +794,8 @@ describe('use-cache', () => {
 
       // Draft mode is disabled again, the initially cached data should be
       // returned again.
+
+      await browser.refresh()
 
       expect(await browser.elementById('top-level').text()).toBe(
         initialTopLevelValue

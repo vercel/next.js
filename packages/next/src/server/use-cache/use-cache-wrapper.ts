@@ -295,14 +295,19 @@ async function collectResult(
   return entry
 }
 
-async function generateCacheEntryImpl(
+async function generateStream(
   outerWorkUnitStore: WorkUnitStore | undefined,
-  innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
-  timeoutError: UseCacheTimeoutError
-): Promise<[ReadableStream, Promise<CacheEntry>]> {
+  {
+    signal,
+    timeoutError,
+  }: {
+    signal: AbortSignal | undefined
+    timeoutError: UseCacheTimeoutError | undefined
+  }
+): Promise<{ stream: ReadableStream; errors: unknown[] }> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
   const [, , , args] =
@@ -342,9 +347,6 @@ async function generateCacheEntryImpl(
           { temporaryReferences }
         )
 
-  // Track the timestamp when we started computing the result.
-  const startTime = performance.timeOrigin + performance.now()
-
   // Invoke the inner function to load a new result. We delay the invocation
   // though, until React awaits the promise so that React's request store (ALS)
   // is available when the function is invoked. This allows us, for example, to
@@ -353,23 +355,12 @@ async function generateCacheEntryImpl(
 
   let errors: Array<unknown> = []
 
-  let timer = undefined
-  const controller = new AbortController()
-  if (outerWorkUnitStore?.type === 'prerender') {
-    // If we're prerendering, we give you 50 seconds to fill a cache entry.
-    // Otherwise we assume you stalled on hanging input and de-opt. This needs
-    // to be lower than just the general timeout of 60 seconds.
-    timer = setTimeout(() => {
-      controller.abort(timeoutError)
-    }, 50000)
-  }
-
   const stream = renderToReadableStream(
     resultPromise,
     clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
-      signal: controller.signal,
+      signal,
       temporaryReferences,
       // In the "Cache" environment, we only need to make sure that the error
       // digests are handled correctly. Error formatting and reporting is not
@@ -389,7 +380,7 @@ async function generateCacheEntryImpl(
           console.error(error)
         }
 
-        if (error === timeoutError) {
+        if (timeoutError && error === timeoutError) {
           // The timeout error already aborted the whole stream. We don't need
           // to also push this error into the `errors` array.
           return timeoutError.digest
@@ -398,6 +389,39 @@ async function generateCacheEntryImpl(
         errors.push(error)
       },
     }
+  )
+
+  return { stream, errors }
+}
+
+async function generateCacheEntryImpl(
+  outerWorkUnitStore: WorkUnitStore | undefined,
+  innerCacheStore: UseCacheStore,
+  clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
+  encodedArguments: FormData | string,
+  fn: (...args: unknown[]) => Promise<unknown>,
+  timeoutError: UseCacheTimeoutError
+): Promise<[ReadableStream, Promise<CacheEntry>]> {
+  // Track the timestamp when we started computing the result.
+  const startTime = performance.timeOrigin + performance.now()
+
+  let timer = undefined
+  const controller = new AbortController()
+  if (outerWorkUnitStore?.type === 'prerender') {
+    // If we're prerendering, we give you 50 seconds to fill a cache entry.
+    // Otherwise we assume you stalled on hanging input and de-opt. This needs
+    // to be lower than just the general timeout of 60 seconds.
+    timer = setTimeout(() => {
+      controller.abort(timeoutError)
+    }, 50000)
+  }
+
+  const { stream, errors } = await generateStream(
+    outerWorkUnitStore,
+    clientReferenceManifest,
+    encodedArguments,
+    fn,
+    { signal: controller.signal, timeoutError }
   )
 
   const [returnStream, savedStream] = stream.tee()
@@ -730,27 +754,32 @@ export function cache(
         ) {
           // Miss. Generate a new result.
 
-          // If the cache entry is stale and we're prerendering, we don't want to use the
-          // stale entry since it would unnecessarily need to shorten the lifetime of the
-          // prerender. We're not time constrained here so we can re-generated it now.
+          // When draft mode is enabled, we're only generating the stream but no
+          // cache entry.
+          if (workStore.isDraftMode) {
+            ;({ stream } = await generateStream(
+              workUnitStore,
+              clientReferenceManifest,
+              encodedCacheKeyParts,
+              fn,
+              // In draft mode we're not prerendering, so we don't need to
+              // handle timeouts caused by hanging promises.
+              { signal: undefined, timeoutError: undefined }
+            ))
+          } else {
+            // If the cache entry is stale and we're prerendering, we don't want
+            // to use the stale entry since it would unnecessarily need to
+            // shorten the lifetime of the prerender. We're not time constrained
+            // here so we can re-generated it now.
+            const [newStream, pendingCacheEntry] = await generateCacheEntry(
+              workStore,
+              workUnitStore,
+              clientReferenceManifest,
+              encodedCacheKeyParts,
+              fn,
+              timeoutError
+            )
 
-          // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
-          // generation cannot read anything from the context we're currently executing which
-          // might include request specific things like cookies() inside a React.cache().
-          // Note: It is important that we await at least once before this because it lets us
-          // pop out of any stack specific contexts as well - aka "Sync" Local Storage.
-
-          const [newStream, pendingCacheEntry] = await generateCacheEntry(
-            workStore,
-            workUnitStore,
-            clientReferenceManifest,
-            encodedCacheKeyParts,
-            fn,
-            timeoutError
-          )
-
-          // When draft mode is enabled, we must not save the cache entry.
-          if (!workStore.isDraftMode) {
             let savedCacheEntry
 
             if (prerenderResumeDataCache) {
@@ -772,9 +801,9 @@ export function cache(
 
             workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(promise)
-          }
 
-          stream = newStream
+            stream = newStream
+          }
         } else {
           propagateCacheLifeAndTags(workUnitStore, entry)
 
