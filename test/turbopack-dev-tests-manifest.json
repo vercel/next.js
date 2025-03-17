@@ -9810,8 +9810,20 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match has query on client routing",
+      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers with root should not match",
+      "Middleware custom matchers i18n should match /hello",
+      "Middleware custom matchers i18n should match /en/hello",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match /nl-NL/about",
+      "Middleware custom matchers i18n should not match /invalid/hello",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /about",
+      "Middleware custom matchers i18n should not match /en/about",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
       "Middleware custom matchers i18n should not match",
       "Middleware custom matchers with root should not match"
     ],
