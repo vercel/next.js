@@ -28,6 +28,8 @@
 // can be found here:
 // https://github.com/facebook/create-react-app/blob/v3.4.1/packages/react-dev-utils/webpackHotDevClient.js
 
+/// <reference types="webpack/module.d.ts" />
+
 import {
   register,
   onBuildError,
@@ -67,7 +69,6 @@ import {
 // https://github.com/glenjamin/webpack-hot-middleware
 
 declare global {
-  const __webpack_hash__: string
   interface Window {
     __nextDevClientId: number
   }
@@ -406,7 +407,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
 function afterApplyUpdates(fn: () => void) {
@@ -415,12 +415,10 @@ function afterApplyUpdates(fn: () => void) {
   } else {
     function handler(status: string) {
       if (status === 'idle') {
-        // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
         module.hot.removeStatusHandler(handler)
         fn()
       }
     }
-    // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
     module.hot.addStatusHandler(handler)
   }
 }
@@ -430,7 +428,6 @@ function tryApplyUpdates(
   onBeforeHotUpdate: ((updatedModules: string[]) => unknown) | undefined,
   onHotUpdateSuccess: (updatedModules: string[]) => unknown
 ) {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   if (!module.hot) {
     // HotModuleReplacementPlugin is not in Webpack configuration.
     console.error('HotModuleReplacementPlugin is not in Webpack configuration.')
@@ -480,7 +477,6 @@ function tryApplyUpdates(
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules: any) => {
@@ -491,7 +487,6 @@ function tryApplyUpdates(
       if (typeof onBeforeHotUpdate === 'function') {
         onBeforeHotUpdate(updatedModules)
       }
-      // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
       return module.hot.apply()
     })
     .then(
