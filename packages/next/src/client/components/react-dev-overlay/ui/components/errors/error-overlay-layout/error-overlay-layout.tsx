@@ -146,7 +146,7 @@ export function ErrorOverlayLayout({
           versionInfo={versionInfo}
           isTurbopack={isTurbopack}
         />
-        <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={64} />
+        <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>
     </ErrorOverlayOverlay>
   )
