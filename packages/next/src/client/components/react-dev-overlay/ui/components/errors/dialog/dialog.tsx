@@ -4,7 +4,7 @@ type ErrorOverlayDialogProps = {
   children?: React.ReactNode
   onClose?: () => void
   dialogResizerRef?: React.RefObject<HTMLDivElement | null>
-}
+} & React.HTMLAttributes<HTMLDivElement>
 
 export function ErrorOverlayDialog({
   children,
