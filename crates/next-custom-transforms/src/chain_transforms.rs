@@ -117,6 +117,9 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub lint_codemod_comments: bool,
+
+    #[serde(default)]
+    pub css_env: Option<swc_core::ecma::preset_env::Config>,
 }
 
 pub fn custom_before_pass<'a, C>(
@@ -151,20 +154,21 @@ where
         }
     };
 
-    let target_browsers = opts
-        .swc
-        .config
-        .env
-        .as_ref()
-        .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
-        .unwrap_or_default();
-
     let styled_jsx = {
         let cm = cm.clone();
         let file = file.clone();
 
         fn_pass(move |program| {
             if let Some(config) = opts.styled_jsx.to_option() {
+                let target_browsers = opts
+                    .css_env
+                    .as_ref()
+                    .map(|env| {
+                        targets_to_versions(env.targets.clone())
+                            .expect("failed to parse env.targets")
+                    })
+                    .unwrap_or_default();
+
                 program.mutate(styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     &file.name,
