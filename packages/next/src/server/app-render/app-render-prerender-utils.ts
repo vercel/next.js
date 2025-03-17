@@ -494,3 +494,17 @@ function createClosingStream(
     },
   })
 }
+
+export async function processPrelude(
+  unprocessedPrelude: ReadableStream<Uint8Array>
+) {
+  const [prelude, peek] = unprocessedPrelude.tee()
+
+  const reader = peek.getReader()
+  const firstResult = await reader.read()
+  reader.cancel()
+
+  const preludeIsEmpty = firstResult.done === true
+
+  return { prelude, preludeIsEmpty }
+}
