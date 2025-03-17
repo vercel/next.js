@@ -1,19 +1,19 @@
 use std::{
     env::current_dir,
     mem::forget,
-    path::{MAIN_SEPARATOR, PathBuf},
+    path::{PathBuf, MAIN_SEPARATOR},
     sync::Arc,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
-    apply_effects,
+    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
+    Value, Vc,
 };
 use turbo_tasks_backend::{
-    BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
+    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
 };
 use turbo_tasks_fs::FileSystem;
 use turbopack::global_module_ids::get_global_module_id_strategy;
@@ -22,16 +22,16 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, EvaluatableAsset, EvaluatableAssets, MinifyType,
-        SourceMapsType, availability_info::AvailabilityInfo,
+        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
+        EvaluatableAssets, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
-    issue::{IssueReporter, IssueSeverity, handle_issues},
+    issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
     module_graph::{
-        ModuleGraph,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        ModuleGraph,
     },
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
@@ -48,9 +48,9 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     arguments::{BuildArguments, Target},
-    contexts::{NodeEnv, get_client_asset_context, get_client_compile_time_info},
+    contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
     util::{
-        EntryRequest, NormalizedDirs, normalize_dirs, normalize_entries, output_fs, project_fs,
+        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
     },
 };
 
