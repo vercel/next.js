@@ -158,7 +158,6 @@ async fn apply_module_type(
                     }
                 }
 
-                let parsed = module.parse();
                 let options = options.await?;
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => {
@@ -168,6 +167,7 @@ async fn apply_module_type(
                         ))
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
+                        let parsed = module.parse();
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
