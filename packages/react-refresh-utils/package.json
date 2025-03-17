@@ -1,6 +1,6 @@
 {
   "name": "@next/react-refresh-utils",
-  "version": "14.2.24",
+  "version": "14.2.25",
   "description": "An experimental package providing utilities for React Refresh.",
   "repository": {
     "url": "vercel/next.js",
