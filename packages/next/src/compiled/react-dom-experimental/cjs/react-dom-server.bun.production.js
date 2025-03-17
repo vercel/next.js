@@ -25,7 +25,7 @@ var React = require("next/dist/compiled/react-experimental"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-  REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+  REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
   REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
@@ -2920,8 +2920,6 @@ function getComponentNameFromType(type) {
   switch (type) {
     case REACT_FRAGMENT_TYPE:
       return "Fragment";
-    case REACT_PORTAL_TYPE:
-      return "Portal";
     case REACT_PROFILER_TYPE:
       return "Profiler";
     case REACT_STRICT_MODE_TYPE:
@@ -2930,11 +2928,15 @@ function getComponentNameFromType(type) {
       return "Suspense";
     case REACT_SUSPENSE_LIST_TYPE:
       return "SuspenseList";
+    case REACT_ACTIVITY_TYPE:
+      return "Activity";
     case REACT_VIEW_TRANSITION_TYPE:
       return "ViewTransition";
   }
   if ("object" === typeof type)
     switch (type.$$typeof) {
+      case REACT_PORTAL_TYPE:
+        return "Portal";
       case REACT_CONTEXT_TYPE:
         return (type.displayName || "Context") + ".Provider";
       case REACT_CONSUMER_TYPE:
@@ -4269,7 +4271,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = type;
         return;
-      case REACT_OFFSCREEN_TYPE:
+      case REACT_ACTIVITY_TYPE:
         "hidden" !== props.mode &&
           ((type = task.keyPath),
           (task.keyPath = keyPath),
@@ -6370,13 +6372,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_810 = React.version;
 if (
-  "19.1.0-experimental-5398b711-20250314" !==
+  "19.1.0-experimental-fbcda19a-20250317" !==
   isomorphicReactPackageVersion$jscomp$inline_810
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_810 +
-        "\n  - react-dom:  19.1.0-experimental-5398b711-20250314\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.1.0-experimental-fbcda19a-20250317\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6467,4 +6469,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-5398b711-20250314";
+exports.version = "19.1.0-experimental-fbcda19a-20250317";
