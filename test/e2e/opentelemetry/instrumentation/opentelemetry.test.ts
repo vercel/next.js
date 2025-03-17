@@ -13,7 +13,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped, isNextDev, isNextStart } = nextTestSetup({
+  const { next, skipped, isNextStart } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -394,14 +394,14 @@ describe('opentelemetry', () => {
 
             await expectTrace(getCollector(), [
               {
-                name: 'GET /api/app/[param]/data/route',
+                name: 'GET /api/app/[param]/data',
                 attributes: {
                   'http.method': 'GET',
-                  'http.route': '/api/app/[param]/data/route',
+                  'http.route': '/api/app/[param]/data',
                   'http.status_code': 200,
                   'http.target': '/api/app/param/data',
-                  'next.route': '/api/app/[param]/data/route',
-                  'next.span_name': 'GET /api/app/[param]/data/route',
+                  'next.route': '/api/app/[param]/data',
+                  'next.span_name': 'GET /api/app/[param]/data',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
                 kind: 1,
@@ -410,11 +410,11 @@ describe('opentelemetry', () => {
                 parentId: env.span.rootParentId,
                 spans: [
                   {
-                    name: 'executing api route (app) /api/app/[param]/data/route',
+                    name: 'executing api route (app) /api/app/[param]/data',
                     attributes: {
-                      'next.route': '/api/app/[param]/data/route',
+                      'next.route': '/api/app/[param]/data',
                       'next.span_name':
-                        'executing api route (app) /api/app/[param]/data/route',
+                        'executing api route (app) /api/app/[param]/data',
                       'next.span_type': 'AppRouteRouteHandlers.runHandler',
                     },
                     kind: 0,
@@ -452,11 +452,11 @@ describe('opentelemetry', () => {
                 runtime: 'edge',
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
-                name: 'executing api route (app) /api/app/[param]/data/edge/route',
+                name: 'executing api route (app) /api/app/[param]/data/edge',
                 attributes: {
-                  'next.route': '/api/app/[param]/data/edge/route',
+                  'next.route': '/api/app/[param]/data/edge',
                   'next.span_name':
-                    'executing api route (app) /api/app/[param]/data/edge/route',
+                    'executing api route (app) /api/app/[param]/data/edge',
                   'next.span_type': 'AppRouteRouteHandlers.runHandler',
                 },
                 kind: 0,
