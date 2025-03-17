@@ -27,13 +27,12 @@ import { retry } from 'next-test-utils'
           rsc: process.env.TURBOPACK ? 3 : 1,
         },
         'app/namespace-reexport/client/page': {
-          // Turbopack does not support tree-shaking export * as we don't have global information
-          'action-browser': process.env.TURBOPACK ? 3 : 1,
+          'action-browser': 1,
         },
         // We're not able to tree-shake these re-exports here in webpack mode
         'app/named-reexport/server/page': {
           // Turbopack supports tree-shaking these re-exports
-          rsc: process.env.TURBOPACK ? 1 : 3,
+          rsc: 3,
         },
         'app/named-reexport/client/page': {
           // Turbopack supports tree-shaking these re-exports

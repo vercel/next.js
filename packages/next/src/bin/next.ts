@@ -130,6 +130,8 @@ program
   .option('--profile', 'Enables production profiling for React.')
   .option('--experimental-app-only', 'Builds only App Router routes.')
   .addOption(new Option('--experimental-turbo').hideHelp())
+  .addOption(new Option('--turbo').hideHelp())
+  .addOption(new Option('--turbopack').hideHelp())
   .addOption(
     new Option(
       '--experimental-build-mode [mode]',

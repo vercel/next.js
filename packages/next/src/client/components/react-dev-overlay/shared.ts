@@ -19,7 +19,6 @@ export interface OverlayState {
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
-  rootLayoutMissingTags: typeof window.__next_root_layout_missing_tags
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
@@ -127,7 +126,6 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   // To prevent flickering, set the initial state to disabled.
   disableDevIndicator: true,
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
 }
