@@ -218,6 +218,7 @@
     "@types/ua-parser-js": "0.7.36",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
+    "@typescript/vfs": "1.6.1",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.27.1",
     "@vercel/turbopack-ecmascript-runtime": "*",
