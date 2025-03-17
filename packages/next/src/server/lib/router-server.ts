@@ -172,7 +172,11 @@ export async function initialize(opts: {
   ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
     middlewareSubrequestId
 
-  const allowedOrigins = ['localhost', ...(config.allowedDevOrigins || [])]
+  const allowedOrigins = [
+    '*.localhost',
+    'localhost',
+    ...(config.allowedDevOrigins || []),
+  ]
   if (opts.hostname) {
     allowedOrigins.push(opts.hostname)
   }
