@@ -9,8 +9,6 @@
   },
   "dependencies": {
     "fs-extra": "10.0.0",
-    "recursive-copy": "2.0.11",
-    "lodash-es": "4.17.21",
-    "mermaid": "11.4.1"
+    "recursive-copy": "2.0.11"
   }
 }
