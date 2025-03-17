@@ -28,10 +28,6 @@ import metadata from './rules/metadata'
 import errorEntry from './rules/error'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-type NextTypePluginOptions = {
-  enabled?: boolean
-}
-
 export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
@@ -48,10 +44,14 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args)
     }
 
-    const pluginOptions: NextTypePluginOptions = info.config ?? {
-      enabled: true,
-    }
-    if (!pluginOptions.enabled) {
+    // Get plugin options
+    // config is the plugin options from the user's tsconfig.json
+    // e.g. { "plugins": [{ "name": "next", "enabled": true }] }
+    // config will be { "name": "next", "enabled": true }
+    // The default user config is { "name": "next" }
+    const isPluginEnabled = info.config.enabled ?? true
+
+    if (!isPluginEnabled) {
       return proxy
     }
 

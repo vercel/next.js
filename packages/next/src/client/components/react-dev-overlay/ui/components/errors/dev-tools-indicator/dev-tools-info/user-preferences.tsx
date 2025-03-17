@@ -134,16 +134,14 @@ export function UserPreferences({
 
         <div className="preference-section">
           <div className="preference-header">
-            <label htmlFor="hide-dev-tools">
-              Hide Dev Tools for this session
-            </label>
+            <label id="hide-dev-tools">Hide Dev Tools for this session</label>
             <p className="preference-description">
               Hide Dev Tools until you restart your dev server, or 1 day.
             </p>
           </div>
           <div className="preference-control">
             <button
-              id="hide-dev-tools"
+              aria-describedby="hide-dev-tools"
               name="hide-dev-tools"
               data-hide-dev-tools
               className="action-button"

@@ -240,6 +240,9 @@ export function getDefineEnv({
     'process.env.__NEXT_TELEMETRY_DISABLED': Boolean(
       process.env.NEXT_TELEMETRY_DISABLED
     ),
+    'process.env.__NEXT_EXPERIMENTAL_CLIENT_INSTRUMENTATION_HOOK': Boolean(
+      config.experimental.clientInstrumentationHook
+    ),
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)

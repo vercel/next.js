@@ -11,6 +11,7 @@ import type { Page, Request, Response, Route } from 'playwright'
 import fs from 'fs-extra'
 import nodeFs from 'fs'
 import { join } from 'path'
+import { outdent } from 'outdent'
 
 const GENERIC_RSC_ERROR =
   'Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -808,9 +809,10 @@ describe('app-dir action handling', () => {
       })
 
       await retry(async () =>
-        expect(next.cliOutput).toMatch(
-          /Failed to find Server Action "abc123". This request might be from an older or newer deployment./
-        )
+        expect(next.cliOutput).toInclude(outdent`
+          Failed to find Server Action "abc123". This request might be from an older or newer deployment.
+          Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
+        `)
       )
     })
   }

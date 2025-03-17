@@ -42,7 +42,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkGroupType, ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkingContext, EvaluatableAssets, SourceMapsType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -53,7 +53,10 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules},
+    module_graph::{
+        chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph, SingleModuleGraph,
+        VisitedModules,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -883,10 +886,9 @@ impl Project {
     pub async fn module_graph(
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_module(*entry, chunk_group_type)
+            ModuleGraph::from_entry_module(*entry)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -896,7 +898,6 @@ impl Project {
     pub async fn module_graph_for_entries(
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
             let entries = evaluatable_assets
@@ -905,7 +906,7 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![(entries, chunk_group_type)]))
+            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -1681,16 +1682,14 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![(
-            vec![pages_project.client_main_module().to_resolved().await?],
-            ChunkGroupType::Evaluated,
-        )];
+        let mut modules = vec![ChunkGroupEntry::Entry(vec![
+            pages_project.client_main_module().to_resolved().await?,
+        ])];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push((
-                vec![app_project.client_main_module().to_resolved().await?],
-                ChunkGroupType::Evaluated,
-            ));
+            modules.push(ChunkGroupEntry::Entry(vec![
+                app_project.client_main_module().to_resolved().await?,
+            ]));
         }
 
         Ok(Vc::cell(modules))

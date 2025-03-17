@@ -182,6 +182,7 @@ async fn parse_internal(
                         fs_path_vc,
                         fs_path,
                         ident,
+                        source.ident().query().owned().await?,
                         file_path_hash,
                         source,
                         ty,
@@ -222,6 +223,7 @@ async fn parse_file_content(
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
     ident: &str,
+    query: RcStr,
     file_path_hash: u128,
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
@@ -371,6 +373,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
+                query_str: query,
                 file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
