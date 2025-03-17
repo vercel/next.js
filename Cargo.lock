@@ -4529,6 +4529,7 @@ name = "next-custom-transforms"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "base64 0.21.4",
  "chrono",
  "dashmap 6.1.0",
  "easy-error",
@@ -4558,6 +4559,7 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbopack-ecmascript-plugins",
+ "urlencoding",
  "walkdir",
 ]
 

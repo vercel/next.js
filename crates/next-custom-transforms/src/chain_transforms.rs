@@ -27,6 +27,7 @@ use crate::{
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
+        server_actions::ServerActionsMode,
     },
 };
 
@@ -323,9 +324,12 @@ where
             match &opts.server_actions {
                 Some(config) => Either::Left(crate::transforms::server_actions::server_actions(
                     &file.name,
+                    None,
                     config.clone(),
                     comments.clone(),
+                    cm.clone(),
                     use_cache_telemetry_tracker,
+                    ServerActionsMode::Webpack,
                 )),
                 None => Either::Right(noop_pass()),
             },
