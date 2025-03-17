@@ -20,6 +20,7 @@ workspace = true
 anyhow = { workspace = true }
 async-stream = "0.3.4"
 async-trait = { workspace = true }
+base64 = "0.21.0"
 const_format = { workspace = true }
 either = { workspace = true, features = ["serde"] }
 futures = { workspace = true }

@@ -1,7 +1,8 @@
-use std::{borrow::Cow, mem::take};
+use std::mem::take;
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
+use base64::{engine::general_purpose, Engine};
 use either::Either;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
@@ -212,7 +213,7 @@ impl WebpackLoadersProcessedAsset {
         let AssetContent::File(file) = *source_content.await? else {
             bail!("Webpack Loaders transform only support transforming files");
         };
-        let FileContent::Content(content) = &*file.await? else {
+        let FileContent::Content(file_content) = &*file.await? else {
             return Ok(ProcessWebpackLoadersResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
                 assets: Vec::new(),
@@ -222,15 +223,15 @@ impl WebpackLoadersProcessedAsset {
         };
 
         // If the content is not a valid string (e.g. binary file), handle the error and return
-        // an empty string so the build process doesn't crash. e.g.
+        // a base64 string so the build process doesn't crash. e.g.
         //      - failed to convert rope into string
         //      - invalid utf-8 sequence of 1 bytes from index 35
-        // TODO Support Webpack "raw" option to pass content as raw bytes.
-        let content = match content.content().to_str() {
-            Ok(string) => string,
+        let content = match file_content.content().to_str() {
+            Ok(utf8_str) => utf8_str.to_string(),
             Err(_) => {
-                eprintln!("Failed to convert content to string.");
-                Cow::Borrowed("")
+                // Binary data is not valid UTF-8, encode as base64 instead
+                general_purpose::STANDARD
+                    .encode(file_content.content().to_bytes().unwrap().into_owned())
             }
         };
         let evaluate_context = transform.evaluate_context;
