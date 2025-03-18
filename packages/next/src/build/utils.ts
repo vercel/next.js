@@ -1868,6 +1868,14 @@ export function isWebpackAppPagesLayer(
   return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
+export function isWebpackPagesRouterPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.pagesRouterPages.includes(layer as any)
+  )
+}
+
 export function collectMeta({
   status,
   headers,

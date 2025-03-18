@@ -196,6 +196,11 @@ const WEBPACK_LAYERS = {
       WEBPACK_LAYERS_NAMES.appPagesBrowser,
       WEBPACK_LAYERS_NAMES.actionBrowser,
     ],
+    pagesRouterPages: [
+      WEBPACK_LAYERS_NAMES.pagesDirBrowser,
+      WEBPACK_LAYERS_NAMES.pagesDirNode,
+      WEBPACK_LAYERS_NAMES.pagesDirEdge,
+    ],
   },
 }
 
