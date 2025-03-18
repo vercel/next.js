@@ -530,6 +530,7 @@ pub async fn compute_module_batches(
                     if chunkable_module.is_some() {
                         PreBatchItem::ParallelModule(module)
                     } else {
+                        pre_batches.single_module_entries.insert(module);
                         PreBatchItem::NonParallelEdge(ChunkingType::Parallel, module)
                     }
                 } else {
