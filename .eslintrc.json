@@ -2,7 +2,8 @@
   // This is the default eslint config that is used by IDEs. It does not use
   // computation-heavy type-checked rules to ensure maximum responsiveness while
   // writing code. In addition, there is .eslintrc.cli.json that does use
-  // type-checked rules, and it is used when running `pnpm lint-eslint`.
+  // type-checked rules in addition to the rules defined here, and it is used
+  // when running `pnpm lint-eslint` locally or in CI.
   "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
   "parser": "@babel/eslint-parser",
