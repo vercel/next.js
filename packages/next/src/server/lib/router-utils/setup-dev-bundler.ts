@@ -26,7 +26,10 @@ import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
-import { eventCliSession } from '../../../telemetry/events'
+import {
+  EVENT_BUILD_FEATURE_USAGE,
+  eventCliSession,
+} from '../../../telemetry/events'
 import { getDefineEnv } from '../../../build/webpack/plugins/define-env-plugin'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import {
@@ -73,6 +76,7 @@ import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
+  isPersistentCachingEnabled,
   ModuleBuildError,
   TurbopackInternalError,
 } from '../../../shared/lib/turbopack/utils'
@@ -996,6 +1000,16 @@ export async function setupDevBundler(opts: SetupOpts) {
       }
     )
   )
+
+  // Track build features for dev server here:
+  opts.telemetry.record({
+    eventName: EVENT_BUILD_FEATURE_USAGE,
+    payload: {
+      featureName: 'turbopackPersistentCaching',
+      invocationCount: isPersistentCachingEnabled(opts.nextConfig) ? 1 : 0,
+    },
+  })
+
   return result
 }
 

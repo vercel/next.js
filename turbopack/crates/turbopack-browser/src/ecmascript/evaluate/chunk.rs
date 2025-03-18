@@ -153,6 +153,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,
@@ -163,6 +164,7 @@ impl EcmascriptBrowserEvaluateChunk {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
                     chunking_context.chunk_base_path(),
+                    chunking_context.chunk_suffix_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
                     source_maps,

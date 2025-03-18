@@ -3,7 +3,6 @@ pub mod app_client_shared_chunks;
 pub mod app_entry;
 pub mod app_page_entry;
 pub mod app_route_entry;
-pub mod include_modules_module;
 pub mod metadata;
 
 use std::{

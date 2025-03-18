@@ -12,6 +12,7 @@ import {
   ViewportMeta,
   VerificationMeta,
   FacebookMeta,
+  PinterestMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -392,6 +393,7 @@ function createMetadataElements(metadata: ResolvedMetadata) {
     AlternatesMetadata({ alternates: metadata.alternates }),
     ItunesMeta({ itunes: metadata.itunes }),
     FacebookMeta({ facebook: metadata.facebook }),
+    PinterestMeta({ pinterest: metadata.pinterest }),
     FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
     VerificationMeta({ verification: metadata.verification }),
     AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),

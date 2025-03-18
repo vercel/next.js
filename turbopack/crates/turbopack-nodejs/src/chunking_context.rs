@@ -442,7 +442,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        _evaluatable_assets: Vc<EvaluatableAssets>,
+        _chunk_group: ChunkGroup,
         _module_graph: Vc<ModuleGraph>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {

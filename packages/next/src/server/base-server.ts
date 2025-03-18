@@ -178,6 +178,7 @@ import {
 } from './lib/streaming-metadata'
 import { getCacheHandlers } from './use-cache/handlers'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1218,7 +1219,10 @@ export default abstract class Server<
             delete parsedUrl.query[key]
 
             if (typeof value === 'undefined') continue
-            queryParams[normalizedKey] = value
+
+            queryParams[normalizedKey] = Array.isArray(value)
+              ? value.map((v) => decodeQueryPathParameter(v))
+              : decodeQueryPathParameter(value)
           }
 
           // interpolate dynamic params and normalize URL if needed

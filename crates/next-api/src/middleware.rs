@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use next_core::{
     all_assets_from_entries,
     middleware::get_middleware_module,
@@ -16,18 +16,20 @@ use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkGroupType, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset,
+        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult,
     },
     context::AssetContext,
     module::Module,
-    module_graph::GraphEntries,
+    module_graph::{
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+        GraphEntries,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
 use crate::{
     nft_json::NftJsonAsset,
@@ -103,7 +105,9 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        let module = self.entry_module();
+        let module = self.entry_module().to_resolved().await?;
+
+        let module_graph = this.project.module_graph(*module);
 
         let evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
@@ -113,30 +117,17 @@ impl MiddlewareEndpoint {
             }),
             this.project.next_mode(),
         )
-        .resolve_entries(*this.asset_context);
-
-        let mut evaluatable_assets = evaluatable_assets.owned().await?;
-
-        let Some(module) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        else {
-            bail!("Entry module must be evaluatable");
-        };
-        let evaluatable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module)
-            .await?
-            .context("Entry module must be evaluatable")?;
-        evaluatable_assets.push(evaluatable.to_resolved().await?);
-
-        let evaluatable_assets = Vc::cell(evaluatable_assets);
-        let module_graph = this
-            .project
-            .module_graph_for_entries(evaluatable_assets, ChunkGroupType::Evaluated);
+        .resolve_entries(*this.asset_context)
+        .await?
+        .iter()
+        .map(|m| ResolvedVc::upcast(*m))
+        .chain(std::iter::once(module))
+        .collect();
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
-
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            evaluatable_assets,
+            ChunkGroup::Entry(evaluatable_assets),
             module_graph,
             Value::new(AvailabilityInfo::Root),
         );
@@ -150,9 +141,7 @@ impl MiddlewareEndpoint {
         let chunking_context = this.project.server_chunking_context(false);
 
         let userland_module = self.entry_module().to_resolved().await?;
-        let module_graph = this
-            .project
-            .module_graph(*userland_module, ChunkGroupType::Entry);
+        let module_graph = this.project.module_graph(*userland_module);
 
         let Some(module) = ResolvedVc::try_downcast(userland_module) else {
             bail!("Entry module must be evaluatable");
@@ -409,9 +398,8 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        Ok(Vc::cell(vec![(
-            vec![self.entry_module().to_resolved().await?],
-            ChunkGroupType::Evaluated,
-        )]))
+        Ok(Vc::cell(vec![ChunkGroupEntry::Entry(vec![
+            self.entry_module().to_resolved().await?,
+        ])]))
     }
 }

@@ -66,14 +66,15 @@ rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
-shadow-rs = { workspace = true }
+supports-hyperlinks = "3.1.0"
+terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
-dashmap = "6.1.0"
+dashmap = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base_concurrent",
@@ -139,11 +140,11 @@ turbo-tasks-malloc = { workspace = true, default-features = false }
 tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
+anyhow = { workspace = true }
 napi-build = "2"
 serde = { workspace = true }
 serde_json = { workspace = true }
-# It is not a mistake this dependency is specified in dep / build-dep both.
-shadow-rs = { workspace = true }
+vergen-gitcl = { workspace = true }
 
 # build-dependencies for the native, non-wasm32 build
 [target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
