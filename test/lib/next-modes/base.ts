@@ -266,6 +266,7 @@ export class NextInstance {
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
+              packageManager: this.packageManager,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
               keepRepoDir: true,

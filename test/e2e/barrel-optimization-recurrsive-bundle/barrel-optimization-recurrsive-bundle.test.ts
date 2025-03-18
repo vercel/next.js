@@ -4,7 +4,6 @@ describe('barrel-optimization-recurrsive-bundle', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     packageManager: 'yarn',
-    installCommand: 'yarn install',
     dependencies: {
       antd: '5.23.4',
     },
