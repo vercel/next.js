@@ -50,10 +50,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
       return proxy
     }
 
-    const logger = info.project.projectService.logger
-
-    logger.info('[Next.js] Initializing...')
-
     init({
       ts,
       info,
