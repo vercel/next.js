@@ -920,6 +920,11 @@ describe('use-cache', () => {
     $ = await next.render$('/promise-args')
     expect($('p').text()).toBe(initialData)
   })
+
+  it('generates different cache keys for async iterables that yield values in different order', async () => {
+    let $ = await next.render$('/async-iterables')
+    expect($('#a').text()).not.toBe($('#b').text())
+  })
 })
 
 async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
