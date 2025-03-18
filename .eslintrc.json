@@ -38,6 +38,7 @@
   "overrides": [
     {
       "files": ["test/**/*.js", "test/**/*.ts", "**/*.test.ts"],
+      "excludedFiles": ["test/tmp/**"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
