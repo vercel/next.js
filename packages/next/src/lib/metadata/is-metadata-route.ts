@@ -1,5 +1,6 @@
 import type { PageExtensions } from '../../build/page-extensions-type'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import { isAppRouteRoute } from '../is-app-route-route'
 
 export const STATIC_METADATA_IMAGES = {
   icon: {
@@ -127,15 +128,25 @@ export function isMetadataRouteFile(
   )
 }
 
-export function isStaticMetadataRouteFile(appDirRelativePath: string) {
+function isStaticMetadataRoutePage(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
-export function isStaticMetadataRoute(page: string) {
+// Check if the route is a static metadata route, with /route suffix
+// e.g. /robots.txt/route, /sitemap.xml/route, /favicon.ico/route, /manifest/route, /icon/route, etc.
+export function isStaticMetadataRoute(route: string) {
+  const pathname = route.slice(0, -'/route'.length)
+  return isAppRouteRoute(route) && isStaticMetadataRoutePage(pathname)
+}
+
+// Check if the page is a static metadata route file
+// e.g. /robots, /manifest, /favicon.ico, /sitemap.xml, /icon.png, etc.
+export function isStaticMetadataRoutePathname(page: string) {
   return (
+    // TODO: avoid directly checking pathnames as they can also be page routes
     page === '/robots' ||
     page === '/manifest' ||
-    isStaticMetadataRouteFile(page)
+    isStaticMetadataRoutePage(page)
   )
 }
 
