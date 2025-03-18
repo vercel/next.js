@@ -451,20 +451,28 @@ async function getNthCacheEntry(
 
 async function encodeFormData(formData: FormData): Promise<string> {
   let result = ''
-  for (let [key, value] of formData) {
-    // We don't need this key to be serializable but from a security perspective it should not be
-    // possible to generate a string that looks the same from a different structure. To ensure this
-    // we need a delimeter between fields but just using a delimeter is not enough since a string
-    // might contain that delimeter. We use the length of each field as the delimeter to avoid
+
+  // We sort the form data entries to ensure that the order in which promise
+  // arguments are resolved does not affect the determinism of the cache key.
+  const sortedEntries = [...formData.entries()].sort(([keyA], [keyB]) =>
+    keyA.localeCompare(keyB)
+  )
+
+  for (let [key, value] of sortedEntries) {
+    // We don't need this key to be serializable but from a security perspective
+    // it should not be possible to generate a string that looks the same from a
+    // different structure. To ensure this we need a delimiter between fields
+    // but just using a delimiter is not enough since a string might contain
+    // that delimiter. We use the length of each field as the delimiter to avoid
     // escaping the values.
     result += key.length.toString(16) + ':' + key
     let stringValue
     if (typeof value === 'string') {
       stringValue = value
     } else {
-      // The FormData might contain binary data that is not valid UTF-8 so this cache
-      // key may generate a UCS-2 string. Passing this to another service needs to be
-      // aware that the key might not be compatible.
+      // The FormData might contain binary data that is not valid UTF-8 so this
+      // cache key may generate a UCS-2 string. Passing this to another service
+      // needs to be aware that the key might not be compatible.
       const arrayBuffer = await value.arrayBuffer()
       if (arrayBuffer.byteLength % 2 === 0) {
         stringValue = String.fromCodePoint(...new Uint16Array(arrayBuffer))
