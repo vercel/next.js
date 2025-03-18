@@ -598,10 +598,16 @@ async function loadRewrites(config: NextConfig) {
   // automatically without the user having to configure this.
   // If the assetPrefix is an absolute URL, we can't add an automatic rewrite.
   let maybeAssetPrefixRewrite: Rewrite[] = []
-  if (config.assetPrefix && !isFullStringUrl(config.assetPrefix)) {
-    const assetPrefix = config.assetPrefix.startsWith('/')
-      ? config.assetPrefix
-      : `/${config.assetPrefix}`
+  if (config.assetPrefix) {
+    let prefix = config.assetPrefix
+    if (
+      isFullStringUrl(config.assetPrefix) &&
+      URL.canParse(config.assetPrefix)
+    ) {
+      prefix = new URL(config.assetPrefix).pathname
+    }
+
+    const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
     const basePath = config.basePath || ''
     // If these are the same, then this would result in an infinite rewrite.
     if (assetPrefix !== basePath) {
