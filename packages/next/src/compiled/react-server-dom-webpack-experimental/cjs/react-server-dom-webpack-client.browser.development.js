@@ -12,6 +12,16 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function _defineProperty(obj, key, value) {
+      a: if ("object" == typeof key && key) {
+        var e = key[Symbol.toPrimitive];
+        if (void 0 !== e) {
+          key = e.call(key, "string");
+          if ("object" != typeof key) break a;
+          throw new TypeError("@@toPrimitive must return a primitive value.");
+        }
+        key = String(key);
+      }
+      key = "symbol" == typeof key ? key : key + "";
       key in obj
         ? Object.defineProperty(obj, key, {
             value: value,
@@ -679,7 +689,10 @@
           parentReference = knownServerReferences.get(value);
           if (void 0 !== parentReference)
             return (
-              (key = JSON.stringify(parentReference, resolveToJSON)),
+              (key = JSON.stringify(
+                { id: parentReference.id, bound: parentReference.bound },
+                resolveToJSON
+              )),
               null === formData && (formData = new FormData()),
               (parentReference = nextPartId++),
               formData.set(formFieldPrefix + parentReference, key),
@@ -788,8 +801,13 @@
         return innerFunction;
       }
     }
-    function registerServerReference(proxy, reference) {
-      knownServerReferences.set(proxy, reference);
+    function registerBoundServerReference(reference, id, bound) {
+      knownServerReferences.has(reference) ||
+        knownServerReferences.set(reference, {
+          id: id,
+          originalBind: reference.bind,
+          bound: bound
+        });
     }
     function createBoundServerReference(
       metaData,
@@ -830,7 +848,7 @@
           action
         );
       }
-      registerServerReference(action, { id: id, bound: bound });
+      registerBoundServerReference(action, id, bound);
       return action;
     }
     function parseStackLocation(error) {
@@ -1230,7 +1248,12 @@
       if ((response = preloadModule(serverReference)))
         metaData.bound && (response = Promise.all([response, metaData.bound]));
       else if (metaData.bound) response = Promise.resolve(metaData.bound);
-      else return requireModule(serverReference);
+      else
+        return (
+          (response = requireModule(serverReference)),
+          registerBoundServerReference(response, metaData.id, metaData.bound),
+          response
+        );
       if (initializingHandler) {
         var handler = initializingHandler;
         handler.deps++;
@@ -1250,6 +1273,11 @@
             boundArgs.unshift(null);
             resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
           }
+          registerBoundServerReference(
+            resolvedValue,
+            metaData.id,
+            metaData.bound
+          );
           parentObject[key] = resolvedValue;
           "" === key &&
             null === handler.value &&
@@ -2911,10 +2939,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.1.0-experimental-e03ac20f-20250305",
+      version: "19.1.0-experimental-5398b711-20250314",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.1.0-experimental-e03ac20f-20250305",
+      reconcilerVersion: "19.1.0-experimental-5398b711-20250314",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -2966,7 +2994,7 @@
           action
         );
       }
-      registerServerReference(action, { id: id, bound: null });
+      registerBoundServerReference(action, id, null);
       return action;
     };
     exports.createTemporaryReferenceSet = function () {
@@ -2995,5 +3023,9 @@
           }
         }
       });
+    };
+    exports.registerServerReference = function (reference, id) {
+      registerBoundServerReference(reference, id, null);
+      return reference;
     };
   })();

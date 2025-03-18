@@ -317,7 +317,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 }
 
 function createDivergedMetadataComponents(
-  Metadata: React.ComponentType<{}>,
+  Metadata: React.ComponentType,
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
@@ -326,8 +326,9 @@ function createDivergedMetadataComponents(
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> | null =
-    serveStreamingMetadata ? Metadata : null
+  const StreamingMetadata: React.ComponentType | null = serveStreamingMetadata
+    ? Metadata
+    : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -1711,7 +1712,7 @@ async function renderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -2299,9 +2300,9 @@ async function spawnDynamicValidationInDev(
     }
   }
 
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata()
   const nonce = '1'
+  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(nonce)
 
   if (initialServerStream) {
     const [warmupStream, renderStream] = initialServerStream.tee()
@@ -2584,7 +2585,7 @@ async function prerenderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),

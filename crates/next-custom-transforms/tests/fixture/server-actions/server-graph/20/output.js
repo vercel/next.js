@@ -3,7 +3,7 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 /** @type {[any]} */ const [foo] = [
     null
 ];
-export default /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ foo;
+export default foo;
 import { ensureServerEntryExports } from "private-next-rsc-action-validate";
 ensureServerEntryExports([
     foo

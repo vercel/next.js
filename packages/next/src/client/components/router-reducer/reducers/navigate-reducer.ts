@@ -234,6 +234,24 @@ export function navigateReducer(
         isFirstRead = true
       }
 
+      if (prefetchValues.aliased) {
+        const result = handleAliasedPrefetchEntry(
+          state,
+          flightData,
+          url,
+          mutable
+        )
+
+        // We didn't return new router state because we didn't apply the aliased entry for some reason.
+        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
+        // will create an on-demand prefetch entry.
+        if (result === false) {
+          return navigateReducer(state, { ...action, allowAliasing: false })
+        }
+
+        return result
+      }
+
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(state, mutable, flightData, pendingPush)
@@ -257,24 +275,6 @@ export function navigateReducer(
         mutable.hashFragment = hash
         mutable.scrollableSegments = []
         return handleMutable(state, mutable)
-      }
-
-      if (prefetchValues.aliased) {
-        const result = handleAliasedPrefetchEntry(
-          state,
-          flightData,
-          url,
-          mutable
-        )
-
-        // We didn't return new router state because we didn't apply the aliased entry for some reason.
-        // We'll re-invoke the navigation handler but ensure that we don't attempt to use the aliased entry. This
-        // will create an on-demand prefetch entry.
-        if (result === false) {
-          return navigateReducer(state, { ...action, allowAliasing: false })
-        }
-
-        return result
       }
 
       let currentTree = state.tree

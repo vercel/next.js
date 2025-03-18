@@ -42,10 +42,15 @@ pub enum Request {
         path: Pattern,
     },
     Uri {
-        protocol: String,
-        remainder: String,
+        protocol: RcStr,
+        remainder: RcStr,
         query: ResolvedVc<RcStr>,
         fragment: ResolvedVc<RcStr>,
+    },
+    DataUri {
+        media_type: RcStr,
+        encoding: RcStr,
+        data: ResolvedVc<RcStr>,
     },
     Unknown {
         path: Pattern,
@@ -158,7 +163,9 @@ impl Request {
                 } else {
                     lazy_static! {
                         static ref WINDOWS_PATH: Regex = Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap();
-                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\]+:)(.+)$").unwrap();
+                        static ref URI_PATH: Regex = Regex::new(r"^([^/\\:]+:)(.+)$").unwrap();
+                        static ref DATA_URI_REMAINDER: Regex =
+                            Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap();
                         static ref MODULE_PATH: Regex =
                             Regex::new(r"^((?:@[^/]+/)?[^/]+)(.*)$").unwrap();
                     }
@@ -175,10 +182,21 @@ impl Request {
 
                     if let Some(caps) = URI_PATH.captures(&r) {
                         if let (Some(protocol), Some(remainder)) = (caps.get(1), caps.get(2)) {
-                            // TODO data uri
+                            if let Some(caps) = DATA_URI_REMAINDER.captures(remainder.as_str()) {
+                                let media_type = caps.get(1).map_or("", |m| m.as_str()).into();
+                                let encoding = caps.get(2).map_or("", |e| e.as_str()).into();
+                                let data = caps.get(3).map_or("", |d| d.as_str()).into();
+
+                                return Ok(Request::DataUri {
+                                    media_type,
+                                    encoding,
+                                    data: ResolvedVc::cell(data),
+                                });
+                            }
+
                             return Ok(Request::Uri {
-                                protocol: protocol.as_str().to_string(),
-                                remainder: remainder.as_str().to_string(),
+                                protocol: protocol.as_str().into(),
+                                remainder: remainder.as_str().into(),
                                 query: ResolvedVc::cell(RcStr::default()),
                                 fragment: ResolvedVc::cell(RcStr::default()),
                             });
@@ -232,6 +250,9 @@ impl Request {
                         }
                         Request::PackageInternal { path } => {
                             path.extend(iter);
+                        }
+                        Request::DataUri { .. } => {
+                            result = Request::Dynamic;
                         }
                         Request::Uri { .. } => {
                             result = Request::Dynamic;
@@ -326,6 +347,7 @@ impl Request {
             | Request::ServerRelative { .. }
             | Request::Windows { .. }
             | Request::Relative { .. }
+            | Request::DataUri { .. }
             | Request::Uri { .. }
             | Request::Dynamic => self,
             Request::Module {
@@ -424,6 +446,7 @@ impl Request {
             .cell(),
             Request::Empty => self,
             Request::PackageInternal { .. } => self,
+            Request::DataUri { .. } => self,
             Request::Uri { .. } => self,
             Request::Unknown { .. } => self,
             Request::Dynamic => self,
@@ -501,6 +524,7 @@ impl Request {
             .cell(),
             Request::Empty => self,
             Request::PackageInternal { .. } => self,
+            Request::DataUri { .. } => self,
             Request::Uri { .. } => self,
             Request::Unknown { .. } => self,
             Request::Dynamic => self,
@@ -584,13 +608,26 @@ impl Request {
                 pat.normalize();
                 Self::PackageInternal { path: pat }.cell()
             }
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => {
+                let data = ResolvedVc::cell(format!("{}{}", data.await?, suffix).into());
+                Self::DataUri {
+                    media_type: media_type.clone(),
+                    encoding: encoding.clone(),
+                    data,
+                }
+                .cell()
+            }
             Request::Uri {
                 protocol,
                 remainder,
                 query,
                 fragment,
             } => {
-                let remainder = format!("{}{}", remainder, suffix);
+                let remainder = format!("{}{}", remainder, suffix).into();
                 Self::Uri {
                     protocol: protocol.clone(),
                     remainder,
@@ -626,6 +663,7 @@ impl Request {
             Request::Windows { query, .. } => **query,
             Request::Empty => Vc::<RcStr>::default(),
             Request::PackageInternal { .. } => Vc::<RcStr>::default(),
+            Request::DataUri { .. } => Vc::<RcStr>::default(),
             Request::Uri { .. } => Vc::<RcStr>::default(),
             Request::Unknown { .. } => Vc::<RcStr>::default(),
             Request::Dynamic => Vc::<RcStr>::default(),
@@ -651,6 +689,15 @@ impl Request {
             Request::Windows { path, .. } => path.clone(),
             Request::Empty => Pattern::Constant("".into()),
             Request::PackageInternal { path } => path.clone(),
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => Pattern::Constant(
+                stringify_data_uri(media_type, encoding, *data)
+                    .await?
+                    .into(),
+            ),
             Request::Uri {
                 protocol,
                 remainder,
@@ -710,6 +757,15 @@ impl ValueToString for Request {
             Request::Windows { path, .. } => format!("windows {path}").into(),
             Request::Empty => "empty".into(),
             Request::PackageInternal { path } => format!("package internal {path}").into(),
+            Request::DataUri {
+                media_type,
+                encoding,
+                data,
+            } => format!(
+                "data uri \"{media_type}\" \"{encoding}\" \"{}\"",
+                data.await?
+            )
+            .into(),
             Request::Uri {
                 protocol,
                 remainder,
@@ -727,4 +783,16 @@ impl ValueToString for Request {
             }
         }))
     }
+}
+
+pub async fn stringify_data_uri(
+    media_type: &RcStr,
+    encoding: &RcStr,
+    data: ResolvedVc<RcStr>,
+) -> Result<String> {
+    Ok(format!(
+        "data:{media_type}{}{encoding},{}",
+        if encoding.is_empty() { "" } else { ";" },
+        data.await?
+    ))
 }

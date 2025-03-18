@@ -1,6 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::server_actions::{server_actions, Config};
+use next_custom_transforms::transforms::server_actions::{
+    server_actions, Config, ServerActionsMode,
+};
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -12,7 +14,9 @@ use crate::{mode::NextMode, next_config::CacheKinds};
 
 #[derive(Debug)]
 pub enum ActionsTransform {
+    /// Browser and SSR
     Client,
+    /// RSC Server
     Server,
 }
 
@@ -57,6 +61,7 @@ impl CustomTransformer for NextServerActions {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         let actions = server_actions(
             &FileName::Real(ctx.file_path_str.into()),
+            Some(ctx.query_str.clone()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 is_development: self.mode.is_development(),
@@ -65,7 +70,9 @@ impl CustomTransformer for NextServerActions {
                 cache_kinds: self.cache_kinds.owned().await?,
             },
             ctx.comments.clone(),
+            ctx.source_map.clone(),
             Default::default(),
+            ServerActionsMode::Turbopack,
         );
         program.mutate(actions);
         Ok(())

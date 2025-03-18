@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from '../../../../utils/css'
 import mergeRefs from '../../../utils/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
+import type { DevToolsScale } from './dev-tools-info/preferences'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -10,10 +11,9 @@ interface Props extends React.ComponentProps<'button'> {
   isBuildError: boolean
   onTriggerClick: () => void
   toggleErrorOverlay: () => void
+  scale: DevToolsScale
 }
 
-const SIZE = '2.25rem' // 36px in 16px base
-const SIZE_PX = 36
 const SHORT_DURATION_MS = 150
 
 export const NextLogo = forwardRef(function NextLogo(
@@ -25,10 +25,13 @@ export const NextLogo = forwardRef(function NextLogo(
     isBuildError,
     onTriggerClick,
     toggleErrorOverlay,
+    scale,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
 ) {
+  const SIZE = 36 / scale
+
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const [dismissed, setDismissed] = useState(false)
@@ -46,12 +49,12 @@ export const NextLogo = forwardRef(function NextLogo(
   const style = useMemo(() => {
     let width: number | string = SIZE
     // Animates the badge, if expanded
-    if (measuredWidth > SIZE_PX) width = measuredWidth
+    if (measuredWidth > SIZE) width = measuredWidth
     // No animations on page load, assume the intrinsic width immediately
     if (pristine && hasError) width = 'auto'
     // Default state, collapsed
     return { width }
-  }, [measuredWidth, pristine, hasError])
+  }, [measuredWidth, pristine, hasError, SIZE])
 
   useEffect(() => {
     setIsErrorExpanded(hasError)
@@ -62,7 +65,7 @@ export const NextLogo = forwardRef(function NextLogo(
       data-next-badge-root
       style={
         {
-          '--size': SIZE,
+          '--size': `${SIZE}px`,
           '--duration-short': `${SHORT_DURATION_MS}ms`,
           // if the indicator is disabled, hide the badge
           // also allow the "disabled" state be dismissed, as long as there are no build errors
@@ -190,11 +193,12 @@ export const NextLogo = forwardRef(function NextLogo(
           }
 
           [data-issues] {
+            --padding-left: 8px;
             display: flex;
             gap: 2px;
             align-items: center;
             padding-left: 8px;
-            padding-right: ${isBuildError ? '8px' : 'calc(2px * 2)'};
+            padding-right: 8px;
             height: var(--size-32);
             margin: 0 2px;
             border-radius: var(--rounded-full);
@@ -202,6 +206,10 @@ export const NextLogo = forwardRef(function NextLogo(
 
             &:has([data-issues-open]:hover) {
               background: var(--color-hover-alpha-error);
+            }
+
+            &:has([data-issues-collapse]) {
+              padding-right: calc(var(--padding-left) / 2);
             }
 
             [data-cross] {
