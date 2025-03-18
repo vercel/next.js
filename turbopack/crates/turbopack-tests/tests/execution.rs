@@ -24,7 +24,8 @@ use turbo_tasks_fs::{
     FileSystem, FileSystemEntryType, FileSystemPath,
 };
 use turbopack::{
-    ecmascript::TreeShakingMode,
+    css::chunk::CssChunkType,
+    ecmascript::{chunk::EcmascriptChunkType, TreeShakingMode},
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
     ModuleAssetContext,
 };
@@ -416,10 +417,20 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         env,
         RuntimeType::Development,
     )
-    .ecmascript_chunking_config(ChunkingConfig {
-        min_chunk_size: 10_000,
-        ..Default::default()
-    })
+    .chunking_config(
+        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            min_chunk_size: 10_000,
+            ..Default::default()
+        },
+    )
+    .chunking_config(
+        Vc::<CssChunkType>::default().to_resolved().await?,
+        ChunkingConfig {
+            min_chunk_size: 0,
+            ..Default::default()
+        },
+    )
     .build();
 
     let jest_entry_source = FileSource::new(jest_entry_path);
