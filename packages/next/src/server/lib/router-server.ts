@@ -166,7 +166,17 @@ export async function initialize(opts: {
   renderServer.instance =
     require('./render-server') as typeof import('./render-server')
 
-  const allowedOrigins = ['localhost', ...(config.allowedDevOrigins || [])]
+  const randomBytes = new Uint8Array(8)
+  crypto.getRandomValues(randomBytes)
+  const middlewareSubrequestId = Buffer.from(randomBytes).toString('hex')
+  ;(globalThis as any)[Symbol.for('@next/middleware-subrequest-id')] =
+    middlewareSubrequestId
+
+  const allowedOrigins = [
+    '*.localhost',
+    'localhost',
+    ...(config.allowedDevOrigins || []),
+  ]
   if (opts.hostname) {
     allowedOrigins.push(opts.hostname)
   }

@@ -73,7 +73,6 @@ const state: OverlayState = {
     },
   ],
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   notFound: false,
   staticIndicator: false,
   debugInfo: { devtoolsFrontendUrl: undefined },
