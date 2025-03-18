@@ -1,3 +1,9 @@
+import type { VirtualTypeScriptEnvironment } from 'next/dist/compiled/@typescript/vfs'
+import {
+  createSystem,
+  createVirtualTypeScriptEnvironment,
+} from 'next/dist/compiled/@typescript/vfs'
+
 import path from 'path'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
@@ -6,23 +12,34 @@ type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 let ts: TypeScript
 let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
+export let virtualTsEnv: VirtualTypeScriptEnvironment
 
 export function log(message: string) {
   info.project.projectService.logger.info(message)
 }
 
 // This function has to be called initially.
-export function init(opts: {
-  ts: TypeScript
-  info: tsModule.server.PluginCreateInfo
-}) {
+export function init(opts: { ts: TypeScript; info: tsModule.server.PluginCreateInfo }) {
+  const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
-  const projectDir = info.project.getCurrentDirectory()
   appDirRegExp = new RegExp(
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
-  log('Starting Next.js TypeScript plugin: ' + projectDir)
+
+  log('[next] Initializing Next.js TypeScript plugin at ' + projectDir)
+
+  const fsMap = new Map<string, string>()
+  const system = createSystem(fsMap)
+  const compilerOptions = info.project.getCompilerOptions()
+  virtualTsEnv = createVirtualTypeScriptEnvironment(
+    system,
+    [],
+    ts,
+    compilerOptions
+  )
+
+  log('[next] Successfully initialized Next.js TypeScript plugin!')
 }
 
 export function getTs() {
