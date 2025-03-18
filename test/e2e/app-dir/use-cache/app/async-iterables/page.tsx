@@ -9,7 +9,7 @@ async function getCachedData(iterable: AsyncIterable<string>) {
     values.push(value)
   }
 
-  return [...values].sort().join() + new Date().toISOString()
+  return [...values].sort().join() + Math.random()
 }
 
 export default async function Page() {
