@@ -21,20 +21,20 @@ import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-
 
 import {
   CACHE_ONE_YEAR,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedCacheControls } from './shared-cache-controls'
-import { workUnitAsyncStorageInstance } from '../../app-render/work-unit-async-storage-instance'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
+  workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import { getCacheHandlers } from '../../use-cache/handlers'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
+import { updateImplicitTagsExpiration } from '../implicit-tags'
+import { getPreviouslyRevalidatedTags } from '../../server-utils'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -181,14 +181,11 @@ export class IncrementalCache implements IncrementalCacheType {
       this.isOnDemandRevalidate = true
     }
 
-    if (
-      minimalMode &&
-      typeof requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
-      requestHeaders[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] ===
+    if (minimalMode) {
+      revalidatedTags = getPreviouslyRevalidatedTags(
+        requestHeaders,
         this.prerenderManifest?.preview?.previewModeId
-    ) {
-      revalidatedTags =
-        requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
+      )
     }
 
     if (CurCacheHandler) {
@@ -277,6 +274,12 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     await Promise.all(promises)
+
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore?.implicitTags) {
+      await updateImplicitTagsExpiration(workUnitStore.implicitTags)
+    }
   }
 
   // x-ref: https://github.com/facebook/react/blob/2655c9354d8e1c54ba888444220f63e836925caa/packages/react/src/ReactFetch.js#L23
@@ -420,7 +423,7 @@ export class IncrementalCache implements IncrementalCacheType {
     // Unlike other caches if we have a resume data cache, we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (ctx.kind === IncrementalCacheKind.FETCH) {
-      const workUnitStore = workUnitAsyncStorageInstance.getStore()
+      const workUnitStore = workUnitAsyncStorage.getStore()
       const resumeDataCache = workUnitStore
         ? getRenderResumeDataCache(workUnitStore)
         : null
@@ -567,7 +570,7 @@ export class IncrementalCache implements IncrementalCacheType {
     // populates caches ahead of a dynamic render in dev mode to allow the RSC
     // debug info to have the right environment associated to it.
     if (data?.kind === CachedRouteKind.FETCH) {
-      const workUnitStore = workUnitAsyncStorageInstance.getStore()
+      const workUnitStore = workUnitAsyncStorage.getStore()
       const prerenderResumeDataCache = workUnitStore
         ? getPrerenderResumeDataCache(workUnitStore)
         : null
