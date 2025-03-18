@@ -893,7 +893,6 @@ export default async function getBaseWebpackConfig(
   }
 
   const telemetryPlugin =
-    !isRspack &&
     !dev &&
     isClient &&
     new (
@@ -2056,8 +2055,7 @@ export default async function getBaseWebpackConfig(
         config.experimental.cssChunking &&
         new CssChunkingPlugin(config.experimental.cssChunking === 'strict'),
       telemetryPlugin,
-      !isRspack &&
-        !dev &&
+      !dev &&
         isNodeServer &&
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
