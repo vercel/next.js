@@ -50,7 +50,17 @@ async function getImplicitTagsExpiration(tags: string[]): Promise<number> {
 
   if (cacheHandlers) {
     const expirations = await Promise.all(
-      [...cacheHandlers].map((handler) => handler.getExpiration(...tags))
+      [...cacheHandlers].map(async (handler) => {
+        if ('getExpiration' in handler) {
+          return handler.getExpiration(...tags)
+        }
+
+        // Use 0 as fallback of legacy cache handlers. We don't need to track
+        // the expiration of implicit tags for those, because they're passed
+        // into the `get()` method and are checked internally by the cache
+        // handler.
+        return 0
+      })
     )
 
     // We use the most recent expiration from all cache handlers, i.e. the

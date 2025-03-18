@@ -4,7 +4,7 @@ const defaultCacheHandler =
   require('next/dist/server/lib/cache-handlers/default').default
 
 /**
- * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
+ * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandlerV2}
  */
 const cacheHandler = {
   async get(cacheKey) {
@@ -23,11 +23,14 @@ const cacheHandler = {
   },
 
   async getExpiration(...tags) {
-    console.log('CustomCacheHandler::getExpiration', tags)
+    console.log('CustomCacheHandler::getExpiration', JSON.stringify(tags))
     return defaultCacheHandler.getExpiration(...tags)
   },
 
-  async expireTags(...tags) {},
+  async expireTags(...tags) {
+    console.log('CustomCacheHandler::expireTags', JSON.stringify(tags))
+    return defaultCacheHandler.expireTags(...tags)
+  },
 }
 
 module.exports = cacheHandler

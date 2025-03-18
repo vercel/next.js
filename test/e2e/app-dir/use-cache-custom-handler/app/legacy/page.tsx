@@ -7,10 +7,10 @@ import {
 import { redirect } from 'next/navigation'
 
 async function getData() {
-  'use cache'
+  'use cache: legacy'
 
   cacheLife({ revalidate: 3 })
-  cacheTag('modern')
+  cacheTag('legacy')
 
   return new Date().toISOString()
 }
@@ -21,7 +21,7 @@ async function AsyncComp() {
   return <p id="data">{data}</p>
 }
 
-export default function Home() {
+export default function Legacy() {
   return (
     <main>
       <Suspense fallback={<p>Loading...</p>}>
@@ -31,8 +31,8 @@ export default function Home() {
         action={async () => {
           'use server'
 
-          revalidateTag('modern')
-          redirect('/')
+          revalidateTag('legacy')
+          redirect('/legacy')
         }}
       >
         <button id="revalidate">Revalidate Tag</button>

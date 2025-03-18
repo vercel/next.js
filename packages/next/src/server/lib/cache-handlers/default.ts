@@ -8,7 +8,7 @@
  */
 
 import { LRUCache } from '../lru-cache'
-import type { CacheEntry, CacheHandler } from './types'
+import type { CacheEntry, CacheHandlerV2 } from './types'
 import {
   isStale,
   tagsManifest,
@@ -41,7 +41,7 @@ const memoryCache = new LRUCache<PrivateCacheEntry>(
 )
 const pendingSets = new Map<string, Promise<void>>()
 
-const DefaultCacheHandler: CacheHandler = {
+const DefaultCacheHandler: CacheHandlerV2 = {
   async get(cacheKey) {
     await pendingSets.get(cacheKey)
 

@@ -21,8 +21,6 @@ import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-
 
 import {
   CACHE_ONE_YEAR,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
@@ -36,6 +34,7 @@ import { getCacheHandlers } from '../../use-cache/handlers'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import type { Revalidate } from '../cache-control'
 import { updateImplicitTagsExpiration } from '../implicit-tags'
+import { getPreviouslyRevalidatedTags } from '../../server-utils'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -182,14 +181,11 @@ export class IncrementalCache implements IncrementalCacheType {
       this.isOnDemandRevalidate = true
     }
 
-    if (
-      minimalMode &&
-      typeof requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
-      requestHeaders[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] ===
+    if (minimalMode) {
+      revalidatedTags = getPreviouslyRevalidatedTags(
+        requestHeaders,
         this.prerenderManifest?.preview?.previewModeId
-    ) {
-      revalidatedTags =
-        requestHeaders[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
+      )
     }
 
     if (CurCacheHandler) {

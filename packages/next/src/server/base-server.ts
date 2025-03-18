@@ -84,7 +84,7 @@ import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
 import * as Log from '../build/output/log'
-import { getUtils } from './server-utils'
+import { getPreviouslyRevalidatedTags, getUtils } from './server-utils'
 import isError, { getProperError } from '../lib/is-error'
 import {
   addRequestMeta,
@@ -1437,7 +1437,20 @@ export default abstract class Server<
 
       if (cacheHandlers) {
         await Promise.all(
-          [...cacheHandlers].map((cacheHandler) => cacheHandler.refreshTags())
+          [...cacheHandlers].map(async (cacheHandler) => {
+            if ('refreshTags' in cacheHandler) {
+              await cacheHandler.refreshTags()
+            } else {
+              const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+                req.headers,
+                this.getPrerenderManifest().preview.previewModeId
+              )
+
+              await cacheHandler.receiveExpiredTags(
+                ...previouslyRevalidatedTags
+              )
+            }
+          })
         )
       }
 

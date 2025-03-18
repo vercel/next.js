@@ -175,11 +175,7 @@ import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 import './clean-async-snapshot.external'
-import {
-  INFINITE_CACHE,
-  NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-  NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-} from '../../lib/constants'
+import { INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { parseLoaderTree } from './parse-loader-tree'
 import {
@@ -190,6 +186,7 @@ import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
+import { getPreviouslyRevalidatedTags } from '../server-utils'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -293,11 +290,10 @@ function parseRequestHeaders(
   const nonce =
     typeof csp === 'string' ? getScriptNonceFromHeader(csp) : undefined
 
-  const previouslyRevalidatedTags =
-    typeof headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] === 'string' &&
-    headers[NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER] === options.previewModeId
-      ? headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER].split(',')
-      : []
+  const previouslyRevalidatedTags = getPreviouslyRevalidatedTags(
+    headers,
+    options.previewModeId
+  )
 
   return {
     flightRouterState,

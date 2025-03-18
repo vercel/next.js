@@ -39,7 +39,43 @@ export interface CacheEntry {
   revalidate: number
 }
 
+/**
+ * @deprecated Use {@link CacheHandlerV2} instead.
+ */
 export interface CacheHandler {
+  /**
+   * Retrieve a cache entry for the given cache key, if available. The softTags
+   * should be used to check for staleness.
+   */
+  get(cacheKey: string, softTags: string[]): Promise<undefined | CacheEntry>
+
+  /**
+   * Store a cache entry for the given cache key. When this is called, the entry
+   * may still be pending, i.e. its value stream may still be written to. So it
+   * needs to be awaited first. If a `get` for the same cache key is called
+   * before the pending entry is complete, the cache handler must wait for the
+   * `set` operation to finish, before returning the entry, instead of returning
+   * undefined.
+   */
+  set(cacheKey: string, entry: Promise<CacheEntry>): Promise<void>
+
+  /**
+   * Next.js will call this method when `revalidateTag` or `revalidatePath()` is
+   * called. It should update the tags manifest accordingly.
+   */
+  expireTags(...tags: string[]): Promise<void>
+
+  /**
+   * The `receiveExpiredTags` method is called when an action request sends the
+   * 'x-next-revalidated-tags' header to indicate which tags have been expired
+   * by the action. The local tags manifest should be updated accordingly. As
+   * opposed to `expireTags`, the tags don't need to be propagated to a tags
+   * service, as this was already done by the server action.
+   */
+  receiveExpiredTags(...tags: string[]): Promise<void>
+}
+
+export interface CacheHandlerV2 {
   /**
    * Retrieve a cache entry for the given cache key, if available.
    */
@@ -48,15 +84,15 @@ export interface CacheHandler {
   /**
    * Store a cache entry for the given cache key. When this is called, the entry
    * may still be pending, i.e. its value stream may still be written to. So it
-   * needs to be awaited first. If a `get` for the same cache key is called in
-   * the before the pending entry is complete, the cache handler must wait for
-   * the `set` operation to finish, before returning the entry, instead of
-   * returning undefined.
+   * needs to be awaited first. If a `get` for the same cache key is called
+   * before the pending entry is complete, the cache handler must wait for the
+   * `set` operation to finish, before returning the entry, instead of returning
+   * undefined.
    */
   set(cacheKey: string, pendingEntry: Promise<CacheEntry>): Promise<void>
 
   /**
-   * Next.js will call this function periodically, but always before starting a
+   * Next.js will call this method periodically, but always before starting a
    * new request. When working with a remote tags service, this method should
    * communicate with the tags service to refresh the local tags manifest
    * accordingly.
@@ -64,7 +100,7 @@ export interface CacheHandler {
   refreshTags(): Promise<void>
 
   /**
-   * Next.js will call this function for each set of soft tags that are relevant
+   * Next.js will call this method for each set of soft tags that are relevant
    * at the start of a request. The result is the maximum timestamp of a
    * revalidate event for the tags. Returns `0` if none of the tags were ever
    * revalidated.
@@ -72,8 +108,18 @@ export interface CacheHandler {
   getExpiration(...tags: string[]): Promise<Timestamp>
 
   /**
-   * Next.js will call this function when `revalidateTag` or `revalidatePath()`
-   * is called. It should update the tags manifest accordingly.
+   * Next.js will call this method when `revalidateTag` or `revalidatePath()` is
+   * called. It should update the tags manifest accordingly.
    */
   expireTags(...tags: string[]): Promise<void>
 }
+
+/**
+ * This is a compatibility type to ease migration between cache handler
+ * versions. Until the old `CacheHandler` type is removed, this type should be
+ * used for all internal Next.js functions that deal with cache handlers to
+ * ensure that we are compatible with both cache handler versions. An exception
+ * is the built-in default cache handler, which implements the
+ * {@link CacheHandlerV2} interface.
+ */
+export type CacheHandlerCompat = CacheHandler | CacheHandlerV2

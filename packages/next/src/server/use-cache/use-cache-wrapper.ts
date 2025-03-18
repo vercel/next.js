@@ -688,7 +688,15 @@ export function cache(
 
         let entry = forceRevalidate
           ? undefined
-          : await cacheHandler.get(serializedCacheKey)
+          : 'getExpiration' in cacheHandler
+            ? await cacheHandler.get(serializedCacheKey)
+            : // Legacy cache handlers require implicit tags to be passed in,
+              // instead of checking their staleness here, as we do for modern
+              // cache handlers (see below).
+              await cacheHandler.get(
+                serializedCacheKey,
+                implicitTags?.tags ?? []
+              )
 
         if (
           entry &&
