@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { BrowserInterface } from 'next-webdriver'
@@ -593,21 +593,21 @@ describe('use-cache', () => {
   if (!isNextDeploy) {
     it('should be able to revalidate a page using unstable_expireTag', async () => {
       const browser = await next.browser(`/form`)
-      const time1 = await browser.waitForElementByCss('#t').text()
+      const time1 = await browser.elementById('t').text()
 
       await browser.loadPage(new URL(`/form`, next.url).toString())
 
-      const time2 = await browser.waitForElementByCss('#t').text()
+      const time2 = await browser.elementById('t').text()
 
       expect(time1).toBe(time2)
 
       await browser.elementByCss('#refresh').click()
 
-      await waitFor(500)
+      await retry(async () => {
+        const time3 = await browser.elementById('t').text()
 
-      const time3 = await browser.waitForElementByCss('#t').text()
-
-      expect(time3).not.toBe(time2)
+        expect(time3).not.toBe(time2)
+      })
 
       // Reloading again should ideally be the same value but because the Action seeds
       // the cache with real params as the argument it has a different cache key.
