@@ -34,6 +34,7 @@ function hmrRefreshReducerImpl(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
+  const navigatedAt = Date.now()
   cache.lazyData = fetchServerResponse(new URL(href, origin), {
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
@@ -95,6 +96,7 @@ function hmrRefreshReducerImpl(
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
         const applied = applyFlightData(
+          navigatedAt,
           currentCache,
           cache,
           normalizedFlightData

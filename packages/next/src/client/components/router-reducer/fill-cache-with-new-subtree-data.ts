@@ -11,6 +11,7 @@ import type { NormalizedFlightData } from '../../flight-data-helpers'
  * Common logic for filling cache with new sub tree data.
  */
 function fillCacheHelper(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
@@ -78,6 +79,7 @@ function fillCacheHelper(
             fillLazyItems && existingChildCacheNode
               ? new Map(existingChildCacheNode.parallelRoutes)
               : new Map(),
+          navigatedAt,
         }
 
         if (existingChildCacheNode && fillLazyItems) {
@@ -89,6 +91,7 @@ function fillCacheHelper(
         }
         if (fillLazyItems) {
           fillLazyItemsTillLeafWithHead(
+            navigatedAt,
             childCacheNode,
             existingChildCacheNode,
             treePatch,
@@ -132,19 +135,35 @@ function fillCacheHelper(
  * Fill cache with rsc based on flightDataPath
  */
 export function fillCacheWithNewSubTreeData(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, true)
+  fillCacheHelper(
+    navigatedAt,
+    newCache,
+    existingCache,
+    flightData,
+    prefetchEntry,
+    true
+  )
 }
 
 export function fillCacheWithNewSubTreeDataButOnlyLoading(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode,
   flightData: NormalizedFlightData,
   prefetchEntry?: PrefetchCacheEntry
 ): void {
-  fillCacheHelper(newCache, existingCache, flightData, prefetchEntry, false)
+  fillCacheHelper(
+    navigatedAt,
+    newCache,
+    existingCache,
+    flightData,
+    prefetchEntry,
+    false
+  )
 }

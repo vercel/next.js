@@ -86,6 +86,7 @@ export type Task = SPANavigationTask | MPANavigationTask
 // A return value of `null` means there were no changes, and the previous tree
 // can be reused without initiating a server request.
 export function startPPRNavigation(
+  navigatedAt: number,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -97,6 +98,7 @@ export function startPPRNavigation(
 ): Task | null {
   const segmentPath: Array<FlightSegmentPath> = []
   return updateCacheNodeOnNavigation(
+    navigatedAt,
     oldCacheNode,
     oldRouterState,
     newRouterState,
@@ -111,6 +113,7 @@ export function startPPRNavigation(
 }
 
 function updateCacheNodeOnNavigation(
+  navigatedAt: number,
   oldCacheNode: CacheNode,
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
@@ -227,6 +230,7 @@ function updateCacheNodeOnNavigation(
       } else {
         // There's no currently active segment. Switch to the "create" path.
         taskChild = beginRenderingNewRouteTree(
+          navigatedAt,
           oldRouterStateChild,
           newRouterStateChild,
           didFindRootLayout,
@@ -266,6 +270,7 @@ function updateCacheNodeOnNavigation(
       // cached data. If the page segment is fully static and prefetched, the
       // request is skipped. (This is also how refresh() works.)
       taskChild = beginRenderingNewRouteTree(
+        navigatedAt,
         oldRouterStateChild,
         newRouterStateChild,
         didFindRootLayout,
@@ -287,6 +292,7 @@ function updateCacheNodeOnNavigation(
         // This segment exists in both the old and new trees. Recursively update
         // the children.
         taskChild = updateCacheNodeOnNavigation(
+          navigatedAt,
           oldCacheNodeChild,
           oldRouterStateChild,
           newRouterStateChild,
@@ -302,6 +308,7 @@ function updateCacheNodeOnNavigation(
         // There's no existing Cache Node for this segment. Switch to the
         // "create" path.
         taskChild = beginRenderingNewRouteTree(
+          navigatedAt,
           oldRouterStateChild,
           newRouterStateChild,
           didFindRootLayout,
@@ -315,6 +322,7 @@ function updateCacheNodeOnNavigation(
     } else {
       // This is a new tree. Switch to the "create" path.
       taskChild = beginRenderingNewRouteTree(
+        navigatedAt,
         oldRouterStateChild,
         newRouterStateChild,
         didFindRootLayout,
@@ -388,6 +396,8 @@ function updateCacheNodeOnNavigation(
 
     // Everything is cloned except for the children, which we computed above.
     parallelRoutes: prefetchParallelRoutes,
+
+    navigatedAt,
   }
 
   return {
@@ -408,6 +418,7 @@ function updateCacheNodeOnNavigation(
 }
 
 function beginRenderingNewRouteTree(
+  navigatedAt: number,
   oldRouterState: FlightRouterState | void,
   newRouterState: FlightRouterState,
   didFindRootLayout: boolean,
@@ -446,6 +457,7 @@ function beginRenderingNewRouteTree(
     }
   }
   return createCacheNodeOnNavigation(
+    navigatedAt,
     newRouterState,
     prefetchData,
     possiblyPartialPrefetchHead,
@@ -456,6 +468,7 @@ function beginRenderingNewRouteTree(
 }
 
 function createCacheNodeOnNavigation(
+  navigatedAt: number,
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
   possiblyPartialPrefetchHead: HeadData | null,
@@ -472,6 +485,7 @@ function createCacheNodeOnNavigation(
     // Create a terminal task node that will later be fulfilled by
     // server response.
     return spawnPendingTask(
+      navigatedAt,
       routerState,
       null,
       possiblyPartialPrefetchHead,
@@ -500,6 +514,7 @@ function createCacheNodeOnNavigation(
     // We only have partial data from this segment. Like missing segments, we
     // must request the full data from the server.
     return spawnPendingTask(
+      navigatedAt,
       routerState,
       prefetchData,
       possiblyPartialPrefetchHead,
@@ -542,6 +557,7 @@ function createCacheNodeOnNavigation(
       ])
       const segmentKeyChild = createRouterCacheKey(segmentChild)
       const taskChild = createCacheNodeOnNavigation(
+        navigatedAt,
         routerStateChild,
         prefetchDataChild,
         possiblyPartialPrefetchHead,
@@ -585,6 +601,7 @@ function createCacheNodeOnNavigation(
       prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
+      navigatedAt,
     },
     dynamicRequestTree: needsDynamicRequest
       ? patchRouterStateWithNewChildren(routerState, dynamicRequestTreeChildren)
@@ -614,6 +631,7 @@ function patchRouterStateWithNewChildren(
 }
 
 function spawnPendingTask(
+  navigatedAt: number,
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
@@ -636,6 +654,7 @@ function spawnPendingTask(
 
     // Corresponds to the part of the route that will be rendered on the server.
     node: createPendingCacheNode(
+      navigatedAt,
       routerState,
       prefetchData,
       prefetchHead,
@@ -841,6 +860,7 @@ function finishTaskUsingDynamicDataPayload(
 }
 
 function createPendingCacheNode(
+  navigatedAt: number,
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
   prefetchHead: HeadData | null,
@@ -868,6 +888,7 @@ function createPendingCacheNode(
     const segmentKeyChild = createRouterCacheKey(segmentChild)
 
     const newCacheNodeChild = createPendingCacheNode(
+      navigatedAt,
       routerStateChild,
       prefetchDataChild === undefined ? null : prefetchDataChild,
       prefetchHead,
@@ -913,6 +934,8 @@ function createPendingCacheNode(
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
     head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
+
+    navigatedAt,
   }
 }
 
@@ -1154,6 +1177,8 @@ export function updateCacheNodeOnPopstateRestoration(
 
     // These are the cloned children we computed above
     parallelRoutes: newParallelRoutes,
+
+    navigatedAt: oldCacheNode.navigatedAt,
   }
 }
 

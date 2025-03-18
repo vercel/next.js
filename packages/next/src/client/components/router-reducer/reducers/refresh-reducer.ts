@@ -48,6 +48,7 @@ export function refreshReducer(
     nextUrl: includeNextUrl ? state.nextUrl : null,
   })
 
+  const navigatedAt = Date.now()
   return cache.lazyData.then(
     async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
@@ -114,6 +115,7 @@ export function refreshReducer(
           cache.prefetchRsc = null
           cache.loading = loading
           fillLazyItemsTillLeafWithHead(
+            navigatedAt,
             cache,
             // Existing cache is not passed in as `router.refresh()` has to invalidate the entire cache.
             undefined,
@@ -130,6 +132,7 @@ export function refreshReducer(
         }
 
         await refreshInactiveParallelSegments({
+          navigatedAt,
           state,
           updatedTree: newTree,
           updatedCache: cache,

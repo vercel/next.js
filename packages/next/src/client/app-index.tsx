@@ -171,9 +171,12 @@ const pendingActionQueue: Promise<AppRouterActionQueue> = new Promise(
         // and before any components have hydrated.
         setAppBuildId(initialRSCPayload.b)
 
+        const initialTimestamp = Date.now()
+
         resolve(
           createMutableActionQueue(
             createInitialRouterState({
+              navigatedAt: initialTimestamp,
               initialFlightData: initialRSCPayload.f,
               initialCanonicalUrlParts: initialRSCPayload.c,
               initialParallelRoutes: new Map(),
