@@ -916,9 +916,7 @@ describe('use-cache', () => {
 
   it('generates a stable cache key when promise args resolve in non-deterministic order', async () => {
     let $ = await next.render$('/promise-args')
-    const initialData = $('p').text()
-    $ = await next.render$('/promise-args')
-    expect($('p').text()).toBe(initialData)
+    expect($('#a').text()).toBe($('#b').text())
   })
 
   it('generates different cache keys for async iterables that yield values in different order', async () => {

@@ -1,7 +1,4 @@
 import { connection } from 'next/server'
-import { setTimeout } from 'timers/promises'
-
-let renderCounter = 0
 
 async function getCachedData(a: Promise<string>, b: Promise<string>) {
   'use cache'
@@ -11,13 +8,42 @@ async function getCachedData(a: Promise<string>, b: Promise<string>) {
 
 export default async function Page() {
   await connection()
-  renderCounter++
 
-  // Flip the promise resolution timing on every render.
-  const data = await getCachedData(
-    setTimeout(10 * (renderCounter % 2 === 0 ? 1 : 2)).then(() => 'a'),
-    setTimeout(10 * (renderCounter % 2 === 0 ? 2 : 1)).then(() => 'b')
+  const dataA = await getCachedData(
+    ...createPromises({
+      resolveInReverseOrder: false,
+    })
   )
 
-  return <p>{data}</p>
+  const dataB = await getCachedData(
+    ...createPromises({
+      resolveInReverseOrder: true,
+    })
+  )
+
+  return (
+    <>
+      <p id="a">{dataA}</p>
+      <p id="b">{dataB}</p>
+    </>
+  )
+}
+
+function createPromises({
+  resolveInReverseOrder,
+}: {
+  resolveInReverseOrder: boolean
+}): [Promise<string>, Promise<string>] {
+  let a: Promise<string>, b: Promise<string>
+
+  if (resolveInReverseOrder) {
+    // flip resolution order
+    b = Promise.resolve('b')
+    a = b.then(() => 'a')
+  } else {
+    a = Promise.resolve('a')
+    b = a.then(() => 'b')
+  }
+
+  return [a, b]
 }
