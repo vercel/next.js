@@ -5,18 +5,52 @@ export const dynamic = 'force-dynamic'
 export default function Home() {
   return (
     <main id="redirect-page">
-      <h1>POST /api-redirect (`redirect()`)</h1>
-      <form action="/redirects/api-redirect" method="POST">
-        <input type="submit" value="Submit" id="submit-api-redirect" />
-      </form>
-      <h1>POST /api-redirect-permanent (`permanentRedirect()`)</h1>
-      <form action="/redirects/api-redirect-permanent" method="POST">
-        <input
-          type="submit"
-          value="Submit"
-          id="submit-api-redirect-permanent"
-        />
-      </form>
+      <section>
+        <h1>POST /api-redirect (`redirect()`)</h1>
+        <form action="/redirects/api-redirect" method="POST">
+          <input
+            type="submit"
+            value="Submit - multipart"
+            id="submit-api-redirect-multipart"
+            formEncType="multipart/form-data"
+          />
+          <input
+            type="submit"
+            value="Submit - urlencoded"
+            id="submit-api-redirect-urlencoded"
+            formEncType="application/x-www-form-urlencoded"
+          />
+          <input
+            type="submit"
+            value="Submit - plaintext"
+            id="submit-api-redirect-plaintext"
+            formEncType="text/plain"
+          />
+        </form>
+      </section>
+      <section>
+        <h1>POST /api-redirect-permanent (`permanentRedirect()`)</h1>
+        <form action="/redirects/api-redirect-permanent" method="POST">
+          <input
+            type="submit"
+            value="Submit - multipart"
+            id="submit-api-redirect-permanent-multipart"
+            formEncType="multipart/form-data"
+          />
+          <input
+            type="submit"
+            value="Submit - urlencoded"
+            id="submit-api-redirect-permanent-urlencoded"
+            formEncType="application/x-www-form-urlencoded"
+          />
+          <input
+            type="submit"
+            value="Submit - plaintext"
+            id="submit-api-redirect-permanent-plaintext"
+            formEncType="text/plain"
+          />
+        </form>
+      </section>
       <h1>POST /api-reponse-redirect-307</h1>
       <form action="/redirects/api-redirect-307" method="POST">
         <input type="submit" value="Submit" id="submit-api-redirect-307" />
