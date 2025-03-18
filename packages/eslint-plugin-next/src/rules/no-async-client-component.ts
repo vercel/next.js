@@ -1,14 +1,14 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 
 const url = 'https://nextjs.org/docs/messages/no-async-client-component'
 const description = 'Prevent client components from being async functions.'
 const message = `${description} See: ${url}`
 
 function isCapitalized(str: string): boolean {
-  return /[A-Z]/.test(str?.[0])
+  return /[A-Z]/.test(str?.[0] ?? '')
 }
 
-export = defineRule({
+export const noAsyncClientComponent = defineRule({
   meta: {
     docs: {
       description,
@@ -19,9 +19,9 @@ export = defineRule({
     schema: [],
   },
 
-  create(context) {
+  create(context: any) {
     return {
-      Program(node) {
+      Program(node: any) {
         let isClientComponent: boolean = false
 
         for (const block of node.body) {
@@ -53,7 +53,7 @@ export = defineRule({
             ) {
               const targetName = block.declaration.name
 
-              const functionDeclaration = node.body.find((localBlock) => {
+              const functionDeclaration = node.body.find((localBlock: any) => {
                 if (
                   localBlock.type === 'FunctionDeclaration' &&
                   localBlock.id.name === targetName
@@ -63,7 +63,7 @@ export = defineRule({
                 if (
                   localBlock.type === 'VariableDeclaration' &&
                   localBlock.declarations.find(
-                    (declaration) =>
+                    (declaration: any) =>
                       declaration.id?.type === 'Identifier' &&
                       declaration.id.name === targetName
                   )
@@ -85,7 +85,7 @@ export = defineRule({
 
               if (functionDeclaration?.type === 'VariableDeclaration') {
                 const varDeclarator = functionDeclaration.declarations.find(
-                  (declaration) =>
+                  (declaration: any) =>
                     declaration.id?.type === 'Identifier' &&
                     declaration.id.name === targetName
                 )

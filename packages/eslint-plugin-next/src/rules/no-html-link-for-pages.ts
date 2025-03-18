@@ -1,14 +1,14 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 import * as path from 'path'
 import * as fs from 'fs'
-import { getRootDirs } from '../utils/get-root-dirs'
+import { getRootDirs } from '../utils/get-root-dirs.js'
 
 import {
   getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
   getUrlFromAppDirectory,
-} from '../utils/url'
+} from '../utils/url.js'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
   console.warn(
@@ -19,10 +19,10 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
-const fsExistsSyncCache = {}
+const fsExistsSyncCache: { [key: string]: boolean } = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
-  const cache = {}
+  const cache: { [key: string]: T } = {}
   return (...args: any[]): T => {
     const key = JSON.stringify(args)
     if (cache[key] === undefined) {
@@ -37,7 +37,7 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
-export = defineRule({
+export const noHtmlLinkForPages = defineRule({
   meta: {
     docs: {
       description:
@@ -112,7 +112,7 @@ export = defineRule({
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (node.name.name !== 'a') {
           return
         }
@@ -122,7 +122,8 @@ export = defineRule({
         }
 
         const target = node.attributes.find(
-          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
+          (attr: any) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
 
         if (target && target.value.value === '_blank') {
@@ -130,7 +131,8 @@ export = defineRule({
         }
 
         const href = node.attributes.find(
-          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
+          (attr: any) =>
+            attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
 
         if (!href || (href.value && href.value.type !== 'Literal')) {
@@ -138,7 +140,7 @@ export = defineRule({
         }
 
         const hasDownloadAttr = node.attributes.find(
-          (attr) =>
+          (attr: any) =>
             attr.type === 'JSXAttribute' && attr.name.name === 'download'
         )
 
@@ -148,12 +150,12 @@ export = defineRule({
 
         const hrefPath = normalizeURL(href.value.value)
         // Outgoing links are ignored
-        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
+        if (/^(https?:\/\/|\/\/)/.test(hrefPath as string)) {
           return
         }
 
         allUrlRegex.forEach((foundUrl) => {
-          if (foundUrl.test(normalizeURL(hrefPath))) {
+          if (hrefPath && foundUrl.test(normalizeURL(hrefPath) as string)) {
             context.report({
               node,
               message: `Do not use an \`<a>\` element to navigate to \`${hrefPath}\`. Use \`<Link />\` from \`next/link\` instead. See: ${url}`,

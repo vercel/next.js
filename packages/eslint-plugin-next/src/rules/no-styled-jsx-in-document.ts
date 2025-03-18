@@ -1,9 +1,9 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 import * as path from 'path'
 
 const url = 'https://nextjs.org/docs/messages/no-styled-jsx-in-document'
 
-export = defineRule({
+export const noStyledJsxInDocument = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `styled-jsx` in `pages/_document.js`.',
@@ -13,9 +13,9 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         const document = context.filename.split('pages', 2)[1]
         if (!document) {
           return
@@ -34,7 +34,8 @@ export = defineRule({
         if (
           node.name.name === 'style' &&
           node.attributes.find(
-            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
+            (attr: any) =>
+              attr.type === 'JSXAttribute' && attr.name.name === 'jsx'
           )
         ) {
           context.report({

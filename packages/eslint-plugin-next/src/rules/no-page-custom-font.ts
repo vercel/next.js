@@ -1,15 +1,15 @@
-import { defineRule } from '../utils/define-rule'
-import NodeAttributes from '../utils/node-attributes'
+import { defineRule } from '../utils/define-rule.js'
+import NodeAttributes from '../utils/node-attributes.js'
 import { sep, posix } from 'path'
 import type { AST } from 'eslint'
 
 const url = 'https://nextjs.org/docs/messages/no-page-custom-font'
 
-function isIdentifierMatch(id1, id2) {
+function isIdentifierMatch(id1: any, id2: any): boolean {
   return (id1 === null && id2 === null) || (id1 && id2 && id1.name === id2.name)
 }
 
-export = defineRule({
+export const noPageCustomFont = defineRule({
   meta: {
     docs: {
       description: 'Prevent page-only custom fonts.',
@@ -19,7 +19,7 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any): any {
     const { sourceCode } = context
     const paths = context.filename.split('pages')
     const page = paths[paths.length - 1]
@@ -33,15 +33,15 @@ export = defineRule({
       page.startsWith(`${sep}_document`) ||
       page.startsWith(`${posix.sep}_document`)
 
-    let documentImportName
-    let localDefaultExportId
-    let exportDeclarationType
+    let documentImportName: string | undefined
+    let localDefaultExportId: any
+    let exportDeclarationType: string | undefined
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any): void {
         if (node.source.value === 'next/document') {
           const documentImport = node.specifiers.find(
-            ({ type }) => type === 'ImportDefaultSpecifier'
+            ({ type }: { type: string }) => type === 'ImportDefaultSpecifier'
           )
           if (documentImport && documentImport.local) {
             documentImportName = documentImport.local.name
@@ -49,7 +49,7 @@ export = defineRule({
         }
       },
 
-      ExportDefaultDeclaration(node) {
+      ExportDefaultDeclaration(node: any): void {
         exportDeclarationType = node.declaration.type
 
         if (node.declaration.type === 'FunctionDeclaration') {
@@ -67,23 +67,23 @@ export = defineRule({
         }
       },
 
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any): void {
         if (node.name.name !== 'link') {
           return
         }
 
         const ancestors = sourceCode.getAncestors(node)
 
-        // if `export default <name>` is further down within the file after the
+        // if `export default <n>` is further down within the file after the
         // currently traversed component, then `localDefaultExportName` will
         // still be undefined
         if (!localDefaultExportId) {
           // find the top level of the module
           const program = ancestors.find(
-            (ancestor) => ancestor.type === 'Program'
+            (ancestor: any) => ancestor.type === 'Program'
           ) as AST.Program
 
-          // go over each token to find the combination of `export default <name>`
+          // go over each token to find the combination of `export default <n>`
           for (let i = 0; i <= program.tokens.length - 1; i++) {
             if (localDefaultExportId) {
               break
@@ -91,7 +91,7 @@ export = defineRule({
 
             const token = program.tokens[i]
 
-            if (token.type === 'Keyword' && token.value === 'export') {
+            if (token?.type === 'Keyword' && token.value === 'export') {
               const nextToken = program.tokens[i + 1]
 
               if (
@@ -109,7 +109,7 @@ export = defineRule({
           }
         }
 
-        const parentComponent = ancestors.find((ancestor) => {
+        const parentComponent = ancestors.find((ancestor: any) => {
           // export default class ... extends ...
           if (exportDeclarationType === 'ClassDeclaration') {
             return (

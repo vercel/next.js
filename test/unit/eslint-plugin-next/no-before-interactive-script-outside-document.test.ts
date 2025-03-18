@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-before-interactive-script-outside-document']
+const NextESLintRule = getRule('no-before-interactive-script-outside-document')
 
 const message =
   "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document"

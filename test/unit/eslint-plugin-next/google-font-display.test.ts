@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['google-font-display']
+const NextESLintRule = getRule('google-font-display')
 
 const tests = {
   valid: [

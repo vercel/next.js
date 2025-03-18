@@ -1,8 +1,20 @@
 {
   "compilerOptions": {
-    "module": "commonjs",
-    "target": "es2019"
+    "declaration": true,
+    "declarationMap": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "lib": ["es2022"],
+    "module": "NodeNext",
+    "moduleDetection": "force",
+    "noImplicitOverride": true,
+    "noUncheckedIndexedAccess": true,
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2022",
+    "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "include": ["src/**/*.ts"]
 }

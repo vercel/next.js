@@ -1,9 +1,13 @@
-import { defineRule } from '../utils/define-rule'
-import NodeAttributes from '../utils/node-attributes'
+import { defineRule } from '../utils/define-rule.js'
+import NodeAttributes from '../utils/node-attributes.js'
+import type { Rule } from 'eslint'
 
 const url = 'https://nextjs.org/docs/messages/google-font-display'
 
-export = defineRule({
+/**
+ * Rule to enforce font-display behavior with Google Fonts
+ */
+export const googleFontDisplay = defineRule({
   meta: {
     docs: {
       description: 'Enforce font-display behavior with Google Fonts.',
@@ -13,9 +17,9 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: Rule.RuleContext) {
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         let message: string | undefined
 
         if (node.name.name !== 'link') {
@@ -45,7 +49,7 @@ export = defineRule({
             displayValue === 'fallback'
           ) {
             message = `${
-              displayValue[0].toUpperCase() + displayValue.slice(1)
+              displayValue[0]?.toUpperCase() + displayValue.slice(1)
             } is not recommended.`
           }
         }

@@ -1,7 +1,7 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 const url = 'https://nextjs.org/docs/messages/no-script-component-in-head'
 
-export = defineRule({
+export const noScriptComponentInHead = defineRule({
   meta: {
     docs: {
       description: 'Prevent usage of `next/script` in `next/head` component.',
@@ -11,11 +11,11 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
-    let isNextHead = null
+  create(context: any) {
+    let isNextHead: string | null = null
 
     return {
-      ImportDeclaration(node) {
+      ImportDeclaration(node: any) {
         if (node.source.value === 'next/head') {
           isNextHead = node.source.value
         }
@@ -24,7 +24,7 @@ export = defineRule({
           return
         }
       },
-      JSXElement(node) {
+      JSXElement(node: any) {
         if (!isNextHead) {
           return
         }
@@ -38,7 +38,7 @@ export = defineRule({
         }
 
         const scriptTag = node.children.find(
-          (child) =>
+          (child: any) =>
             child.openingElement &&
             child.openingElement.name &&
             child.openingElement.name.name === 'Script'

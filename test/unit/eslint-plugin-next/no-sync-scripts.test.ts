@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-sync-scripts']
+const NextESLintRule = getRule('no-sync-scripts')
 
 const message =
   'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'

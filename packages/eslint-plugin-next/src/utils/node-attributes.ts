@@ -23,9 +23,9 @@ export default class NodeAttributes {
       }
   >
 
-  constructor(ASTnode) {
+  constructor(ASTnode: any) {
     this.attributes = {}
-    ASTnode.attributes.forEach((attribute) => {
+    ASTnode.attributes.forEach((attribute: any) => {
       if (!attribute.type || attribute.type !== 'JSXAttribute') {
         return
       }
@@ -35,9 +35,9 @@ export default class NodeAttributes {
         const value =
           typeof attribute.value.value === 'string'
             ? attribute.value.value
-            : typeof attribute.value.expression.value !== 'undefined'
+            : typeof attribute.value.expression?.value !== 'undefined'
               ? attribute.value.expression.value
-              : attribute.value.expression.properties
+              : attribute.value.expression?.properties
 
         this.attributes[attribute.name.name] = {
           hasValue: true,
@@ -50,23 +50,27 @@ export default class NodeAttributes {
       }
     })
   }
-  hasAny() {
+
+  hasAny(): boolean {
     return !!Object.keys(this.attributes).length
   }
-  has(attrName: string) {
+
+  has(attrName: string): boolean {
     return !!this.attributes[attrName]
   }
-  hasValue(attrName: string) {
-    return !!this.attributes[attrName].hasValue
+
+  hasValue(attrName: string): boolean {
+    return !!this.attributes[attrName]?.hasValue
   }
-  value(attrName: string) {
+
+  value(attrName: string): any {
     const attr = this.attributes[attrName]
 
     if (!attr) {
       return true
     }
 
-    if (attr.hasValue) {
+    if ('hasValue' in attr && attr.hasValue) {
       return attr.value
     }
 

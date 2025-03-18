@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-styled-jsx-in-document']
+const NextESLintRule = getRule('no-styled-jsx-in-document')
 
 const tests = {
   valid: [

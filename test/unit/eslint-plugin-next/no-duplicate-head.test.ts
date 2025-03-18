@@ -1,8 +1,8 @@
 import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
 import { RuleTester as ESLintTesterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
+import { getRule } from './utils/getRule'
 
-const NextESLintRule = rules['no-duplicate-head']
+const NextESLintRule = getRule('no-duplicate-head')
 
 const message =
   'Do not include multiple instances of `<Head/>`. See: https://nextjs.org/docs/messages/no-duplicate-head'

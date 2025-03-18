@@ -1,7 +1,7 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 const url = 'https://nextjs.org/docs/messages/no-duplicate-head'
 
-export = defineRule({
+export const noDuplicateHead = defineRule({
   meta: {
     docs: {
       description:
@@ -14,7 +14,7 @@ export = defineRule({
   },
   create(context) {
     const { sourceCode } = context
-    let documentImportName
+    let documentImportName: string | null = null
     return {
       ImportDeclaration(node) {
         if (node.source.value === 'next/document') {
@@ -47,7 +47,7 @@ export = defineRule({
         ) {
           // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
           const headComponents = node.argument.children.filter(
-            (childrenNode) =>
+            (childrenNode: any) =>
               childrenNode.openingElement &&
               childrenNode.openingElement.name &&
               childrenNode.openingElement.name.name === 'Head'

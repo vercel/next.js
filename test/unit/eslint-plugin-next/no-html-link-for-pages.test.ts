@@ -1,11 +1,10 @@
-/* eslint-env jest */
 import { Linter as ESLintLinterV8 } from 'eslint-v8'
 import { Linter as ESLintLinterV9 } from 'eslint'
-import { rules } from '@next/eslint-plugin-next'
-import assert from 'assert'
-import path from 'path'
+import { getRule } from './utils/getRule'
+import assert from 'node:assert'
+import path from 'node:path'
 
-const NextESLintRule = rules['no-html-link-for-pages']
+const NextESLintRule = getRule('no-html-link-for-pages')
 
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')

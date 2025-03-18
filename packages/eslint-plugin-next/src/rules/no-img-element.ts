@@ -1,9 +1,9 @@
-import path = require('path')
-import { defineRule } from '../utils/define-rule'
+import path from 'node:path'
+import { defineRule } from '../utils/define-rule.js'
 
 const url = 'https://nextjs.org/docs/messages/no-img-element'
 
-export = defineRule({
+export const noImgElement = defineRule({
   meta: {
     docs: {
       description:
@@ -15,7 +15,7 @@ export = defineRule({
     type: 'problem',
     schema: [],
   },
-  create(context) {
+  create(context: any) {
     // Get relative path of the file
     const relativePath = context.filename
       .replace(path.sep, '/')
@@ -25,7 +25,7 @@ export = defineRule({
     const isAppDir = /^(src\/)?app\//.test(relativePath)
 
     return {
-      JSXOpeningElement(node) {
+      JSXOpeningElement(node: any) {
         if (node.name.name !== 'img') {
           return
         }

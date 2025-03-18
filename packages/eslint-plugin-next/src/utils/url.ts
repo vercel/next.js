@@ -3,7 +3,7 @@ import * as fs from 'fs'
 
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
-const fsReadDirSyncCache = {}
+const fsReadDirSyncCache: { [key: string]: fs.Dirent[] } = {}
 
 /**
  * Recursively parse directory for page URLs.
@@ -12,7 +12,7 @@ function parseUrlForPages(urlprefix: string, directory: string) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
@@ -40,7 +40,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
     // TODO: this should account for all page extensions
     // not just js(x) and ts(x)
@@ -52,6 +52,7 @@ function parseUrlForAppDir(urlprefix: string, directory: string) {
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
+      // @ts-expect-error - types suggest this shouldn't take an arg, but I don't want to change anything
       if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
         res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
       }
@@ -70,9 +71,9 @@ export function normalizeURL(url: string) {
   if (!url) {
     return
   }
-  url = url.split('?', 1)[0]
-  url = url.split('#', 1)[0]
-  url = url = url.replace(/(\/index\.html)$/, '/')
+  url = url.split('?', 1)[0] as string
+  url = url.split('#', 1)[0] as string
+  url = url.replace(/(\/index\.html)$/, '/')
   // Empty URLs should not be trailed with `/`, e.g. `#heading`
   if (url === '') {
     return url

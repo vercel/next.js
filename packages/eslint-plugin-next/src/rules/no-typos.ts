@@ -1,4 +1,4 @@
-import { defineRule } from '../utils/define-rule'
+import { defineRule } from '../utils/define-rule.js'
 import * as path from 'path'
 
 const NEXT_EXPORT_FUNCTIONS = [
@@ -11,7 +11,7 @@ const NEXT_EXPORT_FUNCTIONS = [
 const THRESHOLD = 1
 
 // the minimum number of operations required to convert string a to string b.
-function minDistance(a, b) {
+function minDistance(a: string, b: string): number | undefined {
   const m = a.length
   const n = b.length
 
@@ -30,9 +30,9 @@ function minDistance(a, b) {
     let currentRow = [i + 1]
     for (let j = 0; j < n; j++) {
       const s2 = b[j]
-      const insertions = previousRow[j + 1] + 1
-      const deletions = currentRow[j] + 1
-      const substitutions = previousRow[j] + Number(s1 !== s2)
+      const insertions = (previousRow?.[j + 1] as any) + 1
+      const deletions = (currentRow?.[j] as any) + 1
+      const substitutions = (previousRow?.[j] as any) + Number(s1 !== s2)
       currentRow.push(Math.min(insertions, deletions, substitutions))
     }
     previousRow = currentRow
@@ -41,7 +41,7 @@ function minDistance(a, b) {
 }
 
 /* eslint-disable eslint-plugin/require-meta-docs-url */
-export = defineRule({
+export const noTypos = defineRule({
   meta: {
     docs: {
       description: 'Prevent common typos in Next.js data fetching functions.',
@@ -51,15 +51,15 @@ export = defineRule({
     schema: [],
   },
 
-  create(context) {
-    function checkTypos(node, name) {
+  create(context: any) {
+    function checkTypos(node: any, name: string) {
       if (NEXT_EXPORT_FUNCTIONS.includes(name)) {
         return
       }
 
       const potentialTypos = NEXT_EXPORT_FUNCTIONS.map((o) => ({
         option: o,
-        distance: minDistance(o, name),
+        distance: minDistance(o, name) ?? Infinity,
       }))
         .filter(({ distance }) => distance <= THRESHOLD && distance > 0)
         .sort((a, b) => a.distance - b.distance)
@@ -67,12 +67,12 @@ export = defineRule({
       if (potentialTypos.length) {
         context.report({
           node,
-          message: `${name} may be a typo. Did you mean ${potentialTypos[0].option}?`,
+          message: `${name} may be a typo. Did you mean ${potentialTypos[0]?.option}?`,
         })
       }
     }
     return {
-      ExportNamedDeclaration(node) {
+      ExportNamedDeclaration(node: any) {
         const page = context.filename.split('pages', 2)[1]
         if (!page || path.parse(page).dir.startsWith('/api')) {
           return
@@ -90,7 +90,7 @@ export = defineRule({
             break
           }
           case 'VariableDeclaration': {
-            decl.declarations.forEach((d) => {
+            decl.declarations.forEach((d: any) => {
               if (d.id.type !== 'Identifier') {
                 return
               }
