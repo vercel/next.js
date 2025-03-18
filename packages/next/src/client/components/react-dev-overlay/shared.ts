@@ -19,7 +19,6 @@ export interface OverlayState {
   buildError: string | null
   errors: SupportedErrorEvent[]
   refreshState: FastRefreshState
-  rootLayoutMissingTags: typeof window.__next_root_layout_missing_tags
   versionInfo: VersionInfo
   notFound: boolean
   staticIndicator: boolean
@@ -127,7 +126,6 @@ export const INITIAL_OVERLAY_STATE: Omit<OverlayState, 'routerType'> = {
   // To prevent flickering, set the initial state to disabled.
   disableDevIndicator: true,
   refreshState: { type: 'idle' },
-  rootLayoutMissingTags: [],
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
 }
@@ -142,26 +140,26 @@ function getInitialState(
 }
 
 export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
-  return useReducer((_state: OverlayState, action: BusEvent): OverlayState => {
+  return useReducer((state: OverlayState, action: BusEvent): OverlayState => {
     switch (action.type) {
       case ACTION_DEBUG_INFO: {
-        return { ..._state, debugInfo: action.debugInfo }
+        return { ...state, debugInfo: action.debugInfo }
       }
       case ACTION_STATIC_INDICATOR: {
-        return { ..._state, staticIndicator: action.staticIndicator }
+        return { ...state, staticIndicator: action.staticIndicator }
       }
       case ACTION_BUILD_OK: {
-        return { ..._state, buildError: null }
+        return { ...state, buildError: null }
       }
       case ACTION_BUILD_ERROR: {
-        return { ..._state, buildError: action.message }
+        return { ...state, buildError: action.message }
       }
       case ACTION_BEFORE_REFRESH: {
-        return { ..._state, refreshState: { type: 'pending', errors: [] } }
+        return { ...state, refreshState: { type: 'pending', errors: [] } }
       }
       case ACTION_REFRESH: {
         return {
-          ..._state,
+          ...state,
           buildError: null,
           errors:
             // Errors can come in during updates. In this case, UNHANDLED_ERROR
@@ -170,56 +168,54 @@ export function useErrorOverlayReducer(routerType: 'pages' | 'app') {
             // around until the next refresh. Otherwise we run into a race
             // condition where those errors would be cleared on refresh completion
             // before they can be displayed.
-            _state.refreshState.type === 'pending'
-              ? _state.refreshState.errors
+            state.refreshState.type === 'pending'
+              ? state.refreshState.errors
               : [],
           refreshState: { type: 'idle' },
         }
       }
       case ACTION_UNHANDLED_ERROR:
       case ACTION_UNHANDLED_REJECTION: {
-        switch (_state.refreshState.type) {
+        switch (state.refreshState.type) {
           case 'idle': {
             return {
-              ..._state,
-              nextId: _state.nextId + 1,
-              errors: pushErrorFilterDuplicates(_state.errors, {
-                id: _state.nextId,
+              ...state,
+              nextId: state.nextId + 1,
+              errors: pushErrorFilterDuplicates(state.errors, {
+                id: state.nextId,
                 event: action,
               }),
             }
           }
           case 'pending': {
             return {
-              ..._state,
-              nextId: _state.nextId + 1,
+              ...state,
+              nextId: state.nextId + 1,
               refreshState: {
-                ..._state.refreshState,
-                errors: pushErrorFilterDuplicates(_state.refreshState.errors, {
-                  id: _state.nextId,
+                ...state.refreshState,
+                errors: pushErrorFilterDuplicates(state.refreshState.errors, {
+                  id: state.nextId,
                   event: action,
                 }),
               },
             }
           }
           default:
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const _: never = _state.refreshState
-            return _state
+            return state
         }
       }
       case ACTION_VERSION_INFO: {
-        return { ..._state, versionInfo: action.versionInfo }
+        return { ...state, versionInfo: action.versionInfo }
       }
       case ACTION_DEV_INDICATOR: {
         return {
-          ..._state,
+          ...state,
           disableDevIndicator:
             shouldDisableDevIndicator || !!action.devIndicator.disabledUntil,
         }
       }
       default: {
-        return _state
+        return state
       }
     }
   }, getInitialState(routerType))

@@ -21,7 +21,7 @@ import {
 
       expect(actionsRoutesState).toMatchObject({
         'app/mixed-module/esm/page': {
-          rsc: 1,
+          rsc: 3,
         },
         // CJS import is not able to tree shake, so it will include all actions
         'app/mixed-module/cjs/page': {

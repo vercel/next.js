@@ -551,7 +551,7 @@ describe('Prerender', () => {
     })
   }
 
-  const runTests = (isDev = false, isDeploy) => {
+  const runTests = (isDev: boolean = false, isDeploy: boolean) => {
     navigateTest(isDev)
 
     it('should respond with 405 for POST to static page', async () => {
@@ -926,33 +926,45 @@ describe('Prerender', () => {
       const text = await browser.elementByCss('p').text()
       expect(text).toContain('hi fallback')
 
-      // wait for fallback data to load
-      await check(() => browser.elementByCss('p').text(), /Post/)
+      if (isDeploy) {
+        // patchFile does not work with deploy tests
+        return
+      }
 
-      // check fallback data
-      const post = await browser.elementByCss('p').text()
-      const query = JSON.parse(await browser.elementByCss('#query').text())
-      const params = JSON.parse(await browser.elementByCss('#params').text())
+      await next.patchFile('resolve-static-props', '', async () => {
+        // wait for fallback data to load
+        await check(() => browser.elementByCss('p').text(), /Post/)
 
-      expect(post).toContain('first/post')
-      expect(params).toEqual({
-        slug: 'first/post',
-      })
-      expect(query).toEqual(params)
-    })
+        // check fallback data
+        const post = await browser.elementByCss('p').text()
+        const query = JSON.parse(await browser.elementByCss('#query').text())
+        const params = JSON.parse(await browser.elementByCss('#params').text())
 
-    it('should handle fallback only page correctly data', async () => {
-      const data = JSON.parse(
-        await renderViaHTTP(
-          next.url,
-          `/_next/data/${next.buildId}/fallback-only/second%2Fpost.json`
-        )
-      )
-
-      expect(data.pageProps.params).toEqual({
-        slug: 'second/post',
+        expect(post).toContain('first/post')
+        expect(params).toEqual({
+          slug: 'first/post',
+        })
+        expect(query).toEqual(params)
       })
     })
+
+    // patchFile does not work with deploy tests
+    if (!isDeploy) {
+      it('should handle fallback only page correctly data', async () => {
+        await next.patchFile('resolve-static-props', '', async () => {
+          const data = JSON.parse(
+            await renderViaHTTP(
+              next.url,
+              `/_next/data/${next.buildId}/fallback-only/second%2Fpost.json`
+            )
+          )
+
+          expect(data.pageProps.params).toEqual({
+            slug: 'second/post',
+          })
+        })
+      })
+    }
 
     it('should 404 for a missing catchall explicit route', async () => {
       const res = await fetchViaHTTP(

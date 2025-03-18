@@ -274,10 +274,7 @@ export function createPatchedFetcher(
           }
         }
 
-        const implicitTags =
-          !workUnitStore || workUnitStore.type === 'unstable-cache'
-            ? []
-            : workUnitStore.implicitTags
+        const implicitTags = workUnitStore?.implicitTags
 
         // Inside unstable-cache we treat it the same as force-no-store on the
         // page.
@@ -756,7 +753,7 @@ export function createPatchedFetcher(
                   fetchUrl,
                   fetchIdx,
                   tags,
-                  softTags: implicitTags,
+                  softTags: implicitTags?.tags,
                 })
 
             if (hasNoExplicitCacheConfig) {

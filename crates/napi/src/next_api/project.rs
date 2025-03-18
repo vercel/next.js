@@ -1287,7 +1287,7 @@ pub async fn get_source_map_rope(
     }
 
     if map.await?.is_none() {
-        bail!("chunk/module is missing a sourcemap");
+        bail!("chunk/module '{}' is missing a sourcemap", file_path);
     }
 
     Ok(Some(map))
