@@ -1,27 +1,23 @@
-// This module provides intellisense for all components that has the `"use client"` directive.
-
 import { NEXT_TS_ERRORS } from '../constant'
-import { getTs, getTypeChecker } from '../utils'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import type { TSNextPlugin } from '../TSNextPlugin'
+import ts from 'typescript'
 
-const clientBoundary = {
+// This module provides intellisense for all components that have the `"use client"` directive.
+export const clientBoundary = (tsNextPlugin: TSNextPlugin) => ({
   getSemanticDiagnosticsForExportVariableStatement(
-    source: tsModule.SourceFile,
-    node: tsModule.VariableStatement
+    source: ts.SourceFile,
+    node: ts.VariableStatement
   ) {
-    const ts = getTs()
-
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     if (ts.isVariableDeclarationList(node.declarationList)) {
       for (const declaration of node.declarationList.declarations) {
         const initializer = declaration.initializer
         if (initializer && ts.isArrowFunction(initializer)) {
           diagnostics.push(
-            ...clientBoundary.getSemanticDiagnosticsForFunctionExport(
-              source,
-              initializer
-            )
+            ...clientBoundary(
+              tsNextPlugin
+            ).getSemanticDiagnosticsForFunctionExport(source, initializer)
           )
         }
       }
@@ -31,21 +27,20 @@ const clientBoundary = {
   },
 
   getSemanticDiagnosticsForFunctionExport(
-    source: tsModule.SourceFile,
-    node: tsModule.FunctionDeclaration | tsModule.ArrowFunction
+    source: ts.SourceFile,
+    node: ts.FunctionDeclaration | ts.ArrowFunction
   ) {
-    const ts = getTs()
-    const typeChecker = getTypeChecker()
+    const typeChecker = tsNextPlugin.getTypeChecker()
     if (!typeChecker) return []
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const isErrorFile = /[\\/]error\.tsx?$/.test(source.fileName)
     const isGlobalErrorFile = /[\\/]global-error\.tsx?$/.test(source.fileName)
 
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
-      for (const prop of (props as tsModule.ObjectBindingPattern).elements) {
+      for (const prop of (props as ts.ObjectBindingPattern).elements) {
         const type = typeChecker.getTypeAtLocation(prop)
         const typeDeclarationNode = type.symbol?.getDeclarations()?.[0]
         const propName = (prop.propertyName || prop.name).getText()
@@ -70,13 +65,10 @@ const clientBoundary = {
 
             if (!maybeServerAction && !isErrorReset) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP_NOT_SERVER_ACTION(
+                  propName
+                ),
                 file: source,
-                category: ts.DiagnosticCategory.Warning,
-                code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-                messageText:
-                  `Props must be serializable for components in the "use client" entry file. ` +
-                  `"${propName}" is a function that's not a Server Action. ` +
-                  `Rename "${propName}" either to "action" or have its name end with "Action" e.g. "${propName}Action" to indicate it is a Server Action.`,
                 start: prop.getStart(),
                 length: prop.getWidth(),
               })
@@ -87,10 +79,10 @@ const clientBoundary = {
             ts.isClassDeclaration(typeDeclarationNode)
           ) {
             diagnostics.push({
+              ...NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP_NOT_SERIALIZABLE(
+                propName
+              ),
               file: source,
-              category: ts.DiagnosticCategory.Warning,
-              code: NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP,
-              messageText: `Props must be serializable for components in the "use client" entry file, "${propName}" is invalid.`,
               start: prop.getStart(),
               length: prop.getWidth(),
             })
@@ -101,6 +93,4 @@ const clientBoundary = {
 
     return diagnostics
   },
-}
-
-export default clientBoundary
+})

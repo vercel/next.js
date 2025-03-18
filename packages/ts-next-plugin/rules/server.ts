@@ -3,14 +3,12 @@ import {
   DISALLOWED_SERVER_REACT_DOM_APIS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import { getTs } from '../utils'
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
 
-const serverLayer = {
-  // On the server layer we need to filter out some invalid completion results.
-  filterCompletionsAtPosition(entries: tsModule.CompletionEntry[]) {
-    return entries.filter((e: tsModule.CompletionEntry) => {
-      // Remove disallowed React APIs.
+export const server = {
+  /** This will remove completions disallowed react APIs for server components */
+  filterCompletionsAtPosition(entries: ts.CompletionEntry[]) {
+    return entries.filter((e: ts.CompletionEntry) => {
       if (
         DISALLOWED_SERVER_REACT_APIS.includes(e.name) &&
         e.source === 'react'
@@ -21,10 +19,8 @@ const serverLayer = {
     })
   },
 
-  // Filter out quick info for some React APIs.
-  hasDisallowedReactAPIDefinition(
-    definitions: readonly tsModule.DefinitionInfo[]
-  ) {
+  /** Filter out quick info for some React APIs. */
+  hasDisallowedReactAPIDefinition(definitions: readonly ts.DefinitionInfo[]) {
     return definitions?.some(
       (d) =>
         DISALLOWED_SERVER_REACT_APIS.includes(d.name) &&
@@ -32,14 +28,12 @@ const serverLayer = {
     )
   },
 
-  // Give errors about disallowed imports such as `useState`.
+  /** Give errors about disallowed imports. */
   getSemanticDiagnosticsForImportDeclaration(
-    source: tsModule.SourceFile,
-    node: tsModule.ImportDeclaration
+    source: ts.SourceFile,
+    node: ts.ImportDeclaration
   ) {
-    const ts = getTs()
-
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const importPath = node.moduleSpecifier.getText(source!)
     const importClause = node.importClause
@@ -54,10 +48,8 @@ const serverLayer = {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_APIS.includes(name)) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_SERVER_API(name),
                 file: source,
-                category: ts.DiagnosticCategory.Error,
-                code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
                 length: element.name.getWidth(),
               })
@@ -72,10 +64,8 @@ const serverLayer = {
             const name = element.name.getText(source!)
             if (DISALLOWED_SERVER_REACT_DOM_APIS.includes(name)) {
               diagnostics.push({
+                ...NEXT_TS_ERRORS.INVALID_SERVER_API(name),
                 file: source,
-                category: ts.DiagnosticCategory.Error,
-                code: NEXT_TS_ERRORS.INVALID_SERVER_API,
-                messageText: `"${name}" is not allowed in Server Components.`,
                 start: element.name.getStart(),
                 length: element.name.getWidth(),
               })
@@ -88,5 +78,3 @@ const serverLayer = {
     return diagnostics
   },
 }
-
-export default serverLayer

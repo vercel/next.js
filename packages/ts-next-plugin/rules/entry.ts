@@ -6,23 +6,23 @@ import {
   ALLOWED_PAGE_PROPS,
   NEXT_TS_ERRORS,
 } from '../constant'
-import { getTs, isPageFile, isPositionInsideNode } from '../utils'
+import { isPositionInsideNode } from '../utils'
 
-import type tsModule from 'typescript/lib/tsserverlibrary'
+import ts from 'typescript'
+import type { TSNextPlugin } from '../TSNextPlugin'
 
-const entry = {
-  // Give auto completion for the component's props
+export const entry = (tsNextPlugin: TSNextPlugin) => ({
+  /** Give auto completion for the component's props */
   getCompletionsAtPosition(
     fileName: string,
-    node: tsModule.FunctionDeclaration,
+    node: ts.FunctionDeclaration,
     position: number
   ) {
-    const ts = getTs()
-    const entries: tsModule.CompletionEntry[] = []
+    const entries: ts.CompletionEntry[] = []
 
     // Default export function might not accept parameters
     const paramNode = node.parameters?.[0] as
-      | tsModule.ParameterDeclaration
+      | ts.ParameterDeclaration
       | undefined
 
     if (paramNode && isPositionInsideNode(position, paramNode)) {
@@ -32,7 +32,7 @@ const entry = {
         let validPropsWithType = []
         let type: string
 
-        if (isPageFile(fileName)) {
+        if (tsNextPlugin.isPageFile(fileName)) {
           // For page entries (page.js), it can only have `params` and `searchParams`
           // as the prop names.
           validProps = ALLOWED_PAGE_PROPS
@@ -67,13 +67,13 @@ const entry = {
                 entries.push({
                   name,
                   insertText: name,
-                  sortText: '_' + name,
+                  sortText: `_${name}`,
                   kind: ts.ScriptElementKind.memberVariableElement,
                   kindModifiers: ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop`,
                   },
-                } as tsModule.CompletionEntry)
+                })
               }
             }
 
@@ -89,13 +89,13 @@ const entry = {
                 entries.push({
                   name,
                   insertText: name,
-                  sortText: '_' + name,
+                  sortText: `_${name}`,
                   kind: ts.ScriptElementKind.memberVariableElement,
                   kindModifiers: ts.ScriptElementKindModifier.none,
                   labelDetails: {
                     description: `Next.js ${type} prop type`,
                   },
-                } as tsModule.CompletionEntry)
+                })
               }
 
               break
@@ -108,18 +108,15 @@ const entry = {
     return entries
   },
 
-  // Give error diagnostics for the component
+  /** Give error diagnostics for the component */
   getSemanticDiagnostics(
     fileName: string,
-    source: tsModule.SourceFile,
-    node: tsModule.FunctionDeclaration
+    source: ts.SourceFile,
+    node: ts.FunctionDeclaration
   ) {
-    const ts = getTs()
-
     let validProps = []
-    let type: string
-
-    if (isPageFile(fileName)) {
+    let type: 'page' | 'layout'
+    if (tsNextPlugin.isPageFile(fileName)) {
       // For page entries (page.js), it can only have `params` and `searchParams`
       // as the prop names.
       validProps = ALLOWED_PAGE_PROPS
@@ -138,7 +135,7 @@ const entry = {
       type = 'layout'
     }
 
-    const diagnostics: tsModule.Diagnostic[] = []
+    const diagnostics: ts.Diagnostic[] = []
 
     const props = node.parameters?.[0]?.name
     if (props && ts.isObjectBindingPattern(props)) {
@@ -146,10 +143,10 @@ const entry = {
         const propName = (prop.propertyName || prop.name).getText()
         if (!validProps.includes(propName)) {
           diagnostics.push({
+            ...NEXT_TS_ERRORS[
+              type === 'page' ? 'INVALID_PAGE_PROP' : 'INVALID_LAYOUT_PROP'
+            ](propName),
             file: source,
-            category: ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_PAGE_PROP,
-            messageText: `"${propName}" is not a valid ${type} prop.`,
             start: prop.getStart(),
             length: prop.getWidth(),
           })
@@ -159,6 +156,4 @@ const entry = {
 
     return diagnostics
   },
-}
-
-export default entry
+})

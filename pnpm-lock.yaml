@@ -919,6 +919,9 @@ importers:
       styled-jsx:
         specifier: 5.1.6
         version: 5.1.6(@babel/core@7.22.5)(babel-plugin-macros@3.1.0)(react@19.1.0-canary-5398b711-20250314)
+      ts-next-plugin:
+        specifier: workspace:*
+        version: link:../ts-next-plugin
     optionalDependencies:
       sharp:
         specifier: ^0.33.5
@@ -1717,6 +1720,12 @@ importers:
       typescript:
         specifier: 5.8.2
         version: 5.8.2
+
+  packages/ts-next-plugin:
+    dependencies:
+      typescript:
+        specifier: 5.7.2
+        version: 5.7.2
 
   turbopack/crates/turbopack-cli/js:
     dependencies:
@@ -16279,6 +16288,11 @@ packages:
 
   typescript@5.6.3:
     resolution: {integrity: sha512-hjcS1mhfuyi4WW8IWtjP7brDrG2cuDZukyrYrSauoXGNgx0S7zceP07adYkJycEr56BOUTNPzbInooiN3fn1qw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
+  typescript@5.7.2:
+    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -35421,6 +35435,8 @@ snapshots:
   typescript@4.9.5: {}
 
   typescript@5.6.3: {}
+
+  typescript@5.7.2: {}
 
   typescript@5.8.2: {}
 

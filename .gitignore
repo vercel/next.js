@@ -44,6 +44,7 @@ test/traces
 # examples
 examples/**/out
 examples/**/.env*.local
+playground
 
 pr-stats.md
 test-timings.json

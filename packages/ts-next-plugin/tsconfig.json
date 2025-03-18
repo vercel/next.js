@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig-tsec.json",
+  "compilerOptions": {
+    "strict": true,
+    "stripInternal": true,
+    "esModuleInterop": true,
+    "module": "CommonJS",
+    "target": "ES2018",
+    "moduleResolution": "node",
+    "outDir": "dist"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "ts-next-plugin",
+  "version": "0.0.1",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "dependencies": {
+    "typescript": "5.7.2"
+  }
+}
