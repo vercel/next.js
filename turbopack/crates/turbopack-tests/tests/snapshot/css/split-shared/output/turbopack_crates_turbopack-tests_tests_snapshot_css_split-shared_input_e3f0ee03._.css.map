@@ -18,6 +18,5 @@
     {"offset": {"line": 19, "column": 18}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
     {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3.css"],"sourcesContent":["@import \"b3a.css\";\n@import \"b3b.css\";\n\n.b3 {\n  content: \"11\";\n}\n"],"names":[],"mappings":"AAGA"}},
     {"offset": {"line": 22, "column": 17}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
-    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css"],"sourcesContent":["@import \"b4.css\";\n@import \"b3.css\";\n"],"names":[],"mappings":""}},
-    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+    {"offset": {"line": 25, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css"],"sourcesContent":["@import \"b4.css\";\n@import \"b3.css\";\n"],"names":[],"mappings":""}}]
 }

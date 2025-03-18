@@ -601,6 +601,15 @@ export interface ExperimentalConfig {
      */
     buildTimeThresholdMs: number
   }
+
+  /**
+   * Enables the client instrumentation hook.
+   * Loads the instrumentation-client.ts file from the project root
+   * and executes it on the client side before hydration.
+   *
+   * Note: Use with caution as this can negatively impact page loading performance.
+   */
+  clientInstrumentationHook?: boolean
 }
 
 export type ExportPathMap = {
@@ -672,6 +681,8 @@ export type ExportPathMap = {
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
+  allowedDevOrigins?: string[]
+
   exportPathMap?: (
     defaultMap: ExportPathMap,
     ctx: {
@@ -1133,6 +1144,7 @@ export const defaultConfig: NextConfig = {
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
+  allowedDevOrigins: [],
   experimental: {
     nodeMiddleware: false,
     cacheLife: {

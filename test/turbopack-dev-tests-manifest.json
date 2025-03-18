@@ -512,6 +512,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/ui/components/code-frame/parse-code-frame.test.ts": {
+    "passed": ["parse line numbers parse line numbers from code frame"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/ui/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
     "passed": [
       "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
@@ -1083,26 +1090,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/server/lib/incremental-cache/shared-revalidate-timings.test.ts": {
+  "packages/next/src/server/lib/incremental-cache/shared-cache-controls.test.ts": {
     "passed": [
-      "SharedRevalidateTimings should clear the in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from in-memory cache",
-      "SharedRevalidateTimings should get revalidate timing from prerender manifest if not in cache",
-      "SharedRevalidateTimings should return undefined if revalidate timing not found",
-      "SharedRevalidateTimings should set revalidate timing in cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/interception-routes.test.ts": {
-    "passed": [
-      "Interception Route helper extractInterceptionRouteInformation should check the segment length",
-      "Interception Route helper extractInterceptionRouteInformation should extract correct information",
-      "Interception Route helper extractInterceptionRouteInformation should not extract incorrect information",
-      "Interception Route helper isInterceptionRouteAppPath should not validate incorrect paths",
-      "Interception Route helper isInterceptionRouteAppPath should validate correct paths"
+      "SharedCacheControls should clear the in-memory cache",
+      "SharedCacheControls should get cache control from in-memory cache",
+      "SharedCacheControls should get cache control from prerender manifest for dynamic route with fallback",
+      "SharedCacheControls should get cache control from prerender manifest if not in cache",
+      "SharedCacheControls should return undefined if cache control not found",
+      "SharedCacheControls should set cache control in cache"
     ],
     "failed": [],
     "pending": [],
@@ -1596,6 +1591,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/shared/lib/router/utils/interception-routes.test.ts": {
+    "passed": [
+      "Interception Route helper extractInterceptionRouteInformation should check the segment length",
+      "Interception Route helper extractInterceptionRouteInformation should extract correct information",
+      "Interception Route helper extractInterceptionRouteInformation should not extract incorrect information",
+      "Interception Route helper isInterceptionRouteAppPath should not validate incorrect paths",
+      "Interception Route helper isInterceptionRouteAppPath should validate correct paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/shared/lib/router/utils/is-dynamic.test.ts": {
     "passed": [
       "isDynamicRoute non-strict should return false for static routes",
@@ -1837,15 +1845,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/acceptance-app/dynamic-error.test.ts": {
-    "passed": [
-      "dynamic = \"error\" in devmode should show error overlay when dynamic is forced"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/acceptance-app/dynamic-metadata-error.test.ts": {
     "passed": [
       "dynamic metadata error should error if the default export of dynamic image is missing",
@@ -1982,12 +1981,9 @@
   },
   "test/development/acceptance-app/rsc-runtime-errors.test.ts": {
     "passed": [
-      "Error overlay - RSC runtime errors should contain nextjs version check in error overlay",
-      "Error overlay - RSC runtime errors should not show the bundle layer info in the file trace",
       "Error overlay - RSC runtime errors should show runtime errors if invalid client API from node_modules is executed",
       "Error overlay - RSC runtime errors should show runtime errors if invalid server API from node_modules is executed",
-      "Error overlay - RSC runtime errors should show source code for jsx errors from server component",
-      "Error overlay - RSC runtime errors should show the userland code error trace when fetch failed error occurred"
+      "Error overlay - RSC runtime errors should show source code for jsx errors from server component"
     ],
     "failed": [],
     "pending": [],
@@ -2249,7 +2245,7 @@
   "test/development/app-dir/basic/basic.test.ts": {
     "passed": ["basic app-dir tests should reload app pages without error"],
     "failed": [],
-    "pending": ["basic app-dir tests should reload app pages without error"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2398,12 +2394,12 @@
     "runtimeError": false
   },
   "test/development/app-dir/experimental-lightningcss/experimental-lightningcss.test.ts": {
-    "passed": ["experimental-lightningcss should support css modules"],
-    "failed": [],
-    "pending": [
+    "passed": [
       "experimental-lightningcss with default mode in dev server should support browserslist",
       "experimental-lightningcss with default mode in dev server should support css modules"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -2932,10 +2928,14 @@
     "passed": [
       "misc basic dev tests, basePath: \"\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
+      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow dev WebSocket from cross-site",
+      "misc basic dev tests, basePath: \"\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"\" should allow access to public files",
       "misc basic dev tests, basePath: \"\" should set process.env.NODE_ENV in development",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should handle encoded / value for trailing slash correctly",
       "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow accessing files outside .next/static and .next/server directory",
+      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow dev WebSocket from cross-site",
+      "misc basic dev tests, basePath: \"/docs\" With Security Related Issues should not allow loading scripts from cross-site",
       "misc basic dev tests, basePath: \"/docs\" should allow access to public files",
       "misc basic dev tests, basePath: \"/docs\" should set process.env.NODE_ENV in development"
     ],
@@ -3858,6 +3858,8 @@
       "app-dir action handling should support notFound",
       "app-dir action handling should support notFound (javascript disabled)",
       "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
       "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
@@ -3909,8 +3911,9 @@
       "app dir - basepath should handle redirect in dynamic in suspense boundary routes with basePath",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh)",
       "app dir - basepath should only make a single RSC call to the current page (/base/refresh?foo=bar)",
-      "app dir - basepath should prefix metadata og image with basePath",
+      "app dir - basepath should prefix manifest with basePath",
       "app dir - basepath should prefix redirect() with basePath",
+      "app dir - basepath should prefix segment metadata og image with basePath and pathname",
       "app dir - basepath should properly stream an internal server action redirect() with a absolute URL",
       "app dir - basepath should properly stream an internal server action redirect() with a relative URL",
       "app dir - basepath should redirect externally when encountering absolute URLs on the same host outside the basePath",
@@ -4285,6 +4288,7 @@
   "test/e2e/app-dir/app-root-params/simple.test.ts": {
     "passed": [
       "app-root-params - simple should only return rootParams and not other params",
+      "app-root-params - simple should render the not found page without errors",
       "app-root-params - simple should return rootParams"
     ],
     "failed": [],
@@ -4625,6 +4629,7 @@
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
       "app-dir static/dynamic handling should not error with generateStaticParams and authed data on revalidate",
       "app-dir static/dynamic handling should not error with generateStaticParams and dynamic data",
+      "app-dir static/dynamic handling should not filter out catch-all params with repeated segments in generateStaticParams",
       "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
@@ -6216,6 +6221,8 @@
     "passed": [
       "app-dir - metadata-icons should only have 1 favicon link in nested page",
       "app-dir - metadata-icons should only have 1 favicon link in root page",
+      "app-dir - metadata-icons should re-insert the apple icons into the head after navigation",
+      "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
     ],
@@ -6240,7 +6247,8 @@
       "app dir - metadata navigation navigation should show target page metadata after navigation with back",
       "app dir - metadata navigation navigation should show the index title",
       "app dir - metadata navigation navigation should support notFound in generateMetadata",
-      "app dir - metadata navigation navigation should support redirect in generateMetadata"
+      "app dir - metadata navigation navigation should support redirect in generateMetadata",
+      "app dir - metadata navigation server action should not render fallback noindex metadata if request is initiated from server action"
     ],
     "failed": [],
     "pending": [],
@@ -6304,6 +6312,8 @@
       "app-dir - metadata-streaming navigation API should trigger redirection when call redirect",
       "app-dir - metadata-streaming should delay the metadata render to body",
       "app-dir - metadata-streaming should load the initial html without slow metadata during navigation",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when slots match",
+      "app-dir - metadata-streaming should only insert metadata once for parallel routes when there is a missing slot",
       "app-dir - metadata-streaming should only insert metadata once into head or body",
       "app-dir - metadata-streaming should render the metadata in the browser",
       "app-dir - metadata-streaming should send streaming response for headless browser bots",
@@ -6367,11 +6377,11 @@
       "app dir - metadata basic should support alternate tags",
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
-      "app dir - metadata basic should support facebook related tags",
       "app dir - metadata basic should support generateMetadata dynamic props",
       "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
       "app dir - metadata basic should support robots tags",
+      "app dir - metadata basic should support socials related tags like facebook and pinterest",
       "app dir - metadata basic should support stashed title in one layer of page and layout",
       "app dir - metadata basic should support stashed title in two layers of page and layout",
       "app dir - metadata basic should support title and description",
@@ -6477,6 +6487,13 @@
   },
   "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
     "passed": ["navigation-redirect-import should work using fetch"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/navigation-with-queued-actions/index.test.ts": {
+    "passed": ["actions works"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7037,19 +7054,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/options-request/options-request.test.ts": {
-    "passed": [
-      "options-request should 404 for an OPTIONS request to a non-existent route",
-      "options-request should respond with a 200 + response body when invoking a pages API route with an OPTIONS request",
-      "options-request should respond with a 204 No Content when invoking an app route handler with an OPTIONS request",
-      "options-request should return a 400 status code when invoking /app-page with an OPTIONS request",
-      "options-request should return a 400 status code when invoking /pages-page with an OPTIONS request"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/pages-to-app-routing/pages-to-app-routing.test.ts": {
     "passed": ["pages-to-app-routing should work using browser"],
     "failed": [],
@@ -7255,7 +7259,8 @@
   },
   "test/e2e/app-dir/parallel-routes-not-found/parallel-routes-not-found.test.ts": {
     "passed": [
-      "parallel-routes-and-interception should not render the @children slot when the @slot is not found"
+      "parallel-routes-and-interception should not render the @children slot when the @slot is not found",
+      "parallel-routes-and-interception should render the title once for the non-existed route"
     ],
     "failed": [],
     "pending": [],
@@ -7334,12 +7339,12 @@
   },
   "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
     "passed": [],
-    "failed": [
+    "failed": [],
+    "pending": [
       "ppr build errors production mode outside of a suspense boundary should fail the build for uncaught errors",
       "ppr build errors production mode when a postpone call is caught and logged it should should include a message telling why",
       "ppr build errors production mode within a suspense boundary should fail the build for uncaught prerender errors"
     ],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8305,7 +8310,10 @@
       "searchparams-reuse-loading should properly render root page with searchParams when prefetch is aliased",
       "searchparams-reuse-loading should re-use the prefetched loading state when navigating to a new searchParam value",
       "searchparams-reuse-loading should reflect the correct searchParams when re-using the same page segment",
-      "searchparams-reuse-loading should reflect the correct searchParams when the root page is prefetched first"
+      "searchparams-reuse-loading should reflect the correct searchParams when the root page is prefetched first",
+      "searchparams-reuse-loading when aliasing is skipped should work for navigating to pages dir",
+      "searchparams-reuse-loading when aliasing is skipped should work for not found pages",
+      "searchparams-reuse-loading when aliasing is skipped should work for route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -8327,6 +8335,15 @@
   },
   "test/e2e/app-dir/segment-cache/basic/segment-cache-basic.test.ts": {
     "passed": ["segment cache (basic tests) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/export/segment-cache-output-export.test.ts": {
+    "passed": [
+      "segment cache (output: \"export\") build test should not run during dev test run"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8366,6 +8383,13 @@
     "passed": [
       "segment cache (revalidation) disabled in development / deployment"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
+    "passed": ["segment cache (search params) ppr is disabled"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9194,9 +9218,7 @@
     "runtimeError": false
   },
   "test/e2e/edge-compiler-can-import-blob-assets/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
+    "passed": [
       "Edge Compiler can import asset assets allows to assets from node_modules",
       "Edge Compiler can import asset assets allows to fetch a remote URL",
       "Edge Compiler can import asset assets allows to fetch a remote URL with a path and basename",
@@ -9204,6 +9226,8 @@
       "Edge Compiler can import asset assets allows to fetch text assets",
       "Edge Compiler can import asset assets extracts all the assets from the bundle"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9786,8 +9810,20 @@
   },
   "test/e2e/middleware-custom-matchers-i18n/test/index.test.ts": {
     "passed": [
-      "Middleware custom matchers i18n should match",
-      "Middleware custom matchers i18n should match has query on client routing",
+      "Middleware custom matchers i18n should not match",
+      "Middleware custom matchers with root should not match",
+      "Middleware custom matchers i18n should match /hello",
+      "Middleware custom matchers i18n should match /en/hello",
+      "Middleware custom matchers i18n should match /nl-NL/hello",
+      "Middleware custom matchers i18n should match /nl-NL/about",
+      "Middleware custom matchers i18n should not match /invalid/hello",
+      "Middleware custom matchers i18n should not match /hello/invalid",
+      "Middleware custom matchers i18n should not match /about",
+      "Middleware custom matchers i18n should not match /en/about",
+      "Middleware custom matchers i18n should match has query on client routing hello",
+      "Middleware custom matchers i18n should match has query on client routing en_hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_hello",
+      "Middleware custom matchers i18n should match has query on client routing nl-NL_about",
       "Middleware custom matchers i18n should not match",
       "Middleware custom matchers with root should not match"
     ],
@@ -10769,7 +10805,6 @@
       "Prerender should handle fallback only page correctly HTML",
       "Prerender should handle fallback only page correctly data",
       "Prerender should have gsp in __NEXT_DATA__",
-      "Prerender should log error in console and browser in development mode",
       "Prerender should navigate between pages successfully",
       "Prerender should navigate to a normal page and back",
       "Prerender should navigate to catch-all page with brackets in param as object",
@@ -19848,6 +19883,8 @@
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
+      "config telemetry production mode emits telemetry for persistent cache in build mode",
+      "config telemetry production mode emits telemetry for persistent cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",

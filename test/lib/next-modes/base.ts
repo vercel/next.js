@@ -65,8 +65,8 @@ export class NextInstance {
   protected overrideFiles: ResolvedFileConfig
   protected nextConfig?: NextConfig
   protected installCommand?: InstallCommand
-  protected buildCommand?: string
-  protected buildOptions?: string
+  public buildCommand?: string
+  public buildOptions?: string
   protected startCommand?: string
   protected startOptions?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}

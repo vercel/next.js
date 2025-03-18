@@ -161,7 +161,7 @@ export async function createHotReloaderTurbopack(
 ): Promise<NextJsHotReloaderInterface> {
   const dev = true
   const buildId = 'development'
-  const { nextConfig, dir } = opts
+  const { nextConfig, dir: projectPath } = opts
 
   const { loadBindings } =
     require('../../build/swc') as typeof import('../../build/swc')
@@ -172,7 +172,7 @@ export async function createHotReloaderTurbopack(
   // works correctly. Normally `run-test` hides output so only will be visible when `--debug` flag is used.
   if (process.env.TURBOPACK && isTestMode) {
     require('console').log('Creating turbopack project', {
-      dir,
+      dir: projectPath,
       testMode: isTestMode,
     })
   }
@@ -207,14 +207,14 @@ export async function createHotReloaderTurbopack(
 
   const project = await bindings.turbo.createProject(
     {
-      projectPath: dir,
+      projectPath: projectPath,
       rootPath:
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
-        dir,
+        projectPath,
       distDir,
       nextConfig: opts.nextConfig,
-      jsConfig: await getTurbopackJsConfig(dir, nextConfig),
+      jsConfig: await getTurbopackJsConfig(projectPath, nextConfig),
       watch: {
         enable: dev,
         pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
@@ -244,7 +244,7 @@ export async function createHotReloaderTurbopack(
     }
   )
   setBundlerFindSourceMapImplementation(
-    getSourceMapFromTurbopack.bind(null, project, dir)
+    getSourceMapFromTurbopack.bind(null, project, projectPath)
   )
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
@@ -634,7 +634,7 @@ export async function createHotReloaderTurbopack(
   )
 
   const middlewares = [
-    getOverlayMiddleware(project),
+    getOverlayMiddleware(project, projectPath),
     getSourceMapMiddleware(project),
     getNextErrorFeedbackMiddleware(opts.telemetry),
     getDevOverlayFontMiddleware(),
@@ -957,7 +957,7 @@ export async function createHotReloaderTurbopack(
           > =
             definition ??
             (await findPagePathData(
-              dir,
+              projectPath,
               inputPage,
               nextConfig.pageExtensions,
               opts.pagesDir,

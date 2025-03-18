@@ -1456,6 +1456,8 @@ export async function getRedboxCallStack(
           foundInternalFrame = true
         } else if (frame.includes('file://')) {
           stack.push('<FIXME-file-protocol>')
+        } else if (frame.includes('.next/')) {
+          stack.push('<FIXME-next-dist-dir>')
         } else {
           stack.push(frame)
         }
@@ -1674,7 +1676,7 @@ export async function getStackFramesContent(browser) {
   const stackFramesContent = (
     await Promise.all(
       stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('[data-nextjs-frame-expanded]')
+        const functionNameEl = await frame.$('.call-stack-frame-method-name')
         const sourceEl = await frame.$('[data-has-source="true"]')
         const functionName = functionNameEl
           ? await functionNameEl.innerText()

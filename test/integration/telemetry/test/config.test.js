@@ -6,10 +6,10 @@ import {
   launchApp,
   nextBuild,
   nextLint,
+  waitFor,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 import path from 'path'
-
 const appDir = path.join(__dirname, '..')
 
 describe('config telemetry', () => {
@@ -761,6 +761,81 @@ describe('config telemetry', () => {
           })
         }
       )
+
+      it('emits telemetry for persistent cache in build mode', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        try {
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
+
+          try {
+            const featureUsageEvents = findAllTelemetryEvents(
+              stderr,
+              'NEXT_BUILD_FEATURE_USAGE'
+            )
+            expect(featureUsageEvents).toContainEqual({
+              featureName: 'turbopackPersistentCaching',
+              invocationCount: 1,
+            })
+          } catch (err) {
+            require('console').error('failing stderr', stderr, err)
+            throw err
+          }
+        } finally {
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.persistent-cache')
+          )
+        }
+      })
+
+      it('emits telemetry for persistent cache in dev mode', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.persistent-cache'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        let app
+        let stderr = ''
+
+        try {
+          app = await launchApp(appDir, await findPort(), {
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+            onStderr(msg) {
+              stderr += msg || ''
+            },
+          })
+
+          await waitFor(2000)
+
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'turbopackPersistentCaching',
+            invocationCount: 1,
+          })
+        } catch (err) {
+          require('console').error('failing stderr', err)
+          throw err
+        } finally {
+          if (app) {
+            await killApp(app)
+          }
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.persistent-cache')
+          )
+        }
+      })
     }
   )
 })

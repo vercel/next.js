@@ -1,6 +1,7 @@
 use std::{future::Future, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
+use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
     common::{
@@ -10,14 +11,14 @@ use swc_core::{
         BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
     ecma::{
-        ast::{EsVersion, Program},
+        ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
         parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
         transforms::base::{
             helpers::{Helpers, HELPERS},
             resolver,
         },
-        visit::VisitMutWith,
+        visit::{noop_visit_type, Visit, VisitMutWith, VisitWith},
     },
 };
 use tracing::Instrument;
@@ -181,6 +182,7 @@ async fn parse_internal(
                         fs_path_vc,
                         fs_path,
                         ident,
+                        source.ident().query().owned().await?,
                         file_path_hash,
                         source,
                         ty,
@@ -221,6 +223,7 @@ async fn parse_file_content(
     fs_path_vc: Vc<FileSystemPath>,
     fs_path: &FileSystemPath,
     ident: &str,
+    query: RcStr,
     file_path_hash: u128,
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
@@ -356,6 +359,12 @@ async fn parse_file_content(
 
             parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
 
+            let var_with_ts_declare = if is_typescript {
+                VarDeclWithTsDeclareCollector::collect(&parsed_program)
+            } else {
+                FxHashSet::default()
+            };
+
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -364,6 +373,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
+                query_str: query,
                 file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
@@ -402,6 +412,7 @@ async fn parse_file_content(
                 &parsed_program,
                 unresolved_mark,
                 top_level_mark,
+                Arc::new(var_with_ts_declare),
                 Some(&comments),
                 Some(source),
             );
@@ -476,5 +487,70 @@ impl Issue for ReadSourceIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Load.cell()
+    }
+}
+
+struct VarDeclWithTsDeclareCollector {
+    id_with_no_ts_declare: FxHashSet<Id>,
+    id_with_ts_declare: FxHashSet<Id>,
+}
+
+impl VarDeclWithTsDeclareCollector {
+    fn collect<N: VisitWith<VarDeclWithTsDeclareCollector>>(n: &N) -> FxHashSet<Id> {
+        let mut collector = VarDeclWithTsDeclareCollector {
+            id_with_no_ts_declare: Default::default(),
+            id_with_ts_declare: Default::default(),
+        };
+        n.visit_with(&mut collector);
+        collector
+            .id_with_ts_declare
+            .retain(|id| !collector.id_with_no_ts_declare.contains(id));
+        collector.id_with_ts_declare
+    }
+
+    fn handle_pat(&mut self, pat: &Pat, declare: bool) {
+        match pat {
+            Pat::Ident(binding_ident) => {
+                if declare {
+                    self.id_with_ts_declare.insert(binding_ident.to_id());
+                } else {
+                    self.id_with_no_ts_declare.insert(binding_ident.to_id());
+                }
+            }
+            Pat::Array(array_pat) => {
+                for pat in array_pat.elems.iter().flatten() {
+                    self.handle_pat(pat, declare);
+                }
+            }
+            Pat::Object(object_pat) => {
+                for prop in object_pat.props.iter() {
+                    match prop {
+                        ObjectPatProp::KeyValue(key_value_pat_prop) => {
+                            self.handle_pat(&key_value_pat_prop.value, declare);
+                        }
+                        ObjectPatProp::Assign(assign_pat_prop) => {
+                            if declare {
+                                self.id_with_ts_declare.insert(assign_pat_prop.key.to_id());
+                            } else {
+                                self.id_with_no_ts_declare
+                                    .insert(assign_pat_prop.key.to_id());
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Visit for VarDeclWithTsDeclareCollector {
+    noop_visit_type!();
+
+    fn visit_var_decl(&mut self, node: &VarDecl) {
+        for decl in node.decls.iter() {
+            self.handle_pat(&decl.name, node.declare);
+        }
     }
 }

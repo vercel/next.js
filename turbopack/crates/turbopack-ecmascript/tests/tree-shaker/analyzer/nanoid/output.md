@@ -1,6 +1,6 @@
 # Items
 
-Count: 18
+Count: 17
 
 ## Item 1: Stmt 0, `ImportOfModule`
 
@@ -178,17 +178,15 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export nanoid"];
     Item14;
-    Item14["export nanoid"];
+    Item14["export customAlphabet"];
     Item15;
-    Item15["export customAlphabet"];
+    Item15["export customRandom"];
     Item16;
-    Item16["export customRandom"];
+    Item16["export urlAlphabet"];
     Item17;
-    Item17["export urlAlphabet"];
-    Item18;
-    Item18["export random"];
+    Item17["export random"];
     Item2 --> Item1;
 ```
 # Phase 2
@@ -207,17 +205,15 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export nanoid"];
     Item14;
-    Item14["export nanoid"];
+    Item14["export customAlphabet"];
     Item15;
-    Item15["export customAlphabet"];
+    Item15["export customRandom"];
     Item16;
-    Item16["export customRandom"];
+    Item16["export urlAlphabet"];
     Item17;
-    Item17["export urlAlphabet"];
-    Item18;
-    Item18["export random"];
+    Item17["export random"];
     Item2 --> Item1;
     Item8 --> Item6;
     Item8 --> Item5;
@@ -235,12 +231,12 @@ graph TD
     Item12 --> Item4;
     Item12 --> Item9;
     Item12 --> Item6;
-    Item14 --> Item12;
-    Item15 --> Item11;
-    Item16 --> Item10;
-    Item17 --> Item12;
-    Item17 --> Item4;
-    Item18 --> Item9;
+    Item13 --> Item12;
+    Item14 --> Item11;
+    Item15 --> Item10;
+    Item16 --> Item12;
+    Item16 --> Item4;
+    Item17 --> Item9;
 ```
 # Phase 3
 ```mermaid
@@ -258,17 +254,15 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export nanoid"];
     Item14;
-    Item14["export nanoid"];
+    Item14["export customAlphabet"];
     Item15;
-    Item15["export customAlphabet"];
+    Item15["export customRandom"];
     Item16;
-    Item16["export customRandom"];
+    Item16["export urlAlphabet"];
     Item17;
-    Item17["export urlAlphabet"];
-    Item18;
-    Item18["export random"];
+    Item17["export random"];
     Item2 --> Item1;
     Item8 --> Item6;
     Item8 --> Item5;
@@ -286,12 +280,12 @@ graph TD
     Item12 --> Item4;
     Item12 --> Item9;
     Item12 --> Item6;
-    Item14 --> Item12;
-    Item15 --> Item11;
-    Item16 --> Item10;
-    Item17 --> Item12;
-    Item17 --> Item4;
-    Item18 --> Item9;
+    Item13 --> Item12;
+    Item14 --> Item11;
+    Item15 --> Item10;
+    Item16 --> Item12;
+    Item16 --> Item4;
+    Item17 --> Item9;
 ```
 # Phase 4
 ```mermaid
@@ -309,17 +303,15 @@ graph TD
     Item11;
     Item12;
     Item13;
-    Item13["ModuleEvaluation"];
+    Item13["export nanoid"];
     Item14;
-    Item14["export nanoid"];
+    Item14["export customAlphabet"];
     Item15;
-    Item15["export customAlphabet"];
+    Item15["export customRandom"];
     Item16;
-    Item16["export customRandom"];
+    Item16["export urlAlphabet"];
     Item17;
-    Item17["export urlAlphabet"];
-    Item18;
-    Item18["export random"];
+    Item17["export random"];
     Item2 --> Item1;
     Item8 --> Item6;
     Item8 --> Item5;
@@ -337,13 +329,12 @@ graph TD
     Item12 --> Item4;
     Item12 --> Item9;
     Item12 --> Item6;
-    Item14 --> Item12;
-    Item15 --> Item11;
-    Item16 --> Item10;
-    Item17 --> Item12;
-    Item17 --> Item4;
-    Item18 --> Item9;
-    Item13 --> Item10;
+    Item13 --> Item12;
+    Item14 --> Item11;
+    Item15 --> Item10;
+    Item16 --> Item12;
+    Item16 --> Item4;
+    Item17 --> Item9;
 ```
 # Final
 ```mermaid
@@ -359,11 +350,10 @@ graph TD
     N8["Items: [ItemId(6, VarDeclarator(0))]"];
     N9["Items: [ItemId(7, VarDeclarator(0)), ItemId(Export((&quot;customAlphabet&quot;, #2), &quot;customAlphabet&quot;))]"];
     N10["Items: [ItemId(8, VarDeclarator(0))]"];
-    N11["Items: [ItemId(ModuleEvaluation)]"];
-    N12["Items: [ItemId(Export((&quot;customRandom&quot;, #2), &quot;customRandom&quot;))]"];
-    N13["Items: [ItemId(Export((&quot;nanoid&quot;, #2), &quot;nanoid&quot;))]"];
-    N14["Items: [ItemId(Export((&quot;random&quot;, #2), &quot;random&quot;))]"];
-    N15["Items: [ItemId(Export((&quot;urlAlphabet&quot;, #2), &quot;urlAlphabet&quot;))]"];
+    N11["Items: [ItemId(Export((&quot;customRandom&quot;, #2), &quot;customRandom&quot;))]"];
+    N12["Items: [ItemId(Export((&quot;nanoid&quot;, #2), &quot;nanoid&quot;))]"];
+    N13["Items: [ItemId(Export((&quot;random&quot;, #2), &quot;random&quot;))]"];
+    N14["Items: [ItemId(Export((&quot;urlAlphabet&quot;, #2), &quot;urlAlphabet&quot;))]"];
     N2 --> N0;
     N4 --> N5;
     N1 --> N0;
@@ -381,35 +371,34 @@ graph TD
     N10 --> N3;
     N10 --> N7;
     N10 --> N5;
-    N13 --> N10;
+    N12 --> N10;
     N3 --> N2;
-    N12 --> N8;
-    N15 --> N10;
-    N15 --> N3;
-    N14 --> N7;
     N11 --> N8;
+    N14 --> N10;
+    N14 --> N3;
+    N13 --> N7;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 8,
     Export(
         "customAlphabet",
     ): 9,
     Export(
         "customRandom",
-    ): 12,
+    ): 11,
     Export(
         "nanoid",
-    ): 13,
+    ): 12,
     Export(
         "random",
-    ): 14,
+    ): 13,
     Export(
         "urlAlphabet",
-    ): 15,
-    Exports: 16,
+    ): 14,
+    Exports: 15,
 }
 ```
 
@@ -544,6 +533,7 @@ let customRandom = (alphabet, size, getRandom)=>{
 export { customRandom as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -594,21 +584,13 @@ export { nanoid as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 12
-```js
 import { h as customRandom } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 export { customRandom };
 
 ```
-## Part 13
+## Part 12
 ```js
 import { j as nanoid } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
@@ -616,7 +598,7 @@ import { j as nanoid } from "__TURBOPACK_PART__" assert {
 export { nanoid };
 
 ```
-## Part 14
+## Part 13
 ```js
 import { g as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
@@ -624,7 +606,7 @@ import { g as random } from "__TURBOPACK_PART__" assert {
 export { random };
 
 ```
-## Part 15
+## Part 14
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
@@ -636,7 +618,7 @@ import "__TURBOPACK_PART__" assert {
 export { urlAlphabet };
 
 ```
-## Part 16
+## Part 15
 ```js
 export { customAlphabet } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export customAlphabet"
@@ -658,32 +640,50 @@ export { urlAlphabet } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 4
 };
-"module evaluation";
+let customRandom = (alphabet, size, getRandom)=>{
+    let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1;
+    let step = Math.ceil((1.6 * mask * size) / alphabet.length);
+    return ()=>{
+        let id = '';
+        while(true){
+            let bytes = getRandom(step);
+            let i = step;
+            while(i--){
+                id += alphabet[bytes[i] & mask] || '';
+                if (id.length === size) return id;
+            }
+        }
+    };
+};
+export { customRandom as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 11,
+    ModuleEvaluation: 8,
     Export(
         "customAlphabet",
     ): 9,
     Export(
         "customRandom",
-    ): 12,
+    ): 11,
     Export(
         "nanoid",
-    ): 13,
+    ): 12,
     Export(
         "random",
-    ): 14,
+    ): 13,
     Export(
         "urlAlphabet",
-    ): 15,
-    Exports: 16,
+    ): 14,
+    Exports: 15,
 }
 ```
 
@@ -818,6 +818,7 @@ let customRandom = (alphabet, size, getRandom)=>{
 export { customRandom as h } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
+export { };
 
 ```
 ## Part 9
@@ -868,21 +869,13 @@ export { nanoid as j } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 11
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
-};
-"module evaluation";
-
-```
-## Part 12
-```js
 import { h as customRandom } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -8
 };
 export { customRandom };
 
 ```
-## Part 13
+## Part 12
 ```js
 import { j as nanoid } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -10
@@ -890,7 +883,7 @@ import { j as nanoid } from "__TURBOPACK_PART__" assert {
 export { nanoid };
 
 ```
-## Part 14
+## Part 13
 ```js
 import { g as random } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: -7
@@ -898,7 +891,7 @@ import { g as random } from "__TURBOPACK_PART__" assert {
 export { random };
 
 ```
-## Part 15
+## Part 14
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 2
@@ -910,7 +903,7 @@ import "__TURBOPACK_PART__" assert {
 export { urlAlphabet };
 
 ```
-## Part 16
+## Part 15
 ```js
 export { customAlphabet } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export customAlphabet"
@@ -932,8 +925,26 @@ export { urlAlphabet } from "__TURBOPACK_PART__" assert {
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 4
 };
-"module evaluation";
+let customRandom = (alphabet, size, getRandom)=>{
+    let mask = (2 << (31 - Math.clz32((alphabet.length - 1) | 1))) - 1;
+    let step = Math.ceil((1.6 * mask * size) / alphabet.length);
+    return ()=>{
+        let id = '';
+        while(true){
+            let bytes = getRandom(step);
+            let i = step;
+            while(i--){
+                id += alphabet[bytes[i] & mask] || '';
+                if (id.length === size) return id;
+            }
+        }
+    };
+};
+export { customRandom as h } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
+export { };
 
 ```

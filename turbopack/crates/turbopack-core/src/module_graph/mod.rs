@@ -20,12 +20,12 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{AsyncModuleInfo, ChunkGroupType, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkingType},
     issue::Issue,
     module::Module,
     module_graph::{
         async_module_info::{compute_async_module_info, AsyncModulesInfo},
-        chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
+        chunk_group_info::{compute_chunk_group_info, ChunkGroupEntry, ChunkGroupInfo},
         module_batches::{compute_module_batches, ModuleBatchesGraph},
         traced_di_graph::{iter_neighbors_rev, TracedDiGraph},
     },
@@ -144,10 +144,11 @@ impl VisitedModules {
     }
 }
 
-pub type GraphEntriesT = Vec<(Vec<ResolvedVc<Box<dyn Module>>>, ChunkGroupType)>;
+pub type GraphEntriesT = Vec<ChunkGroupEntry>;
 
 #[turbo_tasks::value(transparent)]
 pub struct GraphEntries(GraphEntriesT);
+
 #[turbo_tasks::value_impl]
 impl GraphEntries {
     #[turbo_tasks::function]
@@ -187,7 +188,7 @@ impl SingleModuleGraph {
     ) -> Result<Vc<Self>> {
         let root_edges = entries
             .iter()
-            .flat_map(|(e, _)| e.clone())
+            .flat_map(|e| e.entries())
             .map(|e| async move {
                 Ok(SingleModuleGraphBuilderEdge {
                     to: SingleModuleGraphBuilderNode::new_module(e).await?,
@@ -348,7 +349,7 @@ impl SingleModuleGraph {
 
     /// Iterate over all nodes in the graph
     pub fn entry_modules(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
-        self.entries.iter().flat_map(|(e, _)| e).copied()
+        self.entries.iter().flat_map(|e| e.entries())
     }
 
     /// Enumerate all nodes in the graph
@@ -460,8 +461,8 @@ impl SingleModuleGraph {
         let mut stack: Vec<NodeIndex> = self
             .entries
             .iter()
-            .flat_map(|(e, _)| e)
-            .map(|e| *self.modules.get(e).unwrap())
+            .flat_map(|e| e.entries())
+            .map(|e| *self.modules.get(&e).unwrap())
             .collect();
         let mut discovered = graph.visit_map();
         for entry_node in &stack {
@@ -708,11 +709,10 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub fn from_module(module: ResolvedVc<Box<dyn Module>>, ty: ChunkGroupType) -> Vc<Self> {
-        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![(
-            vec![module],
-            ty,
-        )])))
+    pub fn from_entry_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![
+            ChunkGroupEntry::Entry(vec![module]),
+        ])))
     }
 
     #[turbo_tasks::function]
@@ -859,7 +859,7 @@ impl ModuleGraph {
                 graphs
                     .iter()
                     .flat_map(|g| g.entries.iter())
-                    .flat_map(|(e, _)| e)
+                    .flat_map(|e| e.entries())
                     .map(|e| e.ident().to_string())
                     .try_join()
                     .await?
@@ -1140,6 +1140,14 @@ impl SingleModuleGraph {
 
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
+        entries: Vc<GraphEntries>,
+        visited_modules: Vc<VisitedModules>,
+    ) -> Result<Vc<Self>> {
+        SingleModuleGraph::new_inner(&*entries.await?, &visited_modules.await?.modules).await
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_with_entries_visited_intern(
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: GraphEntriesT,
         visited_modules: Vc<VisitedModules>,

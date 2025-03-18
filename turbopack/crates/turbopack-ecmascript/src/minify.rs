@@ -19,11 +19,13 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
+use tracing::{instrument, Level};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::code_builder::{Code, CodeBuilder};
 
 use crate::parse::generate_js_source_map;
 
+#[instrument(level = Level::INFO, skip_all)]
 pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: bool) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
@@ -118,7 +120,7 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
             builder,
             // findSourceMapURL assumes this co-located sourceMappingURL,
             // and needs to be adjusted in case this is ever changed.
-            "\n\n//# sourceMappingURL={}.map",
+            "\n//# sourceMappingURL={}.map",
             urlencoding::encode(path.file_name())
         )?;
     } else {
@@ -155,6 +157,10 @@ fn print_program(
             emitter
                 .emit_program(&program)
                 .context("failed to emit module")?;
+        }
+        if source_maps {
+            // end with a new line when we have a source map comment
+            buf.push(b'\n');
         }
         // Invalid utf8 is valid in javascript world.
         // SAFETY: SWC generates valid utf8.
