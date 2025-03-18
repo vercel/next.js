@@ -229,7 +229,10 @@ async function loadComponentsImpl<N = any>({
             distDir,
             'server',
             'app',
-            page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
+            normalizePagePath(page.replace(/%5F/g, '_')) +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
           ),
           page.replace(/%5F/g, '_'),
           manifestLoadAttempts
