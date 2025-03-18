@@ -41,8 +41,7 @@ type Props = {
 
 export const RenderError = (props: Props) => {
   const { state } = props
-  const isBuildError =
-    !!state.rootLayoutMissingTags?.length || !!state.buildError
+  const isBuildError = !!state.buildError
 
   if (isBuildError) {
     return <RenderBuildError {...props} />

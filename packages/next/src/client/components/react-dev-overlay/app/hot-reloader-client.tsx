@@ -1,12 +1,7 @@
+/// <reference types="webpack/module.d.ts" />
+
 import type { ReactNode } from 'react'
-import {
-  useCallback,
-  useEffect,
-  startTransition,
-  useMemo,
-  useRef,
-  useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../utils/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -47,7 +42,6 @@ import type { HydrationErrorState } from '../../errors/hydration-error-info'
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
-import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 import type { GlobalErrorComponent } from '../../error-boundary'
 import type { DevIndicatorServerState } from '../../../../server/dev/dev-indicator-server-state'
@@ -128,7 +122,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error module.hot exists
   return module.hot.status() === 'idle'
 }
 function afterApplyUpdates(fn: any) {
@@ -137,12 +130,10 @@ function afterApplyUpdates(fn: any) {
   } else {
     function handler(status: any) {
       if (status === 'idle') {
-        // @ts-expect-error module.hot exists
         module.hot.removeStatusHandler(handler)
         fn()
       }
     }
-    // @ts-expect-error module.hot exists
     module.hot.addStatusHandler(handler)
   }
 }
@@ -221,7 +212,6 @@ function tryApplyUpdates(
   }
 
   // https://webpack.js.org/api/hot-module-replacement/#check
-  // @ts-expect-error module.hot exists
   module.hot
     .check(/* autoApply */ false)
     .then((updatedModules: any[] | null) => {
@@ -234,7 +224,6 @@ function tryApplyUpdates(
         onBeforeUpdate(hasUpdates)
       }
       // https://webpack.js.org/api/hot-module-replacement/#apply
-      // @ts-expect-error module.hot exists
       return module.hot.apply()
     })
     .then(
@@ -553,15 +542,6 @@ export default function HotReload({
     }
   }, [dispatch])
 
-  //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
-  //  we should not render an additional error overlay in the descendent. However, we need to
-  //  keep rendering these hooks to ensure HMR works when the error is addressed.
-  const shouldRenderErrorOverlay = useSyncExternalStore(
-    () => () => {},
-    () => !shouldRenderRootLevelErrorOverlay(),
-    () => true
-  )
-
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       const errorDetails = (error as any).details as
@@ -681,13 +661,9 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
-  if (shouldRenderErrorOverlay) {
-    return (
-      <AppDevOverlay state={state} globalError={globalError}>
-        {children}
-      </AppDevOverlay>
-    )
-  }
-
-  return children
+  return (
+    <AppDevOverlay state={state} globalError={globalError}>
+      {children}
+    </AppDevOverlay>
+  )
 }
