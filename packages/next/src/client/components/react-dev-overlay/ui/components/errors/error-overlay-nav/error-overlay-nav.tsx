@@ -43,7 +43,6 @@ export function ErrorOverlayNav({
 
 export const styles = `
   [data-nextjs-error-overlay-nav] {
-    --notch-height: 42px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -60,7 +59,7 @@ export const styles = `
 
       translate: -1px 0;
       width: auto;
-      height: var(--notch-height);
+      height: var(--next-dialog-notch-height);
       padding: 12px;
       background: var(--background-color);
       border: 1px solid var(--stroke-color);
