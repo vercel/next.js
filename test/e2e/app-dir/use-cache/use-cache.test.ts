@@ -158,12 +158,47 @@ describe('use-cache', () => {
     }
   })
 
-  it('should cache results in route handlers', async () => {
-    const response = await next.fetch('/api')
-    const { rand1, rand2 } = await response.json()
+  // TODO: Enable for deploy tests when upstream changes have been rolled out.
+  if (!isNextDeploy) {
+    it('should cache results in route handlers', async () => {
+      const response = await next.fetch('/api')
+      const { rand1, rand2 } = await response.json()
 
-    expect(rand1).toEqual(rand2)
-  })
+      expect(rand1).toEqual(rand2)
+    })
+
+    it('should revalidate before redirecting in a route handlers', async () => {
+      const initialValues = await next.fetch('/api').then((res) => res.json())
+
+      const values = await next
+        .fetch('/api/revalidate-redirect')
+        .then((res) => res.json())
+
+      if (isNextDeploy) {
+        try {
+          expect(values).not.toEqual(initialValues)
+        } catch {
+          // When deployed, we currently don't have a strong guarantee that the
+          // revalidations are propagated fully (as we do for redirecting server
+          // actions). This is because, for route handlers, the redirect occurs
+          // client-side, which prevents us from using the same technique as for
+          // server actions, which involves sending a revalidate token as a
+          // request header. This token must not leak to the client. However,
+          // eventually the revalidation will be propagated, and a refresh should
+          // show fresh data.
+          await retry(async () => {
+            const refreshedValues = await next
+              .fetch('/api')
+              .then((res) => res.json())
+
+            expect(refreshedValues).not.toEqual(initialValues)
+          })
+        }
+      } else {
+        expect(values).not.toEqual(initialValues)
+      }
+    })
+  }
 
   it('should cache results for cached functions imported from client components', async () => {
     const browser = await next.browser('/imported-from-client')
