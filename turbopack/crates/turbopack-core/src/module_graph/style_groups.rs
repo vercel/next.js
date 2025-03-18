@@ -81,9 +81,10 @@ pub async fn compute_style_groups(
     // TODO this can be a Vec
     let mut chunk_group_state = Vec::new();
     let mut idx = 0;
-    for chunk_group in chunk_group_info.chunk_groups.iter() {
+    for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
+        let ordered_entries = batches_graph.get_ordered_entries(&chunk_group_info, i);
         let mut entries = Vec::with_capacity(chunk_group.entries_count());
-        for entry in chunk_group.entries() {
+        for entry in ordered_entries {
             entries.push(batches_graph.get_entry_index(entry).await?);
         }
         let mut visited = FxHashSet::default();
@@ -188,16 +189,6 @@ pub async fn compute_style_groups(
             .cmp(&b.index_sum)
             .then_with(|| a.ident.cmp(&b.ident))
     });
-
-    println!(
-        "{:#?}",
-        module_info_map
-            .iter()
-            .filter_map(|(m, info)| { info.as_ref().map(|info| (m, info)) })
-            .map(async |(m, info)| Ok((m.ident().to_string().await?, info)))
-            .try_join()
-            .await?
-    );
 
     // Compute the dependents of each module
     let mut module_dependents: FxHashMap<_, Vec<_>> = FxHashMap::default();
