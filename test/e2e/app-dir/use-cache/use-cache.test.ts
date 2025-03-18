@@ -390,48 +390,55 @@ describe('use-cache', () => {
     })
   })
 
-  it('should not use stale caches in server actions that have revalidated', async () => {
-    const browser = await next.browser('/revalidate-and-use')
-    const useCacheValue1 = await browser.elementById('use-cache-value-1').text()
-    const useCacheValue2 = await browser.elementById('use-cache-value-2').text()
-    const fetchedValue = await browser.elementById('fetched-value').text()
+  // TODO: Enable for deploy tests when upstream changes have been rolled out.
+  if (!isNextDeploy) {
+    it('should not use stale caches in server actions that have revalidated', async () => {
+      const browser = await next.browser('/revalidate-and-use')
+      const useCacheValue1 = await browser
+        .elementById('use-cache-value-1')
+        .text()
+      const useCacheValue2 = await browser
+        .elementById('use-cache-value-2')
+        .text()
+      const fetchedValue = await browser.elementById('fetched-value').text()
 
-    expect(useCacheValue1).toEqual(useCacheValue2)
+      expect(useCacheValue1).toEqual(useCacheValue2)
 
-    await browser.elementById('revalidate-tag').click()
-    await browser.waitForElementByCss('#revalidate-tag:enabled')
+      await browser.elementById('revalidate-tag').click()
+      await browser.waitForElementByCss('#revalidate-tag:enabled')
 
-    const useCacheValueBeforeRevalidation = await browser
-      .elementById('use-cache-value-1')
-      .text()
-    const useCacheValueAfterRevalidation = await browser
-      .elementById('use-cache-value-2')
-      .text()
-    const newFetchedValue = await browser.elementById('fetched-value').text()
+      const useCacheValueBeforeRevalidation = await browser
+        .elementById('use-cache-value-1')
+        .text()
+      const useCacheValueAfterRevalidation = await browser
+        .elementById('use-cache-value-2')
+        .text()
+      const newFetchedValue = await browser.elementById('fetched-value').text()
 
-    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
-    expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
-    expect(useCacheValueBeforeRevalidation).not.toBe(
-      useCacheValueAfterRevalidation
-    )
-    expect(newFetchedValue).not.toBe(fetchedValue)
+      expect(useCacheValueBeforeRevalidation).toBe(useCacheValue1)
+      expect(useCacheValueBeforeRevalidation).toBe(useCacheValue2)
+      expect(useCacheValueBeforeRevalidation).not.toBe(
+        useCacheValueAfterRevalidation
+      )
+      expect(newFetchedValue).not.toBe(fetchedValue)
 
-    await browser.elementById('revalidate-path').click()
-    await browser.waitForElementByCss('#revalidate-path:enabled')
+      await browser.elementById('revalidate-path').click()
+      await browser.waitForElementByCss('#revalidate-path:enabled')
 
-    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
-      useCacheValueBeforeRevalidation
-    )
-    expect(await browser.elementById('use-cache-value-2').text()).not.toBe(
-      useCacheValueAfterRevalidation
-    )
-    expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
-      await browser.elementById('use-cache-value-2').text()
-    )
-    expect(await browser.elementById('fetched-value').text()).not.toBe(
-      newFetchedValue
-    )
-  })
+      expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+        useCacheValueBeforeRevalidation
+      )
+      expect(await browser.elementById('use-cache-value-2').text()).not.toBe(
+        useCacheValueAfterRevalidation
+      )
+      expect(await browser.elementById('use-cache-value-1').text()).not.toBe(
+        await browser.elementById('use-cache-value-2').text()
+      )
+      expect(await browser.elementById('fetched-value').text()).not.toBe(
+        newFetchedValue
+      )
+    })
+  }
 
   if (isNextStart) {
     it('should prerender fully cacheable pages as static HTML', async () => {
