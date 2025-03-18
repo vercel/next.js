@@ -186,7 +186,7 @@ type PreBatchIndex = usize;
 
 #[derive(Hash, PartialEq, Eq, Clone, Debug)]
 enum PreBatchItem {
-    ParallelModule(ResolvedVc<Box<dyn ChunkableModule>>),
+    ParallelModule(ResolvedVc<Box<dyn Module>>),
     ParallelReference(PreBatchIndex),
     NonParallelEdge(ChunkingType, ResolvedVc<Box<dyn Module>>),
 }
@@ -212,7 +212,7 @@ struct TraversalState<'l> {
 
 struct PreBatches {
     batches: Vec<PreBatch>,
-    entries: FxHashMap<ResolvedVc<Box<dyn ChunkableModule>>, PreBatchIndex>,
+    entries: FxHashMap<ResolvedVc<Box<dyn Module>>, PreBatchIndex>,
     single_module_entries: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
 }
 
@@ -227,9 +227,9 @@ impl PreBatches {
 
     fn ensure_pre_batch_for_module(
         &mut self,
-        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn Module>>,
         chunk_groups: &RoaringBitmapWrapper,
-        queue: &mut VecDeque<(ResolvedVc<Box<dyn ChunkableModule>>, PreBatchIndex)>,
+        queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> PreBatchIndex {
         match self.entries.entry(module) {
             Entry::Vacant(e) => {
@@ -246,10 +246,10 @@ impl PreBatches {
 
     async fn get_pre_batch_items(
         &mut self,
-        entry: ResolvedVc<Box<dyn ChunkableModule>>,
+        entry: ResolvedVc<Box<dyn Module>>,
         chunk_group_info: &ChunkGroupInfo,
         module_graph: &ModuleGraph,
-        queue: &mut VecDeque<(ResolvedVc<Box<dyn ChunkableModule>>, PreBatchIndex)>,
+        queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
         let entry_chunk_groups = chunk_group_info
             .module_chunk_groups
@@ -266,43 +266,34 @@ impl PreBatches {
                 &mut state,
                 |parent_info, node, state| {
                     let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
+                    let module = node.module;
                     if !ty.is_parallel() {
                         state.items.push(PreBatchItem::NonParallelEdge(
                             ty.without_inherit_async(),
-                            node.module,
+                            module,
                         ));
                         return Ok(GraphTraversalAction::Exclude);
                     }
-                    let Some(chunkable_module) = ResolvedVc::try_downcast(node.module) else {
-                        return Ok(GraphTraversalAction::Skip);
-                    };
-                    let chunk_groups = chunk_group_info
-                        .module_chunk_groups
-                        .get(&node.module)
-                        .context("all modules need to have chunk group info")?;
-                    if chunk_groups != entry_chunk_groups {
-                        let idx = state.this.ensure_pre_batch_for_module(
-                            chunkable_module,
-                            chunk_groups,
-                            queue,
-                        );
-                        state.items.push(PreBatchItem::ParallelReference(idx));
-                        return Ok(GraphTraversalAction::Exclude);
-                    }
-                    if visited.insert(chunkable_module) {
+                    if visited.insert(module) {
+                        let chunk_groups = chunk_group_info
+                            .module_chunk_groups
+                            .get(&module)
+                            .context("all modules need to have chunk group info")?;
+                        if chunk_groups != entry_chunk_groups {
+                            let idx =
+                                state
+                                    .this
+                                    .ensure_pre_batch_for_module(module, chunk_groups, queue);
+                            state.items.push(PreBatchItem::ParallelReference(idx));
+                            return Ok(GraphTraversalAction::Exclude);
+                        }
                         Ok(GraphTraversalAction::Continue)
                     } else {
                         Ok(GraphTraversalAction::Exclude)
                     }
                 },
-                |parent_info, node, state| {
-                    let ty = parent_info.map_or(&ChunkingType::Parallel, |(_, ty)| ty);
-                    let item = if let Some(chunkable_module) = ResolvedVc::try_downcast(node.module)
-                    {
-                        PreBatchItem::ParallelModule(chunkable_module)
-                    } else {
-                        PreBatchItem::NonParallelEdge(ty.without_inherit_async(), node.module)
-                    };
+                |_, node, state| {
+                    let item = PreBatchItem::ParallelModule(node.module);
                     state.items.push(item);
                 },
             )
@@ -330,8 +321,7 @@ pub async fn compute_module_batches(
         let module_graph = module_graph.await?;
 
         let mut pre_batches = PreBatches::new();
-        let mut queue: VecDeque<(ResolvedVc<Box<dyn ChunkableModule>>, PreBatchIndex)> =
-            VecDeque::new();
+        let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
 
         // Start with the entries
         for chunk_group in &chunk_group_info.chunk_groups {
@@ -393,7 +383,7 @@ pub async fn compute_module_batches(
                             pre_batches.single_module_entries.insert(*module);
                         }
                     }
-                    _ => {}
+                    PreBatchItem::ParallelReference(_) => {}
                 }
             }
         }
@@ -513,28 +503,48 @@ pub async fn compute_module_batches(
 
         let mut edges_count = 0;
 
-        // Since batches can only have references followed by a list of parallel modules, we need to
-        // split batches that have modules before references.
+        // Since batches can only have references followed by a list of parallel chunkable modules,
+        // we need to split batches that have modules before references.
         for i in 0..pre_batches.batches.len() {
             let items = take(&mut pre_batches.batches[i].items);
             let mut new_items =
                 FxIndexSet::with_capacity_and_hasher(items.len(), Default::default());
             enum Mode {
-                ParallelModule,
+                ParallelChunkableModule,
                 Other,
             }
             let mut mode = Mode::Other;
             for item in items {
-                match (&mode, &item) {
-                    (_, PreBatchItem::ParallelModule(_)) => {
-                        mode = Mode::ParallelModule;
+                let chunkable_module = if let PreBatchItem::ParallelModule(module) = &item {
+                    if let Some(chunkable_module) =
+                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
+                    {
+                        Some(chunkable_module)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+                let item = if let PreBatchItem::ParallelModule(module) = item {
+                    if chunkable_module.is_some() {
+                        PreBatchItem::ParallelModule(module)
+                    } else {
+                        PreBatchItem::NonParallelEdge(ChunkingType::Parallel, module)
+                    }
+                } else {
+                    item
+                };
+                match (&mode, chunkable_module) {
+                    (_, Some(_)) => {
+                        mode = Mode::ParallelChunkableModule;
                         new_items.insert(item);
                     }
                     (Mode::Other, _) => {
                         edges_count += 1;
                         new_items.insert(item);
                     }
-                    (Mode::ParallelModule, _) => {
+                    (Mode::ParallelChunkableModule, _) => {
                         // Split the batch
                         let idx = pre_batches.batches.len();
                         let mut new_batch =
@@ -543,7 +553,7 @@ pub async fn compute_module_batches(
                         pre_batches.batches.push(new_batch);
                         edges_count += 1;
                         new_items.insert(PreBatchItem::ParallelReference(idx));
-                        if matches!(item, PreBatchItem::ParallelModule(_)) {
+                        if chunkable_module.is_some() {
                             new_items.insert(item);
                         } else {
                             edges_count += 1;
@@ -572,9 +582,16 @@ pub async fn compute_module_batches(
             .iter_mut()
             .enumerate()
             .map(async |(i, pre_batch)| {
-                let mut modules = pre_batch.items.iter().filter_map(|item| match item {
-                    PreBatchItem::ParallelModule(module) => Some(*module),
-                    _ => None,
+                let mut modules = pre_batch.items.iter().filter_map(|item| {
+                    if let PreBatchItem::ParallelModule(module) = item {
+                        if let Some(chunkable_module) = ResolvedVc::try_downcast(*module) {
+                            Some(chunkable_module)
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
                 });
                 let Some(first) = modules.next() else {
                     return Ok(ModuleOrBatch::None(i));
