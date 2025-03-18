@@ -1,4 +1,35 @@
-module.exports = {
+const recommendedRules = {
+  // warnings
+  '@next/next/google-font-display': 'warn',
+  '@next/next/google-font-preconnect': 'warn',
+  '@next/next/next-script-for-ga': 'warn',
+  '@next/next/no-async-client-component': 'warn',
+  '@next/next/no-before-interactive-script-outside-document': 'warn',
+  '@next/next/no-css-tags': 'warn',
+  '@next/next/no-head-element': 'warn',
+  '@next/next/no-html-link-for-pages': 'warn',
+  '@next/next/no-img-element': 'warn',
+  '@next/next/no-page-custom-font': 'warn',
+  '@next/next/no-styled-jsx-in-document': 'warn',
+  '@next/next/no-sync-scripts': 'warn',
+  '@next/next/no-title-in-document-head': 'warn',
+  '@next/next/no-typos': 'warn',
+  '@next/next/no-unwanted-polyfillio': 'warn',
+  // errors
+  '@next/next/inline-script-id': 'error',
+  '@next/next/no-assign-module-variable': 'error',
+  '@next/next/no-document-import-in-page': 'error',
+  '@next/next/no-duplicate-head': 'error',
+  '@next/next/no-head-import-in-document': 'error',
+  '@next/next/no-script-component-in-head': 'error',
+}
+
+const coreWebVitalsRules = {
+  '@next/next/no-html-link-for-pages': 'error',
+  '@next/next/no-sync-scripts': 'error',
+}
+
+const plugin = {
   rules: {
     'google-font-display': require('./rules/google-font-display'),
     'google-font-preconnect': require('./rules/google-font-preconnect'),
@@ -25,39 +56,33 @@ module.exports = {
   configs: {
     recommended: {
       plugins: ['@next/next'],
-      rules: {
-        // warnings
-        '@next/next/google-font-display': 'warn',
-        '@next/next/google-font-preconnect': 'warn',
-        '@next/next/next-script-for-ga': 'warn',
-        '@next/next/no-async-client-component': 'warn',
-        '@next/next/no-before-interactive-script-outside-document': 'warn',
-        '@next/next/no-css-tags': 'warn',
-        '@next/next/no-head-element': 'warn',
-        '@next/next/no-html-link-for-pages': 'warn',
-        '@next/next/no-img-element': 'warn',
-        '@next/next/no-page-custom-font': 'warn',
-        '@next/next/no-styled-jsx-in-document': 'warn',
-        '@next/next/no-sync-scripts': 'warn',
-        '@next/next/no-title-in-document-head': 'warn',
-        '@next/next/no-typos': 'warn',
-        '@next/next/no-unwanted-polyfillio': 'warn',
-        // errors
-        '@next/next/inline-script-id': 'error',
-        '@next/next/no-assign-module-variable': 'error',
-        '@next/next/no-document-import-in-page': 'error',
-        '@next/next/no-duplicate-head': 'error',
-        '@next/next/no-head-import-in-document': 'error',
-        '@next/next/no-script-component-in-head': 'error',
-      },
+      rules: recommendedRules,
     },
     'core-web-vitals': {
       plugins: ['@next/next'],
       extends: ['plugin:@next/next/recommended'],
-      rules: {
-        '@next/next/no-html-link-for-pages': 'error',
-        '@next/next/no-sync-scripts': 'error',
-      },
+      rules: coreWebVitalsRules,
+    },
+  },
+}
+
+module.exports = plugin
+module.exports.flatConfig = {
+  recommended: {
+    name: 'next/recommended',
+    plugins: {
+      '@next/next': plugin,
+    },
+    rules: recommendedRules,
+  },
+  coreWebVitals: {
+    name: 'next/core-web-vitals',
+    plugins: {
+      '@next/next': plugin,
+    },
+    rules: {
+      ...recommendedRules,
+      ...coreWebVitalsRules,
     },
   },
 }
