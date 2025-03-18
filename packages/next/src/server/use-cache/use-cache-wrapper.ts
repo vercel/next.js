@@ -455,7 +455,7 @@ async function encodeFormData(formData: FormData): Promise<string> {
   // We sort the form data entries to ensure that the order in which promise
   // arguments are resolved does not affect the determinism of the cache key.
   const sortedEntries = [...formData.entries()].sort(([keyA], [keyB]) =>
-    keyA.localeCompare(keyB)
+    keyA.localeCompare(keyB, 'en')
   )
 
   for (let [key, value] of sortedEntries) {
