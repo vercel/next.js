@@ -6,11 +6,11 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkGroupType, ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
+    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroupEntry, ModuleGraph},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -156,7 +156,7 @@ pub async fn create_web_entry_source(
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
     let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![(all_modules, ChunkGroupType::Evaluated)]))
+        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]))
             .to_resolved()
             .await?;
 

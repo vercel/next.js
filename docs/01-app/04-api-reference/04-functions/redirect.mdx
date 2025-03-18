@@ -94,6 +94,42 @@ export default async function Profile({ params }) {
 
 ### Client Component
 
+`redirect` can be directly used in a Client Component.
+
+```tsx filename="components/client-redirect.tsx" switcher
+'use client'
+
+import { redirect, usePathname } from 'next/navigation'
+
+export function ClientRedirect() {
+  const pathname = usePathname()
+
+  if (pathname.startsWith('/admin') && !pathname.includes('/login')) {
+    redirect('/admin/login')
+  }
+
+  return <div>Login Page</div>
+}
+```
+
+```jsx filename="components/client-redirect.jsx" switcher
+'use client'
+
+import { redirect, usePathname } from 'next/navigation'
+
+export function ClientRedirect() {
+  const pathname = usePathname()
+
+  if (pathname.startsWith('/admin') && !pathname.includes('/login')) {
+    redirect('/admin/login')
+  }
+
+  return <div>Login Page</div>
+}
+```
+
+> **Good to know**: When using `redirect` in a Client Component on initial page load during Server-Side Rendering (SSR), it will perform a server-side redirect.
+
 `redirect` can be used in a Client Component through a Server Action. If you need to use an event handler to redirect the user, you can use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook.
 
 ```tsx filename="app/client-redirect.tsx" switcher

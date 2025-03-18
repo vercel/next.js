@@ -34,7 +34,6 @@ use super::{
 };
 use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
 
-const FLAG_DISABLE_EXPORT_MERGING: &str = "TURBOPACK_DISABLE_EXPORT_MERGING";
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemId {
@@ -44,6 +43,8 @@ pub(crate) enum ItemId {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum ItemIdGroupKind {
+    /// Used only for testing
+    #[cfg(test)]
     ModuleEvaluation,
     /// `(local, export_name)``
     Export(Id, Atom),
@@ -128,8 +129,7 @@ pub(crate) struct ItemData {
     /// test case.
     pub explicit_deps: Vec<ItemId>,
 
-    /// Server actions breaks when we merge exports.
-    pub disable_export_merging: bool,
+    pub is_module_evaluation: bool,
 }
 
 impl fmt::Debug for ItemData {
@@ -145,6 +145,7 @@ impl fmt::Debug for ItemData {
             .field("side_effects", &self.side_effects)
             .field("export", &self.export)
             .field("explicit_deps", &self.explicit_deps)
+            .field("is_module_evaluation", &self.is_module_evaluation)
             .finish()
     }
 }
@@ -164,7 +165,7 @@ impl Default for ItemData {
             export: Default::default(),
             binding_source: Default::default(),
             explicit_deps: Default::default(),
-            disable_export_merging: Default::default(),
+            is_module_evaluation: Default::default(),
         }
     }
 }
@@ -328,6 +329,8 @@ impl DepGraph {
                 .clone()
         };
 
+        let mut module_evaluation_ix = None;
+
         for (ix, group) in groups.graph_ix.iter().enumerate() {
             let mut chunk = Module {
                 span: DUMMY_SP,
@@ -389,10 +392,10 @@ impl DepGraph {
                 }
             }
 
-            for item in group {
-                match item {
+            for item_id in group {
+                match item_id {
                     ItemId::Group(ItemIdGroupKind::Export(..)) => {
-                        if let Some(export) = &data[item].export {
+                        if let Some(export) = &data[item_id].export {
                             outputs.insert(Key::Export(export.as_str().into()), ix as u32);
 
                             let s = ExportSpecifier::Named(ExportNamedSpecifier {
@@ -418,11 +421,14 @@ impl DepGraph {
                             ));
                         }
                     }
-                    ItemId::Group(ItemIdGroupKind::ModuleEvaluation) => {
-                        outputs.insert(Key::ModuleEvaluation, ix as u32);
-                    }
 
-                    _ => {}
+                    _ => {
+                        if data[item_id].is_module_evaluation {
+                            debug_assert_eq!(module_evaluation_ix, None);
+                            module_evaluation_ix = Some(ix as u32);
+                            outputs.insert(Key::ModuleEvaluation, ix as u32);
+                        }
+                    }
                 }
             }
 
@@ -686,6 +692,31 @@ impl DepGraph {
 
         modules.push(exports_module);
 
+        // Currently we need to have `Key::ModuleEvaluation` in the outputs
+        // even if it is empty.
+        if module_evaluation_ix.is_none() {
+            outputs.insert(Key::ModuleEvaluation, modules.len() as u32);
+            module_evaluation_ix = Some(modules.len() as u32);
+            modules.push(Module {
+                span: DUMMY_SP,
+                body: vec![],
+                shebang: None,
+            });
+        }
+
+        // Push `export {}` to the module evaluation to make it module.
+        modules[module_evaluation_ix.unwrap() as usize]
+            .body
+            .push(ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(
+                NamedExport {
+                    span: DUMMY_SP,
+                    specifiers: Default::default(),
+                    src: None,
+                    type_only: false,
+                    with: None,
+                },
+            )));
+
         SplitModuleResult {
             entrypoints: outputs,
             part_deps,
@@ -711,13 +742,11 @@ impl DepGraph {
 
         let optimizer = GraphOptimizer {
             graph_ix: &self.g.graph_ix,
-            data,
         };
-        loop {
-            if !optimizer.merge_single_incoming_nodes(&mut condensed) {
-                break;
-            }
-        }
+
+        while optimizer.merge_single_incoming_nodes(&mut condensed)
+            || optimizer.merge_nodes_with_same_starting_point(&mut condensed)
+        {}
 
         let mut new_graph = InternedGraph::default();
 
@@ -800,23 +829,13 @@ impl DepGraph {
                 match item {
                     ModuleDecl::ExportDecl(item) => match &item.decl {
                         Decl::Fn(FnDecl { ident, .. }) | Decl::Class(ClassDecl { ident, .. }) => {
-                            exports.push((
-                                ident.to_id(),
-                                ident.sym.clone(),
-                                comments.has_flag(ident.span().lo, FLAG_DISABLE_EXPORT_MERGING),
-                            ));
+                            exports.push((ident.to_id(), ident.sym.clone()));
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
-                                let disable_export_merging = comments
-                                    .has_flag(decl.name.span().lo, FLAG_DISABLE_EXPORT_MERGING)
-                                    || decl.init.as_deref().is_some_and(|e| {
-                                        comments.has_flag(e.span().lo, FLAG_DISABLE_EXPORT_MERGING)
-                                    });
-
                                 let ids: Vec<Id> = find_pat_ids(&decl.name);
                                 for id in ids {
-                                    exports.push((id.clone(), id.0, disable_export_merging));
+                                    exports.push((id.clone(), id.0));
                                 }
                             }
                         }
@@ -887,7 +906,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.atom().clone(), false));
+                            exports.push((local.to_id(), exported.atom().clone()));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -1004,7 +1023,7 @@ impl DepGraph {
                             items.insert(id, data);
                         }
 
-                        exports.push((default_var.to_id(), "default".into(), false));
+                        exports.push((default_var.to_id(), "default".into()));
                     }
                     ModuleDecl::ExportDefaultExpr(export) => {
                         let default_var =
@@ -1063,7 +1082,7 @@ impl DepGraph {
                         {
                             // For export default __TURBOPACK__default__export__
 
-                            exports.push((default_var.to_id(), "default".into(), false));
+                            exports.push((default_var.to_id(), "default".into()));
                         }
                     }
 
@@ -1370,23 +1389,7 @@ impl DepGraph {
             }
         }
 
-        {
-            // `module evaluation side effects` Node
-            let id = ItemId::Group(ItemIdGroupKind::ModuleEvaluation);
-            ids.push(id.clone());
-            items.insert(
-                id,
-                ItemData {
-                    content: ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                        span: DUMMY_SP,
-                        expr: "module evaluation".into(),
-                    })),
-                    ..Default::default()
-                },
-            );
-        }
-
-        for (local, export_name, disable_export_merging) in exports {
+        for (local, export_name) in exports {
             let id = ItemId::Group(ItemIdGroupKind::Export(local.clone(), export_name.clone()));
             ids.push(id.clone());
             items.insert(
@@ -1410,7 +1413,6 @@ impl DepGraph {
                     })),
                     read_vars: [local.clone()].into_iter().collect(),
                     export: Some(export_name),
-                    disable_export_merging,
                     ..Default::default()
                 },
             );

@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/index.js [test] (ecmascript)": (function(__turbopack_context__) {
 
-var { g: global, d: __dirname, m: module, e: exports } = __turbopack_context__;
+var { g: global, __dirname, m: module, e: exports } = __turbopack_context__;
 {
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)")(__turbopack_context__.i);
 __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)")(__turbopack_context__.i);

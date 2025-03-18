@@ -1,11 +1,12 @@
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use tracing::Instrument;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{
     chunk::{
         availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, EvaluatableAssets,
     },
     ident::AssetIdent,
-    module_graph::ModuleGraph,
+    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
     output::OutputAssets,
 };
 
@@ -24,13 +25,26 @@ pub async fn get_app_client_shared_chunk_group(
         .cell());
     }
 
-    let _span = tracing::trace_span!("app client shared").entered();
-    let app_client_shared_chunk_grou = client_chunking_context.evaluated_chunk_group(
-        ident,
-        app_client_runtime_entries,
-        module_graph,
-        Value::new(AvailabilityInfo::Root),
-    );
+    let span = tracing::trace_span!("app client shared");
+    let app_client_shared_chunk_grou = async {
+        client_chunking_context
+            .evaluated_chunk_group(
+                ident,
+                ChunkGroup::Entry(
+                    app_client_runtime_entries
+                        .await?
+                        .iter()
+                        .map(|v| ResolvedVc::upcast(*v))
+                        .collect(),
+                ),
+                module_graph,
+                Value::new(AvailabilityInfo::Root),
+            )
+            .resolve()
+            .await
+    }
+    .instrument(span)
+    .await?;
 
     Ok(app_client_shared_chunk_grou)
 }

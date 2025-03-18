@@ -10,8 +10,8 @@ use turbopack_core::{
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingConfig, ChunkingConfigs,
-        ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
-        SourceMapsType,
+        ChunkingContext, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        ModuleId, SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -64,6 +64,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn chunk_base_path(mut self, chunk_base_path: ResolvedVc<Option<RcStr>>) -> Self {
         self.chunking_context.chunk_base_path = chunk_base_path;
+        self
+    }
+
+    pub fn chunk_suffix_path(mut self, chunk_suffix_path: ResolvedVc<Option<RcStr>>) -> Self {
+        self.chunking_context.chunk_suffix_path = chunk_suffix_path;
         self
     }
 
@@ -135,6 +140,9 @@ pub struct BrowserChunkingContext {
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: ResolvedVc<Option<RcStr>>,
+    /// Suffix path that will be appended to all chunk URLs when loading them.
+    /// This path will not appear in chunk paths or chunk data.
+    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
     /// URL prefix that will be prepended to all static asset URLs when loading
     /// them.
     asset_base_path: ResolvedVc<Option<RcStr>>,
@@ -180,6 +188,7 @@ impl BrowserChunkingContext {
                 should_use_file_source_map_uris: false,
                 asset_root_path,
                 chunk_base_path: ResolvedVc::cell(None),
+                chunk_suffix_path: ResolvedVc::cell(None),
                 asset_base_path: ResolvedVc::cell(None),
                 enable_hot_module_replacement: false,
                 enable_tracing: false,
@@ -207,6 +216,11 @@ impl BrowserChunkingContext {
     /// Returns the asset base path.
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
         *self.chunk_base_path
+    }
+
+    /// Returns the asset suffix path.
+    pub fn chunk_suffix_path(&self) -> Vc<Option<RcStr>> {
+        *self.chunk_suffix_path
     }
 
     /// Returns the minify type.
@@ -483,7 +497,7 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn evaluated_chunk_group(
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
@@ -495,11 +509,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let this = self.await?;
             let availability_info = availability_info.into_value();
 
-            let evaluatable_assets_ref = evaluatable_assets.await?;
-
-            let entries = evaluatable_assets_ref
-                .iter()
-                .map(|&evaluatable| ResolvedVc::upcast(evaluatable));
+            let entries = chunk_group.entries();
 
             let MakeChunkGroupResult {
                 chunks,
@@ -520,11 +530,21 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let other_assets = Vc::cell(assets.clone());
 
+            let entries = Vc::cell(
+                chunk_group
+                    .entries()
+                    .map(|m| {
+                        ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(m)
+                            .context("evaluated_chunk_group entries must be evaluatable assets")
+                    })
+                    .collect::<Result<Vec<_>>>()?,
+            );
+
             if this.enable_hot_module_replacement {
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
-                        evaluatable_assets,
+                        entries,
                         other_assets,
                         Value::new(EcmascriptDevChunkListSource::Entry),
                     )
@@ -534,7 +554,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets, module_graph)
+                self.generate_evaluate_chunk(ident, other_assets, entries, module_graph)
                     .to_resolved()
                     .await?,
             );

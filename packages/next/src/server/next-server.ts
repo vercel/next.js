@@ -111,6 +111,7 @@ import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import { populateStaticEnv } from '../lib/static-env'
 
 export * from './base-server'
 
@@ -278,6 +279,12 @@ export default class NextNodeServer extends BaseServer<
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+
+    // when using compile mode static env isn't inlined so we
+    // need to populate in normal runtime env
+    if (this.renderOpts.isExperimentalCompile) {
+      populateStaticEnv(this.nextConfig)
     }
   }
 

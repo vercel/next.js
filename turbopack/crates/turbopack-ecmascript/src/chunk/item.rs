@@ -90,7 +90,7 @@ impl EcmascriptChunkItemContent {
         let mut args = vec![
             "g: global",
             // HACK
-            "d: __dirname",
+            "__dirname",
         ];
         if self.options.async_module.is_some() {
             args.push("a: __turbopack_async_module__");

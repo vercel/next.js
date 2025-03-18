@@ -753,10 +753,22 @@ The expiration (or rather Max Age) is defined by either the [`minimumCacheTTL`](
 
 You can configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/building-your-application/optimizing/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
+If no configuration is provided, the default below is used.
+
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    minimumCacheTTL: 60,
+    minimumCacheTTL: 60, // 1 minute
+  },
+}
+```
+
+You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    minimumCacheTTL: 2678400, // 31 days
   },
 }
 ```
