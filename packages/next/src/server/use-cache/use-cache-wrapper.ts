@@ -453,7 +453,22 @@ async function encodeFormData(formData: FormData): Promise<string> {
   let result = ''
 
   // We sort the form data entries to ensure that the order in which promise
-  // arguments are resolved does not affect the determinism of the cache key.
+  // arguments are resolved does not affect the cache key.
+  //
+  // We need to do this because `encodeReply` encodes promises as multiple
+  // fields (see https://github.com/facebook/react/blob/a35aaf704cca9a5db16f5b197e3ac17eb960b72f/packages/react-client/src/ReactFlightReplyClient.js#L489-L510).
+  // So if our function args are `[promise1, promise2]`, it will produce
+  // something like this:
+  //
+  //    field_0: ["$@1", "$@2"]
+  //    ...
+  //    field_1: <resolved value of promise1>
+  //    field_2: <resolved value of promise2>
+  //
+  // However, the order in which the 'resolved value' fields are added, depends
+  // on the order in which the promises resolve, which would change the cache
+  // key. If we sort the form fields by their key, `field_1` will always come
+  // before `field_2`, ensuring a deterministic key.
   const sortedEntries = [...formData.entries()].sort(([keyA], [keyB]) =>
     keyA.localeCompare(keyB, 'en')
   )
