@@ -32,11 +32,6 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
   typescript: ts,
 }) => {
   function create(info: tsModule.server.PluginCreateInfo) {
-    init({
-      ts,
-      info,
-    })
-
     // Set up decorator object
     const proxy = Object.create(null)
     for (let k of Object.keys(info.languageService)) {
@@ -54,6 +49,15 @@ export const createTSPlugin: tsModule.server.PluginModuleFactory = ({
     if (!isPluginEnabled) {
       return proxy
     }
+
+    const logger = info.project.projectService.logger
+
+    logger.info('[Next.js] Initializing...')
+
+    init({
+      ts,
+      info,
+    })
 
     // Auto completion
     proxy.getCompletionsAtPosition = (
