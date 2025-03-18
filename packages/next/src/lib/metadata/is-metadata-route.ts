@@ -128,25 +128,24 @@ export function isMetadataRouteFile(
   )
 }
 
-function isStaticMetadataRoutePage(appDirRelativePath: string) {
+export function isStaticMetadataRoutePage(appDirRelativePath: string) {
   return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
 // Check if the route is a static metadata route, with /route suffix
-// e.g. /robots.txt/route, /sitemap.xml/route, /favicon.ico/route, /manifest/route, /icon/route, etc.
+// e.g. /favicon.ico/route, /icon.png/route, etc.
+// But skip the text routes like robots.txt since they might also be dynamic.
+// Checking route path is not enough to determine if text routes is dynamic.
 export function isStaticMetadataRoute(route: string) {
   const pathname = route.slice(0, -'/route'.length)
-  return isAppRouteRoute(route) && isStaticMetadataRoutePage(pathname)
-}
-
-// Check if the page is a static metadata route file
-// e.g. /robots, /manifest, /favicon.ico, /sitemap.xml, /icon.png, etc.
-export function isStaticMetadataRoutePathname(page: string) {
   return (
-    // TODO: avoid directly checking pathnames as they can also be page routes
-    page === '/robots' ||
-    page === '/manifest' ||
-    isStaticMetadataRoutePage(page)
+    isAppRouteRoute(route) &&
+    isStaticMetadataRoutePage(pathname) &&
+    // These routes can either be built by static or dynamic entrypoints,
+    // so we assume they're dynamic
+    pathname !== '/robots.txt' &&
+    pathname !== '/manifest.webmanifest' &&
+    !pathname.endsWith('/sitemap.xml')
   )
 }
 

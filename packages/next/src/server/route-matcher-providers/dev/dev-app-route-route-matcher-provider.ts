@@ -7,7 +7,7 @@ import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { DevAppNormalizers } from '../../normalizers/built/app'
 import {
   isMetadataRouteFile,
-  isStaticMetadataRoutePathname,
+  isStaticMetadataRoute,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
@@ -53,7 +53,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         true
       )
 
-      if (!isStaticMetadataRoutePathname(page) && isEntryMetadataRouteFile) {
+      if (isEntryMetadataRouteFile && !isStaticMetadataRoute(page)) {
         // Matching dynamic metadata routes.
         // Add 2 possibilities for both single and multiple routes:
         {
