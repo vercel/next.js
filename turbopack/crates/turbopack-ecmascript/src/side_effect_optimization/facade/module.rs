@@ -17,6 +17,7 @@ use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGeneration,
+    parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports},
@@ -31,14 +32,19 @@ use crate::{
 #[turbo_tasks::value]
 pub struct EcmascriptModuleFacadeModule {
     pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub parsed: ResolvedVc<ParseResult>,
     pub ty: ModulePart,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, ty: ModulePart) -> Vc<Self> {
-        EcmascriptModuleFacadeModule { module, ty }.cell()
+    pub fn new(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        parsed: ResolvedVc<ParseResult>,
+        ty: ModulePart,
+    ) -> Vc<Self> {
+        EcmascriptModuleFacadeModule { module, parsed, ty }.cell()
     }
 
     #[turbo_tasks::function]
@@ -65,6 +71,7 @@ impl EcmascriptModuleFacadeModule {
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        parsed: Vc<ParseResult>,
     ) -> Result<Vec<CodeGeneration>> {
         let this = self.await?;
         Ok(match &this.ty {
@@ -86,9 +93,13 @@ impl EcmascriptModuleFacadeModule {
                     .try_join()
                     .await?;
                 code_gens.push(
-                    EcmascriptModulePartReference::new_part(*this.module, ModulePart::locals())
-                        .code_generation(module_graph, chunking_context)
-                        .await?,
+                    EcmascriptModulePartReference::new_part(
+                        *this.module,
+                        parsed,
+                        ModulePart::locals(),
+                    )
+                    .code_generation(module_graph, chunking_context)
+                    .await?,
                 );
                 code_gens
             }
@@ -110,29 +121,41 @@ impl EcmascriptModuleFacadeModule {
                     .try_join()
                     .await?;
                 code_gens.push(
-                    EcmascriptModulePartReference::new_part(*this.module, ModulePart::locals())
-                        .code_generation(module_graph, chunking_context)
-                        .await?,
+                    EcmascriptModulePartReference::new_part(
+                        *this.module,
+                        parsed,
+                        ModulePart::locals(),
+                    )
+                    .code_generation(module_graph, chunking_context)
+                    .await?,
                 );
                 code_gens
             }
             ModulePart::Facade => {
                 vec![
-                    EcmascriptModulePartReference::new_part(*this.module, ModulePart::evaluation())
-                        .code_generation(module_graph, chunking_context)
-                        .await?,
-                    EcmascriptModulePartReference::new_part(*this.module, ModulePart::exports())
-                        .code_generation(module_graph, chunking_context)
-                        .await?,
+                    EcmascriptModulePartReference::new_part(
+                        *this.module,
+                        parsed,
+                        ModulePart::evaluation(),
+                    )
+                    .code_generation(module_graph, chunking_context)
+                    .await?,
+                    EcmascriptModulePartReference::new_part(
+                        *this.module,
+                        parsed,
+                        ModulePart::exports(),
+                    )
+                    .code_generation(module_graph, chunking_context)
+                    .await?,
                 ]
             }
             ModulePart::RenamedNamespace { .. } => vec![
-                EcmascriptModulePartReference::new(*this.module)
+                EcmascriptModulePartReference::new(*this.module, parsed)
                     .code_generation(module_graph, chunking_context)
                     .await?,
             ],
             ModulePart::RenamedExport { .. } => vec![
-                EcmascriptModulePartReference::new(*this.module)
+                EcmascriptModulePartReference::new(*this.module, parsed)
                     .code_generation(module_graph, chunking_context)
                     .await?,
             ],
@@ -171,9 +194,13 @@ impl Module for EcmascriptModuleFacadeModule {
                     .iter()
                     .map(|r| ResolvedVc::upcast(*r))
                     .chain(std::iter::once(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
-                            .to_resolved()
-                            .await?,
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            *self.parsed,
+                            ModulePart::locals(),
+                        )
+                        .to_resolved()
+                        .await?,
                     )))
                     .collect()
             }
@@ -193,9 +220,13 @@ impl Module for EcmascriptModuleFacadeModule {
                     .iter()
                     .map(|r| ResolvedVc::upcast(*r))
                     .chain(std::iter::once(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
-                            .to_resolved()
-                            .await?,
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            *self.parsed,
+                            ModulePart::locals(),
+                        )
+                        .to_resolved()
+                        .await?,
                     )))
                     .collect()
             }
@@ -204,6 +235,7 @@ impl Module for EcmascriptModuleFacadeModule {
                     ResolvedVc::upcast(
                         EcmascriptModulePartReference::new_part(
                             *self.module,
+                            *self.parsed,
                             ModulePart::evaluation(),
                         )
                         .to_resolved()
@@ -212,6 +244,7 @@ impl Module for EcmascriptModuleFacadeModule {
                     ResolvedVc::upcast(
                         EcmascriptModulePartReference::new_part(
                             *self.module,
+                            *self.parsed,
                             ModulePart::exports(),
                         )
                         .to_resolved()
@@ -221,14 +254,14 @@ impl Module for EcmascriptModuleFacadeModule {
             }
             ModulePart::RenamedNamespace { .. } => {
                 vec![ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new(*self.module)
+                    EcmascriptModulePartReference::new(*self.module, *self.parsed)
                         .to_resolved()
                         .await?,
                 )]
             }
             ModulePart::RenamedExport { .. } => {
                 vec![ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new(*self.module)
+                    EcmascriptModulePartReference::new(*self.module, *self.parsed)
                         .to_resolved()
                         .await?,
                 )]
@@ -290,6 +323,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                     ResolvedVc::upcast(
                                         EcmascriptModulePartReference::new_part(
                                             *self.module,
+                                            *self.parsed,
                                             ModulePart::locals(),
                                         )
                                         .to_resolved()
@@ -337,6 +371,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             ResolvedVc::upcast(
                                 EcmascriptModulePartReference::new_part(
                                     *self.module,
+                                    *self.parsed,
                                     ModulePart::exports(),
                                 )
                                 .to_resolved()
@@ -348,9 +383,13 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     );
                 }
                 star_exports.push(ResolvedVc::upcast(
-                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::exports())
-                        .to_resolved()
-                        .await?,
+                    EcmascriptModulePartReference::new_part(
+                        *self.module,
+                        *self.parsed,
+                        ModulePart::exports(),
+                    )
+                    .to_resolved()
+                    .await?,
                 ));
             }
             ModulePart::RenamedExport {
@@ -361,7 +400,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     export.clone(),
                     EsmExport::ImportedBinding(
                         ResolvedVc::upcast(
-                            EcmascriptModulePartReference::new(*self.module)
+                            EcmascriptModulePartReference::new(*self.module, *self.parsed)
                                 .to_resolved()
                                 .await?,
                         ),
@@ -374,7 +413,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.clone(),
                     EsmExport::ImportedNamespace(ResolvedVc::upcast(
-                        EcmascriptModulePartReference::new(*self.module)
+                        EcmascriptModulePartReference::new(*self.module, *self.parsed)
                             .to_resolved()
                             .await?,
                     )),
@@ -419,19 +458,19 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
-    fn as_chunk_item(
+    async fn as_chunk_item(
         self: ResolvedVc<Self>,
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
+    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
+        Ok(Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
                 module_graph,
                 chunking_context,
             }
             .cell(),
-        )
+        ))
     }
 }
 

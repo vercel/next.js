@@ -6,6 +6,7 @@ import {
   connectHMR,
 } from '../components/react-dev-overlay/pages/websocket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import { reportInvalidHmrMessage } from '../components/react-dev-overlay/shared'
 
 declare global {
   const __webpack_runtime_id__: string
@@ -106,13 +107,8 @@ addMessageListener((message) => {
     } else if (message.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
       window.location.reload()
     }
-  } catch (err: any) {
-    console.warn(
-      '[HMR] Invalid message: ' +
-        JSON.stringify(message) +
-        '\n' +
-        (err?.stack ?? '')
-    )
+  } catch (err: unknown) {
+    reportInvalidHmrMessage(message, err)
   }
 })
 

@@ -2,7 +2,7 @@
 
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global, d: __dirname } = __turbopack_context__;
+var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -28,42 +28,42 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b0_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b2_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_c_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_entry_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b0_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b2_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_c_7d7e1c0b.css"
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b0_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b2_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_c_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_entry_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b0_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b2_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_c_63c923ab.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -71,7 +71,7 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global, d: __dirname } = __turbopack_context__;
+var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -83,11 +83,11 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_7d7e1c0b.css"
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b1b_63c923ab.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});
@@ -95,7 +95,7 @@ __turbopack_context__.v((parentImport) => {
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css, async loader)": ((__turbopack_context__) => {
 
-var { g: global, d: __dirname } = __turbopack_context__;
+var { g: global, __dirname } = __turbopack_context__;
 {
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
@@ -113,25 +113,25 @@ __turbopack_context__.v((parentImport) => {
       "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css [test] (css)"
     ],
     "moduleChunks": [
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_entry2_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_7d7e1c0b.css",
-      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_7d7e1c0b.css"
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_entry2_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared1_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_shared_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3a_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3b_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b4_63c923ab.css",
+      "output/4e721_crates_turbopack-tests_tests_snapshot_css_split-shared_input_b3_63c923ab.css"
     ]
   }
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {});

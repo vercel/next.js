@@ -317,7 +317,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 }
 
 function createDivergedMetadataComponents(
-  Metadata: React.ComponentType<{}>,
+  Metadata: React.ComponentType,
   serveStreamingMetadata: boolean
 ): {
   StaticMetadata: React.ComponentType<{}>
@@ -326,8 +326,9 @@ function createDivergedMetadataComponents(
   function EmptyMetadata() {
     return null
   }
-  const StreamingMetadata: React.ComponentType<{}> | null =
-    serveStreamingMetadata ? Metadata : null
+  const StreamingMetadata: React.ComponentType | null = serveStreamingMetadata
+    ? Metadata
+    : null
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
     ? EmptyMetadata
@@ -427,7 +428,8 @@ function NonIndex({ ctx }: { ctx: AppRenderContext }) {
   const isInvalidStatusCode =
     typeof ctx.res.statusCode === 'number' && ctx.res.statusCode > 400
 
-  if (is404Page || isInvalidStatusCode) {
+  // Only render noindex for page request, skip for server actions
+  if (!ctx.isAction && (is404Page || isInvalidStatusCode)) {
     return <meta name="robots" content="noindex" />
   }
   return null
@@ -1189,12 +1191,13 @@ async function renderToHTMLOrFlightImpl(
     // cache reads we wrap the loadChunk in this tracking. This allows us
     // to treat chunk loading with similar semantics as cache reads to avoid
     // async loading chunks from causing a prerender to abort too early.
-    // @ts-ignore
-    globalThis.__next_chunk_load__ = (...args: Array<any>) => {
+    const __next_chunk_load__: typeof instrumented.loadChunk = (...args) => {
       const loadingChunk = instrumented.loadChunk(...args)
       trackChunkLoading(loadingChunk)
       return loadingChunk
     }
+    // @ts-expect-error
+    globalThis.__next_chunk_load__ = __next_chunk_load__
   }
 
   if (process.env.NODE_ENV === 'development') {
@@ -1709,7 +1712,7 @@ async function renderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -2297,9 +2300,9 @@ async function spawnDynamicValidationInDev(
     }
   }
 
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata()
   const nonce = '1'
+  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(nonce)
 
   if (initialServerStream) {
     const [warmupStream, renderStream] = initialServerStream.tee()
@@ -2582,7 +2585,7 @@ async function prerenderToStream(
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
   const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+    createServerInsertedMetadata(ctx.nonce)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),

@@ -71,6 +71,23 @@ where
     }
 }
 
+impl<T> TaskInput for Box<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        self.as_ref().is_resolved()
+    }
+
+    fn is_transient(&self) -> bool {
+        self.as_ref().is_transient()
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        Ok(Box::new(Box::pin(self.as_ref().resolve_input()).await?))
+    }
+}
+
 impl<T> TaskInput for Option<T>
 where
     T: TaskInput,

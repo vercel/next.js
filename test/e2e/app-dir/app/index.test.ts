@@ -13,10 +13,20 @@ describe('app dir - basic', () => {
     nextTestSetup({
       files: __dirname,
       buildCommand: process.env.NEXT_EXPERIMENTAL_COMPILE
-        ? `pnpm next build --experimental-build-mode=compile`
+        ? 'pnpm compile-mode'
         : undefined,
+      packageJson: {
+        scripts: {
+          'compile-mode': process.env.NEXT_EXPERIMENTAL_COMPILE
+            ? `next build --experimental-build-mode=compile && next build --experimental-build-mode=generate-env`
+            : undefined,
+        },
+      },
       dependencies: {
         nanoid: '4.0.1',
+      },
+      env: {
+        NEXT_PUBLIC_TEST_ID: Date.now() + '',
       },
     })
 
@@ -1788,4 +1798,34 @@ describe('app dir - basic', () => {
       })
     }
   })
+
+  // this one comes at the end to not change behavior from above
+  // assertions with compile mode specifically
+  // consider breaking out into separate fixture if we expand this any more
+  if (process.env.NEXT_EXPERIMENTAL_COMPILE) {
+    it('should run generate command correctly', async () => {
+      await next.stop()
+
+      next.buildCommand = `pnpm next build --experimental-build-mode=generate`
+      await next.start()
+
+      let browser = await next.browser('/')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+
+      browser = await next.browser('/dashboard/deployments/123')
+
+      expect(await browser.elementByCss('#my-env').text()).toBe(
+        next.env.NEXT_PUBLIC_TEST_ID
+      )
+      expect(await browser.elementByCss('#my-other-env').text()).toBe(
+        `${next.env.NEXT_PUBLIC_TEST_ID}-suffix`
+      )
+    })
+  }
 })

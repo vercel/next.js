@@ -1152,28 +1152,6 @@ describe('Prerender', () => {
         expect(JSON.parse($2('#__NEXT_DATA__').text()).isFallback).toBe(false)
       })
 
-      it('should log error in console and browser in development mode', async () => {
-        const browser = await webdriver(next.url, '/')
-        expect(await browser.elementByCss('p').text()).toMatch(/hello.*?world/)
-
-        await next.patchFile(
-          'pages/index.js',
-          (content) => content.replace('// throw new', 'throw new'),
-          async () => {
-            // we need to reload the page to trigger getStaticProps
-            await browser.refresh()
-
-            return retry(async () => {
-              await assertHasRedbox(browser)
-              const errOverlayContent = await getRedboxHeader(browser)
-              const errorMsg = /oops from getStaticProps/
-              expect(next.cliOutput).toMatch(errorMsg)
-              expect(errOverlayContent).toMatch(errorMsg)
-            })
-          }
-        )
-      })
-
       it('should always call getStaticProps without caching in dev', async () => {
         const initialRes = await fetchViaHTTP(next.url, '/something')
         expect(isCachingHeader(initialRes.headers.get('cache-control'))).toBe(

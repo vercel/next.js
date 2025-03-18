@@ -114,7 +114,6 @@ describe('dynamic-io-segment-configs', () => {
             // the stack trace is different between turbopack/webpack
             if (isTurbopack) {
               expectLinesToAppearTogether(next.cliOutput, [
-                `Page: {"type":"app","side":"server","page":"/fetch-cache/page"}`,
                 './app/layout.tsx:2:24',
               ])
             } else {

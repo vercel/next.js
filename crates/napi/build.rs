@@ -1,18 +1,52 @@
-use std::fs;
+use std::{env, process::Command, str};
 
 extern crate napi_build;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
+    println!("cargo:rerun-if-env-changed=CI");
+    let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
+
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),
     // So failing build if this fails.
-    shadow_rs::ShadowBuilder::builder()
-        .build()
-        .expect("Should able to generate build time information");
+    let cargo = vergen_gitcl::CargoBuilder::default()
+        .target_triple(true)
+        .build()?;
+    // We use the git dirty state to disable persistent caching (persistent caching relies on a
+    // commit hash to be safe). One tradeoff of this is that we must invalidate the rust build more
+    // often.
+    //
+    // This invalidates the build if any untracked files change. That's sufficient for the case
+    // where we transition from dirty to clean.
+    //
+    // There's an edge-case here where the repository could be newly dirty, but we can't know
+    // because our build hasn't been invalidated, since the untracked files weren't untracked last
+    // time we ran. That will cause us to incorrectly report ourselves as clean.
+    //
+    // However, in practice that shouldn't be much of an issue: If no other dependency of this
+    // top-level crate has changed (which would've triggered our rebuild), then the resulting binary
+    // must be equivalent to a clean build anyways. Therefore, persistent caching using the HEAD
+    // commit hash as a version is okay.
+    let git = vergen_gitcl::GitclBuilder::default()
+        .dirty(/* include_untracked */ true)
+        .describe(
+            /* tags */ true,
+            /* dirty */ !is_ci, // suppress the dirty suffix in CI
+            /* matches */ Some("v[0-9]*"), // find the last version tag
+        )
+        .build()?;
+    vergen_gitcl::Emitter::default()
+        .add_instructions(&cargo)?
+        .add_instructions(&git)?
+        .fail_on_error()
+        .emit()?;
 
-    let git_head = fs::read_to_string("../../.git/HEAD").unwrap_or_default();
-    if !git_head.is_empty() && !git_head.starts_with("ref: ") {
-        println!("cargo:warning=git version {}", git_head);
+    match Command::new("git").args(["rev-parse", "HEAD"]).output() {
+        Ok(out) if out.status.success() => println!(
+            "cargo:warning=git HEAD: {}",
+            str::from_utf8(&out.stdout).unwrap()
+        ),
+        _ => println!("cargo:warning=`git rev-parse HEAD` failed"),
     }
 
     #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
@@ -36,4 +70,6 @@ fn main() {
 
     #[cfg(not(target_arch = "wasm32"))]
     turbo_tasks_build::generate_register();
+
+    Ok(())
 }

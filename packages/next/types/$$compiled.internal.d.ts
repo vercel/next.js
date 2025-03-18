@@ -673,11 +673,6 @@ declare module 'next/dist/compiled/anser' {
   export = m
 }
 
-declare module 'next/dist/compiled/platform' {
-  import * as m from 'platform'
-  export = m
-}
-
 declare module 'next/dist/compiled/css.escape' {
   export = CSS.escape
 }
