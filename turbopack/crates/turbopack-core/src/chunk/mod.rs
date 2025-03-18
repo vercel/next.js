@@ -310,7 +310,7 @@ pub trait ChunkItem {
 #[turbo_tasks::value_trait]
 pub trait ChunkType: ValueToString {
     /// Whether the source (reference) order of items needs to be retained during chunking.
-    fn must_keep_item_order(self: Vc<Self>) -> Vc<bool>;
+    fn is_style(self: Vc<Self>) -> Vc<bool>;
 
     /// Create a new chunk for the given chunk items
     fn chunk(

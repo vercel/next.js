@@ -7,7 +7,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionStyleType, StyleType},
     module_graph::ModuleGraph,
     output::OutputAssets,
     reference::{ModuleReference, ModuleReferences},
@@ -132,6 +132,15 @@ impl Module for CssModuleAsset {
             ParseCssResult::Unparseable => Ok(ModuleReferences::empty()),
             ParseCssResult::NotFound => Ok(ModuleReferences::empty()),
         }
+    }
+
+    #[turbo_tasks::function]
+    fn style_type(&self) -> Vc<OptionStyleType> {
+        let style_type = match self.ty {
+            CssModuleAssetType::Default => StyleType::GlobalStyle,
+            CssModuleAssetType::Module => StyleType::IsolatedStyle,
+        };
+        Vc::cell(Some(style_type))
     }
 }
 

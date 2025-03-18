@@ -471,7 +471,7 @@ pub async fn get_client_chunking_context(
         builder = builder.chunking_config(
             Vc::<CssChunkType>::default().to_resolved().await?,
             ChunkingConfig {
-                min_chunk_size: 0,
+                max_merge_chunk_size: 200_000,
                 ..Default::default()
             },
         );

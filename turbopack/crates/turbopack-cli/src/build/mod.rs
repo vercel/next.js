@@ -350,7 +350,7 @@ async fn build_internal(
                     builder = builder.chunking_config(
                         Vc::<CssChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
-                            min_chunk_size: 0,
+                            max_merge_chunk_size: 200_000,
                             ..Default::default()
                         },
                     );
@@ -393,7 +393,7 @@ async fn build_internal(
                     builder = builder.chunking_config(
                         Vc::<CssChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
-                            min_chunk_size: 0,
+                            max_merge_chunk_size: 100_000,
                             ..Default::default()
                         },
                     );
