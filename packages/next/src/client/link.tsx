@@ -27,6 +27,8 @@ type OptionalKeys<T> = {
   [K in keyof T]-?: {} extends Pick<T, K> ? K : never
 }[keyof T]
 
+type OnNavigateEventHandler = (event: { preventDefault: () => void }) => void
+
 type InternalLinkProps = {
   /**
    * The path or URL to navigate to. It can also be an object.
@@ -104,6 +106,10 @@ type InternalLinkProps = {
    * Optional event handler for when Link is clicked.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  /**
+   * Optional event handler for when the `<Link>` is navigated.
+   */
+  onNavigate?: OnNavigateEventHandler
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -196,14 +202,30 @@ function linkClicked(
   replace?: boolean,
   shallow?: boolean,
   scroll?: boolean,
-  locale?: string | false
+  locale?: string | false,
+  onNavigate?: OnNavigateEventHandler
 ): void {
   const { nodeName } = e.currentTarget
 
   // anchors inside an svg have a lowercase nodeName
   const isAnchorNodeName = nodeName.toUpperCase() === 'A'
 
-  if (isAnchorNodeName && (isModifiedEvent(e) || !isLocalURL(href))) {
+  if (
+    (isAnchorNodeName && isModifiedEvent(e)) ||
+    e.currentTarget.hasAttribute('download')
+  ) {
+    // ignore click for browser’s default behavior
+    return
+  }
+
+  if (!isLocalURL(href)) {
+    if (replace) {
+      // browser default behavior does not replace the history state
+      // so we need to do it manually
+      e.preventDefault()
+      location.replace(href)
+    }
+
     // ignore click for browser’s default behavior
     return
   }
@@ -211,6 +233,20 @@ function linkClicked(
   e.preventDefault()
 
   const navigate = () => {
+    if (onNavigate) {
+      let isDefaultPrevented = false
+
+      onNavigate({
+        preventDefault: () => {
+          isDefaultPrevented = true
+        },
+      })
+
+      if (isDefaultPrevented) {
+        return
+      }
+    }
+
     // If the router is an NextRouter instance it will have `beforePopState`
     const routerScroll = scroll ?? true
     if ('beforePopState' in router) {
@@ -265,6 +301,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       scroll,
       locale,
       onClick,
+      onNavigate,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
@@ -338,6 +375,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        onNavigate: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -364,7 +402,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         } else if (
           key === 'onClick' ||
           key === 'onMouseEnter' ||
-          key === 'onTouchStart'
+          key === 'onTouchStart' ||
+          key === 'onNavigate'
         ) {
           if (props[key] && valType !== 'function') {
             throw createPropError({
@@ -539,7 +578,17 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(e, router, href, as, replace, shallow, scroll, locale)
+        linkClicked(
+          e,
+          router,
+          href,
+          as,
+          replace,
+          shallow,
+          scroll,
+          locale,
+          onNavigate
+        )
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
