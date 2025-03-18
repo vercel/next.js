@@ -12,7 +12,7 @@ use crate::{
     environment::Environment,
     ident::AssetIdent,
     module::Module,
-    module_graph::{chunk_group_info::ChunkGroup, ModuleGraph},
+    module_graph::{chunk_group_info::ChunkGroup, module_batches::BatchingConfig, ModuleGraph},
     output::{OutputAsset, OutputAssets},
 };
 
@@ -165,8 +165,10 @@ pub trait ChunkingContext {
         Vc::cell(Default::default())
     }
 
-    fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
+    fn batching_config(self: Vc<Self>) -> Vc<BatchingConfig> {
+        BatchingConfig::new(BatchingConfig {
+            ..Default::default()
+        })
     }
 
     fn is_tracing_enabled(self: Vc<Self>) -> Vc<bool> {
@@ -192,7 +194,7 @@ pub trait ChunkingContext {
     fn evaluated_chunk_group(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<ChunkGroupResult>;
@@ -245,7 +247,7 @@ pub trait ChunkingContextExt {
     fn evaluated_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets>
@@ -321,14 +323,14 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn evaluated_chunk_group_assets(
         self: Vc<Self>,
         ident: Vc<AssetIdent>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<OutputAssets> {
         evaluated_chunk_group_assets(
             Vc::upcast(self),
             ident,
-            evaluatable_assets,
+            chunk_group,
             module_graph,
             availability_info,
         )
@@ -419,12 +421,12 @@ async fn root_chunk_group_assets(
 async fn evaluated_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     ident: Vc<AssetIdent>,
-    evaluatable_assets: Vc<EvaluatableAssets>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
     Ok(*chunking_context
-        .evaluated_chunk_group(ident, evaluatable_assets, module_graph, availability_info)
+        .evaluated_chunk_group(ident, chunk_group, module_graph, availability_info)
         .await?
         .assets)
 }

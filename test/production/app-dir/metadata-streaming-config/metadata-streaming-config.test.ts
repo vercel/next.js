@@ -1,15 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO: remove this env once streaming metadata is available for ppr
-process.env.__NEXT_EXPERIMENTAL_PPR = 'true'
-
 describe('app-dir - metadata-streaming-config', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should have the default streaming metadata config output in routes-manifest.json', async () => {
     const requiredServerFiles = JSON.parse(

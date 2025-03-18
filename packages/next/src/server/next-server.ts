@@ -22,7 +22,7 @@ import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { CacheControl } from './lib/cache-control'
 import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
@@ -77,7 +77,7 @@ import { getCloneableBody } from './body-streams'
 import { checkIsOnDemandRevalidate } from './api-utils'
 import ResponseCache, {
   CachedRouteKind,
-  type IncrementalCacheItem,
+  type IncrementalResponseCacheEntry,
 } from './response-cache'
 import { IncrementalCache } from './lib/incremental-cache'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -111,6 +111,7 @@ import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
+import { populateStaticEnv } from '../lib/static-env'
 
 export * from './base-server'
 
@@ -278,6 +279,12 @@ export default class NextNodeServer extends BaseServer<
       this.prepare().catch((err) => {
         console.error('Failed to prepare server', err)
       })
+    }
+
+    // when using compile mode static env isn't inlined so we
+    // need to populate in normal runtime env
+    if (this.renderOpts.isExperimentalCompile) {
+      populateStaticEnv(this.nextConfig)
     }
   }
 
@@ -520,8 +527,7 @@ export default class NextNodeServer extends BaseServer<
       type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
-      revalidate: Revalidate | undefined
-      expireTime: ExpireTime | undefined
+      cacheControl: CacheControl | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -531,8 +537,7 @@ export default class NextNodeServer extends BaseServer<
       type: options.type,
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
-      revalidate: options.revalidate,
-      expireTime: options.expireTime,
+      cacheControl: options.cacheControl,
     })
   }
 
@@ -665,7 +670,7 @@ export default class NextNodeServer extends BaseServer<
     req: NodeNextRequest,
     res: NodeNextResponse,
     paramsResult: import('./image-optimizer').ImageParamsResult,
-    previousCacheEntry?: IncrementalCacheItem
+    previousCacheEntry?: IncrementalResponseCacheEntry | null
   ): Promise<{
     buffer: Buffer
     contentType: string
@@ -959,7 +964,7 @@ export default class NextNodeServer extends BaseServer<
                 upstreamEtag,
               },
               isFallback: false,
-              revalidate: maxAge,
+              cacheControl: { revalidate: maxAge, expire: undefined },
             }
           },
           {
@@ -985,7 +990,7 @@ export default class NextNodeServer extends BaseServer<
           paramsResult.isStatic,
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
-          cacheEntry.revalidate || 0,
+          cacheEntry.cacheControl?.revalidate || 0,
           Boolean(this.renderOpts.dev)
         )
         return true

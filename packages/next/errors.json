@@ -649,5 +649,20 @@
   "648": "@rspack/plugin-react-refresh is not available. Please make sure `@next/plugin-rspack` is correctly installed.",
   "649": "Cache handlers not initialized",
   "650": "experimental.nodeMiddleware",
-  "651": "Unexpected module type %s"
+  "651": "Unexpected module type %s",
+  "652": "Expected cached value for cache key %s not to be a %s kind, got \"FETCH\" instead.",
+  "653": "Expected cached value for cache key %s to be a \"FETCH\" kind, got %s instead.",
+  "654": "Segment Cache experiment is not enabled. This is a bug in Next.js.",
+  "655": "If providing both the stale and expire options, the expire option must be greater than the stale option. The expire option indicates how many seconds from the start until it can no longer be used.",
+  "656": "If providing both the revalidate and expire options, the expire option must be greater than the revalidate option. The expire option indicates how many seconds from the start until it can no longer be used.",
+  "657": "revalidate must be a number for image-cache",
+  "658": "Pass `Infinity` instead of `false` if you want to cache on the server forever without checking with the origin.",
+  "659": "SSG should not return an image cache value",
+  "660": "Rspack support is only available in Next.js canary.",
+  "661": "Build failed because of %s errors",
+  "662": "Invariant failed to find webpack runtime chunk",
+  "663": "Invariant: client chunk changed but failed to detect hash %s",
+  "664": "Missing 'next-action' header.",
+  "665": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
+  "666": "Turbopack builds are only available in canary builds of Next.js."
 }

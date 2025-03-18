@@ -5,9 +5,13 @@ import type {
   NormalModule,
   Module,
   ModuleGraph,
+  Compiler,
 } from 'webpack'
 import type { ModuleGraphConnection } from 'webpack'
 import { getAppLoader } from '../entries'
+import { spans as webpackCompilationSpans } from './plugins/profiling-plugin'
+import { compilationSpans as rspackCompilationSpans } from './plugins/rspack-profiling-plugin'
+import type { Span } from '../../trace'
 
 export function traverseModules(
   compilation: Compilation,
@@ -113,4 +117,14 @@ export function getModuleReferencesInOrder(
   }
   connections.sort((a, b) => a.index - b.index)
   return connections.map((c) => c.connection)
+}
+
+export function getCompilationSpan(
+  compilation: Compiler | Compilation
+): Span | undefined {
+  const compilationSpans = process.env.NEXT_RSPACK
+    ? rspackCompilationSpans
+    : webpackCompilationSpans
+
+  return compilationSpans.get(compilation)
 }

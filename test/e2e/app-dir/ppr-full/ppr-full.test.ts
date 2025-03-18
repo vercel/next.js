@@ -132,7 +132,9 @@ describe('ppr-full', () => {
             expect(cacheControl).toEqual('no-store, must-revalidate')
           } else if (dynamic === false || dynamic === 'force-static') {
             expect(cacheControl).toEqual(
-              `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
+              revalidate === undefined
+                ? `s-maxage=31536000`
+                : `s-maxage=${revalidate}, stale-while-revalidate=${31536000 - revalidate}`
             )
           } else {
             expect(cacheControl).toEqual(
@@ -596,7 +598,7 @@ describe('ppr-full', () => {
 
           if (isNextStart) {
             expect(res.headers.get('cache-control')).toEqual(
-              's-maxage=31536000, stale-while-revalidate'
+              's-maxage=31536000'
             )
           }
 
@@ -665,7 +667,9 @@ describe('ppr-full', () => {
               )
             } else {
               expect(res.headers.get('cache-control')).toEqual(
-                `s-maxage=${revalidate || '31536000'}, stale-while-revalidate`
+                revalidate === undefined
+                  ? `s-maxage=31536000`
+                  : `s-maxage=${revalidate}, stale-while-revalidate=${31536000 - revalidate}`
               )
             }
 

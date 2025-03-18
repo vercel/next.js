@@ -3795,9 +3795,9 @@ var HooksDispatcher = {
       if (null === resumableState) throw Error(formatProdErrorMessage(404));
       overflow = localIdCounter++;
       JSCompiler_inline_result =
-        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+        "\u00ab" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
       0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-      return JSCompiler_inline_result + ":";
+      return JSCompiler_inline_result + "\u00bb";
     },
     useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
       if (void 0 === getServerSnapshot)
@@ -6892,12 +6892,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-experimental-22e39ea7-20250225" !== isomorphicReactPackageVersion)
+  if ("19.1.0-experimental-5398b711-20250314" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.1.0-experimental-22e39ea7-20250225"
+        "19.1.0-experimental-5398b711-20250314"
       )
     );
 }
@@ -7152,4 +7152,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-22e39ea7-20250225";
+exports.version = "19.1.0-experimental-5398b711-20250314";

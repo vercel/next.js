@@ -21,7 +21,6 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
@@ -40,7 +39,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadata: React.ComponentType | null
   StreamingMetadataOutlet: React.ComponentType
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
@@ -92,7 +91,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  StreamingMetadata: React.ComponentType<{}> | null
+  StreamingMetadata: React.ComponentType | null
   StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<CacheNodeSeedData> {
   const {
@@ -394,24 +393,16 @@ async function createComponentTreeInternal({
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-
-  // Only render metadata on the actual SSR'd segment not the `default` segment,
-  // as it's used as a placeholder for navigation.
-  const isNotDefaultSegment = actualSegment !== DEFAULT_SEGMENT_KEY
-
-  const metadata =
-    isNotDefaultSegment && StreamingMetadata ? <StreamingMetadata /> : undefined
+  const metadata = StreamingMetadata ? <StreamingMetadata /> : undefined
 
   // Use the same condition to render metadataOutlet as metadata
-  const metadataOutlet =
-    isNotDefaultSegment && StreamingMetadataOutlet ? (
-      <StreamingMetadataOutlet />
-    ) : undefined
+  const metadataOutlet = StreamingMetadataOutlet ? (
+    <StreamingMetadataOutlet />
+  ) : undefined
 
   const notFoundElement = NotFound ? (
     <>
       <NotFound />
-      {metadata}
       {notFoundStyles}
     </>
   ) : undefined
@@ -419,7 +410,6 @@ async function createComponentTreeInternal({
   const forbiddenElement = Forbidden ? (
     <>
       <Forbidden />
-      {metadata}
       {forbiddenStyles}
     </>
   ) : undefined
@@ -427,7 +417,6 @@ async function createComponentTreeInternal({
   const unauthorizedElement = Unauthorized ? (
     <>
       <Unauthorized />
-      {metadata}
       {unauthorizedStyles}
     </>
   ) : undefined
@@ -527,7 +516,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            StreamingMetadata,
+            StreamingMetadata: isChildrenRouteKey ? StreamingMetadata : null,
             // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             StreamingMetadataOutlet: isChildrenRouteKey
@@ -858,7 +847,6 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
-                  {metadata}
                 </>
               ) : undefined
             }

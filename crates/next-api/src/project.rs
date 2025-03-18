@@ -42,7 +42,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkGroupType, ChunkingContext, EvaluatableAssets, SourceMapsType,
+        ChunkingContext, EvaluatableAssets, SourceMapsType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -53,7 +53,10 @@ use turbopack_core::{
         StyledString,
     },
     module::Module,
-    module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules},
+    module_graph::{
+        chunk_group_info::ChunkGroupEntry, GraphEntries, ModuleGraph, SingleModuleGraph,
+        VisitedModules,
+    },
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{find_context_file, FindContextFileResult},
@@ -68,7 +71,6 @@ use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
     app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
-    build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -495,8 +497,8 @@ impl ProjectContainer {
         self.project().hmr_identifiers()
     }
 
-    /// Gets a source map for a particular `file_path`. If `dev` mode is
-    /// disabled, this will always return [`OptionSourceMap::none`].
+    /// Gets a source map for a particular `file_path`. If `dev` mode is disabled, this will always
+    /// return [`OptionStringifiedSourceMap::none`].
     #[turbo_tasks::function]
     pub fn get_source_map(
         &self,
@@ -792,11 +794,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn get_all_endpoints(self: Vc<Self>) -> Result<Vc<Endpoints>> {
+    pub async fn get_all_endpoints(self: Vc<Self>, app_dir_only: bool) -> Result<Vc<Endpoints>> {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
 
+        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
+        // page routes themselves are excluded below.
         endpoints.push(entrypoints.pages_error_endpoint);
         endpoints.push(entrypoints.pages_app_endpoint);
         endpoints.push(entrypoints.pages_document_endpoint);
@@ -816,10 +820,14 @@ impl Project {
                     html_endpoint,
                     data_endpoint: _,
                 } => {
-                    endpoints.push(*html_endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*html_endpoint);
+                    }
                 }
                 Route::PageApi { endpoint } => {
-                    endpoints.push(*endpoint);
+                    if !app_dir_only {
+                        endpoints.push(*endpoint);
+                    }
                 }
                 Route::AppPage(page_routes) => {
                     for AppPageRoute {
@@ -849,7 +857,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let mut modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.entries().owned().await?))
@@ -865,7 +873,7 @@ impl Project {
         graphs: Vc<ModuleGraph>,
     ) -> Result<Vc<GraphEntries>> {
         let modules = self
-            .get_all_endpoints()
+            .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.additional_entries(graphs).owned().await?))
@@ -878,10 +886,9 @@ impl Project {
     pub async fn module_graph(
         self: Vc<Self>,
         entry: ResolvedVc<Box<dyn Module>>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
-            ModuleGraph::from_module(*entry, chunk_group_type)
+            ModuleGraph::from_entry_module(*entry)
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -891,7 +898,6 @@ impl Project {
     pub async fn module_graph_for_entries(
         self: Vc<Self>,
         evaluatable_assets: Vc<EvaluatableAssets>,
-        chunk_group_type: ChunkGroupType,
     ) -> Result<Vc<ModuleGraph>> {
         Ok(if *self.per_page_module_graph().await? {
             let entries = evaluatable_assets
@@ -900,7 +906,7 @@ impl Project {
                 .copied()
                 .map(ResolvedVc::upcast)
                 .collect();
-            ModuleGraph::from_modules(Vc::cell(vec![(entries, chunk_group_type)]))
+            ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(entries)]))
         } else {
             *self.whole_app_module_graphs().await?.full
         })
@@ -910,7 +916,7 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.connect().resolve().await?;
+            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
 
             // At this point all modules have been computed and we can get rid of the node.js
@@ -921,7 +927,7 @@ impl Project {
                 turbopack_node::evaluate::scale_zero();
             }
 
-            Ok(module_graphs_vc)
+            Ok(*module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -966,6 +972,7 @@ impl Project {
             self.client_relative_path(),
             Vc::cell("/ROOT".into()),
             self.next_config().computed_asset_prefix(),
+            self.next_config().chunk_suffix_path(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
             self.module_id_strategy(),
@@ -1068,7 +1075,7 @@ impl Project {
         // First, emit an event for the binary target triple.
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
-        emit_event(build::BUILD_TARGET, true);
+        emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
 
         // Go over jsconfig and report enabled features.
         let compiler_options = self.js_config().compiler_options().await?;
@@ -1675,16 +1682,14 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
         let pages_project = self.pages_project();
-        let mut modules = vec![(
-            vec![pages_project.client_main_module().to_resolved().await?],
-            ChunkGroupType::Evaluated,
-        )];
+        let mut modules = vec![ChunkGroupEntry::Entry(vec![
+            pages_project.client_main_module().to_resolved().await?,
+        ])];
 
         if let Some(app_project) = *self.app_project().await? {
-            modules.push((
-                vec![app_project.client_main_module().to_resolved().await?],
-                ChunkGroupType::Evaluated,
-            ));
+            modules.push(ChunkGroupEntry::Entry(vec![
+                app_project.client_main_module().to_resolved().await?,
+            ]));
         }
 
         Ok(Vc::cell(modules))
@@ -1729,10 +1734,8 @@ async fn whole_app_module_graph_operation(
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
-        additional_entries.owned().await?,
-        base_visited_modules,
-    );
+    let additional_module_graph =
+        SingleModuleGraph::new_with_entries_visited(additional_entries, base_visited_modules);
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
     Ok(ModuleGraphs {

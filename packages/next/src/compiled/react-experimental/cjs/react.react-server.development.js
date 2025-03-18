@@ -507,9 +507,7 @@
       REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
       assign = Object.assign,
-      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference");
-    new ("function" === typeof WeakMap ? WeakMap : Map)();
-    var createTask = console.createTask
+      createTask = console.createTask
         ? console.createTask
         : function () {
             return null;
@@ -519,6 +517,7 @@
     var didWarnAboutElementRef = {};
     var didWarnAboutMaps = !1,
       userProvidedKeyEscapeRegex = /\/+/g,
+      REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       reportGlobalError =
         "function" === typeof reportError
           ? reportError
@@ -981,5 +980,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-experimental-22e39ea7-20250225";
+    exports.version = "19.1.0-experimental-5398b711-20250314";
   })();

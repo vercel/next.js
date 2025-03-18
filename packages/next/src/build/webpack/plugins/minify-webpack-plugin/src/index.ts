@@ -7,7 +7,7 @@ import {
   type Compilation,
 } from 'next/dist/compiled/webpack/webpack'
 import pLimit from 'next/dist/compiled/p-limit'
-import { spans } from '../../profiling-plugin'
+import { getCompilationSpan } from '../../../utils'
 
 function buildError(error: any, file: string) {
   if (error.line) {
@@ -48,7 +48,8 @@ export class MinifyPlugin {
     }
   ) {
     const mangle = !this.options.noMangling
-    const compilationSpan = spans.get(compilation)! || spans.get(compiler)
+    const compilationSpan =
+      getCompilationSpan(compilation)! || getCompilationSpan(compiler)
 
     const MinifierSpan = compilationSpan.traceChild(
       'minify-webpack-plugin-optimize'

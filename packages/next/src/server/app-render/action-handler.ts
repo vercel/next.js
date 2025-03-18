@@ -30,10 +30,7 @@ import {
   filterReqHeaders,
   actionsForbiddenHeaders,
 } from '../lib/server-ipc/utils'
-import {
-  appendMutableCookies,
-  getModifiedCookieValues,
-} from '../web/spec-extension/adapters/request-cookies'
+import { getModifiedCookieValues } from '../web/spec-extension/adapters/request-cookies'
 
 import {
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
@@ -51,6 +48,7 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -915,12 +913,14 @@ export async function handleAction({
         }
       }
 
-      const actionHandler = (
-        await ComponentMod.__next_app__.require(actionModId)
-      )[
-        // `actionId` must exist if we got here, as otherwise we would have thrown an error above
-        actionId!
-      ]
+      const actionMod = (await ComponentMod.__next_app__.require(
+        actionModId
+      )) as Record<string, (...args: unknown[]) => Promise<unknown>>
+      const actionHandler =
+        actionMod[
+          // `actionId` must exist if we got here, as otherwise we would have thrown an error above
+          actionId!
+        ]
 
       const returnVal = await workUnitAsyncStorage.run(requestStore, () =>
         actionHandler.apply(null, boundActionArguments)
@@ -974,13 +974,6 @@ export async function handleAction({
             workStore
           ),
         }
-      }
-
-      // If there were mutable cookies set, we need to set them on the
-      // response.
-      const headers = new Headers()
-      if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-        res.setHeader('set-cookie', Array.from(headers.values()))
       }
 
       res.setHeader('Location', redirectUrl)
@@ -1066,26 +1059,18 @@ function getActionModIdOrError(
   actionId: string | null,
   serverModuleMap: ServerModuleMap
 ): string {
-  try {
-    // if we're missing the action ID header, we can't do any further processing
-    if (!actionId) {
-      throw new Error("Invariant: Missing 'next-action' header.")
-    }
+  // if we're missing the action ID header, we can't do any further processing
+  if (!actionId) {
+    throw new InvariantError("Missing 'next-action' header.")
+  }
 
-    const actionModId = serverModuleMap?.[actionId]?.id
+  const actionModId = serverModuleMap[actionId]?.id
 
-    if (!actionModId) {
-      throw new Error(
-        "Invariant: Couldn't find action module ID from module map."
-      )
-    }
-
-    return actionModId
-  } catch (err) {
+  if (!actionModId) {
     throw new Error(
-      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment. ${
-        err instanceof Error ? `Original error: ${err.message}` : ''
-      }\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+      `Failed to find Server Action "${actionId}". This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
     )
   }
+
+  return actionModId
 }

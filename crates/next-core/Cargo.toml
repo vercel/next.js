@@ -32,10 +32,11 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.31.0"
-remove_console = "0.32.0"
-
+react_remove_properties = "0.33.0"
+remove_console = "0.34.0"
+itertools = { workspace = true }
 auto-hash-map = { workspace = true }
+percent-encoding = "2.3.1"
 
 swc_core = { workspace = true, features = [
   "base",

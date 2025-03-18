@@ -88,6 +88,58 @@ describe('app-dir - metadata-streaming', () => {
     expect((await browser.elementsByCss('body meta')).length).toBe(9)
   })
 
+  it('should only insert metadata once for parallel routes when slots match', async () => {
+    const browser = await next.browser('/parallel-routes')
+
+    expect((await browser.elementsByCss('head title')).length).toBe(1)
+    expect((await browser.elementsByCss('body title')).length).toBe(0)
+    expect(await browser.elementByCss('title').text()).toBe('parallel title')
+
+    const $ = await next.render$('/parallel-routes')
+    expect($('title').length).toBe(1)
+    expect($('head title').text()).toBe('parallel title')
+
+    // validate behavior remains the same on client navigations
+    await browser.elementByCss('[href="/parallel-routes/test-page"]').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
+  })
+
+  it('should only insert metadata once for parallel routes when there is a missing slot', async () => {
+    const browser = await next.browser('/parallel-routes')
+    await browser.elementByCss('[href="/parallel-routes/no-bar"]').click()
+
+    // Wait for navigation is finished and metadata is updated
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toContain(
+        'Dynamic api'
+      )
+    })
+
+    await retry(async () => {
+      expect((await browser.elementsByCss('title')).length).toBe(1)
+    })
+  })
+
+  it('should still render metadata if children is not rendered in parallel routes layout', async () => {
+    const browser = await next.browser('/parallel-routes-default')
+
+    expect((await browser.elementsByCss('title')).length).toBe(1)
+    expect(await browser.elementByCss('body title').text()).toBe(
+      'parallel-routes-default layout title'
+    )
+
+    const $ = await next.render$('/parallel-routes-default')
+    expect($('title').length).toBe(1)
+    expect($('body title').text()).toBe('parallel-routes-default layout title')
+  })
+
   describe('dynamic api', () => {
     it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')

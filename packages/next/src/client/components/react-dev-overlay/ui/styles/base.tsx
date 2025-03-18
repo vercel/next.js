@@ -1,26 +1,18 @@
 import { css } from '../../utils/css'
+import type { DevToolsScale } from '../components/errors/dev-tools-indicator/dev-tools-info/preferences'
 
-const darkTheme = css`
-  --color-font: white;
-  --color-backdrop: rgba(0, 0, 0, 0.8);
-  --color-border-shadow: rgba(255, 255, 255, 0.145);
-
-  --color-title-color: #fafafa;
-  --color-stack-notes: #a9a9a9;
-`
-
-export function Base() {
+export function Base({ scale = 1 }: { scale?: DevToolsScale }) {
   return (
     <style>
       {css`
         :host {
           /* 
-            Although the style applied to the shadow host is isolated,
-            the element that attached the shadow host (i.e. "nextjs-portal")
-            is still affected by the parent's style (e.g. "body"). This may
-            occur style conflicts like "display: flex", with other children
-            elements therefore give the shadow host an absolute position.
-          */
+           * Although the style applied to the shadow host is isolated,
+           * the element that attached the shadow host (i.e. "nextjs-portal")
+           * is still affected by the parent's style (e.g. "body"). This may
+           * occur style conflicts like "display: flex", with other children
+           * elements therefore give the shadow host an absolute position.
+           */
           position: absolute;
 
           --color-font: #757575;
@@ -79,57 +71,54 @@ export function Base() {
           --rounded-full: 9999px;
 
           /* 
-            Suffix N of --size-N as px value when the base font size is 16px.
-            Example: --size-1 is 1px, --size-2 is 2px, --size-3 is 3px, etc.
+            This value gets set from the Dev Tools preferences,
+            and we use the following --size-* variables to 
+            scale the relevant elements.
+
+            The reason why we don't rely on rem values is because
+            if an app sets their root font size to something tiny, 
+            it feels unexpected to have the app root size leak 
+            into a Next.js surface.
+
+            https://github.com/vercel/next.js/discussions/76812
           */
-          --size-1: 0.0625rem; /* 1px */
-          --size-2: 0.125rem; /* 2px */
-          --size-3: 0.1875rem; /* 3px */
-          --size-4: 0.25rem; /* ...and more */
-          --size-5: 0.3125rem;
-          --size-6: 0.375rem;
-          --size-7: 0.4375rem;
-          --size-8: 0.5rem;
-          --size-9: 0.5625rem;
-          --size-10: 0.625rem;
-          --size-11: 0.6875rem;
-          --size-12: 0.75rem;
-          --size-13: 0.8125rem;
-          --size-14: 0.875rem;
-          --size-15: 0.9375rem;
-          /* If the base font size of the dev overlay changes e.g. 18px, 
-          just slide the window and make --size-18 as 1rem. */
-          --size-16: 1rem;
-          --size-17: 1.0625rem;
-          --size-18: 1.125rem;
-          --size-20: 1.25rem;
-          --size-22: 1.375rem;
-          --size-24: 1.5rem;
-          --size-26: 1.625rem;
-          --size-28: 1.75rem;
-          --size-30: 1.875rem;
-          --size-32: 2rem;
-          --size-34: 2.125rem;
-          --size-36: 2.25rem;
-          --size-38: 2.375rem;
-          --size-40: 2.5rem;
-          --size-42: 2.625rem;
-          --size-44: 2.75rem;
-          --size-46: 2.875rem;
-          --size-48: 3rem;
+          --nextjs-dev-tools-scale: ${String(scale)};
+          --size-1: calc(1px / var(--nextjs-dev-tools-scale));
+          --size-2: calc(2px / var(--nextjs-dev-tools-scale));
+          --size-3: calc(3px / var(--nextjs-dev-tools-scale));
+          --size-4: calc(4px / var(--nextjs-dev-tools-scale));
+          --size-5: calc(5px / var(--nextjs-dev-tools-scale));
+          --size-6: calc(6px / var(--nextjs-dev-tools-scale));
+          --size-7: calc(7px / var(--nextjs-dev-tools-scale));
+          --size-8: calc(8px / var(--nextjs-dev-tools-scale));
+          --size-9: calc(9px / var(--nextjs-dev-tools-scale));
+          --size-10: calc(10px / var(--nextjs-dev-tools-scale));
+          --size-11: calc(11px / var(--nextjs-dev-tools-scale));
+          --size-12: calc(12px / var(--nextjs-dev-tools-scale));
+          --size-13: calc(13px / var(--nextjs-dev-tools-scale));
+          --size-14: calc(14px / var(--nextjs-dev-tools-scale));
+          --size-15: calc(15px / var(--nextjs-dev-tools-scale));
+          --size-16: calc(16px / var(--nextjs-dev-tools-scale));
+          --size-17: calc(17px / var(--nextjs-dev-tools-scale));
+          --size-18: calc(18px / var(--nextjs-dev-tools-scale));
+          --size-20: calc(20px / var(--nextjs-dev-tools-scale));
+          --size-22: calc(22px / var(--nextjs-dev-tools-scale));
+          --size-24: calc(24px / var(--nextjs-dev-tools-scale));
+          --size-26: calc(26px / var(--nextjs-dev-tools-scale));
+          --size-28: calc(28px / var(--nextjs-dev-tools-scale));
+          --size-30: calc(30px / var(--nextjs-dev-tools-scale));
+          --size-32: calc(32px / var(--nextjs-dev-tools-scale));
+          --size-34: calc(34px / var(--nextjs-dev-tools-scale));
+          --size-36: calc(36px / var(--nextjs-dev-tools-scale));
+          --size-38: calc(38px / var(--nextjs-dev-tools-scale));
+          --size-40: calc(40px / var(--nextjs-dev-tools-scale));
+          --size-42: calc(42px / var(--nextjs-dev-tools-scale));
+          --size-44: calc(44px / var(--nextjs-dev-tools-scale));
+          --size-46: calc(46px / var(--nextjs-dev-tools-scale));
+          --size-48: calc(48px / var(--nextjs-dev-tools-scale));
 
           @media print {
             display: none;
-          }
-        }
-
-        :host(.dark) {
-          ${darkTheme}
-        }
-
-        @media (prefers-color-scheme: dark) {
-          :host(:not(.light)) {
-            ${darkTheme}
           }
         }
 
