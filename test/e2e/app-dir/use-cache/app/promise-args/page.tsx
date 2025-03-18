@@ -1,9 +1,15 @@
 import { connection } from 'next/server'
 
-async function getCachedData(a: Promise<string>, b: Promise<string>) {
+async function getCachedData(
+  a: Promise<{ promise: Promise<string> }>,
+  b: Promise<{ promise: Promise<string> }>
+) {
   'use cache'
 
-  return (await a) + (await b) + new Date().toISOString()
+  const { promise: promiseA } = await a
+  const { promise: promiseB } = await b
+
+  return (await promiseA) + (await promiseB) + new Date().toISOString()
 }
 
 export default async function Page() {
@@ -33,16 +39,20 @@ function createPromises({
   resolveInReverseOrder,
 }: {
   resolveInReverseOrder: boolean
-}): [Promise<string>, Promise<string>] {
-  let a: Promise<string>, b: Promise<string>
+}): [
+  Promise<{ promise: Promise<string> }>,
+  Promise<{ promise: Promise<string> }>,
+] {
+  let a: Promise<{ promise: Promise<string> }>
+  let b: Promise<{ promise: Promise<string> }>
 
   if (resolveInReverseOrder) {
     // flip resolution order
-    b = Promise.resolve('b')
-    a = b.then(() => 'a')
+    b = Promise.resolve({ promise: Promise.resolve('b') })
+    a = b.then(() => ({ promise: Promise.resolve('a') }))
   } else {
-    a = Promise.resolve('a')
-    b = a.then(() => 'b')
+    a = Promise.resolve({ promise: Promise.resolve('a') })
+    b = a.then(() => ({ promise: Promise.resolve('b') }))
   }
 
   return [a, b]

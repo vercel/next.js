@@ -921,6 +921,19 @@ describe('use-cache', () => {
 
   it('generates different cache keys for async iterables that yield values in different order', async () => {
     let $ = await next.render$('/async-iterables')
+    expect($('#a').text()).toMatch(/ab[01].\d+/)
+    expect($('#a').text()).not.toBe($('#b').text())
+  })
+
+  it('generates different cache keys for async iterators that yield values in different order', async () => {
+    let $ = await next.render$('/async-iterators')
+    expect($('#a').text()).toMatch(/ab[01].\d+/)
+    expect($('#a').text()).not.toBe($('#b').text())
+  })
+
+  it('generates different cache keys for readable streams that enqueue chunks in different order', async () => {
+    let $ = await next.render$('/readable-streams')
+    expect($('#a').text()).toMatch(/ab[01].\d+/)
     expect($('#a').text()).not.toBe($('#b').text())
   })
 })
