@@ -150,8 +150,13 @@ export function isMetadataRoute(route: string): boolean {
   let page = route.replace(/^\/?app\//, '').replace(/\/route$/, '')
   if (page[0] !== '/') page = '/' + page
 
+  // These routes are not metadata routes
+  // e.g. /page, /error
+  const nonMetadataRoutes = ['/page', '/error']
+
   return (
-    !page.endsWith('/page') &&
-    isMetadataRouteFile(page, defaultExtensions, false)
+    !nonMetadataRoutes.some((nonMetadataRoute) =>
+      page.endsWith(nonMetadataRoute)
+    ) && isMetadataRouteFile(page, defaultExtensions, false)
   )
 }
