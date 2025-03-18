@@ -1787,11 +1787,17 @@ export async function copy_vendor_react(task_) {
         // bundles have unique constraints like a runtime bundle. For browser builds this
         // package will be bundled alongside user code and we don't need to introduce the extra
         // indirection
-        if (
-          (file.base.startsWith('react-server-dom-turbopack-client') &&
-            !file.base.startsWith(
-              'react-server-dom-turbopack-client.browser'
-            )) ||
+
+        if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
+          const source = file.data.toString()
+          let newSource = source.replace(
+            /__turbopack_load__/g,
+            '__turbopack_load_by_url__'
+          )
+
+          file.data = newSource
+        } else if (
+          file.base.startsWith('react-server-dom-turbopack-client') ||
           (file.base.startsWith('react-server-dom-turbopack-server') &&
             !file.base.startsWith('react-server-dom-turbopack-server.browser'))
         ) {

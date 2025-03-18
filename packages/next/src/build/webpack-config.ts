@@ -93,7 +93,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
@@ -306,7 +306,9 @@ export default async function getBaseWebpackConfig(
     clientRouterFilters,
     fetchCacheKeyPrefix,
     edgePreviewProps,
+    isCompileMode,
   }: {
+    isCompileMode?: boolean
     buildId: string
     encryptionKey: string
     config: NextConfigComplete
@@ -1171,12 +1173,10 @@ export default async function getBaseWebpackConfig(
           (isNodeServer && config.experimental.serverMinification)),
       minimizer: isRspack
         ? [
-            // @ts-expect-error
-            new webpack.SwcJsMinimizerRspackPlugin({
+            new (getRspackCore().SwcJsMinimizerRspackPlugin)({
               // JS minimizer configuration
             }),
-            // @ts-expect-error
-            new webpack.LightningCssMinimizerRspackPlugin({
+            new (getRspackCore().LightningCssMinimizerRspackPlugin)({
               // CSS minimizer configuration
             }),
           ]
@@ -1909,6 +1909,7 @@ export default async function getBaseWebpackConfig(
         isNodeOrEdgeCompilation,
         isNodeServer,
         middlewareMatchers,
+        omitNonDeterministic: isCompileMode,
       }),
       isClient &&
         new ReactLoadablePlugin({
