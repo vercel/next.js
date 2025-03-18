@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 import React, { type JSX } from 'react'
 import { NEXT_BUILTIN_DOCUMENT } from '../shared/lib/constants'
 import type {
@@ -214,10 +216,10 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   if (!nextScriptWorkers || process.env.NEXT_RUNTIME === 'edge') return null
 
   try {
-    let {
-      partytownSnippet,
-      // @ts-ignore: Prevent webpack from processing this require
-    } = __non_webpack_require__('@builder.io/partytown/integration'!)
+    // @ts-expect-error: Prevent webpack from processing this require
+    let { partytownSnippet } = __non_webpack_require__(
+      '@builder.io/partytown/integration'!
+    )
 
     const children = Array.isArray(props.children)
       ? props.children
