@@ -13,10 +13,16 @@ export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
   // x-ref: https://github.com/facebook/react/pull/28736
   const cause = isError(error) && 'cause' in error ? error.cause : error
   const stitchedError = getReactStitchedError(cause)
+
   // In development mode, pass along the component stack to the error
-  if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {
+  if (
+    (process.env.NODE_ENV === 'development' ||
+      process.env.__NEXT_COMPONENT_STACK_DEBUGGING === '1') &&
+    errorInfo.componentStack
+  ) {
     ;(stitchedError as any)._componentStack = errorInfo.componentStack
   }
+
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(cause)) return
 

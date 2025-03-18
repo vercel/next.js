@@ -80,6 +80,12 @@ export function onCaughtError(
     originConsoleError('%o\n\n%s', err, errorLocation)
 
     handleClientError(stitchedError, [])
+  } else if (process.env.__NEXT_COMPONENT_STACK_DEBUGGING === '1') {
+    if (errorInfo.componentStack) {
+      ;(err as any)._componentStack = errorInfo.componentStack
+    }
+
+    originConsoleError(err)
   } else {
     originConsoleError(err)
   }
@@ -99,6 +105,13 @@ export function onUncaughtError(err: unknown, errorInfo: React.ErrorInfo) {
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(stitchedError)
+  } else if (process.env.__NEXT_COMPONENT_STACK_DEBUGGING === '1') {
+    if (errorInfo.componentStack) {
+      ;(err as any)._componentStack = errorInfo.componentStack
+    }
+
+    // TODO: Add an adendum to the overlay telling people about custom error boundaries.
+    reportGlobalError(err)
   } else {
     reportGlobalError(err)
   }

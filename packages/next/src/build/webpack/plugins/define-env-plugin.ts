@@ -155,6 +155,10 @@ export function getDefineEnv({
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
       process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING || false,
+    // Propagates the `__NEXT_COMPONENT_STACK_DEBUGGING` environment variable to
+    // the client.
+    'process.env.__NEXT_COMPONENT_STACK_DEBUGGING':
+      process.env.__NEXT_COMPONENT_STACK_DEBUGGING || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
       ? {}
