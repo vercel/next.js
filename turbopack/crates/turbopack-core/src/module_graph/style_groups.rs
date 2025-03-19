@@ -164,14 +164,6 @@ pub async fn compute_style_groups(
         }
 
         if !styles.is_empty() {
-            println!(
-                "chunk group {chunk_group:?} {idx} {:#?}",
-                styles
-                    .iter()
-                    .map(|m| m.ident().to_string())
-                    .try_join()
-                    .await?
-            );
             chunk_group_state.push(ChunkGroupState {
                 requests: styles.len(),
                 styles,
@@ -273,8 +265,6 @@ pub async fn compute_style_groups(
 
         let info = module_info_map.get(&module).unwrap().as_ref().unwrap();
         let mut global_mode = info.style_type == StyleType::GlobalStyle;
-
-        println!("start with {}", info.ident);
 
         // The current position of processing in all selected chunk groups
         let mut all_chunk_states = info.chunk_group_indicies.clone();
@@ -386,7 +376,6 @@ pub async fn compute_style_groups(
                         potential_next_modules.insert(module, pos + 1 + i);
                     }
                 }
-                println!("add {}", info.ident);
 
                 new_chunk_items.push(info.chunk_item.as_ref().unwrap().clone());
                 new_chunk_modules.insert(module);

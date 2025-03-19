@@ -417,6 +417,8 @@ mod tests {
         assert_eq!(round_chunk_item_size(6), 6);
         assert_eq!(round_chunk_item_size(7), 6);
         assert_eq!(round_chunk_item_size(8), 8);
+        assert_eq!(round_chunk_item_size(49000), 32_768);
+        assert_eq!(round_chunk_item_size(50000), 49_152);
 
         assert_eq!(changes_in_range(0..1000), 19);
         assert_eq!(changes_in_range(1000..2000), 2);

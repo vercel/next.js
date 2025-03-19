@@ -350,7 +350,7 @@ async fn build_internal(
                     builder = builder.chunking_config(
                         Vc::<CssChunkType>::default().to_resolved().await?,
                         ChunkingConfig {
-                            max_merge_chunk_size: 200_000,
+                            max_merge_chunk_size: 100_000,
                             ..Default::default()
                         },
                     );

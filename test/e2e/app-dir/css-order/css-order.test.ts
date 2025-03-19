@@ -27,7 +27,6 @@ const PAGES: Record<
     conflict?: boolean
     brokenLoading?: boolean
     brokenLoadingDev?: boolean
-    brokenLoadingTurbo?: boolean
   }
 > = {
   first: {
@@ -62,16 +61,12 @@ const PAGES: Record<
   },
   'interleaved-a': {
     group: 'interleaved',
-    // TODO fix this case
-    brokenLoadingTurbo: true,
     url: '/interleaved/a',
     selector: '#helloia',
     color: 'rgb(0, 255, 0)',
   },
   'interleaved-b': {
     group: 'interleaved',
-    // TODO fix this case
-    brokenLoadingTurbo: true,
     url: '/interleaved/b',
     selector: '#helloib',
     color: 'rgb(255, 0, 255)',
@@ -244,10 +239,6 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', true])(
       // TODO fix this case
       let broken =
         isNextDev || ordering.some((page) => PAGES[page].brokenLoading)
-      if (mode === 'turbo') {
-        // TODO fix this case
-        broken ||= ordering.some((page) => PAGES[page].brokenLoadingTurbo)
-      }
       if (broken) {
         it.todo(name)
         continue
@@ -304,10 +295,6 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
           PAGES[page].brokenLoading ||
           (isNextDev && PAGES[page].brokenLoadingDev)
       )
-      if (mode === 'turbo') {
-        // TODO fix this case
-        broken ||= ordering.some((page) => PAGES[page].brokenLoadingTurbo)
-      }
       if (broken) {
         it.todo(name)
         continue
@@ -341,7 +328,7 @@ describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
     const { next } = nextTestSetup(options(mode))
     for (const [page, pageInfo] of Object.entries(PAGES)) {
       const name = `should load correct styles on ${page}`
-      if (mode === 'loose' && pageInfo.conflict) {
+      if (mode !== 'strict' && pageInfo.conflict) {
         // Conflict scenarios won't support that case
         continue
       }
