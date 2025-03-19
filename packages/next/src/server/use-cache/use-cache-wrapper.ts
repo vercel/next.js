@@ -377,7 +377,7 @@ async function generateCacheEntryImpl(
     // to be lower than just the general timeout of 60 seconds.
     timer = setTimeout(() => {
       controller.abort(timeoutError)
-    }, 3000)
+    }, 50000)
   }
 
   const stream = renderToReadableStream(
