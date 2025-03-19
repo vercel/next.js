@@ -20,6 +20,12 @@ Next.js uses the server and client environments for caching.
 
 This page describes how you can cache and revalidate routes, components, and functions, and configure the caching behavior.
 
+## Server-side caching
+
+### Static Routes
+
+By default, routes are prerendered at build time (static). During development, you can check if a route is static by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
+
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
 ### Components
