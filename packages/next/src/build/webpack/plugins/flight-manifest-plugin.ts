@@ -524,11 +524,7 @@ export class ClientReferenceManifestPlugin {
               } else {
                 // If this is a concatenation, register each child to the parent ID.
                 if (
-                  connection.module?.constructor.name ===
-                    'ConcatenatedModule' ||
-                  (Boolean(process.env.NEXT_RSPACK) &&
-                    (connection.module as any)?.constructorName ===
-                      'ConcatenatedModule')
+                  connection.module?.constructor.name === 'ConcatenatedModule'
                 ) {
                   const concatenatedMod = connection.module
                   const concatenatedModId =
