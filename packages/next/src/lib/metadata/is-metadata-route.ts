@@ -54,48 +54,48 @@ export function isMetadataRouteFile(
   pageExtensions: PageExtensions,
   strictlyMatchExtensions: boolean
 ) {
+  // End with the extension or optional to have the extension
+  const trailingMatcher = strictlyMatchExtensions ? '$' : '?'
   const metadataRouteFilesRegex = [
     new RegExp(
       `^[\\\\/]robots${getExtensionRegexString(
         pageExtensions.concat('txt'),
         null
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
     new RegExp(
       `^[\\\\/]manifest${getExtensionRegexString(
         pageExtensions.concat('webmanifest', 'json'),
         null
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
-      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${
-        strictlyMatchExtensions ? '' : '$'
-      }`
+      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${getExtensionRegexString(
         STATIC_METADATA_IMAGES.icon.extensions,
         pageExtensions
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${getExtensionRegexString(
         STATIC_METADATA_IMAGES.apple.extensions,
         pageExtensions
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${getExtensionRegexString(
         STATIC_METADATA_IMAGES.openGraph.extensions,
         pageExtensions
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${getExtensionRegexString(
         STATIC_METADATA_IMAGES.twitter.extensions,
         pageExtensions
-      )}${strictlyMatchExtensions ? '' : '$'}`
+      )}${trailingMatcher}`
     ),
   ]
 
@@ -131,14 +131,7 @@ export function isStaticMetadataRoute(route: string) {
 export function isMetadataPage(pathname: string) {
   const res =
     !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], false)
-  if (pathname.endsWith('.png')) {
-    console.trace(
-      'res',
-      res,
-      pathname,
-      isMetadataRouteFile(pathname, [], false)
-    )
-  }
+
   return res
 }
 
@@ -154,5 +147,5 @@ export function isMetadataRoute(route: string): boolean {
 
   if (page[0] !== '/') page = '/' + page
 
-  return isAppRouteRoute(route) && isMetadataRouteFile(page, [], true)
+  return isAppRouteRoute(route) && isMetadataRouteFile(page, [], false)
 }
