@@ -27,7 +27,7 @@ export const STATIC_METADATA_IMAGES = {
 
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
-// const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
+export const DEFAULT_METADATA_ROUTE_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
@@ -56,6 +56,7 @@ export function isMetadataRouteFile(
 ) {
   // End with the extension or optional to have the extension
   const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
+  const variantsOSubRoutesMatcher = '((\\/)?\\d)?'
   const metadataRouteFilesRegex = [
     new RegExp(
       `^[\\\\/]robots${getExtensionRegexString(
@@ -71,28 +72,28 @@ export function isMetadataRouteFile(
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
-      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
+      `[\\\\/]sitemap(\\/\\d)?${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${getExtensionRegexString(
+      `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${variantsOSubRoutesMatcher}${getExtensionRegexString(
         STATIC_METADATA_IMAGES.icon.extensions,
         pageExtensions
       )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${getExtensionRegexString(
+      `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}${variantsOSubRoutesMatcher}${getExtensionRegexString(
         STATIC_METADATA_IMAGES.apple.extensions,
         pageExtensions
       )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${getExtensionRegexString(
+      `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}${variantsOSubRoutesMatcher}${getExtensionRegexString(
         STATIC_METADATA_IMAGES.openGraph.extensions,
         pageExtensions
       )}${trailingMatcher}`
     ),
     new RegExp(
-      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${getExtensionRegexString(
+      `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}${variantsOSubRoutesMatcher}${getExtensionRegexString(
         STATIC_METADATA_IMAGES.twitter.extensions,
         pageExtensions
       )}${trailingMatcher}`
@@ -128,9 +129,8 @@ export function isStaticMetadataRoute(route: string) {
 
 // The input is a page, which can be with or without page suffix /foo/page or /foo.
 // But it will not contain the /route suffix.
-export function isMetadataPage(pathname: string) {
-  const matched =
-    !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], false)
+export function isMetadataPage(page: string) {
+  const matched = !isAppRouteRoute(page) && isMetadataRouteFile(page, [], false)
 
   return matched
 }
@@ -147,6 +147,9 @@ export function isMetadataRoute(route: string): boolean {
 
   if (page[0] !== '/') page = '/' + page
 
-  const matched = isAppRouteRoute(route) && isMetadataRouteFile(page, [], false)
+  const matched =
+    isAppRouteRoute(route) &&
+    isMetadataRouteFile(page, DEFAULT_METADATA_ROUTE_EXTENSIONS, false)
+
   return matched
 }

@@ -666,6 +666,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
 
   if (isAppRouteRoute(name)) {
     return createAppRouteCode({
+      appDir,
       // TODO: investigate if the local `page` is the same as the loaderOptions.page
       page: loaderOptions.page,
       name,

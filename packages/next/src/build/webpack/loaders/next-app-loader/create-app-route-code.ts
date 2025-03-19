@@ -1,7 +1,10 @@
 import path from 'path'
 import { stringify } from 'querystring'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
-import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
+import {
+  DEFAULT_METADATA_ROUTE_EXTENSIONS,
+  isMetadataRouteFile,
+} from '../../../../lib/metadata/is-metadata-route'
 import type { NextConfig } from '../../../../server/config-shared'
 import { AppBundlePathNormalizer } from '../../../../server/normalizers/built/app/app-bundle-path-normalizer'
 import { AppPathnameNormalizer } from '../../../../server/normalizers/built/app/app-pathname-normalizer'
@@ -10,6 +13,7 @@ import type { PageExtensions } from '../../../page-extensions-type'
 import { getFilenameAndExtension } from '../next-metadata-route-loader'
 
 export async function createAppRouteCode({
+  appDir,
   name,
   page,
   pagePath,
@@ -17,6 +21,7 @@ export async function createAppRouteCode({
   pageExtensions,
   nextConfigOutput,
 }: {
+  appDir: string
   name: string
   page: string
   pagePath: string
@@ -39,10 +44,18 @@ export async function createAppRouteCode({
     )
   }
 
-  // If this is a metadata route, then we need to use the metadata loader for
-  // the route to ensure that the route is generated.
+  // If this is a metadata route file, then we need to use the metadata-loader
+  // for the route to ensure that the route is generated.
   const fileBaseName = path.parse(resolvedPagePath).name
-  if (isMetadataRoute(name) && fileBaseName !== 'route') {
+  const appDirRelativePath = resolvedPagePath.slice(appDir.length)
+
+  if (
+    isMetadataRouteFile(
+      appDirRelativePath,
+      DEFAULT_METADATA_ROUTE_EXTENSIONS,
+      true
+    )
+  ) {
     const { ext } = getFilenameAndExtension(resolvedPagePath)
     const isDynamicRouteExtension = pageExtensions.includes(ext)
 

@@ -43,7 +43,10 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import {
+  DEFAULT_METADATA_ROUTE_EXTENSIONS,
+  isMetadataRouteFile,
+} from '../../../lib/metadata/is-metadata-route'
 import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 import type { FlightActionEntryLoaderActions } from '../loaders/next-flight-action-entry-loader'
 
@@ -352,7 +355,15 @@ export class FlightClientEntryPlugin {
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        if (isMetadataRoute(bundlePath)) {
+        // e.g.
+        // relativeRequest -> 'app/sitemap.js'
+        if (
+          isMetadataRouteFile(
+            relativeRequest,
+            DEFAULT_METADATA_ROUTE_EXTENSIONS,
+            true
+          )
+        ) {
           bundlePath = name
         }
 
