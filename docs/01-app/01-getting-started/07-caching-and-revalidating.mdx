@@ -139,6 +139,55 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
+### Optimizing dynamic routes with Caching
+
+In addition to streaming, you can optimize dynamic routes by caching the output of nested components or functions.
+
+Using the Dashboard route example above, although the route is fully dynamic, you can cache parts of it. Within the `DashboardPage` component, the `<AnalyticsChart>` doesn't need to be recomputed on every request.
+
+```tsx filename="app/dashboard/page.tsx" switcher
+import { AnalyticsChart } from '@/app/ui/AnalyticsChart'
+
+export default async function DashboardPage() {
+  return (
+    <div>
+      <h1>Dashboard</h1>
+
+      {/* Cached analytics component */}
+      <AnalyticsChart />
+    </div>
+  )
+}
+```
+
+To cache it, add the `'use cache'` directive to the component:
+
+```tsx filename="app/dashboard/components/AnalyticsChart.tsx" switcher
+'use cache'
+
+import { fetchAnalyticsData } from '@/app/lib/data'
+
+export async function AnalyticsChart() {
+  const data = await fetchAnalyticsData()
+
+  return (
+    <div>
+      <h2>Site Analytics</h2>
+      <div>
+        {data.map((point) => (
+          <div key={point.id} style={{ height: `${point.value}%` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+```
+
+While the Dashboard route will remain dynamic, the `<AnalyticsChart>` render output of the component will be cached separately and reused for each request.
+
+You can verify a component is cached by running `next build && next start`.
+
+TODO: Talk about functions
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
 ### Components
