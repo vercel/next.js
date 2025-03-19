@@ -51,7 +51,7 @@ impl UrlAssetReference {
     }
 
     #[turbo_tasks::function]
-    async fn get_referenced_asset(
+    pub async fn get_referenced_asset(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
