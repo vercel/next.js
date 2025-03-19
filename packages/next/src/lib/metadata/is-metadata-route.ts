@@ -116,7 +116,7 @@ export function isStaticMetadataRoutePage(appDirRelativePath: string) {
 // Checking route path is not enough to determine if text routes is dynamic.
 export function isStaticMetadataRoute(route: string) {
   const pathname = route.slice(0, -'/route'.length)
-  return (
+  const matched =
     isAppRouteRoute(route) &&
     isStaticMetadataRoutePage(pathname) &&
     // These routes can either be built by static or dynamic entrypoints,
@@ -124,7 +124,8 @@ export function isStaticMetadataRoute(route: string) {
     pathname !== '/robots.txt' &&
     pathname !== '/manifest.webmanifest' &&
     !pathname.endsWith('/sitemap.xml')
-  )
+
+  return matched
 }
 
 // The input is a page, which can be with or without page suffix /foo/page or /foo.
@@ -138,12 +139,18 @@ export function isMetadataPage(page: string) {
 /*
  * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
  * e.g.
- * /app/robots/route -> /robots
- * app/robots/route -> /robots
- * /robots/route -> /robots
+ * /app/robots/route -> /robots -> true
+ * app/robots/route -> /robots -> true
+ * /robots/route -> /robots -> true
+ * /sitemap/[__metadata_id__]/route -> /sitemap/route -> true
+ * /app/sitemap/page -> /sitemap/page -> false
+ *
  */
 export function isMetadataRoute(route: string): boolean {
-  let page = route.replace(/^\/?app\//, '').slice(0, -'/route'.length)
+  let page = route
+    .replace(/^\/?app\//, '')
+    .slice(0, -'/route'.length)
+    .replace('/[__metadata_id__]', '')
 
   if (page[0] !== '/') page = '/' + page
 
