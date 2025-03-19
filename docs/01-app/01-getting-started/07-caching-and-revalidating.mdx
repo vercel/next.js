@@ -26,7 +26,7 @@ This page describes how you can cache and revalidate routes, components, and fun
 
 By default, routes are prerendered at build time (static). During development, you can check if a route is static by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
 
-### Dynamic routes and request-time APIs
+### Dynamic routes
 
 Using **request-time APIs** will make a route dynamic, meaning it'll be rendered on every request at runtime and the result won't be cached.
 
@@ -41,9 +41,13 @@ These request-time APIs are:
 
 > During development, you can check if a route is dynamic by running `next dev` and opening the [Next.js Dev Tools](/docs/app/api-reference/config/next-config-js/devIndicators) in your local host.
 
-To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show an instant loading UI and progressively stream dynamic content to the client.
+### Optimizing dynamic routes with Streaming
 
-For example, the `<User>` component fetches the current user's information. To prevent it from blocking the whole route, it can be wrapped in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the `<User>` component will be streamed when it's ready.
+To optimize the initial loading performance of dynamic routes, you can use React's [`<Suspense>` boundary](https://react.dev/reference/react/Suspense) to show loading UI and progressively stream dynamic content to the client.
+
+For example, the `<User>` component uses the `cookies` API to fetch the current user's information. Since `<User>` is nested inside `<Navigation>` and `<Navigation>` is nested inside the layout, the `cookies` API opts the whole route into dynamic rendering.
+
+To prevent the whole route from being blocked while all data is being fetched, you can wrap `<User>` in a `Suspense` boundary. This means the `<Navigation>` component and a fallback will be sent to the client first, while the `<User>` component will be streamed when it's ready.
 
 ```tsx filename="app/ui/user.tsx" switcher
 import { cookies } from 'next/headers'
@@ -68,6 +72,10 @@ export async function User() {
 ```
 
 ```tsx filename="app/ui/navigation.tsx" switcher
+import { Suspense } from 'react'
+import { Link } from 'next/link'
+import { User } from '@/app/ui/user'
+
 export default function Navigation() {
   return (
     <nav>
@@ -81,6 +89,10 @@ export default function Navigation() {
 ```
 
 ```jsx filename="app/ui/navigation.js" switcher
+import { Suspense } from 'react'
+import { Link } from 'next/link'
+import { User } from '@/app/ui/user'
+
 export default function Navigation() {
   return (
     <nav>
@@ -93,8 +105,10 @@ export default function Navigation() {
 }
 ```
 
-```tsx filename="app/layout.tsx" switcher
-export default function RootLayout({
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { Navigation } from '@/app/ui/navigation'
+
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
@@ -103,18 +117,22 @@ export default function RootLayout({
     <html>
       <body>
         <Navigation />
+        {children}
       </body>
     </html>
   )
 }
 ```
 
-```jsx filename="app/layout.js" switcher
-export default function RootLayout({ children }) {
+```jsx filename="app/dashboard/layout.js" switcher
+import { Navigation } from '@/app/ui/navigation'
+
+export default function DashboardLayout({ children }) {
   return (
     <html>
       <body>
         <Navigation />
+        {children}
       </body>
     </html>
   )
