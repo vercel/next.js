@@ -9,12 +9,12 @@ describe('metadata-route-like-pages', () => {
   it('should able to visit sitemap page', async () => {
     const browser = await next.browser('/sitemap')
     await assertNoRedbox(browser)
-    expect(await browser.elementByCss('h1')).toBe('Sitemap')
+    expect(await browser.elementByCss('h1').text()).toBe('Sitemap')
   })
 
   it('should able to visit icon page', async () => {
     const browser = await next.browser('/icon')
     await assertNoRedbox(browser)
-    expect(await browser.elementByCss('h1')).toBe('Icon')
+    expect(await browser.elementByCss('h1').text()).toBe('Icon')
   })
 })

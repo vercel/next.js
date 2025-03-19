@@ -27,7 +27,7 @@ export const STATIC_METADATA_IMAGES = {
 
 // Match routes that are metadata routes, e.g. /sitemap.xml, /favicon.<ext>, /<icon>.<ext>, etc.
 // TODO-METADATA: support more metadata routes with more extensions
-const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
+// const defaultExtensions = ['js', 'jsx', 'ts', 'tsx']
 
 // Match the file extension with the dynamic multi-routes extensions
 // e.g. ([xml, js], null) -> can match `/sitemap.xml/route`, `sitemap.js/route`
@@ -149,19 +149,23 @@ export function isStaticMetadataRoute(route: string) {
   )
 }
 
+// The input is a page, which can be with or without page suffix /foo/page or /foo.
+// But it will not contain the /route suffix.
+export function isMetadataPage(pathname: string) {
+  return !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], true)
+}
+
 /*
  * Remove the 'app' prefix or '/route' suffix, only check the route name since they're only allowed in root app directory
  * e.g.
- * /app/robots -> /robots
- * app/robots -> /robots
- * /robots -> /robots
+ * /app/robots/route -> /robots
+ * app/robots/route -> /robots
+ * /robots/route -> /robots
  */
 export function isMetadataRoute(route: string): boolean {
-  let page = route.replace(/^\/?app\//, '').replace(/\/route$/, '')
+  let page = route.replace(/^\/?app\//, '').slice(0, -'/route'.length)
+
   if (page[0] !== '/') page = '/' + page
 
-  return (
-    !page.endsWith('/page') &&
-    isMetadataRouteFile(page, defaultExtensions, false)
-  )
+  return isAppRouteRoute(route) && isMetadataRouteFile(page, [], true)
 }

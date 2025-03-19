@@ -1,4 +1,7 @@
-import { getExtensionRegexString } from './is-metadata-route'
+import {
+  getExtensionRegexString,
+  isMetadataRouteFile,
+} from './is-metadata-route'
 
 describe('getExtensionRegexString', () => {
   function createExtensionMatchRegex(
@@ -51,6 +54,24 @@ describe('getExtensionRegexString', () => {
 
       expect(regex.test('.tsx')).toBe(false)
       expect(regex.test('.js')).toBe(false)
+    })
+  })
+})
+
+describe('isMetadataRouteFile', () => {
+  describe('without extension', () => {
+    it('should match metadata routes', () => {
+      expect(isMetadataRouteFile('/icons/descriptor/page', [], false)).toBe(
+        false
+      )
+    })
+  })
+
+  describe('with extension', () => {
+    it('should match metadata routes', () => {
+      expect(isMetadataRouteFile('/icons/descriptor/page', [], true)).toBe(
+        false
+      )
     })
   })
 })
