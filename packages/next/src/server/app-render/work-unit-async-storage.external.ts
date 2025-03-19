@@ -286,12 +286,13 @@ export function getDraftModeProviderForCacheScope(
   workUnitStore: WorkUnitStore
 ): DraftModeProvider | undefined {
   if (workStore.isDraftMode) {
-    // eslint-disable-next-line default-case
     switch (workUnitStore.type) {
       case 'cache':
       case 'unstable-cache':
       case 'request':
         return workUnitStore.draftMode
+      default:
+        return undefined
     }
   }
 
