@@ -2,8 +2,9 @@
 
 import type { ErrorInfo } from 'react'
 import {
-  getReactStitchedError,
+  setOwnerStackIfAvailable,
   setComponentStack,
+  coerceError,
 } from '../components/errors/stitched-error'
 import { handleClientError } from '../components/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
@@ -16,7 +17,7 @@ import {
 } from '../components/error-boundary'
 
 export function onCaughtError(
-  err: unknown,
+  thrownValue: unknown,
   errorInfo: ErrorInfo & { errorBoundary?: React.Component }
 ) {
   const errorBoundaryComponent = errorInfo.errorBoundary?.constructor
@@ -41,11 +42,11 @@ export function onCaughtError(
     // We don't consider errors caught unless they're caught by an explicit error
     // boundary. The built-in ones are considered implicit.
     // This mimics how the same app would behave without Next.js.
-    return onUncaughtError(err, errorInfo)
+    return onUncaughtError(thrownValue, errorInfo)
   }
 
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(err) || isNextRouterError(err)) return
+  if (isBailoutToCSRError(thrownValue) || isNextRouterError(thrownValue)) return
 
   if (process.env.NODE_ENV !== 'production') {
     const errorBoundaryName =
@@ -72,37 +73,43 @@ export function onCaughtError(
 
     const errorLocation = `${componentErrorMessage} ${errorBoundaryMessage}`
 
-    const stitchedError = getReactStitchedError(err)
+    const error = coerceError(thrownValue)
+    setOwnerStackIfAvailable(error)
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
-      setComponentStack(stitchedError, errorInfo.componentStack)
+      setComponentStack(error, errorInfo.componentStack)
     }
 
     // Log and report the error with location but without modifying the error stack
-    originConsoleError('%o\n\n%s', err, errorLocation)
+    originConsoleError('%o\n\n%s', thrownValue, errorLocation)
 
-    handleClientError(stitchedError)
+    handleClientError(error)
   } else {
-    originConsoleError(err)
+    originConsoleError(thrownValue)
   }
 }
 
-export function onUncaughtError(err: unknown, errorInfo: React.ErrorInfo) {
+export function onUncaughtError(
+  thrownValue: unknown,
+  errorInfo: React.ErrorInfo
+) {
   // Skip certain custom errors which are not expected to be reported on client
-  if (isBailoutToCSRError(err) || isNextRouterError(err)) return
+  if (isBailoutToCSRError(thrownValue) || isNextRouterError(thrownValue)) return
 
   if (process.env.NODE_ENV !== 'production') {
-    const stitchedError = getReactStitchedError(err)
+    const error = coerceError(thrownValue)
+    setOwnerStackIfAvailable(error)
+
     // TODO: change to passing down errorInfo later
     // In development mode, pass along the component stack to the error
     if (errorInfo.componentStack) {
-      setComponentStack(stitchedError, errorInfo.componentStack)
+      setComponentStack(error, errorInfo.componentStack)
     }
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
-    reportGlobalError(stitchedError)
+    reportGlobalError(error)
   } else {
-    reportGlobalError(err)
+    reportGlobalError(thrownValue)
   }
 }

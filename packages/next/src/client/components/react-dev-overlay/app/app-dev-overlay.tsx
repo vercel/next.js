@@ -52,7 +52,7 @@ function ReplaySsrOnlyErrors({
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
       if (ssrError !== null) {
-        // TODO(veil): Produces wrong Owner Stack
+        // TODO(veil): Include original Owner Stack (NDX-905)
         // TODO(veil): Mark as recoverable error
         // TODO(veil): console.error
         handleClientError(ssrError)
