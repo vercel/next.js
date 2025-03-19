@@ -60,7 +60,7 @@ impl ModuleInfo {
 }
 
 struct ChunkGroupState {
-    styles: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+    styles: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     requests: usize,
 }
 
@@ -120,14 +120,14 @@ pub async fn compute_style_groups(
             },
         )?;
 
-        let mut styles = Vec::new();
+        let mut styles = FxIndexSet::default();
         let mut handle_module = async |module| {
             match module_info_map.entry(module) {
                 Entry::Occupied(mut e) => {
                     if let Some(info) = e.get_mut() {
                         info.chunk_group_indicies.insert(idx, styles.len());
                         info.index_sum += styles.len();
-                        styles.push(module);
+                        styles.insert(module);
                     }
                 }
                 Entry::Vacant(e) => {
@@ -137,7 +137,7 @@ pub async fn compute_style_groups(
                             ModuleInfo::new(style_type, module.ident().to_string().owned().await?);
                         info.chunk_group_indicies.insert(idx, styles.len());
                         info.index_sum += styles.len();
-                        styles.push(module);
+                        styles.insert(module);
                         e.insert(Some(info));
                     } else {
                         e.insert(None);
@@ -285,19 +285,16 @@ pub async fn compute_style_groups(
                 let i = following_styles
                     .iter()
                     .position(|m| !*ordered_modules_with_state.get(m).unwrap());
-                i.map(|i| {
-                    let module = following_styles[i];
-                    (module, pos + 1 + i)
-                })
+                i.map(|i| following_styles[i])
             })
-            .collect::<FxHashMap<_, _>>();
+            .collect::<FxHashSet<_>>();
 
         // Try to add modules to the chunk until a break condition is met
         'outer: loop {
             // We try to select a module that reduces request count and
             // has the highest number of requests
             let mut ordered_potential_next_modules = potential_next_modules
-                .keys()
+                .iter()
                 .copied()
                 .map(|module| {
                     let info = module_info_map.get(&module).unwrap().as_ref().unwrap();
@@ -356,7 +353,7 @@ pub async fn compute_style_groups(
                         continue;
                     }
                 }
-                let pos = potential_next_modules.remove(&module).unwrap();
+                potential_next_modules.remove(&module);
                 current_size += info.size;
                 if is_global {
                     global_mode = true;
@@ -366,6 +363,7 @@ pub async fn compute_style_groups(
                         // This reduces the request count of the chunk group
                         chunk_group_state[idx].requests -= 1;
                     }
+                    let pos = chunk_group_state[idx].styles.get_index_of(&module).unwrap();
                     all_chunk_states.insert(idx, pos);
                     let following_styles = &chunk_group_state[idx].styles[pos + 1..];
                     if let Some(i) = following_styles.iter().position(|m| {
@@ -373,7 +371,7 @@ pub async fn compute_style_groups(
                             && !new_chunk_modules.contains(m)
                     }) {
                         let module = following_styles[i];
-                        potential_next_modules.insert(module, pos + 1 + i);
+                        potential_next_modules.insert(module);
                     }
                 }
 
