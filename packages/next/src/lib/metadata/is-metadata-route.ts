@@ -58,9 +58,9 @@ export function isMetadataRouteFile(
     new RegExp(
       `^[\\\\/]robots${
         withExtension
-          ? `${getExtensionRegexString(pageExtensions.concat('txt'), null)}$`
+          ? `${getExtensionRegexString(pageExtensions.concat('txt'), null)}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `^[\\\\/]manifest${
@@ -68,17 +68,17 @@ export function isMetadataRouteFile(
           ? `${getExtensionRegexString(
               pageExtensions.concat('webmanifest', 'json'),
               null
-            )}$`
+            )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
       `[\\\\/]sitemap${
         withExtension
-          ? `${getExtensionRegexString(['xml'], pageExtensions)}$`
+          ? `${getExtensionRegexString(['xml'], pageExtensions)}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}\\d?${
@@ -86,9 +86,9 @@ export function isMetadataRouteFile(
           ? `${getExtensionRegexString(
               STATIC_METADATA_IMAGES.icon.extensions,
               pageExtensions
-            )}$`
+            )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.apple.filename}\\d?${
@@ -96,9 +96,9 @@ export function isMetadataRouteFile(
           ? `${getExtensionRegexString(
               STATIC_METADATA_IMAGES.apple.extensions,
               pageExtensions
-            )}$`
+            )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.openGraph.filename}\\d?${
@@ -106,9 +106,9 @@ export function isMetadataRouteFile(
           ? `${getExtensionRegexString(
               STATIC_METADATA_IMAGES.openGraph.extensions,
               pageExtensions
-            )}$`
+            )}`
           : ''
-      }`
+      }$`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.twitter.filename}\\d?${
@@ -116,9 +116,9 @@ export function isMetadataRouteFile(
           ? `${getExtensionRegexString(
               STATIC_METADATA_IMAGES.twitter.extensions,
               pageExtensions
-            )}$`
+            )}`
           : ''
-      }`
+      }$`
     ),
   ]
 
@@ -152,7 +152,9 @@ export function isStaticMetadataRoute(route: string) {
 // The input is a page, which can be with or without page suffix /foo/page or /foo.
 // But it will not contain the /route suffix.
 export function isMetadataPage(pathname: string) {
-  return !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], true)
+  const res =
+    !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], false)
+  return res
 }
 
 /*
