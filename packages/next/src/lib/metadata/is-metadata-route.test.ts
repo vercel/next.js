@@ -1,6 +1,7 @@
 import {
   getExtensionRegexString,
   isMetadataRouteFile,
+  isMetadataRoute,
 } from './is-metadata-route'
 
 describe('getExtensionRegexString', () => {
@@ -73,5 +74,23 @@ describe('isMetadataRouteFile', () => {
         false
       )
     })
+  })
+})
+
+describe('isMetadataRoute', () => {
+  it('should require suffix for metadata routes', () => {
+    expect(isMetadataRoute('/icon')).toBe(false)
+    expect(isMetadataRoute('/icon/route')).toBe(true)
+    expect(isMetadataRoute('/opengraph-image')).toBe(false)
+    expect(isMetadataRoute('/opengraph-image/route')).toBe(true)
+  })
+
+  it('should match grouped metadata routes', () => {
+    expect(isMetadataRoute('/opengraph-image-1ow20b/route')).toBe(true)
+  })
+
+  it('should support metadata variant numeric suffix', () => {
+    expect(isMetadataRoute('/icon0/route')).toBe(true)
+    expect(isMetadataRoute('/opengraph-image1/route')).toBe(true)
   })
 })

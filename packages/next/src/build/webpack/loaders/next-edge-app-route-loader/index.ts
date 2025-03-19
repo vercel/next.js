@@ -47,6 +47,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
     const buildInfo = getModuleBuildInfo(this._module)
 
     buildInfo.nextEdgeSSR = {
+      // TODO: replace with isMetadataRouteFile
       isServerComponent: !isMetadataRoute(page), // Needed for 'use cache'.
       page: page,
       isAppDir: true,
