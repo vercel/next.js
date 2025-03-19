@@ -3780,8 +3780,6 @@
       switch (type) {
         case REACT_FRAGMENT_TYPE:
           return "Fragment";
-        case REACT_PORTAL_TYPE:
-          return "Portal";
         case REACT_PROFILER_TYPE:
           return "Profiler";
         case REACT_STRICT_MODE_TYPE:
@@ -3790,6 +3788,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_ACTIVITY_TYPE:
+          return "Activity";
         case REACT_VIEW_TRANSITION_TYPE:
           return "ViewTransition";
       }
@@ -3801,6 +3801,8 @@
             ),
           type.$$typeof)
         ) {
+          case REACT_PORTAL_TYPE:
+            return "Portal";
           case REACT_CONTEXT_TYPE:
             return (type.displayName || "Context") + ".Provider";
           case REACT_CONSUMER_TYPE:
@@ -5786,7 +5788,7 @@
             renderNodeDestructive(request, task, props.children, -1);
             task.keyPath = prevKeyPath$jscomp$1;
             return;
-          case REACT_OFFSCREEN_TYPE:
+          case REACT_ACTIVITY_TYPE:
             if ("hidden" !== props.mode) {
               var prevKeyPath$jscomp$2 = task.keyPath;
               task.keyPath = keyPath;
@@ -5801,10 +5803,17 @@
             task.keyPath = _prevKeyPath3;
             return;
           case REACT_VIEW_TRANSITION_TYPE:
-            var _prevKeyPath4 = task.keyPath;
+            var prevKeyPath$jscomp$3 = task.keyPath;
             task.keyPath = keyPath;
-            renderNodeDestructive(request, task, props.children, -1);
-            task.keyPath = _prevKeyPath4;
+            if (null != props.name && "auto" !== props.name)
+              renderNodeDestructive(request, task, props.children, -1);
+            else {
+              var prevTreeContext = task.treeContext;
+              task.treeContext = pushTreeContext(prevTreeContext, 1, 0);
+              renderNode(request, task, props.children, -1);
+              task.treeContext = prevTreeContext;
+            }
+            task.keyPath = prevKeyPath$jscomp$3;
             return;
           case REACT_SCOPE_TYPE:
             throw Error(
@@ -5821,7 +5830,7 @@
                 task.keyPath = _prevKeyPath;
               }
             } else {
-              var prevKeyPath$jscomp$3 = task.keyPath,
+              var prevKeyPath$jscomp$4 = task.keyPath,
                 parentBoundary = task.blockedBoundary,
                 parentPreamble = task.blockedPreamble,
                 parentHoistableState = task.hoistableState,
@@ -5899,7 +5908,7 @@
                 } finally {
                   (task.blockedSegment = parentSegment),
                     (task.blockedPreamble = parentPreamble),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$4);
                 }
                 var suspendedPrimaryTask = createRenderTask(
                   request,
@@ -5986,7 +5995,7 @@
                     (task.blockedPreamble = parentPreamble),
                     (task.hoistableState = parentHoistableState),
                     (task.blockedSegment = parentSegment),
-                    (task.keyPath = prevKeyPath$jscomp$3);
+                    (task.keyPath = prevKeyPath$jscomp$4);
                 }
                 var suspendedFallbackTask = createRenderTask(
                   request,
@@ -6047,7 +6056,7 @@
               var value$jscomp$0 = props.value,
                 children$jscomp$1 = props.children;
               var prevSnapshot = task.context;
-              var prevKeyPath$jscomp$4 = task.keyPath;
+              var prevKeyPath$jscomp$5 = task.keyPath;
               var prevValue = type._currentValue;
               type._currentValue = value$jscomp$0;
               void 0 !== type._currentRenderer &&
@@ -6090,7 +6099,7 @@
               var JSCompiler_inline_result$jscomp$0 = (currentActiveSnapshot =
                 prevSnapshot$jscomp$0.parent);
               task.context = JSCompiler_inline_result$jscomp$0;
-              task.keyPath = prevKeyPath$jscomp$4;
+              task.keyPath = prevKeyPath$jscomp$5;
               prevSnapshot !== task.context &&
                 console.error(
                   "Popping the context provider did not return back to the original snapshot. This is a bug in React."
@@ -6104,10 +6113,10 @@
                   "A context consumer was rendered with multiple children, or a child that isn't a function. A context consumer expects a single child that is a function. If you did pass a function, make sure there is no trailing or leading whitespace around it."
                 );
               var newChildren = render(context$jscomp$0._currentValue),
-                prevKeyPath$jscomp$5 = task.keyPath;
+                prevKeyPath$jscomp$6 = task.keyPath;
               task.keyPath = keyPath;
               renderNodeDestructive(request, task, newChildren, -1);
-              task.keyPath = prevKeyPath$jscomp$5;
+              task.keyPath = prevKeyPath$jscomp$6;
               return;
             case REACT_LAZY_TYPE:
               var Component = callLazyInitInDEV(type);
@@ -8503,11 +8512,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-5398b711-20250314" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-c69a5fc5-20250318" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-5398b711-20250314\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-c69a5fc5-20250318\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -8526,7 +8535,7 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-      REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
+      REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
       REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
@@ -10294,5 +10303,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.1.0-experimental-5398b711-20250314";
+    exports.version = "19.1.0-experimental-c69a5fc5-20250318";
   })();
