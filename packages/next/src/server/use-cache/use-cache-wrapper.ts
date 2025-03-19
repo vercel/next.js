@@ -2,9 +2,10 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
-  decodeReply,
+  decodeReply as decodeReplyFromString,
   decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
+  type TemporaryReferenceSet as ServerTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
 import {
@@ -72,7 +73,7 @@ function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
@@ -86,7 +87,7 @@ function generateCacheEntry(
     workStore,
     outerWorkUnitStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -96,7 +97,7 @@ function generateCacheEntryWithRestoredWorkStore(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
@@ -113,7 +114,7 @@ function generateCacheEntryWithRestoredWorkStore(
     workStore,
     outerWorkUnitStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -123,7 +124,7 @@ function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
@@ -177,7 +178,7 @@ function generateCacheEntryWithCacheContext(
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
-    encodedArguments,
+    encodedCacheKey,
     fn,
     timeoutError
   )
@@ -299,52 +300,61 @@ async function collectResult(
   return entry
 }
 
+async function decodeReply<T>(
+  outerWorkUnitStore: WorkUnitStore | undefined,
+  encodedArguments: FormData | string,
+  temporaryReferences: ServerTemporaryReferenceSet
+): Promise<T> {
+  return typeof encodedArguments === 'string'
+    ? await decodeReplyFromString<T>(encodedArguments, getServerModuleMap(), {
+        temporaryReferences,
+      })
+    : await decodeReplyFromAsyncIterable<T>(
+        {
+          async *[Symbol.asyncIterator]() {
+            for (const entry of encodedArguments) {
+              yield entry
+            }
+
+            // The encoded arguments might contain hanging promises. In this
+            // case we don't want to reject with "Error: Connection closed.",
+            // so we intentionally keep the iterable alive. This is similar to
+            // the halting trick that we do while rendering.
+            if (outerWorkUnitStore?.type === 'prerender') {
+              await new Promise<void>((resolve) => {
+                if (outerWorkUnitStore.renderSignal.aborted) {
+                  resolve()
+                } else {
+                  outerWorkUnitStore.renderSignal.addEventListener(
+                    'abort',
+                    () => resolve(),
+                    { once: true }
+                  )
+                }
+              })
+            }
+          },
+        },
+        getServerModuleMap(),
+        { temporaryReferences }
+      )
+}
+
 async function generateCacheEntryImpl(
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
-  encodedArguments: FormData | string,
+  encodedCacheKey: FormData | string,
   fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , , args] =
-    typeof encodedArguments === 'string'
-      ? await decodeReply<CacheKeyParts>(
-          encodedArguments,
-          getServerModuleMap(),
-          { temporaryReferences }
-        )
-      : await decodeReplyFromAsyncIterable<CacheKeyParts>(
-          {
-            async *[Symbol.asyncIterator]() {
-              for (const entry of encodedArguments) {
-                yield entry
-              }
-
-              // The encoded arguments might contain hanging promises. In this
-              // case we don't want to reject with "Error: Connection closed.",
-              // so we intentionally keep the iterable alive. This is similar to
-              // the halting trick that we do while rendering.
-              if (outerWorkUnitStore?.type === 'prerender') {
-                await new Promise<void>((resolve) => {
-                  if (outerWorkUnitStore.renderSignal.aborted) {
-                    resolve()
-                  } else {
-                    outerWorkUnitStore.renderSignal.addEventListener(
-                      'abort',
-                      () => resolve(),
-                      { once: true }
-                    )
-                  }
-                })
-              }
-            },
-          },
-          getServerModuleMap(),
-          { temporaryReferences }
-        )
+  const [, , , args] = await decodeReply<CacheKeyParts>(
+    outerWorkUnitStore,
+    encodedCacheKey,
+    temporaryReferences
+  )
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -365,7 +375,7 @@ async function generateCacheEntryImpl(
     // to be lower than just the general timeout of 60 seconds.
     timer = setTimeout(() => {
       controller.abort(timeoutError)
-    }, 50000)
+    }, 3000)
   }
 
   const stream = renderToReadableStream(
@@ -606,25 +616,74 @@ export function cache(
         args.unshift(boundArgs)
       }
 
-      const temporaryReferences = createClientTemporaryReferenceSet()
-      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+      const argsClientTemporaryReferences = createClientTemporaryReferenceSet()
 
-      await encodeReply(cacheKeyParts, {
-        temporaryReferences,
+      const encodedArgs = await encodeReply(args, {
+        temporaryReferences: argsClientTemporaryReferences,
         signal: hangingInputAbortSignal,
       })
 
-      const encodedCacheKeyParts: FormData | string = await encodeReply(
+      const argsServerTemporaryReferences = createServerTemporaryReferenceSet()
+
+      const decodedArgs = await decodeReply<unknown[]>(
+        workUnitStore,
+        encodedArgs,
+        argsServerTemporaryReferences
+      )
+
+      const argsStream = renderToReadableStream(
+        decodedArgs,
+        clientReferenceManifest.clientModules,
+        { temporaryReferences: argsServerTemporaryReferences }
+      )
+
+      const serverConsumerManifest = {
+        // moduleLoading must be null because we don't want to trigger preloads
+        // of ClientReferences to be added to the consumer. Instead, we'll wait
+        // for any ClientReference to be emitted which themselves will handle
+        // the preloading.
+        moduleLoading: null,
+        moduleMap: isEdgeRuntime
+          ? clientReferenceManifest.edgeRscModuleMapping
+          : clientReferenceManifest.rscModuleMapping,
+        serverModuleMap: getServerModuleMap(),
+      }
+
+      const resolvedArgs = await createFromReadableStream<unknown[]>(
+        argsStream,
+        {
+          serverConsumerManifest,
+          temporaryReferences: argsClientTemporaryReferences,
+        }
+      )
+
+      const cacheKeyParts: CacheKeyParts = [
+        buildId,
+        hmrRefreshHash,
+        id,
+        resolvedArgs,
+      ]
+
+      const temporaryReferences = createClientTemporaryReferenceSet()
+
+      const encodedCacheKey: FormData | string = await encodeReply(
         cacheKeyParts,
         { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
-        typeof encodedCacheKeyParts === 'string'
+        typeof encodedCacheKey === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
-            encodedCacheKeyParts
-          : await encodeFormData(encodedCacheKeyParts)
+            encodedCacheKey
+          : await encodeFormData(encodedCacheKey)
+
+      console.log('encodedArgs', encodedArgs)
+      console.log('decodedArgs', decodedArgs)
+      console.log('resolvedArgs', resolvedArgs)
+      console.log('cacheKeyParts', cacheKeyParts)
+      console.log('encodedCacheKey', encodedCacheKey)
+      console.log('serializedCacheKey', serializedCacheKey)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -756,7 +815,7 @@ export function cache(
             workStore,
             workUnitStore,
             clientReferenceManifest,
-            encodedCacheKeyParts,
+            encodedCacheKey,
             fn,
             timeoutError
           )
@@ -821,7 +880,7 @@ export function cache(
               workStore,
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
-              encodedCacheKeyParts,
+              encodedCacheKey,
               fn,
               timeoutError
             )
@@ -861,17 +920,6 @@ export function cache(
       // server terminal. Once while generating the cache entry and once when replaying it on
       // the server, which is required to pick it up for replaying again on the client.
       const replayConsoleLogs = true
-
-      const serverConsumerManifest = {
-        // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
-        // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
-        // which themselves will handle the preloading.
-        moduleLoading: null,
-        moduleMap: isEdgeRuntime
-          ? clientReferenceManifest.edgeRscModuleMapping
-          : clientReferenceManifest.rscModuleMapping,
-        serverModuleMap: getServerModuleMap(),
-      }
 
       return createFromReadableStream(stream, {
         serverConsumerManifest,
