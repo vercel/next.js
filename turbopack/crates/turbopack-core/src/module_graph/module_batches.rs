@@ -48,6 +48,8 @@ pub struct ModuleBatchesGraphEdge {
     pub module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
+type EntriesList = FxIndexSet<ResolvedVc<Box<dyn Module>>>;
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 pub struct ModuleBatchesGraph {
     graph: TracedDiGraph<ModuleOrBatch, ModuleBatchesGraphEdge>,
@@ -66,7 +68,7 @@ pub struct ModuleBatchesGraph {
     /// `ChunkGroup::entries()` this contains Some with the postorder list of entries of that chunk
     /// group. The index in this list corresponds to the index in the
     /// chunk_group_info.chunk_groups.
-    ordered_entries: Vec<Option<FxIndexSet<ResolvedVc<Box<dyn Module>>>>>,
+    ordered_entries: Vec<Option<EntriesList>>,
 }
 
 impl ModuleBatchesGraph {
@@ -394,7 +396,7 @@ pub async fn compute_module_batches(
         span.record("initial_pre_batches", pre_batches.batches.len());
 
         // Figure out the order of all merged groups
-        let mut ordered_entries: Vec<Option<FxIndexSet<ResolvedVc<Box<dyn Module>>>>> =
+        let mut ordered_entries: Vec<Option<EntriesList>> =
             vec![None; chunk_group_info.chunk_groups.len()];
         for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
             if !chunk_group_indicies_with_merged_children.contains(&i) {
