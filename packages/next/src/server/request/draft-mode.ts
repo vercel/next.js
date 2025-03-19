@@ -56,6 +56,7 @@ export function draftMode(): Promise<DraftMode> {
       )
 
     case 'cache':
+    case 'unstable-cache':
       // Inside of "use cache" draft mode is available if the outer work unit
       // store is a request store and draft mode is enabled. Checking
       // `workStore.isDraftMode` here is just a double-safety measure. If it's
@@ -69,7 +70,6 @@ export function draftMode(): Promise<DraftMode> {
 
     // Otherwise, we fall through to providing an empty draft mode.
     // eslint-disable-next-line no-fallthrough
-    case 'unstable-cache': // TODO: unstable-cache should be the same as cache.
     case 'prerender':
     case 'prerender-ppr':
     case 'prerender-legacy':

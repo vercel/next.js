@@ -15,6 +15,7 @@ import type {
 } from '../resume-data-cache/resume-data-cache'
 import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
+import type { WorkStore } from './work-async-storage.external'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -174,6 +175,9 @@ export interface UseCacheStore extends CommonWorkUnitStore {
 
 export interface UnstableCacheStore extends CommonWorkUnitStore {
   type: 'unstable-cache'
+  // Draft mode is only available if the outer work unit store is a request
+  // store and draft mode is enabled.
+  readonly draftMode: DraftModeProvider | undefined
 }
 
 /**
@@ -272,4 +276,21 @@ export function getHmrRefreshHash(
     : workUnitStore.type === 'request'
       ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
       : undefined
+}
+
+export function getDraftMode(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): DraftModeProvider | undefined {
+  if (workStore.isDraftMode) {
+    // eslint-disable-next-line default-case
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'unstable-cache':
+      case 'request':
+        return workUnitStore.draftMode
+    }
+  }
+
+  return undefined
 }
