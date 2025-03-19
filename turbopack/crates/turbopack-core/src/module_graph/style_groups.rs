@@ -78,7 +78,6 @@ pub async fn compute_style_groups(
         FxIndexMap::default();
 
     // Compute the style modules in each chunk group
-    // TODO this can be a Vec
     let mut chunk_group_state = Vec::new();
     let mut idx = 0;
     for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
