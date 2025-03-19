@@ -55,7 +55,7 @@ export function isMetadataRouteFile(
   strictlyMatchExtensions: boolean
 ) {
   // End with the extension or optional to have the extension
-  const trailingMatcher = strictlyMatchExtensions ? '$' : '?'
+  const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
   const metadataRouteFilesRegex = [
     new RegExp(
       `^[\\\\/]robots${getExtensionRegexString(
@@ -129,10 +129,10 @@ export function isStaticMetadataRoute(route: string) {
 // The input is a page, which can be with or without page suffix /foo/page or /foo.
 // But it will not contain the /route suffix.
 export function isMetadataPage(pathname: string) {
-  const res =
+  const matched =
     !isAppRouteRoute(pathname) && isMetadataRouteFile(pathname, [], false)
 
-  return res
+  return matched
 }
 
 /*
@@ -147,5 +147,6 @@ export function isMetadataRoute(route: string): boolean {
 
   if (page[0] !== '/') page = '/' + page
 
-  return isAppRouteRoute(route) && isMetadataRouteFile(page, [], false)
+  const matched = isAppRouteRoute(route) && isMetadataRouteFile(page, [], false)
+  return matched
 }
