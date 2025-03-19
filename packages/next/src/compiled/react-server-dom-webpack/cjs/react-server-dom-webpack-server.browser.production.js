@@ -2120,33 +2120,114 @@ function loadServerReference$1(
   );
   return null;
 }
+
+function isConsumableValue(value) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  if (typeof ReadableStream === "function" && value instanceof ReadableStream) {
+    return true;
+  }
+
+  const iteratorFn = getIteratorFn(value);
+  if (iteratorFn) {
+    const iterator = iteratorFn.call(value);
+    if (iterator === value) {
+      // Iterator, not Iterable
+      return true;
+    }
+  }
+
+  const getAsyncIterator = value[ASYNC_ITERATOR];
+  if (typeof getAsyncIterator === "function") {
+    const iterator = getAsyncIterator.call(value);
+    if (iterator === value) {
+      // Generators/Iterators are Iterables but they're also their own iterator functions.
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasTemporaryReference(temporaryReferences, object) {
+  return temporaryReferences.has(object);
+}
+
+function registerTemporaryReference(temporaryReferences, object, id) {
+  return temporaryReferences.set(object, id);
+}
+
 function reviveModel(response, parentObj, parentKey, value, reference) {
-  if ("string" === typeof value)
+  if (typeof value === "string") {
+    // We can't use .bind here because we need the "this" value.
     return parseModelString(response, parentObj, parentKey, value, reference);
-  if ("object" === typeof value && null !== value)
+  }
+  if (typeof value === "object" && value !== null) {
+    if (Array.isArray(value)) {
+      for (let i = 0; i < value.length; i++) {
+        const childRef =
+          reference !== undefined ? reference + ":" + i : undefined;
+        const child = reviveModel(response, value, "" + i, value[i], childRef);
+        // $FlowFixMe[cannot-write]
+        value[i] = child;
+        if (
+          reference !== undefined &&
+          response._temporaryReferences !== undefined &&
+          typeof child === "object" &&
+          child !== null
+        ) {
+          if (!hasTemporaryReference(response._temporaryReferences, child)) {
+            // object child cannot be a temporary reference, so neither can we.
+            // don't try to register this value or subsequent children.
+            reference = undefined;
+          }
+        }
+      }
+    } else {
+      for (const key in value) {
+        if (hasOwnProperty.call(value, key)) {
+          const childRef =
+            reference !== undefined && key.indexOf(":") === -1
+              ? reference + ":" + key
+              : undefined;
+          const child = reviveModel(response, value, key, value[key], childRef);
+          if (child !== undefined) {
+            // $FlowFixMe[cannot-write]
+            value[key] = child;
+            if (
+              reference !== undefined &&
+              response._temporaryReferences !== undefined &&
+              typeof child === "object" &&
+              child !== null
+            ) {
+              if (
+                !hasTemporaryReference(response._temporaryReferences, child)
+              ) {
+                // object child cannot be a temporary reference, so neither can we.
+                // don't try to register this value or subsequent children.
+                reference = undefined;
+              }
+            }
+          } else {
+            // $FlowFixMe[cannot-write]
+            delete value[key];
+          }
+        }
+      }
+    }
     if (
-      (/*void 0 !== reference &&
-        void 0 !== response._temporaryReferences &&
-        response._temporaryReferences.set(value, reference),*/
-      Array.isArray(value))
-    )
-      for (var i = 0; i < value.length; i++)
-        value[i] = reviveModel(
-          response,
-          value,
-          "" + i,
-          value[i],
-          void 0 !== reference ? reference + ":" + i : void 0
-        );
-    else
-      for (i in value)
-        hasOwnProperty.call(value, i) &&
-          ((parentObj =
-            void 0 !== reference && -1 === i.indexOf(":")
-              ? reference + ":" + i
-              : void 0),
-          (parentObj = reviveModel(response, value, i, value[i], parentObj)),
-          void 0 !== parentObj ? (value[i] = parentObj) : delete value[i]);
+      reference !== undefined &&
+      response._temporaryReferences !== undefined
+    ) {
+      const temporaryReferences = response._temporaryReferences;
+      if (!isConsumableValue(value)) {
+        // Store this object's reference in case it's returned later.
+        registerTemporaryReference(temporaryReferences, value, reference);
+      }
+    }
+  }
   return value;
 }
 var initializingChunk = null,
