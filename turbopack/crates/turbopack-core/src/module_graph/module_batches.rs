@@ -516,13 +516,7 @@ pub async fn compute_module_batches(
             let mut mode = Mode::Other;
             for item in items {
                 let chunkable_module = if let PreBatchItem::ParallelModule(module) = &item {
-                    if let Some(chunkable_module) =
-                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
-                    {
-                        Some(chunkable_module)
-                    } else {
-                        None
-                    }
+                    ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*module)
                 } else {
                     None
                 };
@@ -585,11 +579,7 @@ pub async fn compute_module_batches(
             .map(async |(i, pre_batch)| {
                 let mut modules = pre_batch.items.iter().filter_map(|item| {
                     if let PreBatchItem::ParallelModule(module) = item {
-                        if let Some(chunkable_module) = ResolvedVc::try_downcast(*module) {
-                            Some(chunkable_module)
-                        } else {
-                            None
-                        }
+                        ResolvedVc::try_downcast(*module)
                     } else {
                         None
                     }
