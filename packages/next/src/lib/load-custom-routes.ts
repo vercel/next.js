@@ -608,14 +608,16 @@ async function loadRewrites(config: NextConfig) {
       prefix = new URL(config.assetPrefix).pathname
     }
 
-    const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
-    const basePath = config.basePath || ''
-    // If these are the same, then this would result in an infinite rewrite.
-    if (assetPrefix !== basePath) {
-      maybeAssetPrefixRewrite.push({
-        source: `${assetPrefix}/_next/:path+`,
-        destination: `${basePath}/_next/:path+`,
-      })
+    if (prefix && prefix !== '/') {
+      const assetPrefix = prefix.startsWith('/') ? prefix : `/${prefix}`
+      const basePath = config.basePath || ''
+      // If these are the same, then this would result in an infinite rewrite.
+      if (assetPrefix !== basePath) {
+        maybeAssetPrefixRewrite.push({
+          source: `${assetPrefix}/_next/:path+`,
+          destination: `${basePath}/_next/:path+`,
+        })
+      }
     }
   }
 
