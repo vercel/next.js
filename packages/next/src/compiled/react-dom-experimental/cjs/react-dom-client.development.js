@@ -28519,11 +28519,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-c69a5fc5-20250318" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-db7dfe05-20250319" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-c69a5fc5-20250318\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-db7dfe05-20250319\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -28560,10 +28560,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.1.0-experimental-c69a5fc5-20250318",
+          version: "19.1.0-experimental-db7dfe05-20250319",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.1.0-experimental-c69a5fc5-20250318"
+          reconcilerVersion: "19.1.0-experimental-db7dfe05-20250319"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -28705,7 +28705,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.1.0-experimental-c69a5fc5-20250318";
+    exports.version = "19.1.0-experimental-db7dfe05-20250319";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
