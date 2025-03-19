@@ -31,8 +31,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
             `,
         ],
       ]),
-      '/',
-      { pushErrorAsConsoleLog: true }
+      '/'
     )
     const { browser } = sandbox
     const logs = await browser.log()
@@ -53,6 +52,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
   })
 
   it('should show correct hydration error when client and server render different text', async () => {
+    const pageErrors = []
     await using sandbox = await createSandbox(
       next,
       new Map([
@@ -69,7 +69,15 @@ describe('Error overlay for hydration errors in Pages router', () => {
                 }
             `,
         ],
-      ])
+      ]),
+      '/',
+      {
+        beforePageLoad: (page) => {
+          page.on('pageerror', (error) => {
+            pageErrors.push(error)
+          })
+        },
+      }
     )
     const { session, browser } = sandbox
 
@@ -116,6 +124,7 @@ describe('Error overlay for hydration errors in Pages router', () => {
        }
       `)
     }
+    expect(pageErrors).toEqual([])
 
     await session.patch(
       'index.js',
