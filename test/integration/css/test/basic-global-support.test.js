@@ -651,9 +651,10 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_global1_64764808.css:
-           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_0a127993._.css:
+             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-1_styles_e99cb7f8._.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+
+
            .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
@@ -706,9 +707,10 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
         if (process.env.TURBOPACK) {
           expect(cssContent).toMatchInlineSnapshot(`
            [
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_global1_cfbf8de3.css:
-           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}",
-             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_764eafae._.css:
+             "/_next/static/chunks/test_integration_css-fixtures_url-global-asset-prefix-2_styles_7b29c72b._.css:
+           .red-text{color:red;background-image:url(../media/dark.993bedd3.svg) url(../media/dark2.993bedd3.svg)}
+
+
            .blue-text{color:orange;background-image:url(../media/light.180573e4.svg);font-weight:bolder}
 
 
