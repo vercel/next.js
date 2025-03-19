@@ -4,7 +4,7 @@ import { CACHE_ONE_YEAR } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import {
-  getDraftMode,
+  getDraftModeProviderForCacheScope,
   workUnitAsyncStorage,
 } from '../../app-render/work-unit-async-storage.external'
 import {
@@ -144,6 +144,16 @@ export function unstable_cache<T extends Callback>(
 
       const implicitTags = workUnitStore?.implicitTags
 
+      const innerCacheStore: UnstableCacheStore = {
+        type: 'unstable-cache',
+        phase: 'render',
+        implicitTags,
+        draftMode:
+          workUnitStore &&
+          workStore &&
+          getDraftModeProviderForCacheScope(workStore, workUnitStore),
+      }
+
       if (workStore) {
         workStore.nextFetchId = fetchIdx + 1
 
@@ -227,13 +237,7 @@ export function unstable_cache<T extends Callback>(
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
-                const innerCacheStore: UnstableCacheStore = {
-                  type: 'unstable-cache',
-                  phase: 'render',
-                  implicitTags,
-                  draftMode:
-                    workUnitStore && getDraftMode(workStore, workUnitStore),
-                }
+
                 // We run the cache function asynchronously and save the result when it completes
                 workStore.pendingRevalidates[invocationKey] =
                   workUnitAsyncStorage
@@ -263,12 +267,6 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const innerCacheStore: UnstableCacheStore = {
-          type: 'unstable-cache',
-          phase: 'render',
-          implicitTags,
-          draftMode: workUnitStore && getDraftMode(workStore, workUnitStore),
-        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(
           innerCacheStore,
@@ -326,15 +324,6 @@ export function unstable_cache<T extends Callback>(
           }
         }
 
-        const innerCacheStore: UnstableCacheStore = {
-          type: 'unstable-cache',
-          phase: 'render',
-          implicitTags,
-          draftMode:
-            workUnitStore &&
-            workStore &&
-            getDraftMode(workStore, workUnitStore),
-        }
         // If we got this far then we had an invalid cache entry and need to generate a new one
         const result = await workUnitAsyncStorage.run(
           innerCacheStore,

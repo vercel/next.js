@@ -278,7 +278,10 @@ export function getHmrRefreshHash(
       : undefined
 }
 
-export function getDraftMode(
+/**
+ * Returns a draft mode provider only if draft mode is enabled.
+ */
+export function getDraftModeProviderForCacheScope(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore
 ): DraftModeProvider | undefined {

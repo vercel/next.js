@@ -24,7 +24,7 @@ import {
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
-  getDraftMode,
+  getDraftModeProviderForCacheScope,
 } from '../app-render/work-unit-async-storage.external'
 import { runInCleanSnapshot } from '../app-render/clean-async-snapshot.external'
 
@@ -167,7 +167,8 @@ function generateCacheEntryWithCacheContext(
     serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
     forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
     draftMode:
-      outerWorkUnitStore && getDraftMode(workStore, outerWorkUnitStore),
+      outerWorkUnitStore &&
+      getDraftModeProviderForCacheScope(workStore, outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(

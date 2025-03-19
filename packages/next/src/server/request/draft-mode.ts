@@ -1,4 +1,7 @@
-import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
+import {
+  getDraftModeProviderForCacheScope,
+  throwForMissingRequestStore,
+} from '../app-render/work-unit-async-storage.external'
 
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
@@ -44,7 +47,7 @@ export function draftMode(): Promise<DraftMode> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (!workUnitStore) {
+  if (!workStore || !workUnitStore) {
     throwForMissingRequestStore(callingExpression)
   }
 
@@ -57,15 +60,16 @@ export function draftMode(): Promise<DraftMode> {
 
     case 'cache':
     case 'unstable-cache':
-      // Inside of "use cache" draft mode is available if the outer work unit
-      // store is a request store and draft mode is enabled. Checking
-      // `workStore.isDraftMode` here is just a double-safety measure. If it's
-      // false, `workUnitStore.draftMode` should also be undefined.
-      if (workStore?.isDraftMode && workUnitStore.draftMode) {
-        return createOrGetCachedExoticDraftMode(
-          workUnitStore.draftMode,
-          workStore
-        )
+      // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
+      // the outmost work unit store is a request store, and if draft mode is
+      // enabled.
+      const draftModeProvider = getDraftModeProviderForCacheScope(
+        workStore,
+        workUnitStore
+      )
+
+      if (draftModeProvider) {
+        return createOrGetCachedExoticDraftMode(draftModeProvider, workStore)
       }
 
     // Otherwise, we fall through to providing an empty draft mode.
