@@ -44,23 +44,25 @@ export const getExtensionRegexString = (
   return `(?:\\.(${staticExtensions.join('|')})|(\\.(${dynamicExtensions.join('|')})))`
 }
 
-// When you only pass the file extension as `[]`, it will only match the static convention files
-// e.g. /robots.txt, /sitemap.xml, /favicon.ico, /manifest.json
-// When you pass the file extension as `['js', 'jsx', 'ts', 'tsx']`, it will also match the dynamic convention files
-// e.g. /robots.js, /sitemap.tsx, /favicon.jsx, /manifest.ts
-// When `withExtension` is false, it will match the static convention files without the extension, by default it's true
-// e.g. /robots, /sitemap, /favicon, /manifest, use to match dynamic API routes like app/robots.ts
+/**
+ * Determine if the file is a metadata route file entry
+ * @param appDirRelativePath the relative file path to app/
+ * @param pageExtensions the js extensions, such as ['js', 'jsx', 'ts', 'tsx']
+ * @param strictlyMatchExtensions if it's true, match the file with page extension, otherwise match the file with default corresponding extension
+ * @returns {boolean} if the file is a metadata route file
+ */
 export function isMetadataRouteFile(
   appDirRelativePath: string,
   pageExtensions: PageExtensions,
   strictlyMatchExtensions: boolean
 ) {
   // End with the extension or optional to have the extension
+  // When strictlyMatchExtensions is true, it's used for match file path;
+  // When strictlyMatchExtensions, the dynamic extension is skipped but
+  // static extension is kept, which is usually used for matching route path.
   const trailingMatcher = (strictlyMatchExtensions ? '' : '?') + '$'
   // Match the optional variants like /opengraph-image2, /icon-a102f4.png, etc.
   const variantsMatcher = '\\d?'
-  // Match the optional sub-routes like /sitemap/1.xml, /icon/1, etc.
-  // const subRoutesMatcher = '' // '(\\/\\w+)?'
   // The -\w{6} is the suffix that normalized from group routes;
   const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
 
@@ -137,8 +139,17 @@ export function isStaticMetadataRoute(route: string) {
   return matched
 }
 
-// The input is a page, which can be with or without page suffix /foo/page or /foo.
-// But it will not contain the /route suffix.
+/**
+ * Determine if a page or pathname is a metadata page.
+ *
+ * The input is a page or pathname, which can be with or without page suffix /foo/page or /foo.
+ * But it will not contain the /route suffix.
+ *
+ * .e.g
+ * /robots -> true
+ * /sitemap -> true
+ * /foo -> false
+ */
 export function isMetadataPage(page: string) {
   const matched = !isAppRouteRoute(page) && isMetadataRouteFile(page, [], false)
 
@@ -146,15 +157,15 @@ export function isMetadataPage(page: string) {
 }
 
 /*
- * Remove the 'app' prefix or '/route' suffix and hash, only check the route name since they're only allowed in root app directory
- * e.g.
- * /app/robots/route -> /robots -> true
- * app/robots/route -> /robots -> true
- * /robots/route -> /robots -> true
- * /sitemap/[__metadata_id__]/route -> /sitemap/route -> true
- * /app/sitemap/page -> /sitemap/page -> false
- * /icon-a102f4/route -> /icon-a102f4 -> true
+ * Determine if a Next.js route is a metadata route.
+ * `route` will has a route suffix.
  *
+ * e.g.
+ * /app/robots/route -> true
+ * /robots/route -> true
+ * /sitemap/[__metadata_id__]/route -> true
+ * /app/sitemap/page -> false
+ * /icon-a102f4/route -> true
  */
 export function isMetadataRoute(route: string): boolean {
   let page = normalizeAppPath(route)
