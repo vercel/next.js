@@ -60,11 +60,11 @@ export function isMetadataRouteFile(
   // Match the optional variants like /opengraph-image2, /icon-a102f4.png, etc.
   const variantsMatcher = '\\d?'
   // Match the optional sub-routes like /sitemap/1.xml, /icon/1, etc.
-  const subRoutesMatcher = '(\\/\\w+)?'
+  // const subRoutesMatcher = '' // '(\\/\\w+)?'
   // The -\w{6} is the suffix that normalized from group routes;
   const groupSuffix = strictlyMatchExtensions ? '' : '(-\\w{6})?'
 
-  const suffixMatcher = `${variantsMatcher}${groupSuffix}${subRoutesMatcher}`
+  const suffixMatcher = `${variantsMatcher}${groupSuffix}`
 
   const metadataRouteFilesRegex = [
     new RegExp(
@@ -81,7 +81,7 @@ export function isMetadataRouteFile(
     ),
     new RegExp(`^[\\\\/]favicon\\.ico$`),
     new RegExp(
-      `[\\\\/]sitemap${subRoutesMatcher}${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
+      `[\\\\/]sitemap${getExtensionRegexString(['xml'], pageExtensions)}${trailingMatcher}`
     ),
     new RegExp(
       `[\\\\/]${STATIC_METADATA_IMAGES.icon.filename}${suffixMatcher}${getExtensionRegexString(
