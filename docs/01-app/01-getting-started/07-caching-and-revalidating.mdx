@@ -6,7 +6,6 @@ related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
-    - app/api-reference/config/next-config-js/dynamicIO
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/cacheTag
@@ -14,14 +13,10 @@ related:
     - app/api-reference/functions/revalidatePath
 ---
 
-> **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. This option was introduced in Next.js 15 canary.
-
-## Caching
-
-Next.js leverages both the server and client environments for caching.
+Next.js uses the server and client environments for caching.
 
 - On the server, you can cache the output of components and functions to reduce the need to recompute work for every user request.
-- On the client, the cached content from the server is temporarily stored to reduce the number of server requests on navigation.
+- On the client, the cached content from the server is temporarily stored in the browser to reduce the number of server requests on navigation.
 
 This page describes how you can cache and revalidate routes, components, and functions, and configure the caching behavior.
 
