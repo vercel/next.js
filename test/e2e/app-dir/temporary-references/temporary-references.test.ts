@@ -6,14 +6,10 @@ describe('temporary-references', () => {
     files: __dirname,
   })
 
-  // FIXME: the react patch i did to fix iterators and enable encode-decode-encode breaks this test,
-  // because it essentially disabled passing the same objects back
-  // (which is undesirable for iterators)
-  it.failing.each(['edge', 'node'])(
+  it.each(['edge', 'node'])(
     'should return the same object that was sent to the action (%s)',
     async (runtime) => {
       const browser = await next.browser('/' + runtime)
-      // eslint-disable-next-line jest/no-standalone-expect
       expect(await browser.elementByCss('p').text()).toBe('initial')
 
       await browser.elementByCss('button').click()
