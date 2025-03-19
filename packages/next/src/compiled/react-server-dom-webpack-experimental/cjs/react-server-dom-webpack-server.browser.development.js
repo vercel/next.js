@@ -2989,9 +2989,9 @@
         );
       if ("object" === typeof value && null !== value)
         if (
-          (void 0 !== reference &&
+          (/*void 0 !== reference &&
             void 0 !== response._temporaryReferences &&
-            response._temporaryReferences.set(value, reference),
+            response._temporaryReferences.set(value, reference),*/
           Array.isArray(value))
         )
           for (var i = 0; i < value.length; i++)
