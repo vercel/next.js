@@ -4,6 +4,7 @@ pub mod source_map;
 use std::fmt::Write;
 
 use anyhow::{bail, Result};
+use swc_core::common::pass::Either;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueDefault, ValueToString,
@@ -314,27 +315,28 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.owned().await?;
-        if content.chunk_items.len() > 1 {
-            references.extend(
-                content
-                    .chunk_items
-                    .iter()
-                    .map(|item| async {
-                        Ok(item
-                            .references()
-                            .await?
-                            .into_iter()
-                            .copied()
-                            .chain(std::iter::once(ResolvedVc::upcast(
+        let single_item_chunks = content.chunk_items.len() > 1;
+        references.extend(
+            content
+                .chunk_items
+                .iter()
+                .map(|item| async {
+                    let references = item.references().await?.into_iter().copied();
+                    Ok(if single_item_chunks {
+                        Either::Left(
+                            references.chain(std::iter::once(ResolvedVc::upcast(
                                 SingleItemCssChunk::new(*this.chunking_context, **item)
                                     .to_resolved()
                                     .await?,
-                            ))))
+                            ))),
+                        )
+                    } else {
+                        Either::Right(references)
                     })
-                    .try_flat_join()
-                    .await?,
-            );
-        }
+                })
+                .try_flat_join()
+                .await?,
+        );
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
