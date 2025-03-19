@@ -5217,6 +5217,7 @@
   },
   "test/e2e/app-dir/segment-cache/incremental-opt-in/segment-cache-incremental-opt-in.test.ts": {
     "passed": [
+      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled, and has a loading boundary",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled",
       "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR enabled, and has a dynamic param",
@@ -5225,9 +5226,7 @@
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches cache entries that only contain partial data",
       "segment cache (incremental opt in) when prefetching with prefetch=true, refetches partial cache entries even if there's already a pending PPR request"
     ],
-    "failed": [
-      "segment cache (incremental opt in) multiple prefetches to same link are deduped page with PPR disabled"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5595,7 +5594,10 @@
   },
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
-      "use-cache-custom-handler should use custom cache handler if provided"
+      "use-cache-custom-handler should revalidate using a legacy custom cache handler",
+      "use-cache-custom-handler should revalidate using a modern custom cache handler",
+      "use-cache-custom-handler should use a legacy custom cache handler if provided",
+      "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
     "failed": [],
     "pending": [],
@@ -5697,12 +5699,16 @@
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
       "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
+      "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should prerender fully cacheable pages as static HTML",
       "use-cache should propagate unstable_cache tags correctly",
       "use-cache should return the same object reference for multiple invocations",
+      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
+      "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should update after unstable_expireTag correctly",
       "use-cache should use revalidate config in fetch",
@@ -6657,6 +6663,28 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/link-on-navigate-prop/index.test.ts": {
+    "passed": [
+      "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop App Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop App Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop App Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop App Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop App Router should trigger onClick but not onNavigate when using modifier key",
+      "<Link /> onNavigate prop Pages Router should only trigger both onClick for external links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for download links",
+      "<Link /> onNavigate prop Pages Router should only trigger onClick for external links with target=\"_blank\"",
+      "<Link /> onNavigate prop Pages Router should prevent navigation when onNavigate calls preventDefault",
+      "<Link /> onNavigate prop Pages Router should replace history state for external links with replace prop",
+      "<Link /> onNavigate prop Pages Router should trigger both onClick and onNavigate for internal navigation",
+      "<Link /> onNavigate prop Pages Router should trigger onClick but not onNavigate when using modifier key"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-with-api-rewrite/index.test.ts": {
     "passed": [
       "link-with-api-rewrite should perform hard navigation for direct urls",
@@ -7279,11 +7307,10 @@
   },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
+      "next-config-warnings - esm-externals-false should contain esmExternals feature usage in telemetry",
       "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
     ],
-    "failed": [
-      "next-config-warnings - esm-externals-false should contain esmExternals feature usage in telemetry"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8372,6 +8399,12 @@
   },
   "test/integration/amphtml-ssg/test/index.test.js": {
     "passed": [
+      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
+      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
+      "AMP SSG Support development mode should load an amp first page correctly",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
+      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
       "AMP SSG Support export mode production mode should have copied SSG files correctly",
       "AMP SSG Support production mode should load a hybrid amp page with query correctly",
       "AMP SSG Support production mode should load a hybrid amp page without query correctly",
@@ -8382,23 +8415,18 @@
       "AMP SSG Support production mode should output prerendered files correctly during build"
     ],
     "failed": [],
-    "pending": [
-      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support development mode should load an amp first page correctly",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash"
-    ],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/integration/amphtml/test/index.test.js": {
     "passed": [
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "failed": [
+      "AMP Usage AMP dev no-warn should not warn on valid amp",
+      "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
+      "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
+      "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
+      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
+      "AMP Usage AMP development mode should not contain missing files warning",
       "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
       "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
       "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
@@ -8406,8 +8434,6 @@
       "AMP Usage production mode With basic AMP usage should auto import extensions",
       "AMP Usage production mode With basic AMP usage should drop custom scripts",
       "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
       "AMP Usage production mode With basic AMP usage should optimize clean",
       "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
       "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
@@ -8423,20 +8449,20 @@
       "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
       "AMP Usage production mode combined styles should combine style tags",
       "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace"
+      "AMP Usage production mode should have amp optimizer in trace",
+      "AMP Usage production mode should not contain missing files warning",
+      "AMP Usage production mode should not have deprecation warning"
+    ],
+    "failed": [
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
+      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration"
     ],
     "pending": [
-      "AMP Usage AMP dev no-warn should not warn on valid amp",
-      "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-      "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-      "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
       "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page",
       "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
       "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
       "AMP Usage AMP development mode should detect the changes and display it",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning",
       "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page"
     ],
     "flakey": [],
@@ -9322,12 +9348,13 @@
   },
   "test/integration/create-next-app/package-manager/bun.test.ts": {
     "passed": [
-      "create-next-app with package manager bun should use bun for --use-bun flag",
       "create-next-app with package manager bun should use bun for --use-bun flag with example",
       "create-next-app with package manager bun should use bun when user-agent is bun",
       "create-next-app with package manager bun should use bun when user-agent is bun with example"
     ],
-    "failed": [],
+    "failed": [
+      "create-next-app with package manager bun should use bun for --use-bun flag"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16705,7 +16732,6 @@
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
-      "server-side dev errors should show server-side error for dynamic gssp page correctly",
       "server-side dev errors should show server-side error for gsp page correctly",
       "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
@@ -16713,7 +16739,9 @@
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for dynamic gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16824,6 +16852,7 @@
       "config telemetry production mode detects i18n and image configs for session start",
       "config telemetry production mode detects output config for session start",
       "config telemetry production mode detects rewrites, headers, and redirects for next build",
+      "config telemetry production mode emits telemery for usage of image, script & dynamic",
       "config telemetry production mode emits telemetry for `next lint`",
       "config telemetry production mode emits telemetry for configured React Compiler options",
       "config telemetry production mode emits telemetry for default React Compiler options",
@@ -16831,23 +16860,21 @@
       "config telemetry production mode emits telemetry for lint during build",
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
+      "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for persistent cache in build mode",
       "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
       "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
       "config telemetry production mode emits telemetry for usage of middleware",
-      "config telemetry production mode emits telemetry for usage of swc plugins"
-    ],
-    "failed": [
-      "config telemetry production mode emits telemery for usage of image, script & dynamic",
-      "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of next/legacy/image",
       "config telemetry production mode emits telemetry for usage of swc",
+      "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -16866,16 +16893,16 @@
       "Telemetry CLI production mode cli session: babel tooling config",
       "Telemetry CLI production mode cli session: custom babel config (plugin)",
       "Telemetry CLI production mode cli session: custom babel config (preset)",
+      "Telemetry CLI production mode cli session: next config with webpack",
       "Telemetry CLI production mode cli session: package.json custom babel config (plugin)",
       "Telemetry CLI production mode detect page counts correctly for `next build`",
       "Telemetry CLI production mode detect static 404 correctly for `next build`",
       "Telemetry CLI production mode detects correct cli session defaults",
+      "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
       "Telemetry CLI production mode detects tests correctly for `next build`",
       "Telemetry CLI production mode logs completed `next build` with warnings"
     ],
     "failed": [
-      "Telemetry CLI production mode cli session: next config with webpack",
-      "Telemetry CLI production mode detects isSrcDir dir correctly for `next build`",
       "Telemetry CLI production mode emits event when swc fails to load"
     ],
     "pending": [],
@@ -17702,8 +17729,7 @@
   "test/production/app-dir/dynamic-io-cache-handlers/dynamic-io-cache-handlers.test.ts": {
     "passed": [
       "dynamic-io-cache-handlers should call expireTags on global default cache handler",
-      "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler",
-      "dynamic-io-cache-handlers should call receiveExpiredTags on global default cache handler without tags if none are provided",
+      "dynamic-io-cache-handlers should call refreshTags on global default cache handler",
       "dynamic-io-cache-handlers should use global symbol for default cache handler"
     ],
     "failed": [],
@@ -18059,8 +18085,8 @@
     "runtimeError": false
   },
   "test/production/deterministic-build/index.test.ts": {
-    "passed": ["deterministic build should have same md5 file across build"],
-    "failed": [],
+    "passed": [],
+    "failed": ["deterministic build should have same md5 file across build"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18398,11 +18424,11 @@
     "runtimeError": false
   },
   "test/production/next-font/telemetry.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "next/font unused telemetry should not send next/font/google and next/font/local usage event",
       "next/font used telemetry should send next/font/google and next/font/local usage event"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -18452,7 +18478,7 @@
       "Production Usage Dynamic import default behavior should bundle two css modules for nested components into one css file",
       "Production Usage Dynamic import default behavior should bundle two css modules for one dynamically imported component into one css file",
       "Production Usage Dynamic import default behavior should not remove css styles for same css file between page transitions",
-      "Production Usage Dynamic import default behavior should output two css files even in case of three css module files while one is shared across files",
+      "Production Usage Dynamic import default behavior should output correct css even in case of three css module files while one is shared across files",
       "Production Usage Dynamic import default behavior should render dynamic import components",
       "Production Usage Dynamic import default behavior should render even there are no physical chunk exists",
       "Production Usage Dynamic import default behavior should render one dynamically imported component and load its css files",
