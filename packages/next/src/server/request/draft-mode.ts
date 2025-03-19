@@ -1,8 +1,11 @@
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
+import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 
 import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
@@ -41,14 +44,35 @@ export function draftMode(): Promise<DraftMode> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (workUnitStore) {
-    if (
-      workUnitStore.type === 'cache' ||
-      workUnitStore.type === 'unstable-cache' ||
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy'
-    ) {
+  if (!workUnitStore) {
+    throwForMissingRequestStore(callingExpression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'request':
+      return createOrGetCachedExoticDraftMode(
+        workUnitStore.draftMode,
+        workStore
+      )
+
+    case 'cache':
+      // Inside of "use cache" draft mode is available if the outer work unit
+      // store is a request store and draft mode is enabled. Checking
+      // `workStore.isDraftMode` here is just a double-safety measure. If it's
+      // false, `workUnitStore.draftMode` should also be undefined.
+      if (workStore?.isDraftMode && workUnitStore.draftMode) {
+        return createOrGetCachedExoticDraftMode(
+          workUnitStore.draftMode,
+          workStore
+        )
+      }
+
+    // Otherwise, we fall through to providing an empty draft mode.
+    // eslint-disable-next-line no-fallthrough
+    case 'unstable-cache': // TODO: unstable-cache should be the same as cache.
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
       // Return empty draft mode
       if (
         process.env.NODE_ENV === 'development' &&
@@ -59,27 +83,34 @@ export function draftMode(): Promise<DraftMode> {
       } else {
         return createExoticDraftMode(null)
       }
-    }
+
+    default:
+      const _exhaustiveCheck: never = workUnitStore
+      return _exhaustiveCheck
   }
+}
 
-  const requestStore = getExpectedRequestStore(callingExpression)
+function createOrGetCachedExoticDraftMode(
+  draftModeProvider: DraftModeProvider,
+  workStore: WorkStore | undefined
+): Promise<DraftMode> {
+  const cachedDraftMode = CachedDraftModes.get(draftMode)
 
-  const cachedDraftMode = CachedDraftModes.get(requestStore.draftMode)
   if (cachedDraftMode) {
     return cachedDraftMode
   }
 
-  let promise
+  let promise: Promise<DraftMode>
+
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
-    promise = createExoticDraftModeWithDevWarnings(
-      requestStore.draftMode,
-      route
-    )
+    promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
-    promise = createExoticDraftMode(requestStore.draftMode)
+    promise = createExoticDraftMode(draftModeProvider)
   }
-  CachedDraftModes.set(requestStore.draftMode, promise)
+
+  CachedDraftModes.set(draftModeProvider, promise)
+
   return promise
 }
 

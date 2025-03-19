@@ -167,6 +167,9 @@ export interface UseCacheStore extends CommonWorkUnitStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
+  // Draft mode is only available if the outer work unit store is a request
+  // store and draft mode is enabled.
+  readonly draftMode: DraftModeProvider | undefined
 }
 
 export interface UnstableCacheStore extends CommonWorkUnitStore {
@@ -189,30 +192,40 @@ export function getExpectedRequestStore(
   callingExpression: string
 ): RequestStore {
   const workUnitStore = workUnitAsyncStorageInstance.getStore()
-  if (workUnitStore) {
-    if (workUnitStore.type === 'request') {
+
+  if (!workUnitStore) {
+    throwForMissingRequestStore(callingExpression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'request':
       return workUnitStore
-    }
-    if (
-      workUnitStore.type === 'prerender' ||
-      workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy'
-    ) {
+
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
       // This should not happen because we should have checked it already.
       throw new Error(
         `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
       )
-    }
-    if (workUnitStore.type === 'cache') {
+
+    case 'cache':
       throw new Error(
         `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
-    } else if (workUnitStore.type === 'unstable-cache') {
+
+    case 'unstable-cache':
       throw new Error(
         `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
-    }
+
+    default:
+      const _exhaustiveCheck: never = workUnitStore
+      return _exhaustiveCheck
   }
+}
+
+export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )

@@ -785,6 +785,13 @@ describe('use-cache', () => {
         newClosureValue
       )
 
+      // Accessing request-scoped data should still not be allowed.
+      expect(
+        await browser
+          .elementById('is-accessing-request-scoped-data-allowed-in-use-cache')
+          .text()
+      ).toBe('false')
+
       await browser.elementByCss('button#toggle').click()
       await browser.waitForElementByCss('button#toggle:enabled')
 
