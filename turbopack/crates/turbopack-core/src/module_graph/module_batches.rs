@@ -397,29 +397,9 @@ pub async fn compute_module_batches(
         let mut ordered_entries: Vec<Option<FxIndexSet<ResolvedVc<Box<dyn Module>>>>> =
             vec![None; chunk_group_info.chunk_groups.len()];
         for (i, chunk_group) in chunk_group_info.chunk_groups.iter().enumerate() {
-            if ordered_entries[i].is_some() {
-                if ordered_entries[i].as_ref().unwrap().len() != chunk_group.entries_count() {
-                    println!(
-                        "ordered_entries = {:#?}\nchunk_group.entries() = {:#?}",
-                        ordered_entries[i]
-                            .as_ref()
-                            .unwrap()
-                            .iter()
-                            .map(|m| m.ident().to_string())
-                            .try_join()
-                            .await?,
-                        chunk_group
-                            .entries()
-                            .map(|m| m.ident().to_string())
-                            .try_join()
-                            .await?,
-                    );
-                }
-            }
             if !chunk_group_indicies_with_merged_children.contains(&i) {
                 continue;
             }
-            println!("visit chunk_group {:#?}", chunk_group);
             let mut merged_modules: FxHashMap<ChunkingType, FxIndexSet<_>> = FxHashMap::default();
             let mut stack = ordered_entries[i]
                 .as_ref()
@@ -442,9 +422,7 @@ pub async fn compute_module_batches(
                 let batch = &pre_batches.batches[idx];
                 while let Some(item) = batch.items.get_index(pos) {
                     match item {
-                        PreBatchItem::ParallelModule(module) => {
-                            println!("visit {}", module.ident().to_string().await?);
-                        }
+                        PreBatchItem::ParallelModule(_) => {}
                         PreBatchItem::ParallelReference(other_idx) => {
                             if visited.insert(*other_idx) {
                                 stack.push((idx, pos + 1));
@@ -453,11 +431,6 @@ pub async fn compute_module_batches(
                             }
                         }
                         PreBatchItem::NonParallelEdge(chunking_type, module) => {
-                            println!(
-                                "visit non-parallel edge {:?} {}",
-                                chunking_type,
-                                module.ident().to_string().await?
-                            );
                             if chunking_type.is_merged() {
                                 merged_modules
                                     .entry(chunking_type.clone())
@@ -470,23 +443,6 @@ pub async fn compute_module_batches(
                 }
             }
             if !merged_modules.is_empty() {
-                println!(
-                    "merged_modules: {:#?}",
-                    merged_modules
-                        .iter()
-                        .map(async |(ty, modules)| {
-                            Ok((
-                                ty,
-                                modules
-                                    .iter()
-                                    .map(|m| m.ident().to_string())
-                                    .try_join()
-                                    .await?,
-                            ))
-                        })
-                        .try_join()
-                        .await?
-                );
                 for (ty, merged_modules) in merged_modules {
                     let chunk_group_key = match ty {
                         ChunkingType::Isolated {
