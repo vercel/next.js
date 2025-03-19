@@ -328,30 +328,29 @@ pub async fn compute_style_groups(
 
                 // Global CSS must not leak into unrelated chunks
                 let is_global = info.style_type == StyleType::GlobalStyle;
-                if is_global && global_mode {
-                    if all_chunk_states.len() != info.chunk_group_indicies.len() {
-                        // Fast check: chunk groups need to be identical
-                        continue;
-                    }
+                if is_global
+                    && global_mode
+                    && all_chunk_states.len() != info.chunk_group_indicies.len()
+                {
+                    // Fast check: chunk groups need to be identical
+                    continue;
                 }
-                if global_mode {
-                    if info
+                if global_mode
+                    && info
                         .chunk_group_indicies
                         .keys()
                         .any(|idx| !all_chunk_states.contains_key(idx))
-                    {
-                        // Global CSS in new_chunk_items would leak into new chunk_group
-                        continue;
-                    }
+                {
+                    // Global CSS in new_chunk_items would leak into new chunk_group
+                    continue;
                 }
-                if is_global {
-                    if all_chunk_states
+                if is_global
+                    && all_chunk_states
                         .keys()
                         .any(|idx| !info.chunk_group_indicies.contains_key(idx))
-                    {
-                        // Global CSS would leak into existing chunk_group
-                        continue;
-                    }
+                {
+                    // Global CSS would leak into existing chunk_group
+                    continue;
                 }
                 potential_next_modules.remove(&module);
                 current_size += info.size;
